@@ -1,0 +1,181 @@
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { FiArrowLeft, FiCheck } from 'react-icons/fi';
+import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
+import PageTransition from '../../../shared/components/PageTransition';
+
+const Verification = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [codes, setCodes] = useState(['', '', '', '']);
+  const [isLoading, setIsLoading] = useState(false);
+  const inputRefs = useRef([]);
+  
+  const email = location.state?.email || 'your email';
+
+  // Focus first input on mount
+  useEffect(() => {
+    if (inputRefs.current[0]) {
+      inputRefs.current[0].focus();
+    }
+  }, []);
+
+  const handleChange = (index, value) => {
+    // Only allow single digit
+    if (value.length > 1) return;
+    
+    const newCodes = [...codes];
+    newCodes[index] = value;
+    setCodes(newCodes);
+
+    // Auto-focus next input
+    if (value && index < 3) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (index, e) => {
+    // Handle backspace
+    if (e.key === 'Backspace' && !codes[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').trim();
+    if (pastedData.length === 4 && /^\d+$/.test(pastedData)) {
+      const newCodes = pastedData.split('');
+      setCodes(newCodes);
+      inputRefs.current[3]?.focus();
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const verificationCode = codes.join('');
+    
+    if (verificationCode.length !== 4) {
+      toast.error('Please enter the complete verification code');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.success('Verification successful!');
+      navigate('/');
+    } catch (error) {
+      toast.error('Invalid verification code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = () => {
+    toast.success('Verification code sent to your email');
+  };
+
+  return (
+    <PageTransition>
+      <div className="min-h-screen bg-white w-full overflow-x-hidden">
+        <main className="w-full overflow-x-hidden">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-12">
+            <div className="max-w-md mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm"
+              >
+                {/* Back Button */}
+                <button
+                  onClick={() => navigate(-1)}
+                  className="mb-6 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <FiArrowLeft className="mr-2" size={20} />
+                  <span className="text-sm font-medium">Back</span>
+                </button>
+
+                {/* Header */}
+                <div className="text-center mb-8">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Verification</h1>
+                  
+                  {/* Verification Icon */}
+                  <div className="flex justify-center mb-6">
+                    <div className="relative">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-purple-100 flex items-center justify-center">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-purple-200 flex items-center justify-center">
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-purple-500 flex items-center justify-center">
+                            <FiCheck className="text-white" size={24} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2">Verification code</h2>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Enter the verification code we've sent to your{' '}
+                    <span className="font-medium text-gray-900">{email}</span>
+                  </p>
+                </div>
+
+                {/* Code Input Form */}
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="flex justify-center gap-3 sm:gap-4">
+                    {codes.map((code, index) => (
+                      <input
+                        key={index}
+                        ref={(el) => (inputRefs.current[index] = el)}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={code}
+                        onChange={(e) => handleChange(index, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(index, e)}
+                        onPaste={index === 0 ? handlePaste : undefined}
+                        className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 text-center text-xl sm:text-2xl font-semibold focus:outline-none transition-all ${
+                          code
+                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            : 'border-gray-200 focus:border-purple-500 text-gray-900'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isLoading || codes.some(code => !code)}
+                    className="w-full bg-primary-500 hover:bg-primary-600 text-white py-3.5 rounded-xl font-semibold text-base sm:text-lg transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? 'Verifying...' : 'Confirm'}
+                  </button>
+                </form>
+
+                {/* Resend Link */}
+                <div className="mt-6 text-center">
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Didn't receive the code?{' '}
+                    <button
+                      onClick={handleResend}
+                      className="text-primary-600 hover:text-primary-700 font-semibold"
+                    >
+                      Resend
+                    </button>
+                  </p>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </PageTransition>
+  );
+};
+
+export default Verification;
+

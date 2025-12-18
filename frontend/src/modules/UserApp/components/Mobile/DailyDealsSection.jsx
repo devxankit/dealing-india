@@ -1,0 +1,141 @@
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { FiClock, FiZap } from "react-icons/fi";
+import ProductCard from "../../../../shared/components/ProductCard";
+import { getDailyDeals } from "../../../../data/products";
+
+const DailyDealsSection = () => {
+  const dailyDeals = getDailyDeals().slice(0, 4);
+  const [timeLeft, setTimeLeft] = useState({
+    hours: 23,
+    minutes: 59,
+    seconds: 59,
+  });
+
+  // Countdown timer - resets daily
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const difference = endOfDay - now;
+
+      if (difference > 0) {
+        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((difference / (1000 * 60)) % 60);
+        const seconds = Math.floor((difference / 1000) % 60);
+
+        setTimeLeft({ hours, minutes, seconds });
+      } else {
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+
+    calculateTimeLeft();
+    const interval = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTime = (value) => {
+    return value.toString().padStart(2, "0");
+  };
+
+  if (dailyDeals.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="relative my-4 rounded-2xl overflow-hidden shadow-xl border-2 border-red-200 bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500">
+      {/* Decorative Background Pattern */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full blur-2xl"></div>
+      </div>
+
+      {/* Content */}
+      <div className="relative px-3 py-5">
+        {/* Header with Badge */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="bg-white/20 backdrop-blur-sm rounded-full p-2">
+                <FiZap className="text-white text-lg" />
+              </div>
+              <div>
+                <h2 className="text-xl font-extrabold text-white drop-shadow-lg">
+                  Daily Deals
+                </h2>
+                <p className="text-xs text-white/90 font-medium">
+                  Limited time offers
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/app/daily-deals"
+              className="bg-white/20 backdrop-blur-sm text-white text-sm font-bold px-3 py-1.5 rounded-lg hover:bg-white/30 transition-all">
+              See All
+            </Link>
+          </div>
+
+          {/* Prominent Countdown Timer */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl p-4 shadow-2xl border-2 border-white/50">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-lg p-2">
+                <FiClock className="text-white text-xl" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-gray-700 mb-1">
+                  Deal ends in
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
+                    <div className="text-lg font-extrabold">
+                      {formatTime(timeLeft.hours)}
+                    </div>
+                    <div className="text-[9px] opacity-90 font-medium">H</div>
+                  </div>
+                  <span className="text-red-500 font-bold text-lg">:</span>
+                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
+                    <div className="text-lg font-extrabold">
+                      {formatTime(timeLeft.minutes)}
+                    </div>
+                    <div className="text-[9px] opacity-90 font-medium">M</div>
+                  </div>
+                  <span className="text-red-500 font-bold text-lg">:</span>
+                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg animate-pulse">
+                    <div className="text-lg font-extrabold">
+                      {formatTime(timeLeft.seconds)}
+                    </div>
+                    <div className="text-[9px] opacity-90 font-medium">S</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Products Grid */}
+        <div className="flex flex-wrap md:flex-nowrap md:overflow-x-visible gap-3">
+          {dailyDeals.map((product, index) => (
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="w-[calc(50%-0.75rem)] md:w-0 md:flex-1 md:min-w-0">
+              <ProductCard product={product} />
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DailyDealsSection;
