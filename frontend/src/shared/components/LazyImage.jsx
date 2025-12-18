@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { getPlaceholderImage } from "../utils/helpers";
+import {
+  getOptimizedImagePath,
+  getImagePriority,
+  getImageLoadingStrategy
+} from "../utils/imageOptimization";
 
 const LazyImage = ({
   src,
@@ -9,6 +14,7 @@ const LazyImage = ({
   placeholderWidth = 200,
   placeholderHeight = 200,
   placeholderText,
+  context = 'listing', // 'hero', 'product-detail', 'product-listing', 'thumbnail'
   ...props
 }) => {
   const [imageSrc, setImageSrc] = useState(null);
@@ -17,18 +23,29 @@ const LazyImage = ({
   const [fallbackSrc, setFallbackSrc] = useState(null);
   const imgRef = useRef(null);
 
+  // Get optimized image path and loading strategy
+  const optimizedSrc = getOptimizedImagePath(src, context);
+  const loadingStrategy = getImageLoadingStrategy(context);
+
   useEffect(() => {
+    // For high-priority images, load immediately without intersection observer
+    if (loadingStrategy.fetchpriority === 'high') {
+      setImageSrc(optimizedSrc);
+      return;
+    }
+
+    // For low-priority images, use lazy loading
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setImageSrc(src);
+            setImageSrc(optimizedSrc);
             observer.disconnect();
           }
         });
       },
       {
-        rootMargin: "50px", // Start loading 50px before the image enters viewport
+        rootMargin: "100px", // Start loading 100px before the image enters viewport
         threshold: 0.01,
       }
     );
@@ -43,7 +60,7 @@ const LazyImage = ({
       }
       observer.disconnect();
     };
-  }, [src]);
+  }, [optimizedSrc, loadingStrategy.fetchpriority]);
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -90,9 +107,7 @@ const LazyImage = ({
           } ${className || ""}`}
           onLoad={handleLoad}
           onError={handleError}
-          loading="lazy"
-          decoding="async"
-          fetchpriority={props.fetchpriority || "low"}
+          {...loadingStrategy}
           {...props}
         />
       )}

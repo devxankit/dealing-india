@@ -246,6 +246,7 @@ const MobileHome = () => {
                     src={babycareBanner}
                     alt="Baby Care"
                     className="w-full h-full object-cover"
+                    context="hero"
                     onError={(e) => {
                       e.target.src =
                         "https://via.placeholder.com/400x200?text=Baby+Care";
@@ -263,6 +264,7 @@ const MobileHome = () => {
                     src={pharmacyBanner}
                     alt="Pharmacy"
                     className="w-full h-full object-cover"
+                    context="hero"
                     onError={(e) => {
                       e.target.src =
                         "https://via.placeholder.com/400x200?text=Pharmacy";
@@ -280,6 +282,7 @@ const MobileHome = () => {
                     src={petCareBanner}
                     alt="Pet Care"
                     className="w-full h-full object-cover"
+                    context="hero"
                     onError={(e) => {
                       e.target.src =
                         "https://via.placeholder.com/400x200?text=Pet+Care";
@@ -327,6 +330,7 @@ const MobileHome = () => {
                 src={heroBanner2}
                 alt="Trending Items Banner"
                 className="w-full h-full object-cover object-center"
+                context="hero"
                 onError={(e) => {
                   e.target.src =
                     "https://via.placeholder.com/1200x300?text=Banner";

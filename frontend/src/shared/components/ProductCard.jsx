@@ -164,6 +164,7 @@ const ProductCard = ({ product, hideRating = false }) => {
                 alt={product.name}
                 className="w-full h-full object-contain max-w-[85%] max-h-[85%]"
                 style={{ willChange: "transform", transform: "translateZ(0)" }}
+                context="product-listing"
                 onError={(e) => {
                   e.target.src = getPlaceholderImage(300, 300, "Product Image");
                 }}
