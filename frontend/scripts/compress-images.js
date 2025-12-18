@@ -56,3 +56,5 @@ imageDirs.forEach(dir => {
 console.log('\nImage compression completed!');
 console.log('Note: Make sure ImageMagick is installed on your system.');
 console.log('Install with: brew install imagemagick (macOS) or apt-get install imagemagick (Ubuntu)');
+
+

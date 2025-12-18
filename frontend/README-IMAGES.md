@@ -140,3 +140,5 @@ Create a simple HTML file to compress images:
 3. **Implement responsive images** with srcset
 4. **Consider CDN** for image delivery
 5. **Add blur placeholders** for better UX
+
+
