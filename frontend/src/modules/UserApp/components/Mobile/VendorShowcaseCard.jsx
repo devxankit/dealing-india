@@ -72,13 +72,13 @@ const VendorShowcaseCard = ({ vendor, index = 0 }) => {
 
         {/* Product Count */}
         <div className="flex items-center gap-1 text-xs text-gray-600 mb-3">
-          <FiShoppingBag className="text-primary-500" />
+          <FiShoppingBag className="text-green-600" />
           <span>{vendor.totalProducts || 0} products</span>
         </div>
 
         {/* Visit Store Button */}
         <div className="mt-auto w-full">
-          <div className="flex items-center justify-center gap-1 text-primary-600 text-xs font-semibold">
+          <div className="flex items-center justify-center gap-1 text-green-600 text-xs font-semibold">
             <span>Visit Store</span>
             <FiArrowRight className="text-xs" />
           </div>

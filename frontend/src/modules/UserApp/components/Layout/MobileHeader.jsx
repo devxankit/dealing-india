@@ -6,11 +6,13 @@ import {
   FiLogOut,
   FiPackage,
   FiMapPin,
+  FiHeart,
 } from "react-icons/fi";
 import { HiOutlineUserCircle } from "react-icons/hi";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
+import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { appLogo } from "../../../../data/logos";
 import { motion } from "framer-motion";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
@@ -53,6 +55,7 @@ const MobileHeader = () => {
   const cartAnimationTrigger = useUIStore(
     (state) => state.cartAnimationTrigger
   );
+  const wishlistCount = useWishlistStore((state) => state.getItemCount());
   const { user, isAuthenticated, logout } = useAuthStore();
 
   // Get current category from URL (supports both /category/:id and /app/category/:id)
@@ -104,9 +107,10 @@ const MobileHeader = () => {
 
     // Page-specific gradients
     const pageGradients = {
-      home: "linear-gradient(to bottom, rgb(196, 181, 253) 0%, rgb(221, 214, 254) 25%, rgb(245, 243, 255) 50%, rgb(255, 255, 255) 100%)", // Purple gradient for home - lighter intensity
+      home:
+        "linear-gradient(to bottom, rgb(244, 185, 120) 0%, rgb(249, 210, 160) 30%, rgb(224, 242, 203) 60%, rgb(255, 255, 255) 100%)", // Extra-soft orange into soft green
       product:
-        "linear-gradient(to bottom, rgb(237, 233, 254) 0%, rgb(245, 243, 255) 50%, rgb(255, 255, 255) 100%)", // Light purple
+        "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)", // Soft green
       search:
         "linear-gradient(to bottom, rgb(249, 115, 22) 0%, rgb(251, 146, 60) 30%, rgb(255, 237, 213) 60%, rgb(255, 255, 255) 100%)", // Orange gradient
       wishlist:
@@ -126,9 +130,9 @@ const MobileHeader = () => {
       flashSale:
         "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Red gradient
       vendor:
-        "linear-gradient(to bottom, rgb(124, 58, 237) 0%, rgb(167, 139, 250) 30%, rgb(237, 233, 254) 60%, rgb(255, 255, 255) 100%)", // Purple gradient
+        "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 30%, rgb(245, 255, 250) 60%, rgb(255, 255, 255) 100%)", // Light green gradient
       default:
-        "linear-gradient(to bottom, rgb(237, 233, 254) 0%, rgb(245, 243, 255) 50%, rgb(255, 255, 255) 100%)", // Light purple default
+        "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)", // Light green default
     };
 
     return pageGradients[currentPage] || pageGradients.default;
@@ -344,11 +348,9 @@ const MobileHeader = () => {
                   <img
                     src={appLogo.src}
                     alt={appLogo.alt}
-                    className="h-6 sm:h-8 w-auto object-contain origin-left relative z-[10004]"
+                    className="h-10 sm:h-12 w-[150px] object-contain origin-left relative z-[10004]"
                     onError={(e) => {
-                      // Hide image if logo doesn't exist
                       e.target.style.display = "none";
-                      // Show text fallback
                       const parent = e.target.parentElement;
                       if (
                         parent &&
@@ -464,9 +466,15 @@ const MobileHeader = () => {
               </div>
             ) : (
               <Link
-                to="/app/login"
-                className="px-3 py-1.5 gradient-green text-white rounded-lg font-semibold text-sm hover:shadow-glow-green transition-all duration-300">
-                Login
+                to="/app/wishlist"
+                className="relative flex items-center gap-1 px-2 py-1 text-primary-600"
+                aria-label="Wishlist">
+                <FiHeart className="text-xl text-gray-700" />
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[18px] text-center font-bold">
+                    {wishlistCount > 9 ? "9+" : wishlistCount}
+                  </span>
+                )}
               </Link>
             )}
           </div>

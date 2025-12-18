@@ -20,6 +20,7 @@ import {
   FiFileText,
   FiTag,
   FiBell,
+  FiVideo,
   FiHelpCircle,
   FiTruck,
   FiUsers,
@@ -42,6 +43,7 @@ const iconMap = {
   "Wallet History": FiCreditCard,
   "Pickup Locations": FiMapPin,
   Chat: FiMessageCircle,
+  Reels: FiVideo,
   Promotions: FiTag,
   Notifications: FiBell,
   "Shipping Management": FiTruck,
@@ -70,6 +72,10 @@ const getChildRoute = (parentRoute, childName) => {
     "/vendor/orders": {
       "All Orders": "/vendor/orders/all-orders",
       "Order Tracking": "/vendor/orders/order-tracking",
+    },
+    "/vendor/reels": {
+      "All Reels": "/vendor/reels/all-reels",
+      "Add Reel": "/vendor/reels/add-reel",
     },
     "/vendor/earnings": {
       "Earnings Overview": "/vendor/earnings/overview",

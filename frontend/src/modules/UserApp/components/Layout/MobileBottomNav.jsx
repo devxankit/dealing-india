@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiHome, FiGrid, FiSearch, FiHeart, FiUser } from "react-icons/fi";
+import ReelIcon from "../../../../shared/components/Icons/ReelIcon";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
 
@@ -9,21 +10,17 @@ const MobileBottomNav = () => {
   const location = useLocation();
   const wishlistCount = useWishlistStore((state) => state.getItemCount());
   const { isAuthenticated } = useAuthStore();
+  const isReelsPage = location.pathname.startsWith("/app/reels");
 
   const navItems = [
     { path: "/app", icon: FiHome, label: "Home" },
     { path: "/app/categories", icon: FiGrid, label: "Categories" },
+    { path: "/app/reels", icon: ReelIcon, label: "Reels" },
     { path: "/app/search", icon: FiSearch, label: "Search" },
-    {
-      path: "/app/wishlist",
-      icon: FiHeart,
-      label: "Wishlist",
-      badge: wishlistCount > 0 ? wishlistCount : null,
-    },
     {
       path: isAuthenticated ? "/app/profile" : "/app/login",
       icon: FiUser,
-      label: "Profile",
+      label: isAuthenticated ? "Profile" : "Login",
     },
   ];
 
@@ -35,23 +32,31 @@ const MobileBottomNav = () => {
   };
 
   // Animation variants for icon
-  const iconVariants = {
-    inactive: {
-      scale: 1,
-      color: "#878787",
-    },
-    active: {
-      scale: 1.1,
-      color: "#7C3AED", // Primary Buttons color
-      transition: {
-        duration: 0.3,
-        ease: "easeOut",
-      },
-    },
-  };
+  const iconVariants = isReelsPage
+    ? {
+        inactive: { scale: 1, color: "#d1d5db" },
+        active: {
+          scale: 1.1,
+          color: "#ffffff",
+          transition: { duration: 0.3, ease: "easeOut" },
+        },
+      }
+    : {
+        inactive: { scale: 1, color: "#878787" },
+        active: {
+          scale: 1.1,
+          color: "#16a34a",
+          transition: { duration: 0.3, ease: "easeOut" },
+        },
+      };
+
+  const navClass = `
+    fixed bottom-0 left-0 right-0 z-[9999] safe-area-bottom shadow-[0_-2px_10px_rgba(0,0,0,0.05)]
+    ${isReelsPage ? "bg-[#0f0f0f] border-t border-gray-800" : "bg-white border-t border-l border-r border-accent-200/30"}
+  `;
 
   const navContent = (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-l border-r border-accent-200/30 z-[9999] safe-area-bottom shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+    <nav className={navClass}>
       <div className="flex items-center justify-around h-16 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -69,7 +74,7 @@ const MobileBottomNav = () => {
                 {active && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute inset-0 bg-primary-50 rounded-full"
+                    className={`absolute inset-0 rounded-full ${isReelsPage ? "bg-white/10" : "bg-green-50"}`}
                     initial={false}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />

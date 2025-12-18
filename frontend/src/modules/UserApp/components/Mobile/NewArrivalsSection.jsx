@@ -19,7 +19,7 @@ const NewArrivalsSection = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       whileHover={{ scale: 1.01 }}
-      className="relative mx-4 my-4 rounded-2xl overflow-hidden shadow-xl border-2 border-cyan-200 bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-500">
+      className="relative mx-4 my-4 rounded-2xl overflow-hidden shadow-xl border-2 border-green-200 bg-gradient-to-br from-emerald-500 via-green-500 to-lime-300">
       {/* Animated Gradient Overlay */}
       <motion.div
         className="absolute inset-0 opacity-20"
@@ -127,7 +127,7 @@ const NewArrivalsSection = () => {
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Link
               to="/app/search"
-              className="bg-white/20 backdrop-blur-sm text-white text-sm font-bold px-3 py-1.5 rounded-lg hover:bg-white/30 transition-all block">
+              className="bg-white/20 backdrop-blur-sm text-green-200 text-sm font-bold px-3 py-1.5 rounded-lg hover:bg-white/30 transition-all block">
               See All
             </Link>
           </motion.div>

@@ -528,11 +528,7 @@ const MobileCategories = () => {
             </div>
 
             {/* Right Panel - Products Grid */}
-            <div
-              className="w-[78%] overflow-y-auto bg-white flex-shrink-0"
-              style={{
-                maxHeight: `calc(${contentHeight} - ${headerSectionHeight}px)`,
-              }}>
+            <div className="w-[78%] bg-white flex-shrink-0">
               <div className="p-3">
                 {/* Subcategory Selector - Above product cards */}
                 {subcategories.length > 0 && (

@@ -296,7 +296,7 @@ const MobileHome = () => {
               <h2 className="text-xl font-bold text-gray-800">Most Popular</h2>
               <Link
                 to="/app/search"
-                className="text-sm text-primary-600 font-semibold">
+                className="text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
                 See All
               </Link>
             </div>
@@ -347,7 +347,7 @@ const MobileHome = () => {
                 </div>
                 <Link
                   to="/app/flash-sale"
-                  className="text-sm text-primary-600 font-semibold">
+                  className="text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
                   See All
                 </Link>
               </div>
@@ -371,7 +371,7 @@ const MobileHome = () => {
               <h2 className="text-xl font-bold text-gray-800">Trending Now</h2>
               <Link
                 to="/app/search"
-                className="text-sm text-primary-600 font-semibold">
+                className="text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
                 See All
               </Link>
             </div>
@@ -414,8 +414,8 @@ const MobileHome = () => {
                   repeat: Infinity,
                   repeatDelay: 2,
                 }}
-                className="text-primary-500 inline-block">
-                <FiHeart className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl fill-primary-500" />
+                className="text-green-500 inline-block">
+                <FiHeart className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl fill-green-500" />
               </motion.span>
             </motion.h2>
           </motion.div>

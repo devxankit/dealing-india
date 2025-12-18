@@ -26,7 +26,7 @@ const FeaturedVendorsSection = () => {
         </div>
         <Link
           to={vendorsLink}
-          className="flex items-center gap-1 text-sm text-primary-600 font-semibold hover:text-primary-700 transition-colors"
+          className="flex items-center gap-1 text-sm text-green-600 font-semibold hover:text-green-700 transition-colors"
         >
           <span>See All</span>
           <FiArrowRight className="text-sm" />

@@ -137,6 +137,7 @@ import MobileRegister from "./modules/UserApp/pages/Register";
 import MobileVerification from "./modules/UserApp/pages/Verification";
 import MobileProfile from "./modules/UserApp/pages/Profile";
 import MobileOrders from "./modules/UserApp/pages/Orders";
+import MobileReels from "./modules/UserApp/pages/Reels";
 import MobileOrderDetail from "./modules/UserApp/pages/OrderDetail";
 import MobileAddresses from "./modules/UserApp/pages/Addresses";
 import MobileWishlist from "./modules/UserApp/pages/Wishlist";
@@ -159,6 +160,7 @@ import VendorRegister from "./modules/Vendor/pages/Register";
 import VendorVerification from "./modules/Vendor/pages/Verification";
 import VendorProtectedRoute from "./modules/Vendor/components/VendorProtectedRoute";
 import VendorLayout from "./modules/Vendor/components/Layout/VendorLayout";
+import VendorReels from "./modules/Vendor/pages/Reels";
 import VendorDashboard from "./modules/Vendor/pages/Dashboard";
 import VendorProducts from "./modules/Vendor/pages/Products";
 import VendorManageProducts from "./modules/Vendor/pages/products/ManageProducts";
@@ -181,6 +183,9 @@ import VendorReturnRequestDetail from "./modules/Vendor/pages/returns/ReturnRequ
 import VendorProductReviews from "./modules/Vendor/pages/ProductReviews";
 import VendorPromotions from "./modules/Vendor/pages/Promotions";
 import VendorNotifications from "./modules/Vendor/pages/Notifications";
+import VendorAllReels from "./modules/Vendor/pages/reels/AllReels";
+import VendorAddReel from "./modules/Vendor/pages/reels/AddReel";
+import VendorEditReel from "./modules/Vendor/pages/reels/EditReel";
 import VendorProductFAQs from "./modules/Vendor/pages/ProductFAQs";
 import VendorTaxPricing from "./modules/Vendor/pages/TaxPricing";
 import VendorShippingManagement from "./modules/Vendor/pages/ShippingManagement";
@@ -540,6 +545,10 @@ const AppRoutes = () => {
         <Route path="orders/all-orders" element={<VendorAllOrders />} />
         <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
         <Route path="orders/:id" element={<VendorOrderDetail />} />
+        <Route path="reels" element={<VendorReels />} />
+        <Route path="reels/all-reels" element={<VendorAllReels />} />
+        <Route path="reels/add-reel" element={<VendorAddReel />} />
+        <Route path="reels/edit-reel/:id" element={<VendorEditReel />} />
         <Route path="analytics" element={<VendorAnalytics />} />
         <Route path="earnings" element={<VendorEarnings />} />
         <Route path="earnings/overview" element={<VendorEarnings />} />
@@ -639,6 +648,14 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <MobileSearch />
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/app/reels"
+        element={
+          <RouteWrapper>
+            <MobileReels />
           </RouteWrapper>
         }
       />

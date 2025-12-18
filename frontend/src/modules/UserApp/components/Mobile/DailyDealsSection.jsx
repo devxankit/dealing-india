@@ -48,7 +48,7 @@ const DailyDealsSection = () => {
   }
 
   return (
-    <div className="relative my-4 rounded-2xl overflow-hidden shadow-xl border-2 border-red-200 bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500">
+    <div className="relative my-4 rounded-2xl overflow-hidden shadow-xl border-2 border-green-200 bg-gradient-to-br from-emerald-500 via-green-500 to-lime-300">
       {/* Decorative Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl"></div>
@@ -75,7 +75,7 @@ const DailyDealsSection = () => {
             </div>
             <Link
               to="/app/daily-deals"
-              className="bg-white/20 backdrop-blur-sm text-white text-sm font-bold px-3 py-1.5 rounded-lg hover:bg-white/30 transition-all">
+              className="bg-white/20 backdrop-blur-sm text-green-200 text-sm font-bold px-3 py-1.5 rounded-lg hover:bg-white/30 transition-all">
               See All
             </Link>
           </div>
@@ -86,7 +86,7 @@ const DailyDealsSection = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-xl p-4 shadow-2xl border-2 border-white/50">
             <div className="flex items-center gap-3 mb-2">
-              <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-lg p-2">
+              <div className="bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg p-2">
                 <FiClock className="text-white text-xl" />
               </div>
               <div className="flex-1">
@@ -94,21 +94,21 @@ const DailyDealsSection = () => {
                   Deal ends in
                 </p>
                 <div className="flex items-center gap-2">
-                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
+                  <div className="bg-gradient-to-br from-emerald-500 to-green-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
                     <div className="text-lg font-extrabold">
                       {formatTime(timeLeft.hours)}
                     </div>
                     <div className="text-[9px] opacity-90 font-medium">H</div>
                   </div>
-                  <span className="text-red-500 font-bold text-lg">:</span>
-                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
+                  <span className="text-green-600 font-bold text-lg">:</span>
+                  <div className="bg-gradient-to-br from-emerald-500 to-green-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
                     <div className="text-lg font-extrabold">
                       {formatTime(timeLeft.minutes)}
                     </div>
                     <div className="text-[9px] opacity-90 font-medium">M</div>
                   </div>
-                  <span className="text-red-500 font-bold text-lg">:</span>
-                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg animate-pulse">
+                  <span className="text-green-600 font-bold text-lg">:</span>
+                  <div className="bg-gradient-to-br from-emerald-500 to-green-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg animate-pulse">
                     <div className="text-lg font-extrabold">
                       {formatTime(timeLeft.seconds)}
                     </div>

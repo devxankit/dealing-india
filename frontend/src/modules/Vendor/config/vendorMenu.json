@@ -15,6 +15,11 @@
     "children": ["All Orders", "Order Tracking"]
   },
   {
+    "title": "Reels",
+    "route": "/vendor/reels",
+    "children": ["All Reels", "Add Reel"]
+  },
+  {
     "title": "Return Requests",
     "route": "/vendor/return-requests",
     "children": []

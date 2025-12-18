@@ -91,6 +91,8 @@ const LazyImage = ({
           onLoad={handleLoad}
           onError={handleError}
           loading="lazy"
+          decoding="async"
+          fetchpriority={props.fetchpriority || "low"}
           {...props}
         />
       )}
