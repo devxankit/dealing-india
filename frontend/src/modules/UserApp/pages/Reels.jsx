@@ -12,7 +12,36 @@ import toast from 'react-hot-toast';
 
 // Mock reel data - fallback when no vendor reels exist
 // Using product-related sample videos that showcase fashion, accessories, and lifestyle products
+// Mock reel data - fallback when no vendor reels exist
+// Using product-related sample videos that showcase fashion, accessories, and lifestyle products
+import reel1 from '../../../../data/Reels/reel1.mp4';
+import reel2 from '../../../../data/Reels/reel2.mp4';
+
 const mockReels = [
+  {
+    id: 1001,
+    videoUrl: reel1,
+    thumbnail: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400',
+    productId: 1001,
+    productName: 'Trending Reel 1',
+    productPrice: 199.99,
+    vendorName: 'Featured Seller',
+    likes: 150,
+    comments: 10,
+    shares: 5,
+  },
+  {
+    id: 1002,
+    videoUrl: reel2,
+    thumbnail: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400',
+    productId: 1002,
+    productName: 'Trending Reel 2',
+    productPrice: 299.99,
+    vendorName: 'Featured Seller',
+    likes: 120,
+    comments: 8,
+    shares: 3,
+  },
   {
     id: 1,
     videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
@@ -212,7 +241,7 @@ const Reels = () => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [slideDirection, setSlideDirection] = useState(1); // 1 = next/down, -1 = prev/up
   const [posterMap, setPosterMap] = useState({});
-  
+
   // Refresh reels data when component mounts
   useEffect(() => {
     const updatedReels = getReelsData();
@@ -245,7 +274,7 @@ const Reels = () => {
   }, []);
 
   const currentReel = reelsData[currentIndex];
-  
+
   // Get vendor ID from product
   const getVendorIdFromProduct = (productId) => {
     const product = getProductById(productId);
@@ -261,25 +290,34 @@ const Reels = () => {
         video.muted = true;
       }
     });
-    
+
     // Small delay to ensure previous video is stopped
     const timer = setTimeout(() => {
       const currentVideo = videoRefs.current[currentIndex];
       if (currentVideo) {
         if (isPlaying) {
+          // Try to play unmuted first
           currentVideo.muted = false;
           const playPromise = currentVideo.play();
+
           if (playPromise !== undefined) {
             playPromise
               .then(() => {
-                // Video is playing
+                // Video is playing with sound
               })
               .catch((error) => {
-                console.error('Error playing video:', error);
-                // Try again after a short delay
-                setTimeout(() => {
-                  currentVideo.play().catch(console.error);
-                }, 100);
+                // If unmuted play fails, try muted
+                if (error.name === 'NotAllowedError') {
+                  console.log('Autoplay blocked, falling back to muted');
+                  currentVideo.muted = true;
+                  currentVideo.play().catch(e => console.error("Muted play failed", e));
+                } else {
+                  console.error('Error playing video:', error);
+                  // Try again after a short delay
+                  setTimeout(() => {
+                    currentVideo.play().catch(console.error);
+                  }, 100);
+                }
               });
           }
         } else {
@@ -300,12 +338,24 @@ const Reels = () => {
         video.muted = true;
       }
     });
-    
+
     // Play only the current video
     const video = videoRefs.current[index];
     if (video && index === currentIndex && isPlaying) {
+      // Try unmuted first
       video.muted = false;
-      video.play().catch(console.error);
+      const playPromise = video.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          if (error.name === 'NotAllowedError') {
+            video.muted = true;
+            video.play().catch(console.error);
+          } else {
+            console.error(error);
+          }
+        });
+      }
 
       // Capture a poster frame from the video to avoid black flashes
       const reel = reelsData[index];
@@ -345,11 +395,11 @@ const Reels = () => {
   // Handle swipe gestures
   const handleWheel = (e) => {
     if (isSwipingRef.current) return; // Prevent multiple triggers
-    
+
     if (Math.abs(e.deltaY) > 50) {
       isSwipingRef.current = true;
       setSlideDirection(e.deltaY > 0 ? 1 : -1);
-      
+
       // Pause all videos before switching
       Object.values(videoRefs.current).forEach((video) => {
         if (video) {
@@ -357,13 +407,13 @@ const Reels = () => {
           video.muted = true;
         }
       });
-      
+
       if (e.deltaY > 0 && currentIndex < reelsData.length - 1) {
         setCurrentIndex((prev) => Math.min(prev + 1, reelsData.length - 1));
       } else if (e.deltaY < 0 && currentIndex > 0) {
         setCurrentIndex((prev) => Math.max(prev - 1, 0));
       }
-      
+
       // Reset flag after a short delay
       setTimeout(() => {
         isSwipingRef.current = false;
@@ -384,10 +434,10 @@ const Reels = () => {
     if (isSwipingRef.current) {
       return;
     }
-    
+
     // Store the element where touch started
     touchStartElementRef.current = e.target;
-    
+
     const touch = e.targetTouches[0];
     setTouchEnd(null);
     setTouchStart(touch.clientY);
@@ -411,11 +461,11 @@ const Reels = () => {
       touchStartElementRef.current = null;
       return;
     }
-    
+
     if (touchStart === null) {
       return;
     }
-    
+
     // Check if touch ended on a button or interactive element
     const touchEndElement = e.target || e.changedTouches[0]?.target;
     const isButtonClick = touchStartElementRef.current && (
@@ -423,11 +473,11 @@ const Reels = () => {
       touchStartElementRef.current.closest('a') ||
       touchStartElementRef.current.closest('[role="button"]')
     ) && (
-      touchEndElement?.closest('button') ||
-      touchEndElement?.closest('a') ||
-      touchEndElement?.closest('[role="button"]')
-    );
-    
+        touchEndElement?.closest('button') ||
+        touchEndElement?.closest('a') ||
+        touchEndElement?.closest('[role="button"]')
+      );
+
     // If it's a button click, don't trigger swipe
     if (isButtonClick) {
       setTouchStart(null);
@@ -436,7 +486,7 @@ const Reels = () => {
       touchStartElementRef.current = null;
       return;
     }
-    
+
     // If touchEnd is null, use touchStart as fallback (no movement)
     const endY = touchEnd !== null ? touchEnd : touchStart;
     const distance = touchStart - endY;
@@ -447,7 +497,7 @@ const Reels = () => {
       isSwipingRef.current = true;
       // Swipe up -> next reel (enter from bottom, exit to top)
       setSlideDirection(1);
-      
+
       // Pause all videos before switching
       Object.values(videoRefs.current).forEach((video) => {
         if (video) {
@@ -455,9 +505,9 @@ const Reels = () => {
           video.muted = true;
         }
       });
-      
+
       setCurrentIndex((prev) => Math.min(prev + 1, reelsData.length - 1));
-      
+
       // Reset flag after transition completes
       setTimeout(() => {
         isSwipingRef.current = false;
@@ -466,7 +516,7 @@ const Reels = () => {
       isSwipingRef.current = true;
       // Swipe down -> previous reel (enter from top, exit to bottom)
       setSlideDirection(-1);
-      
+
       // Pause all videos before switching
       Object.values(videoRefs.current).forEach((video) => {
         if (video) {
@@ -474,9 +524,9 @@ const Reels = () => {
           video.muted = true;
         }
       });
-      
+
       setCurrentIndex((prev) => Math.max(prev - 1, 0));
-      
+
       // Reset flag after transition completes
       setTimeout(() => {
         isSwipingRef.current = false;
@@ -617,7 +667,7 @@ const Reels = () => {
     setHoveredRating(0);
     setCommentsUpdateTrigger(prev => prev + 1); // Trigger comments update
     toast.success('Comment added!');
-    
+
     // Scroll to top to show the new comment (since it's added first)
     setTimeout(() => {
       const commentsContainer = document.querySelector('.comments-list-container');
@@ -658,7 +708,7 @@ const Reels = () => {
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          style={{ 
+          style={{
             touchAction: 'pan-y',
             height: 'calc(100vh - 64px)', // Account for bottom nav (h-16 = 64px)
             position: 'fixed',
@@ -704,7 +754,7 @@ const Reels = () => {
                   src={currentReel.videoUrl}
                   className="w-full h-full object-cover"
                   loop={false}
-                  muted={false}
+                  muted={true}
                   autoPlay
                   playsInline
                   poster={posterMap[currentReel.id]}
@@ -770,11 +820,10 @@ const Reels = () => {
                   animate={{ scale: likedReels.has(currentReel.id) ? [1, 1.2, 1] : 1 }}
                   transition={{ duration: 0.3 }}>
                   <FiHeart
-                    className={`text-3xl ${
-                      likedReels.has(currentReel.id)
+                    className={`text-3xl ${likedReels.has(currentReel.id)
                         ? 'text-red-500 fill-red-500'
                         : 'text-white'
-                    }`}
+                      }`}
                   />
                 </motion.div>
                 <span className="text-white text-xs font-medium">
@@ -783,7 +832,7 @@ const Reels = () => {
               </button>
 
               {/* Comment Button */}
-              <button 
+              <button
                 onClick={handleComment}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
@@ -795,7 +844,7 @@ const Reels = () => {
               </button>
 
               {/* Share Button */}
-              <button 
+              <button
                 onClick={handleShare}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
@@ -815,7 +864,7 @@ const Reels = () => {
                   className="hover:opacity-80 transition-opacity">
                   <FiMoreVertical className="text-2xl text-white" />
                 </button>
-                
+
                 {/* More Options Menu */}
                 <AnimatePresence>
                   {showMoreOptions && (
@@ -881,7 +930,7 @@ const Reels = () => {
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 30, stiffness: 300 }}
                 className="fixed bottom-0 left-0 right-0 bg-black border-t border-l border-r border-gray-800 rounded-t-2xl z-[10001] flex flex-col shadow-[0_-2px_10px_rgba(255,255,255,0.1)]"
-                style={{ 
+                style={{
                   height: '70vh',
                   maxHeight: '70vh',
                   minHeight: '70vh'
@@ -914,17 +963,16 @@ const Reels = () => {
                           onMouseLeave={() => setHoveredRating(0)}
                           className="focus:outline-none">
                           <FiStar
-                            className={`text-base transition-colors ${
-                              star <= (hoveredRating || commentRating)
+                            className={`text-base transition-colors ${star <= (hoveredRating || commentRating)
                                 ? 'text-yellow-400 fill-yellow-400'
                                 : 'text-gray-500'
-                            }`}
+                              }`}
                           />
                         </button>
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Comment Input */}
                   <div className="flex items-center gap-2">
                     <input
@@ -972,11 +1020,10 @@ const Reels = () => {
                                 {[...Array(5)].map((_, i) => (
                                   <FiStar
                                     key={i}
-                                    className={`text-[10px] ${
-                                      i < comment.rating
+                                    className={`text-[10px] ${i < comment.rating
                                         ? 'text-yellow-400 fill-yellow-400'
                                         : 'text-gray-500'
-                                    }`}
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -985,9 +1032,9 @@ const Reels = () => {
                           <p className="text-gray-400 text-[10px]">
                             {comment.date
                               ? new Date(comment.date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                })
+                                month: 'short',
+                                day: 'numeric',
+                              })
                               : 'Recently'}
                           </p>
                         </div>
