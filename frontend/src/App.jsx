@@ -543,6 +543,12 @@ const AppRoutes = () => {
         <Route path="products/:id" element={<VendorProductForm />} />
         <Route path="orders" element={<VendorOrders />} />
         <Route path="orders/all-orders" element={<VendorAllOrders />} />
+        <Route path="orders/hold-order" element={<VendorAllOrders />} />
+        <Route path="orders/pending-order" element={<VendorAllOrders />} />
+        <Route path="orders/ready-to-ship" element={<VendorAllOrders />} />
+        <Route path="orders/dispatch-order" element={<VendorAllOrders />} />
+        <Route path="orders/shipped-seller" element={<VendorAllOrders />} />
+        <Route path="orders/canceled-order" element={<VendorAllOrders />} />
         <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
         <Route path="orders/:id" element={<VendorOrderDetail />} />
         <Route path="reels" element={<VendorReels />} />
@@ -560,8 +566,19 @@ const AppRoutes = () => {
           path="earnings/settlement-history"
           element={<VendorEarnings />}
         />
+        <Route
+          path="earnings/advertisement-payment"
+          element={<VendorEarnings />}
+        />
         <Route path="stock-management" element={<VendorStockManagement />} />
+        <Route path="stock-management/all" element={<VendorStockManagement />} />
+        <Route path="stock-management/in-stock" element={<VendorStockManagement />} />
+        <Route path="stock-management/low-stock" element={<VendorStockManagement />} />
+        <Route path="stock-management/out-of-stock" element={<VendorStockManagement />} />
         <Route path="wallet-history" element={<VendorWalletHistory />} />
+        <Route path="wallet-history/all-transactions" element={<VendorWalletHistory />} />
+        <Route path="wallet-history/pending-payment" element={<VendorWalletHistory />} />
+        <Route path="wallet-history/paid-payment" element={<VendorWalletHistory />} />
         <Route path="pickup-locations" element={<VendorPickupLocations />} />
         <Route path="chat" element={<VendorChat />} />
         <Route path="return-requests" element={<VendorReturnRequests />} />

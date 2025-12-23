@@ -7,6 +7,7 @@ import {
   FiCheckCircle,
   FiFileText,
   FiDownload,
+  FiVolume2,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import Badge from "../../../shared/components/Badge";
@@ -33,6 +34,7 @@ const Earnings = () => {
     const path = location.pathname;
     if (path.includes("/commission-history")) return "commission";
     if (path.includes("/settlement-history")) return "settlement";
+    if (path.includes("/advertisement-payment")) return "advertisement";
     return "overview"; // Default to overview
   };
 
@@ -91,6 +93,8 @@ const Earnings = () => {
       navigate("/vendor/earnings/commission-history");
     } else if (tab === "settlement") {
       navigate("/vendor/earnings/settlement-history");
+    } else if (tab === "advertisement") {
+      navigate("/vendor/earnings/advertisement-payment");
     }
   };
 
@@ -140,6 +144,15 @@ const Earnings = () => {
                 }`}>
               <FiCheckCircle />
               <span>Settlement History</span>
+            </button>
+            <button
+              onClick={() => handleTabChange("advertisement")}
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap text-sm ${activeTab === "advertisement"
+                ? "border-purple-600 text-purple-600 font-semibold"
+                : "border-transparent text-gray-600 hover:text-gray-800"
+                }`}>
+              <FiVolume2 />
+              <span>Advertisement Payment</span>
             </button>
           </div>
         </div>
@@ -447,6 +460,17 @@ const Earnings = () => {
               <p className="text-gray-500 mb-2">No settlement records found</p>
               <p className="text-sm text-gray-400">
                 Settlements will appear here once your commissions are paid
+              </p>
+            </div>
+          )}
+
+          {/* Advertisement Payment Section */}
+          {activeTab === "advertisement" && (
+            <div className="text-center py-12">
+              <FiVolume2 className="text-4xl text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 mb-2">No advertisement payment records found</p>
+              <p className="text-sm text-gray-400">
+                Payment history for your advertisements will appear here
               </p>
             </div>
           )}

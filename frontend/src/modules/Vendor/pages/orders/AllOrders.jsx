@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FiSearch,
   FiEye,
@@ -22,11 +22,24 @@ import toast from 'react-hot-toast';
 
 const AllOrders = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { vendor } = useVendorAuthStore();
   const { orders } = useOrderStore();
   const [vendorOrders, setVendorOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+
+  // Update selected status based on URL path
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/vendor/orders/hold-order')) setSelectedStatus('on_hold');
+    else if (path.includes('/vendor/orders/pending-order')) setSelectedStatus('pending');
+    else if (path.includes('/vendor/orders/ready-to-ship')) setSelectedStatus('ready_to_ship');
+    else if (path.includes('/vendor/orders/dispatch-order')) setSelectedStatus('dispatched');
+    else if (path.includes('/vendor/orders/shipped-seller')) setSelectedStatus('shipped_seller');
+    else if (path.includes('/vendor/orders/canceled-order')) setSelectedStatus('cancelled');
+    else setSelectedStatus('all');
+  }, [location.pathname]);
 
   const vendorId = vendor?.id;
 
@@ -215,6 +228,10 @@ const AllOrders = () => {
               options={[
                 { value: 'all', label: 'All Status' },
                 { value: 'pending', label: 'Pending' },
+                { value: 'on_hold', label: 'Hold' },
+                { value: 'ready_to_ship', label: 'Ready to Ship' },
+                { value: 'dispatched', label: 'Dispatched' },
+                { value: 'shipped_seller', label: 'Shipped (Seller)' },
                 { value: 'processing', label: 'Processing' },
                 { value: 'shipped', label: 'Shipped' },
                 { value: 'delivered', label: 'Delivered' },

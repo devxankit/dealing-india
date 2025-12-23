@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   FiSearch,
   FiAlertTriangle,
@@ -21,12 +22,22 @@ import { useVendorStore } from "../store/vendorStore";
 import toast from "react-hot-toast";
 
 const StockManagement = () => {
+  const location = useLocation();
   const { vendor } = useVendorAuthStore();
   const { getVendorProducts } = useVendorStore();
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
+
+  // Update selected status based on URL path
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/vendor/stock-management/in-stock')) setStockFilter('in_stock');
+    else if (path.includes('/vendor/stock-management/low-stock')) setStockFilter('low_stock');
+    else if (path.includes('/vendor/stock-management/out-of-stock')) setStockFilter('out_of_stock');
+    else setStockFilter('all');
+  }, [location.pathname]);
   const [stockModal, setStockModal] = useState({
     isOpen: false,
     product: null,
@@ -109,8 +120,8 @@ const StockManagement = () => {
           newQuantity === 0
             ? "out_of_stock"
             : newQuantity <= lowStockThreshold
-            ? "low_stock"
-            : "in_stock";
+              ? "low_stock"
+              : "in_stock";
         return {
           ...p,
           stockQuantity: parseInt(newQuantity),
@@ -190,8 +201,8 @@ const StockManagement = () => {
             value === "in_stock"
               ? "success"
               : value === "low_stock"
-              ? "warning"
-              : "error"
+                ? "warning"
+                : "error"
           }>
           {value?.replace("_", " ").toUpperCase() || "N/A"}
         </Badge>
@@ -416,8 +427,8 @@ const StockUpdateModal = ({
     stockQuantity === 0
       ? "out_of_stock"
       : stockQuantity <= lowStockThreshold
-      ? "low_stock"
-      : "in_stock";
+        ? "low_stock"
+        : "in_stock";
 
   return (
     <AnimatePresence>
@@ -535,8 +546,8 @@ const StockUpdateModal = ({
                       newStockStatus === "in_stock"
                         ? "success"
                         : newStockStatus === "low_stock"
-                        ? "warning"
-                        : "error"
+                          ? "warning"
+                          : "error"
                     }>
                     {newStockStatus.replace("_", " ").toUpperCase()}
                   </Badge>

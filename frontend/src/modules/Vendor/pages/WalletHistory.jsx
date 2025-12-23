@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   FiDollarSign,
   FiTrendingUp,
@@ -24,11 +25,25 @@ const WalletHistory = () => {
     getVendorSettlements,
   } = useCommissionStore();
   const { orders } = useOrderStore();
+  const location = useLocation();
 
   const [transactions, setTransactions] = useState([]);
   const [filterType, setFilterType] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [walletSummary, setWalletSummary] = useState(null);
+
+  // Update filters based on URL path
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/vendor/wallet-history/pending-payment')) {
+      setStatusFilter('pending');
+    } else if (path.includes('/vendor/wallet-history/paid-payment')) {
+      setStatusFilter('paid');
+    } else {
+      setStatusFilter('all');
+    }
+  }, [location.pathname]);
 
   const vendorId = vendor?.id;
 
@@ -85,9 +100,8 @@ const WalletHistory = () => {
     }
 
     // Filter by status
-    if (filterType === "earning") {
-      // For earnings, we can filter by status (pending/paid)
-      // This is handled by the filterType already
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((t) => t.status === statusFilter);
     }
 
     // Filter by date range

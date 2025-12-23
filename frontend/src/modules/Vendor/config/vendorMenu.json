@@ -7,17 +7,35 @@
   {
     "title": "Products",
     "route": "/vendor/products",
-    "children": ["Manage Products", "Add Product", "Bulk Upload", "Product FAQs", "Tax & Pricing", "Product Attributes"]
+    "children": [
+      "Manage Products",
+      "Add Product",
+      "Bulk Upload",
+      "Product FAQs",
+      "Tax & Pricing",
+      "Product Attributes"
+    ]
   },
   {
-    "title": "Orders",
+    "title": "Order",
     "route": "/vendor/orders",
-    "children": ["All Orders", "Order Tracking"]
+    "children": [
+      "All orders",
+      "Hold order",
+      "Pending order",
+      "Ready to ship",
+      "Dispatch order",
+      "Shipped seller",
+      "Canceled order"
+    ]
   },
   {
     "title": "Reels",
     "route": "/vendor/reels",
-    "children": ["All Reels", "Add Reel"]
+    "children": [
+      "All Reels",
+      "Add Reel"
+    ]
   },
   {
     "title": "Return Requests",
@@ -32,12 +50,21 @@
   {
     "title": "Stock Management",
     "route": "/vendor/stock-management",
-    "children": []
+    "children": [
+      "All stock",
+      "In stock",
+      "Low stock",
+      "Out of stock"
+    ]
   },
   {
     "title": "Wallet History",
     "route": "/vendor/wallet-history",
-    "children": []
+    "children": [
+      "All transactions",
+      "Pending payment",
+      "Paid payment"
+    ]
   },
   {
     "title": "Pickup Locations",
@@ -100,13 +127,18 @@
     "children": [
       "Earnings Overview",
       "Commission History",
-      "Settlement History"
+      "Settlement History",
+      "Advertisement payment"
     ]
   },
   {
     "title": "Settings",
     "route": "/vendor/settings",
-    "children": ["Store Settings", "Payment Settings", "Shipping Settings"]
+    "children": [
+      "Store Settings",
+      "Payment Settings",
+      "Shipping Settings"
+    ]
   },
   {
     "title": "Profile",

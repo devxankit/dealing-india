@@ -59,8 +59,7 @@ const SearchBar = () => {
   const getProductSuggestions = (query) => {
     if (!query.trim()) return [];
     const lowerQuery = query.toLowerCase();
-    return products
-      .filter((product) => product.name.toLowerCase().includes(lowerQuery))
+    return getAllProducts().filter((product) => product.name.toLowerCase().includes(lowerQuery))
       .slice(0, MAX_SUGGESTIONS)
       .map((product) => ({
         type: 'product',
@@ -135,8 +134,8 @@ const SearchBar = () => {
     if (searchQuery.trim()) {
       saveRecentSearch(searchQuery);
       const searchRoute = isMobileApp
-        ? `/ app / search ? q = ${encodeURIComponent(searchQuery.trim())} `
-        : `/ search ? q = ${encodeURIComponent(searchQuery.trim())} `;
+        ? `/app/search?q=${encodeURIComponent(searchQuery.trim())}`
+        : `/search?q=${encodeURIComponent(searchQuery.trim())}`;
       navigate(searchRoute);
       setShowSuggestions(false);
     }
@@ -151,8 +150,8 @@ const SearchBar = () => {
       if (index < suggestions.length) {
         selectedItem = suggestions[index];
         const productRoute = isMobileApp
-          ? `/ app / product / ${selectedItem.id} `
-          : `/ product / ${selectedItem.id} `;
+          ? `/app/product/${selectedItem.id}`
+          : `/product/${selectedItem.id}`;
         navigate(productRoute);
       }
     } else {
@@ -162,16 +161,16 @@ const SearchBar = () => {
         setSearchQuery(query);
         saveRecentSearch(query);
         const searchRoute = isMobileApp
-          ? `/ app / search ? q = ${encodeURIComponent(query)} `
-          : `/ search ? q = ${encodeURIComponent(query)} `;
+          ? `/app/search?q=${encodeURIComponent(query)}`
+          : `/search?q=${encodeURIComponent(query)}`;
         navigate(searchRoute);
       } else if (index < recentSearches.length + popularSearches.length) {
         const query = popularSearches[index - recentSearches.length];
         setSearchQuery(query);
         saveRecentSearch(query);
         const searchRoute = isMobileApp
-          ? `/ app / search ? q = ${encodeURIComponent(query)} `
-          : `/ search ? q = ${encodeURIComponent(query)} `;
+          ? `/app/search?q=${encodeURIComponent(query)}`
+          : `/search?q=${encodeURIComponent(query)}`;
         navigate(searchRoute);
       }
     }

@@ -36,7 +36,7 @@ import vendorMenu from "../../config/vendorMenu.json";
 const iconMap = {
   Dashboard: FiHome,
   Products: FiPackage,
-  Orders: FiShoppingBag,
+  Order: FiShoppingBag,
   "Return Requests": FiRefreshCw,
   "Product Reviews": FiStar,
   "Stock Management": FiTrendingDown,
@@ -70,8 +70,13 @@ const getChildRoute = (parentRoute, childName) => {
       "Product Attributes": "/vendor/products/product-attributes",
     },
     "/vendor/orders": {
-      "All Orders": "/vendor/orders/all-orders",
-      "Order Tracking": "/vendor/orders/order-tracking",
+      "All orders": "/vendor/orders/all-orders",
+      "Hold order": "/vendor/orders/hold-order",
+      "Pending order": "/vendor/orders/pending-order",
+      "Ready to ship": "/vendor/orders/ready-to-ship",
+      "Dispatch order": "/vendor/orders/dispatch-order",
+      "Shipped seller": "/vendor/orders/shipped-seller",
+      "Canceled order": "/vendor/orders/canceled-order",
     },
     "/vendor/reels": {
       "All Reels": "/vendor/reels/all-reels",
@@ -81,6 +86,18 @@ const getChildRoute = (parentRoute, childName) => {
       "Earnings Overview": "/vendor/earnings/overview",
       "Commission History": "/vendor/earnings/commission-history",
       "Settlement History": "/vendor/earnings/settlement-history",
+      "Advertisement payment": "/vendor/earnings/advertisement-payment",
+    },
+    "/vendor/stock-management": {
+      "All stock": "/vendor/stock-management/all",
+      "In stock": "/vendor/stock-management/in-stock",
+      "Low stock": "/vendor/stock-management/low-stock",
+      "Out of stock": "/vendor/stock-management/out-of-stock",
+    },
+    "/vendor/wallet-history": {
+      "All transactions": "/vendor/wallet-history/all-transactions",
+      "Pending payment": "/vendor/wallet-history/pending-payment",
+      "Paid payment": "/vendor/wallet-history/paid-payment",
     },
     "/vendor/settings": {
       "Store Settings": "/vendor/settings/store",
@@ -192,10 +209,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
         <div
           className={`
             flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer
-            ${
-              active
-                ? "bg-primary-600 text-white shadow-sm"
-                : "text-gray-300 hover:bg-slate-700"
+            ${active
+              ? "bg-primary-600 text-white shadow-sm"
+              : "text-gray-300 hover:bg-slate-700"
             }
           `}
           onClick={() => {
@@ -206,9 +222,8 @@ const VendorSidebar = ({ isOpen, onClose }) => {
             }
           }}>
           <Icon
-            className={`text-xl flex-shrink-0 ${
-              active ? "text-white" : "text-gray-400"
-            }`}
+            className={`text-xl flex-shrink-0 ${active ? "text-white" : "text-gray-400"
+              }`}
           />
           <span className="font-medium flex-1 text-sm">{item.title}</span>
           {hasChildren && (
@@ -245,10 +260,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
                       }
                       className={`
                         px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer
-                        ${
-                          isChildActive
-                            ? "bg-primary-500/20 text-white font-medium"
-                            : "text-gray-400 hover:bg-slate-700"
+                        ${isChildActive
+                          ? "bg-primary-500/20 text-white font-medium"
+                          : "text-gray-400 hover:bg-slate-700"
                         }
                       `}>
                       {child}
