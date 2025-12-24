@@ -26,6 +26,7 @@ import {
   FiChevronDown,
   FiX,
   FiUser,
+  FiGift,
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -44,6 +45,7 @@ const iconMap = {
   "Delivery Management": FiTruck,
   Locations: FiMapPin,
   "Offers & Sliders": FiImage,
+  "Mega Reward": FiGift,
   "Promo Codes": FiPercent,
   Notifications: FiBell,
   "Support Desk": FiMessageCircle,
@@ -98,6 +100,11 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/offers": {
       "Home Sliders": "/admin/offers/home-sliders",
       "Festival Offers": "/admin/offers/festival-offers",
+    },
+    "/admin/mega-reward": {
+      "Entries": "/admin/mega-reward/entries",
+      "Winners": "/admin/mega-reward/winners",
+      "Settings": "/admin/mega-reward/settings",
     },
     "/admin/notifications": {
       "Push Notifications": "/admin/notifications/push-notifications",
@@ -277,10 +284,9 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         <div
           className={`
             flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer
-            ${
-              active
-                ? "bg-primary-600 text-white shadow-sm"
-                : "text-gray-300 hover:bg-slate-700"
+            ${active
+              ? "bg-primary-600 text-white shadow-sm"
+              : "text-gray-300 hover:bg-slate-700"
             }
           `}
           onClick={() => {
@@ -293,9 +299,8 @@ const AdminSidebar = ({ isOpen, onClose }) => {
             }
           }}>
           <Icon
-            className={`text-xl flex-shrink-0 ${
-              active ? "text-white" : "text-gray-400"
-            }`}
+            className={`text-xl flex-shrink-0 ${active ? "text-white" : "text-gray-400"
+              }`}
           />
           <span className="font-medium flex-1 text-sm">{item.title}</span>
           {hasChildren && (
@@ -332,10 +337,9 @@ const AdminSidebar = ({ isOpen, onClose }) => {
                       }
                       className={`
                         px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer
-                        ${
-                          isChildActive
-                            ? "bg-primary-500/20 text-white font-medium"
-                            : "text-gray-400 hover:bg-slate-700"
+                        ${isChildActive
+                          ? "bg-primary-500/20 text-white font-medium"
+                          : "text-gray-400 hover:bg-slate-700"
                         }
                       `}>
                       {child}
@@ -371,7 +375,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               </p>
             </div>
           </div>
-          
+
           {/* Close Button - Mobile Only */}
           <button
             onClick={onClose}

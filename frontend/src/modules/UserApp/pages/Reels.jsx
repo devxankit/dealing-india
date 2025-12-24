@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiHeart, FiMessageCircle, FiShare2, FiMoreVertical, FiX, FiFlag, FiAlertCircle, FiSend, FiStar } from 'react-icons/fi';
+import { FiHeart, FiMessageCircle, FiShare2, FiMoreVertical, FiX, FiFlag, FiAlertCircle, FiSend, FiStar, FiCopy, FiGift, FiCheck, FiCheckCircle } from 'react-icons/fi';
+import { FaWhatsapp, FaInstagram, FaFacebook } from 'react-icons/fa';
 import { useWishlistStore } from '../../../shared/store/wishlistStore';
 import { useReviewsStore } from '../../../shared/store/reviewsStore';
 import { getProductById } from '../../../data/products';
@@ -11,9 +13,6 @@ import PageTransition from '../../../shared/components/PageTransition';
 import toast from 'react-hot-toast';
 
 // Mock reel data - fallback when no vendor reels exist
-// Using product-related sample videos that showcase fashion, accessories, and lifestyle products
-// Mock reel data - fallback when no vendor reels exist
-// Using product-related sample videos that showcase fashion, accessories, and lifestyle products
 import reel1 from '../../../../data/Reels/reel1.mp4';
 import reel2 from '../../../../data/Reels/reel2.mp4';
 
@@ -239,832 +238,621 @@ const Reels = () => {
   const [reelsData, setReelsData] = useState(() => getReelsData());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [slideDirection, setSlideDirection] = useState(1); // 1 = next/down, -1 = prev/up
-  const [posterMap, setPosterMap] = useState({});
+
+  // State for interactions
+  const [likedReels, setLikedReels] = useState(new Set());
+  const [shareCount, setShareCount] = useState({});
+  const [activeCommentReel, setActiveCommentReel] = useState(null); // ID of reel whose comments are open
+  const [activeOptionsReel, setActiveOptionsReel] = useState(null); // ID of reel whose options are open
+
+  // Share & Reward State
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [activeShareReel, setActiveShareReel] = useState(null);
+  const [shareStep, setShareStep] = useState('options'); // 'options' | 'tasks' | 'success'
+  const [rewardTasks, setRewardTasks] = useState({ instagram: false, facebook: false, whatsapp: false });
+  const [whatsappCount, setWhatsappCount] = useState(0); // Need to share to 5 friends
+  const [ticketId, setTicketId] = useState(null);
+
+  // Comment state
+  const [newComment, setNewComment] = useState('');
+  const [commentRating, setCommentRating] = useState(5);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [commentsUpdateTrigger, setCommentsUpdateTrigger] = useState(0);
+
+  const videoRefs = useRef({});
+  const containerRef = useRef(null);
+  const commentsEndRef = useRef(null);
+  const observerRef = useRef(null);
+
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
+  const { getReviews, addReview } = useReviewsStore(state => state);
 
   // Refresh reels data when component mounts
   useEffect(() => {
     const updatedReels = getReelsData();
     setReelsData(updatedReels);
   }, []);
-  const [likedReels, setLikedReels] = useState(new Set());
-  const [showProductInfo, setShowProductInfo] = useState(true);
-  const [showComments, setShowComments] = useState(false);
-  const [showMoreOptions, setShowMoreOptions] = useState(false);
-  const [shareCount, setShareCount] = useState({});
-  const [newComment, setNewComment] = useState('');
-  const [commentRating, setCommentRating] = useState(5);
-  const [hoveredRating, setHoveredRating] = useState(0);
-  const [commentsUpdateTrigger, setCommentsUpdateTrigger] = useState(0);
-  const videoRefs = useRef({});
-  const containerRef = useRef(null);
-  const commentsEndRef = useRef(null);
-  const isSwipingRef = useRef(false); // Prevent multiple video changes during one swipe
-  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore();
-  const { getReviews, addReview } = useReviewsStore();
 
-  // Prevent body scroll on reels page
+  // Prevent body scroll and enforce black background on reels page
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    document.body.style.height = '100vh';
+    // Use setTimeout to override any styles set by parent MobileLayout
+    const timer = setTimeout(() => {
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100vh';
+      document.body.style.backgroundColor = '#000000';
+      document.documentElement.style.backgroundColor = '#000000';
+      document.body.style.overscrollBehavior = 'none'; // Prevent bounce
+    }, 100);
+
     return () => {
+      clearTimeout(timer);
       document.body.style.overflow = '';
       document.body.style.height = '';
+      document.body.style.backgroundColor = '';
+      document.documentElement.style.backgroundColor = '';
+      document.body.style.overscrollBehavior = '';
     };
   }, []);
 
-  const currentReel = reelsData[currentIndex];
-
-  // Get vendor ID from product
-  const getVendorIdFromProduct = (productId) => {
-    const product = getProductById(productId);
-    return product?.vendorId || 1; // Default to vendor 1 if not found
-  };
-
-  // Handle video play/pause - pause ALL videos first, then play current
+  // Intersection Observer to detect active reel
   useEffect(() => {
-    // Immediately pause and mute ALL videos to prevent overlap
-    Object.values(videoRefs.current).forEach((video) => {
-      if (video) {
-        video.pause();
-        video.muted = true;
+    const options = {
+      root: containerRef.current,
+      threshold: 0.6, // Trigger when 60% of video is visible
+    };
+
+    const handleIntersection = (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const index = parseInt(entry.target.dataset.index);
+          if (!isNaN(index)) {
+            setCurrentIndex(index);
+          }
+        }
+      });
+    };
+
+    observerRef.current = new IntersectionObserver(handleIntersection, options);
+
+    const elements = containerRef.current?.querySelectorAll('.reel-item');
+    elements?.forEach((el) => observerRef.current.observe(el));
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
       }
-    });
+    };
+  }, [reelsData]);
 
-    // Small delay to ensure previous video is stopped
-    const timer = setTimeout(() => {
-      const currentVideo = videoRefs.current[currentIndex];
-      if (currentVideo) {
-        if (isPlaying) {
-          // Try to play unmuted first
-          currentVideo.muted = false;
-          const playPromise = currentVideo.play();
+  // Handle Video Playback logic
+  useEffect(() => {
+    // Pause all other videos
+    Object.keys(videoRefs.current).forEach((key) => {
+      const index = parseInt(key);
+      const video = videoRefs.current[index];
 
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                // Video is playing with sound
-              })
-              .catch((error) => {
-                // If unmuted play fails, try muted
-                if (error.name === 'NotAllowedError') {
-                  console.log('Autoplay blocked, falling back to muted');
-                  currentVideo.muted = true;
-                  currentVideo.play().catch(e => console.error("Muted play failed", e));
-                } else {
-                  console.error('Error playing video:', error);
-                  // Try again after a short delay
-                  setTimeout(() => {
-                    currentVideo.play().catch(console.error);
-                  }, 100);
-                }
+      if (video) {
+        if (index === currentIndex) {
+          if (isPlaying) {
+            // Play current
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(error => {
+                console.log("Autoplay prevented:", error);
+                video.muted = true;
+                video.play().catch(e => console.error("Muted play failed", e));
               });
+            }
+            video.muted = false; // Try to unmute
+          } else {
+            video.pause();
           }
         } else {
-          currentVideo.pause();
+          // Verify it's paused
+          video.pause();
+          if (Math.abs(index - currentIndex) > 1) {
+            video.currentTime = 0; // Reset videos far away
+          }
         }
-      }
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, [currentIndex, isPlaying]);
-
-  // Handle video loaded data
-  const handleVideoLoaded = (index) => {
-    // Pause all videos first
-    Object.entries(videoRefs.current).forEach(([idx, video]) => {
-      if (video && parseInt(idx) !== index) {
-        video.pause();
-        video.muted = true;
       }
     });
 
-    // Play only the current video
-    const video = videoRefs.current[index];
-    if (video && index === currentIndex && isPlaying) {
-      // Try unmuted first
-      video.muted = false;
-      const playPromise = video.play();
+  }, [currentIndex, isPlaying]);
 
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          if (error.name === 'NotAllowedError') {
-            video.muted = true;
-            video.play().catch(console.error);
-          } else {
-            console.error(error);
-          }
-        });
-      }
 
-      // Capture a poster frame from the video to avoid black flashes
-      const reel = reelsData[index];
-      if (reel && !posterMap[reel.id] && video.videoWidth > 0 && video.videoHeight > 0) {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.65);
-            setPosterMap((prev) => ({ ...prev, [reel.id]: dataUrl }));
-          }
-        } catch (err) {
-          // Ignore CORS or canvas errors; fallback to no poster
-          console.warn("Poster capture failed", err);
-        }
-      }
-    }
+  const getVendorIdFromProduct = (productId) => {
+    const product = getProductById(productId);
+    return product?.vendorId || 1;
   };
 
-  // Auto-play next reel when current ends
-  const handleVideoEnd = () => {
-    if (currentIndex < reelsData.length - 1) {
-      Object.values(videoRefs.current).forEach((video) => {
-        if (video) {
-          video.pause();
-          video.muted = true;
-        }
-      });
-      setSlideDirection(1);
-      setCurrentIndex((prev) => Math.min(prev + 1, reelsData.length - 1));
-    }
-  };
-
-  // Handle swipe gestures
-  const handleWheel = (e) => {
-    if (isSwipingRef.current) return; // Prevent multiple triggers
-
-    if (Math.abs(e.deltaY) > 50) {
-      isSwipingRef.current = true;
-      setSlideDirection(e.deltaY > 0 ? 1 : -1);
-
-      // Pause all videos before switching
-      Object.values(videoRefs.current).forEach((video) => {
-        if (video) {
-          video.pause();
-          video.muted = true;
-        }
-      });
-
-      if (e.deltaY > 0 && currentIndex < reelsData.length - 1) {
-        setCurrentIndex((prev) => Math.min(prev + 1, reelsData.length - 1));
-      } else if (e.deltaY < 0 && currentIndex > 0) {
-        setCurrentIndex((prev) => Math.max(prev - 1, 0));
-      }
-
-      // Reset flag after a short delay
-      setTimeout(() => {
-        isSwipingRef.current = false;
-      }, 500);
-    }
-  };
-
-  // Touch swipe handling
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-  const [isSwiping, setIsSwiping] = useState(false);
-  const touchStartElementRef = useRef(null); // Track which element touch started on
-
-  const minSwipeDistance = 50;
-
-  const onTouchStart = (e) => {
-    // Prevent new swipe if already processing one
-    if (isSwipingRef.current) {
-      return;
-    }
-
-    // Store the element where touch started
-    touchStartElementRef.current = e.target;
-
-    const touch = e.targetTouches[0];
-    setTouchEnd(null);
-    setTouchStart(touch.clientY);
-    setIsSwiping(false);
-  };
-
-  const onTouchMove = (e) => {
-    if (touchStart !== null && !isSwipingRef.current) {
-      const touch = e.targetTouches[0];
-      setTouchEnd(touch.clientY);
-      setIsSwiping(true);
-    }
-  };
-
-  const onTouchEnd = (e) => {
-    // Prevent multiple triggers during one swipe
-    if (isSwipingRef.current) {
-      setTouchStart(null);
-      setTouchEnd(null);
-      setIsSwiping(false);
-      touchStartElementRef.current = null;
-      return;
-    }
-
-    if (touchStart === null) {
-      return;
-    }
-
-    // Check if touch ended on a button or interactive element
-    const touchEndElement = e.target || e.changedTouches[0]?.target;
-    const isButtonClick = touchStartElementRef.current && (
-      touchStartElementRef.current.closest('button') ||
-      touchStartElementRef.current.closest('a') ||
-      touchStartElementRef.current.closest('[role="button"]')
-    ) && (
-        touchEndElement?.closest('button') ||
-        touchEndElement?.closest('a') ||
-        touchEndElement?.closest('[role="button"]')
-      );
-
-    // If it's a button click, don't trigger swipe
-    if (isButtonClick) {
-      setTouchStart(null);
-      setTouchEnd(null);
-      setIsSwiping(false);
-      touchStartElementRef.current = null;
-      return;
-    }
-
-    // If touchEnd is null, use touchStart as fallback (no movement)
-    const endY = touchEnd !== null ? touchEnd : touchStart;
-    const distance = touchStart - endY;
-    const isUpSwipe = distance > minSwipeDistance;
-    const isDownSwipe = distance < -minSwipeDistance;
-
-    if (isUpSwipe && currentIndex < reelsData.length - 1) {
-      isSwipingRef.current = true;
-      // Swipe up -> next reel (enter from bottom, exit to top)
-      setSlideDirection(1);
-
-      // Pause all videos before switching
-      Object.values(videoRefs.current).forEach((video) => {
-        if (video) {
-          video.pause();
-          video.muted = true;
-        }
-      });
-
-      setCurrentIndex((prev) => Math.min(prev + 1, reelsData.length - 1));
-
-      // Reset flag after transition completes
-      setTimeout(() => {
-        isSwipingRef.current = false;
-      }, 500);
-    } else if (isDownSwipe && currentIndex > 0) {
-      isSwipingRef.current = true;
-      // Swipe down -> previous reel (enter from top, exit to bottom)
-      setSlideDirection(-1);
-
-      // Pause all videos before switching
-      Object.values(videoRefs.current).forEach((video) => {
-        if (video) {
-          video.pause();
-          video.muted = true;
-        }
-      });
-
-      setCurrentIndex((prev) => Math.max(prev - 1, 0));
-
-      // Reset flag after transition completes
-      setTimeout(() => {
-        isSwipingRef.current = false;
-      }, 500);
-    }
-
-    setTouchStart(null);
-    setTouchEnd(null);
-    setIsSwiping(false);
-    touchStartElementRef.current = null;
-  };
-
-  const toggleLike = () => {
+  const toggleLike = (reelId) => {
     const newLikedReels = new Set(likedReels);
-    if (newLikedReels.has(currentReel.id)) {
-      newLikedReels.delete(currentReel.id);
+    if (newLikedReels.has(reelId)) {
+      newLikedReels.delete(reelId);
     } else {
-      newLikedReels.add(currentReel.id);
+      newLikedReels.add(reelId);
     }
     setLikedReels(newLikedReels);
   };
 
-  const handleAddToWishlist = () => {
-    if (isInWishlist(currentReel.productId)) {
-      removeFromWishlist(currentReel.productId);
+  const handleShareButton = (reel) => {
+    setActiveShareReel(reel);
+    setShareStep('options');
+    setRewardTasks({ instagram: false, facebook: false, whatsapp: false });
+    setWhatsappCount(0);
+    setShowShareModal(true);
+  };
+
+  const checkMonthlyLimit = () => {
+    const lastEntryStr = localStorage.getItem('mega_reward_last_entry');
+    if (lastEntryStr) {
+      const lastEntry = new Date(lastEntryStr);
+      const now = new Date();
+      if (lastEntry.getMonth() === now.getMonth() && lastEntry.getFullYear() === now.getFullYear()) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleMegaRewardClick = () => {
+    if (checkMonthlyLimit()) {
+      setShareStep('tasks');
     } else {
-      addToWishlist({
-        id: currentReel.productId,
-        name: currentReel.productName,
-        price: currentReel.productPrice,
-        image: currentReel.thumbnail,
-      });
+      toast.error('You have already entered the lucky draw this month!');
     }
   };
 
-  // Handle share functionality
-  const handleShare = async () => {
-    const reelUrl = `${window.location.origin}/app/reels?reel=${currentReel.id}`;
-    const shareText = `Check out ${currentReel.productName} from ${currentReel.vendorName}!`;
-
+  const handleCopyLink = async () => {
+    if (!activeShareReel) return;
+    const reelUrl = `${window.location.origin}/app/reels?reel=${activeShareReel.id}`;
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: currentReel.productName,
-          text: shareText,
-          url: reelUrl,
-        });
-        // Increment share count
-        setShareCount(prev => ({
-          ...prev,
-          [currentReel.id]: (prev[currentReel.id] || currentReel.shares) + 1
-        }));
-        toast.success('Shared successfully!');
-      } else {
-        // Fallback: Copy to clipboard
-        await navigator.clipboard.writeText(reelUrl);
-        toast.success('Link copied to clipboard!');
-        setShareCount(prev => ({
-          ...prev,
-          [currentReel.id]: (prev[currentReel.id] || currentReel.shares) + 1
-        }));
-      }
-    } catch (error) {
-      // User cancelled or error occurred
-      if (error.name !== 'AbortError') {
-        console.error('Error sharing:', error);
-      }
+      await navigator.clipboard.writeText(reelUrl);
+      toast.success('Link copied to clipboard!');
+
+      // Update share count
+      setShareCount(prev => ({
+        ...prev,
+        [activeShareReel.id]: (prev[activeShareReel.id] || activeShareReel.shares) + 1
+      }));
+
+      setShowShareModal(false);
+    } catch (err) {
+      toast.error('Failed to copy link');
     }
   };
 
-  // Handle comment button
-  const handleComment = () => {
-    setShowComments(true);
+  const handleTaskClick = (platform) => {
+    if (!activeShareReel) return;
+
+    // In a real app, this would verify the share. For now, we simulate.
+    const reelUrl = `${window.location.origin}/app/reels?reel=${activeShareReel.id}`;
+    const text = `Check out this amazing product: ${activeShareReel.productName}`;
+
+    let url = '';
+    if (platform === 'instagram') {
+      // Instagram sharing logic (simplified)
+      url = 'https://instagram.com';
+    } else if (platform === 'facebook') {
+      url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(reelUrl)}`;
+    } else if (platform === 'whatsapp') {
+      url = `https://wa.me/?text=${encodeURIComponent(text + ' ' + reelUrl)}`;
+    }
+
+    // Open link
+    window.open(url, '_blank');
+
+    // Update state
+    if (platform === 'whatsapp') {
+      const newCount = whatsappCount + 1;
+      setWhatsappCount(newCount);
+      if (newCount >= 5) {
+        setRewardTasks(prev => ({ ...prev, whatsapp: true }));
+      } else {
+        toast(`${5 - newCount} more friends to go!`);
+      }
+    } else {
+      setRewardTasks(prev => ({ ...prev, [platform]: true }));
+    }
   };
 
-  // Mock comments - always show these
+  // Check for completion
+  useEffect(() => {
+    if (shareStep === 'tasks' && rewardTasks.instagram && rewardTasks.facebook && rewardTasks.whatsapp) {
+      // All tasks done
+      localStorage.setItem('mega_reward_last_entry', new Date().toISOString());
+
+      // Generate Unique Ticket ID
+      const dateStr = new Date().toISOString().slice(0, 7).replace(/-/g, ''); // YYYYMM
+      const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const newTicketId = `MR-${dateStr}-${randomStr}`;
+      localStorage.setItem('mega_reward_ticket_id', newTicketId);
+      setTicketId(newTicketId);
+
+      setTimeout(() => setShareStep('success'), 500);
+
+      // Update share count massively for the effort ;)
+      if (activeShareReel) {
+        setShareCount(prev => ({
+          ...prev,
+          [activeShareReel.id]: (prev[activeShareReel.id] || activeShareReel.shares) + 20
+        }));
+      }
+    }
+  }, [rewardTasks, shareStep, activeShareReel]);
+
+  // Comments Logic
   const mockComments = [
     {
-      id: '1',
-      user: 'Sarah M.',
-      comment: 'Love this product! The quality is amazing and it looks exactly like in the video. Highly recommend!',
-      rating: 5,
-      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      helpfulCount: 12,
+      id: '1', user: 'Sarah M.', comment: 'Love this product!', rating: 5, date: new Date().toISOString(), helpfulCount: 12,
     },
     {
-      id: '2',
-      user: 'John D.',
-      comment: 'Great video showcasing the product. Ordered one and it arrived quickly. Very satisfied!',
-      rating: 4,
-      date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      helpfulCount: 8,
+      id: '2', user: 'John D.', comment: 'Ordered one and it arrived quickly.', rating: 4, date: new Date().toISOString(), helpfulCount: 8,
     },
     {
-      id: '3',
-      user: 'Emma L.',
-      comment: 'The video really shows the product well. I was hesitant at first but after seeing this, I had to get it!',
-      rating: 5,
-      date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      helpfulCount: 15,
+      id: '3', user: 'Emma L.', comment: 'Musy buy!', rating: 5, date: new Date().toISOString(), helpfulCount: 15,
     },
   ];
 
-  // Get comments for current reel/product - combine user comments with mock comments
+  const currentReelForComments = reelsData.find(r => r.id === activeCommentReel);
+
   const displayComments = useMemo(() => {
-    const reelComments = getReviews(currentReel.productId) || [];
-    // Combine user comments with mock comments, user comments first (newest first)
-    const sortedUserComments = [...reelComments].sort((a, b) => {
-      const dateA = new Date(a.date || 0);
-      const dateB = new Date(b.date || 0);
-      return dateB - dateA; // Newest first
-    });
+    if (!currentReelForComments) return [];
+    const reelComments = getReviews(currentReelForComments.productId) || [];
+    const sortedUserComments = [...reelComments].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
     return [...sortedUserComments, ...mockComments];
-  }, [currentReel.productId, commentsUpdateTrigger]);
+  }, [currentReelForComments, commentsUpdateTrigger]);
 
-  // Handle submit comment
   const handleSubmitComment = () => {
-    if (!newComment.trim()) {
-      toast.error('Please enter a comment');
-      return;
-    }
+    if (!newComment.trim() || !commentRating || !currentReelForComments) return;
 
-    if (commentRating === 0) {
-      toast.error('Please select a rating');
-      return;
-    }
-
-    addReview(currentReel.productId, {
+    addReview(currentReelForComments.productId, {
       user: 'You',
       comment: newComment,
       rating: commentRating,
       date: new Date().toISOString(),
-      title: `Review for ${currentReel.productName}`,
+      title: `Review for ${currentReelForComments.productName}`,
     });
 
     setNewComment('');
-    setCommentRating(5); // Reset to default
-    setHoveredRating(0);
-    setCommentsUpdateTrigger(prev => prev + 1); // Trigger comments update
+    setCommentRating(5);
+    setCommentsUpdateTrigger(prev => prev + 1);
     toast.success('Comment added!');
-
-    // Scroll to top to show the new comment (since it's added first)
-    setTimeout(() => {
-      const commentsContainer = document.querySelector('.comments-list-container');
-      if (commentsContainer) {
-        commentsContainer.scrollTop = 0;
-      }
-    }, 200);
   };
 
-  // Scroll to bottom when comments open
+  // Scroll to bottom of comments
   useEffect(() => {
-    if (showComments) {
+    if (activeCommentReel) {
       setTimeout(() => {
         commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 300);
     }
-  }, [showComments]);
+  }, [activeCommentReel]);
 
-  // Handle more options
-  const handleReport = () => {
-    toast.success('Report submitted. Thank you for your feedback.');
-    setShowMoreOptions(false);
-  };
-
-  const handleNotInterested = () => {
-    // Remove this reel from view (in a real app, this would filter it out)
-    toast.success('We\'ll show you less content like this.');
-    setShowMoreOptions(false);
-  };
 
   return (
     <PageTransition>
       <MobileLayout>
+        {/* Main Scroll Container */}
         <div
           ref={containerRef}
-          className="relative w-full bg-black overflow-hidden"
-          onWheel={handleWheel}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
+          id="reels-container"
+          className="w-full h-[100vh] bg-black overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
           style={{
-            touchAction: 'pan-y',
-            height: 'calc(100vh - 64px)', // Account for bottom nav (h-16 = 64px)
             position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: '64px', // Bottom nav height (h-16 = 64px)
+            top: 0, bottom: 0, left: 0, right: 0,
             zIndex: 1,
-            WebkitTouchCallout: 'none',
-            WebkitUserSelect: 'none',
-            userSelect: 'none',
-          }}>
-          {/* Video Container */}
-          <div className="relative w-full h-full">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentReel.id}
-                initial={{ opacity: 0, y: slideDirection === 1 ? 200 : -200, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: slideDirection === 1 ? -200 : 200, scale: 0.96 }}
-                transition={{ duration: 0.45, ease: [0.25, 0.1, 0.25, 1] }}
-                className="absolute inset-0 w-full h-full"
-                onAnimationStart={() => {
-                  // Pause all videos when animation starts (switching)
-                  Object.values(videoRefs.current).forEach((video) => {
-                    if (video) {
-                      video.pause();
-                      video.muted = true;
-                    }
-                  });
-                }}>
-                <video
-                  ref={(el) => {
-                    if (el) {
-                      videoRefs.current[currentIndex] = el;
-                      // Immediately pause if this is not the current video
-                      if (el && !isPlaying) {
-                        el.pause();
-                        el.muted = true;
-                      }
-                    }
-                  }}
-                  src={currentReel.videoUrl}
-                  className="w-full h-full object-cover"
-                  loop={false}
-                  muted={true}
-                  autoPlay
-                  playsInline
-                  poster={posterMap[currentReel.id]}
-                  controls={false}
-                  preload="auto"
-                  onLoadedData={() => handleVideoLoaded(currentIndex)}
-                  onEnded={handleVideoEnd}
-                  onClick={() => setIsPlaying(!isPlaying)}
-                />
-              </motion.div>
-            </AnimatePresence>
+          }}
+        >
+          {reelsData.map((reel, index) => (
+            <div
+              key={reel.id}
+              data-index={index}
+              className="reel-item relative w-full h-full snap-start snap-always"
+              style={{ height: '100vh' }}
+            >
+              {/* Video Layer */}
+              <div className="absolute inset-0 bottom-16 bg-black">
+                {(index === currentIndex || index === currentIndex + 1 || index === currentIndex - 1) ? (
+                  <video
+                    ref={el => videoRefs.current[index] = el}
+                    src={reel.videoUrl}
+                    className="w-full h-full object-cover"
+                    loop
+                    playsInline
+                    muted={index !== currentIndex} // Mute if not active (preload)
+                    poster={reel.thumbnail} // Show thumbnail while loading
+                    onClick={() => setIsPlaying(!isPlaying)}
+                  />
+                ) : (
+                  <img
+                    src={reel.thumbnail}
+                    alt={reel.productName}
+                    className="w-full h-full object-cover opacity-80"
+                  />
+                )}
+              </div>
 
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+              {/* Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none bottom-16" />
 
-            {/* Product Info Overlay */}
-            <AnimatePresence>
-              {showProductInfo && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  className="absolute bottom-0 left-0 right-0 p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-white font-semibold text-lg mb-1">
-                        {currentReel.productName}
-                      </h3>
-                      <p className="text-white/80 text-sm mb-2">
-                        {currentReel.vendorName}
-                      </p>
-                      <p className="text-white font-bold text-xl">
-                        ₹{currentReel.productPrice.toLocaleString()}
-                      </p>
+              {/* Overlays Wrapper - Positioned absolutely inside the reel item */}
+              <div className="absolute bottom-16 left-0 right-0 p-4 pb-8 z-10 pointer-events-none">
+                <div className="flex items-end justify-between">
+                  {/* Left Side: Product Info */}
+                  <div className="flex-1 pointer-events-auto">
+                    <h3 className="text-white font-semibold text-lg mb-1 drop-shadow-md">
+                      {reel.productName}
+                    </h3>
+                    <p className="text-white/90 text-sm mb-2 drop-shadow-md">
+                      {reel.vendorName}
+                    </p>
+                    <p className="text-white font-bold text-xl drop-shadow-md">
+                      ₹{reel.productPrice.toLocaleString()}
+                    </p>
+                  </div>
+
+                  {/* Right Side: Actions */}
+                  <div className="flex flex-col gap-6 items-center pointer-events-auto pl-4">
+                    {/* Vendor Link */}
+                    <Link
+                      to={`/app/vendor/${getVendorIdFromProduct(reel.productId)}?productId=${reel.productId}`}
+                      className="w-10 h-10 rounded-full border-2 border-white overflow-hidden"
+                    >
+                      <img src={reel.thumbnail} className="w-full h-full object-cover" alt="" />
+                    </Link>
+
+                    {/* Like */}
+                    <button onClick={() => toggleLike(reel.id)} className="flex flex-col items-center gap-1">
+                      <FiHeart className={`text-3xl ${likedReels.has(reel.id) ? 'text-red-500 fill-red-500' : 'text-white'}`} />
+                      <span className="text-white text-xs text-shadow-sm">{reel.likes + (likedReels.has(reel.id) ? 1 : 0)}</span>
+                    </button>
+
+                    {/* Comment */}
+                    <button onClick={() => setActiveCommentReel(reel.id)} className="flex flex-col items-center gap-1">
+                      <FiMessageCircle className="text-3xl text-white" />
+                      <span className="text-white text-xs text-shadow-sm">{reel.comments}</span>
+                    </button>
+
+                    {/* Share */}
+                    <button onClick={() => handleShareButton(reel)} className="flex flex-col items-center gap-1">
+                      <FiShare2 className="text-3xl text-white" />
+                      <span className="text-white text-xs text-shadow-sm">{shareCount[reel.id] || reel.shares}</span>
+                    </button>
+
+                    {/* More */}
+                    <div className="relative">
+                      <button onClick={() => setActiveOptionsReel(activeOptionsReel === reel.id ? null : reel.id)}>
+                        <FiMoreVertical className="text-2xl text-white" />
+                      </button>
+                      {/* Popup Menu */}
+                      <AnimatePresence>
+                        {activeOptionsReel === reel.id && (
+                          <>
+                            <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setActiveOptionsReel(null)} />
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              className="absolute bottom-full right-0 mb-2 bg-white rounded-xl shadow-lg p-2 z-50 min-w-[150px]"
+                            >
+                              <button onClick={() => { setActiveOptionsReel(null); toast.success("Not interested"); }} className="w-full flex gap-2 p-2 hover:bg-gray-100 rounded text-sm text-black">
+                                <FiX /> Not Interested
+                              </button>
+                              <button onClick={() => { setActiveOptionsReel(null); toast.success("Reported"); }} className="w-full flex gap-2 p-2 hover:bg-gray-100 rounded text-sm text-black">
+                                <FiFlag /> Report
+                              </button>
+                              <button onClick={() => { navigate(`/app/product/${reel.productId}`); }} className="w-full flex gap-2 p-2 hover:bg-gray-100 rounded text-sm text-black">
+                                <FiAlertCircle /> View Product
+                              </button>
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Right Side Actions */}
-            <div className="absolute right-4 bottom-24 flex flex-col gap-6 items-center">
-              {/* Profile Avatar - Link to Vendor Store */}
-              <Link
-                to={`/app/vendor/${getVendorIdFromProduct(currentReel.productId)}?productId=${currentReel.productId}`}
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => e.stopPropagation()}
-                className="w-12 h-12 rounded-full border-2 border-white overflow-hidden hover:border-red-500 transition-colors cursor-pointer">
-                <img
-                  src={currentReel.thumbnail}
-                  alt={currentReel.vendorName}
-                  className="w-full h-full object-cover"
-                />
-              </Link>
-
-              {/* Like Button */}
-              <button
-                onClick={toggleLike}
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => e.stopPropagation()}
-                className="flex flex-col items-center gap-1">
-                <motion.div
-                  animate={{ scale: likedReels.has(currentReel.id) ? [1, 1.2, 1] : 1 }}
-                  transition={{ duration: 0.3 }}>
-                  <FiHeart
-                    className={`text-3xl ${likedReels.has(currentReel.id)
-                        ? 'text-red-500 fill-red-500'
-                        : 'text-white'
-                      }`}
-                  />
-                </motion.div>
-                <span className="text-white text-xs font-medium">
-                  {currentReel.likes + (likedReels.has(currentReel.id) ? 1 : 0)}
-                </span>
-              </button>
-
-              {/* Comment Button */}
-              <button
-                onClick={handleComment}
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => e.stopPropagation()}
-                className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity">
-                <FiMessageCircle className="text-3xl text-white" />
-                <span className="text-white text-xs font-medium">
-                  {currentReel.comments}
-                </span>
-              </button>
-
-              {/* Share Button */}
-              <button
-                onClick={handleShare}
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => e.stopPropagation()}
-                className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity">
-                <FiShare2 className="text-3xl text-white" />
-                <span className="text-white text-xs font-medium">
-                  {shareCount[currentReel.id] || currentReel.shares}
-                </span>
-              </button>
-
-              {/* More Options */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowMoreOptions(!showMoreOptions)}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onTouchEnd={(e) => e.stopPropagation()}
-                  className="hover:opacity-80 transition-opacity">
-                  <FiMoreVertical className="text-2xl text-white" />
-                </button>
-
-                {/* More Options Menu */}
-                <AnimatePresence>
-                  {showMoreOptions && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setShowMoreOptions(false)}
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        className="absolute bottom-full right-0 mb-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-2 z-50 min-w-[180px]">
-                        <button
-                          onClick={handleNotInterested}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-left">
-                          <FiX className="text-gray-600 text-lg" />
-                          <span className="font-medium text-gray-700 text-sm">Not Interested</span>
-                        </button>
-                        <button
-                          onClick={handleReport}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-left">
-                          <FiFlag className="text-gray-600 text-lg" />
-                          <span className="font-medium text-gray-700 text-sm">Report</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            navigate(`/app/product/${currentReel.productId}`);
-                            setShowMoreOptions(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-left">
-                          <FiAlertCircle className="text-gray-600 text-lg" />
-                          <span className="font-medium text-gray-700 text-sm">View Product</span>
-                        </button>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
+                </div>
               </div>
             </div>
-
-          </div>
+          ))}
         </div>
 
-        {/* Comments Modal */}
-        <AnimatePresence>
-          {showComments && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowComments(false)}
-                className="fixed inset-0 bg-black/80 z-[10000]"
-              />
+        {/* Global Comments Modal (Outside scroll container) */}
+        {createPortal(
+          <AnimatePresence>
+            {activeCommentReel && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setActiveCommentReel(null)}
+                  className="fixed inset-0 bg-black/80 z-[10000]"
+                />
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 rounded-t-2xl z-[10001] flex flex-col h-[70vh]"
+                >
+                  {/* Comments Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+                    <h2 className="text-white">Comments</h2>
+                    <button onClick={() => setActiveCommentReel(null)}>
+                      <FiX className="text-white text-xl" />
+                    </button>
+                  </div>
 
-              {/* Comments Panel */}
-              <motion.div
-                key={`comments-${currentReel.id}`}
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                className="fixed bottom-0 left-0 right-0 bg-black border-t border-l border-r border-gray-800 rounded-t-2xl z-[10001] flex flex-col shadow-[0_-2px_10px_rgba(255,255,255,0.1)]"
-                style={{
-                  height: '70vh',
-                  maxHeight: '70vh',
-                  minHeight: '70vh'
-                }}
-                onClick={(e) => e.stopPropagation()}>
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-                  <h2 className="text-white font-semibold text-base">
-                    {displayComments.length} Comments
-                  </h2>
-                  <button
-                    onClick={() => setShowComments(false)}
-                    className="p-1.5 hover:bg-gray-800 rounded-full transition-colors">
-                    <FiX className="text-white text-lg" />
-                  </button>
-                </div>
-
-                {/* Comment Input - At Top */}
-                <div className="px-3 py-3 border-b border-gray-800 bg-black">
-                  {/* Rating Selector */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-gray-400 text-xs">Rating:</span>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setCommentRating(star)}
-                          onMouseEnter={() => setHoveredRating(star)}
-                          onMouseLeave={() => setHoveredRating(0)}
-                          className="focus:outline-none">
-                          <FiStar
-                            className={`text-base transition-colors ${star <= (hoveredRating || commentRating)
-                                ? 'text-yellow-400 fill-yellow-400'
-                                : 'text-gray-500'
-                              }`}
-                          />
+                  {/* Comments Input */}
+                  <div className="px-3 py-3 border-b border-gray-800">
+                    <div className="flex gap-1 mb-2">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} onClick={() => setCommentRating(star)} onMouseEnter={() => setHoveredRating(star)} onMouseLeave={() => setHoveredRating(0)}>
+                          <FiStar className={`${star <= (hoveredRating || commentRating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-500'}`} />
                         </button>
                       ))}
                     </div>
+                    <div className="flex gap-2">
+                      <input
+                        value={newComment}
+                        onChange={e => setNewComment(e.target.value)}
+                        placeholder="Add a comment..."
+                        className="flex-1 bg-gray-800 text-white rounded p-2 text-sm focus:outline-none"
+                      />
+                      <button onClick={handleSubmitComment} disabled={!newComment.trim()} className="bg-red-600 p-2 rounded text-white active:scale-95 transition-transform"><FiSend /></button>
+                    </div>
                   </div>
 
-                  {/* Comment Input */}
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSubmitComment();
-                        }
-                      }}
-                      placeholder="Write a comment..."
-                      className="flex-1 bg-gray-800 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm border border-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    />
-                    <button
-                      onClick={handleSubmitComment}
-                      disabled={!newComment.trim() || commentRating === 0}
-                      className="p-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0">
-                      <FiSend className="text-base" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Comments List */}
-                <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 scrollbar-hide comments-list-container bg-black">
-                  {displayComments.map((comment) => (
-                    <motion.div
-                      key={comment.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-gray-800/30 border border-gray-800/50 rounded-lg p-3 hover:bg-gray-800/40 transition-colors">
-                      {/* Comment Header */}
-                      <div className="flex items-start gap-2.5 mb-1.5">
-                        <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {comment.user?.charAt(0).toUpperCase() || 'U'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <p className="text-white font-medium text-xs">
-                              {comment.user || 'Anonymous'}
-                            </p>
-                            {comment.rating && (
-                              <div className="flex items-center gap-0.5">
-                                {[...Array(5)].map((_, i) => (
-                                  <FiStar
-                                    key={i}
-                                    className={`text-[10px] ${i < comment.rating
-                                        ? 'text-yellow-400 fill-yellow-400'
-                                        : 'text-gray-500'
-                                      }`}
-                                  />
-                                ))}
-                              </div>
-                            )}
+                  {/* List */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {displayComments.map((c, i) => (
+                      <div key={i} className="flex gap-3">
+                        <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white font-bold">{c.user[0]}</div>
+                        <div>
+                          <div className="flex gap-2 items-center">
+                            <p className="text-white text-sm font-semibold">{c.user}</p>
+                            <span className="text-gray-500 text-xs">{new Date(c.date).toLocaleDateString()}</span>
                           </div>
-                          <p className="text-gray-400 text-[10px]">
-                            {comment.date
-                              ? new Date(comment.date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                              })
-                              : 'Recently'}
-                          </p>
+                          <p className="text-white text-sm">{c.comment.comment || c.comment}</p>
                         </div>
                       </div>
+                    ))}
+                    <div ref={commentsEndRef} />
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
 
-                      {/* Comment Text */}
-                      <p className="text-white/90 text-xs leading-relaxed ml-[42px]">
-                        {comment.comment || comment.text}
-                      </p>
+        {/* Share Modal */}
+        {createPortal(
+          <AnimatePresence>
+            {showShareModal && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowShareModal(false)}
+                  className="fixed inset-0 bg-black/80 z-[10000]"
+                />
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[10001] p-6 pb-8"
+                >
+                  {/* Step 1: Initial Options */}
+                  {shareStep === 'options' && (
+                    <div className="flex flex-col gap-4">
+                      <h3 className="text-xl font-bold text-center mb-2 text-black">Share</h3>
 
-                      {/* Helpful Count */}
-                      {comment.helpfulCount > 0 && (
-                        <div className="mt-1.5 ml-[42px]">
-                          <span className="text-gray-400 text-[10px]">
-                            {comment.helpfulCount} helpful
-                          </span>
+                      <button onClick={handleCopyLink} className="flex items-center gap-4 w-full p-4 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                          <FiCopy className="text-xl text-gray-700" />
+                        </div>
+                        <span className="font-semibold text-gray-800">Copy Link</span>
+                      </button>
+
+                      <button onClick={handleMegaRewardClick} className="flex items-center gap-4 w-full p-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white shadow-lg transform active:scale-98 transition-all">
+                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                          <FiGift className="text-xl text-white" />
+                        </div>
+                        <div className="flex flex-col items-start">
+                          <span className="font-bold text-lg">Mega Reward</span>
+                          <span className="text-xs text-white/80">Enter Lucky Draw!</span>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Step 2: Mega Reward Tasks */}
+                  {shareStep === 'tasks' && (
+                    <div className="flex flex-col gap-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-xl font-bold text-black">Complete Steps</h3>
+                        <button onClick={() => setShowShareModal(false)}><FiX className="text-xl text-gray-500" /></button>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-2">Share this video on the following platforms to enter the lucky draw:</p>
+
+                      {/* Instagram */}
+                      <button
+                        onClick={() => handleTaskClick('instagram')}
+                        className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${rewardTasks.instagram ? 'border-green-500 bg-green-50' : 'border-gray-100 bg-gray-50'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <FaInstagram className="text-2xl text-pink-600" />
+                          <span className="font-medium text-gray-800">Share on Instagram Story</span>
+                        </div>
+                        {rewardTasks.instagram && <FiCheckCircle className="text-green-500 text-xl" />}
+                      </button>
+
+                      {/* Facebook */}
+                      <button
+                        onClick={() => handleTaskClick('facebook')}
+                        className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${rewardTasks.facebook ? 'border-green-500 bg-green-50' : 'border-gray-100 bg-gray-50'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <FaFacebook className="text-2xl text-blue-600" />
+                          <span className="font-medium text-gray-800">Share on Facebook Story</span>
+                        </div>
+                        {rewardTasks.facebook && <FiCheckCircle className="text-green-500 text-xl" />}
+                      </button>
+
+                      {/* Whatsapp */}
+                      <button
+                        onClick={() => handleTaskClick('whatsapp')}
+                        className={`flex items-center justify-between w-full p-4 rounded-xl border-2 transition-all ${rewardTasks.whatsapp ? 'border-green-500 bg-green-50' : 'border-gray-100 bg-gray-50'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <FaWhatsapp className="text-2xl text-green-600" />
+                          <div className="flex flex-col items-start">
+                            <span className="font-medium text-gray-800">Share to 5 friends on WhatsApp</span>
+                            <span className="text-xs text-gray-500">{Math.min(whatsappCount, 5)}/5 shared</span>
+                          </div>
+                        </div>
+                        {rewardTasks.whatsapp && <FiCheckCircle className="text-green-500 text-xl" />}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Step 3: Success */}
+                  {shareStep === 'success' && (
+                    <div className="flex flex-col items-center justify-center py-8 text-center animate-bounce-in">
+                      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                        <FiGift className="text-4xl text-green-600" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-2">Congratulations!</h2>
+                      <p className="text-gray-600 mb-4">You have successfully entered this month's lucky draw.</p>
+
+                      {ticketId && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 w-full">
+                          <p className="text-xs uppercase text-yellow-700 font-bold mb-1">Your Ticket Number</p>
+                          <p className="text-2xl font-mono font-black text-gray-900 tracking-wider">{ticketId}</p>
+                          <p className="text-[10px] text-gray-500 mt-1">Screenshot for future reference</p>
                         </div>
                       )}
-                    </motion.div>
-                  ))}
-                  <div ref={commentsEndRef} />
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+
+                      <button
+                        onClick={() => setShowShareModal(false)}
+                        className="bg-black text-white px-8 py-3 rounded-xl font-medium"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
+
       </MobileLayout>
     </PageTransition>
   );
 };
 
 export default Reels;
-

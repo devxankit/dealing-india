@@ -142,7 +142,7 @@ const MobileHome = () => {
       <MobileLayout>
         <div
           ref={elementRef}
-          className="w-full"
+          className="w-full min-h-screen bg-gray-50"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -153,7 +153,7 @@ const MobileHome = () => {
           {/* Hero Banner */}
           <div className="px-4 py-4">
             <div
-              className="relative w-full h-48 rounded-2xl overflow-hidden"
+              className="relative w-full h-48 rounded-2xl overflow-hidden shadow-lg shadow-gray-200/50"
               data-carousel
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
@@ -169,9 +169,8 @@ const MobileHome = () => {
                 animate={{
                   x:
                     dragOffset !== 0
-                      ? `calc(-${
-                          currentSlide * (100 / slides.length)
-                        }% - ${dragOffset}px)`
+                      ? `calc(-${currentSlide * (100 / slides.length)
+                      }% - ${dragOffset}px)`
                       : `-${currentSlide * (100 / slides.length)}%`,
                 }}
                 transition={{
@@ -193,9 +192,8 @@ const MobileHome = () => {
                       className="w-full h-full object-cover pointer-events-none select-none"
                       draggable={false}
                       onError={(e) => {
-                        e.target.src = `https://via.placeholder.com/400x200?text=Slide+${
-                          index + 1
-                        }`;
+                        e.target.src = `https://via.placeholder.com/400x200?text=Slide+${index + 1
+                          }`;
                       }}
                     />
                   </div>
@@ -210,11 +208,10 @@ const MobileHome = () => {
                       setAutoSlidePaused(true);
                       setTimeout(() => setAutoSlidePaused(false), 2000);
                     }}
-                    className={`h-1.5 rounded-full transition-all pointer-events-auto ${
-                      index === currentSlide
+                    className={`h-1.5 rounded-full transition-all pointer-events-auto shadow-sm ${index === currentSlide
                         ? "bg-white w-6"
-                        : "bg-white/50 w-1.5"
-                    }`}
+                        : "bg-white/50 w-1.5 backdrop-blur-sm"
+                      }`}
                   />
                 ))}
               </div>
@@ -222,74 +219,57 @@ const MobileHome = () => {
           </div>
 
           {/* Brand Logos Scroll */}
-          <BrandLogosScroll />
+          <div className="bg-white py-2 shadow-sm mb-4">
+            <BrandLogosScroll />
+          </div>
 
           {/* Featured Vendors Section */}
           <FeaturedVendorsSection />
 
           {/* Animated Banner */}
-          <AnimatedBanner />
+          <div className="my-4">
+            <AnimatedBanner />
+          </div>
 
           {/* New Arrivals */}
-          <NewArrivalsSection />
+          <div className="px-2">
+            <NewArrivalsSection />
+          </div>
 
-          {/* Promotional Banners */}
-          <div className="px-4 py-4">
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
-              <Link to="/app/offers" className="block flex-shrink-0">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="relative w-[calc(50vw-1.5rem)] h-32 rounded-xl overflow-hidden shadow-lg">
-                  <LazyImage
-                    src={babycareBanner}
-                    alt="Baby Care"
-                    className="w-full h-full object-cover"
-                    context="hero"
-                    onError={(e) => {
-                      e.target.src =
-                        "https://via.placeholder.com/400x200?text=Baby+Care";
-                    }}
-                  />
-                </motion.div>
-              </Link>
-              <Link to="/app/offers" className="block flex-shrink-0">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="relative w-[calc(50vw-1.5rem)] h-32 rounded-xl overflow-hidden shadow-lg">
-                  <LazyImage
-                    src={pharmacyBanner}
-                    alt="Pharmacy"
-                    className="w-full h-full object-cover"
-                    context="hero"
-                    onError={(e) => {
-                      e.target.src =
-                        "https://via.placeholder.com/400x200?text=Pharmacy";
-                    }}
-                  />
-                </motion.div>
-              </Link>
-              <Link to="/app/offers" className="block flex-shrink-0">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="relative w-[calc(50vw-1.5rem)] h-32 rounded-xl overflow-hidden shadow-lg">
-                  <LazyImage
-                    src={petCareBanner}
-                    alt="Pet Care"
-                    className="w-full h-full object-cover"
-                    context="hero"
-                    onError={(e) => {
-                      e.target.src =
-                        "https://via.placeholder.com/400x200?text=Pet+Care";
-                    }}
-                  />
-                </motion.div>
-              </Link>
+          {/* Premium Curated Collections */}
+          <div className="py-2 mb-2">
+            <div className="px-4 mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-800">Curated Collections</h2>
+              <Link to="/app/categories" className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">View All</Link>
+            </div>
+            <div className="flex gap-4 overflow-x-auto scrollbar-hide px-4 pb-4 snap-x snap-mandatory">
+              {[
+                { img: babycareBanner, title: "Baby Care", sub: "Gentle Essentials", link: "/app/offers", color: "from-pink-500" },
+                { img: pharmacyBanner, title: "Pharmacy", sub: "Health First", link: "/app/offers", color: "from-blue-500" },
+                { img: petCareBanner, title: "Pet Supplies", sub: "For Furry Friends", link: "/app/offers", color: "from-orange-500" }
+              ].map((item, idx) => (
+                <Link to={item.link} key={idx} className="block flex-shrink-0 snap-center">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="relative w-[75vw] h-44 rounded-2xl overflow-hidden shadow-lg shadow-gray-200"
+                  >
+                    <LazyImage
+                      src={item.img}
+                      className="w-full h-full object-cover transition-transform duration-700"
+                      alt={item.title}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-5">
+                      <div className={`w-8 h-1 mb-3 rounded-full bg-gradient-to-r ${item.color} to-white/50`}></div>
+                      <h3 className="text-white font-bold text-2xl leading-none mb-1 tracking-tight">{item.title}</h3>
+                      <p className="text-white/80 text-sm font-medium tracking-wide">{item.sub}</p>
+                    </div>
+                  </motion.div>
+                </Link>
+              ))}
             </div>
           </div>
 

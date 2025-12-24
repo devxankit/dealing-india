@@ -103,6 +103,15 @@
     ]
   },
   {
+    "title": "Mega Reward",
+    "route": "/admin/mega-reward",
+    "children": [
+      "Entries",
+      "Winners",
+      "Settings"
+    ]
+  },
+  {
     "title": "Promo Codes",
     "route": "/admin/promocodes",
     "children": []
@@ -174,4 +183,3 @@
     ]
   }
 ]
-
