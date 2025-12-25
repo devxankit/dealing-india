@@ -2,47 +2,64 @@ import { useState, useEffect } from 'react';
 import { FiSearch, FiMapPin, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import DataTable from '../../components/DataTable';
-import { useCustomerStore } from '../../../../shared/store/customerStore';
+import api from '../../../../shared/utils/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import toast from 'react-hot-toast';
 
 const Addresses = () => {
-  const { customers, initialize } = useCustomerStore();
   const [addresses, setAddresses] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    initialize();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    fetchAddresses();
+  }, [searchQuery]);
 
-  useEffect(() => {
-    // Extract addresses from customers
-    const allAddresses = customers.flatMap((customer) =>
-      (customer.addresses || []).map((addr) => ({
-        ...addr,
-        customerId: customer.id,
-        customerName: customer.name,
-        customerEmail: customer.email,
-      }))
-    );
-    setAddresses(allAddresses);
-  }, [customers]);
+  const fetchAddresses = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/admin/customers/addresses', {
+        params: { search: searchQuery },
+      });
+      if (response.success && response.data?.addresses) {
+        setAddresses(response.data.addresses);
+      }
+    } catch (error) {
+      console.error('Failed to fetch addresses:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredAddresses = addresses.filter((addr) => {
     return (
       !searchQuery ||
-      addr.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      addr.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      addr.city.toLowerCase().includes(searchQuery.toLowerCase())
+      addr.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      addr.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      addr.city?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
-  const handleDelete = () => {
-    setAddresses(addresses.filter((a) => a.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success('Address deleted');
+  const handleDelete = async () => {
+    try {
+      const addressToDelete = addresses.find((a) => a.id === deleteModal.id);
+      if (!addressToDelete) {
+        toast.error('Address not found');
+        return;
+      }
+
+      const response = await api.delete(
+        `/admin/customers/${addressToDelete.customerId}/addresses/${deleteModal.id}`
+      );
+      if (response.success) {
+        toast.success('Address deleted');
+        setAddresses(addresses.filter((a) => a.id !== deleteModal.id));
+        setDeleteModal({ isOpen: false, id: null });
+      }
+    } catch (error) {
+      console.error('Failed to delete address:', error);
+    }
   };
 
   const columns = [
@@ -88,8 +105,11 @@ const Addresses = () => {
       label: 'Default',
       sortable: true,
       render: (value) => (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-          }`}>
+        <span
+          className={`px-2 py-1 rounded text-xs font-medium ${
+            value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+          }`}
+        >
           {value ? 'Yes' : 'No'}
         </span>
       ),
@@ -143,12 +163,18 @@ const Addresses = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={filteredAddresses}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading addresses...</p>
+          </div>
+        ) : (
+          <DataTable
+            data={filteredAddresses}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       <ConfirmModal
@@ -166,4 +192,3 @@ const Addresses = () => {
 };
 
 export default Addresses;
-

@@ -1,8 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { vendors, getVendorById } from "../../../data/vendors";
-import { useVendorStore } from "./vendorStore";
-import logoImage from "../../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
+import api from "../../../shared/utils/api";
 
 export const useVendorAuthStore = create(
   persist(
@@ -16,38 +14,41 @@ export const useVendorAuthStore = create(
       login: async (email, password, rememberMe = false) => {
         set({ isLoading: true });
         try {
-          // Mock vendor authentication
-          // In a real app, this would be an API call
-          // const response = await api.post('/vendor/auth/login', { email, password });
+          const response = await api.post('/auth/vendor/login', { email, password });
 
-          // Find vendor by email in vendor store
-          const allVendors = useVendorStore.getState().getAllVendors();
-          const vendor = allVendors.find((v) => v.email === email);
-
-          // Mock credentials: use vendor email and password "vendor123"
-          if (vendor && password === "vendor123") {
-            // Check if vendor is approved
-            if (vendor.status !== "approved") {
-              throw new Error(
-                `Vendor account is ${vendor.status}. Please contact admin for approval.`
-              );
-            }
-
-            const mockToken = "vendor-jwt-token-" + Date.now();
+          if (response.success && response.data) {
+            const { vendor, token } = response.data;
+            
+            // Transform backend vendor object to frontend format
+            const vendorData = {
+              id: vendor._id || vendor.id,
+              _id: vendor._id,
+              name: vendor.name,
+              email: vendor.email,
+              phone: vendor.phone || '',
+              storeName: vendor.storeName,
+              storeDescription: vendor.storeDescription || '',
+              storeLogo: vendor.storeLogo || null,
+              status: vendor.status,
+              isEmailVerified: vendor.isEmailVerified || false,
+              role: vendor.role || 'vendor',
+              address: vendor.address || {},
+              documents: vendor.documents || {},
+              bankDetails: vendor.bankDetails || {},
+            };
 
             set({
-              vendor: vendor,
-              token: mockToken,
+              vendor: vendorData,
+              token: token,
               isAuthenticated: true,
               isLoading: false,
             });
 
-            // Store token in localStorage for API interceptor
-            localStorage.setItem("vendor-token", mockToken);
+            localStorage.setItem("vendor-token", token);
 
-            return { success: true, vendor: vendor };
+            return { success: true, vendor: vendorData };
           } else {
-            throw new Error("Invalid credentials");
+            throw new Error(response.message || 'Login failed');
           }
         } catch (error) {
           set({ isLoading: false });
@@ -59,55 +60,54 @@ export const useVendorAuthStore = create(
       register: async (vendorData) => {
         set({ isLoading: true });
         try {
-          // Mock vendor registration
-          // In a real app, this would be an API call
-          // const response = await api.post('/vendor/auth/register', vendorData);
-
-          // Check if email already exists in vendor store
-          const allVendors = useVendorStore.getState().getAllVendors();
-          const existingVendor = allVendors.find(
-            (v) => v.email === vendorData.email
-          );
-          if (existingVendor) {
-            throw new Error("Email already registered");
-          }
-
-          // Create new vendor (will be pending approval)
-          const newVendorData = {
+          const response = await api.post('/auth/vendor/register', {
             name: vendorData.name,
             email: vendorData.email,
-            phone: vendorData.phone || "",
+            phone: vendorData.phone,
+            password: vendorData.password,
             storeName: vendorData.storeName,
-            storeLogo: vendorData.storeLogo || logoImage,
-            storeDescription: vendorData.storeDescription || "",
-            commissionRate: 10, // Default commission rate
+            storeDescription: vendorData.storeDescription || '',
             address: vendorData.address || {},
-            documents: vendorData.documents || {},
-            bankDetails: vendorData.bankDetails || {},
-          };
-
-          // Add vendor to vendor store (this makes it visible to admin)
-          const newVendor = useVendorStore.getState().addVendor(newVendorData);
-
-          // In a real app, this would be saved to backend
-          // For now, we'll just return success
-          const mockToken = "vendor-jwt-token-" + Date.now();
-
-          set({
-            vendor: newVendor,
-            token: mockToken,
-            isAuthenticated: false, // Not authenticated until approved
-            isLoading: false,
           });
 
-          localStorage.setItem("vendor-token", mockToken);
+          if (response.success && response.data) {
+            const { vendor, token } = response.data;
+            
+            // Transform backend vendor object to frontend format
+            const vendorDataFormatted = {
+              id: vendor._id || vendor.id,
+              _id: vendor._id,
+              name: vendor.name,
+              email: vendor.email,
+              phone: vendor.phone || '',
+              storeName: vendor.storeName,
+              storeDescription: vendor.storeDescription || '',
+              storeLogo: vendor.storeLogo || null,
+              status: vendor.status,
+              isEmailVerified: vendor.isEmailVerified || false,
+              role: vendor.role || 'vendor',
+              address: vendor.address || {},
+              documents: vendor.documents || {},
+              bankDetails: vendor.bankDetails || {},
+            };
 
-          return {
-            success: true,
-            vendor: newVendor,
-            message:
-              "Registration successful! Your account is pending admin approval.",
-          };
+            set({
+              vendor: vendorDataFormatted,
+              token: token,
+              isAuthenticated: false, // Not authenticated until approved
+              isLoading: false,
+            });
+
+            localStorage.setItem("vendor-token", token);
+
+            return {
+              success: true,
+              vendor: vendorDataFormatted,
+              message: response.message || "Registration successful! Your account is pending admin approval.",
+            };
+          } else {
+            throw new Error(response.message || 'Registration failed');
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -115,62 +115,204 @@ export const useVendorAuthStore = create(
       },
 
       // Vendor logout action
-      logout: () => {
-        set({
-          vendor: null,
-          token: null,
-          isAuthenticated: false,
-        });
-        localStorage.removeItem("vendor-token");
+      logout: async () => {
+        try {
+          // Call backend logout endpoint if token exists
+          const token = get().token;
+          if (token) {
+            try {
+              await api.post('/auth/vendor/logout');
+            } catch (error) {
+              // Ignore logout errors, still clear local state
+              console.error('Logout API error:', error);
+            }
+          }
+        } catch (error) {
+          // Ignore errors, proceed with local logout
+        } finally {
+          set({
+            vendor: null,
+            token: null,
+            isAuthenticated: false,
+          });
+          localStorage.removeItem("vendor-token");
+        }
       },
 
       // Update vendor profile
       updateProfile: async (profileData) => {
         set({ isLoading: true });
         try {
-          // Mock update - replace with actual API call
-          // const response = await api.put('/vendor/profile', profileData);
+          const response = await api.put('/auth/vendor/profile', profileData);
 
-          const currentVendor = get().vendor;
-          if (!currentVendor) {
-            throw new Error("No vendor logged in");
+          if (response.success && response.data) {
+            const vendor = response.data.vendor;
+            
+            // Transform backend vendor object to frontend format
+            const updatedVendor = {
+              id: vendor._id || vendor.id,
+              _id: vendor._id,
+              name: vendor.name,
+              email: vendor.email,
+              phone: vendor.phone || '',
+              storeName: vendor.storeName,
+              storeDescription: vendor.storeDescription || '',
+              storeLogo: vendor.storeLogo || null,
+              status: vendor.status,
+              isEmailVerified: vendor.isEmailVerified || false,
+              role: vendor.role || 'vendor',
+              address: vendor.address || {},
+              documents: vendor.documents || {},
+              bankDetails: vendor.bankDetails || {},
+            };
+            
+            set({
+              vendor: updatedVendor,
+              isLoading: false,
+            });
+            
+            return { success: true, vendor: updatedVendor };
+          } else {
+            throw new Error(response.message || 'Profile update failed');
           }
-
-          const updatedVendor = { ...currentVendor, ...profileData };
-
-          set({
-            vendor: updatedVendor,
-            isLoading: false,
-          });
-
-          return { success: true, vendor: updatedVendor };
         } catch (error) {
           set({ isLoading: false });
           throw error;
         }
       },
 
-      // Initialize vendor auth state from localStorage
-      initialize: () => {
-        const token = localStorage.getItem("vendor-token");
-        if (token) {
-          const storedState = JSON.parse(
-            localStorage.getItem("vendor-auth-storage") || "{}"
-          );
-          if (storedState.state?.vendor && storedState.state?.token) {
-            const vendor = storedState.state.vendor;
-            // Verify vendor is still approved
-            const currentVendor = getVendorById(vendor.id);
-            if (currentVendor && currentVendor.status === "approved") {
+      // Verify vendor email with OTP
+      verifyEmail: async (email, otp) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/vendor/verify-email', { email, otp });
+
+          if (response.success) {
+            // Update vendor's email verification status
+            const currentVendor = get().vendor;
+            if (currentVendor && currentVendor.email === email) {
               set({
-                vendor: currentVendor,
-                token: storedState.state.token,
-                isAuthenticated: true,
+                vendor: { ...currentVendor, isEmailVerified: true },
+                isLoading: false,
               });
             } else {
-              // Vendor status changed, logout
+              set({ isLoading: false });
+            }
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Email verification failed');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Resend verification OTP
+      resendOTP: async (email) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/vendor/resend-otp', { email });
+
+          if (response.success) {
+            set({ isLoading: false });
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Failed to resend OTP');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Forgot password
+      forgotPassword: async (email) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/vendor/forgot-password', { email });
+
+          if (response.success) {
+            set({ isLoading: false });
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Failed to send password reset OTP');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Reset password with OTP
+      resetPassword: async (email, otp, newPassword) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/vendor/reset-password', { 
+            email, 
+            otp, 
+            newPassword 
+          });
+
+          if (response.success) {
+            set({ isLoading: false });
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Password reset failed');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Initialize vendor auth state from localStorage and validate token
+      initialize: async () => {
+        const token = localStorage.getItem("vendor-token");
+        if (token) {
+          try {
+            // Validate token with backend
+            const response = await api.get('/auth/vendor/me');
+            
+            if (response.success && response.data) {
+              const vendor = response.data.vendor;
+              
+              // Transform backend vendor object to frontend format
+              const vendorData = {
+                id: vendor._id || vendor.id,
+                _id: vendor._id,
+                name: vendor.name,
+                email: vendor.email,
+                phone: vendor.phone || '',
+                storeName: vendor.storeName,
+                storeDescription: vendor.storeDescription || '',
+                storeLogo: vendor.storeLogo || null,
+                status: vendor.status,
+                isEmailVerified: vendor.isEmailVerified || false,
+                role: vendor.role || 'vendor',
+                address: vendor.address || {},
+                documents: vendor.documents || {},
+                bankDetails: vendor.bankDetails || {},
+              };
+
+              // Only set authenticated if vendor is approved
+              if (vendorData.status === 'approved') {
+                set({
+                  vendor: vendorData,
+                  token: token,
+                  isAuthenticated: true,
+                });
+              } else {
+                // Vendor not approved, clear storage
+                get().logout();
+              }
+            } else {
+              // Invalid token, clear storage
               get().logout();
             }
+          } catch (error) {
+            // Token invalid or expired, clear storage
+            get().logout();
           }
         }
       },

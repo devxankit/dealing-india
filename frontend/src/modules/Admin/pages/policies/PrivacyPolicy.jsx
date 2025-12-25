@@ -1,10 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiSave, FiFileText } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
 
 const PrivacyPolicy = () => {
-  const [content, setContent] = useState(`Privacy Policy
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchPolicy();
+  }, []);
+
+  const fetchPolicy = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/admin/policies/privacy');
+      if (response.success) {
+        if (response.data?.policy && response.data.policy.content) {
+          setContent(response.data.policy.content);
+        } else {
+          // Policy doesn't exist yet, use default content
+          setContent(`Privacy Policy
 
 Last updated: ${new Date().toLocaleDateString()}
 
@@ -22,9 +40,50 @@ We implement appropriate security measures to protect your personal information.
 
 5. Your Rights
 You have the right to access, update, or delete your personal information at any time.`);
+        }
+      }
+    } catch (error) {
+      // Silently handle errors - use default content
+      setContent(`Privacy Policy
 
-  const handleSave = () => {
-    toast.success('Privacy policy saved successfully');
+Last updated: ${new Date().toLocaleDateString()}
+
+1. Information We Collect
+We collect information that you provide directly to us, including when you create an account, make a purchase, or contact us for support.
+
+2. How We Use Your Information
+We use the information we collect to provide, maintain, and improve our services, process transactions, and communicate with you.
+
+3. Information Sharing
+We do not sell, trade, or rent your personal information to third parties without your consent.
+
+4. Data Security
+We implement appropriate security measures to protect your personal information.
+
+5. Your Rights
+You have the right to access, update, or delete your personal information at any time.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!content.trim()) {
+      toast.error('Policy content cannot be empty');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await api.put('/admin/policies/privacy', { content });
+      if (response.success) {
+        toast.success('Privacy policy saved successfully');
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -40,10 +99,11 @@ You have the right to access, update, or delete your personal information at any
         </div>
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm"
+          disabled={saving || loading}
+          className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FiSave />
-          <span>Save Policy</span>
+          <span>{saving ? 'Saving...' : 'Save Policy'}</span>
         </button>
       </div>
 
@@ -52,12 +112,16 @@ You have the right to access, update, or delete your personal information at any
           <FiFileText className="text-primary-600" />
           <h3 className="font-semibold text-gray-800">Privacy Policy Content</h3>
         </div>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={20}
-          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
-        />
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading...</div>
+        ) : (
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={20}
+            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
+          />
+        )}
       </div>
     </motion.div>
   );

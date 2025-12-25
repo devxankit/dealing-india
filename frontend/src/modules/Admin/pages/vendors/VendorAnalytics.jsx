@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiBarChart2,
@@ -9,57 +9,52 @@ import {
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { formatPrice } from "../../../../shared/utils/helpers";
-import { useVendorStore } from "../../../Vendor/store/vendorStore";
-import { useOrderStore } from "../../../../shared/store/orderStore";
-import { useCommissionStore } from "../../../../shared/store/commissionStore";
+import { useVendorManagementStore } from "../../store/vendorManagementStore";
 
 const VendorAnalytics = () => {
   const navigate = useNavigate();
-  const { vendors } = useVendorStore();
-  const { orders } = useOrderStore();
-  const { getVendorEarningsSummary } = useCommissionStore();
+  const { isLoading, fetchVendorAnalytics } = useVendorManagementStore();
 
-  const approvedVendors = vendors.filter((v) => v.status === "approved");
+  const [analytics, setAnalytics] = useState(null);
 
-  // Calculate vendor statistics
-  const vendorStats = useMemo(() => {
-    return approvedVendors
-      .map((vendor) => {
-        const vendorOrders = orders.filter((order) => {
-          if (order.vendorItems && Array.isArray(order.vendorItems)) {
-            return order.vendorItems.some((vi) => vi.vendorId === vendor.id);
-          }
-          return false;
-        });
-
-        const earningsSummary = getVendorEarningsSummary(vendor.id);
-        const totalRevenue = vendorOrders.reduce((sum, order) => {
-          const vendorItem = order.vendorItems?.find(
-            (vi) => vi.vendorId === vendor.id
-          );
-          return sum + (vendorItem?.subtotal || 0);
-        }, 0);
-
-        return {
-          ...vendor,
-          totalOrders: vendorOrders.length,
-          totalRevenue,
-          totalEarnings: earningsSummary?.totalEarnings || 0,
-          pendingEarnings: earningsSummary?.pendingEarnings || 0,
-          paidEarnings: earningsSummary?.paidEarnings || 0,
-        };
-      })
-      .sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }, [approvedVendors, orders, getVendorEarningsSummary]);
-
-  const overallStats = useMemo(() => {
-    return {
-      totalVendors: approvedVendors.length,
-      totalOrders: vendorStats.reduce((sum, v) => sum + v.totalOrders, 0),
-      totalRevenue: vendorStats.reduce((sum, v) => sum + v.totalRevenue, 0),
-      totalEarnings: vendorStats.reduce((sum, v) => sum + v.totalEarnings, 0),
+  // Fetch analytics on component mount
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        const data = await fetchVendorAnalytics();
+        if (data) {
+          setAnalytics(data);
+        }
+      } catch (error) {
+        // Error toast is shown by API interceptor
+      }
     };
-  }, [approvedVendors.length, vendorStats]);
+
+    loadAnalytics();
+  }, [fetchVendorAnalytics]);
+
+  // Transform analytics data for display
+  const overallStats = useMemo(() => {
+    if (!analytics || !analytics.overall) {
+      return {
+        totalVendors: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        totalEarnings: 0,
+      };
+    }
+    return analytics.overall;
+  }, [analytics]);
+
+  const vendorStats = useMemo(() => {
+    if (!analytics || !analytics.vendors) {
+      return [];
+    }
+    return analytics.vendors.map((item) => ({
+      ...item.vendor,
+      ...item.stats,
+    }));
+  }, [analytics]);
 
   return (
     <motion.div
@@ -198,12 +193,16 @@ const VendorAnalytics = () => {
             </tbody>
           </table>
         </div>
-        {vendorStats.length === 0 && (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading analytics...</p>
+          </div>
+        ) : vendorStats.length === 0 ? (
           <div className="text-center py-12">
             <FiBarChart2 className="text-4xl text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">No vendor data available</p>
           </div>
-        )}
+        ) : null}
       </div>
     </motion.div>
   );

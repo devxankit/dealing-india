@@ -364,22 +364,16 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({
-          ...formData,
-          bannerConfig: {
-            ...formData.bannerConfig,
-            image: reader.result, // Base64 data URL
-            customImage: true, // Flag to indicate custom image
-          },
-        });
-        toast.success("Banner image uploaded successfully");
-      };
-      reader.onerror = () => {
-        toast.error("Error reading image file");
-      };
-      reader.readAsDataURL(file);
+      // Store File object directly for multipart upload
+      setFormData({
+        ...formData,
+        bannerConfig: {
+          ...formData.bannerConfig,
+          image: file, // File object for multipart upload
+          customImage: true, // Flag to indicate custom image
+        },
+      });
+      toast.success("Banner image selected");
     }
   };
 
@@ -1179,7 +1173,11 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                                 <div className="mt-3">
                                   <div className="relative inline-block">
                                     <img
-                                      src={formData.bannerConfig.image}
+                                      src={
+                                        formData.bannerConfig.image instanceof File
+                                          ? URL.createObjectURL(formData.bannerConfig.image)
+                                          : formData.bannerConfig.image
+                                      }
                                       alt="Banner preview"
                                       className="w-full max-w-xs h-32 object-cover rounded-lg border border-gray-200"
                                       onError={(e) => {

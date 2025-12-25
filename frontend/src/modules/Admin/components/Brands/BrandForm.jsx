@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { FiX, FiSave } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
-import { useBrandStore } from "../../../../shared/store/brandStore";
+import { useBrandManagementStore } from "../../store/brandManagementStore";
 import toast from "react-hot-toast";
 import Button from "../Button";
 
 const BrandForm = ({ brand, onClose, onSave }) => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
-  const { createBrand, updateBrand } = useBrandStore();
+  const { createBrand, updateBrand } = useBrandManagementStore();
   const isEdit = !!brand;
 
   const [formData, setFormData] = useState({
@@ -40,7 +40,7 @@ const BrandForm = ({ brand, onClose, onSave }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -50,14 +50,16 @@ const BrandForm = ({ brand, onClose, onSave }) => {
 
     try {
       if (isEdit) {
-        updateBrand(brand.id, formData);
+        await updateBrand(brand.id, formData);
+        toast.success("Brand updated successfully");
       } else {
-        createBrand(formData);
+        await createBrand(formData);
+        toast.success("Brand created successfully");
       }
       onSave?.();
       onClose();
     } catch (error) {
-      // Error handled in store
+      // Error toast is shown by API interceptor
     }
   };
 

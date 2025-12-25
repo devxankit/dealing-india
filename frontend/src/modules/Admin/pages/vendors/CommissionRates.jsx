@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiEdit, FiDollarSign } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -6,12 +6,17 @@ import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
-import { useVendorStore } from "../../../Vendor/store/vendorStore";
+import { useVendorManagementStore } from "../../store/vendorManagementStore";
 import toast from "react-hot-toast";
 
 const CommissionRates = () => {
   const navigate = useNavigate();
-  const { vendors, updateCommissionRate } = useVendorStore();
+  const {
+    vendors,
+    isLoading,
+    fetchVendors,
+    updateCommissionRate,
+  } = useVendorManagementStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [commissionModal, setCommissionModal] = useState({
     isOpen: false,
@@ -21,36 +26,55 @@ const CommissionRates = () => {
   });
   const [newRate, setNewRate] = useState("");
 
+  // Fetch approved vendors on component mount and when search changes
+  useEffect(() => {
+    const loadApprovedVendors = async () => {
+      try {
+        await fetchVendors({
+          status: "approved",
+          search: searchQuery,
+          page: 1,
+          limit: 100,
+        });
+      } catch (error) {
+        // Error toast is shown by API interceptor
+      }
+    };
+
+    loadApprovedVendors();
+  }, [searchQuery, fetchVendors]);
+
   const filteredVendors = useMemo(() => {
-    let filtered = vendors.filter((v) => v.status === "approved");
+    // Filtering is done on backend, but we can add client-side filtering if needed
+    return vendors;
+  }, [vendors]);
 
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (vendor) =>
-          vendor.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          vendor.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          vendor.storeName?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [vendors, searchQuery]);
-
-  const handleCommissionUpdate = () => {
+  const handleCommissionUpdate = async () => {
     const rate = parseFloat(newRate) / 100;
     if (isNaN(rate) || rate < 0 || rate > 1) {
       toast.error("Please enter a valid commission rate (0-100%)");
       return;
     }
-    updateCommissionRate(commissionModal.vendorId, rate);
-    setCommissionModal({
-      isOpen: false,
-      vendorId: null,
-      vendorName: null,
-      currentRate: "",
-    });
-    setNewRate("");
-    toast.success("Commission rate updated successfully");
+    try {
+      await updateCommissionRate(commissionModal.vendorId, rate);
+      setCommissionModal({
+        isOpen: false,
+        vendorId: null,
+        vendorName: null,
+        currentRate: "",
+      });
+      setNewRate("");
+      toast.success("Commission rate updated successfully");
+      // Refresh vendors list
+      await fetchVendors({
+        status: "approved",
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
   };
 
   const columns = [
@@ -171,13 +195,23 @@ const CommissionRates = () => {
         </div>
 
         {/* DataTable */}
-        <DataTable
-          data={filteredVendors}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-          onRowClick={(row) => navigate(`/admin/vendors/${row.id}`)}
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading vendors...</p>
+          </div>
+        ) : filteredVendors.length > 0 ? (
+          <DataTable
+            data={filteredVendors}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+            onRowClick={(row) => navigate(`/admin/vendors/${row.id}`)}
+          />
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No approved vendors found</p>
+          </div>
+        )}
       </div>
 
       {/* Commission Update Modal */}

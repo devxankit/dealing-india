@@ -44,8 +44,7 @@ const adminSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-adminSchema.index({ email: 1 }, { unique: true });
+// Indexes (email already has unique: true in schema, so don't duplicate)
 adminSchema.index({ role: 1 });
 adminSchema.index({ isActive: 1 });
 

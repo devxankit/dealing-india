@@ -23,8 +23,7 @@ import Badge from '../../../../shared/components/Badge';
 import DataTable from '../../components/DataTable';
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { formatDateTime } from '../../utils/adminHelpers';
-import { mockOrders } from '../../../../data/adminMockData';
-
+import api from '../../../../shared/utils/api';
 import toast from 'react-hot-toast';
 
 const CustomerDetailPage = () => {
@@ -38,74 +37,48 @@ const CustomerDetailPage = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    initialize();
-    const customerData = getCustomerById(id);
-    if (customerData) {
-      setCustomer(customerData);
-    } else {
+    fetchCustomer();
+  }, [id, navigate]);
+
+  const fetchCustomer = async () => {
+    try {
+      const customerData = await getCustomerById(id);
+      if (customerData) {
+        setCustomer(customerData);
+      } else {
+        toast.error('Customer not found');
+        navigate('/admin/customers');
+      }
+    } catch (error) {
+      console.error('Failed to fetch customer:', error);
       toast.error('Customer not found');
       navigate('/admin/customers');
     }
-  }, [id, initialize, getCustomerById, navigate]);
+  };
 
   useEffect(() => {
-    // Load orders from localStorage
-    const savedOrders = localStorage.getItem('admin-orders');
-    let allOrders = [];
-
-    if (savedOrders) {
-      allOrders = JSON.parse(savedOrders);
-    } else {
-      allOrders = mockOrders.map((order) => ({
-        ...order,
-        customerId: customer?.id,
-        items: Array.isArray(order.items) ? order.items : Array.from({ length: order.items || 1 }, (_, i) => ({
-          id: i + 1,
-          name: `Product ${i + 1}`,
-          quantity: 1,
-          price: order.total / (order.items || 1),
-        })),
-      }));
+    if (customer?.id) {
+      fetchCustomerData();
     }
+  }, [customer?.id]);
 
-    // Filter orders by customer email or name
-    if (customer) {
-      const customerOrders = allOrders.filter(
-        (order) =>
-          order.customer?.email === customer.email ||
-          order.customer?.name === customer.name ||
-          order.customerId === customer.id
-      );
-      setOrders(customerOrders);
+  const fetchCustomerData = async () => {
+    try {
+      // Fetch orders
+      const ordersResponse = await api.get(`/admin/customers/${customer.id}/orders`);
+      if (ordersResponse.success && ordersResponse.data?.orders) {
+        setOrders(ordersResponse.data.orders);
+      }
 
-      // Generate transactions from orders
-      const generatedTransactions = customerOrders.flatMap((order) => [
-        {
-          id: `TXN-${order.id}-1`,
-          orderId: order.id,
-          amount: order.total,
-          type: 'payment',
-          status: order.status === 'cancelled' ? 'failed' : 'completed',
-          method: 'Credit Card',
-          date: order.date,
-        },
-        ...(order.status === 'cancelled'
-          ? [
-            {
-              id: `TXN-${order.id}-2`,
-              orderId: order.id,
-              amount: order.total,
-              type: 'refund',
-              status: 'completed',
-              method: 'Original Payment Method',
-              date: new Date(new Date(order.date).getTime() + 86400000).toISOString(),
-            },
-          ]
-          : []),
-      ]);
-      setTransactions(generatedTransactions);
+      // Fetch transactions
+      const transactionsResponse = await api.get(`/admin/customers/${customer.id}/transactions`);
+      if (transactionsResponse.success && transactionsResponse.data?.transactions) {
+        setTransactions(transactionsResponse.data.transactions);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customer data:', error);
     }
-  }, [customer]);
+  };
 
   // Set active tab from URL query parameter
   useEffect(() => {

@@ -5,16 +5,18 @@ import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
-import { useVendorStore } from "../../../Vendor/store/vendorStore";
+import { useVendorManagementStore } from "../../store/vendorManagementStore";
 import toast from "react-hot-toast";
 
 const PendingApprovals = () => {
   const navigate = useNavigate();
-  const { vendors, updateVendorStatus, initialize } = useVendorStore();
+  const {
+    vendors,
+    isLoading,
+    fetchPendingVendors,
+    updateVendorStatus,
+  } = useVendorManagementStore();
 
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionModal, setActionModal] = useState({
     isOpen: false,
@@ -23,20 +25,27 @@ const PendingApprovals = () => {
     vendorName: null,
   });
 
+  // Fetch pending vendors on component mount and when search changes
+  useEffect(() => {
+    const loadPendingVendors = async () => {
+      try {
+        await fetchPendingVendors({
+          search: searchQuery,
+          page: 1,
+          limit: 100,
+        });
+      } catch (error) {
+        // Error toast is shown by API interceptor
+      }
+    };
+
+    loadPendingVendors();
+  }, [searchQuery, fetchPendingVendors]);
+
   const pendingVendors = useMemo(() => {
-    let filtered = vendors.filter((v) => v.status === "pending");
-
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (vendor) =>
-          vendor.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          vendor.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          vendor.storeName?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [vendors, searchQuery]);
+    // Filtering is done on backend, but we can add client-side filtering if needed
+    return vendors;
+  }, [vendors]);
 
   const columns = [
     {
@@ -141,26 +150,46 @@ const PendingApprovals = () => {
     },
   ];
 
-  const handleApprove = () => {
-    updateVendorStatus(actionModal.vendorId, "approved");
-    setActionModal({
-      isOpen: false,
-      type: null,
-      vendorId: null,
-      vendorName: null,
-    });
-    toast.success("Vendor approved successfully");
+  const handleApprove = async () => {
+    try {
+      await updateVendorStatus(actionModal.vendorId, "approved");
+      setActionModal({
+        isOpen: false,
+        type: null,
+        vendorId: null,
+        vendorName: null,
+      });
+      toast.success("Vendor approved successfully");
+      // Refresh pending vendors list
+      await fetchPendingVendors({
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
   };
 
-  const handleReject = () => {
-    updateVendorStatus(actionModal.vendorId, "suspended");
-    setActionModal({
-      isOpen: false,
-      type: null,
-      vendorId: null,
-      vendorName: null,
-    });
-    toast.success("Vendor registration rejected");
+  const handleReject = async () => {
+    try {
+      await updateVendorStatus(actionModal.vendorId, "rejected");
+      setActionModal({
+        isOpen: false,
+        type: null,
+        vendorId: null,
+        vendorName: null,
+      });
+      toast.success("Vendor registration rejected");
+      // Refresh pending vendors list
+      await fetchPendingVendors({
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
   };
 
   const getModalContent = () => {
@@ -218,7 +247,11 @@ const PendingApprovals = () => {
         </div>
 
         {/* DataTable */}
-        {pendingVendors.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading pending vendors...</p>
+          </div>
+        ) : pendingVendors.length > 0 ? (
           <DataTable
             data={pendingVendors}
             columns={columns}

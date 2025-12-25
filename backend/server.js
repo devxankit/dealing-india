@@ -3,6 +3,23 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import connectDB from './config/database.js';
+import { errorHandler } from './middleware/errorHandler.middleware.js';
+
+// Import routes
+import userAuthRoutes from './routes/userAuth.routes.js';
+import vendorAuthRoutes from './routes/vendorAuth.routes.js';
+import adminAuthRoutes from './routes/adminAuth.routes.js';
+import vendorManagementRoutes from './routes/vendorManagement.routes.js';
+import brandManagementRoutes from './routes/brandManagement.routes.js';
+import policyRoutes from './routes/policy.routes.js';
+import promoCodeRoutes from './routes/promoCode.routes.js';
+import attributeRoutes from './routes/attribute.routes.js';
+import attributeValueRoutes from './routes/attributeValue.routes.js';
+import attributeSetRoutes from './routes/attributeSet.routes.js';
+import customerManagementRoutes from './routes/customerManagement.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
+import offersRoutes from './routes/offers.routes.js';
+import slidersRoutes from './routes/sliders.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -14,6 +31,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from upload directory
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+app.use('/upload', express.static(join(__dirname, 'upload')));
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -62,20 +86,26 @@ app.get('/api/test-db', (req, res) => {
   }
 });
 
-// Routes (will be added later)
-// app.use('/api/auth', authRoutes);
-// app.use('/api/vendor', vendorRoutes);
-// app.use('/api/admin', adminRoutes);
-// app.use('/api/delivery', deliveryRoutes);
+// Routes
+app.use('/api/auth/user', userAuthRoutes);
+app.use('/api/auth/vendor', vendorAuthRoutes);
+app.use('/api/auth/admin', adminAuthRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal Server Error',
-  });
-});
+// Admin management routes (require admin authentication)
+app.use('/api/admin/vendors', vendorManagementRoutes);
+app.use('/api/admin/brands', brandManagementRoutes);
+app.use('/api/admin/policies', policyRoutes);
+app.use('/api/admin/promocodes', promoCodeRoutes);
+app.use('/api/admin/attributes', attributeRoutes);
+app.use('/api/admin/attribute-values', attributeValueRoutes);
+app.use('/api/admin/attribute-sets', attributeSetRoutes);
+app.use('/api/admin/customers', customerManagementRoutes);
+app.use('/api/admin/reports', reportsRoutes);
+app.use('/api/admin/offers', offersRoutes);
+app.use('/api/admin/sliders', slidersRoutes);
+
+// Error handling middleware (must be after routes)
+app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {

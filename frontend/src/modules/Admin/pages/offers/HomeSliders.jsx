@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { FiPlus, FiEdit, FiTrash2, FiImage } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,56 +6,90 @@ import DataTable from "../../components/DataTable";
 import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import toast from "react-hot-toast";
-import heroSlide1 from "../../../../../data/hero/slide1.png";
-import heroSlide2 from "../../../../../data/hero/slide2.png";
+import api from "../../../../shared/utils/api";
 
 const HomeSliders = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
-  const [sliders, setSliders] = useState([
-    {
-      id: 1,
-      title: "Summer Sale",
-      image: heroSlide1,
-      link: "/offers",
-      order: 1,
-      status: "active",
-    },
-    {
-      id: 2,
-      title: "New Arrivals",
-      image: heroSlide2,
-      link: "/products",
-      order: 2,
-      status: "active",
-    },
-  ]);
+  const [sliders, setSliders] = useState([]);
   const [editingSlider, setEditingSlider] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSave = (sliderData) => {
-    if (editingSlider && editingSlider.id) {
-      setSliders(
-        sliders.map((s) =>
-          s.id === editingSlider.id
-            ? { ...sliderData, id: editingSlider.id }
-            : s
-        )
-      );
-      toast.success("Slider updated");
-    } else {
-      const newId =
-        sliders.length > 0 ? Math.max(...sliders.map((s) => s.id)) + 1 : 1;
-      setSliders([...sliders, { ...sliderData, id: newId }]);
-      toast.success("Slider added");
+  useEffect(() => {
+    fetchSliders();
+  }, []);
+
+  const fetchSliders = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get("/admin/sliders");
+      if (response.success && response.data?.sliders) {
+        setSliders(response.data.sliders);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sliders:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setEditingSlider(null);
   };
 
-  const handleDelete = () => {
-    setSliders(sliders.filter((s) => s.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success("Slider deleted");
+  const handleSave = async (sliderData) => {
+    try {
+      const formData = new FormData();
+      formData.append("title", sliderData.title);
+      formData.append("link", sliderData.link);
+      formData.append("order", sliderData.order.toString());
+      formData.append("status", sliderData.status);
+
+      // Handle image - could be File object or URL string
+      if (sliderData.image instanceof File) {
+        formData.append("image", sliderData.image);
+      } else if (sliderData.image) {
+        formData.append("imageUrl", sliderData.image);
+      }
+
+      let response;
+      if (editingSlider && editingSlider.id) {
+        // Update existing slider
+        response = await api.put(`/admin/sliders/${editingSlider.id}`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+        if (response.success) {
+          toast.success("Slider updated");
+          await fetchSliders();
+        }
+      } else {
+        // Create new slider
+        response = await api.post("/admin/sliders", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+        if (response.success) {
+          toast.success("Slider added");
+          await fetchSliders();
+        }
+      }
+      setEditingSlider(null);
+    } catch (error) {
+      console.error("Failed to save slider:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await api.delete(`/admin/sliders/${deleteModal.id}`);
+      if (response.success) {
+        toast.success("Slider deleted");
+        await fetchSliders();
+        setDeleteModal({ isOpen: false, id: null });
+      }
+    } catch (error) {
+      console.error("Failed to delete slider:", error);
+    }
   };
 
   const columns = [
@@ -63,19 +97,27 @@ const HomeSliders = () => {
       key: "image",
       label: "Image",
       sortable: false,
-      render: (value, row) => (
-        <div className="flex items-center gap-3">
-          <img
-            src={value}
-            alt={row.title}
-            className="w-16 h-16 object-cover rounded-lg"
-            onError={(e) => {
-              e.target.src = "https://via.placeholder.com/64x64?text=Image";
-            }}
-          />
-          <span className="font-medium text-gray-800">{row.title}</span>
-        </div>
-      ),
+      render: (value, row) => {
+        // Handle both imageUrl and image fields, and convert relative paths to absolute
+        const imageUrl = value || row.imageUrl || row.image || '';
+        const fullImageUrl = imageUrl.startsWith('http') || imageUrl.startsWith('/')
+          ? imageUrl
+          : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000'}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
+        
+        return (
+          <div className="flex items-center gap-3">
+            <img
+              src={fullImageUrl}
+              alt={row.title}
+              className="w-16 h-16 object-cover rounded-lg"
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/64x64?text=Image";
+              }}
+            />
+            <span className="font-medium text-gray-800">{row.title}</span>
+          </div>
+        );
+      },
     },
     {
       key: "link",
@@ -155,12 +197,22 @@ const HomeSliders = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={sliders}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading sliders...</p>
+          </div>
+        ) : sliders.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No sliders found</p>
+          </div>
+        ) : (
+          <DataTable
+            data={sliders}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       <AnimatePresence>
@@ -228,9 +280,10 @@ const HomeSliders = () => {
                   onSubmit={(e) => {
                     e.preventDefault();
                     const formData = new FormData(e.target);
+                    const imageFile = formData.get("image");
                     handleSave({
                       title: formData.get("title"),
-                      image: formData.get("image"),
+                      image: imageFile instanceof File ? imageFile : formData.get("imageUrl") || editingSlider.image || "",
                       link: formData.get("link"),
                       order: parseInt(formData.get("order")),
                       status: formData.get("status"),
@@ -245,14 +298,24 @@ const HomeSliders = () => {
                     required
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
-                  <input
-                    type="text"
-                    name="image"
-                    defaultValue={editingSlider.image || ""}
-                    placeholder="Image URL"
-                    required
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Image (Upload file or enter URL)
+                    </label>
+                    <input
+                      type="file"
+                      name="image"
+                      accept="image/*"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 mb-2"
+                    />
+                    <input
+                      type="text"
+                      name="imageUrl"
+                      defaultValue={editingSlider.image && !(editingSlider.image instanceof File) ? editingSlider.image : ""}
+                      placeholder="Or enter Image URL"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
                   <input
                     type="text"
                     name="link"

@@ -17,83 +17,96 @@ import {
   FiFileText,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { useVendorStore } from "../../../Vendor/store/vendorStore";
-import { useOrderStore } from "../../../../shared/store/orderStore";
-import { useCommissionStore } from "../../../../shared/store/commissionStore";
+import { useVendorManagementStore } from "../../store/vendorManagementStore";
 import Badge from "../../../../shared/components/Badge";
 import DataTable from "../../components/DataTable";
 import { formatPrice } from "../../../../shared/utils/helpers";
-// import { formatDateTime } from '../../../utils/adminHelpers';
 import toast from "react-hot-toast";
 
 const VendorDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { vendors, updateVendorStatus, updateCommissionRate } =
-    useVendorStore();
-  const { orders } = useOrderStore();
   const {
-    getVendorCommissions,
-    getVendorEarningsSummary,
-    getVendorSettlements,
-  } = useCommissionStore();
+    selectedVendor,
+    isLoading,
+    fetchVendorById,
+    fetchVendorOrders,
+    fetchVendorAnalytics,
+    updateVendorStatus,
+    updateCommissionRate,
+  } = useVendorManagementStore();
 
   const [vendor, setVendor] = useState(null);
   const [vendorOrders, setVendorOrders] = useState([]);
-  const [commissions, setCommissions] = useState([]);
-  const [earningsSummary, setEarningsSummary] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditingCommission, setIsEditingCommission] = useState(false);
   const [commissionRate, setCommissionRate] = useState("");
 
+  // Fetch vendor data on component mount
   useEffect(() => {
-    const vendorData = vendors.find((v) => v.id === parseInt(id));
-    if (vendorData) {
-      setVendor(vendorData);
-      setCommissionRate(((vendorData.commissionRate || 0) * 100).toFixed(1));
-    } else {
-      toast.error("Vendor not found");
-      navigate("/admin/vendors");
-    }
-  }, [id, vendors, navigate]);
+    const loadVendorData = async () => {
+      try {
+        const vendorData = await fetchVendorById(id);
+        if (vendorData) {
+          setVendor(vendorData);
+          setCommissionRate(((vendorData.commissionRate || 0) * 100).toFixed(1));
+          
+          // Fetch analytics
+          const analyticsData = await fetchVendorAnalytics(id);
+          if (analyticsData) {
+            setAnalytics(analyticsData);
+          }
 
-  useEffect(() => {
-    if (!vendor) return;
-
-    // Get vendor orders
-    const filtered = orders.filter((order) => {
-      if (order.vendorItems && Array.isArray(order.vendorItems)) {
-        return order.vendorItems.some((vi) => vi.vendorId === vendor.id);
+          // Fetch orders
+          const ordersData = await fetchVendorOrders(id, { page: 1, limit: 100 });
+          if (ordersData && ordersData.orders) {
+            setVendorOrders(ordersData.orders);
+          }
+        } else {
+          toast.error("Vendor not found");
+          navigate("/admin/vendors");
+        }
+      } catch (error) {
+        toast.error("Failed to load vendor data");
+        navigate("/admin/vendors");
       }
-      return false;
-    });
-    setVendorOrders(filtered);
+    };
 
-    // Get commissions
-    const vendorCommissions = getVendorCommissions(vendor.id);
-    setCommissions(vendorCommissions);
+    loadVendorData();
+  }, [id, fetchVendorById, fetchVendorAnalytics, fetchVendorOrders, navigate]);
 
-    // Get earnings summary
-    const summary = getVendorEarningsSummary(vendor.id);
-    setEarningsSummary(summary);
-  }, [vendor, orders, getVendorCommissions, getVendorEarningsSummary]);
-
-  const handleStatusUpdate = (newStatus) => {
-    updateVendorStatus(vendor.id, newStatus);
-    setVendor({ ...vendor, status: newStatus });
-    toast.success(`Vendor status updated to ${newStatus}`);
+  const handleStatusUpdate = async (newStatus) => {
+    try {
+      const updatedVendor = await updateVendorStatus(vendor.id, newStatus);
+      setVendor(updatedVendor);
+      toast.success(`Vendor status updated to ${newStatus}`);
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
   };
 
-  const handleCommissionUpdate = () => {
+  const handleCommissionUpdate = async () => {
     const rate = parseFloat(commissionRate) / 100;
     if (isNaN(rate) || rate < 0 || rate > 1) {
       toast.error("Please enter a valid commission rate (0-100%)");
       return;
     }
-    updateCommissionRate(vendor.id, rate);
-    setVendor({ ...vendor, commissionRate: rate });
-    setIsEditingCommission(false);
-    toast.success("Commission rate updated successfully");
+    try {
+      const updatedVendor = await updateCommissionRate(vendor.id, rate);
+      setVendor(updatedVendor);
+      setIsEditingCommission(false);
+      toast.success("Commission rate updated successfully");
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
+  };
+
+  // Get earnings summary from analytics
+  const earningsSummary = analytics?.stats || {
+    totalEarnings: 0,
+    pendingEarnings: 0,
+    paidEarnings: 0,
   };
 
   if (!vendor) {
@@ -254,7 +267,7 @@ const VendorDetail = () => {
           )}
           {vendor.status === "approved" && (
             <button
-              onClick={() => handleStatusUpdate("suspended")}
+              onClick={() => handleStatusUpdate("rejected")}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm">
               <FiXCircle />
               Suspend

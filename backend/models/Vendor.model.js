@@ -99,6 +99,12 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    commissionRate: {
+      type: Number,
+      default: 0.1, // Default 10%
+      min: 0,
+      max: 1,
+    },
   },
   {
     timestamps: true,

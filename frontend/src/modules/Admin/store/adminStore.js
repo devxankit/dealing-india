@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import api from '../../../shared/utils/api';
 
 export const useAdminAuthStore = create(
   persist(
@@ -13,34 +14,44 @@ export const useAdminAuthStore = create(
       login: async (email, password, rememberMe = false) => {
         set({ isLoading: true });
         try {
-          // Mock admin authentication
-          // In a real app, this would be an API call
-          // const response = await api.post('/admin/auth/login', { email, password });
+          // Trim email and password to remove any whitespace
+          const trimmedEmail = email?.trim();
+          const trimmedPassword = password?.trim();
           
-          // Mock credentials: admin@admin.com / admin123
-          if (email === 'admin@admin.com' && password === 'admin123') {
-            const mockAdmin = {
-              id: 'admin-1',
-              name: 'Admin User',
-              email: email,
-              role: 'admin',
-              avatar: null,
+          if (!trimmedEmail || !trimmedPassword) {
+            throw new Error('Email and password are required');
+          }
+          
+          const response = await api.post('/auth/admin/login', { 
+            email: trimmedEmail, 
+            password: trimmedPassword 
+          });
+
+          if (response.success && response.data) {
+            const { admin, token } = response.data;
+            
+            // Transform backend admin object to frontend format
+            const adminData = {
+              id: admin._id || admin.id,
+              _id: admin._id,
+              name: admin.name,
+              email: admin.email,
+              role: admin.role || 'admin',
+              avatar: admin.avatar || null,
             };
-            const mockToken = 'admin-jwt-token-' + Date.now();
 
             set({
-              admin: mockAdmin,
-              token: mockToken,
+              admin: adminData,
+              token: token,
               isAuthenticated: true,
               isLoading: false,
             });
 
-            // Store token in localStorage for API interceptor
-            localStorage.setItem('admin-token', mockToken);
+            localStorage.setItem('admin-token', token);
             
-            return { success: true, admin: mockAdmin };
+            return { success: true, admin: adminData };
           } else {
-            throw new Error('Invalid credentials');
+            throw new Error(response.message || 'Login failed');
           }
         } catch (error) {
           set({ isLoading: false });
@@ -49,26 +60,63 @@ export const useAdminAuthStore = create(
       },
 
       // Admin logout action
-      logout: () => {
-        set({
-          admin: null,
-          token: null,
-          isAuthenticated: false,
-        });
-        localStorage.removeItem('admin-token');
+      logout: async () => {
+        try {
+          // Call backend logout endpoint if token exists
+          const token = get().token;
+          if (token) {
+            try {
+              await api.post('/auth/admin/logout');
+            } catch (error) {
+              // Ignore logout errors, still clear local state
+              console.error('Logout API error:', error);
+            }
+          }
+        } catch (error) {
+          // Ignore errors, proceed with local logout
+        } finally {
+          set({
+            admin: null,
+            token: null,
+            isAuthenticated: false,
+          });
+          localStorage.removeItem('admin-token');
+        }
       },
 
-      // Initialize admin auth state from localStorage
-      initialize: () => {
+      // Initialize admin auth state from localStorage and validate token
+      initialize: async () => {
         const token = localStorage.getItem('admin-token');
         if (token) {
-          const storedState = JSON.parse(localStorage.getItem('admin-auth-storage') || '{}');
-          if (storedState.state?.admin && storedState.state?.token) {
-            set({
-              admin: storedState.state.admin,
-              token: storedState.state.token,
-              isAuthenticated: true,
-            });
+          try {
+            // Validate token with backend
+            const response = await api.get('/auth/admin/me');
+            
+            if (response.success && response.data) {
+              const admin = response.data.admin;
+              
+              // Transform backend admin object to frontend format
+              const adminData = {
+                id: admin._id || admin.id,
+                _id: admin._id,
+                name: admin.name,
+                email: admin.email,
+                role: admin.role || 'admin',
+                avatar: admin.avatar || null,
+              };
+
+              set({
+                admin: adminData,
+                token: token,
+                isAuthenticated: true,
+              });
+            } else {
+              // Invalid token, clear storage
+              get().logout();
+            }
+          } catch (error) {
+            // Token invalid or expired, clear storage
+            get().logout();
           }
         }
       },
