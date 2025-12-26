@@ -161,6 +161,7 @@ export const createCampaign = async (campaignData) => {
         title: '',
         subtitle: '',
         imageUrl: '',
+        imagePublicId: null,
         customImage: false,
       },
       autoCreateBanner: campaignData.autoCreateBanner !== undefined ? campaignData.autoCreateBanner : true,

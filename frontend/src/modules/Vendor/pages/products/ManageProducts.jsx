@@ -8,26 +8,27 @@ import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
-import { products as initialProducts } from "../../../../data/products";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
-import { useVendorStore } from "../../store/vendorStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
-import { initializeFashionHubProducts } from "../../../../shared/utils/initializeFashionHubProducts";
+import { getVendorProducts, deleteVendorProduct } from "../../services/productService";
 import toast from "react-hot-toast";
 
 const ManageProducts = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const { getVendorProducts } = useVendorStore();
   const { categories, initialize: initCategories } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
 
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     productId: null,
@@ -38,70 +39,60 @@ const ManageProducts = () => {
   useEffect(() => {
     initCategories();
     initBrands();
-
-    // Initialize dummy products for Fashion Hub vendor (id: 1) on first load
-    if (vendorId === 1) {
-      const hasInitialized = localStorage.getItem(
-        "fashionhub-products-initialized"
-      );
-      if (!hasInitialized) {
-        initializeFashionHubProducts();
-        localStorage.setItem("fashionhub-products-initialized", "true");
-      }
-    }
-
     loadProducts();
-  }, [vendorId]);
+  }, [vendorId, currentPage, selectedStatus, selectedCategory, selectedBrand]);
 
-  const loadProducts = () => {
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage === 1) {
+        loadProducts();
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const loadProducts = async () => {
     if (!vendorId) return;
 
-    // Get all products (from localStorage or initial data)
-    const savedProducts = localStorage.getItem("admin-products");
-    const allProducts = savedProducts
-      ? JSON.parse(savedProducts)
-      : initialProducts;
+    setLoading(true);
+    try {
+      const response = await getVendorProducts({
+        search: searchQuery,
+        stock: selectedStatus !== "all" ? selectedStatus : undefined,
+        categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+        brandId: selectedBrand !== "all" ? selectedBrand : undefined,
+        page: currentPage,
+        limit: 10,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
 
-    // Filter by vendor
-    const vendorProducts = allProducts.filter(
-      (p) => p.vendorId === parseInt(vendorId)
-    );
-    setProducts(vendorProducts);
+      // API interceptor returns response.data, so response is already the data object
+      setProducts(response.data?.products || []);
+      setTotalPages(response.pagination?.pages || 1);
+      setTotal(response.pagination?.total || 0);
+    } catch (error) {
+      console.error("Error loading products:", error);
+      toast.error("Failed to load products");
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredProducts = useMemo(() => {
-    let filtered = products;
-
-    if (searchQuery) {
-      filtered = filtered.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter((product) => product.stock === selectedStatus);
-    }
-
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter(
-        (product) => product.categoryId === parseInt(selectedCategory)
-      );
-    }
-
-    if (selectedBrand !== "all") {
-      filtered = filtered.filter(
-        (product) => product.brandId === parseInt(selectedBrand)
-      );
-    }
-
-    return filtered;
-  }, [products, searchQuery, selectedStatus, selectedCategory, selectedBrand]);
+  // Products are already filtered by API, no need for client-side filtering
+  const filteredProducts = products;
 
   const columns = [
     {
-      key: "id",
+      key: "_id",
       label: "ID",
       sortable: true,
+      render: (value) => value?.toString().slice(-8) || "",
     },
     {
       key: "name",
@@ -143,8 +134,8 @@ const ManageProducts = () => {
             value === "in_stock"
               ? "success"
               : value === "low_stock"
-              ? "warning"
-              : "error"
+                ? "warning"
+                : "error"
           }>
           {value?.replace("_", " ").toUpperCase() || "N/A"}
         </Badge>
@@ -159,7 +150,7 @@ const ManageProducts = () => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/vendor/products/${row.id}`);
+              navigate(`/vendor/products/${row._id}`);
             }}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
             <FiEdit />
@@ -167,7 +158,7 @@ const ManageProducts = () => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setDeleteModal({ isOpen: true, productId: row.id });
+              setDeleteModal({ isOpen: true, productId: row._id });
             }}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
             <FiTrash2 />
@@ -177,26 +168,18 @@ const ManageProducts = () => {
     },
   ];
 
-  const confirmDelete = () => {
-    if (!vendorId) return;
+  const confirmDelete = async () => {
+    if (!vendorId || !deleteModal.productId) return;
 
-    // Get all products
-    const savedProducts = localStorage.getItem("admin-products");
-    const allProducts = savedProducts
-      ? JSON.parse(savedProducts)
-      : initialProducts;
-
-    // Remove the product
-    const updatedProducts = allProducts.filter(
-      (p) => p.id !== deleteModal.productId
-    );
-    localStorage.setItem("admin-products", JSON.stringify(updatedProducts));
-
-    // Reload vendor products
-    loadProducts();
-
-    setDeleteModal({ isOpen: false, productId: null });
-    toast.success("Product deleted successfully");
+    try {
+      await deleteVendorProduct(deleteModal.productId);
+      toast.success("Product deleted successfully");
+      setDeleteModal({ isOpen: false, productId: null });
+      loadProducts();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast.error("Failed to delete product");
+    }
   };
 
   if (!vendorId) {
@@ -272,7 +255,7 @@ const ManageProducts = () => {
               <ExportButton
                 data={filteredProducts}
                 headers={[
-                  { label: "ID", accessor: (row) => row.id },
+                  { label: "ID", accessor: (row) => row._id?.toString().slice(-8) || "" },
                   { label: "Name", accessor: (row) => row.name },
                   { label: "Price", accessor: (row) => formatPrice(row.price) },
                   { label: "Stock", accessor: (row) => row.stockQuantity || 0 },
@@ -285,14 +268,24 @@ const ManageProducts = () => {
         </div>
 
         {/* DataTable */}
-        {filteredProducts.length > 0 ? (
-          <DataTable
-            data={filteredProducts}
-            columns={columns}
-            pagination={true}
-            itemsPerPage={10}
-            onRowClick={(row) => navigate(`/vendor/products/${row.id}`)}
-          />
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-500">Loading products...</p>
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <>
+            <DataTable
+              data={filteredProducts}
+              columns={columns}
+              pagination={true}
+              itemsPerPage={10}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              onRowClick={(row) => navigate(`/vendor/products/${row._id}`)}
+            />
+          </>
         ) : (
           <div className="text-center py-12">
             <p className="text-gray-500 mb-4">No products found</p>

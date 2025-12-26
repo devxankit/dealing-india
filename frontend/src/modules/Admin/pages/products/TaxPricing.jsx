@@ -6,54 +6,14 @@ import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api";
 
 const TaxPricing = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
-  const [taxRules, setTaxRules] = useState([
-    {
-      id: 1,
-      name: "Standard Tax",
-      rate: 18,
-      type: "percentage",
-      applicableTo: "all",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "GST",
-      rate: 5,
-      type: "percentage",
-      applicableTo: "electronics",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "Service Tax",
-      rate: 10,
-      type: "percentage",
-      applicableTo: "services",
-      status: "inactive",
-    },
-  ]);
-  const [pricingRules, setPricingRules] = useState([
-    {
-      id: 1,
-      name: "Bulk Discount",
-      type: "discount",
-      value: 10,
-      minQuantity: 10,
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "VIP Pricing",
-      type: "markup",
-      value: 5,
-      applicableTo: "vip",
-      status: "active",
-    },
-  ]);
+  const [taxRules, setTaxRules] = useState([]);
+  const [pricingRules, setPricingRules] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [editingTax, setEditingTax] = useState(null);
   const [editingPricing, setEditingPricing] = useState(null);
   const [deleteModal, setDeleteModal] = useState({
@@ -62,50 +22,99 @@ const TaxPricing = () => {
     type: null,
   });
 
-  const handleSaveTax = (taxData) => {
-    if (editingTax) {
-      setTaxRules(
-        taxRules.map((t) =>
-          t.id === editingTax.id ? { ...taxData, id: editingTax.id } : t
-        )
-      );
-      toast.success("Tax rule updated");
-    } else {
-      setTaxRules([...taxRules, { ...taxData, id: taxRules.length + 1 }]);
-      toast.success("Tax rule added");
+  // Load tax rules and pricing rules on mount
+  useEffect(() => {
+    loadTaxRules();
+    loadPricingRules();
+  }, []);
+
+  const loadTaxRules = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get("/admin/tax-rules");
+      const rules = response.data.data || [];
+      // Transform _id to id for frontend compatibility
+      setTaxRules(rules.map((rule) => ({ ...rule, id: rule._id || rule.id })));
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to load tax rules";
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-    setEditingTax(null);
   };
 
-  const handleSavePricing = (pricingData) => {
-    if (editingPricing) {
-      setPricingRules(
-        pricingRules.map((p) =>
-          p.id === editingPricing.id
-            ? { ...pricingData, id: editingPricing.id }
-            : p
-        )
-      );
-      toast.success("Pricing rule updated");
-    } else {
-      setPricingRules([
-        ...pricingRules,
-        { ...pricingData, id: pricingRules.length + 1 },
-      ]);
-      toast.success("Pricing rule added");
+  const loadPricingRules = async () => {
+    try {
+      const response = await api.get("/admin/pricing-rules");
+      const rules = response.data.data || [];
+      // Transform _id to id for frontend compatibility
+      setPricingRules(rules.map((rule) => ({ ...rule, id: rule._id || rule.id })));
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to load pricing rules";
+      toast.error(errorMessage);
     }
-    setEditingPricing(null);
   };
 
-  const handleDelete = () => {
-    if (deleteModal.type === "tax") {
-      setTaxRules(taxRules.filter((t) => t.id !== deleteModal.id));
-      toast.success("Tax rule deleted");
-    } else {
-      setPricingRules(pricingRules.filter((p) => p.id !== deleteModal.id));
-      toast.success("Pricing rule deleted");
+  const handleSaveTax = async (taxData) => {
+    try {
+      if (editingTax && editingTax.id) {
+        // Update existing tax rule
+        const response = await api.put(`/admin/tax-rules/${editingTax.id}`, taxData);
+        const updatedRule = { ...response.data.data, id: response.data.data._id || editingTax.id };
+        setTaxRules(taxRules.map((t) => (t.id === editingTax.id ? updatedRule : t)));
+        toast.success("Tax rule updated");
+      } else {
+        // Create new tax rule
+        const response = await api.post("/admin/tax-rules", taxData);
+        const newRule = { ...response.data.data, id: response.data.data._id };
+        setTaxRules([...taxRules, newRule]);
+        toast.success("Tax rule added");
+      }
+      setEditingTax(null);
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to save tax rule";
+      toast.error(errorMessage);
     }
-    setDeleteModal({ isOpen: false, id: null, type: null });
+  };
+
+  const handleSavePricing = async (pricingData) => {
+    try {
+      if (editingPricing && editingPricing.id) {
+        // Update existing pricing rule
+        const response = await api.put(`/admin/pricing-rules/${editingPricing.id}`, pricingData);
+        const updatedRule = { ...response.data.data, id: response.data.data._id || editingPricing.id };
+        setPricingRules(pricingRules.map((p) => (p.id === editingPricing.id ? updatedRule : p)));
+        toast.success("Pricing rule updated");
+      } else {
+        // Create new pricing rule
+        const response = await api.post("/admin/pricing-rules", pricingData);
+        const newRule = { ...response.data.data, id: response.data.data._id };
+        setPricingRules([...pricingRules, newRule]);
+        toast.success("Pricing rule added");
+      }
+      setEditingPricing(null);
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to save pricing rule";
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      if (deleteModal.type === "tax") {
+        await api.delete(`/admin/tax-rules/${deleteModal.id}`);
+        setTaxRules(taxRules.filter((t) => t.id !== deleteModal.id));
+        toast.success("Tax rule deleted");
+      } else {
+        await api.delete(`/admin/pricing-rules/${deleteModal.id}`);
+        setPricingRules(pricingRules.filter((p) => p.id !== deleteModal.id));
+        toast.success("Pricing rule deleted");
+      }
+      setDeleteModal({ isOpen: false, id: null, type: null });
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to delete rule";
+      toast.error(errorMessage);
+    }
   };
 
   return (
@@ -148,11 +157,10 @@ const TaxPricing = () => {
                       <p>Type: {tax.type}</p>
                       <p>Applicable To: {tax.applicableTo}</p>
                       <p
-                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          tax.status === "active"
+                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${tax.status === "active"
                             ? "bg-green-100 text-green-800"
                             : "bg-gray-100 text-gray-800"
-                        }`}>
+                          }`}>
                         {tax.status}
                       </p>
                     </div>
@@ -194,52 +202,58 @@ const TaxPricing = () => {
           </div>
 
           <div className="space-y-3">
-            {pricingRules.map((pricing) => (
-              <div
-                key={pricing.id}
-                className="p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-800">
-                      {pricing.name}
-                    </h3>
-                    <div className="mt-2 space-y-1 text-sm text-gray-600">
-                      <p>Type: {pricing.type}</p>
-                      <p>Value: {pricing.value}%</p>
-                      {pricing.minQuantity && (
-                        <p>Min Quantity: {pricing.minQuantity}</p>
-                      )}
-                      <p
-                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          pricing.status === "active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}>
-                        {pricing.status}
-                      </p>
+            {pricingRules.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">No pricing rules found</div>
+            ) : (
+              pricingRules.map((pricing) => (
+                <div
+                  key={pricing.id || pricing._id}
+                  className="p-4 border border-gray-200 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-800">
+                        {pricing.name}
+                      </h3>
+                      <div className="mt-2 space-y-1 text-sm text-gray-600">
+                        <p>Type: {pricing.type}</p>
+                        <p>Value: {pricing.value}%</p>
+                        {pricing.minQuantity && (
+                          <p>Min Quantity: {pricing.minQuantity}</p>
+                        )}
+                        {pricing.applicableTo && (
+                          <p>Applicable To: {pricing.applicableTo}</p>
+                        )}
+                        <p
+                          className={`inline-block px-2 py-1 rounded text-xs font-medium ${pricing.status === "active"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                            }`}>
+                          {pricing.status}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setEditingPricing(pricing)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <FiEdit />
+                      </button>
+                      <button
+                        onClick={() =>
+                          setDeleteModal({
+                            isOpen: true,
+                            id: pricing.id,
+                            type: "pricing",
+                          })
+                        }
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <FiTrash2 />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setEditingPricing(pricing)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <FiEdit />
-                    </button>
-                    <button
-                      onClick={() =>
-                        setDeleteModal({
-                          isOpen: true,
-                          id: pricing.id,
-                          type: "pricing",
-                        })
-                      }
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                      <FiTrash2 />
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -263,9 +277,8 @@ const TaxPricing = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className={`fixed inset-0 z-[10000] flex ${
-                isAppRoute ? "items-start pt-[10px]" : "items-end"
-              } sm:items-center justify-center p-4 pointer-events-none`}>
+              className={`fixed inset-0 z-[10000] flex ${isAppRoute ? "items-start pt-[10px]" : "items-end"
+                } sm:items-center justify-center p-4 pointer-events-none`}>
               <motion.div
                 variants={{
                   hidden: {
@@ -299,12 +312,11 @@ const TaxPricing = () => {
                 animate="visible"
                 exit="exit"
                 onClick={(e) => e.stopPropagation()}
-                className={`bg-white ${
-                  isAppRoute ? "rounded-b-3xl" : "rounded-t-3xl"
-                } sm:rounded-xl shadow-xl p-6 max-w-md w-full pointer-events-auto`}
+                className={`bg-white ${isAppRoute ? "rounded-b-3xl" : "rounded-t-3xl"
+                  } sm:rounded-xl shadow-xl p-6 max-w-md w-full pointer-events-auto`}
                 style={{ willChange: "transform" }}>
                 <h3 className="text-lg font-bold text-gray-800 mb-4">
-                  {editingTax.id ? "Edit Tax Rule" : "Add Tax Rule"}
+                  {editingTax && editingTax.id ? "Edit Tax Rule" : "Add Tax Rule"}
                 </h3>
                 <form
                   onSubmit={(e) => {
@@ -432,9 +444,8 @@ const TaxPricing = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className={`fixed inset-0 z-[10000] flex ${
-                isAppRoute ? "items-start pt-[10px]" : "items-end"
-              } sm:items-center justify-center p-4 pointer-events-none`}>
+              className={`fixed inset-0 z-[10000] flex ${isAppRoute ? "items-start pt-[10px]" : "items-end"
+                } sm:items-center justify-center p-4 pointer-events-none`}>
               <motion.div
                 variants={{
                   hidden: {
@@ -468,12 +479,11 @@ const TaxPricing = () => {
                 animate="visible"
                 exit="exit"
                 onClick={(e) => e.stopPropagation()}
-                className={`bg-white ${
-                  isAppRoute ? "rounded-b-3xl" : "rounded-t-3xl"
-                } sm:rounded-xl shadow-xl p-6 max-w-md w-full pointer-events-auto`}
+                className={`bg-white ${isAppRoute ? "rounded-b-3xl" : "rounded-t-3xl"
+                  } sm:rounded-xl shadow-xl p-6 max-w-md w-full pointer-events-auto`}
                 style={{ willChange: "transform" }}>
                 <h3 className="text-lg font-bold text-gray-800 mb-4">
-                  {editingPricing.id ? "Edit Pricing Rule" : "Add Pricing Rule"}
+                  {editingPricing && editingPricing.id ? "Edit Pricing Rule" : "Add Pricing Rule"}
                 </h3>
                 <form
                   onSubmit={(e) => {

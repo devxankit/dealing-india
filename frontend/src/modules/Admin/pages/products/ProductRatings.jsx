@@ -7,40 +7,11 @@ import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatDateTime } from '../../utils/adminHelpers';
 import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api";
 
 const ProductRatings = () => {
-  const [ratings, setRatings] = useState([
-    {
-      id: 1,
-      productId: 1,
-      productName: "Sample Product",
-      customerName: "John Doe",
-      rating: 5,
-      review: "Great product! Highly recommended.",
-      date: new Date().toISOString(),
-      status: "approved",
-    },
-    {
-      id: 2,
-      productId: 2,
-      productName: "Another Product",
-      customerName: "Jane Smith",
-      rating: 4,
-      review: "Good quality, fast shipping.",
-      date: new Date(Date.now() - 86400000).toISOString(),
-      status: "pending",
-    },
-    {
-      id: 3,
-      productId: 3,
-      productName: "Third Product",
-      customerName: "Bob Johnson",
-      rating: 3,
-      review: "Average product, could be better.",
-      date: new Date(Date.now() - 172800000).toISOString(),
-      status: "approved",
-    },
-  ]);
+  const [ratings, setRatings] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRating, setSelectedRating] = useState(null);
@@ -49,30 +20,84 @@ const ProductRatings = () => {
     ratingId: null,
   });
 
+  // Load ratings on mount and when filters change
+  useEffect(() => {
+    loadRatings();
+  }, [statusFilter]);
+
+  const loadRatings = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get("/admin/product-ratings", {
+        params: {
+          search: searchQuery,
+          status: statusFilter,
+          limit: 1000, // Fetch all for client-side filtering
+        },
+      });
+      const reviews = response.data.data || [];
+      // Transform _id to id for frontend compatibility
+      setRatings(reviews.map((review) => ({
+        ...review,
+        id: review._id || review.id,
+        productId: review.productId?._id || review.productId || review.productId,
+        productName: review.productName || review.productId?.name || "Unknown Product",
+        date: review.date || review.createdAt,
+      })));
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to load ratings";
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadRatings();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const filteredRatings = ratings.filter((rating) => {
     const matchesSearch =
       !searchQuery ||
-      rating.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rating.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rating.review.toLowerCase().includes(searchQuery.toLowerCase());
+      rating.productName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rating.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rating.review?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus =
-      statusFilter === "all" || rating.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
-  const handleStatusChange = (id, newStatus) => {
-    setRatings(
-      ratings.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
-    );
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await api.put(`/admin/product-ratings/${id}`, { status: newStatus });
+      setRatings(ratings.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
+      if (selectedRating && selectedRating.id === id) {
+        setSelectedRating({ ...selectedRating, status: newStatus });
+      }
+      toast.success("Rating status updated");
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to update rating status";
+      toast.error(errorMessage);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteModal.ratingId) {
-      setRatings(ratings.filter((r) => r.id !== deleteModal.ratingId));
-      toast.success("Rating deleted successfully");
-      setDeleteModal({ isOpen: false, ratingId: null });
+      try {
+        await api.delete(`/admin/product-ratings/${deleteModal.ratingId}`);
+        setRatings(ratings.filter((r) => r.id !== deleteModal.ratingId));
+        if (selectedRating && selectedRating.id === deleteModal.ratingId) {
+          setSelectedRating(null);
+        }
+        toast.success("Rating deleted successfully");
+        setDeleteModal({ isOpen: false, ratingId: null });
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || "Failed to delete rating";
+        toast.error(errorMessage);
+      }
     }
   };
 

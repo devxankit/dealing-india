@@ -87,10 +87,12 @@ const vendorSchema = new mongoose.Schema(
       enum: ['vendor'],
       default: 'vendor',
     },
-    documents: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {},
-    },
+    documents: [{
+      name: { type: String, required: true },
+      url: { type: String, required: true },
+      publicId: { type: String },
+      uploadedAt: { type: Date, default: Date.now },
+    }],
     bankDetails: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

@@ -23,8 +23,6 @@
     "route": "/admin/products",
     "children": [
       "Manage Products",
-      "Add Product",
-      "Bulk Upload",
       "Tax & Pricing",
       "Product Ratings",
       "Product FAQs"
@@ -64,19 +62,6 @@
     ]
   },
   {
-    "title": "Stock Management",
-    "route": "/admin/inventory",
-    "children": []
-  },
-  {
-    "title": "Delivery Management",
-    "route": "/admin/delivery",
-    "children": [
-      "Delivery Boys",
-      "Cash Collection"
-    ]
-  },
-  {
     "title": "Vendors",
     "route": "/admin/vendors",
     "children": [
@@ -84,14 +69,6 @@
       "Pending Approvals",
       "Commission Rates",
       "Vendor Analytics"
-    ]
-  },
-  {
-    "title": "Locations",
-    "route": "/admin/locations",
-    "children": [
-      "Cities",
-      "Zipcodes"
     ]
   },
   {
@@ -174,4 +151,3 @@
     ]
   }
 ]
-

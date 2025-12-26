@@ -263,7 +263,7 @@ const transformVendor = (vendor) => {
     isActive: vendor.isActive !== false,
     role: vendor.role || 'vendor',
     address: vendor.address || {},
-    documents: vendor.documents || {},
+    documents: Array.isArray(vendor.documents) ? vendor.documents : [], // Handle as array
     bankDetails: vendor.bankDetails || {},
     commissionRate: vendor.commissionRate || 0.1,
     joinDate: vendor.createdAt || vendor.joinDate || new Date().toISOString(),

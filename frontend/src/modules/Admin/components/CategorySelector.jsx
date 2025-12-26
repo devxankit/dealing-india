@@ -1,7 +1,58 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { FiChevronDown, FiChevronRight } from "react-icons/fi";
+import { FiChevronDown, FiChevronRight, FiPackage, FiShoppingBag, FiStar, FiTag, FiZap, FiHeart, FiHome, FiGrid, FiBox, FiLayers, FiShoppingCart, FiTruck, FiGift, FiCoffee, FiMusic, FiCamera, FiBook, FiWatch, FiHeadphones, FiSmartphone, FiMonitor, FiCpu, FiBattery, FiWifi } from "react-icons/fi";
+import { IoShirtOutline, IoBagHandleOutline, IoRestaurantOutline, IoFitnessOutline, IoCarOutline, IoHomeOutline, IoBookOutline, IoGameControllerOutline, IoMusicalNotesOutline, IoCameraOutline, IoPhonePortraitOutline, IoLaptopOutline, IoWatchOutline, IoHeadsetOutline } from "react-icons/io5";
+import { LuFootprints } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
+
+// Icon component mapping - must match CategoryForm and MobileCategoryIcons
+const iconComponents = {
+  IoShirtOutline,
+  LuFootprints,
+  IoBagHandleOutline,
+  FiStar,
+  FiTag,
+  FiZap,
+  FiPackage,
+  FiShoppingBag,
+  FiHeart,
+  FiHome,
+  FiGrid,
+  FiBox,
+  FiLayers,
+  FiShoppingCart,
+  FiTruck,
+  FiGift,
+  FiCoffee,
+  FiMusic,
+  FiCamera,
+  FiBook,
+  FiWatch,
+  FiHeadphones,
+  FiSmartphone,
+  FiMonitor,
+  FiCpu,
+  FiBattery,
+  FiWifi,
+  IoRestaurantOutline,
+  IoFitnessOutline,
+  IoCarOutline,
+  IoHomeOutline,
+  IoBookOutline,
+  IoGameControllerOutline,
+  IoMusicalNotesOutline,
+  IoCameraOutline,
+  IoPhonePortraitOutline,
+  IoLaptopOutline,
+  IoWatchOutline,
+  IoHeadsetOutline,
+};
+
+// Helper function to get icon component from category
+const getCategoryIcon = (category) => {
+  if (!category || !category.icon) return null;
+  return iconComponents[category.icon] || null;
+};
 
 const CategorySelector = ({
   value,
@@ -183,6 +234,17 @@ const CategorySelector = ({
     return "Select Category";
   }, [selectedCategory, selectedSubcategory, parentCategory]);
 
+  // Get icon for selected category (prefer subcategory icon, fallback to parent)
+  const selectedCategoryIcon = useMemo(() => {
+    if (selectedSubcategory) {
+      return getCategoryIcon(selectedSubcategory) || getCategoryIcon(parentCategory);
+    }
+    if (selectedCategory) {
+      return getCategoryIcon(selectedCategory);
+    }
+    return null;
+  }, [selectedCategory, selectedSubcategory, parentCategory]);
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Selected Value Display */}
@@ -202,9 +264,14 @@ const CategorySelector = ({
         className={`w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white flex items-center justify-between transition-all duration-200 hover:border-primary-400 ${
           !value ? "text-gray-500" : "text-gray-900"
         }`}>
-        <span className="truncate">{displayText}</span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {selectedCategoryIcon && (
+            <selectedCategoryIcon className="text-lg flex-shrink-0 text-primary-600" />
+          )}
+          <span className="truncate">{displayText}</span>
+        </div>
         <FiChevronDown
-          className={`ml-2 text-gray-500 transition-transform ${
+          className={`ml-2 text-gray-500 transition-transform flex-shrink-0 ${
             isOpen ? "transform rotate-180" : ""
           }`}
         />
@@ -248,6 +315,7 @@ const CategorySelector = ({
                     const hasSubcategories = subcategories.length > 0;
                     const isSelected = value === category.id && !subcategoryId;
                     const isHovered = hoveredCategoryId === category.id;
+                    const CategoryIcon = getCategoryIcon(category);
 
                     return (
                       <div key={category.id} data-category-id={category.id}>
@@ -303,9 +371,16 @@ const CategorySelector = ({
                               closeTimeoutRef.current = null;
                             }, 200); // 0.20 seconds = 200ms
                           }}>
-                          <span className="flex-1">{category.name}</span>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            {CategoryIcon && (
+                              <CategoryIcon className={`text-lg flex-shrink-0 ${
+                                isSelected ? "text-primary-600" : "text-gray-600"
+                              }`} />
+                            )}
+                            <span className="truncate">{category.name}</span>
+                          </div>
                           {hasSubcategories && (
-                            <FiChevronRight className="ml-2 text-gray-400" />
+                            <FiChevronRight className="ml-2 text-gray-400 flex-shrink-0" />
                           )}
                         </motion.div>
                       </div>
@@ -345,6 +420,7 @@ const CategorySelector = ({
                 <div className="py-1 max-h-60 overflow-y-auto">
                   {hoveredSubcategories.map((subcategory) => {
                     const isSubSelected = subcategoryId === subcategory.id;
+                    const SubcategoryIcon = getCategoryIcon(subcategory);
                     return (
                       <motion.div
                         key={subcategory.id}
@@ -359,12 +435,17 @@ const CategorySelector = ({
                             ? "rgba(40, 116, 240, 0.1)"
                             : "rgba(249, 250, 251, 1)",
                         }}
-                        className={`px-4 py-2 cursor-pointer transition-colors duration-150 ${
+                        className={`px-4 py-2 cursor-pointer transition-colors duration-150 flex items-center gap-2 ${
                           isSubSelected
                             ? "bg-primary-50 text-primary-600"
                             : "text-gray-900"
                         }`}>
-                        {subcategory.name}
+                        {SubcategoryIcon && (
+                          <SubcategoryIcon className={`text-lg flex-shrink-0 ${
+                            isSubSelected ? "text-primary-600" : "text-gray-600"
+                          }`} />
+                        )}
+                        <span className="truncate">{subcategory.name}</span>
                       </motion.div>
                     );
                   })}

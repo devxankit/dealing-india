@@ -12,6 +12,11 @@ const sliderSchema = new mongoose.Schema(
       required: [true, 'Image URL is required'],
       trim: true,
     },
+    imagePublicId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     link: {
       type: String,
       required: [true, 'Link is required'],

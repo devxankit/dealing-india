@@ -112,11 +112,6 @@
     "children": []
   },
   {
-    "title": "Documents",
-    "route": "/vendor/documents",
-    "children": []
-  },
-  {
     "title": "Analytics",
     "route": "/vendor/analytics",
     "children": []

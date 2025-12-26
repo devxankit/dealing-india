@@ -5,8 +5,9 @@ import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import toast from 'react-hot-toast';
 
 const CategoryOrder = () => {
-  const { categories, initialize } = useCategoryStore();
+  const { categories, initialize, bulkUpdateCategoryOrder } = useCategoryStore();
   const [orderedCategories, setOrderedCategories] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     initialize();
@@ -15,7 +16,8 @@ const CategoryOrder = () => {
   useEffect(() => {
     // Filter out subcategories (only show root categories)
     const rootCategories = categories.filter((cat) => !cat.parentId);
-    setOrderedCategories([...rootCategories].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
+    // Sort by order field (not displayOrder)
+    setOrderedCategories([...rootCategories].sort((a, b) => (a.order || 0) - (b.order || 0)));
   }, [categories]);
 
   const moveUp = (index) => {
@@ -32,15 +34,22 @@ const CategoryOrder = () => {
     setOrderedCategories(newOrder);
   };
 
-  const handleSave = () => {
-    const updatedCategories = orderedCategories.map((cat, index) => ({
-      ...cat,
-      displayOrder: index + 1,
-    }));
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Prepare order updates array
+      const orderUpdates = orderedCategories.map((cat, index) => ({
+        id: cat.id || cat._id,
+        order: index + 1,
+      }));
 
-    // In a real app, you would save this to the backend
-    localStorage.setItem('categories', JSON.stringify(updatedCategories));
-    toast.success('Category order saved successfully');
+      await bulkUpdateCategoryOrder(orderUpdates);
+      // Categories will be refreshed automatically by the store
+    } catch (error) {
+      // Error is already handled in the store
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -56,10 +65,11 @@ const CategoryOrder = () => {
         </div>
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm"
+          disabled={isSaving}
+          className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FiSave />
-          <span>Save Order</span>
+          <span>{isSaving ? 'Saving...' : 'Save Order'}</span>
         </button>
       </div>
 
@@ -72,7 +82,7 @@ const CategoryOrder = () => {
           <div className="space-y-2">
             {orderedCategories.map((category, index) => (
               <div
-                key={category.id}
+                key={category.id || category._id || index}
                 className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-2">
@@ -110,7 +120,7 @@ const CategoryOrder = () => {
                   </div>
                 </div>
                 <div className="text-sm text-gray-500">
-                  Order: {category.displayOrder || index + 1}
+                  Order: {category.order || index + 1}
                 </div>
               </div>
             ))}

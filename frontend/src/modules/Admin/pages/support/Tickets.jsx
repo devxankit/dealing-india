@@ -1,62 +1,205 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FiSearch, FiEye, FiMessageSquare } from 'react-icons/fi';
+import { FiSearch, FiEye, FiMessageSquare, FiSend } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import Badge from '../../../../shared/components/Badge';
 import AnimatedSelect from '../../components/AnimatedSelect';
-// import { formatDateTime } from '../../../utils/adminHelpers';
+import api from '../../../../shared/utils/api';
+import { API_BASE_URL } from '../../../../shared/utils/constants';
+import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 
 const Tickets = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const [tickets, setTickets] = useState([
-    {
-      id: 'TKT-001',
-      customerName: 'John Doe',
-      type: 'Technical Support',
-      subject: 'Unable to place order',
-      status: 'open',
-      priority: 'high',
-      createdAt: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-    },
-    {
-      id: 'TKT-002',
-      customerName: 'Jane Smith',
-      type: 'Billing Inquiry',
-      subject: 'Payment not processed',
-      status: 'in_progress',
-      priority: 'medium',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      lastUpdate: new Date(Date.now() - 1800000).toISOString(),
-    },
-    {
-      id: 'TKT-003',
-      customerName: 'Bob Johnson',
-      type: 'Product Inquiry',
-      subject: 'Product availability',
-      status: 'resolved',
-      priority: 'low',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      lastUpdate: new Date(Date.now() - 43200000).toISOString(),
-    },
-  ]);
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [ticketDetail, setTicketDetail] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const socketRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
-  const filteredTickets = tickets.filter((ticket) => {
-    const matchesSearch =
-      !searchQuery ||
-      ticket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.subject.toLowerCase().includes(searchQuery.toLowerCase());
+  // Initialize Socket.io connection
+  useEffect(() => {
+    const token = localStorage.getItem('admin-token');
+    if (!token) return;
 
-    const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
+    const socket = io(API_BASE_URL.replace('/api', ''), {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+    });
 
-    return matchesSearch && matchesStatus;
-  });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Socket connected');
+    });
+
+    socket.on('message_received', (data) => {
+      const currentTicketId = selectedTicket?._id || selectedTicket?.id;
+      if (selectedTicket && data.ticketId === currentTicketId) {
+        setMessages((prev) => [...prev, data.message]);
+        // Scroll to bottom
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+      // Refresh tickets list
+      fetchTickets();
+    });
+
+    socket.on('ticket_updated', (data) => {
+      const currentTicketId = selectedTicket?._id || selectedTicket?.id;
+      if (selectedTicket && data.ticketId === currentTicketId) {
+        setTicketDetail((prev) => ({ ...prev, ...data.ticket }));
+        setSelectedTicket((prev) => ({ ...prev, ...data.ticket }));
+      }
+      // Refresh tickets list
+      fetchTickets();
+    });
+
+    socket.on('error', (error) => {
+      toast.error(error.message || 'Socket error');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [selectedTicket]);
+
+  // Fetch tickets
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchTickets();
+    }, 300); // Debounce search
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, statusFilter]);
+
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '100',
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+
+      const response = await api.get(`/admin/support/tickets?${params.toString()}`);
+      if (response.success && response.data?.tickets) {
+        const transformed = response.data.tickets.map((ticket) => ({
+          ...ticket,
+          id: ticket.ticketNumber || ticket._id,
+        }));
+        setTickets(transformed);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewTicket = async (ticket) => {
+    try {
+      setLoadingDetail(true);
+      setSelectedTicket(ticket);
+      const ticketId = ticket._id || ticket.id;
+      const response = await api.get(`/admin/support/tickets/${ticketId}`);
+      if (response.success && response.data?.ticket) {
+        const ticketData = response.data.ticket;
+        setTicketDetail(ticketData);
+        setMessages(ticketData.messages || []);
+
+        // Join ticket room via Socket.io
+        if (socketRef.current) {
+          socketRef.current.emit('join_ticket_room', { ticketId: ticketData._id || ticketId });
+        }
+
+        // Scroll to bottom after messages load
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedTicket) return;
+
+    try {
+      const ticketId = selectedTicket._id || selectedTicket.id;
+      // Send via Socket.io if connected, otherwise fallback to REST
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('send_message', {
+          ticketId: ticketId,
+          message: newMessage.trim(),
+        });
+      } else {
+        // REST fallback
+        const response = await api.post(`/admin/support/tickets/${ticketId}/messages`, {
+          message: newMessage.trim(),
+        });
+        if (response.success) {
+          setMessages((prev) => [...prev, response.data.message]);
+        }
+      }
+      setNewMessage('');
+      // Scroll to bottom
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    if (!selectedTicket) return;
+
+    try {
+      const ticketId = selectedTicket._id || selectedTicket.id;
+      // Send via Socket.io if connected, otherwise fallback to REST
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('update_ticket_status', {
+          ticketId: ticketId,
+          status: newStatus,
+        });
+      } else {
+        // REST fallback
+        await api.put(`/admin/support/tickets/${ticketId}/status`, {
+          status: newStatus,
+        });
+        await fetchTickets();
+        const response = await api.get(`/admin/support/tickets/${ticketId}`);
+        if (response.success && response.data?.ticket) {
+          setTicketDetail(response.data.ticket);
+          setSelectedTicket((prev) => ({ ...prev, status: newStatus }));
+        }
+      }
+      toast.success('Ticket status updated');
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -128,7 +271,7 @@ const Tickets = () => {
       sortable: false,
       render: (_, row) => (
         <button
-          onClick={() => setSelectedTicket(row)}
+          onClick={() => handleViewTicket(row)}
           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
         >
           <FiEye />
@@ -177,12 +320,22 @@ const Tickets = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={filteredTickets}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-gray-500">Loading tickets...</div>
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-gray-500">No tickets found</div>
+          </div>
+        ) : (
+          <DataTable
+            data={tickets}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       <AnimatePresence>
@@ -244,44 +397,122 @@ const Tickets = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-gray-800">Ticket Details</h3>
                   <button
-                    onClick={() => setSelectedTicket(null)}
+                    onClick={() => {
+                      const ticketId = selectedTicket?._id || selectedTicket?.id;
+                      setSelectedTicket(null);
+                      setTicketDetail(null);
+                      setMessages([]);
+                      if (socketRef.current && ticketId) {
+                        socketRef.current.emit('leave_ticket_room', { ticketId });
+                      }
+                    }}
                     className="text-gray-400 hover:text-gray-600"
                   >
                     ✕
                   </button>
                 </div>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Ticket ID</p>
-                    <p className="font-semibold text-gray-800">{selectedTicket.id}</p>
+
+                {loadingDetail ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-gray-500">Loading ticket details...</div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Customer</p>
-                    <p className="font-semibold text-gray-800">{selectedTicket.customerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Subject</p>
-                    <p className="font-semibold text-gray-800">{selectedTicket.subject}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Type</p>
-                      <p className="font-semibold text-gray-800">{selectedTicket.type}</p>
+                ) : ticketDetail ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b">
+                      <div>
+                        <p className="text-sm text-gray-600">Ticket ID</p>
+                        <p className="font-semibold text-gray-800">{ticketDetail.ticketNumber || ticketDetail.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Customer</p>
+                        <p className="font-semibold text-gray-800">{ticketDetail.customerName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Subject</p>
+                        <p className="font-semibold text-gray-800">{ticketDetail.subject}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Type</p>
+                        <p className="font-semibold text-gray-800">{ticketDetail.type}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Priority</p>
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getPriorityColor(ticketDetail.priority)}`}>
+                          {ticketDetail.priority}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Status</p>
+                        <AnimatedSelect
+                          value={ticketDetail.status}
+                          onChange={(e) => handleStatusChange(e.target.value)}
+                          options={[
+                            { value: 'open', label: 'Open' },
+                            { value: 'in_progress', label: 'In Progress' },
+                            { value: 'resolved', label: 'Resolved' },
+                            { value: 'closed', label: 'Closed' },
+                          ]}
+                          className="min-w-[140px]"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Priority</p>
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getPriorityColor(selectedTicket.priority)}`}>
-                        {selectedTicket.priority}
-                      </span>
+
+                    {/* Messages/Conversation */}
+                    <div className="border-t pt-4">
+                      <h4 className="font-semibold text-gray-800 mb-4">Conversation</h4>
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto mb-4">
+                        {messages.length === 0 ? (
+                          <div className="text-center text-gray-500 py-8">No messages yet</div>
+                        ) : (
+                          messages.map((msg) => (
+                            <div
+                              key={msg.id}
+                              className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div
+                                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                  msg.sender === 'admin'
+                                    ? 'bg-primary-600 text-white'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}
+                              >
+                                <p className="text-sm">{msg.message}</p>
+                                <p
+                                  className={`text-xs mt-1 ${
+                                    msg.sender === 'admin' ? 'text-primary-100' : 'text-gray-500'
+                                  }`}
+                                >
+                                  {new Date(msg.time).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                        <div ref={messagesEndRef} />
+                      </div>
+
+                      {/* Message Input */}
+                      <div className="flex items-center gap-2 border-t pt-4">
+                        <input
+                          type="text"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                          placeholder="Type a message..."
+                          className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                        <button
+                          onClick={handleSendMessage}
+                          className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                        >
+                          <FiSend />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Status</p>
-                    <Badge variant={getStatusColor(selectedTicket.status)}>
-                      {selectedTicket.status.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">Loading...</div>
+                )}
               </motion.div>
             </motion.div>
           </>

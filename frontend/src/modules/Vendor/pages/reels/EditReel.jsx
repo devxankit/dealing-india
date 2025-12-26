@@ -3,8 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiSave, FiX, FiUpload, FiVideo, FiPackage } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
-import { getReelById, updateVendorReel } from "../../../../shared/utils/reelHelpers";
-import { products } from "../../../../data/products";
+import { getVendorReelById, updateVendorReel } from "../../services/reelService";
+import { getVendorProducts } from "../../services/productService";
 import AnimatedSelect from "../../../../modules/Admin/components/AnimatedSelect";
 import toast from "react-hot-toast";
 
@@ -13,6 +13,8 @@ const EditReel = () => {
   const { id } = useParams();
   const { vendor } = useVendorAuthStore();
   const [loading, setLoading] = useState(false);
+  const [loadingReel, setLoadingReel] = useState(false);
+  const [vendorProducts, setVendorProducts] = useState([]);
   const [formData, setFormData] = useState({
     videoUrl: "",
     thumbnail: "",
@@ -25,40 +27,69 @@ const EditReel = () => {
     likes: 0,
     comments: 0,
     shares: 0,
+    views: 0,
   });
 
-  // Get vendor products
-  const vendorProducts = products.filter(
-    (p) => p.vendorId === vendor?.id
-  );
+  useEffect(() => {
+    if (vendor?.id) {
+      loadVendorProducts();
+    }
+  }, [vendor?.id]);
 
   useEffect(() => {
-    if (id) {
-      const reel = getReelById(id);
-      if (reel) {
-        setFormData({
-          videoUrl: reel.videoUrl || "",
-          thumbnail: reel.thumbnail || "",
-          productId: reel.productId?.toString() || "",
-          productName: reel.productName || "",
-          productPrice: reel.productPrice?.toString() || "",
-          vendorName: reel.vendorName || vendor?.storeName || vendor?.name || "",
-          vendorId: reel.vendorId || vendor?.id || null,
-          status: reel.status || "draft",
-          likes: reel.likes || 0,
-          comments: reel.comments || 0,
-          shares: reel.shares || 0,
-        });
-      } else {
-        toast.error("Reel not found");
-        navigate("/vendor/reels/all-reels");
-      }
+    if (id && vendor?.id) {
+      loadReel();
     }
-  }, [id, vendor, navigate]);
+  }, [id, vendor?.id]);
+
+  const loadVendorProducts = async () => {
+    try {
+      const response = await getVendorProducts({ limit: 1000 });
+      // Handle both response structures
+      if (response?.data?.products) {
+        setVendorProducts(response.data.products);
+      } else if (response?.products) {
+        setVendorProducts(response.products);
+      } else if (Array.isArray(response)) {
+        setVendorProducts(response);
+      }
+    } catch (error) {
+      console.error("Error loading products:", error);
+    }
+  };
+
+  const loadReel = async () => {
+    if (!id) return;
+
+    setLoadingReel(true);
+    try {
+      const reel = await getVendorReelById(id);
+      setFormData({
+        videoUrl: reel.videoUrl || "",
+        thumbnail: reel.thumbnail || "",
+        productId: reel.productId?.toString() || "",
+        productName: reel.productName || "",
+        productPrice: reel.productPrice?.toString() || "",
+        vendorName: reel.vendorName || vendor?.storeName || vendor?.name || "",
+        vendorId: reel.vendorId?.toString() || vendor?.id || null,
+        status: reel.status || "draft",
+        likes: reel.likes || 0,
+        comments: reel.comments || 0,
+        shares: reel.shares || 0,
+        views: reel.views || 0,
+      });
+    } catch (error) {
+      console.error("Error loading reel:", error);
+      toast.error("Failed to load reel");
+      navigate("/vendor/reels/all-reels");
+    } finally {
+      setLoadingReel(false);
+    }
+  };
 
   useEffect(() => {
     if (formData.productId) {
-      const product = products.find((p) => p.id === parseInt(formData.productId));
+      const product = vendorProducts.find((p) => (p._id || p.id)?.toString() === formData.productId);
       if (product) {
         setFormData((prev) => ({
           ...prev,
@@ -68,7 +99,7 @@ const EditReel = () => {
         }));
       }
     }
-  }, [formData.productId]);
+  }, [formData.productId, vendorProducts]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -96,25 +127,35 @@ const EditReel = () => {
       }
 
       const reelData = {
-        ...formData,
-        productId: parseInt(formData.productId),
-        productPrice: parseFloat(formData.productPrice),
-        vendorId: parseInt(formData.vendorId),
+        videoUrl: formData.videoUrl,
+        thumbnail: formData.thumbnail || null,
+        productId: formData.productId,
+        status: formData.status,
         likes: parseInt(formData.likes) || 0,
         comments: parseInt(formData.comments) || 0,
         shares: parseInt(formData.shares) || 0,
+        views: parseInt(formData.views) || 0,
       };
 
-      updateVendorReel(id, reelData);
+      await updateVendorReel(id, reelData);
       toast.success("Reel updated successfully!");
       navigate("/vendor/reels/all-reels");
     } catch (error) {
       console.error("Error updating reel:", error);
-      toast.error("Failed to update reel. Please try again.");
+      toast.error(error.response?.data?.message || "Failed to update reel. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  if (loadingReel) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-gray-500">Loading reel...</p>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -150,11 +191,11 @@ const EditReel = () => {
             </label>
             <AnimatedSelect
               value={formData.productId}
-              onChange={(value) => setFormData((prev) => ({ ...prev, productId: value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, productId: e.target.value }))}
               options={[
                 { value: "", label: "Select a product" },
                 ...vendorProducts.map((product) => ({
-                  value: product.id.toString(),
+                  value: (product._id || product.id).toString(),
                   label: `${product.name} - ₹${product.price}`,
                 })),
               ]}
@@ -224,7 +265,7 @@ const EditReel = () => {
             </label>
             <AnimatedSelect
               value={formData.status}
-              onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
               options={[
                 { value: "draft", label: "Draft" },
                 { value: "active", label: "Active" },

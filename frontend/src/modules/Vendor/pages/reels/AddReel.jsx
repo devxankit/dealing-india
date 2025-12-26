@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { FiSave, FiX, FiUpload, FiVideo, FiPackage } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
-import { addVendorReel } from "../../../../shared/utils/reelHelpers";
-import { products } from "../../../../data/products";
+import { createVendorReel } from "../../services/reelService";
+import { getVendorProducts } from "../../services/productService";
 import AnimatedSelect from "../../../../modules/Admin/components/AnimatedSelect";
 import toast from "react-hot-toast";
 
@@ -12,6 +12,7 @@ const AddReel = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
   const [loading, setLoading] = useState(false);
+  const [vendorProducts, setVendorProducts] = useState([]);
   const [formData, setFormData] = useState({
     videoUrl: "",
     thumbnail: "",
@@ -26,14 +27,31 @@ const AddReel = () => {
     shares: 0,
   });
 
-  // Get vendor products
-  const vendorProducts = products.filter(
-    (p) => p.vendorId === vendor?.id
-  );
+  useEffect(() => {
+    loadVendorProducts();
+  }, [vendor?.id]);
+
+  const loadVendorProducts = async () => {
+    if (!vendor?.id) return;
+
+    try {
+      const response = await getVendorProducts({ limit: 1000 });
+      // Handle both response structures
+      if (response?.data?.products) {
+        setVendorProducts(response.data.products);
+      } else if (response?.products) {
+        setVendorProducts(response.products);
+      } else if (Array.isArray(response)) {
+        setVendorProducts(response);
+      }
+    } catch (error) {
+      console.error("Error loading products:", error);
+    }
+  };
 
   useEffect(() => {
     if (formData.productId) {
-      const product = products.find((p) => p.id === parseInt(formData.productId));
+      const product = vendorProducts.find((p) => (p._id || p.id)?.toString() === formData.productId);
       if (product) {
         setFormData((prev) => ({
           ...prev,
@@ -43,7 +61,7 @@ const AddReel = () => {
         }));
       }
     }
-  }, [formData.productId]);
+  }, [formData.productId, vendorProducts]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -71,21 +89,22 @@ const AddReel = () => {
       }
 
       const reelData = {
-        ...formData,
-        productId: parseInt(formData.productId),
-        productPrice: parseFloat(formData.productPrice),
-        vendorId: parseInt(formData.vendorId),
+        videoUrl: formData.videoUrl,
+        thumbnail: formData.thumbnail || null,
+        productId: formData.productId,
+        status: formData.status,
         likes: parseInt(formData.likes) || 0,
         comments: parseInt(formData.comments) || 0,
         shares: parseInt(formData.shares) || 0,
+        views: 0,
       };
 
-      addVendorReel(reelData);
+      await createVendorReel(reelData);
       toast.success("Reel added successfully!");
       navigate("/vendor/reels/all-reels");
     } catch (error) {
       console.error("Error adding reel:", error);
-      toast.error("Failed to add reel. Please try again.");
+      toast.error(error.response?.data?.message || "Failed to add reel. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -125,11 +144,11 @@ const AddReel = () => {
             </label>
             <AnimatedSelect
               value={formData.productId}
-              onChange={(value) => setFormData((prev) => ({ ...prev, productId: value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, productId: e.target.value }))}
               options={[
                 { value: "", label: "Select a product" },
                 ...vendorProducts.map((product) => ({
-                  value: product.id.toString(),
+                  value: (product._id || product.id).toString(),
                   label: `${product.name} - ₹${product.price}`,
                 })),
               ]}
@@ -192,7 +211,7 @@ const AddReel = () => {
             </label>
             <AnimatedSelect
               value={formData.status}
-              onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
               options={[
                 { value: "draft", label: "Draft" },
                 { value: "active", label: "Active" },

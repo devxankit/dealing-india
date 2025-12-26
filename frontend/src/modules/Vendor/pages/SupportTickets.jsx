@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   FiMessageSquare,
@@ -8,59 +8,170 @@ import {
   FiArrowLeft,
   FiCalendar,
   FiTag,
+  FiSend,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import Badge from "../../../shared/components/Badge";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
+import {
+  getVendorTickets,
+  getVendorTicket,
+  createVendorTicket,
+  sendTicketMessage,
+} from "../services/supportTicketService";
+import { initializeSocket, getSocket, disconnectSocket } from "../../../shared/utils/socket";
 import toast from "react-hot-toast";
 
 const SupportTickets = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { vendor } = useVendorAuthStore();
+  const { vendor, token } = useVendorAuthStore();
   const [tickets, setTickets] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
 
   const vendorId = vendor?.id;
 
+  // Load ticket detail if ID is present
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [ticketMessages, setTicketMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const loadTicketDetail = useCallback(async (ticketId) => {
+    setLoadingDetail(true);
+    try {
+      const response = await getVendorTicket(ticketId);
+      if (response.success && response.data?.ticket) {
+        const ticket = response.data.ticket;
+        setSelectedTicket(ticket);
+        setTicketMessages(ticket.messages || []);
+
+        // Join socket room for this ticket
+        const socket = getSocket();
+        if (socket) {
+          socket.emit("join_ticket_room", { ticketId });
+        }
+      }
+    } catch (error) {
+      console.error("Error loading ticket:", error);
+      toast.error("Failed to load ticket");
+      navigate("/vendor/support-tickets");
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, [navigate]);
+
+  // Load tickets from API
   useEffect(() => {
     if (!vendorId) return;
 
-    const savedTickets = localStorage.getItem(`vendor-${vendorId}-tickets`);
-    if (savedTickets) {
-      setTickets(JSON.parse(savedTickets));
+    const loadTickets = async () => {
+      setLoading(true);
+      try {
+        const response = await getVendorTickets({
+          status: statusFilter,
+          search: searchQuery,
+          page: 1,
+          limit: 100, // Load all tickets for now
+        });
+
+        if (response.success && response.data?.tickets) {
+          setTickets(response.data.tickets);
+        }
+      } catch (error) {
+        console.error("Error loading tickets:", error);
+        toast.error("Failed to load tickets");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTickets();
+  }, [vendorId, statusFilter]);
+
+  const refreshTickets = useCallback(async () => {
+    try {
+      const response = await getVendorTickets({
+        status: statusFilter,
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+
+      if (response.success && response.data?.tickets) {
+        setTickets(response.data.tickets);
+      }
+    } catch (error) {
+      console.error("Error refreshing tickets:", error);
     }
-  }, [vendorId]);
+  }, [statusFilter, searchQuery]);
+
+  // Initialize Socket.io connection
+  useEffect(() => {
+    if (!token || !vendorId) return;
+
+    const socket = initializeSocket(token);
+
+    // Listen for new messages
+    socket.on("message_received", (data) => {
+      if (data.ticketId && id === data.ticketId) {
+        // Refresh ticket if viewing detail
+        if (id) {
+          loadTicketDetail(id);
+        }
+        // Refresh ticket list
+        refreshTickets();
+      }
+    });
+
+    // Listen for ticket updates
+    socket.on("ticket_updated", (data) => {
+      if (data.ticketId) {
+        refreshTickets();
+        if (id === data.ticketId) {
+          loadTicketDetail(id);
+        }
+      }
+    });
+
+    return () => {
+      socket.off("message_received");
+      socket.off("ticket_updated");
+    };
+  }, [token, vendorId, id, loadTicketDetail, refreshTickets]);
 
   const filteredTickets = tickets.filter((ticket) => {
     const matchesSearch =
       !searchQuery ||
-      ticket.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ticket.ticketNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       statusFilter === "all" || ticket.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
-  const handleSave = (ticketData) => {
-    const updated = [
-      ...tickets,
-      {
-        ...ticketData,
-        id: `TKT-${Date.now()}`,
-        vendorId,
-        createdAt: new Date().toISOString(),
-        status: "open",
-      },
-    ];
-    setTickets(updated);
-    localStorage.setItem(`vendor-${vendorId}-tickets`, JSON.stringify(updated));
-    setShowForm(false);
-    toast.success("Ticket created successfully");
+  const handleSave = async (ticketData) => {
+    try {
+      setLoading(true);
+      const response = await createVendorTicket(ticketData);
+
+      if (response.success && response.data?.ticket) {
+        toast.success("Ticket created successfully");
+        setShowForm(false);
+        refreshTickets();
+      }
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      toast.error("Failed to create ticket");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusVariant = (status) => {
@@ -84,7 +195,7 @@ const SupportTickets = () => {
 
   const columns = [
     {
-      key: "id",
+      key: "ticketNumber",
       label: "Ticket ID",
       sortable: true,
       render: (value) => (
@@ -141,16 +252,49 @@ const SupportTickets = () => {
     },
   ];
 
-  // Find ticket by ID if viewing detail
-  const selectedTicket = id ? tickets.find((ticket) => ticket.id === id) : null;
-
-  // If ID is present but ticket not found, redirect to list
   useEffect(() => {
-    if (id && tickets.length > 0 && !selectedTicket) {
-      toast.error("Ticket not found");
-      navigate("/vendor/support-tickets");
+    if (id) {
+      loadTicketDetail(id);
+    } else {
+      setSelectedTicket(null);
+      setTicketMessages([]);
     }
-  }, [id, tickets, selectedTicket, navigate]);
+  }, [id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [ticketMessages]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !id) return;
+
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      // Send via Socket.io
+      socket.emit("send_message", {
+        ticketId: id,
+        message: newMessage.trim(),
+      });
+    } else {
+      // Fallback to REST API
+      try {
+        await sendTicketMessage(id, newMessage.trim());
+      } catch (error) {
+        console.error("Error sending message:", error);
+        toast.error("Failed to send message");
+        return;
+      }
+    }
+
+    setNewMessage("");
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   if (!vendorId) {
     return (
@@ -160,14 +304,21 @@ const SupportTickets = () => {
     );
   }
 
-  // Render detail view if ID is present and ticket is found
+  // Render detail view if ID is present
   if (id && selectedTicket) {
     return (
       <TicketDetail
         ticket={selectedTicket}
+        messages={ticketMessages}
+        newMessage={newMessage}
+        setNewMessage={setNewMessage}
+        onSendMessage={handleSendMessage}
+        onKeyPress={handleKeyPress}
+        messagesEndRef={messagesEndRef}
         navigate={navigate}
         getStatusVariant={getStatusVariant}
         getPriorityColor={getPriorityColor}
+        loading={loadingDetail}
       />
     );
   }
@@ -226,7 +377,11 @@ const SupportTickets = () => {
       </div>
 
       {/* Tickets Table */}
-      {filteredTickets.length > 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+          <p className="text-gray-500">Loading tickets...</p>
+        </div>
+      ) : filteredTickets.length > 0 ? (
         <DataTable
           data={filteredTickets}
           columns={columns}
@@ -240,7 +395,11 @@ const SupportTickets = () => {
       )}
 
       {showForm && (
-        <TicketForm onSave={handleSave} onClose={() => setShowForm(false)} />
+        <TicketForm
+          onSave={handleSave}
+          onClose={() => setShowForm(false)}
+          loading={loading}
+        />
       )}
     </motion.div>
   );
@@ -248,9 +407,16 @@ const SupportTickets = () => {
 
 const TicketDetail = ({
   ticket,
+  messages,
+  newMessage,
+  setNewMessage,
+  onSendMessage,
+  onKeyPress,
+  messagesEndRef,
   navigate,
   getStatusVariant,
   getPriorityColor,
+  loading,
 }) => {
   return (
     <motion.div
@@ -273,95 +439,151 @@ const TicketDetail = ({
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 space-y-6">
-        {/* Ticket Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-200">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-xl font-bold text-gray-800">
-                {ticket.subject}
-              </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Ticket Information */}
+        <div className="lg:col-span-1 bg-white rounded-xl p-6 shadow-sm border border-gray-200 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-200">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-xl font-bold text-gray-800">
+                  {ticket.subject}
+                </h2>
+                <Badge variant={getStatusVariant(ticket.status)}>
+                  {ticket.status}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                <span className="flex items-center gap-1">
+                  <FiTag />
+                  Ticket ID:{" "}
+                  <span className="font-semibold text-gray-800">
+                    {ticket.ticketNumber}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <FiCalendar />
+                  Created: {new Date(ticket.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-semibold text-gray-600 block mb-2">
+                Type
+              </label>
+              <p className="text-gray-800">{ticket.type}</p>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-600 block mb-2">
+                Priority
+              </label>
+              <span
+                className={`inline-block px-3 py-1 rounded text-sm font-medium ${getPriorityColor(
+                  ticket.priority
+                )}`}>
+                {ticket.priority}
+              </span>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-gray-600 block mb-2">
+                Status
+              </label>
               <Badge variant={getStatusVariant(ticket.status)}>
                 {ticket.status}
               </Badge>
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-              <span className="flex items-center gap-1">
-                <FiTag />
-                Ticket ID:{" "}
-                <span className="font-semibold text-gray-800">{ticket.id}</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <FiCalendar />
-                Created: {new Date(ticket.createdAt).toLocaleDateString()}
-              </span>
+            <div>
+              <label className="text-sm font-semibold text-gray-600 block mb-2">
+                Created Date
+              </label>
+              <p className="text-gray-800">
+                {new Date(ticket.createdAt).toLocaleString()}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold text-gray-600 block mb-2">
+              Description
+            </label>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <p className="text-gray-800 whitespace-pre-wrap">
+                {ticket.description}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Ticket Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-2">
-              Type
-            </label>
-            <p className="text-gray-800">{ticket.type}</p>
+        {/* Messages */}
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-200 bg-primary-50">
+            <h3 className="font-semibold text-gray-800">Conversation</h3>
           </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-2">
-              Priority
-            </label>
-            <span
-              className={`inline-block px-3 py-1 rounded text-sm font-medium ${getPriorityColor(
-                ticket.priority
-              )}`}>
-              {ticket.priority}
-            </span>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-2">
-              Status
-            </label>
-            <Badge variant={getStatusVariant(ticket.status)}>
-              {ticket.status}
-            </Badge>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-2">
-              Created Date
-            </label>
-            <p className="text-gray-800">
-              {new Date(ticket.createdAt).toLocaleString()}
-            </p>
-          </div>
-        </div>
 
-        {/* Description */}
-        <div>
-          <label className="text-sm font-semibold text-gray-600 block mb-2">
-            Description
-          </label>
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <p className="text-gray-800 whitespace-pre-wrap">
-              {ticket.description}
-            </p>
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 max-h-[500px]">
+            {loading ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Loading messages...</p>
+              </div>
+            ) : messages.length > 0 ? (
+              messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${
+                    msg.sender === "vendor" ? "justify-end" : "justify-start"
+                  }`}>
+                  <div
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                      msg.sender === "vendor"
+                        ? "bg-primary-600 text-white"
+                        : "bg-gray-100 text-gray-800"
+                    }`}>
+                    <p className="text-sm">{msg.message}</p>
+                    <p
+                      className={`text-xs mt-1 ${
+                        msg.sender === "vendor"
+                          ? "text-primary-100"
+                          : "text-gray-500"
+                      }`}>
+                      {new Date(msg.time).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No messages yet</p>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-4 border-t border-gray-200">
-          <button
-            onClick={() => navigate("/vendor/support-tickets")}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
-            Back to Tickets
-          </button>
+          <div className="p-4 border-t border-gray-200">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={onKeyPress}
+                placeholder="Type a message..."
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <button
+                onClick={onSendMessage}
+                className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                <FiSend />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </motion.div>
   );
 };
 
-const TicketForm = ({ onSave, onClose }) => {
+const TicketForm = ({ onSave, onClose, loading }) => {
   const [formData, setFormData] = useState({
     subject: "",
     type: "Technical Support",
@@ -442,13 +664,15 @@ const TicketForm = ({ onSave, onClose }) => {
             <button
               type="button"
               onClick={onClose}
+              disabled={loading}
               className="px-4 py-2 bg-gray-100 rounded-lg">
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg">
-              Create
+              disabled={loading}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50">
+              {loading ? "Creating..." : "Create"}
             </button>
           </div>
         </form>

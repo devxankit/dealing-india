@@ -1,19 +1,72 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { categories } from "../../../../data/categories";
-import { FiPackage, FiShoppingBag, FiStar, FiTag, FiZap } from "react-icons/fi";
-import { IoShirtOutline, IoBagHandleOutline } from "react-icons/io5";
+import { categories as staticCategories } from "../../../../data/categories";
+import { useCategoryStore } from "../../../../shared/store/categoryStore";
+import { FiPackage, FiShoppingBag, FiStar, FiTag, FiZap, FiHeart, FiHome, FiGrid, FiBox, FiLayers, FiShoppingCart, FiTruck, FiGift, FiCoffee, FiMusic, FiCamera, FiBook, FiWatch, FiHeadphones, FiSmartphone, FiMonitor, FiCpu, FiBattery, FiWifi } from "react-icons/fi";
+import { IoShirtOutline, IoBagHandleOutline, IoRestaurantOutline, IoFitnessOutline, IoCarOutline, IoHomeOutline, IoBookOutline, IoGameControllerOutline, IoMusicalNotesOutline, IoCameraOutline, IoPhonePortraitOutline, IoLaptopOutline, IoWatchOutline, IoHeadsetOutline } from "react-icons/io5";
 import { LuFootprints } from "react-icons/lu";
 
-// Map category names to icons
-const categoryIcons = {
+// Icon component mapping - must match CategoryForm
+const iconComponents = {
+  IoShirtOutline,
+  LuFootprints,
+  IoBagHandleOutline,
+  FiStar,
+  FiTag,
+  FiZap,
+  FiPackage,
+  FiShoppingBag,
+  FiHeart,
+  FiHome,
+  FiGrid,
+  FiBox,
+  FiLayers,
+  FiShoppingCart,
+  FiTruck,
+  FiGift,
+  FiCoffee,
+  FiMusic,
+  FiCamera,
+  FiBook,
+  FiWatch,
+  FiHeadphones,
+  FiSmartphone,
+  FiMonitor,
+  FiCpu,
+  FiBattery,
+  FiWifi,
+  IoRestaurantOutline,
+  IoFitnessOutline,
+  IoCarOutline,
+  IoHomeOutline,
+  IoBookOutline,
+  IoGameControllerOutline,
+  IoMusicalNotesOutline,
+  IoCameraOutline,
+  IoPhonePortraitOutline,
+  IoLaptopOutline,
+  IoWatchOutline,
+  IoHeadsetOutline,
+};
+
+// Fallback mapping for old categories without icon field
+const categoryIconsFallback = {
   Clothing: IoShirtOutline,
   Footwear: LuFootprints,
   Bags: IoBagHandleOutline,
   Jewelry: FiStar,
   Accessories: FiTag,
   Athletic: FiZap,
+};
+
+// Get icon component from category
+const getCategoryIcon = (category) => {
+  if (category.icon && iconComponents[category.icon]) {
+    return iconComponents[category.icon];
+  }
+  // Fallback to name-based mapping
+  return categoryIconsFallback[category.name] || IoShirtOutline;
 };
 
 const MobileCategoryIcons = () => {
@@ -29,6 +82,12 @@ const MobileCategoryIcons = () => {
   const previousCategoryIdRef = useRef(null);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef(null);
+
+  // Get categories from store (active root categories only)
+  const { categories: storeCategories } = useCategoryStore();
+  const categories = storeCategories.length > 0
+    ? storeCategories.filter(cat => cat.isActive && !cat.parentId).sort((a, b) => (a.order || 0) - (b.order || 0))
+    : staticCategories;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -231,7 +290,7 @@ const MobileCategoryIcons = () => {
           WebkitOverflowScrolling: "touch",
         }}>
         {categories.map((category, index) => {
-          const IconComponent = categoryIcons[category.name] || IoShirtOutline;
+          const IconComponent = getCategoryIcon(category);
           const isActive = isActiveCategory(category.id);
           const activeColors =
             currentCategoryId && currentCategoryId === category.id
@@ -251,10 +310,10 @@ const MobileCategoryIcons = () => {
                   <div>
                     <IconComponent
                       className={`text-lg transition-colors duration-300 ${isActive && activeColors
-                          ? activeColors.icon
-                          : isActive
-                            ? "text-primary-500"
-                            : "text-gray-700 hover:text-primary-600"
+                        ? activeColors.icon
+                        : isActive
+                          ? "text-primary-500"
+                          : "text-gray-700 hover:text-primary-600"
                         }`}
                       style={{
                         strokeWidth:
@@ -268,10 +327,10 @@ const MobileCategoryIcons = () => {
                 )}
                 <span
                   className={`text-[10px] font-semibold text-center line-clamp-1 transition-colors duration-300 ${isActive && activeColors
-                      ? activeColors.text
-                      : isActive
-                        ? "text-primary-500"
-                        : "text-gray-700"
+                    ? activeColors.text
+                    : isActive
+                      ? "text-primary-500"
+                      : "text-gray-700"
                     }`}>
                   {category.name}
                 </span>

@@ -2,6 +2,21 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { categories as initialCategories } from '../../data/categories';
 import toast from 'react-hot-toast';
+import api from '../utils/api.js';
+
+// Helper to transform MongoDB _id to id for frontend compatibility
+const transformCategory = (category) => {
+  if (!category) return null;
+  return {
+    ...category,
+    id: category._id || category.id,
+    parentId: category.parentId || null,
+  };
+};
+
+const transformCategories = (categories) => {
+  return categories.map(transformCategory);
+};
 
 export const useCategoryStore = create(
   persist(
@@ -9,14 +24,23 @@ export const useCategoryStore = create(
       categories: [],
       isLoading: false,
 
-      // Initialize categories
-      initialize: () => {
-        const savedCategories = localStorage.getItem('admin-categories');
-        if (savedCategories) {
-          set({ categories: JSON.parse(savedCategories) });
-        } else {
-          set({ categories: initialCategories });
-          localStorage.setItem('admin-categories', JSON.stringify(initialCategories));
+      // Initialize categories - fetch from API
+      initialize: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await api.get('/admin/categories', {
+            params: {
+              limit: 1000, // Get all categories
+              sortBy: 'order',
+              sortOrder: 'asc',
+            },
+          });
+          const categories = transformCategories(response.data.categories || []);
+          set({ categories, isLoading: false });
+        } catch (error) {
+          console.error('Failed to fetch categories:', error);
+          // Fallback to initial categories on error
+          set({ categories: initialCategories, isLoading: false });
         }
       },
 
@@ -31,109 +55,109 @@ export const useCategoryStore = create(
 
       // Get category by ID
       getCategoryById: (id) => {
-        return get().categories.find((cat) => cat.id === parseInt(id));
+        const categories = get().categories;
+        return categories.find((cat) => {
+          const catId = cat.id || cat._id;
+          const searchId = id?.toString() || id;
+          return catId?.toString() === searchId;
+        });
       },
 
       // Create category
-      createCategory: (categoryData) => {
+      createCategory: async (categoryData) => {
         set({ isLoading: true });
         try {
-          const categories = get().categories;
-          const newId = categories.length > 0
-            ? Math.max(...categories.map((c) => c.id)) + 1
-            : 1;
-
-          const newCategory = {
-            id: newId,
+          // Convert id to _id if needed for parentId
+          const payload = {
             ...categoryData,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            isActive: categoryData.isActive !== undefined ? categoryData.isActive : true,
             parentId: categoryData.parentId || null,
-            order: categoryData.order || categories.length + 1,
           };
 
-          const updatedCategories = [...categories, newCategory];
-          set({ categories: updatedCategories, isLoading: false });
-          localStorage.setItem('admin-categories', JSON.stringify(updatedCategories));
+          const response = await api.post('/admin/categories', payload);
+          const newCategory = transformCategory(response.data.category);
+          
+          // Refresh categories list
+          await get().initialize();
+          
+          set({ isLoading: false });
           toast.success('Category created successfully');
           return newCategory;
         } catch (error) {
           set({ isLoading: false });
-          toast.error('Failed to create category');
+          const errorMessage = error.response?.data?.message || 'Failed to create category';
+          toast.error(errorMessage);
           throw error;
         }
       },
 
       // Update category
-      updateCategory: (id, categoryData) => {
+      updateCategory: async (id, categoryData) => {
         set({ isLoading: true });
         try {
-          const categories = get().categories;
-          const updatedCategories = categories.map((cat) =>
-            cat.id === parseInt(id)
-              ? { ...cat, ...categoryData, updatedAt: new Date().toISOString() }
-              : cat
-          );
-          set({ categories: updatedCategories, isLoading: false });
-          localStorage.setItem('admin-categories', JSON.stringify(updatedCategories));
+          const categoryId = id?.toString() || id;
+          const payload = {
+            ...categoryData,
+            parentId: categoryData.parentId || null,
+          };
+
+          const response = await api.put(`/admin/categories/${categoryId}`, payload);
+          const updatedCategory = transformCategory(response.data.category);
+          
+          // Refresh categories list
+          await get().initialize();
+          
+          set({ isLoading: false });
           toast.success('Category updated successfully');
-          return updatedCategories.find((cat) => cat.id === parseInt(id));
+          return updatedCategory;
         } catch (error) {
           set({ isLoading: false });
-          toast.error('Failed to update category');
+          const errorMessage = error.response?.data?.message || 'Failed to update category';
+          toast.error(errorMessage);
           throw error;
         }
       },
 
       // Delete category
-      deleteCategory: (id) => {
+      deleteCategory: async (id) => {
         set({ isLoading: true });
         try {
-          const categories = get().categories;
-          // Check if category has children
-          const hasChildren = categories.some((cat) => cat.parentId === parseInt(id));
-          if (hasChildren) {
-            toast.error('Cannot delete category with subcategories');
-            set({ isLoading: false });
-            return false;
-          }
-          const updatedCategories = categories.filter((cat) => cat.id !== parseInt(id));
-          set({ categories: updatedCategories, isLoading: false });
-          localStorage.setItem('admin-categories', JSON.stringify(updatedCategories));
+          const categoryId = id?.toString() || id;
+          await api.delete(`/admin/categories/${categoryId}`);
+          
+          // Refresh categories list
+          await get().initialize();
+          
+          set({ isLoading: false });
           toast.success('Category deleted successfully');
           return true;
         } catch (error) {
           set({ isLoading: false });
-          toast.error('Failed to delete category');
+          const errorMessage = error.response?.data?.message || 'Failed to delete category';
+          toast.error(errorMessage);
           throw error;
         }
       },
 
       // Bulk delete categories
-      bulkDeleteCategories: (ids) => {
+      bulkDeleteCategories: async (ids) => {
         set({ isLoading: true });
         try {
-          const categories = get().categories;
-          // Check for categories with children
-          const hasChildren = ids.some((id) =>
-            categories.some((cat) => cat.parentId === parseInt(id))
-          );
-          if (hasChildren) {
-            toast.error('Cannot delete categories with subcategories');
-            set({ isLoading: false });
-            return false;
-          }
-          const updatedCategories = categories.filter(
-            (cat) => !ids.includes(cat.id)
-          );
-          set({ categories: updatedCategories, isLoading: false });
-          localStorage.setItem('admin-categories', JSON.stringify(updatedCategories));
+          // Convert ids to strings if needed
+          const categoryIds = ids.map(id => id?.toString() || id);
+          await api.delete('/admin/categories/bulk', {
+            data: { ids: categoryIds },
+          });
+          
+          // Refresh categories list
+          await get().initialize();
+          
+          set({ isLoading: false });
           toast.success(`${ids.length} categories deleted successfully`);
           return true;
         } catch (error) {
           set({ isLoading: false });
-          toast.error('Failed to delete categories');
+          const errorMessage = error.response?.data?.message || 'Failed to delete categories';
+          toast.error(errorMessage);
           throw error;
         }
       },
@@ -148,10 +172,13 @@ export const useCategoryStore = create(
 
       // Get categories by parent
       getCategoriesByParent: (parentId) => {
-        const parentIdNum = parentId ? parseInt(parentId) : null;
-        return get().categories.filter((cat) => {
-          const catParentId = cat.parentId ? parseInt(cat.parentId) : null;
-          return catParentId === parentIdNum;
+        const categories = get().categories;
+        if (!parentId) return categories.filter((cat) => !cat.parentId);
+        
+        const parentIdStr = parentId?.toString() || parentId;
+        return categories.filter((cat) => {
+          const catParentId = cat.parentId?.toString() || cat.parentId;
+          return catParentId === parentIdStr;
         });
       },
 
@@ -160,22 +187,54 @@ export const useCategoryStore = create(
         return get().categories.filter((cat) => !cat.parentId);
       },
 
-      // Reorder categories
-      reorderCategories: (categoryIds) => {
+      // Reorder categories (using bulk order update)
+      reorderCategories: async (categoryIds) => {
         set({ isLoading: true });
         try {
-          const categories = get().categories;
-          const updatedCategories = categories.map((cat) => {
-            const newOrder = categoryIds.indexOf(cat.id);
-            return newOrder !== -1 ? { ...cat, order: newOrder + 1 } : cat;
-          });
-          set({ categories: updatedCategories, isLoading: false });
-          localStorage.setItem('admin-categories', JSON.stringify(updatedCategories));
+          // Prepare orders array
+          const orders = categoryIds.map((id, index) => ({
+            id: id?.toString() || id,
+            order: index + 1,
+          }));
+
+          await api.put('/admin/categories/bulk-order', { orders });
+          
+          // Refresh categories list
+          await get().initialize();
+          
+          set({ isLoading: false });
           toast.success('Categories reordered successfully');
           return true;
         } catch (error) {
           set({ isLoading: false });
-          toast.error('Failed to reorder categories');
+          const errorMessage = error.response?.data?.message || 'Failed to reorder categories';
+          toast.error(errorMessage);
+          throw error;
+        }
+      },
+
+      // Bulk update category order (for CategoryOrder page)
+      bulkUpdateCategoryOrder: async (orderUpdates) => {
+        set({ isLoading: true });
+        try {
+          // Prepare orders array - orderUpdates should be [{ id, order }, ...]
+          const orders = orderUpdates.map((item) => ({
+            id: item.id?.toString() || item.id,
+            order: parseInt(item.order),
+          }));
+
+          await api.put('/admin/categories/bulk-order', { orders });
+          
+          // Refresh categories list
+          await get().initialize();
+          
+          set({ isLoading: false });
+          toast.success('Category order saved successfully');
+          return true;
+        } catch (error) {
+          set({ isLoading: false });
+          const errorMessage = error.response?.data?.message || 'Failed to save category order';
+          toast.error(errorMessage);
           throw error;
         }
       },

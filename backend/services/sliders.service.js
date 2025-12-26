@@ -49,11 +49,12 @@ export const getSliderById = async (sliderId) => {
  */
 export const createSlider = async (sliderData) => {
   try {
-    const { title, imageUrl, link, order, status } = sliderData;
+    const { title, imageUrl, imagePublicId, link, order, status } = sliderData;
 
     const newSlider = new Slider({
       title,
       imageUrl,
+      imagePublicId: imagePublicId || null,
       link,
       order: order || 0,
       status: status || 'active',

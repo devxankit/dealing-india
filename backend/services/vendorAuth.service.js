@@ -4,15 +4,16 @@ import { generateToken } from '../utils/jwt.util.js';
 import { generateOTP, verifyOTP, resendOTP } from './otp.service.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.js';
 import { isValidEmail, isValidPhone, validatePassword } from '../utils/validators.util.js';
+import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
 
 /**
  * Register a new vendor
- * @param {Object} vendorData - { name, email, phone, password, storeName, storeDescription, address }
+ * @param {Object} vendorData - { name, email, phone, password, storeName, storeDescription, address, documents }
  * @returns {Promise<Object>} { vendor, token }
  */
 export const registerVendor = async (vendorData) => {
   try {
-    const { name, email, phone, password, storeName, storeDescription, address } = vendorData;
+    const { name, email, phone, password, storeName, storeDescription, address, documents } = vendorData;
 
     // Validate inputs
     if (!name || !email || !phone || !password || !storeName) {
@@ -49,6 +50,30 @@ export const registerVendor = async (vendorData) => {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
+    // Process documents if provided - upload to Cloudinary
+    let processedDocuments = [];
+    if (documents && Array.isArray(documents) && documents.length > 0) {
+      for (const doc of documents) {
+        if (doc.data && doc.name) {
+          try {
+            // Upload to Cloudinary
+            const result = await uploadBase64ToCloudinary(doc.data, 'vendor-documents', {
+              resource_type: 'raw', // For PDFs and other non-image files
+            });
+            processedDocuments.push({
+              name: doc.name,
+              url: result.secure_url,
+              publicId: result.public_id,
+              uploadedAt: new Date(),
+            });
+          } catch (uploadError) {
+            console.error(`Failed to upload document ${doc.name}:`, uploadError.message);
+            // Continue with other documents even if one fails
+          }
+        }
+      }
+    }
+
     // Create vendor with pending status
     const vendor = await Vendor.create({
       name: name.trim(),
@@ -58,6 +83,7 @@ export const registerVendor = async (vendorData) => {
       storeName: storeName.trim(),
       storeDescription: storeDescription ? storeDescription.trim() : undefined,
       address: address || {},
+      documents: processedDocuments,
       status: 'pending', // Vendors start as pending
       isEmailVerified: false,
       isActive: true,
@@ -304,20 +330,19 @@ export const forgotVendorPassword = async (email) => {
     // Check if vendor exists
     const vendor = await Vendor.findOne({ email: email.toLowerCase() });
     if (!vendor) {
-      // Don't reveal if vendor exists or not (security best practice)
-      return { success: true, message: 'If email exists, password reset OTP has been sent' };
+      throw new Error('No vendor account found with this email address');
+    }
+
+    // Check if email is verified
+    if (!vendor.isEmailVerified) {
+      throw new Error('Please verify your email first before resetting password');
     }
 
     // Generate and send OTP
-    try {
-      const otp = await generateOTP(email, 'password_reset');
-      await sendPasswordResetEmail(email, otp);
-    } catch (otpError) {
-      // Log error but don't reveal vendor existence
-      console.error('Failed to send password reset OTP:', otpError.message);
-    }
+    const otp = await generateOTP(email, 'password_reset');
+    await sendPasswordResetEmail(email, otp);
 
-    return { success: true, message: 'If email exists, password reset OTP has been sent' };
+    return { success: true, message: 'Password reset OTP has been sent to your email' };
   } catch (error) {
     throw error;
   }

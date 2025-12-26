@@ -333,20 +333,14 @@ export const forgotUserPassword = async (email) => {
     // Check if user exists
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      // Don't reveal if user exists or not (security best practice)
-      return { success: true, message: 'If email exists, password reset OTP has been sent' };
+      throw new Error('No account found with this email address');
     }
 
     // Generate and send OTP
-    try {
-      const otp = await generateOTP(email, 'password_reset');
-      await sendPasswordResetEmail(email, otp);
-    } catch (otpError) {
-      // Log error but don't reveal user existence
-      console.error('Failed to send password reset OTP:', otpError.message);
-    }
+    const otp = await generateOTP(email, 'password_reset');
+    await sendPasswordResetEmail(email, otp);
 
-    return { success: true, message: 'If email exists, password reset OTP has been sent' };
+    return { success: true, message: 'Password reset OTP has been sent to your email' };
   } catch (error) {
     throw error;
   }

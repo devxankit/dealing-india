@@ -27,7 +27,6 @@ import {
   FiMessageSquare,
   FiLayers,
   FiTrendingUp,
-  FiFile,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
@@ -51,7 +50,6 @@ const iconMap = {
   "Support Tickets": FiMessageSquare,
   "Inventory Reports": FiBarChart2,
   "Performance Metrics": FiTrendingUp,
-  Documents: FiFile,
   Analytics: FiBarChart2,
   Earnings: FiDollarSign,
   Settings: FiSettings,

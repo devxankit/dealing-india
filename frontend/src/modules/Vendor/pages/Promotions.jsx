@@ -1,14 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiPlus,
   FiSearch,
-  FiEdit,
-  FiTrash2,
   FiTag,
   FiCopy,
   FiCheck,
-  FiX,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
@@ -18,75 +14,77 @@ import ConfirmModal from "../../Admin/components/ConfirmModal";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { getVendorPromotions } from "../services/promotionService";
 import toast from "react-hot-toast";
 
 const Promotions = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
   const [promotions, setPromotions] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [editingPromo, setEditingPromo] = useState(null);
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [copiedCode, setCopiedCode] = useState(null);
-  const [showForm, setShowForm] = useState(false);
 
   const vendorId = vendor?.id;
 
   useEffect(() => {
+    if (vendorId) {
+      loadPromotions();
+    }
+  }, [vendorId, currentPage, statusFilter]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage === 1) {
+        loadPromotions();
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const loadPromotions = async () => {
     if (!vendorId) return;
 
-    const savedPromos = localStorage.getItem(`vendor-${vendorId}-promotions`);
-    if (savedPromos) {
-      setPromotions(JSON.parse(savedPromos));
+    setLoading(true);
+    try {
+      const response = await getVendorPromotions({
+        search: searchQuery,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        page: currentPage,
+        limit: 10,
+      });
+
+      // Handle both response structures
+      if (response?.promotions) {
+        setPromotions(response.promotions);
+        setTotalPages(response.pagination?.pages || 1);
+      } else if (response?.data?.promotions) {
+        setPromotions(response.data.promotions);
+        setTotalPages(response.pagination?.pages || 1);
+      } else if (Array.isArray(response)) {
+        setPromotions(response);
+        setTotalPages(1);
+      }
+    } catch (error) {
+      console.error("Error loading promotions:", error);
+      toast.error("Failed to load promotions");
+      setPromotions([]);
+    } finally {
+      setLoading(false);
     }
-  }, [vendorId]);
-
-  const filteredPromotions = promotions.filter((promo) => {
-    const matchesSearch =
-      !searchQuery ||
-      promo.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      promo.code?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || promo.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleSave = (promoData) => {
-    const updatedPromos =
-      editingPromo && editingPromo.id
-        ? promotions.map((p) =>
-          p.id === editingPromo.id
-            ? { ...promoData, id: editingPromo.id, vendorId }
-            : p
-        )
-        : [
-          ...promotions,
-          { ...promoData, id: Date.now(), vendorId, usageCount: 0 },
-        ];
-
-    setPromotions(updatedPromos);
-    localStorage.setItem(
-      `vendor-${vendorId}-promotions`,
-      JSON.stringify(updatedPromos)
-    );
-    setEditingPromo(null);
-    setShowForm(false);
-    toast.success(
-      editingPromo && editingPromo.id ? "Promotion updated" : "Promotion added"
-    );
   };
 
-  const handleDelete = () => {
-    const updatedPromos = promotions.filter((p) => p.id !== deleteModal.id);
-    setPromotions(updatedPromos);
-    localStorage.setItem(
-      `vendor-${vendorId}-promotions`,
-      JSON.stringify(updatedPromos)
-    );
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success("Promotion deleted");
-  };
+  // Promotions are already filtered by API
+  const filteredPromotions = promotions;
+
+  // Vendors cannot create/edit/delete promotions - they can only view admin-created ones
 
   const handleCopy = (code) => {
     navigator.clipboard.writeText(code);
@@ -106,27 +104,26 @@ const Promotions = () => {
 
   const columns = [
     {
-      key: "name",
-      label: "Name",
+      key: "code",
+      label: "Promo Code",
       sortable: true,
       render: (value, row) => (
         <div>
-          <p className="font-semibold text-gray-800">{value}</p>
-          {row.code && (
-            <div className="flex items-center gap-2 mt-1">
-              <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                {row.code}
-              </code>
+          <div className="flex items-center gap-2">
+            <code className="text-xs bg-gray-100 px-2 py-1 rounded font-semibold">
+              {value || row.code || "N/A"}
+            </code>
+            {value && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleCopy(row.code);
+                  handleCopy(value || row.code);
                 }}
                 className="p-1 text-gray-600 hover:text-blue-600">
-                {copiedCode === row.code ? <FiCheck /> : <FiCopy />}
+                {copiedCode === (value || row.code) ? <FiCheck /> : <FiCopy />}
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ),
     },
@@ -136,21 +133,17 @@ const Promotions = () => {
       sortable: true,
       render: (value) => (
         <Badge variant="info">
-          {value === "discount"
-            ? "Discount"
-            : value === "flash_sale"
-              ? "Flash Sale"
-              : "Promo Code"}
+          {value === "percentage" ? "Percentage" : "Fixed Amount"}
         </Badge>
       ),
     },
     {
-      key: "discountValue",
+      key: "value",
       label: "Discount",
       sortable: true,
       render: (value, row) => (
         <span className="font-semibold">
-          {row.discountType === "percentage" ? `${value}%` : formatPrice(value)}
+          {row.type === "percentage" ? `${value}%` : formatPrice(value)}
         </span>
       ),
     },
@@ -168,12 +161,12 @@ const Promotions = () => {
       ),
     },
     {
-      key: "usageCount",
+      key: "usedCount",
       label: "Usage",
       sortable: true,
       render: (value, row) => (
         <span className="text-sm">
-          {value || 0} / {row.usageLimit || "∞"}
+          {value || 0} / {row.usageLimit === -1 ? "∞" : (row.usageLimit || "∞")}
         </span>
       ),
     },
@@ -183,34 +176,6 @@ const Promotions = () => {
       sortable: true,
       render: (value) => (
         <Badge variant={getStatusVariant(value)}>{value}</Badge>
-      ),
-    },
-    {
-      key: "actions",
-      label: "Actions",
-      sortable: false,
-      render: (_, row) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingPromo(row);
-              setShowForm(true);
-            }}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title="Edit">
-            <FiEdit />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setDeleteModal({ isOpen: true, id: row.id });
-            }}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            title="Delete">
-            <FiTrash2 />
-          </button>
-        </div>
       ),
     },
   ];
@@ -238,15 +203,7 @@ const Promotions = () => {
             Manage discounts and promotional offers
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditingPromo(null);
-            setShowForm(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold">
-          <FiPlus />
-          <span>Create Promotion</span>
-        </button>
+        {/* Vendors can only view promotions, not create them */}
       </div>
 
       {/* Filters */}
@@ -279,21 +236,20 @@ const Promotions = () => {
             <ExportButton
               data={filteredPromotions}
               headers={[
-                { label: "Name", accessor: (row) => row.name },
                 { label: "Code", accessor: (row) => row.code },
                 { label: "Type", accessor: (row) => row.type },
                 {
                   label: "Discount",
                   accessor: (row) =>
-                    row.discountType === "percentage"
-                      ? `${row.discountValue}%`
-                      : formatPrice(row.discountValue),
+                    row.type === "percentage"
+                      ? `${row.value}%`
+                      : formatPrice(row.value),
                 },
                 { label: "Status", accessor: (row) => row.status },
                 {
                   label: "Usage",
                   accessor: (row) =>
-                    `${row.usageCount || 0} / ${row.usageLimit || "∞"}`,
+                    `${row.usedCount || 0} / ${row.usageLimit === -1 ? "∞" : (row.usageLimit || "∞")}`,
                 },
               ]}
               filename="vendor-promotions"
@@ -303,245 +259,31 @@ const Promotions = () => {
       </div>
 
       {/* Promotions Table */}
-      {filteredPromotions.length > 0 ? (
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-500">Loading promotions...</p>
+        </div>
+      ) : filteredPromotions.length > 0 ? (
         <DataTable
           data={filteredPromotions}
           columns={columns}
           pagination={true}
           itemsPerPage={10}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
         />
       ) : (
         <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
-          <p className="text-gray-500">No promotions found</p>
+          <p className="text-gray-500">No promotions available</p>
+          <p className="text-sm text-gray-400 mt-2">Promotions are created by admin</p>
         </div>
       )}
-
-      {/* Promotion Form Modal */}
-      {showForm && (
-        <PromotionForm
-          promotion={editingPromo}
-          onSave={handleSave}
-          onClose={() => {
-            setShowForm(false);
-            setEditingPromo(null);
-          }}
-          vendorId={vendorId}
-        />
-      )}
-
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, id: null })}
-        onConfirm={handleDelete}
-        title="Delete Promotion"
-        message="Are you sure you want to delete this promotion? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
-        type="danger"
-      />
     </motion.div>
   );
 };
 
-// Promotion Form Component
-const PromotionForm = ({ promotion, onSave, onClose, vendorId }) => {
-  const [formData, setFormData] = useState({
-    name: promotion?.name || "",
-    type: promotion?.type || "discount",
-    code: promotion?.code || "",
-    description: promotion?.description || "",
-    discountType: promotion?.discountType || "percentage",
-    discountValue: promotion?.discountValue || 0,
-    minPurchase: promotion?.minPurchase || 0,
-    maxDiscount: promotion?.maxDiscount || 0,
-    startDate: promotion?.startDate
-      ? new Date(promotion.startDate).toISOString().split("T")[0]
-      : "",
-    endDate: promotion?.endDate
-      ? new Date(promotion.endDate).toISOString().split("T")[0]
-      : "",
-    usageLimit: promotion?.usageLimit || 0,
-    status: promotion?.status || "active",
-    productIds: promotion?.productIds || [],
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave({
-      ...formData,
-      startDate: new Date(formData.startDate).toISOString(),
-      endDate: new Date(formData.endDate).toISOString(),
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-800">
-            {promotion ? "Edit Promotion" : "Create Promotion"}
-          </h3>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <FiX className="text-xl text-gray-600" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-2">
-              Name *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              required
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-2">
-              Type *
-            </label>
-            <select
-              value={formData.type}
-              onChange={(e) =>
-                setFormData({ ...formData, type: e.target.value })
-              }
-              required
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-              <option value="discount">Discount</option>
-              <option value="flash_sale">Flash Sale</option>
-              <option value="promo_code">Promo Code</option>
-            </select>
-          </div>
-
-          {formData.type === "promo_code" && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-600 mb-2">
-                Promo Code *
-              </label>
-              <input
-                type="text"
-                value={formData.code}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    code: e.target.value.toUpperCase(),
-                  })
-                }
-                required
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="SAVE20"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-2">
-              Discount Type *
-            </label>
-            <select
-              value={formData.discountType}
-              onChange={(e) =>
-                setFormData({ ...formData, discountType: e.target.value })
-              }
-              required
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-              <option value="percentage">Percentage</option>
-              <option value="fixed">Fixed Amount</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-2">
-              Discount Value *
-            </label>
-            <input
-              type="number"
-              value={formData.discountValue}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  discountValue: parseFloat(e.target.value),
-                })
-              }
-              required
-              min="0"
-              step="0.01"
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-600 mb-2">
-                Start Date *
-              </label>
-              <input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, startDate: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-600 mb-2">
-                End Date *
-              </label>
-              <input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, endDate: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-600 mb-2">
-              Status *
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value })
-              }
-              required
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold">
-              {promotion ? "Update" : "Create"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
+// Vendors cannot create/edit promotions - removed PromotionForm component
 
 export default Promotions;

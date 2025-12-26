@@ -54,8 +54,6 @@ import OrderNotifications from "./modules/Admin/pages/orders/OrderNotifications"
 import Invoice from "./modules/Admin/pages/orders/Invoice";
 // Products child pages
 import ManageProducts from "./modules/Admin/pages/products/ManageProducts";
-import AddProduct from "./modules/Admin/pages/products/AddProduct";
-import BulkUpload from "./modules/Admin/pages/products/BulkUpload";
 import TaxPricing from "./modules/Admin/pages/products/TaxPricing";
 import ProductRatings from "./modules/Admin/pages/products/ProductRatings";
 import ProductFAQs from "./modules/Admin/pages/products/ProductFAQs";
@@ -73,9 +71,6 @@ import ViewCustomers from "./modules/Admin/pages/customers/ViewCustomers";
 import CustomerAddresses from "./modules/Admin/pages/customers/Addresses";
 import Transactions from "./modules/Admin/pages/customers/Transactions";
 import CustomerDetailPage from "./modules/Admin/pages/customers/CustomerDetailPage";
-// Delivery Management child pages
-import DeliveryBoys from "./modules/Admin/pages/delivery/DeliveryBoys";
-import CashCollection from "./modules/Admin/pages/delivery/CashCollection";
 // Vendors child pages
 import Vendors from "./modules/Admin/pages/Vendors";
 import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
@@ -83,9 +78,6 @@ import PendingApprovals from "./modules/Admin/pages/vendors/PendingApprovals";
 import VendorDetail from "./modules/Admin/pages/vendors/VendorDetail";
 import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
 import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
-// Locations child pages
-import Cities from "./modules/Admin/pages/locations/Cities";
-import Zipcodes from "./modules/Admin/pages/locations/Zipcodes";
 // Offers & Sliders child pages
 import HomeSliders from "./modules/Admin/pages/offers/HomeSliders";
 import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
@@ -158,6 +150,7 @@ import DeliveryProfile from "./modules/Delivery/pages/Profile";
 import VendorLogin from "./modules/Vendor/pages/Login";
 import VendorRegister from "./modules/Vendor/pages/Register";
 import VendorVerification from "./modules/Vendor/pages/Verification";
+import VendorForgotPassword from "./modules/Vendor/pages/ForgotPassword";
 import VendorProtectedRoute from "./modules/Vendor/components/VendorProtectedRoute";
 import VendorLayout from "./modules/Vendor/components/Layout/VendorLayout";
 import VendorReels from "./modules/Vendor/pages/Reels";
@@ -195,7 +188,6 @@ import VendorSupportTickets from "./modules/Vendor/pages/SupportTickets";
 import VendorProductAttributes from "./modules/Vendor/pages/ProductAttributes";
 import VendorInventoryReports from "./modules/Vendor/pages/InventoryReports";
 import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics";
-import VendorDocuments from "./modules/Vendor/pages/Documents";
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -389,8 +381,6 @@ const AppRoutes = () => {
         <Route path="products" element={<Products />} />
         <Route path="products/:id" element={<ProductForm />} />
         <Route path="products/manage-products" element={<ManageProducts />} />
-        <Route path="products/add-product" element={<AddProduct />} />
-        <Route path="products/bulk-upload" element={<BulkUpload />} />
         <Route path="products/tax-pricing" element={<TaxPricing />} />
         <Route path="products/product-ratings" element={<ProductRatings />} />
         <Route path="products/product-faqs" element={<ProductFAQs />} />
@@ -428,9 +418,6 @@ const AppRoutes = () => {
         />
         <Route path="stock" element={<Inventory />} />
         <Route path="inventory" element={<Inventory />} />
-        <Route path="delivery" element={<DeliveryBoys />} />
-        <Route path="delivery/delivery-boys" element={<DeliveryBoys />} />
-        <Route path="delivery/cash-collection" element={<CashCollection />} />
         <Route path="vendors" element={<Vendors />} />
         <Route path="vendors/manage-vendors" element={<ManageVendors />} />
         <Route
@@ -443,9 +430,6 @@ const AppRoutes = () => {
           element={<AdminVendorAnalytics />}
         />
         <Route path="vendors/:id" element={<VendorDetail />} />
-        <Route path="locations" element={<Cities />} />
-        <Route path="locations/cities" element={<Cities />} />
-        <Route path="locations/zipcodes" element={<Zipcodes />} />
         <Route path="offers" element={<HomeSliders />} />
         <Route path="offers/home-sliders" element={<HomeSliders />} />
         <Route path="offers/festival-offers" element={<FestivalOffers />} />
@@ -518,6 +502,7 @@ const AppRoutes = () => {
       <Route path="/vendor/login" element={<VendorLogin />} />
       <Route path="/vendor/register" element={<VendorRegister />} />
       <Route path="/vendor/verification" element={<VendorVerification />} />
+      <Route path="/vendor/forgot-password" element={<VendorForgotPassword />} />
       <Route
         path="/vendor"
         element={
@@ -602,7 +587,6 @@ const AppRoutes = () => {
           path="performance-metrics"
           element={<VendorPerformanceMetrics />}
         />
-        <Route path="documents" element={<VendorDocuments />} />
         <Route path="settings" element={<VendorSettings />} />
         <Route path="settings/store" element={<VendorSettings />} />
         <Route path="settings/payment" element={<VendorSettings />} />

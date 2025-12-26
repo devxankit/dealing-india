@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { FiX, FiSave, FiUpload } from "react-icons/fi";
+import { FiX, FiSave, FiUpload, FiPackage, FiShoppingBag, FiStar, FiTag, FiZap, FiHeart, FiHome, FiGrid, FiBox, FiLayers, FiShoppingCart, FiTruck, FiGift, FiCoffee, FiMusic, FiCamera, FiBook, FiWatch, FiHeadphones, FiSmartphone, FiMonitor, FiCpu, FiBattery, FiWifi } from "react-icons/fi";
+import { IoShirtOutline, IoBagHandleOutline, IoRestaurantOutline, IoFitnessOutline, IoCarOutline, IoHomeOutline, IoBookOutline, IoGameControllerOutline, IoMusicalNotesOutline, IoCameraOutline, IoPhonePortraitOutline, IoLaptopOutline, IoWatchOutline, IoHeadsetOutline } from "react-icons/io5";
+import { LuFootprints, LuShirt, LuShoppingBag, LuUtensilsCrossed, LuDumbbell, LuCar, LuBookOpen, LuMusic, LuCamera, LuPhone, LuLaptop, LuWatch, LuHeadphones } from "react-icons/lu";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import AnimatedSelect from "../AnimatedSelect";
@@ -24,10 +26,103 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     name: "",
     description: "",
     image: "",
+    icon: "",
     parentId: null,
     isActive: true,
     order: 0,
   });
+
+  // Available icons for selection
+  const availableIcons = [
+    { name: "Shirt", component: "IoShirtOutline", value: "IoShirtOutline" },
+    { name: "Footwear", component: "LuFootprints", value: "LuFootprints" },
+    { name: "Bag", component: "IoBagHandleOutline", value: "IoBagHandleOutline" },
+    { name: "Star", component: "FiStar", value: "FiStar" },
+    { name: "Tag", component: "FiTag", value: "FiTag" },
+    { name: "Zap", component: "FiZap", value: "FiZap" },
+    { name: "Package", component: "FiPackage", value: "FiPackage" },
+    { name: "Shopping Bag", component: "FiShoppingBag", value: "FiShoppingBag" },
+    { name: "Heart", component: "FiHeart", value: "FiHeart" },
+    { name: "Home", component: "FiHome", value: "FiHome" },
+    { name: "Grid", component: "FiGrid", value: "FiGrid" },
+    { name: "Box", component: "FiBox", value: "FiBox" },
+    { name: "Layers", component: "FiLayers", value: "FiLayers" },
+    { name: "Shopping Cart", component: "FiShoppingCart", value: "FiShoppingCart" },
+    { name: "Truck", component: "FiTruck", value: "FiTruck" },
+    { name: "Gift", component: "FiGift", value: "FiGift" },
+    { name: "Coffee", component: "FiCoffee", value: "FiCoffee" },
+    { name: "Music", component: "FiMusic", value: "FiMusic" },
+    { name: "Camera", component: "FiCamera", value: "FiCamera" },
+    { name: "Book", component: "FiBook", value: "FiBook" },
+    { name: "Watch", component: "FiWatch", value: "FiWatch" },
+    { name: "Headphones", component: "FiHeadphones", value: "FiHeadphones" },
+    { name: "Smartphone", component: "FiSmartphone", value: "FiSmartphone" },
+    { name: "Monitor", component: "FiMonitor", value: "FiMonitor" },
+    { name: "Cpu", component: "FiCpu", value: "FiCpu" },
+    { name: "Battery", component: "FiBattery", value: "FiBattery" },
+    { name: "Wifi", component: "FiWifi", value: "FiWifi" },
+    { name: "Restaurant", component: "IoRestaurantOutline", value: "IoRestaurantOutline" },
+    { name: "Fitness", component: "IoFitnessOutline", value: "IoFitnessOutline" },
+    { name: "Car", component: "IoCarOutline", value: "IoCarOutline" },
+    { name: "Home Outline", component: "IoHomeOutline", value: "IoHomeOutline" },
+    { name: "Book Outline", component: "IoBookOutline", value: "IoBookOutline" },
+    { name: "Game Controller", component: "IoGameControllerOutline", value: "IoGameControllerOutline" },
+    { name: "Musical Notes", component: "IoMusicalNotesOutline", value: "IoMusicalNotesOutline" },
+    { name: "Camera Outline", component: "IoCameraOutline", value: "IoCameraOutline" },
+    { name: "Phone", component: "IoPhonePortraitOutline", value: "IoPhonePortraitOutline" },
+    { name: "Laptop", component: "IoLaptopOutline", value: "IoLaptopOutline" },
+    { name: "Watch Outline", component: "IoWatchOutline", value: "IoWatchOutline" },
+    { name: "Headset", component: "IoHeadsetOutline", value: "IoHeadsetOutline" },
+  ];
+
+  // Icon component mapping
+  const iconComponents = {
+    IoShirtOutline,
+    LuFootprints,
+    IoBagHandleOutline,
+    FiStar,
+    FiTag,
+    FiZap,
+    FiPackage,
+    FiShoppingBag,
+    FiHeart,
+    FiHome,
+    FiGrid,
+    FiBox,
+    FiLayers,
+    FiShoppingCart,
+    FiTruck,
+    FiGift,
+    FiCoffee,
+    FiMusic,
+    FiCamera,
+    FiBook,
+    FiWatch,
+    FiHeadphones,
+    FiSmartphone,
+    FiMonitor,
+    FiCpu,
+    FiBattery,
+    FiWifi,
+    IoRestaurantOutline,
+    IoFitnessOutline,
+    IoCarOutline,
+    IoHomeOutline,
+    IoBookOutline,
+    IoGameControllerOutline,
+    IoMusicalNotesOutline,
+    IoCameraOutline,
+    IoPhonePortraitOutline,
+    IoLaptopOutline,
+    IoWatchOutline,
+    IoHeadsetOutline,
+  };
+
+  // Get icon component from value
+  const getIconComponent = (iconValue) => {
+    if (!iconValue) return null;
+    return iconComponents[iconValue] || null;
+  };
 
   useEffect(() => {
     if (category) {
@@ -35,6 +130,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         name: category.name || "",
         description: category.description || "",
         image: category.image || "",
+        icon: category.icon || "",
         parentId: category.parentId || null,
         isActive: category.isActive !== undefined ? category.isActive : true,
         order: category.order || 0,
@@ -44,6 +140,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         name: "",
         description: "",
         image: "",
+        icon: "",
         parentId: parentId,
         isActive: true,
         order: 0,
@@ -247,6 +344,70 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                       />
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Icon Selection */}
+              <div>
+                <h3 className="text-lg font-bold text-gray-800 mb-4">
+                  Category Icon
+                </h3>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Select Icon
+                  </label>
+                  <div className="grid grid-cols-6 sm:grid-cols-8 gap-3 max-h-64 overflow-y-auto p-2 border border-gray-300 rounded-lg">
+                    {availableIcons.map((icon) => {
+                      const IconComponent = iconComponents[icon.value];
+                      const isSelected = formData.icon === icon.value;
+                      return (
+                        <button
+                          key={icon.value}
+                          type="button"
+                          onClick={() => {
+                            setFormData({ ...formData, icon: icon.value });
+                          }}
+                          className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                            isSelected
+                              ? "border-primary-500 bg-primary-50"
+                              : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                          }`}
+                          title={icon.name}>
+                          {IconComponent && (
+                            <IconComponent
+                              className={`text-xl ${
+                                isSelected ? "text-primary-600" : "text-gray-600"
+                              }`}
+                            />
+                          )}
+                          <span
+                            className={`text-[10px] mt-1 text-center ${
+                              isSelected ? "text-primary-600" : "text-gray-500"
+                            }`}>
+                            {icon.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {formData.icon && (
+                    <div className="mt-4 flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Selected Icon:
+                      </span>
+                      {getIconComponent(formData.icon) && (
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const SelectedIcon = getIconComponent(formData.icon);
+                            return <SelectedIcon className="text-2xl text-primary-600" />;
+                          })()}
+                          <span className="text-sm text-gray-600">
+                            {availableIcons.find((i) => i.value === formData.icon)?.name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

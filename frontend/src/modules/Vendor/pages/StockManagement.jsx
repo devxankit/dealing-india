@@ -11,24 +11,32 @@ import {
   FiX,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
-import { products as initialProducts } from "../../../data/products";
 import DataTable from "../../Admin/components/DataTable";
 import ExportButton from "../../Admin/components/ExportButton";
 import Badge from "../../../shared/components/Badge";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useVendorStore } from "../store/vendorStore";
+import { getVendorStock, updateVendorStock, getVendorStockStats } from "../services/stockService";
 import toast from "react-hot-toast";
 
 const StockManagement = () => {
   const location = useLocation();
   const { vendor } = useVendorAuthStore();
-  const { getVendorProducts } = useVendorStore();
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [stockStats, setStockStats] = useState({
+    totalProducts: 0,
+    inStock: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0,
+  });
 
   // Update selected status based on URL path
   useEffect(() => {
@@ -46,118 +54,96 @@ const StockManagement = () => {
   const vendorId = vendor?.id;
 
   useEffect(() => {
+    if (vendorId) {
+      loadStock();
+      loadStockStats();
+    }
+  }, [vendorId, lowStockThreshold]);
+
+  useEffect(() => {
+    if (vendorId) {
+      loadStock();
+    }
+  }, [vendorId, currentPage, stockFilter]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage === 1) {
+        loadStock();
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const loadStock = async () => {
     if (!vendorId) return;
 
-    const savedProducts = localStorage.getItem("admin-products");
-    const allProducts = savedProducts
-      ? JSON.parse(savedProducts)
-      : initialProducts;
+    setLoading(true);
+    try {
+      const response = await getVendorStock({
+        search: searchQuery,
+        stock: stockFilter !== "all" ? stockFilter : undefined,
+        lowStockThreshold,
+        page: currentPage,
+        limit: 10,
+      });
 
-    // Filter products for this vendor
-    const vendorProducts = allProducts.filter(
-      (p) => p.vendorId === parseInt(vendorId)
-    );
-    setProducts(vendorProducts);
-  }, [vendorId]);
-
-  // Filtered products
-  const filteredProducts = useMemo(() => {
-    let filtered = products;
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      setProducts(response.products || []);
+      setTotalPages(response.pagination?.pages || 1);
+    } catch (error) {
+      console.error("Error loading stock:", error);
+      toast.error("Failed to load stock information");
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Stock filter
-    if (stockFilter === "low_stock") {
-      filtered = filtered.filter(
-        (product) =>
-          product.stockQuantity <= lowStockThreshold &&
-          product.stockQuantity > 0
-      );
-    } else if (stockFilter === "out_of_stock") {
-      filtered = filtered.filter((product) => product.stockQuantity === 0);
-    } else if (stockFilter === "in_stock") {
-      filtered = filtered.filter(
-        (product) => product.stockQuantity > lowStockThreshold
-      );
+  const loadStockStats = async () => {
+    if (!vendorId) return;
+
+    try {
+      const stats = await getVendorStockStats(lowStockThreshold);
+      setStockStats(stats || {
+        totalProducts: 0,
+        inStock: 0,
+        lowStock: 0,
+        outOfStock: 0,
+        totalValue: 0,
+      });
+    } catch (error) {
+      console.error("Error loading stock stats:", error);
+      // Don't show error toast for stats, just use defaults
     }
+  };
 
-    return filtered;
-  }, [products, searchQuery, stockFilter, lowStockThreshold]);
+  // Products are already filtered by API
+  const filteredProducts = products;
 
-  // Stock statistics
-  const stockStats = useMemo(() => {
-    const totalProducts = products.length;
-    const inStock = products.filter(
-      (p) => p.stockQuantity > lowStockThreshold
-    ).length;
-    const lowStock = products.filter(
-      (p) => p.stockQuantity <= lowStockThreshold && p.stockQuantity > 0
-    ).length;
-    const outOfStock = products.filter((p) => p.stockQuantity === 0).length;
-    const totalValue = products.reduce(
-      (sum, p) => sum + p.price * (p.stockQuantity || 0),
-      0
-    );
-
-    return { totalProducts, inStock, lowStock, outOfStock, totalValue };
-  }, [products, lowStockThreshold]);
-
-  const handleStockUpdate = (productId, newQuantity) => {
-    const savedProducts = localStorage.getItem("admin-products");
-    const allProducts = savedProducts
-      ? JSON.parse(savedProducts)
-      : initialProducts;
-
-    const updatedProducts = allProducts.map((p) => {
-      if (p.id === productId) {
-        const oldQuantity = p.stockQuantity || 0;
-        const newStockStatus =
-          newQuantity === 0
-            ? "out_of_stock"
-            : newQuantity <= lowStockThreshold
-              ? "low_stock"
-              : "in_stock";
-        return {
-          ...p,
-          stockQuantity: parseInt(newQuantity),
-          stock: newStockStatus,
-          stockHistory: [
-            ...(p.stockHistory || []),
-            {
-              date: new Date().toISOString(),
-              oldQuantity,
-              newQuantity: parseInt(newQuantity),
-              change: parseInt(newQuantity) - oldQuantity,
-            },
-          ].slice(-50),
-        };
-      }
-      return p;
-    });
-
-    localStorage.setItem("admin-products", JSON.stringify(updatedProducts));
-
-    // Update local state
-    const vendorProducts = updatedProducts.filter(
-      (p) => p.vendorId === parseInt(vendorId)
-    );
-    setProducts(vendorProducts);
-
-    toast.success("Stock updated successfully");
-    setStockModal({ isOpen: false, product: null });
+  const handleStockUpdate = async (productId, newQuantity) => {
+    try {
+      await updateVendorStock(productId, newQuantity, lowStockThreshold);
+      toast.success("Stock updated successfully");
+      setStockModal({ isOpen: false, product: null });
+      loadStock();
+      loadStockStats(); // Refresh stats after update
+    } catch (error) {
+      console.error("Error updating stock:", error);
+      toast.error(error.response?.data?.message || "Failed to update stock");
+    }
   };
 
   // Table columns
   const columns = [
     {
-      key: "id",
+      key: "_id",
       label: "ID",
       sortable: true,
+      render: (value) => value?.toString().slice(-8) || "",
     },
     {
       key: "name",
@@ -327,13 +313,18 @@ const StockManagement = () => {
         </div>
 
         {/* DataTable */}
-        {filteredProducts.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-500">Loading stock information...</p>
+          </div>
+        ) : filteredProducts.length > 0 ? (
           <>
             <div className="mb-4">
               <ExportButton
                 data={filteredProducts}
                 headers={[
-                  { label: "ID", accessor: (row) => row.id },
+                  { label: "ID", accessor: (row) => row._id?.toString().slice(-8) || "" },
                   { label: "Name", accessor: (row) => row.name },
                   { label: "Price", accessor: (row) => formatPrice(row.price) },
                   { label: "Stock", accessor: (row) => row.stockQuantity || 0 },
@@ -347,6 +338,9 @@ const StockManagement = () => {
               columns={columns}
               pagination={true}
               itemsPerPage={10}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
             />
           </>
         ) : (
@@ -364,7 +358,7 @@ const StockManagement = () => {
         onClose={() => setStockModal({ isOpen: false, product: null })}
         onUpdate={(newQuantity) => {
           if (stockModal.product) {
-            handleStockUpdate(stockModal.product.id, newQuantity);
+            handleStockUpdate(stockModal.product._id || stockModal.product.id, newQuantity);
           }
         }}
       />
@@ -392,6 +386,8 @@ const StockUpdateModal = ({
     }
   }, [product]);
 
+  const productId = product?._id || product?.id;
+
   if (!product || !isOpen) return null;
 
   const handleSubmit = (e) => {
@@ -402,11 +398,11 @@ const StockUpdateModal = ({
       newQuantity = stockQuantity;
     } else if (adjustmentType === "add") {
       newQuantity =
-        (product.stockQuantity || 0) + (parseInt(stockAdjustment) || 0);
+        stockQuantity + (parseInt(stockAdjustment) || 0);
     } else if (adjustmentType === "subtract") {
       newQuantity = Math.max(
         0,
-        (product.stockQuantity || 0) - (parseInt(stockAdjustment) || 0)
+        stockQuantity - (parseInt(stockAdjustment) || 0)
       );
     }
 

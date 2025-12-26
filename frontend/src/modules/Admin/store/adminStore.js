@@ -109,16 +109,35 @@ export const useAdminAuthStore = create(
                 admin: adminData,
                 token: token,
                 isAuthenticated: true,
+                isLoading: false,
               });
+              
+              return true;
             } else {
-              // Invalid token, clear storage
-              get().logout();
+              // Invalid token, clear storage without calling logout to avoid redirect loops
+              set({
+                admin: null,
+                token: null,
+                isAuthenticated: false,
+                isLoading: false,
+              });
+              localStorage.removeItem('admin-token');
+              return false;
             }
           } catch (error) {
             // Token invalid or expired, clear storage
-            get().logout();
+            // Don't call logout here as it might cause redirect loops
+            set({
+              admin: null,
+              token: null,
+              isAuthenticated: false,
+              isLoading: false,
+            });
+            localStorage.removeItem('admin-token');
+            return false;
           }
         }
+        return false;
       },
     }),
     {

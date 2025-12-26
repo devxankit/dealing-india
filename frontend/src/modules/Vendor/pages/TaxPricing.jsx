@@ -2,16 +2,19 @@ import { useState, useEffect } from "react";
 import { FiDollarSign, FiTrendingUp, FiPackage } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
-import ExportButton from "../../Admin/components/ExportButton";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useVendorStore } from "../store/vendorStore";
+import {
+  getVendorProductsPricing,
+  updateProductTaxRate,
+  bulkUpdateProductPrices,
+} from "../services/taxPricingService";
 import toast from "react-hot-toast";
 
 const TaxPricing = () => {
   const { vendor } = useVendorAuthStore();
-  const { getVendorProducts } = useVendorStore();
   const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [bulkAction, setBulkAction] = useState({
     type: "percentage",
     value: 0,
@@ -22,54 +25,100 @@ const TaxPricing = () => {
 
   useEffect(() => {
     if (!vendorId) return;
-    const vendorProducts = getVendorProducts(vendorId);
-    setProducts(vendorProducts);
-  }, [vendorId, getVendorProducts]);
+    const fetchProducts = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getVendorProductsPricing({ limit: 1000 });
+        // Handle both response structures
+        if (response?.products) {
+          setProducts(response.products);
+        } else if (response?.data?.products) {
+          setProducts(response.data.products);
+        } else if (Array.isArray(response)) {
+          setProducts(response);
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        toast.error("Failed to load products");
+        setProducts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [vendorId]);
 
-  const handleBulkUpdate = () => {
+  const handleBulkUpdate = async () => {
     if (!bulkAction.value || bulkAction.value <= 0) {
       toast.error("Please enter a valid value");
       return;
     }
 
-    const updated = products.map((p) => {
-      if (selectedProducts.includes(p.id)) {
+    if (selectedProducts.length === 0) {
+      toast.error("Please select at least one product");
+      return;
+    }
+
+    try {
+      const updates = selectedProducts.map((productId) => {
+        const product = products.find(
+          (p) => (p._id?.toString() || p.id?.toString()) === productId.toString()
+        );
+        if (!product) return null;
+
         const newPrice =
           bulkAction.type === "percentage"
-            ? p.price * (1 + bulkAction.value / 100)
-            : p.price + bulkAction.value;
-        return { ...p, price: Math.max(0, newPrice) };
-      }
-      return p;
-    });
+            ? product.price * (1 + bulkAction.value / 100)
+            : product.price + bulkAction.value;
 
-    setProducts(updated);
-    const savedProducts = JSON.parse(
-      localStorage.getItem("admin-products") || "[]"
-    );
-    const updatedAll = savedProducts.map((p) => {
-      const updatedProduct = updated.find((up) => up.id === p.id);
-      return updatedProduct || p;
-    });
-    localStorage.setItem("admin-products", JSON.stringify(updatedAll));
-    setSelectedProducts([]);
-    toast.success("Prices updated successfully");
+        return {
+          productId: product._id?.toString() || product.id?.toString(),
+          price: Math.max(0, newPrice),
+        };
+      }).filter(Boolean);
+
+      const result = await bulkUpdateProductPrices(updates);
+      
+      if (result.updated && result.updated.length > 0) {
+        // Update local state with updated products
+        const updatedMap = new Map(
+          result.updated.map((p) => [p._id?.toString() || p.id?.toString(), p])
+        );
+        setProducts((prev) =>
+          prev.map((p) => {
+            const id = p._id?.toString() || p.id?.toString();
+            return updatedMap.get(id) || p;
+          })
+        );
+        toast.success(`Updated ${result.updated.length} products`);
+      }
+
+      if (result.failed && result.failed.length > 0) {
+        toast.error(`Failed to update ${result.failed.length} products`);
+      }
+
+      setSelectedProducts([]);
+      setBulkAction({ type: "percentage", value: 0 });
+    } catch (error) {
+      console.error("Error updating prices:", error);
+      toast.error(error.response?.data?.message || "Failed to update prices");
+    }
   };
 
-  const handleTaxUpdate = (productId, taxRate) => {
-    const updated = products.map((p) =>
-      p.id === productId ? { ...p, taxRate: parseFloat(taxRate) } : p
-    );
-    setProducts(updated);
-    const savedProducts = JSON.parse(
-      localStorage.getItem("admin-products") || "[]"
-    );
-    const updatedAll = savedProducts.map((p) => {
-      const updatedProduct = updated.find((up) => up.id === p.id);
-      return updatedProduct || p;
-    });
-    localStorage.setItem("admin-products", JSON.stringify(updatedAll));
-    toast.success("Tax rate updated");
+  const handleTaxUpdate = async (productId, taxRate) => {
+    try {
+      const product = await updateProductTaxRate(productId, parseFloat(taxRate) || 0);
+      setProducts((prev) =>
+        prev.map((p) => {
+          const id = p._id?.toString() || p.id?.toString();
+          return id === productId.toString() ? { ...p, taxRate: product.taxRate } : p;
+        })
+      );
+      toast.success("Tax rate updated");
+    } catch (error) {
+      console.error("Error updating tax rate:", error);
+      toast.error(error.response?.data?.message || "Failed to update tax rate");
+    }
   };
 
   const columns = [
@@ -80,7 +129,9 @@ const TaxPricing = () => {
       render: (value, row) => (
         <div>
           <p className="font-semibold text-gray-800">{value}</p>
-          <p className="text-xs text-gray-500">ID: {row.id}</p>
+          <p className="text-xs text-gray-500">
+            ID: {row._id?.toString() || row.id?.toString()}
+          </p>
         </div>
       ),
     },
@@ -100,7 +151,9 @@ const TaxPricing = () => {
         <input
           type="number"
           value={row.taxRate || 0}
-          onChange={(e) => handleTaxUpdate(row.id, e.target.value)}
+          onChange={(e) =>
+            handleTaxUpdate(row._id?.toString() || row.id?.toString(), e.target.value)
+          }
           className="w-20 px-2 py-1 border border-gray-200 rounded text-sm"
           min="0"
           max="100"
@@ -188,15 +241,22 @@ const TaxPricing = () => {
       </div>
 
       {/* Products Table */}
-      <DataTable
-        data={products}
-        columns={columns}
-        pagination={true}
-        itemsPerPage={10}
-        selectable={true}
-        selectedItems={selectedProducts}
-        onSelectionChange={setSelectedProducts}
-      />
+      {isLoading ? (
+        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+          <p className="text-gray-500">Loading products...</p>
+        </div>
+      ) : (
+        <DataTable
+          data={products}
+          columns={columns}
+          pagination={true}
+          itemsPerPage={10}
+          selectable={true}
+          selectedItems={selectedProducts}
+          onSelectionChange={setSelectedProducts}
+          rowKey={(row) => row._id?.toString() || row.id?.toString()}
+        />
+      )}
     </motion.div>
   );
 };

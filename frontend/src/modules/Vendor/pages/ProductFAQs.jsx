@@ -11,63 +11,125 @@ import { motion, AnimatePresence } from "framer-motion";
 import ConfirmModal from "../../Admin/components/ConfirmModal";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useVendorStore } from "../store/vendorStore";
+import { getVendorProducts } from "../services/productService";
+import {
+  getVendorFAQs,
+  createVendorFAQ,
+  updateVendorFAQ,
+  deleteVendorFAQ,
+} from "../services/faqService";
 import toast from "react-hot-toast";
 
 const ProductFAQs = () => {
   const { vendor } = useVendorAuthStore();
-  const { getVendorProducts } = useVendorStore();
   const [faqs, setFaqs] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingFaq, setEditingFaq] = useState(null);
   const [expandedFaq, setExpandedFaq] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
   const [productFilter, setProductFilter] = useState("all");
 
   const vendorId = vendor?.id;
-  const products = vendorId ? getVendorProducts(vendorId) : [];
 
+  // Fetch products
   useEffect(() => {
     if (!vendorId) return;
-
-    const savedFaqs = localStorage.getItem(`vendor-${vendorId}-faqs`);
-    if (savedFaqs) {
-      setFaqs(JSON.parse(savedFaqs));
-    }
+    const fetchProducts = async () => {
+      try {
+        const response = await getVendorProducts({ limit: 1000 });
+        if (response?.data?.products) {
+          setProducts(response.data.products);
+        } else if (response?.products) {
+          setProducts(response.products);
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        toast.error("Failed to load products");
+      }
+    };
+    fetchProducts();
   }, [vendorId]);
+
+  // Fetch FAQs
+  useEffect(() => {
+    if (!vendorId) return;
+    const fetchFAQs = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getVendorFAQs({
+          productId: productFilter === "all" ? "all" : productFilter,
+          status: "all",
+          limit: 1000,
+        });
+        // Handle both response structures
+        if (response?.faqs) {
+          setFaqs(response.faqs);
+        } else if (response?.data?.faqs) {
+          setFaqs(response.data.faqs);
+        } else if (Array.isArray(response)) {
+          setFaqs(response);
+        }
+      } catch (error) {
+        console.error("Error fetching FAQs:", error);
+        toast.error("Failed to load FAQs");
+        setFaqs([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchFAQs();
+  }, [vendorId, productFilter]);
 
   const filteredFaqs = faqs.filter(
     (faq) =>
-      productFilter === "all" || faq.productId.toString() === productFilter
+      productFilter === "all" || faq.productId?.toString() === productFilter
   );
 
-  const handleSave = (faqData) => {
-    const updatedFaqs =
-      editingFaq && editingFaq.id
-        ? faqs.map((f) =>
-            f.id === editingFaq.id
-              ? { ...faqData, id: editingFaq.id, vendorId }
-              : f
-          )
-        : [...faqs, { ...faqData, id: Date.now(), vendorId }];
-
-    setFaqs(updatedFaqs);
-    localStorage.setItem(
-      `vendor-${vendorId}-faqs`,
-      JSON.stringify(updatedFaqs)
-    );
-    setEditingFaq(null);
-    toast.success(editingFaq && editingFaq.id ? "FAQ updated" : "FAQ added");
+  const handleSave = async (faqData) => {
+    try {
+      if (editingFaq && editingFaq.id) {
+        // Update existing FAQ
+        const updatedFaq = await updateVendorFAQ(editingFaq.id, {
+          productId: faqData.productId,
+          question: faqData.question,
+          answer: faqData.answer,
+          order: faqData.order || 0,
+          status: faqData.isActive ? "active" : "inactive",
+        });
+        setFaqs((prev) =>
+          prev.map((f) => (f.id === editingFaq.id ? updatedFaq : f))
+        );
+        toast.success("FAQ updated");
+      } else {
+        // Create new FAQ
+        const newFaq = await createVendorFAQ({
+          productId: faqData.productId,
+          question: faqData.question,
+          answer: faqData.answer,
+          order: faqData.order || 0,
+          status: faqData.isActive ? "active" : "inactive",
+        });
+        setFaqs((prev) => [...prev, newFaq]);
+        toast.success("FAQ added");
+      }
+      setEditingFaq(null);
+    } catch (error) {
+      console.error("Error saving FAQ:", error);
+      toast.error(error.response?.data?.message || "Failed to save FAQ");
+    }
   };
 
-  const handleDelete = () => {
-    const updatedFaqs = faqs.filter((f) => f.id !== deleteModal.id);
-    setFaqs(updatedFaqs);
-    localStorage.setItem(
-      `vendor-${vendorId}-faqs`,
-      JSON.stringify(updatedFaqs)
-    );
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success("FAQ deleted");
+  const handleDelete = async () => {
+    try {
+      await deleteVendorFAQ(deleteModal.id);
+      setFaqs((prev) => prev.filter((f) => f.id !== deleteModal.id));
+      setDeleteModal({ isOpen: false, id: null });
+      toast.success("FAQ deleted");
+    } catch (error) {
+      console.error("Error deleting FAQ:", error);
+      toast.error(error.response?.data?.message || "Failed to delete FAQ");
+    }
   };
 
   if (!vendorId) {
@@ -108,7 +170,7 @@ const ProductFAQs = () => {
           options={[
             { value: "all", label: "All Products" },
             ...products.map((product) => ({
-              value: product.id.toString(),
+              value: product._id?.toString() || product.id?.toString(),
               label: product.name,
             })),
           ]}
@@ -117,22 +179,35 @@ const ProductFAQs = () => {
       </div>
 
       <div className="space-y-3">
-        {filteredFaqs.length > 0 ? (
+        {isLoading ? (
+          <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+            <p className="text-gray-500">Loading FAQs...</p>
+          </div>
+        ) : filteredFaqs.length > 0 ? (
           filteredFaqs.map((faq) => (
             <div
-              key={faq.id}
+              key={faq.id || faq._id}
               className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <p className="text-sm font-semibold text-gray-600">
-                      {products.find((p) => p.id === faq.productId)?.name ||
+                      {faq.productName ||
+                        products.find(
+                          (p) =>
+                            (p._id?.toString() || p.id?.toString()) ===
+                            (faq.productId?.toString() || faq.productId)
+                        )?.name ||
                         "Unknown Product"}
                     </p>
                   </div>
                   <button
                     onClick={() =>
-                      setExpandedFaq(expandedFaq === faq.id ? null : faq.id)
+                      setExpandedFaq(
+                        expandedFaq === (faq.id || faq._id)
+                          ? null
+                          : faq.id || faq._id
+                      )
                     }
                     className="w-full text-left">
                     <p className="font-semibold text-gray-800 mb-2">
@@ -140,7 +215,7 @@ const ProductFAQs = () => {
                     </p>
                   </button>
                   <AnimatePresence>
-                    {expandedFaq === faq.id && (
+                    {expandedFaq === (faq.id || faq._id) && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
@@ -160,7 +235,9 @@ const ProductFAQs = () => {
                     <FiEdit />
                   </button>
                   <button
-                    onClick={() => setDeleteModal({ isOpen: true, id: faq.id })}
+                    onClick={() =>
+                      setDeleteModal({ isOpen: true, id: faq.id || faq._id })
+                    }
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                     <FiTrash2 />
                   </button>
@@ -200,11 +277,13 @@ const ProductFAQs = () => {
 
 const FAQForm = ({ faq, products, onSave, onClose }) => {
   const [formData, setFormData] = useState({
-    productId: faq?.productId || "",
+    productId: faq?.productId?.toString() || faq?.productId || "",
     question: faq?.question || "",
     answer: faq?.answer || "",
     order: faq?.order || 1,
-    isActive: faq?.isActive !== undefined ? faq.isActive : true,
+    isActive: faq?.status === "active" || faq?.isActive !== undefined
+      ? faq.isActive
+      : true,
   });
 
   const handleSubmit = (e) => {
@@ -221,7 +300,7 @@ const FAQForm = ({ faq, products, onSave, onClose }) => {
       <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-gray-800">
-            {faq?.id ? "Edit FAQ" : "Add FAQ"}
+            {faq?.id || faq?._id ? "Edit FAQ" : "Add FAQ"}
           </h3>
           <button
             onClick={onClose}
@@ -240,14 +319,16 @@ const FAQForm = ({ faq, products, onSave, onClose }) => {
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  productId: parseInt(e.target.value),
+                  productId: e.target.value,
                 })
               }
               required
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
               <option value="">Select Product</option>
               {products.map((product) => (
-                <option key={product.id} value={product.id}>
+                <option
+                  key={product._id || product.id}
+                  value={product._id?.toString() || product.id?.toString()}>
                   {product.name}
                 </option>
               ))}

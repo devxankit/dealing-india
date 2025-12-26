@@ -117,6 +117,11 @@ const campaignSchema = new mongoose.Schema(
         trim: true,
         default: '',
       },
+      imagePublicId: {
+        type: String,
+        trim: true,
+        default: null,
+      },
       customImage: {
         type: Boolean,
         default: false,

@@ -15,6 +15,8 @@ import {
   FiTrendingUp,
   FiUser,
   FiFileText,
+  FiDownload,
+  FiFile,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorManagementStore } from "../../store/vendorManagementStore";
@@ -42,6 +44,7 @@ const VendorDetail = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditingCommission, setIsEditingCommission] = useState(false);
   const [commissionRate, setCommissionRate] = useState("");
+  const [commissions, setCommissions] = useState([]);
 
   // Fetch vendor data on component mount
   useEffect(() => {
@@ -51,7 +54,7 @@ const VendorDetail = () => {
         if (vendorData) {
           setVendor(vendorData);
           setCommissionRate(((vendorData.commissionRate || 0) * 100).toFixed(1));
-          
+
           // Fetch analytics
           const analyticsData = await fetchVendorAnalytics(id);
           if (analyticsData) {
@@ -62,6 +65,42 @@ const VendorDetail = () => {
           const ordersData = await fetchVendorOrders(id, { page: 1, limit: 100 });
           if (ordersData && ordersData.orders) {
             setVendorOrders(ordersData.orders);
+
+            // Calculate commissions from orders
+            const commissionRecords = ordersData.orders
+              .filter(order => {
+                const vendorItem = order.vendorItems?.find(
+                  (vi) => vi.vendorId === vendorData.id || vi.vendorId?.toString() === vendorData.id?.toString()
+                );
+                return vendorItem && vendorItem.subtotal > 0;
+              })
+              .map(order => {
+                const vendorItem = order.vendorItems?.find(
+                  (vi) => vi.vendorId === vendorData.id || vi.vendorId?.toString() === vendorData.id?.toString()
+                );
+                const subtotal = vendorItem?.subtotal || 0;
+                const commission = vendorItem?.commission || (subtotal * (vendorData.commissionRate || 0.1));
+                const vendorEarnings = vendorItem?.vendorEarnings || (subtotal - commission);
+
+                // Determine status based on order status
+                let status = 'pending';
+                if (order.status === 'delivered' || order.status === 'completed') {
+                  status = 'paid';
+                } else if (order.status === 'cancelled' || order.status === 'canceled') {
+                  status = 'cancelled';
+                }
+
+                return {
+                  orderId: order.id || order._id,
+                  createdAt: order.createdAt || order.date || new Date().toISOString(),
+                  subtotal: subtotal,
+                  commission: commission,
+                  vendorEarnings: vendorEarnings,
+                  status: status,
+                };
+              });
+
+            setCommissions(commissionRecords);
           }
         } else {
           toast.error("Vendor not found");
@@ -139,10 +178,10 @@ const VendorDetail = () => {
             value === "delivered"
               ? "success"
               : value === "pending"
-              ? "warning"
-              : value === "cancelled" || value === "canceled"
-              ? "error"
-              : "info"
+                ? "warning"
+                : value === "cancelled" || value === "canceled"
+                  ? "error"
+                  : "info"
           }>
           {value?.toUpperCase() || "N/A"}
         </Badge>
@@ -217,8 +256,8 @@ const VendorDetail = () => {
             value === "paid"
               ? "success"
               : value === "pending"
-              ? "warning"
-              : "error"
+                ? "warning"
+                : "error"
           }>
           {value?.toUpperCase()}
         </Badge>
@@ -252,8 +291,8 @@ const VendorDetail = () => {
               vendor.status === "approved"
                 ? "success"
                 : vendor.status === "pending"
-                ? "warning"
-                : "error"
+                  ? "warning"
+                  : "error"
             }>
             {vendor.status?.toUpperCase()}
           </Badge>
@@ -278,16 +317,15 @@ const VendorDetail = () => {
 
       {/* Tabs */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="flex border-b border-gray-200">
-          {["overview", "orders", "commissions", "settings"].map((tab) => (
+        <div className="flex border-b border-gray-200 overflow-x-auto">
+          {["overview", "documents", "orders", "commissions", "settings"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3 font-semibold text-sm transition-colors ${
-                activeTab === tab
-                  ? "text-primary-600 border-b-2 border-primary-600"
-                  : "text-gray-600 hover:text-gray-800"
-              }`}>
+              className={`px-6 py-3 font-semibold text-sm transition-colors whitespace-nowrap ${activeTab === tab
+                ? "text-primary-600 border-b-2 border-primary-600"
+                : "text-gray-600 hover:text-gray-800"
+                }`}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
@@ -443,6 +481,58 @@ const VendorDetail = () => {
                 <p className="text-gray-500 text-center py-8">
                   No commission records found
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Documents Tab */}
+          {activeTab === "documents" && (
+            <div>
+              <h2 className="text-lg font-bold text-gray-800 mb-4">
+                Business Documents
+              </h2>
+              {vendor.documents && vendor.documents.length > 0 ? (
+                <div className="space-y-3">
+                  {vendor.documents.map((doc, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                          <FiFile className="text-red-500 text-lg" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800">
+                            {doc.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                        >
+                          <FiDownload />
+                          View/Download
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                  <FiFileText className="text-4xl text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">No documents uploaded</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    The vendor has not uploaded any business documents yet.
+                  </p>
+                </div>
               )}
             </div>
           )}

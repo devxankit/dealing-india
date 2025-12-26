@@ -10,95 +10,167 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import Badge from "../../../shared/components/Badge";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useOrderStore } from "../../../shared/store/orderStore";
+import {
+  getVendorTickets,
+  getVendorTicket,
+  sendTicketMessage,
+} from "../services/supportTicketService";
+import { initializeSocket, getSocket } from "../../../shared/utils/socket";
 import toast from "react-hot-toast";
 
 const Chat = () => {
-  const { vendor } = useVendorAuthStore();
-  const { orders } = useOrderStore();
+  const { vendor, token } = useVendorAuthStore();
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const vendorId = vendor?.id;
 
+  // Load tickets as chats
   useEffect(() => {
     if (!vendorId) return;
 
-    // Load chats from localStorage or initialize with dummy data
-    const savedChats = localStorage.getItem(`vendor-${vendorId}-chats`);
-    if (savedChats) {
-      setChats(JSON.parse(savedChats));
-    } else {
-      // Initialize with chats from orders
-      const orderChats = orders
-        .filter((order) => {
-          if (order.vendorItems && Array.isArray(order.vendorItems)) {
-            return order.vendorItems.some((vi) => vi.vendorId === vendorId);
-          }
-          return false;
-        })
-        .slice(0, 5)
-        .map((order, index) => ({
-          id: `chat-${order.id}`,
-          customerId: order.userId || `customer-${index}`,
-          customerName: order.shippingAddress?.name || `Customer ${index + 1}`,
-          customerEmail:
-            order.shippingAddress?.email || `customer${index + 1}@example.com`,
-          orderId: order.id,
-          lastMessage:
-            index === 0
-              ? "Hello, I need help with my order"
-              : "Thank you for your help!",
-          unreadCount: index === 0 ? 2 : 0,
-          status: index === 0 ? "active" : index === 1 ? "resolved" : "active",
-          lastActivity: order.date,
-          createdAt: order.date,
-        }));
+    const loadChats = async () => {
+      setLoading(true);
+      try {
+        const response = await getVendorTickets({
+          status: filterStatus === "all" ? "all" : filterStatus,
+          search: searchQuery,
+          page: 1,
+          limit: 100,
+        });
 
-      setChats(orderChats);
-      localStorage.setItem(
-        `vendor-${vendorId}-chats`,
-        JSON.stringify(orderChats)
-      );
+        if (response.success && response.data?.tickets) {
+          // Transform tickets to chat format
+          const ticketChats = response.data.tickets.map((ticket) => ({
+            id: ticket.id,
+            ticketNumber: ticket.ticketNumber,
+            subject: ticket.subject,
+            lastMessage: ticket.lastMessageAt
+              ? "Last message"
+              : "No messages yet",
+            unreadCount: 0, // Can be enhanced with actual unread count
+            status: ticket.status === "closed" ? "resolved" : "active",
+            lastActivity: ticket.lastMessageAt || ticket.createdAt,
+            createdAt: ticket.createdAt,
+            type: ticket.type,
+            priority: ticket.priority,
+          }));
+          setChats(ticketChats);
+        }
+      } catch (error) {
+        console.error("Error loading chats:", error);
+        toast.error("Failed to load chats");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadChats();
+  }, [vendorId, filterStatus, searchQuery]);
+
+  // Initialize Socket.io connection
+  useEffect(() => {
+    if (!token || !vendorId) return;
+
+    const socket = initializeSocket(token);
+
+    // Listen for new messages
+    socket.on("message_received", (data) => {
+      if (data.ticketId) {
+        // Update selected chat if it's the current one
+        if (selectedChat && selectedChat.id === data.ticketId) {
+          loadMessages(data.ticketId);
+        }
+        // Refresh chat list
+        refreshChats();
+      }
+    });
+
+    // Listen for ticket updates
+    socket.on("ticket_updated", (data) => {
+      if (data.ticketId) {
+        refreshChats();
+        if (selectedChat && selectedChat.id === data.ticketId) {
+          loadMessages(data.ticketId);
+        }
+      }
+    });
+
+    return () => {
+      socket.off("message_received");
+      socket.off("ticket_updated");
+    };
+  }, [token, vendorId, selectedChat]);
+
+  const refreshChats = async () => {
+    try {
+      const response = await getVendorTickets({
+        status: filterStatus === "all" ? "all" : filterStatus,
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+
+      if (response.success && response.data?.tickets) {
+        const ticketChats = response.data.tickets.map((ticket) => ({
+          id: ticket.id,
+          ticketNumber: ticket.ticketNumber,
+          subject: ticket.subject,
+          lastMessage: ticket.lastMessageAt
+            ? "Last message"
+            : "No messages yet",
+          unreadCount: 0,
+          status: ticket.status === "closed" ? "resolved" : "active",
+          lastActivity: ticket.lastMessageAt || ticket.createdAt,
+          createdAt: ticket.createdAt,
+          type: ticket.type,
+          priority: ticket.priority,
+        }));
+        setChats(ticketChats);
+      }
+    } catch (error) {
+      console.error("Error refreshing chats:", error);
     }
-  }, [vendorId, orders]);
+  };
+
+  const loadMessages = async (ticketId) => {
+    try {
+      const response = await getVendorTicket(ticketId);
+      if (response.success && response.data?.ticket) {
+        const ticket = response.data.ticket;
+        // Transform messages to chat format
+        const chatMessages = (ticket.messages || []).map((msg) => ({
+          id: msg.id,
+          sender: msg.sender, // 'vendor', 'admin', or 'user'
+          message: msg.message,
+          time: msg.time,
+        }));
+        setMessages(chatMessages);
+
+        // Join socket room for this ticket
+        const socket = getSocket();
+        if (socket) {
+          socket.emit("join_ticket_room", { ticketId });
+        }
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+      toast.error("Failed to load messages");
+    }
+  };
 
   useEffect(() => {
     if (selectedChat) {
-      // Load messages for selected chat
-      const savedMessages = localStorage.getItem(
-        `vendor-${vendorId}-chat-${selectedChat.id}-messages`
-      );
-      if (savedMessages) {
-        setMessages(JSON.parse(savedMessages));
-      } else {
-        // Initialize with default messages
-        const defaultMessages = [
-          {
-            id: 1,
-            sender: "customer",
-            message: selectedChat.lastMessage,
-            time: selectedChat.lastActivity,
-          },
-          {
-            id: 2,
-            sender: "vendor",
-            message: "Hi! How can I help you today?",
-            time: new Date().toISOString(),
-          },
-        ];
-        setMessages(defaultMessages);
-        localStorage.setItem(
-          `vendor-${vendorId}-chat-${selectedChat.id}-messages`,
-          JSON.stringify(defaultMessages)
-        );
-      }
+      loadMessages(selectedChat.id);
+    } else {
+      setMessages([]);
     }
-  }, [selectedChat, vendorId]);
+  }, [selectedChat]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -106,53 +178,37 @@ const Chat = () => {
 
   const handleSelectChat = (chat) => {
     setSelectedChat(chat);
-    // Mark as read
+    // Mark as read (can be enhanced with API call)
     const updatedChats = chats.map((c) =>
       c.id === chat.id ? { ...c, unreadCount: 0, status: "active" } : c
     );
     setChats(updatedChats);
-    localStorage.setItem(
-      `vendor-${vendorId}-chats`,
-      JSON.stringify(updatedChats)
-    );
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat) return;
 
-    const message = {
-      id: messages.length + 1,
-      sender: "vendor",
-      message: newMessage,
-      time: new Date().toISOString(),
-    };
+    const ticketId = selectedChat.id;
+    const socket = getSocket();
 
-    const updatedMessages = [...messages, message];
-    setMessages(updatedMessages);
+    if (socket && socket.connected) {
+      // Send via Socket.io
+      socket.emit("send_message", {
+        ticketId,
+        message: newMessage.trim(),
+      });
+    } else {
+      // Fallback to REST API
+      try {
+        await sendTicketMessage(ticketId, newMessage.trim());
+      } catch (error) {
+        console.error("Error sending message:", error);
+        toast.error("Failed to send message");
+        return;
+      }
+    }
+
     setNewMessage("");
-
-    // Update chat last message
-    const updatedChats = chats.map((c) =>
-      c.id === selectedChat.id
-        ? {
-          ...c,
-          lastMessage: newMessage,
-          lastActivity: new Date().toISOString(),
-          unreadCount: 0,
-        }
-        : c
-    );
-    setChats(updatedChats);
-
-    // Save to localStorage
-    localStorage.setItem(
-      `vendor-${vendorId}-chat-${selectedChat.id}-messages`,
-      JSON.stringify(updatedMessages)
-    );
-    localStorage.setItem(
-      `vendor-${vendorId}-chats`,
-      JSON.stringify(updatedChats)
-    );
   };
 
   const handleKeyPress = (e) => {
@@ -165,8 +221,8 @@ const Chat = () => {
   const filteredChats = chats.filter((chat) => {
     const matchesSearch =
       !searchQuery ||
-      chat.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      chat.orderId?.toLowerCase().includes(searchQuery.toLowerCase());
+      chat.ticketNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      chat.subject?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       filterStatus === "all" || chat.status === filterStatus;
     return matchesSearch && matchesStatus;
@@ -194,7 +250,7 @@ const Chat = () => {
             Chat
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            Communicate with customers and support
+            Communicate with support team
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -216,41 +272,48 @@ const Chat = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search chats..."
+                placeholder="Search tickets..."
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setFilterStatus("all")}
-                className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${filterStatus === "all"
+                className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                  filterStatus === "all"
                     ? "bg-primary-600 text-white"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}>
+                }`}>
                 All ({chats.length})
               </button>
               <button
                 onClick={() => setFilterStatus("active")}
-                className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${filterStatus === "active"
+                className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                  filterStatus === "active"
                     ? "bg-primary-600 text-white"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}>
+                }`}>
                 Active ({activeChats})
               </button>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {filteredChats.length > 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                <p className="text-gray-500">Loading chats...</p>
+              </div>
+            ) : filteredChats.length > 0 ? (
               <div className="divide-y divide-gray-200">
                 {filteredChats.map((chat) => (
                   <div
                     key={chat.id}
                     onClick={() => handleSelectChat(chat)}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${selectedChat?.id === chat.id
+                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedChat?.id === chat.id
                         ? "bg-primary-50 border-l-4 border-primary-600"
                         : ""
-                      }`}>
+                    }`}>
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -258,12 +321,10 @@ const Chat = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-800 truncate">
-                            {chat.customerName}
+                            {chat.subject}
                           </h3>
                           <p className="text-xs text-gray-500 truncate">
-                            {chat.orderId
-                              ? `Order: ${chat.orderId}`
-                              : chat.customerEmail}
+                            {chat.ticketNumber}
                           </p>
                         </div>
                       </div>
@@ -285,7 +346,7 @@ const Chat = () => {
             ) : (
               <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                 <FiMessageCircle className="text-4xl text-gray-400 mb-4" />
-                <p className="text-gray-500">No chats found</p>
+                <p className="text-gray-500">No tickets found</p>
               </div>
             )}
           </div>
@@ -302,12 +363,10 @@ const Chat = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-800">
-                      {selectedChat.customerName}
+                      {selectedChat.subject}
                     </h3>
                     <p className="text-xs text-gray-500">
-                      {selectedChat.orderId
-                        ? `Order: ${selectedChat.orderId}`
-                        : selectedChat.customerEmail}
+                      {selectedChat.ticketNumber}
                     </p>
                   </div>
                 </div>
@@ -325,19 +384,22 @@ const Chat = () => {
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.sender === "vendor" ? "justify-end" : "justify-start"
-                    }`}>
+                  className={`flex ${
+                    msg.sender === "vendor" ? "justify-end" : "justify-start"
+                  }`}>
                   <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.sender === "vendor"
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                      msg.sender === "vendor"
                         ? "bg-primary-600 text-white"
                         : "bg-gray-100 text-gray-800"
-                      }`}>
+                    }`}>
                     <p className="text-sm">{msg.message}</p>
                     <p
-                      className={`text-xs mt-1 ${msg.sender === "vendor"
+                      className={`text-xs mt-1 ${
+                        msg.sender === "vendor"
                           ? "text-primary-100"
                           : "text-gray-500"
-                        }`}>
+                      }`}>
                       {new Date(msg.time).toLocaleTimeString()}
                     </p>
                   </div>
@@ -369,7 +431,7 @@ const Chat = () => {
             <div className="text-center">
               <FiMessageCircle className="mx-auto text-4xl text-gray-400 mb-4" />
               <p className="text-gray-500">
-                Select a chat to start conversation
+                Select a ticket to start conversation
               </p>
             </div>
           </div>

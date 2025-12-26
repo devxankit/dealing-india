@@ -5,7 +5,8 @@ import {
   updateSlider,
   deleteSlider,
 } from '../../services/sliders.service.js';
-import { upload, getFileUrl } from '../../utils/upload.util.js';
+import { upload } from '../../utils/upload.util.js';
+import { uploadToCloudinary, deleteFromCloudinary } from '../../utils/cloudinary.util.js';
 
 /**
  * Get all sliders
@@ -55,7 +56,19 @@ export const createSliderHandler = async (req, res, next) => {
 
     // Handle image upload if present
     if (req.file) {
-      imageUrl = getFileUrl(req.file.filename);
+      try {
+        const uploadResult = await uploadToCloudinary(
+          req.file.buffer,
+          'sliders'
+        );
+        imageUrl = uploadResult.secure_url;
+        var imagePublicId = uploadResult.public_id;
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Image upload failed: ${uploadError.message}`,
+        });
+      }
     }
 
     if (!title || !imageUrl || !link) {
@@ -68,6 +81,7 @@ export const createSliderHandler = async (req, res, next) => {
     const slider = await createSlider({
       title,
       imageUrl,
+      imagePublicId: imagePublicId || null,
       link,
       order: order ? parseInt(order) : 0,
       status: status || 'active',
@@ -92,9 +106,30 @@ export const updateSliderHandler = async (req, res, next) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
+    // Get existing slider to check for old image
+    const existingSlider = await getSliderById(id);
+
     // Handle image upload if present
     if (req.file) {
-      updateData.imageUrl = getFileUrl(req.file.filename);
+      try {
+        // Upload new image to Cloudinary
+        const uploadResult = await uploadToCloudinary(
+          req.file.buffer,
+          'sliders'
+        );
+        updateData.imageUrl = uploadResult.secure_url;
+        updateData.imagePublicId = uploadResult.public_id;
+
+        // Delete old image from Cloudinary if it exists
+        if (existingSlider.imagePublicId) {
+          await deleteFromCloudinary(existingSlider.imagePublicId);
+        }
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Image upload failed: ${uploadError.message}`,
+        });
+      }
     } else if (updateData.image && !updateData.imageUrl) {
       updateData.imageUrl = updateData.image;
     }
@@ -122,7 +157,17 @@ export const updateSliderHandler = async (req, res, next) => {
 export const deleteSliderHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // Get slider to check for image before deletion
+    const slider = await getSliderById(id);
+
+    // Delete slider (service handles validation)
     await deleteSlider(id);
+
+    // Delete image from Cloudinary if it exists
+    if (slider.imagePublicId) {
+      await deleteFromCloudinary(slider.imagePublicId);
+    }
 
     res.status(200).json({
       success: true,

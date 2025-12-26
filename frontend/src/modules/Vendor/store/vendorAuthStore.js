@@ -18,7 +18,7 @@ export const useVendorAuthStore = create(
 
           if (response.success && response.data) {
             const { vendor, token } = response.data;
-            
+
             // Transform backend vendor object to frontend format
             const vendorData = {
               id: vendor._id || vendor.id,
@@ -68,11 +68,12 @@ export const useVendorAuthStore = create(
             storeName: vendorData.storeName,
             storeDescription: vendorData.storeDescription || '',
             address: vendorData.address || {},
+            documents: vendorData.documents || [], // Include documents array
           });
 
           if (response.success && response.data) {
             const { vendor, token } = response.data;
-            
+
             // Transform backend vendor object to frontend format
             const vendorDataFormatted = {
               id: vendor._id || vendor.id,
@@ -87,7 +88,7 @@ export const useVendorAuthStore = create(
               isEmailVerified: vendor.isEmailVerified || false,
               role: vendor.role || 'vendor',
               address: vendor.address || {},
-              documents: vendor.documents || {},
+              documents: vendor.documents || [], // Array of documents
               bankDetails: vendor.bankDetails || {},
             };
 
@@ -147,7 +148,7 @@ export const useVendorAuthStore = create(
 
           if (response.success && response.data) {
             const vendor = response.data.vendor;
-            
+
             // Transform backend vendor object to frontend format
             const updatedVendor = {
               id: vendor._id || vendor.id,
@@ -165,12 +166,12 @@ export const useVendorAuthStore = create(
               documents: vendor.documents || {},
               bankDetails: vendor.bankDetails || {},
             };
-            
+
             set({
               vendor: updatedVendor,
               isLoading: false,
             });
-            
+
             return { success: true, vendor: updatedVendor };
           } else {
             throw new Error(response.message || 'Profile update failed');
@@ -248,10 +249,10 @@ export const useVendorAuthStore = create(
       resetPassword: async (email, otp, newPassword) => {
         set({ isLoading: true });
         try {
-          const response = await api.post('/auth/vendor/reset-password', { 
-            email, 
-            otp, 
-            newPassword 
+          const response = await api.post('/auth/vendor/reset-password', {
+            email,
+            otp,
+            newPassword
           });
 
           if (response.success) {
@@ -273,10 +274,10 @@ export const useVendorAuthStore = create(
           try {
             // Validate token with backend
             const response = await api.get('/auth/vendor/me');
-            
+
             if (response.success && response.data) {
               const vendor = response.data.vendor;
-              
+
               // Transform backend vendor object to frontend format
               const vendorData = {
                 id: vendor._id || vendor.id,

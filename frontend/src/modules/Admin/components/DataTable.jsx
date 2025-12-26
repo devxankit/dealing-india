@@ -11,9 +11,16 @@ const DataTable = ({
   sortable = true,
   onRowClick,
   className = '',
+  // Server-side pagination props
+  currentPage: externalCurrentPage,
+  totalPages: externalTotalPages,
+  onPageChange: externalOnPageChange,
 }) => {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [internalCurrentPage, setInternalCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  
+  // Use external pagination if provided, otherwise use internal
+  const isServerSidePagination = externalCurrentPage !== undefined && externalTotalPages !== undefined;
 
   // Sorting
   const sortedData = useMemo(() => {
@@ -33,16 +40,24 @@ const DataTable = ({
     });
   }, [data, sortConfig, sortable]);
 
+  // Determine current page and total pages
+  const currentPage = isServerSidePagination ? externalCurrentPage : internalCurrentPage;
+  const totalPages = isServerSidePagination ? externalTotalPages : Math.ceil(sortedData.length / itemsPerPage);
+
   // Pagination
   const paginatedData = useMemo(() => {
     if (!pagination) return sortedData;
     
+    // For server-side pagination, data is already paginated
+    if (isServerSidePagination) {
+      return sortedData;
+    }
+    
+    // For client-side pagination, slice the data
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return sortedData.slice(startIndex, endIndex);
-  }, [sortedData, currentPage, itemsPerPage, pagination]);
-
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  }, [sortedData, currentPage, itemsPerPage, pagination, isServerSidePagination]);
 
   const handleSort = (key) => {
     if (!sortable) return;
@@ -55,7 +70,11 @@ const DataTable = ({
   };
 
   const handlePageChange = (page) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    if (isServerSidePagination && externalOnPageChange) {
+      externalOnPageChange(Math.max(1, Math.min(page, totalPages)));
+    } else {
+      setInternalCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    }
   };
 
   // Get primary columns (exclude actions for mobile card view)
@@ -210,9 +229,15 @@ const DataTable = ({
       {pagination && totalPages > 1 && (
         <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 border-t border-gray-200">
           <div className="text-xs sm:text-sm text-gray-700">
-            Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-            {Math.min(currentPage * itemsPerPage, sortedData.length)} of{' '}
-            {sortedData.length} results
+            {isServerSidePagination ? (
+              <>Page {currentPage} of {totalPages}</>
+            ) : (
+              <>
+                Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+                {Math.min(currentPage * itemsPerPage, sortedData.length)} of{' '}
+                {sortedData.length} results
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button

@@ -1,28 +1,8 @@
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../upload');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
-  },
-});
+// Use memory storage for direct Cloudinary upload
+const storage = multer.memoryStorage();
 
 // File filter for images
 const fileFilter = (req, file, cb) => {
@@ -48,23 +28,23 @@ export const upload = multer({
   fileFilter,
 });
 
-// Helper to get file URL
+// Helper to get file URL (kept for backward compatibility)
+// Note: This is deprecated - files are now stored in Cloudinary
 export const getFileUrl = (filename) => {
   if (!filename) return null;
   // If it's already a full URL, return as is
   if (filename.startsWith('http://') || filename.startsWith('https://')) {
     return filename;
   }
-  // Return relative path for local storage
+  // Return relative path for local storage (legacy support)
   return `/upload/${filename}`;
 };
 
-// Helper to delete file
+// Helper to delete file (kept for backward compatibility)
+// Note: This is deprecated - files are now stored in Cloudinary
 export const deleteFile = (filename) => {
-  if (!filename) return;
-  const filePath = path.join(uploadDir, filename);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
+  // No-op: Files are now stored in Cloudinary, not locally
+  // This function is kept for backward compatibility only
+  console.warn('deleteFile() called but files are now stored in Cloudinary');
 };
 

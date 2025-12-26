@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiUpload, FiX } from "react-icons/fi";
+import { FiSave, FiUpload, FiX, FiPlus, FiTrash2 } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { products as initialProducts } from "../../../../data/products";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
 import CategorySelector from "../../../Admin/components/CategorySelector";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
+import { createVendorProduct } from "../../services/productService";
 import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api";
 
 const AddProduct = () => {
   const navigate = useNavigate();
@@ -46,22 +47,148 @@ const AddProduct = () => {
     taxIncluded: false,
     description: "",
     tags: [],
-    variants: {
-      sizes: [],
-      colors: [],
-      materials: [],
-      prices: {},
-      defaultVariant: {},
-    },
+    attributes: [], // Array of { attributeId, attributeName, values: [valueId, ...] }
     seoTitle: "",
     seoDescription: "",
     relatedProducts: [],
   });
 
+  const [availableAttributes, setAvailableAttributes] = useState([]);
+  const [attributeValuesMap, setAttributeValuesMap] = useState({}); // { attributeId: [values] }
+  const [loadingAttributes, setLoadingAttributes] = useState(false);
+
   useEffect(() => {
     initCategories();
     initBrands();
+    fetchAttributes();
   }, [initCategories, initBrands]);
+
+  // Fetch all active attributes
+  const fetchAttributes = async () => {
+    try {
+      setLoadingAttributes(true);
+      const response = await api.get('/admin/attributes');
+      if (response.success && response.data?.attributes) {
+        const activeAttributes = response.data.attributes
+          .filter(attr => attr.status === 'active')
+          .map(attr => ({
+            id: attr._id || attr.id,
+            name: attr.name,
+            type: attr.type,
+            required: attr.required,
+          }));
+        setAvailableAttributes(activeAttributes);
+        
+        // Fetch values for all attributes
+        await Promise.all(
+          activeAttributes.map(async (attr) => {
+            try {
+              const valuesResponse = await api.get(`/admin/attribute-values?attributeId=${attr.id}`);
+              if (valuesResponse.success && valuesResponse.data?.attributeValues) {
+                const activeValues = valuesResponse.data.attributeValues
+                  .filter(val => val.status === 'active')
+                  .map(val => ({
+                    id: val._id || val.id,
+                    value: val.value,
+                    displayOrder: val.displayOrder || 0,
+                  }))
+                  .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+                setAttributeValuesMap(prev => ({
+                  ...prev,
+                  [attr.id]: activeValues,
+                }));
+              }
+            } catch (error) {
+              console.error(`Error fetching values for attribute ${attr.id}:`, error);
+            }
+          })
+        );
+      }
+    } catch (error) {
+      console.error('Error fetching attributes:', error);
+      toast.error('Failed to load attributes');
+    } finally {
+      setLoadingAttributes(false);
+    }
+  };
+
+  const [showAttributeSelector, setShowAttributeSelector] = useState(false);
+  const [selectedAttributeToAdd, setSelectedAttributeToAdd] = useState('');
+
+  // Get available attributes that haven't been added yet
+  const getAvailableAttributesForSelection = () => {
+    return availableAttributes.filter(
+      attr => !formData.attributes.some(a => 
+        (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
+      )
+    );
+  };
+
+  // Add attribute to product
+  const handleAddAttribute = () => {
+    if (availableAttributes.length === 0) {
+      toast.error('No attributes available');
+      return;
+    }
+    
+    const availableAttrs = getAvailableAttributesForSelection();
+    if (availableAttrs.length === 0) {
+      toast.error('All available attributes have been added');
+      return;
+    }
+
+    setShowAttributeSelector(true);
+  };
+
+  // Confirm adding selected attribute
+  const handleConfirmAddAttribute = () => {
+    if (!selectedAttributeToAdd) {
+      toast.error('Please select an attribute');
+      return;
+    }
+
+    const selectedAttr = availableAttributes.find(
+      attr => (attr.id || attr._id).toString() === selectedAttributeToAdd
+    );
+
+    if (!selectedAttr) {
+      toast.error('Selected attribute not found');
+      return;
+    }
+
+    setFormData({
+      ...formData,
+      attributes: [
+        ...formData.attributes,
+        {
+          attributeId: selectedAttr.id || selectedAttr._id,
+          attributeName: selectedAttr.name,
+          values: [],
+        },
+      ],
+    });
+
+    setSelectedAttributeToAdd('');
+    setShowAttributeSelector(false);
+  };
+
+  // Remove attribute from product
+  const handleRemoveAttribute = (index) => {
+    setFormData({
+      ...formData,
+      attributes: formData.attributes.filter((_, i) => i !== index),
+    });
+  };
+
+  // Update attribute values
+  const handleAttributeValueChange = (attributeIndex, selectedValues) => {
+    const updatedAttributes = [...formData.attributes];
+    updatedAttributes[attributeIndex].values = selectedValues;
+    setFormData({
+      ...formData,
+      attributes: updatedAttributes,
+    });
+  };
 
   useEffect(() => {
     if (!vendorId) {
@@ -152,7 +279,7 @@ const AddProduct = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!vendorId) {
@@ -166,54 +293,33 @@ const AddProduct = () => {
       return;
     }
 
-    const savedProducts = localStorage.getItem("admin-products");
-    const products = savedProducts
-      ? JSON.parse(savedProducts)
-      : initialProducts;
+    try {
+      // Prepare product data
+      const productData = {
+        ...formData,
+        price: parseFloat(formData.price),
+        originalPrice: formData.originalPrice
+          ? parseFloat(formData.originalPrice)
+          : null,
+        stockQuantity: parseInt(formData.stockQuantity),
+        totalAllowedQuantity: formData.totalAllowedQuantity
+          ? parseInt(formData.totalAllowedQuantity)
+          : null,
+        minimumOrderQuantity: formData.minimumOrderQuantity
+          ? parseInt(formData.minimumOrderQuantity)
+          : null,
+        categoryId: formData.categoryId ? formData.categoryId : null,
+        subcategoryId: formData.subcategoryId ? formData.subcategoryId : null,
+        brandId: formData.brandId ? formData.brandId : null,
+      };
 
-    // Determine final categoryId
-    const finalCategoryId = formData.subcategoryId
-      ? parseInt(formData.subcategoryId)
-      : formData.categoryId
-        ? parseInt(formData.categoryId)
-        : null;
-
-    // Create new product with vendorId auto-assigned
-    const newId = Math.max(...products.map((p) => p.id || 0), 0) + 1;
-    const newProduct = {
-      id: newId,
-      ...formData,
-      price: parseFloat(formData.price),
-      originalPrice: formData.originalPrice
-        ? parseFloat(formData.originalPrice)
-        : null,
-      stockQuantity: parseInt(formData.stockQuantity),
-      totalAllowedQuantity: formData.totalAllowedQuantity
-        ? parseInt(formData.totalAllowedQuantity)
-        : null,
-      minimumOrderQuantity: formData.minimumOrderQuantity
-        ? parseInt(formData.minimumOrderQuantity)
-        : null,
-      warrantyPeriod: formData.warrantyPeriod || null,
-      guaranteePeriod: formData.guaranteePeriod || null,
-      hsnCode: formData.hsnCode || null,
-      categoryId: finalCategoryId,
-      subcategoryId: formData.subcategoryId
-        ? parseInt(formData.subcategoryId)
-        : null,
-      brandId: formData.brandId ? parseInt(formData.brandId) : null,
-      rating: 0,
-      reviewCount: 0,
-      // Auto-assign vendor information
-      vendorId: parseInt(vendorId),
-      vendorName: vendorName,
-    };
-
-    const updatedProducts = [...products, newProduct];
-    localStorage.setItem("admin-products", JSON.stringify(updatedProducts));
-    toast.success("Product created successfully");
-
-    navigate("/vendor/products/manage-products");
+      await createVendorProduct(productData);
+      toast.success("Product created successfully");
+      navigate("/vendor/products/manage-products");
+    } catch (error) {
+      console.error("Error creating product:", error);
+      toast.error(error.response?.data?.message || "Failed to create product");
+    }
   };
 
   if (!vendorId) {
@@ -512,55 +618,155 @@ const AddProduct = () => {
           </div>
         </div>
 
-        {/* Product Variants */}
+        {/* Product Attributes */}
         <div>
-          <h2 className="text-base font-bold text-gray-800 mb-2">
-            Product Variants
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Sizes (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={(formData.variants?.sizes || []).join(", ")}
-                onChange={(e) => {
-                  const sizes = e.target.value
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter((s) => s);
-                  setFormData({
-                    ...formData,
-                    variants: { ...formData.variants, sizes },
-                  });
-                }}
-                placeholder="S, M, L, XL"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Colors (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={(formData.variants?.colors || []).join(", ")}
-                onChange={(e) => {
-                  const colors = e.target.value
-                    .split(",")
-                    .map((c) => c.trim())
-                    .filter((c) => c);
-                  setFormData({
-                    ...formData,
-                    variants: { ...formData.variants, colors },
-                  });
-                }}
-                placeholder="Red, Blue, Green, Black"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-              />
-            </div>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-base font-bold text-gray-800">
+              Product Attributes
+            </h2>
+            <button
+              type="button"
+              onClick={handleAddAttribute}
+              disabled={loadingAttributes || getAvailableAttributesForSelection().length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+              <FiPlus className="text-sm" />
+              Add Attribute
+            </button>
           </div>
+          
+          {loadingAttributes ? (
+            <div className="text-center py-4 text-sm text-gray-500">
+              Loading attributes...
+            </div>
+          ) : (
+            <>
+              {/* Attribute Selector Modal */}
+              {showAttributeSelector && (
+                <div className="mb-3 p-3 border border-primary-300 rounded-lg bg-primary-50">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-semibold text-gray-700">
+                      Select Attribute to Add
+                    </label>
+                    <AnimatedSelect
+                      value={selectedAttributeToAdd}
+                      onChange={(e) => setSelectedAttributeToAdd(e.target.value)}
+                      placeholder="Choose an attribute"
+                      options={[
+                        { value: '', label: 'Choose an attribute' },
+                        ...getAvailableAttributesForSelection().map(attr => ({
+                          value: (attr.id || attr._id).toString(),
+                          label: attr.name,
+                        })),
+                      ]}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleConfirmAddAttribute}
+                        disabled={!selectedAttributeToAdd}
+                        className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAttributeSelector(false);
+                          setSelectedAttributeToAdd('');
+                        }}
+                        className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-xs font-semibold">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {formData.attributes.length === 0 ? (
+                <div className="text-center py-4 text-sm text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
+                  No attributes added. Click "Add Attribute" to select attributes.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {formData.attributes.map((attr, index) => {
+                    const attribute = availableAttributes.find(a => 
+                      (a.id || a._id).toString() === (attr.attributeId || attr.attributeId?.toString())
+                    );
+                    const values = attributeValuesMap[attr.attributeId] || [];
+                    
+                    return (
+                      <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-semibold text-gray-700">
+                            {attr.attributeName}
+                            {attribute?.required && <span className="text-red-500 ml-1">*</span>}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAttribute(index)}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors">
+                            <FiTrash2 className="text-sm" />
+                          </button>
+                        </div>
+                        
+                        {values.length === 0 ? (
+                          <p className="text-xs text-gray-500">No values available for this attribute</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {attribute?.type === 'select' ? (
+                              <AnimatedSelect
+                                value={attr.values[0] || ''}
+                                onChange={(e) => {
+                                  handleAttributeValueChange(index, e.target.value ? [e.target.value] : []);
+                                }}
+                                placeholder={`Select ${attr.attributeName}`}
+                                options={[
+                                  { value: '', label: `Select ${attr.attributeName}` },
+                                  ...values.map(val => ({
+                                    value: val.id.toString(),
+                                    label: val.value,
+                                  })),
+                                ]}
+                                required={attribute?.required}
+                              />
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                {values.map((val) => {
+                                  const isSelected = attr.values.includes(val.id.toString());
+                                  return (
+                                    <button
+                                      key={val.id}
+                                      type="button"
+                                      onClick={() => {
+                                        const newValues = isSelected
+                                          ? attr.values.filter(v => v !== val.id.toString())
+                                          : [...attr.values, val.id.toString()];
+                                        handleAttributeValueChange(index, newValues);
+                                      }}
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                        isSelected
+                                          ? 'bg-primary-600 text-white hover:bg-primary-700'
+                                          : 'bg-white text-gray-700 border border-gray-300 hover:border-primary-500 hover:bg-primary-50'
+                                      }`}>
+                                      {val.value}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {attr.values.length > 0 && (
+                              <p className="text-xs text-gray-500">
+                                Selected: {attr.values.length} value(s)
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Tags */}

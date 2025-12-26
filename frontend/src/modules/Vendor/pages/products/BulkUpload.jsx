@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { FiUpload, FiDownload, FiFile, FiCheckCircle, FiXCircle, FiInfo } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
-import { products as initialProducts } from "../../../../data/products";
+import { bulkUploadVendorProducts } from "../../services/productService";
 import toast from 'react-hot-toast';
 
 const BulkUpload = () => {
@@ -39,29 +39,51 @@ const BulkUpload = () => {
 
     setUploading(true);
 
-    // Simulate upload process
-    setTimeout(() => {
-      const success = Math.random() > 0.2; // 80% success rate
-      if (success) {
-        const results = {
-          total: 150,
-          success: 145,
-          failed: 5,
-          errors: [
-            { row: 12, error: 'Missing required field: name' },
-            { row: 34, error: 'Invalid price format' },
-            { row: 67, error: 'Category not found' },
-            { row: 89, error: 'Duplicate SKU' },
-            { row: 112, error: 'Invalid image URL' },
-          ],
-        };
-        setUploadResults(results);
-        toast.success(`Successfully uploaded ${results.success} products`);
-      } else {
-        toast.error('Upload failed. Please try again.');
+    try {
+      // Parse CSV file
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      // Parse products from CSV
+      const products = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const product = {};
+        headers.forEach((header, index) => {
+          product[header.toLowerCase().replace(/\s+/g, '')] = values[index] || '';
+        });
+        
+        // Map CSV columns to product fields
+        products.push({
+          name: product.name || product.productname || '',
+          description: product.description || '',
+          price: product.price || 0,
+          originalPrice: product.originalprice || product['originalprice'] || null,
+          stockQuantity: product.stock || product.stockquantity || 0,
+          categoryId: product.category || product.categoryid || null,
+          brandId: product.brand || product.brandid || null,
+          unit: product.unit || 'pieces',
+          image: product.imageurl || product.image || null,
+        });
       }
+
+      // Upload products
+      const result = await bulkUploadVendorProducts(products);
+      setUploadResults(result);
+      
+      if (result.success > 0) {
+        toast.success(`Successfully uploaded ${result.success} products`);
+      }
+      if (result.failed > 0) {
+        toast.error(`${result.failed} products failed to upload`);
+      }
+    } catch (error) {
+      console.error('Error uploading products:', error);
+      toast.error(error.response?.data?.message || 'Failed to upload products');
+    } finally {
       setUploading(false);
-    }, 2000);
+    }
   };
 
   const downloadTemplate = () => {

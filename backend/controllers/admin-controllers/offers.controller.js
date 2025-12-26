@@ -6,7 +6,8 @@ import {
   deleteCampaign,
   toggleCampaignStatus,
 } from '../../services/offers.service.js';
-import { upload, getFileUrl } from '../../utils/upload.util.js';
+import { upload } from '../../utils/upload.util.js';
+import { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } from '../../utils/cloudinary.util.js';
 
 /**
  * Get all campaigns (offers)
@@ -56,17 +57,32 @@ export const createOffer = async (req, res, next) => {
 
     // Handle image upload if present
     if (req.file) {
-      const imageUrl = getFileUrl(req.file.filename);
-      if (campaignData.bannerConfig) {
-        campaignData.bannerConfig.imageUrl = imageUrl;
-        campaignData.bannerConfig.customImage = true;
-      } else {
-        campaignData.bannerConfig = {
-          imageUrl,
-          customImage: true,
-          title: '',
-          subtitle: '',
-        };
+      try {
+        const uploadResult = await uploadToCloudinary(
+          req.file.buffer,
+          'offers'
+        );
+        const imageUrl = uploadResult.secure_url;
+        const imagePublicId = uploadResult.public_id;
+
+        if (campaignData.bannerConfig) {
+          campaignData.bannerConfig.imageUrl = imageUrl;
+          campaignData.bannerConfig.imagePublicId = imagePublicId;
+          campaignData.bannerConfig.customImage = true;
+        } else {
+          campaignData.bannerConfig = {
+            imageUrl,
+            imagePublicId,
+            customImage: true,
+            title: '',
+            subtitle: '',
+          };
+        }
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Image upload failed: ${uploadError.message}`,
+        });
       }
     }
 
@@ -126,19 +142,43 @@ export const updateOffer = async (req, res, next) => {
     const { id } = req.params;
     const updateData = { ...req.body };
 
+    // Get existing campaign to check for old image
+    const existingCampaign = await getCampaignById(id);
+
     // Handle image upload if present
     if (req.file) {
-      const imageUrl = getFileUrl(req.file.filename);
-      if (updateData.bannerConfig) {
-        updateData.bannerConfig.imageUrl = imageUrl;
-        updateData.bannerConfig.customImage = true;
-      } else {
-        updateData.bannerConfig = {
-          imageUrl,
-          customImage: true,
-          title: '',
-          subtitle: '',
-        };
+      try {
+        // Upload new image to Cloudinary
+        const uploadResult = await uploadToCloudinary(
+          req.file.buffer,
+          'offers'
+        );
+        const imageUrl = uploadResult.secure_url;
+        const imagePublicId = uploadResult.public_id;
+
+        // Delete old image from Cloudinary if it exists
+        if (existingCampaign.bannerConfig?.imagePublicId) {
+          await deleteFromCloudinary(existingCampaign.bannerConfig.imagePublicId);
+        }
+
+        if (updateData.bannerConfig) {
+          updateData.bannerConfig.imageUrl = imageUrl;
+          updateData.bannerConfig.imagePublicId = imagePublicId;
+          updateData.bannerConfig.customImage = true;
+        } else {
+          updateData.bannerConfig = {
+            imageUrl,
+            imagePublicId,
+            customImage: true,
+            title: '',
+            subtitle: '',
+          };
+        }
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Image upload failed: ${uploadError.message}`,
+        });
       }
     }
 
@@ -196,7 +236,17 @@ export const updateOffer = async (req, res, next) => {
 export const deleteOffer = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // Get campaign to check for image before deletion
+    const campaign = await getCampaignById(id);
+
+    // Delete campaign (service handles validation)
     await deleteCampaign(id);
+
+    // Delete image from Cloudinary if it exists
+    if (campaign.bannerConfig?.imagePublicId) {
+      await deleteFromCloudinary(campaign.bannerConfig.imagePublicId);
+    }
 
     res.status(200).json({
       success: true,

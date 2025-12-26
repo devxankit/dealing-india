@@ -46,15 +46,6 @@ const otpSchema = new mongoose.Schema(
 otpSchema.index({ identifier: 1, type: 1, isUsed: 1 });
 otpSchema.index({ identifier: 1, type: 1, expiresAt: 1 });
 
-// Prevent duplicate active OTPs (same identifier, type, not used, not expired)
-otpSchema.index(
-  { identifier: 1, type: 1, isUsed: 1, expiresAt: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { isUsed: false },
-  }
-);
-
 const OTP = mongoose.model('OTP', otpSchema);
 
 export default OTP;
