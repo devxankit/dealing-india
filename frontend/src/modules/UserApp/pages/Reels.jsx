@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { FiHeart, FiMessageCircle, FiSend, FiArrowLeft, FiGift, FiShoppingBag, FiMoreVertical } from "react-icons/fi";
+import { FiHeart, FiMessageCircle, FiSend, FiArrowLeft, FiGift, FiShoppingBag, FiMoreVertical, FiVideo } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { getActiveReels } from "../../../shared/utils/reelHelpers";
 import toast from "react-hot-toast";
@@ -221,8 +221,6 @@ const MobileReels = () => {
   );
 };
 
-// Import needed for fallback icons
-import { FiVideo as FiVideoIcon } from "react-icons/fi";
-// Alias to avoid conflict if I used it above, but I used FiVideo in list
+
 
 export default MobileReels;
