@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { FiHeart, FiMessageCircle, FiSend, FiArrowLeft, FiGift, FiShoppingBag, FiMoreVertical, FiVideo } from "react-icons/fi";
+import { FiHeart, FiMessageCircle, FiSend, FiArrowLeft, FiGift, FiShoppingBag, FiMoreVertical, FiVideo, FiVolume2, FiVolumeX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { getActiveReels } from "../../../shared/utils/reelHelpers";
 import toast from "react-hot-toast";
@@ -13,8 +13,13 @@ const MobileReels = () => {
   const [searchParams] = useSearchParams();
   const [reels, setReels] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showMuteIcon, setShowMuteIcon] = useState(false);
   const videoRefs = useRef([]);
   const containerRef = useRef(null);
+  const pressTimer = useRef(null);
+  const isLongPress = useRef(false);
+  const muteIconTimeout = useRef(null);
   const headerHeight = useMobileHeaderHeight();
 
   // Load reels data
@@ -57,7 +62,31 @@ const MobileReels = () => {
       }
     }
 
-    setReels(loadedReels);
+    // Local reels to be shown first
+    const localReels = [
+      {
+        id: 9001,
+        videoUrl: "/reels/reel1.mp4",
+        productName: "Featured Highlight",
+        description: "Must watch content!",
+        likes: 245,
+        comments: 42,
+        shares: 15,
+        status: 'active'
+      },
+      {
+        id: 9002,
+        videoUrl: "/reels/reel2.mp4",
+        productName: "Trending Now",
+        description: "Don't miss this one.",
+        likes: 189,
+        comments: 28,
+        shares: 10,
+        status: 'active'
+      }
+    ];
+
+    setReels([...localReels, ...loadedReels]);
   }, [searchParams]);
 
   // Handle Play/Pause on visibility change
@@ -123,7 +152,7 @@ const MobileReels = () => {
   return (
     <div className="fixed inset-0 bg-black z-50">
       {/* Top Header Overlay */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-12 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent">
+      <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-4 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent">
         <button onClick={() => navigate(-1)} className="text-white p-2">
           <FiArrowLeft className="text-2xl" />
         </button>
@@ -138,20 +167,88 @@ const MobileReels = () => {
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
       >
         {reels.map((reel, index) => (
-          <div key={reel.id} className="h-full w-full snap-start relative bg-gray-900 flex items-center justify-center">
+          <div key={reel.id} className="h-full w-full snap-start snap-always relative bg-gray-900 flex items-center justify-center">
+            {/* Video Player */}
             {/* Video Player */}
             <video
               ref={el => videoRefs.current[index] = el}
               src={reel.videoUrl}
               className="h-full w-full object-cover"
               loop
-              muted={false}
+              muted={isMuted}
               playsInline
-              onClick={(e) => e.target.paused ? e.target.play() : e.target.pause()}
+              onMouseDown={(e) => {
+                const video = e.target;
+                isLongPress.current = false;
+                pressTimer.current = setTimeout(() => {
+                  isLongPress.current = true;
+                  video.pause();
+                }, 200);
+              }}
+              onMouseUp={(e) => {
+                const video = e.target;
+                if (pressTimer.current) clearTimeout(pressTimer.current);
+                if (isLongPress.current) {
+                  video.play();
+                }
+                setTimeout(() => { isLongPress.current = false; }, 100);
+              }}
+              onMouseLeave={(e) => {
+                const video = e.target;
+                if (pressTimer.current) clearTimeout(pressTimer.current);
+                if (isLongPress.current) {
+                  video.play();
+                }
+                setTimeout(() => { isLongPress.current = false; }, 100);
+              }}
+              onTouchStart={(e) => {
+                const video = e.target;
+                isLongPress.current = false;
+                pressTimer.current = setTimeout(() => {
+                  isLongPress.current = true;
+                  video.pause();
+                }, 200);
+              }}
+              onTouchEnd={(e) => {
+                const video = e.target;
+                if (pressTimer.current) clearTimeout(pressTimer.current);
+                if (isLongPress.current) {
+                  video.play();
+                }
+                setTimeout(() => { isLongPress.current = false; }, 100);
+              }}
+              onClick={(e) => {
+                if (!isLongPress.current) {
+                  setIsMuted(prev => !prev);
+                  setShowMuteIcon(true);
+                  if (muteIconTimeout.current) clearTimeout(muteIconTimeout.current);
+                  muteIconTimeout.current = setTimeout(() => setShowMuteIcon(false), 800);
+                }
+              }}
             />
 
+            {/* Mute Indicator */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+              <AnimatePresence>
+                {showMuteIcon && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    className="bg-black/50 p-4 rounded-full backdrop-blur-sm"
+                  >
+                    {isMuted ? (
+                      <FiVolumeX className="text-white text-3xl" />
+                    ) : (
+                      <FiVolume2 className="text-white text-3xl" />
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Overlay Info */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 pb-24 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+            <div className="absolute bottom-0 left-0 right-0 p-4 pb-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
               <div className="flex items-end justify-between">
                 <div className="flex-1 mr-12">
                   {/* User/Vendor Info */}

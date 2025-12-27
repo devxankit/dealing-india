@@ -78,7 +78,7 @@ const TaxPricing = () => {
       }).filter(Boolean);
 
       const result = await bulkUpdateProductPrices(updates);
-      
+
       if (result.updated && result.updated.length > 0) {
         // Update local state with updated products
         const updatedMap = new Map(
@@ -162,7 +162,7 @@ const TaxPricing = () => {
       ),
     },
     {
-      key: "price",
+      key: "priceWithTax",
       label: "Price with Tax",
       sortable: false,
       render: (value, row) => {

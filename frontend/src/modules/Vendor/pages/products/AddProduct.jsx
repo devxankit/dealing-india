@@ -67,7 +67,7 @@ const AddProduct = () => {
   const fetchAttributes = async () => {
     try {
       setLoadingAttributes(true);
-      const response = await api.get('/admin/attributes');
+      const response = await api.get('/attributes');
       if (response.success && response.data?.attributes) {
         const activeAttributes = response.data.attributes
           .filter(attr => attr.status === 'active')
@@ -78,12 +78,12 @@ const AddProduct = () => {
             required: attr.required,
           }));
         setAvailableAttributes(activeAttributes);
-        
+
         // Fetch values for all attributes
         await Promise.all(
           activeAttributes.map(async (attr) => {
             try {
-              const valuesResponse = await api.get(`/admin/attribute-values?attributeId=${attr.id}`);
+              const valuesResponse = await api.get(`/attribute-values?attributeId=${attr.id}`);
               if (valuesResponse.success && valuesResponse.data?.attributeValues) {
                 const activeValues = valuesResponse.data.attributeValues
                   .filter(val => val.status === 'active')
@@ -118,7 +118,7 @@ const AddProduct = () => {
   // Get available attributes that haven't been added yet
   const getAvailableAttributesForSelection = () => {
     return availableAttributes.filter(
-      attr => !formData.attributes.some(a => 
+      attr => !formData.attributes.some(a =>
         (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
       )
     );
@@ -130,7 +130,7 @@ const AddProduct = () => {
       toast.error('No attributes available');
       return;
     }
-    
+
     const availableAttrs = getAvailableAttributesForSelection();
     if (availableAttrs.length === 0) {
       toast.error('All available attributes have been added');
@@ -633,7 +633,7 @@ const AddProduct = () => {
               Add Attribute
             </button>
           </div>
-          
+
           {loadingAttributes ? (
             <div className="text-center py-4 text-sm text-gray-500">
               Loading attributes...
@@ -688,11 +688,11 @@ const AddProduct = () => {
               ) : (
                 <div className="space-y-3">
                   {formData.attributes.map((attr, index) => {
-                    const attribute = availableAttributes.find(a => 
+                    const attribute = availableAttributes.find(a =>
                       (a.id || a._id).toString() === (attr.attributeId || attr.attributeId?.toString())
                     );
                     const values = attributeValuesMap[attr.attributeId] || [];
-                    
+
                     return (
                       <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                         <div className="flex items-center justify-between mb-2">
@@ -707,7 +707,7 @@ const AddProduct = () => {
                             <FiTrash2 className="text-sm" />
                           </button>
                         </div>
-                        
+
                         {values.length === 0 ? (
                           <p className="text-xs text-gray-500">No values available for this attribute</p>
                         ) : (
@@ -742,11 +742,10 @@ const AddProduct = () => {
                                           : [...attr.values, val.id.toString()];
                                         handleAttributeValueChange(index, newValues);
                                       }}
-                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                        isSelected
+                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isSelected
                                           ? 'bg-primary-600 text-white hover:bg-primary-700'
                                           : 'bg-white text-gray-700 border border-gray-300 hover:border-primary-500 hover:bg-primary-50'
-                                      }`}>
+                                        }`}>
                                       {val.value}
                                     </button>
                                   );

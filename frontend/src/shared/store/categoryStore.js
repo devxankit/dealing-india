@@ -28,7 +28,7 @@ export const useCategoryStore = create(
       initialize: async () => {
         set({ isLoading: true });
         try {
-          const response = await api.get('/admin/categories', {
+          const response = await api.get('/categories', {
             params: {
               limit: 1000, // Get all categories
               sortBy: 'order',
@@ -75,10 +75,10 @@ export const useCategoryStore = create(
 
           const response = await api.post('/admin/categories', payload);
           const newCategory = transformCategory(response.data.category);
-          
+
           // Refresh categories list
           await get().initialize();
-          
+
           set({ isLoading: false });
           toast.success('Category created successfully');
           return newCategory;
@@ -102,10 +102,10 @@ export const useCategoryStore = create(
 
           const response = await api.put(`/admin/categories/${categoryId}`, payload);
           const updatedCategory = transformCategory(response.data.category);
-          
+
           // Refresh categories list
           await get().initialize();
-          
+
           set({ isLoading: false });
           toast.success('Category updated successfully');
           return updatedCategory;
@@ -123,10 +123,10 @@ export const useCategoryStore = create(
         try {
           const categoryId = id?.toString() || id;
           await api.delete(`/admin/categories/${categoryId}`);
-          
+
           // Refresh categories list
           await get().initialize();
-          
+
           set({ isLoading: false });
           toast.success('Category deleted successfully');
           return true;
@@ -147,10 +147,10 @@ export const useCategoryStore = create(
           await api.delete('/admin/categories/bulk', {
             data: { ids: categoryIds },
           });
-          
+
           // Refresh categories list
           await get().initialize();
-          
+
           set({ isLoading: false });
           toast.success(`${ids.length} categories deleted successfully`);
           return true;
@@ -174,7 +174,7 @@ export const useCategoryStore = create(
       getCategoriesByParent: (parentId) => {
         const categories = get().categories;
         if (!parentId) return categories.filter((cat) => !cat.parentId);
-        
+
         const parentIdStr = parentId?.toString() || parentId;
         return categories.filter((cat) => {
           const catParentId = cat.parentId?.toString() || cat.parentId;
@@ -198,10 +198,10 @@ export const useCategoryStore = create(
           }));
 
           await api.put('/admin/categories/bulk-order', { orders });
-          
+
           // Refresh categories list
           await get().initialize();
-          
+
           set({ isLoading: false });
           toast.success('Categories reordered successfully');
           return true;
@@ -224,10 +224,10 @@ export const useCategoryStore = create(
           }));
 
           await api.put('/admin/categories/bulk-order', { orders });
-          
+
           // Refresh categories list
           await get().initialize();
-          
+
           set({ isLoading: false });
           toast.success('Category order saved successfully');
           return true;

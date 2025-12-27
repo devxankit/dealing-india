@@ -39,6 +39,9 @@ import vendorInventoryRoutes from './routes/vendorInventory.routes.js';
 import vendorPerformanceRoutes from './routes/vendorPerformance.routes.js';
 import vendorSupportRoutes from './routes/vendorSupport.routes.js';
 import supportDeskRoutes from './routes/supportDesk.routes.js';
+import publicCategoryRoutes from './routes/publicCategory.routes.js';
+import publicAttributeRoutes from './routes/publicAttribute.routes.js';
+import publicAttributeValueRoutes from './routes/publicAttributeValue.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -113,6 +116,11 @@ app.get('/api/test-db', (req, res) => {
 app.use('/api/auth/user', userAuthRoutes);
 app.use('/api/auth/vendor', vendorAuthRoutes);
 app.use('/api/auth/admin', adminAuthRoutes);
+
+// Public routes
+app.use('/api/categories', publicCategoryRoutes);
+app.use('/api/attributes', publicAttributeRoutes);
+app.use('/api/attribute-values', publicAttributeValueRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);

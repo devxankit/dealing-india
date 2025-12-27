@@ -22,7 +22,7 @@ const ProductAttributes = () => {
   const fetchAttributes = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/admin/attributes');
+      const response = await api.get('/attributes');
       if (response.success && response.data?.attributes) {
         const activeAttributes = response.data.attributes
           .filter((attr) => attr.status === 'active')
@@ -41,7 +41,7 @@ const ProductAttributes = () => {
           activeAttributes.map(async (attr) => {
             try {
               const valuesResponse = await api.get(
-                `/admin/attribute-values?attributeId=${attr.id}`
+                `/attribute-values?attributeId=${attr.id}`
               );
               if (
                 valuesResponse.success &&
@@ -89,11 +89,10 @@ const ProductAttributes = () => {
       sortable: true,
       render: (value) => (
         <span
-          className={`px-2 py-1 rounded text-xs font-semibold ${
-            value === "active"
+          className={`px-2 py-1 rounded text-xs font-semibold ${value === "active"
               ? "bg-green-100 text-green-800"
               : "bg-gray-100 text-gray-800"
-          }`}>
+            }`}>
           {value || "active"}
         </span>
       ),
