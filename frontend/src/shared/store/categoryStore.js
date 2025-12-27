@@ -11,6 +11,9 @@ export const useCategoryStore = create(
 
       // Initialize categories
       initialize: () => {
+        // Prevent re-initialization if data is already present
+        if (get().categories.length > 0) return;
+
         const savedCategories = localStorage.getItem('admin-categories');
         if (savedCategories) {
           set({ categories: JSON.parse(savedCategories) });
@@ -186,4 +189,3 @@ export const useCategoryStore = create(
     }
   )
 );
-

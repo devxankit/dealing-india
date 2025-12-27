@@ -94,6 +94,7 @@ import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
 import MegaRewardEntries from "./modules/Admin/pages/mega-reward/Entries";
 import MegaRewardWinners from "./modules/Admin/pages/mega-reward/Winners";
 import MegaRewardSettings from "./modules/Admin/pages/mega-reward/Settings";
+import MegaRewardPromotionalReels from "./modules/Admin/pages/mega-reward/PromotionalReels";
 // Notifications child pages
 import PushNotifications from "./modules/Admin/pages/notifications/PushNotifications";
 import CustomMessages from "./modules/Admin/pages/notifications/CustomMessages";
@@ -466,6 +467,7 @@ const AppRoutes = () => {
           <Route path="mega-reward" element={<Navigate to="/admin/mega-reward/entries" replace />} />
           <Route path="mega-reward/entries" element={<MegaRewardEntries />} />
           <Route path="mega-reward/winners" element={<MegaRewardWinners />} />
+          <Route path="mega-reward/promotional-reels" element={<MegaRewardPromotionalReels />} />
           <Route path="mega-reward/settings" element={<MegaRewardSettings />} />
           <Route path="promocodes" element={<PromoCodes />} />
           <Route path="notifications" element={<PushNotifications />} />

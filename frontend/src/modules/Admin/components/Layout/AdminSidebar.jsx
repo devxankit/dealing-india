@@ -104,6 +104,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/mega-reward": {
       "Entries": "/admin/mega-reward/entries",
       "Winners": "/admin/mega-reward/winners",
+      "Promotional Reels": "/admin/mega-reward/promotional-reels",
       "Settings": "/admin/mega-reward/settings",
     },
     "/admin/notifications": {

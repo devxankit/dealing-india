@@ -189,11 +189,11 @@ const MegaReward = () => {
 
                         {!status.entered ? (
                             <button
-                                onClick={() => navigate('/app/reels')}
+                                onClick={() => navigate('/app/reels?type=promotional')}
                                 className="w-full mt-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-purple-200 active:scale-95 transition-transform flex items-center justify-center gap-2"
                             >
                                 <FiShare2 />
-                                Go to Reels to Participate
+                                Watch Promotional Reels to Participate
                             </button>
                         ) : null}
                     </div>

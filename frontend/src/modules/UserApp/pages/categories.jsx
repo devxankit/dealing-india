@@ -56,7 +56,6 @@ const MobileCategories = () => {
   const categoryListRef = useRef(null);
   const activeCategoryRef = useRef(null);
   const filterButtonRef = useRef(null);
-  const [isInitialMount, setIsInitialMount] = useState(true);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -169,15 +168,7 @@ const MobileCategories = () => {
     filters,
   ]);
 
-  // Mark initial mount as complete after first render
-  useEffect(() => {
-    if (isInitialMount) {
-      // Use requestAnimationFrame to ensure smooth initial render
-      requestAnimationFrame(() => {
-        setIsInitialMount(false);
-      });
-    }
-  }, [isInitialMount]);
+
 
   // Scroll active category into view (optimized with requestAnimationFrame) - Vertical scroll
   useEffect(() => {
@@ -310,13 +301,11 @@ const MobileCategories = () => {
                   <div ref={filterButtonRef} className="relative">
                     <button
                       onClick={() => setShowFilters(!showFilters)}
-                      className={`p-2 hover:bg-gray-100 rounded-full transition-colors ${
-                        showFilters ? "bg-gray-100" : ""
-                      }`}>
+                      className={`p-2 hover:bg-gray-100 rounded-full transition-colors ${showFilters ? "bg-gray-100" : ""
+                        }`}>
                       <FiFilter
-                        className={`text-xl transition-colors ${
-                          hasActiveFilters ? "text-blue-600" : "text-gray-700"
-                        }`}
+                        className={`text-xl transition-colors ${hasActiveFilters ? "text-blue-600" : "text-gray-700"
+                          }`}
                       />
                     </button>
 
@@ -422,7 +411,7 @@ const MobileCategories = () => {
                                           style={{
                                             backgroundImage:
                                               filters.minRating ===
-                                              rating.toString()
+                                                rating.toString()
                                                 ? "radial-gradient(circle, #10b981 40%, transparent 40%)"
                                                 : "none",
                                           }}
@@ -486,21 +475,19 @@ const MobileCategories = () => {
                       }}>
                       <motion.button
                         onClick={() => handleCategorySelect(category.id)}
-                        initial={isInitialMount ? { opacity: 0 } : false}
+                        initial={false}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
                         whileTap={{ scale: 0.95 }}
-                        className={`w-full px-2 py-3 text-left transition-all duration-200 relative ${
-                          isActive ? "bg-white shadow-sm" : "hover:bg-gray-100"
-                        }`}
+                        className={`w-full px-2 py-3 text-left transition-all duration-200 relative ${isActive ? "bg-white shadow-sm" : "hover:bg-gray-100"
+                          }`}
                         style={{ willChange: "transform" }}>
                         <div className="flex flex-col items-center gap-1.5">
                           <div
-                            className={`w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 transition-all duration-200 ${
-                              isActive
+                            className={`w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 transition-all duration-200 ${isActive
                                 ? "ring-2 ring-primary-500 ring-offset-1 scale-105"
                                 : ""
-                            }`}
+                              }`}
                             style={{
                               willChange: isActive ? "transform" : "auto",
                             }}>
@@ -514,9 +501,8 @@ const MobileCategories = () => {
                             />
                           </div>
                           <span
-                            className={`text-[10px] font-semibold text-center leading-tight transition-colors ${
-                              isActive ? "text-primary-600" : "text-gray-700"
-                            }`}>
+                            className={`text-[10px] font-semibold text-center leading-tight transition-colors ${isActive ? "text-primary-600" : "text-gray-700"
+                              }`}>
                             {category.name}
                           </span>
                         </div>
@@ -550,11 +536,10 @@ const MobileCategories = () => {
                                 setSelectedSubcategory(subcategory.id)
                               }
                               whileTap={{ scale: 0.97 }}
-                              className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap border ${
-                                isActive
+                              className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap border ${isActive
                                   ? "bg-white text-primary-600 border-primary-200 shadow-sm"
                                   : "bg-gray-50 text-gray-600 border-gray-200 active:bg-gray-100"
-                              }`}
+                                }`}
                               style={{ willChange: "transform" }}>
                               {subcategory.name}
                             </motion.button>
