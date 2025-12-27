@@ -23,6 +23,7 @@ import {
   FiChevronDown,
   FiX,
   FiUser,
+  FiGift,
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -39,6 +40,7 @@ const iconMap = {
   Customers: FiUsers,
   Vendors: FiUsers,
   "Offers & Sliders": FiImage,
+  "Mega Reward": FiGift,
   "Promo Codes": FiPercent,
   Notifications: FiBell,
   "Support Desk": FiMessageCircle,
@@ -93,6 +95,12 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/offers": {
       "Home Sliders": "/admin/offers/home-sliders",
       "Festival Offers": "/admin/offers/festival-offers",
+    },
+    "/admin/mega-reward": {
+      "Entries": "/admin/mega-reward/entries",
+      "Winners": "/admin/mega-reward/winners",
+      "Promotional Reels": "/admin/mega-reward/promotional-reels",
+      "Settings": "/admin/mega-reward/settings",
     },
     "/admin/notifications": {
       "Push Notifications": "/admin/notifications/push-notifications",

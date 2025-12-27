@@ -144,7 +144,8 @@ const SupportTickets = () => {
       socket.off("message_received");
       socket.off("ticket_updated");
     };
-  }, [token, vendorId, id, loadTicketDetail, refreshTickets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, vendorId, id]);
 
   const filteredTickets = tickets.filter((ticket) => {
     const matchesSearch =

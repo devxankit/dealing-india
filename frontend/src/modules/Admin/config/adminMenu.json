@@ -80,6 +80,16 @@
     ]
   },
   {
+    "title": "Mega Reward",
+    "route": "/admin/mega-reward",
+    "children": [
+      "Entries",
+      "Winners",
+      "Promotional Reels",
+      "Settings"
+    ]
+  },
+  {
     "title": "Promo Codes",
     "route": "/admin/promocodes",
     "children": []

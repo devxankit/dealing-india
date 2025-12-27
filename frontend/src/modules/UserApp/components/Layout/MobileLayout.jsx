@@ -22,7 +22,8 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
     location.pathname !== '/app/search' &&
     location.pathname !== '/app/wishlist' &&
     location.pathname !== '/app/profile' &&
-    location.pathname !== '/app/reels';
+    location.pathname !== '/app/reels' &&
+    location.pathname !== '/app/mega-reward';
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {
@@ -36,7 +37,7 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
     <>
       {shouldShowHeader && <MobileHeader />}
       <main
-        className={`min-h-screen w-full overflow-x-hidden ${shouldShowBottomNav ? 'pb-20' : ''} ${showCartBar ? 'pb-24' : ''}`}
+        className={`min-h-screen w-full overflow-x-hidden transition-all duration-300 ease-in-out ${shouldShowBottomNav ? 'pb-20' : ''} ${showCartBar ? 'pb-24' : ''}`}
         style={{ paddingTop: shouldShowHeader ? `${headerHeight}px` : '0px' }}
       >
         {children}
@@ -49,4 +50,3 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
 };
 
 export default MobileLayout;
-

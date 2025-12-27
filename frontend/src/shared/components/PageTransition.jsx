@@ -2,11 +2,12 @@ import { motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { useEffect, useState, useMemo } from 'react';
 
+// Animation disabled to prevent "white screen" flash and provide instant feedback
 const pageVariants = {
   initial: (direction) => ({
-    opacity: 0,
-    x: direction === 'forward' ? 100 : direction === 'back' ? -100 : 0,
-    y: direction === 'forward' || direction === 'back' ? 0 : 20,
+    opacity: 1,
+    x: 0,
+    y: 0,
   }),
   animate: {
     opacity: 1,
@@ -17,14 +18,12 @@ const pageVariants = {
 
 const pageTransition = {
   type: 'tween',
-  ease: [0.25, 0.1, 0.25, 1],
-  duration: 0.2
+  duration: 0
 };
 
 /**
- * Page transition wrapper for smooth route changes with direction-based animations
- * Note: Exit animations removed as they require AnimatePresence at Routes level
- * RouteWrapper handles component remounting via key prop
+ * Page transition wrapper
+ * Animations have been disabled to ensure instant page rendering without white flashes
  */
 const PageTransition = ({ children }) => {
   const location = useLocation();
@@ -66,7 +65,7 @@ const PageTransition = ({ children }) => {
         animate="animate"
         variants={pageVariants}
         transition={pageTransition}
-        style={{ willChange: 'transform, opacity', transform: 'translateZ(0)' }}
+        style={{ willChange: 'auto', transform: 'none' }}
         className="w-full"
       >
         {children}
@@ -76,4 +75,3 @@ const PageTransition = ({ children }) => {
 };
 
 export default PageTransition;
-

@@ -6,6 +6,9 @@ import {
   getImageLoadingStrategy
 } from "../utils/imageOptimization";
 
+// Global cache to track loaded images prevents flickering on scroll
+const loadedImages = new Set();
+
 const LazyImage = ({
   src,
   alt,
@@ -17,24 +20,23 @@ const LazyImage = ({
   context = 'listing', // 'hero', 'product-detail', 'product-listing', 'thumbnail'
   ...props
 }) => {
-  const [imageSrc, setImageSrc] = useState(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Get optimized image path and loading strategy
+  const optimizedSrc = getOptimizedImagePath(src, context);
+  const loadingStrategy = getImageLoadingStrategy(context);
+  const isPriority = loadingStrategy.fetchpriority === 'high';
+  const isCached = loadedImages.has(optimizedSrc);
+
+  const [imageSrc, setImageSrc] = useState(isPriority || isCached ? optimizedSrc : null);
+  const [isLoaded, setIsLoaded] = useState(isCached);
   const [hasError, setHasError] = useState(false);
   const [fallbackSrc, setFallbackSrc] = useState(null);
   const imgRef = useRef(null);
 
-  // Get optimized image path and loading strategy
-  const optimizedSrc = getOptimizedImagePath(src, context);
-  const loadingStrategy = getImageLoadingStrategy(context);
-
   useEffect(() => {
-    // For high-priority images, load immediately without intersection observer
-    if (loadingStrategy.fetchpriority === 'high') {
-      setImageSrc(optimizedSrc);
-      return;
-    }
+    // If already set (from cache or priority), skip observer
+    if (imageSrc === optimizedSrc) return;
 
-    // For low-priority images, use lazy loading
+    // For low-priority images that aren't cached, use lazy loading
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -45,7 +47,7 @@ const LazyImage = ({
         });
       },
       {
-        rootMargin: "100px", // Start loading 100px before the image enters viewport
+        rootMargin: "200px", // Increased margin to load earlier
         threshold: 0.01,
       }
     );
@@ -60,9 +62,11 @@ const LazyImage = ({
       }
       observer.disconnect();
     };
-  }, [optimizedSrc, loadingStrategy.fetchpriority]);
+  }, [optimizedSrc, imageSrc]);
 
   const handleLoad = () => {
+    // Mark as loaded in global cache
+    if (optimizedSrc) loadedImages.add(optimizedSrc);
     setIsLoaded(true);
     setHasError(false);
   };
@@ -92,9 +96,9 @@ const LazyImage = ({
 
   return (
     <div className={`relative overflow-hidden ${className || ""}`} ref={imgRef}>
-      {/* Placeholder/Blur effect */}
+      {/* Placeholder/Blur effect - Only show if not loaded */}
       {!isLoaded && !hasError && (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse"></div>
+        <div className="absolute inset-0 bg-gray-100 animate-pulse" />
       )}
 
       {/* Actual Image */}
@@ -102,20 +106,19 @@ const LazyImage = ({
         <img
           src={imageSrc}
           alt={alt}
-          className={`transition-opacity duration-300 ${
-            isLoaded ? "opacity-100" : "opacity-0"
-          } ${className || ""}`}
+          className={`transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"
+            } ${className || ""}`}
           onLoad={handleLoad}
           onError={handleError}
-          {...loadingStrategy}
+          loading={isPriority ? "eager" : "lazy"}
           {...props}
         />
       )}
 
       {/* Error Fallback - Only show if both original and placeholder failed */}
       {hasError && fallbackSrc && (
-        <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
-          <span className="text-gray-400 text-xs">Failed to load</span>
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+          <span className="text-gray-400 text-xs">Failed</span>
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   FiMessageCircle,
   FiSend,
@@ -29,6 +29,63 @@ const Chat = () => {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const vendorId = vendor?.id;
+
+  const refreshChats = useCallback(async () => {
+    try {
+      const response = await getVendorTickets({
+        status: filterStatus === "all" ? "all" : filterStatus,
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+
+      if (response.success && response.data?.tickets) {
+        const ticketChats = response.data.tickets.map((ticket) => ({
+          id: ticket.id,
+          ticketNumber: ticket.ticketNumber,
+          subject: ticket.subject,
+          lastMessage: ticket.lastMessageAt
+            ? "Last message"
+            : "No messages yet",
+          unreadCount: 0,
+          status: ticket.status === "closed" ? "resolved" : "active",
+          lastActivity: ticket.lastMessageAt || ticket.createdAt,
+          createdAt: ticket.createdAt,
+          type: ticket.type,
+          priority: ticket.priority,
+        }));
+        setChats(ticketChats);
+      }
+    } catch (error) {
+      console.error("Error refreshing chats:", error);
+    }
+  }, [filterStatus, searchQuery]);
+
+  const loadMessages = useCallback(async (ticketId) => {
+    try {
+      const response = await getVendorTicket(ticketId);
+      if (response.success && response.data?.ticket) {
+        const ticket = response.data.ticket;
+        // Transform messages to chat format
+        const chatMessages = (ticket.messages || []).map((msg) => ({
+          id: msg.id,
+          sender: msg.sender, // 'vendor', 'admin', or 'user'
+          message: msg.message,
+          time: msg.time,
+        }));
+        setMessages(chatMessages);
+
+        // Join socket room for this ticket
+        const socket = getSocket();
+        if (socket) {
+          socket.emit("join_ticket_room", { ticketId });
+        }
+      }
+    } catch (error) {
+      console.error("Error loading messages:", error);
+      toast.error("Failed to load messages");
+    }
+  }, []);
 
   // Load tickets as chats
   useEffect(() => {
@@ -105,64 +162,7 @@ const Chat = () => {
       socket.off("message_received");
       socket.off("ticket_updated");
     };
-  }, [token, vendorId, selectedChat]);
-
-  const refreshChats = async () => {
-    try {
-      const response = await getVendorTickets({
-        status: filterStatus === "all" ? "all" : filterStatus,
-        search: searchQuery,
-        page: 1,
-        limit: 100,
-      });
-
-      if (response.success && response.data?.tickets) {
-        const ticketChats = response.data.tickets.map((ticket) => ({
-          id: ticket.id,
-          ticketNumber: ticket.ticketNumber,
-          subject: ticket.subject,
-          lastMessage: ticket.lastMessageAt
-            ? "Last message"
-            : "No messages yet",
-          unreadCount: 0,
-          status: ticket.status === "closed" ? "resolved" : "active",
-          lastActivity: ticket.lastMessageAt || ticket.createdAt,
-          createdAt: ticket.createdAt,
-          type: ticket.type,
-          priority: ticket.priority,
-        }));
-        setChats(ticketChats);
-      }
-    } catch (error) {
-      console.error("Error refreshing chats:", error);
-    }
-  };
-
-  const loadMessages = async (ticketId) => {
-    try {
-      const response = await getVendorTicket(ticketId);
-      if (response.success && response.data?.ticket) {
-        const ticket = response.data.ticket;
-        // Transform messages to chat format
-        const chatMessages = (ticket.messages || []).map((msg) => ({
-          id: msg.id,
-          sender: msg.sender, // 'vendor', 'admin', or 'user'
-          message: msg.message,
-          time: msg.time,
-        }));
-        setMessages(chatMessages);
-
-        // Join socket room for this ticket
-        const socket = getSocket();
-        if (socket) {
-          socket.emit("join_ticket_room", { ticketId });
-        }
-      }
-    } catch (error) {
-      console.error("Error loading messages:", error);
-      toast.error("Failed to load messages");
-    }
-  };
+  }, [token, vendorId, selectedChat, loadMessages, refreshChats]);
 
   useEffect(() => {
     if (selectedChat) {
@@ -170,7 +170,7 @@ const Chat = () => {
     } else {
       setMessages([]);
     }
-  }, [selectedChat]);
+  }, [selectedChat, loadMessages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
