@@ -1,17 +1,49 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { gsapAnimations } from "../../../../shared/utils/animations";
 import BrandCard from "../../../../shared/components/BrandCard";
-import { brands } from "../../../../data/brands";
+import { useBrandStore } from "../../../../shared/store/brandStore";
 
 const PopularBrandsSection = () => {
   const sectionRef = useRef(null);
+  const { brands, initialize, isLoading } = useBrandStore();
+  const [displayBrands, setDisplayBrands] = useState([]);
+
+  useEffect(() => {
+    const loadBrands = async () => {
+      await initialize();
+      const activeBrands = brands.filter(brand => brand.isActive !== false);
+      setDisplayBrands(activeBrands);
+    };
+    loadBrands();
+    
+    // Refresh brands every 30 seconds to get latest updates
+    const refreshInterval = setInterval(async () => {
+      const { refreshBrands } = useBrandStore.getState();
+      if (refreshBrands) {
+        await refreshBrands();
+        const updatedBrands = useBrandStore.getState().brands;
+        const activeBrands = updatedBrands.filter(brand => brand.isActive !== false);
+        setDisplayBrands(activeBrands);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [initialize, brands]);
 
   useEffect(() => {
     if (sectionRef.current) {
       gsapAnimations.scrollReveal(sectionRef.current);
     }
-  }, []);
+  }, [displayBrands]);
+
+  if (isLoading && displayBrands.length === 0) {
+    return null; // Don't show anything while loading
+  }
+
+  if (displayBrands.length === 0) {
+    return null; // Don't show section if no brands
+  }
 
   return (
     <section ref={sectionRef} className="py-16 md:py-0 bg-transparent relative">
@@ -26,7 +58,7 @@ const PopularBrandsSection = () => {
           className="overflow-x-auto scrollbar-hide"
           style={{ WebkitOverflowScrolling: "touch" }}>
           <div className="flex gap-4 min-w-max pb-2">
-            {brands.map((brand, index) => (
+            {displayBrands.map((brand, index) => (
               <motion.div
                 key={brand.id}
                 initial={{ opacity: 0, x: -20 }}
@@ -51,7 +83,7 @@ const PopularBrandsSection = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6 relative z-[1]">
-          {brands.map((brand, index) => (
+          {displayBrands.map((brand, index) => (
             <motion.div
               key={brand.id}
               initial={{ opacity: 0, scale: 0.9 }}

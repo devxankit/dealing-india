@@ -219,48 +219,31 @@ const MobileCheckout = () => {
     <PageTransition>
       <MobileLayout showBottomNav={false} showCartBar={false}>
         <div className="w-full pb-24">
-          {/* Header */}
-          <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-            {/* Title Bar */}
-            <div className="px-4 py-3 flex items-center gap-3">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <FiArrowLeft className="text-xl text-gray-700" />
-              </button>
-              <h1 className="text-xl font-bold text-gray-800">Checkout</h1>
-            </div>
-            {/* Steps Bar */}
-            <div className="px-4 pb-3">
-              <MobileCheckoutSteps currentStep={step} totalSteps={2} />
-            </div>
-          </div>
-
-          {/* Guest Checkout Option */}
-          {!isAuthenticated && !isGuest && (
-            <div className="px-4 py-4 bg-white border-b border-gray-200">
-              <div className="glass-card rounded-xl p-4">
-                <h3 className="text-base font-bold text-gray-800 mb-2">
-                  Have an account?
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Sign in for faster checkout
-                </p>
-                <div className="flex gap-3">
-                  <Link
-                    to="/app/login"
-                    className="flex-1 py-2.5 gradient-green text-white rounded-xl font-semibold text-center hover:shadow-glow-green transition-all">
-                    Sign In
-                  </Link>
+          {/* Clean Checkout Header */}
+          <div className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
+            <div className="px-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setIsGuest(true)}
-                    className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors">
-                    Continue as Guest
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <FiArrowLeft className="text-2xl text-gray-700" />
                   </button>
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-800">Checkout</h1>
+                    <p className="text-sm text-gray-500">
+                      Step {step} of 2 • {step === 1 ? 'Shipping' : 'Payment'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-10 h-1.5 rounded-full ${step >= 1 ? 'bg-primary-500' : 'bg-gray-200'}`} />
+                  <div className={`w-10 h-1.5 rounded-full ${step >= 2 ? 'bg-primary-500' : 'bg-gray-200'}`} />
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           <form onSubmit={handleSubmit}>
             {/* Step 1: Shipping Information */}
@@ -268,9 +251,9 @@ const MobileCheckout = () => {
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="px-4 py-4">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <FiTruck className="text-primary-600" />
+                className="px-4 py-5">
+                <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
+                  <FiTruck className="text-primary-600 text-xl" />
                   Shipping Information
                 </h2>
 
@@ -285,11 +268,10 @@ const MobileCheckout = () => {
                         <div
                           key={address.id}
                           onClick={() => handleSelectAddress(address)}
-                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            selectedAddressId === address.id
-                              ? "border-primary-500 bg-primary-50"
-                              : "border-gray-200"
-                          }`}>
+                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedAddressId === address.id
+                            ? "border-primary-500 bg-primary-50"
+                            : "border-gray-200"
+                            }`}>
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-2 flex-1">
                               <FiMapPin className="text-primary-600 mt-0.5 flex-shrink-0" />
@@ -329,7 +311,7 @@ const MobileCheckout = () => {
                 {/* Address Form */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                       Full Name
                     </label>
                     <input
@@ -342,7 +324,7 @@ const MobileCheckout = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                       Email
                     </label>
                     <input
@@ -355,7 +337,7 @@ const MobileCheckout = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                       Phone Number
                     </label>
                     <input
@@ -368,7 +350,7 @@ const MobileCheckout = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                       Address
                     </label>
                     <textarea
@@ -376,13 +358,13 @@ const MobileCheckout = () => {
                       value={formData.address}
                       onChange={handleInputChange}
                       required
-                      rows={3}
+                      rows={2}
                       className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                         City
                       </label>
                       <input
@@ -395,7 +377,7 @@ const MobileCheckout = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                         State
                       </label>
                       <input
@@ -410,7 +392,7 @@ const MobileCheckout = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                         ZIP Code
                       </label>
                       <input
@@ -423,7 +405,7 @@ const MobileCheckout = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                         Country
                       </label>
                       <input
@@ -445,20 +427,19 @@ const MobileCheckout = () => {
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="px-4 py-4">
-                <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <FiCreditCard className="text-primary-600" />
+                className="px-4 py-5">
+                <h2 className="text-lg font-bold text-gray-800 mb-5 flex items-center gap-2">
+                  <FiCreditCard className="text-primary-600 text-xl" />
                   Payment Method
                 </h2>
-                <div className="space-y-3 mb-6">
+                <div className="space-y-3 mb-5">
                   {["card", "cash", "bank"].map((method) => (
                     <label
                       key={method}
-                      className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                        formData.paymentMethod === method
-                          ? "border-primary-500 bg-primary-50"
-                          : "border-gray-200"
-                      }`}>
+                      className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.paymentMethod === method
+                        ? "border-primary-500 bg-primary-50"
+                        : "border-gray-200"
+                        }`}>
                       <input
                         type="radio"
                         name="paymentMethod"
@@ -471,8 +452,8 @@ const MobileCheckout = () => {
                         {method === "card"
                           ? "Credit/Debit Card"
                           : method === "cash"
-                          ? "Cash on Delivery"
-                          : "Bank Transfer"}
+                            ? "Cash on Delivery"
+                            : "Bank Transfer"}
                       </span>
                     </label>
                   ))}
@@ -480,60 +461,62 @@ const MobileCheckout = () => {
 
                 {/* Shipping Options */}
                 {total < 100 && (
-                  <div className="mb-6">
+                  <div className="mb-5">
                     <h3 className="text-base font-semibold text-gray-800 mb-3">
                       Shipping Options
                     </h3>
                     <div className="space-y-3">
                       <label
-                        className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          shippingOption === "standard"
-                            ? "border-primary-500 bg-primary-50"
-                            : "border-gray-200"
-                        }`}>
-                        <div>
+                        className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${shippingOption === "standard"
+                          ? "border-primary-500 bg-primary-50"
+                          : "border-gray-200"
+                          }`}>
+                        <div className="flex items-center gap-3">
                           <input
                             type="radio"
                             name="shippingOption"
                             value="standard"
                             checked={shippingOption === "standard"}
                             onChange={(e) => setShippingOption(e.target.value)}
-                            className="w-5 h-5 text-primary-500 mr-3"
+                            className="w-5 h-5 text-primary-500"
                           />
-                          <span className="font-semibold text-gray-800 text-base">
-                            Standard Shipping
-                          </span>
-                          <p className="text-xs text-gray-600">
-                            5-7 business days
-                          </p>
+                          <div>
+                            <span className="font-semibold text-gray-800 text-base">
+                              Standard Shipping
+                            </span>
+                            <p className="text-sm text-gray-500">
+                              5-7 business days
+                            </p>
+                          </div>
                         </div>
-                        <span className="font-bold text-gray-800">
+                        <span className="font-bold text-gray-800 text-base">
                           {formatPrice(50)}
                         </span>
                       </label>
                       <label
-                        className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          shippingOption === "express"
-                            ? "border-primary-500 bg-primary-50"
-                            : "border-gray-200"
-                        }`}>
-                        <div>
+                        className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${shippingOption === "express"
+                          ? "border-primary-500 bg-primary-50"
+                          : "border-gray-200"
+                          }`}>
+                        <div className="flex items-center gap-3">
                           <input
                             type="radio"
                             name="shippingOption"
                             value="express"
                             checked={shippingOption === "express"}
                             onChange={(e) => setShippingOption(e.target.value)}
-                            className="w-5 h-5 text-primary-500 mr-3"
+                            className="w-5 h-5 text-primary-500"
                           />
-                          <span className="font-semibold text-gray-800 text-base">
-                            Express Shipping
-                          </span>
-                          <p className="text-xs text-gray-600">
-                            2-3 business days
-                          </p>
+                          <div>
+                            <span className="font-semibold text-gray-800 text-base">
+                              Express Shipping
+                            </span>
+                            <p className="text-sm text-gray-500">
+                              2-3 business days
+                            </p>
+                          </div>
                         </div>
-                        <span className="font-bold text-gray-800">
+                        <span className="font-bold text-gray-800 text-base">
                           {formatPrice(100)}
                         </span>
                       </label>
@@ -542,12 +525,12 @@ const MobileCheckout = () => {
                 )}
 
                 {/* Coupon Code */}
-                <div className="mb-6">
+                <div className="mb-5">
                   <h3 className="text-base font-semibold text-gray-800 mb-3">
                     Coupon Code
                   </h3>
                   {!appliedCoupon ? (
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       <input
                         type="text"
                         value={couponCode}
@@ -558,7 +541,7 @@ const MobileCheckout = () => {
                       <button
                         type="button"
                         onClick={handleApplyCoupon}
-                        className="px-4 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all">
+                        className="px-5 py-3 gradient-green text-white rounded-xl font-semibold text-base hover:shadow-glow-green transition-all">
                         Apply
                       </button>
                     </div>
@@ -568,7 +551,7 @@ const MobileCheckout = () => {
                         <p className="text-sm font-semibold text-green-800">
                           {appliedCoupon.name} Applied
                         </p>
-                        <p className="text-xs text-green-600">
+                        <p className="text-sm text-green-600">
                           Code: {couponCode}
                         </p>
                       </div>
@@ -579,7 +562,7 @@ const MobileCheckout = () => {
                           setCouponCode("");
                         }}
                         className="text-red-600 hover:text-red-700">
-                        <FiX className="text-lg" />
+                        <FiX className="text-xl" />
                       </button>
                     </div>
                   )}
@@ -594,16 +577,16 @@ const MobileCheckout = () => {
                     {itemsByVendor.map((vendorGroup) => (
                       <div
                         key={vendorGroup.vendorId}
-                        className="space-y-2 mb-4">
+                        className="space-y-2 mb-3">
                         {/* Vendor Header */}
-                        <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200/50 shadow-sm">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200/50">
                           <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
                             <FiShoppingBag className="text-white text-[10px]" />
                           </div>
                           <span className="text-sm font-bold text-primary-700 flex-1">
                             {vendorGroup.vendorName}
                           </span>
-                          <span className="text-xs font-semibold text-primary-600 bg-white px-2 py-0.5 rounded-md">
+                          <span className="text-sm font-semibold text-primary-600 bg-white px-2 py-0.5 rounded">
                             {formatPrice(vendorGroup.subtotal)}
                           </span>
                         </div>
@@ -612,17 +595,17 @@ const MobileCheckout = () => {
                           {vendorGroup.items.map((item) => (
                             <div
                               key={item.id}
-                              className="flex items-center gap-2 text-xs">
+                              className="flex items-center gap-3">
                               <img
                                 src={item.image}
                                 alt={item.name}
-                                className="w-10 h-10 rounded-lg object-cover"
+                                className="w-12 h-12 rounded-lg object-cover"
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-800 truncate text-xs">
+                                <p className="font-medium text-gray-800 truncate text-sm">
                                   {item.name}
                                 </p>
-                                <p className="text-gray-600 text-xs">
+                                <p className="text-gray-500 text-sm">
                                   {formatPrice(item.price)} × {item.quantity}
                                 </p>
                               </div>
@@ -659,7 +642,7 @@ const MobileCheckout = () => {
                       <span>Tax</span>
                       <span>{formatPrice(tax)}</span>
                     </div>
-                    <div className="flex justify-between text-lg font-bold text-gray-800 pt-2 border-t border-gray-200">
+                    <div className="flex justify-between text-lg font-bold text-gray-800 pt-3 border-t border-gray-200">
                       <span>Total</span>
                       <span className="text-primary-600">
                         {formatPrice(finalTotal)}
@@ -677,13 +660,13 @@ const MobileCheckout = () => {
                   <button
                     type="button"
                     onClick={() => setStep(step - 1)}
-                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
+                    className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold text-base hover:bg-gray-300 transition-colors">
                     Back
                   </button>
                 )}
                 <button
                   type="submit"
-                  className="flex-1 gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300">
+                  className="flex-1 gradient-green text-white py-3.5 rounded-xl font-bold text-base hover:shadow-glow-green transition-all duration-300">
                   {step === 2 ? "Place Order" : "Continue"}
                 </button>
               </div>

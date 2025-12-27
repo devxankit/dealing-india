@@ -34,7 +34,8 @@ const LiveChat = () => {
     });
 
     socket.on('message_received', (data) => {
-      if (selectedChat && data.sessionId === selectedChat.id) {
+      const currentChatId = selectedChat?.id || selectedChat?.ticketId;
+      if (selectedChat && (data.sessionId === currentChatId || data.ticketId === currentChatId)) {
         setMessages((prev) => [...prev, data.message]);
         // Update chat list
         fetchChatSessions();
@@ -46,6 +47,11 @@ const LiveChat = () => {
         // Update chat list if message is for another chat
         fetchChatSessions();
       }
+    });
+
+    socket.on('ticket_updated', (data) => {
+      // Refresh chat list if ticket is updated
+      fetchChatSessions();
     });
 
     socket.on('error', (error) => {
@@ -80,18 +86,34 @@ const LiveChat = () => {
     try {
       setLoadingMessages(true);
       setSelectedChat(chat);
-      const response = await api.get(`/admin/support/chat/sessions/${chat.id}`);
+      
+      // Check if it's a ticket or chat session
+      const sessionId = chat.ticketId || chat.id;
+      const response = await api.get(`/admin/support/chat/sessions/${sessionId}`);
+      
       if (response.success && response.data?.session) {
         const sessionData = response.data.session;
         setChatDetail(sessionData);
         setMessages(sessionData.messages || []);
 
-        // Mark messages as read
-        await api.put(`/admin/support/chat/sessions/${chat.id}/read`);
+        // Mark messages as read (only for regular chat sessions, not tickets)
+        if (!chat.isTicket) {
+          try {
+            await api.put(`/admin/support/chat/sessions/${sessionId}/read`);
+          } catch (error) {
+            // Ignore error if it's a ticket
+          }
+        }
 
-        // Join chat session room via Socket.io
+        // Join room via Socket.io
         if (socketRef.current) {
-          socketRef.current.emit('join_chat_session', { sessionId: chat.id });
+          if (chat.isTicket) {
+            // Join ticket room
+            socketRef.current.emit('join_ticket_room', { ticketId: sessionId });
+          } else {
+            // Join chat session room
+            socketRef.current.emit('join_chat_session', { sessionId });
+          }
         }
 
         // Refresh chat list to update unread count
@@ -113,19 +135,41 @@ const LiveChat = () => {
     if (!newMessage.trim() || !selectedChat) return;
 
     try {
+      const sessionId = selectedChat.ticketId || selectedChat.id;
+      
       // Send via Socket.io if connected, otherwise fallback to REST
       if (socketRef.current && socketRef.current.connected) {
-        socketRef.current.emit('send_chat_message', {
-          sessionId: selectedChat.id,
-          message: newMessage.trim(),
-        });
+        if (selectedChat.isTicket) {
+          // Send message to ticket
+          socketRef.current.emit('send_message', {
+            ticketId: sessionId,
+            message: newMessage.trim(),
+          });
+        } else {
+          // Send message to chat session
+          socketRef.current.emit('send_chat_message', {
+            sessionId: sessionId,
+            message: newMessage.trim(),
+          });
+        }
       } else {
         // REST fallback
-        const response = await api.post(`/admin/support/chat/sessions/${selectedChat.id}/messages`, {
-          message: newMessage.trim(),
-        });
-        if (response.success) {
-          setMessages((prev) => [...prev, response.data.message]);
+        if (selectedChat.isTicket) {
+          // Send message to ticket
+          const response = await api.post(`/admin/support/tickets/${sessionId}/messages`, {
+            message: newMessage.trim(),
+          });
+          if (response.success) {
+            setMessages((prev) => [...prev, response.data.message]);
+          }
+        } else {
+          // Send message to chat session
+          const response = await api.post(`/admin/support/chat/sessions/${sessionId}/messages`, {
+            message: newMessage.trim(),
+          });
+          if (response.success) {
+            setMessages((prev) => [...prev, response.data.message]);
+          }
         }
       }
       setNewMessage('');
@@ -177,7 +221,9 @@ const LiveChat = () => {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <FiUser className="text-gray-400" />
-                      <span className="font-semibold text-gray-800">{chat.customerName}</span>
+                      <span className="font-semibold text-gray-800">
+                        {chat.ticketNumber ? `${chat.ticketNumber} - ${chat.customerName}` : chat.customerName}
+                      </span>
                     </div>
                     {chat.unreadCount > 0 && (
                       <span className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -185,7 +231,9 @@ const LiveChat = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 truncate">{chat.lastMessage || 'No messages yet'}</p>
+                  <p className="text-sm text-gray-600 truncate">
+                    {chat.ticketNumber ? chat.lastMessage || 'No messages yet' : chat.lastMessage || 'No messages yet'}
+                  </p>
                   <p className="text-xs text-gray-400 mt-1">
                     {new Date(chat.lastActivity).toLocaleTimeString()}
                   </p>
@@ -198,9 +246,15 @@ const LiveChat = () => {
         {selectedChat ? (
           <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-800">{selectedChat.customerName}</h3>
+              <h3 className="font-semibold text-gray-800">
+                {selectedChat.ticketNumber 
+                  ? `${selectedChat.ticketNumber} - ${selectedChat.customerName || chatDetail?.customerName || 'Unknown'}`
+                  : selectedChat.customerName || chatDetail?.customerName || 'Unknown'}
+              </h3>
               <p className="text-xs text-gray-500">
-                Customer ID: {selectedChat.customerId || chatDetail?.customerId || 'N/A'}
+                {selectedChat.ticketNumber 
+                  ? `Ticket ID: ${selectedChat.ticketId || selectedChat.id}`
+                  : `Customer ID: ${selectedChat.customerId || chatDetail?.customerId || 'N/A'}`}
               </p>
             </div>
             <div className="flex-1 p-4 overflow-y-auto space-y-4 max-h-[500px]">

@@ -60,8 +60,9 @@ const MobileHeader = () => {
 
   // Get current category from URL (supports both /category/:id and /app/category/:id)
   const getCurrentCategoryId = () => {
-    const match = location.pathname.match(/\/(?:app\/)?category\/(\d+)/);
-    return match ? parseInt(match[1]) : null;
+    // Match both numeric IDs and MongoDB ObjectIds (alphanumeric)
+    const match = location.pathname.match(/\/(?:app\/)?category\/([a-zA-Z0-9]+)/);
+    return match ? match[1] : null;
   };
 
   const currentCategoryId = getCurrentCategoryId();
@@ -384,8 +385,8 @@ const MobileHeader = () => {
               animate={
                 cartAnimationTrigger > 0
                   ? {
-                      scale: [1, 1.2, 1],
-                    }
+                    scale: [1, 1.2, 1],
+                  }
                   : {}
               }
               transition={{ duration: 0.5, ease: "easeOut" }}>

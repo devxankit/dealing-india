@@ -119,12 +119,19 @@ export const setupSocketIO = (httpServer) => {
             return;
           }
 
-          const room = `chat_${sessionId}`;
-          socket.join(room);
-          socket.emit('joined_chat_session', { sessionId, room });
+          // Join both chat room and ticket room (in case it's a ticket)
+          const chatRoom = `chat_${sessionId}`;
+          const ticketRoom = `ticket_${sessionId}`;
+          socket.join(chatRoom);
+          socket.join(ticketRoom);
+          socket.emit('joined_chat_session', { sessionId, room: chatRoom });
 
-          // Mark messages as read when admin joins
-          await markChatMessagesAsRead(sessionId, 'admin');
+          // Mark messages as read when admin joins (only for regular chat sessions)
+          try {
+            await markChatMessagesAsRead(sessionId, 'admin');
+          } catch (error) {
+            // Ignore error if it's a ticket (markChatMessagesAsRead only works for chat sessions)
+          }
         } catch (error) {
           socket.emit('error', { message: error.message });
         }
@@ -158,7 +165,7 @@ export const setupSocketIO = (httpServer) => {
         }
       });
 
-      // Send message in chat session
+      // Send message in chat session (or support ticket)
       socket.on('send_chat_message', async (data) => {
         try {
           const { sessionId, message } = data;
@@ -176,12 +183,20 @@ export const setupSocketIO = (httpServer) => {
 
           const newMessage = await addMessageToChat(sessionId, messageData);
 
-          // Mark messages as read
-          await markChatMessagesAsRead(sessionId, 'admin');
+          // Mark messages as read (only for regular chat sessions, not tickets)
+          try {
+            await markChatMessagesAsRead(sessionId, 'admin');
+          } catch (error) {
+            // Ignore error if it's a ticket
+          }
 
-          // Emit to all users in the chat session room
+          // Emit to both chat session room and ticket room (addMessageToChat handles both)
           io.to(`chat_${sessionId}`).emit('message_received', {
             sessionId,
+            message: newMessage,
+          });
+          io.to(`ticket_${sessionId}`).emit('message_received', {
+            ticketId: sessionId,
             message: newMessage,
           });
         } catch (error) {

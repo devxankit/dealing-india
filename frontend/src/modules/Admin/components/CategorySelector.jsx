@@ -80,9 +80,13 @@ const CategorySelector = ({
   }, [categories, getRootCategories]);
 
   // Get selected category and subcategory info
-  const selectedCategory = value ? getCategoryById(value) : null;
-  const selectedSubcategory = subcategoryId
-    ? getCategoryById(subcategoryId)
+  // Ensure value is converted to string for proper comparison
+  const categoryValue = value?.toString() || value;
+  const subcategoryValue = subcategoryId?.toString() || subcategoryId;
+
+  const selectedCategory = categoryValue ? getCategoryById(categoryValue) : null;
+  const selectedSubcategory = subcategoryValue
+    ? getCategoryById(subcategoryValue)
     : null;
   const parentCategory = selectedSubcategory
     ? getCategoryById(selectedSubcategory.parentId)
@@ -189,11 +193,15 @@ const CategorySelector = ({
   }, [hoveredCategoryId, isOpen]);
 
   const handleCategorySelect = (categoryId) => {
+    // Ensure categoryId is a string for consistency
+    const categoryIdStr = categoryId?.toString() || categoryId;
+
     // Clear subcategory when selecting a new parent
+    // Use empty string instead of null to match form expectations
     onChange({
       target: {
         name: "categoryId",
-        value: categoryId,
+        value: categoryIdStr,
       },
     });
     onChange({
@@ -207,16 +215,20 @@ const CategorySelector = ({
   };
 
   const handleSubcategorySelect = (subcategoryId, parentId) => {
+    // Ensure IDs are strings for consistency
+    const parentIdStr = parentId?.toString() || parentId;
+    const subcategoryIdStr = subcategoryId?.toString() || subcategoryId;
+
     onChange({
       target: {
         name: "categoryId",
-        value: parentId,
+        value: parentIdStr,
       },
     });
     onChange({
       target: {
         name: "subcategoryId",
-        value: subcategoryId,
+        value: subcategoryIdStr,
       },
     });
     setIsOpen(false);
@@ -261,9 +273,8 @@ const CategorySelector = ({
             setHoveredCategoryId(null);
           }
         }}
-        className={`w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white flex items-center justify-between transition-all duration-200 hover:border-primary-400 ${
-          !value ? "text-gray-500" : "text-gray-900"
-        }`}>
+        className={`w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white flex items-center justify-between transition-all duration-200 hover:border-primary-400 ${!value ? "text-gray-500" : "text-gray-900"
+          }`}>
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {selectedCategoryIcon && (
             <selectedCategoryIcon className="text-lg flex-shrink-0 text-primary-600" />
@@ -271,9 +282,8 @@ const CategorySelector = ({
           <span className="truncate">{displayText}</span>
         </div>
         <FiChevronDown
-          className={`ml-2 text-gray-500 transition-transform flex-shrink-0 ${
-            isOpen ? "transform rotate-180" : ""
-          }`}
+          className={`ml-2 text-gray-500 transition-transform flex-shrink-0 ${isOpen ? "transform rotate-180" : ""
+            }`}
         />
       </button>
 
@@ -313,27 +323,30 @@ const CategorySelector = ({
                       category.id
                     ).filter((cat) => cat.isActive !== false);
                     const hasSubcategories = subcategories.length > 0;
-                    const isSelected = value === category.id && !subcategoryId;
+                    // Compare category IDs as strings for proper selection check
+                    const categoryIdStr = (category.id || category._id)?.toString();
+                    const isSelected = categoryValue === categoryIdStr && !subcategoryValue;
                     const isHovered = hoveredCategoryId === category.id;
                     const CategoryIcon = getCategoryIcon(category);
 
                     return (
                       <div key={category.id} data-category-id={category.id}>
-                        <motion.div
-                          whileHover={{
-                            backgroundColor: isSelected
-                              ? "rgba(40, 116, 240, 0.1)"
-                              : "rgba(249, 250, 251, 1)",
-                          }}
-                          className={`px-4 py-2 cursor-pointer flex items-center justify-between transition-colors duration-150 ${
-                            isSelected
-                              ? "bg-primary-50 text-primary-600"
-                              : "text-gray-900"
-                          }`}
-                          onClick={() => {
-                            if (!hasSubcategories) {
-                              handleCategorySelect(category.id);
+                        <div
+                          className={`px-4 py-2 cursor-pointer flex items-center justify-between transition-colors duration-150 hover:bg-gray-50 ${isSelected
+                            ? "bg-primary-50 text-primary-600 hover:bg-primary-100"
+                            : "text-gray-900"
+                            }`}
+                          onClick={(e) => {
+                            // Stop event propagation and default behavior
+                            e.stopPropagation();
+                            e.preventDefault();
+                            // Clear any pending timeout for showing subcategories
+                            if (closeTimeoutRef.current) {
+                              clearTimeout(closeTimeoutRef.current);
+                              closeTimeoutRef.current = null;
                             }
+                            // Allow selecting parent category directly even if it has subcategories
+                            handleCategorySelect(category.id);
                           }}
                           onMouseEnter={() => {
                             if (hasSubcategories) {
@@ -342,7 +355,11 @@ const CategorySelector = ({
                                 clearTimeout(closeTimeoutRef.current);
                                 closeTimeoutRef.current = null;
                               }
-                              setHoveredCategoryId(category.id);
+                              // Small delay before showing subcategories to allow clicking on parent
+                              closeTimeoutRef.current = setTimeout(() => {
+                                setHoveredCategoryId(category.id);
+                                closeTimeoutRef.current = null;
+                              }, 150);
                             }
                           }}
                           onMouseLeave={(e) => {
@@ -373,16 +390,20 @@ const CategorySelector = ({
                           }}>
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             {CategoryIcon && (
-                              <CategoryIcon className={`text-lg flex-shrink-0 ${
-                                isSelected ? "text-primary-600" : "text-gray-600"
-                              }`} />
+                              <CategoryIcon className={`text-lg flex-shrink-0 ${isSelected ? "text-primary-600" : "text-gray-600"
+                                }`} />
                             )}
-                            <span className="truncate">{category.name}</span>
+                            <span className="truncate" title={hasSubcategories ? "Click to select this category or hover to see subcategories" : ""}>
+                              {category.name}
+                            </span>
                           </div>
                           {hasSubcategories && (
-                            <FiChevronRight className="ml-2 text-gray-400 flex-shrink-0" />
+                            <FiChevronRight
+                              className="ml-2 text-gray-400 flex-shrink-0"
+                              title="Hover to see subcategories"
+                            />
                           )}
-                        </motion.div>
+                        </div>
                       </div>
                     );
                   })
@@ -419,10 +440,12 @@ const CategorySelector = ({
                 }}>
                 <div className="py-1 max-h-60 overflow-y-auto">
                   {hoveredSubcategories.map((subcategory) => {
-                    const isSubSelected = subcategoryId === subcategory.id;
+                    // Ensure proper string comparison for subcategory selection
+                    const subcategoryIdStr = subcategory.id?.toString() || subcategory.id;
+                    const isSubSelected = subcategoryValue === subcategoryIdStr;
                     const SubcategoryIcon = getCategoryIcon(subcategory);
                     return (
-                      <motion.div
+                      <div
                         key={subcategory.id}
                         onClick={() =>
                           handleSubcategorySelect(
@@ -430,23 +453,16 @@ const CategorySelector = ({
                             hoveredCategoryId
                           )
                         }
-                        whileHover={{
-                          backgroundColor: isSubSelected
-                            ? "rgba(40, 116, 240, 0.1)"
-                            : "rgba(249, 250, 251, 1)",
-                        }}
-                        className={`px-4 py-2 cursor-pointer transition-colors duration-150 flex items-center gap-2 ${
-                          isSubSelected
-                            ? "bg-primary-50 text-primary-600"
-                            : "text-gray-900"
-                        }`}>
+                        className={`px-4 py-2 cursor-pointer transition-colors duration-150 flex items-center gap-2 hover:bg-gray-50 ${isSubSelected
+                          ? "bg-primary-50 text-primary-600 hover:bg-primary-100"
+                          : "text-gray-900"
+                          }`}>
                         {SubcategoryIcon && (
-                          <SubcategoryIcon className={`text-lg flex-shrink-0 ${
-                            isSubSelected ? "text-primary-600" : "text-gray-600"
-                          }`} />
+                          <SubcategoryIcon className={`text-lg flex-shrink-0 ${isSubSelected ? "text-primary-600" : "text-gray-600"
+                            }`} />
                         )}
                         <span className="truncate">{subcategory.name}</span>
-                      </motion.div>
+                      </div>
                     );
                   })}
                 </div>

@@ -236,6 +236,11 @@ const Tickets = () => {
       key: 'type',
       label: 'Type',
       sortable: true,
+      render: (value) => (
+        <span className="text-sm text-gray-800">
+          {typeof value === 'object' ? (value?.name || 'Unknown') : (value || 'Unknown')}
+        </span>
+      ),
     },
     {
       key: 'subject',
@@ -433,7 +438,11 @@ const Tickets = () => {
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Type</p>
-                        <p className="font-semibold text-gray-800">{ticketDetail.type}</p>
+                        <p className="font-semibold text-gray-800">
+                          {typeof ticketDetail.type === 'object' 
+                            ? (ticketDetail.type?.name || 'Unknown') 
+                            : (ticketDetail.type || 'Unknown')}
+                        </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Priority</p>

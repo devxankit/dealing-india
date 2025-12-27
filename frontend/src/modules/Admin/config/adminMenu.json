@@ -32,9 +32,9 @@
     "title": "Attribute Management",
     "route": "/admin/attributes",
     "children": [
-      "Attribute Sets",
       "Attributes",
-      "Attribute Values"
+      "Attribute Values",
+      "Attribute Sets"
     ]
   },
   {

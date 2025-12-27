@@ -67,3 +67,20 @@ export const updateTicketStatus = async (ticketId, status) => {
   return response;
 };
 
+/**
+ * Get all active ticket types for vendor ticket creation
+ * @param {Object} filters - { status: 'active' } (optional)
+ * @returns {Promise<Object>} { ticketTypes }
+ */
+export const getTicketTypes = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.status) params.append('status', filters.status);
+  if (filters.search) params.append('search', filters.search);
+
+  const queryString = params.toString();
+  const url = `/vendor/support/ticket-types${queryString ? `?${queryString}` : ''}`;
+  const response = await api.get(url);
+  // API interceptor returns response.data, so response is already { success, data: { ticketTypes } }
+  return response;
+};
+

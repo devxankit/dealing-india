@@ -96,6 +96,19 @@ export const useBrandManagementStore = create((set, get) => ({
           brands: [...state.brands, newBrand],
           isLoading: false,
         }));
+        
+        // Refresh shared brandStore for user/vendor side
+        try {
+          // Dynamically import to avoid circular dependency
+          const { useBrandStore } = await import('../../../shared/store/brandStore');
+          const brandStore = useBrandStore.getState();
+          if (brandStore.refreshBrands) {
+            await brandStore.refreshBrands();
+          }
+        } catch (err) {
+          console.error('Error refreshing shared brand store:', err);
+        }
+        
         return newBrand;
       } else {
         throw new Error(response.message || 'Failed to create brand');
@@ -126,6 +139,18 @@ export const useBrandManagementStore = create((set, get) => ({
           isLoading: false,
         }));
 
+        // Refresh shared brandStore for user/vendor side
+        try {
+          // Dynamically import to avoid circular dependency
+          const { useBrandStore } = await import('../../../shared/store/brandStore');
+          const brandStore = useBrandStore.getState();
+          if (brandStore.refreshBrands) {
+            await brandStore.refreshBrands();
+          }
+        } catch (err) {
+          console.error('Error refreshing shared brand store:', err);
+        }
+
         return updatedBrand;
       } else {
         throw new Error(response.message || 'Failed to update brand');
@@ -149,6 +174,18 @@ export const useBrandManagementStore = create((set, get) => ({
             state.selectedBrand?.id === brandId ? null : state.selectedBrand,
           isLoading: false,
         }));
+
+        // Refresh shared brandStore for user/vendor side
+        try {
+          // Dynamically import to avoid circular dependency
+          const { useBrandStore } = await import('../../../shared/store/brandStore');
+          const brandStore = useBrandStore.getState();
+          if (brandStore.refreshBrands) {
+            await brandStore.refreshBrands();
+          }
+        } catch (err) {
+          console.error('Error refreshing shared brand store:', err);
+        }
 
         return true;
       } else {
@@ -177,6 +214,18 @@ export const useBrandManagementStore = create((set, get) => ({
               : state.selectedBrand,
           isLoading: false,
         }));
+
+        // Refresh shared brandStore for user/vendor side
+        try {
+          // Dynamically import to avoid circular dependency
+          const { useBrandStore } = await import('../../../shared/store/brandStore');
+          const brandStore = useBrandStore.getState();
+          if (brandStore.refreshBrands) {
+            await brandStore.refreshBrands();
+          }
+        } catch (err) {
+          console.error('Error refreshing shared brand store:', err);
+        }
 
         return true;
       } else {
@@ -207,6 +256,18 @@ export const useBrandManagementStore = create((set, get) => ({
               : state.selectedBrand,
           isLoading: false,
         }));
+
+        // Refresh shared brandStore for user/vendor side
+        try {
+          // Dynamically import to avoid circular dependency
+          const { useBrandStore } = await import('../../../shared/store/brandStore');
+          const brandStore = useBrandStore.getState();
+          if (brandStore.refreshBrands) {
+            await brandStore.refreshBrands();
+          }
+        } catch (err) {
+          console.error('Error refreshing shared brand store:', err);
+        }
 
         return updatedBrand;
       } else {

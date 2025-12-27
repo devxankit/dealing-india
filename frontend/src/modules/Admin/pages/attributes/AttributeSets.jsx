@@ -11,13 +11,26 @@ const AttributeSets = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
   const [attributeSets, setAttributeSets] = useState([]);
+  const [allAttributes, setAllAttributes] = useState([]); // For dropdown
   const [loading, setLoading] = useState(true);
   const [editingSet, setEditingSet] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
   useEffect(() => {
     fetchAttributeSets();
+    fetchAllAttributes();
   }, []);
+
+  const fetchAllAttributes = async () => {
+    try {
+      const response = await api.get('/admin/attributes');
+      if (response.success && response.data?.attributes) {
+        setAllAttributes(response.data.attributes);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
+  };
 
   const fetchAttributeSets = async () => {
     try {
@@ -200,8 +213,15 @@ const AttributeSets = () => {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const formData = new FormData(e.target);
-                    const attributes = formData.get('attributes').split(',').map(a => a.trim()).filter(a => a);
+                    const attributes = editingSet.attributes || [];
+                    
+                    if (attributes.length === 0) {
+                      toast.error('Please select at least one attribute');
+                      return;
+                    }
+                    
                     handleSave({
                       name: formData.get('name'),
                       attributes,
@@ -218,14 +238,55 @@ const AttributeSets = () => {
                     required
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
-                  <textarea
-                    name="attributes"
-                    defaultValue={editingSet.attributes?.join(', ') || ''}
-                    placeholder="Attributes (comma-separated)"
-                    required
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Attributes <span className="text-red-500">*</span>
+                    </label>
+                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1 bg-gray-50">
+                      {allAttributes.length === 0 ? (
+                        <p className="text-sm text-gray-500 p-2">Loading attributes...</p>
+                      ) : (
+                        allAttributes.map((attr) => {
+                          const attrId = attr._id || attr.id;
+                          const attrName = attr.name;
+                          const isSelected = editingSet.attributes?.includes(attrName) || 
+                                            editingSet.attributes?.includes(attrId);
+                          return (
+                            <label key={attrId} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={isSelected || false}
+                                onChange={(e) => {
+                                  const currentAttrs = editingSet.attributes || [];
+                                  if (e.target.checked) {
+                                    setEditingSet({
+                                      ...editingSet,
+                                      attributes: [...currentAttrs, attrName]
+                                    });
+                                  } else {
+                                    setEditingSet({
+                                      ...editingSet,
+                                      attributes: currentAttrs.filter(a => a !== attrName && a !== attrId)
+                                    });
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                              />
+                              <span className="text-sm text-gray-700 flex-1">{attrName}</span>
+                              <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-200 rounded">
+                                {attr.type}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                    {editingSet.attributes && editingSet.attributes.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        {editingSet.attributes.length} attribute(s) selected
+                      </p>
+                    )}
+                  </div>
                   <AnimatedSelect
                     name="status"
                     value={editingSet.status || 'active'}
