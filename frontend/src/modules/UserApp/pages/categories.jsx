@@ -1,16 +1,16 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiFilter, FiX } from "react-icons/fi";
 import MobileLayout from "../components/Layout/MobileLayout";
-import { categories as fallbackCategories } from "../../../data/categories";
-import { products } from "../../../data/products";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
+import { getProductsByCategory } from "../../../shared/services/productService";
 import PageTransition from "../../../shared/components/PageTransition";
 import LazyImage from "../../../shared/components/LazyImage";
 import ProductCard from "../../../shared/components/ProductCard";
 import useMobileHeaderHeight from "../hooks/useMobileHeaderHeight";
 import { getPlaceholderImage } from "../../../shared/utils/helpers";
+import toast from "react-hot-toast";
 
 const MobileCategories = () => {
   const location = useLocation();
@@ -24,27 +24,10 @@ const MobileCategories = () => {
     initialize();
   }, [initialize]);
 
-  // Get root categories (categories without parent) and merge with fallback to preserve images
+  // Get root categories (categories without parent)
   const rootCategories = useMemo(() => {
-    const roots = getRootCategories();
-    if (roots.length === 0) {
-      return fallbackCategories;
-    }
-    // Merge store categories with fallback categories to preserve image references
-    // This ensures images from imported modules are used instead of serialized strings
-    return roots.map((cat) => {
-      const fallbackCat = fallbackCategories.find((fc) => fc.id === cat.id);
-      if (fallbackCat) {
-        // Use fallback category data but preserve any custom fields from store
-        return {
-          ...fallbackCat,
-          ...cat,
-          // Always use image from fallback (imported module reference)
-          image: fallbackCat.image,
-        };
-      }
-      return cat;
-    });
+    const roots = getRootCategories().filter(cat => cat.isActive !== false);
+    return roots;
   }, [categories, getRootCategories]);
 
   // Header is hidden on categories page, so use 0
@@ -65,6 +48,13 @@ const MobileCategories = () => {
     maxPrice: "",
     minRating: "",
   });
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [productsPagination, setProductsPagination] = useState({
+    total: 0,
+    page: 1,
+    totalPages: 1,
+  });
 
   // Get subcategories for selected category
   const subcategories = useMemo(() => {
@@ -72,29 +62,6 @@ const MobileCategories = () => {
     const subcats = getCategoriesByParent(selectedCategoryId);
     return subcats.filter((cat) => cat.isActive !== false);
   }, [selectedCategoryId, categories, getCategoriesByParent]);
-
-  // Category to product keywords mapping (fallback for product filtering)
-  const categoryMap = {
-    1: [
-      "t-shirt",
-      "shirt",
-      "jeans",
-      "dress",
-      "gown",
-      "skirt",
-      "blazer",
-      "jacket",
-      "cardigan",
-      "sweater",
-      "flannel",
-      "maxi",
-    ],
-    2: ["sneakers", "pumps", "boots", "heels", "shoes"],
-    3: ["bag", "crossbody", "handbag"],
-    4: ["necklace", "watch", "wristwatch"],
-    5: ["sunglasses", "belt", "scarf"],
-    6: ["athletic", "running", "track", "sporty"],
-  };
 
   // Reset selected subcategory when category changes
   useEffect(() => {
@@ -105,68 +72,73 @@ const MobileCategories = () => {
     }
   }, [selectedCategoryId, subcategories]);
 
-  // Filter products based on selected category, subcategory, search query, and filters
-  const filteredProducts = useMemo(() => {
-    if (!selectedCategoryId) return [];
-
-    const categoryKeywords = categoryMap[selectedCategoryId] || [];
-    let filtered = products.filter((product) => {
-      const productName = product.name.toLowerCase();
-      return categoryKeywords.some((keyword) => productName.includes(keyword));
-    });
-
-    // Further filter by subcategory if one is selected
-    if (selectedSubcategory) {
-      const subcategory = subcategories.find(
-        (sub) => sub.id === selectedSubcategory
-      );
-      if (subcategory) {
-        // Use subcategory name for keyword matching (fallback approach)
-        const subcategoryName = subcategory.name.toLowerCase();
-        filtered = filtered.filter((product) => {
-          const productName = product.name.toLowerCase();
-          return (
-            productName.includes(subcategoryName.split(" ")[0]) ||
-            productName.includes(subcategoryName.split(" & ")[0])
-          );
-        });
-      }
+  // Fetch products by category
+  const fetchProducts = useCallback(async () => {
+    if (!selectedCategoryId) {
+      setProducts([]);
+      setProductsPagination({ total: 0, page: 1, totalPages: 1 });
+      return;
     }
 
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+    setLoadingProducts(true);
+    try {
+      const categoryIdToUse = selectedSubcategory || selectedCategoryId;
+      const result = await getProductsByCategory(categoryIdToUse, {
+        search: searchQuery || undefined,
+        minPrice: filters.minPrice || undefined,
+        maxPrice: filters.maxPrice || undefined,
+        minRating: filters.minRating || undefined,
+        page: 1,
+        limit: 100, // Get more products for better UX
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
 
-    // Filter by price range
-    if (filters.minPrice) {
-      filtered = filtered.filter(
-        (product) => product.price >= parseFloat(filters.minPrice)
-      );
-    }
-    if (filters.maxPrice) {
-      filtered = filtered.filter(
-        (product) => product.price <= parseFloat(filters.maxPrice)
-      );
-    }
+      const fetchedProducts = result.products || result.data?.products || [];
+      
+      // Transform products to match frontend format
+      const transformedProducts = fetchedProducts.map((product) => ({
+        id: product._id || product.id,
+        name: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        image: product.image,
+        images: product.images || [],
+        description: product.description,
+        unit: product.unit,
+        rating: product.rating || 0,
+        reviewCount: product.reviewCount || 0,
+        stock: product.stock,
+        stockQuantity: product.stockQuantity,
+        categoryId: product.categoryId?._id || product.categoryId,
+        subcategoryId: product.subcategoryId?._id || product.subcategoryId,
+        brandId: product.brandId?._id || product.brandId,
+        vendorId: product.vendorId?._id || product.vendorId,
+        isNew: product.isNew,
+        isFeatured: product.isFeatured,
+        flashSale: product.flashSale,
+      }));
 
-    // Filter by minimum rating
-    if (filters.minRating) {
-      filtered = filtered.filter(
-        (product) => product.rating >= parseFloat(filters.minRating)
-      );
+      setProducts(transformedProducts);
+      setProductsPagination({
+        total: result.total || result.data?.total || 0,
+        page: result.page || result.data?.page || 1,
+        totalPages: result.totalPages || result.data?.totalPages || 1,
+      });
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
+      setProducts([]);
+      setProductsPagination({ total: 0, page: 1, totalPages: 1 });
+    } finally {
+      setLoadingProducts(false);
     }
+  }, [selectedCategoryId, selectedSubcategory, searchQuery, filters]);
 
-    return filtered;
-  }, [
-    selectedCategoryId,
-    selectedSubcategory,
-    subcategories,
-    searchQuery,
-    filters,
-  ]);
+  // Fetch products when category, subcategory, search, or filters change
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
 
 
@@ -293,8 +265,7 @@ const MobileCategories = () => {
                     {selectedCategory.name}
                   </h2>
                   <p className="text-xs text-gray-600">
-                    {filteredProducts.length} product
-                    {filteredProducts.length !== 1 ? "s" : ""} available
+                    {loadingProducts ? "Loading..." : `${products.length} product${products.length !== 1 ? "s" : ""} available`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 relative">
@@ -550,7 +521,12 @@ const MobileCategories = () => {
                   </div>
                 )}
 
-                {filteredProducts.length === 0 ? (
+                {loadingProducts ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="mt-4 text-sm text-gray-600">Loading products...</p>
+                  </div>
+                ) : products.length === 0 ? (
                   <div key="empty" className="text-center py-12">
                     <div className="text-6xl text-gray-300 mx-auto mb-4">
                       📦
@@ -574,7 +550,7 @@ const MobileCategories = () => {
                       willChange: "opacity",
                       transform: "translateZ(0)",
                     }}>
-                    {filteredProducts.map((product) => (
+                    {products.map((product) => (
                       <div key={product.id}>
                         <ProductCard product={product} />
                       </div>

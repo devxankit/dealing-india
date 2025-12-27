@@ -21,7 +21,7 @@ const ProductForm = () => {
   const vendorName = vendor?.storeName || vendor?.name || "Vendor";
 
   const { categories, initialize: initCategories } = useCategoryStore();
-  const { brands, initialize: initBrands } = useBrandStore();
+  const { brands, fetchBrands } = useBrandStore();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -71,9 +71,9 @@ const ProductForm = () => {
 
   useEffect(() => {
     initCategories();
-    initBrands();
+    fetchBrands(); // Fetch brands from API
     fetchAttributes();
-  }, []);
+  }, [fetchBrands]);
 
   const [loading, setLoading] = useState(false);
 
@@ -463,10 +463,31 @@ const ProductForm = () => {
                 onChange={handleChange}
                 placeholder="Select Unit"
                 options={[
+                  { value: "", label: "Select Unit" },
                   { value: "pieces", label: "Pieces" },
-                  { value: "meter", label: "Meter" },
-                  { value: "litre", label: "Litre" },
-                  { value: "kg", label: "Kg" },
+                  { value: "pcs", label: "PCS" },
+                  { value: "nos", label: "NOS" },
+                  { value: "kg", label: "Kilogram (Kg)" },
+                  { value: "gram", label: "Gram (g)" },
+                  { value: "ton", label: "Ton" },
+                  { value: "meter", label: "Meter (m)" },
+                  { value: "cm", label: "Centimeter (cm)" },
+                  { value: "feet", label: "Feet (ft)" },
+                  { value: "yard", label: "Yard" },
+                  { value: "litre", label: "Litre (L)" },
+                  { value: "ml", label: "Milliliter (ml)" },
+                  { value: "gallon", label: "Gallon" },
+                  { value: "box", label: "Box" },
+                  { value: "pack", label: "Pack" },
+                  { value: "set", label: "Set" },
+                  { value: "pair", label: "Pair" },
+                  { value: "dozen", label: "Dozen" },
+                  { value: "carton", label: "Carton" },
+                  { value: "bundle", label: "Bundle" },
+                  { value: "roll", label: "Roll" },
+                  { value: "sheet", label: "Sheet" },
+                  { value: "sqft", label: "Square Feet (sqft)" },
+                  { value: "sqm", label: "Square Meter (sqm)" },
                 ]}
               />
             </div>

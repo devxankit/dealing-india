@@ -42,6 +42,8 @@ import supportDeskRoutes from './routes/supportDesk.routes.js';
 import publicCategoryRoutes from './routes/publicCategory.routes.js';
 import publicAttributeRoutes from './routes/publicAttribute.routes.js';
 import publicAttributeValueRoutes from './routes/publicAttributeValue.routes.js';
+import publicBrandRoutes from './routes/publicBrand.routes.js';
+import publicProductRoutes from './routes/publicProduct.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -121,6 +123,8 @@ app.use('/api/auth/admin', adminAuthRoutes);
 app.use('/api/categories', publicCategoryRoutes);
 app.use('/api/attributes', publicAttributeRoutes);
 app.use('/api/attribute-values', publicAttributeValueRoutes);
+app.use('/api/brands', publicBrandRoutes);
+app.use('/api/products', publicProductRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);

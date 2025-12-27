@@ -10,6 +10,7 @@ import {
   FiX,
   FiPlus,
   FiShoppingBag,
+  FiArrowLeft,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "../../../shared/store/useStore";
@@ -248,64 +249,36 @@ const Checkout = () => {
   return (
     <PageTransition>
       <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 w-full overflow-x-hidden">
-        <Header />
-        <Navbar />
-        <main
-          className="w-full overflow-x-hidden"
-          style={{ paddingTop: `${responsivePadding}px` }}>
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-2">
+        <main className="w-full overflow-x-hidden py-4">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-5xl mx-auto">
-              <Breadcrumbs />
-              <h1 className="text-3xl font-bold text-gray-800 mb-8">
+              {/* Back Button */}
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4 transition-colors">
+                <FiArrowLeft className="text-lg" />
+                <span className="text-sm font-medium">Back</span>
+              </button>
+              <h1 className="text-2xl font-bold text-gray-800 mb-4">
                 Checkout
               </h1>
 
-              {/* Guest Checkout Option */}
-              {!isAuthenticated && !isGuest && (
-                <div className="glass-card rounded-2xl p-6 mb-6">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800 mb-2">
-                        Have an account?
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Sign in for faster checkout and order tracking
-                      </p>
-                    </div>
-                    <div className="flex gap-3">
-                      <Link
-                        to="/login"
-                        className="px-6 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300">
-                        Sign In
-                      </Link>
-                      <button
-                        onClick={() => setIsGuest(true)}
-                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors">
-                        Continue as Guest
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Progress Steps */}
-              <div className="flex items-center justify-center mb-8">
-                <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center mb-5">
+                <div className="flex items-center gap-2">
                   {[1, 2, 3].map((s) => (
                     <div key={s} className="flex items-center">
                       <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                          step >= s
-                            ? "gradient-green text-white"
-                            : "bg-gray-200 text-gray-500"
-                        }`}>
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= s
+                          ? "gradient-green text-white"
+                          : "bg-gray-200 text-gray-500"
+                          }`}>
                         {s}
                       </div>
                       {s < 3 && (
                         <div
-                          className={`w-16 h-1 mx-2 ${
-                            step > s ? "gradient-green" : "bg-gray-200"
-                          }`}
+                          className={`w-10 h-0.5 mx-1 ${step > s ? "gradient-green" : "bg-gray-200"
+                            }`}
                         />
                       )}
                     </div>
@@ -313,7 +286,7 @@ const Checkout = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* Main Content */}
                 <div className="lg:col-span-2">
                   <form onSubmit={handleSubmit}>
@@ -322,51 +295,50 @@ const Checkout = () => {
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-card rounded-2xl p-6 mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        className="glass-card rounded-xl p-4 mb-4">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                           <FiTruck className="text-green-500" />
                           Shipping Information
                         </h2>
 
                         {/* Saved Addresses Selection */}
                         {isAuthenticated && addresses.length > 0 && (
-                          <div className="mb-6">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-4">
+                          <div className="mb-4">
+                            <h3 className="text-sm font-semibold text-gray-700 mb-2">
                               Saved Addresses
                             </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                               {addresses.map((address) => (
                                 <div
                                   key={address.id}
-                                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                                    selectedAddressId === address.id
-                                      ? "border-primary-500 bg-primary-50"
-                                      : "border-gray-200 hover:border-gray-300"
-                                  }`}
+                                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedAddressId === address.id
+                                    ? "border-primary-500 bg-primary-50"
+                                    : "border-gray-200 hover:border-gray-300"
+                                    }`}
                                   onClick={() => handleSelectAddress(address)}>
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <FiMapPin className="text-primary-600" />
-                                      <h4 className="font-bold text-gray-800">
+                                  <div className="flex items-start justify-between mb-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <FiMapPin className="text-primary-600 text-sm" />
+                                      <h4 className="font-semibold text-gray-800 text-sm">
                                         {address.name}
                                       </h4>
                                       {address.isDefault && (
-                                        <span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-xs font-semibold">
+                                        <span className="px-1.5 py-0.5 bg-primary-100 text-primary-700 rounded text-xs font-medium">
                                           Default
                                         </span>
                                       )}
                                     </div>
                                     {selectedAddressId === address.id && (
-                                      <FiCheck className="text-primary-600 text-xl" />
+                                      <FiCheck className="text-primary-600 text-lg" />
                                     )}
                                   </div>
-                                  <p className="text-sm text-gray-600">
+                                  <p className="text-xs text-gray-600">
                                     {address.fullName}
                                   </p>
-                                  <p className="text-sm text-gray-600">
+                                  <p className="text-xs text-gray-600">
                                     {address.address}
                                   </p>
-                                  <p className="text-sm text-gray-600">
+                                  <p className="text-xs text-gray-600">
                                     {address.city}, {address.state}{" "}
                                     {address.zipCode}
                                   </p>
@@ -376,11 +348,11 @@ const Checkout = () => {
                             <button
                               type="button"
                               onClick={() => setShowAddressForm(true)}
-                              className="flex items-center gap-2 px-4 py-2 text-primary-600 hover:text-primary-700 font-semibold transition-colors">
-                              <FiPlus />
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-primary-600 hover:text-primary-700 font-medium text-sm transition-colors">
+                              <FiPlus className="text-sm" />
                               Add New Address
                             </button>
-                            <div className="my-4 border-t border-gray-200"></div>
+                            <div className="my-3 border-t border-gray-200"></div>
                           </div>
                         )}
 
@@ -418,9 +390,9 @@ const Checkout = () => {
                           )}
                         </AnimatePresence>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
                               Full Name
                             </label>
                             <input
@@ -429,11 +401,11 @@ const Checkout = () => {
                               value={formData.name}
                               onChange={handleInputChange}
                               required
-                              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
                               Email
                             </label>
                             <input
@@ -442,11 +414,11 @@ const Checkout = () => {
                               value={formData.email}
                               onChange={handleInputChange}
                               required
-                              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
                               Phone Number
                             </label>
                             <input
@@ -455,11 +427,11 @@ const Checkout = () => {
                               value={formData.phone}
                               onChange={handleInputChange}
                               required
-                              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
                               City
                             </label>
                             <input
@@ -468,11 +440,11 @@ const Checkout = () => {
                               value={formData.city}
                               onChange={handleInputChange}
                               required
-                              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
                               State
                             </label>
                             <input
@@ -481,11 +453,11 @@ const Checkout = () => {
                               value={formData.state}
                               onChange={handleInputChange}
                               required
-                              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
                               ZIP Code
                             </label>
                             <input
@@ -494,11 +466,11 @@ const Checkout = () => {
                               value={formData.zipCode}
                               onChange={handleInputChange}
                               required
-                              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
                               Country
                             </label>
                             <input
@@ -507,11 +479,11 @@ const Checkout = () => {
                               value={formData.country}
                               onChange={handleInputChange}
                               required
-                              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                             />
                           </div>
                           <div className="sm:col-span-2">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
                               Address
                             </label>
                             <textarea
@@ -519,8 +491,8 @@ const Checkout = () => {
                               value={formData.address}
                               onChange={handleInputChange}
                               required
-                              rows={3}
-                              className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+                              rows={2}
+                              className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
                             />
                           </div>
                         </div>
@@ -532,34 +504,33 @@ const Checkout = () => {
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-card rounded-2xl p-6 mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        className="glass-card rounded-xl p-4 mb-4">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                           <FiCreditCard className="text-green-500" />
                           Payment Method
                         </h2>
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                           {["card", "cash", "bank"].map((method) => (
                             <label
                               key={method}
-                              className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                                formData.paymentMethod === method
-                                  ? "border-primary-500 bg-primary-50"
-                                  : "border-gray-200 hover:border-gray-300"
-                              }`}>
+                              className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.paymentMethod === method
+                                ? "border-primary-500 bg-primary-50"
+                                : "border-gray-200 hover:border-gray-300"
+                                }`}>
                               <input
                                 type="radio"
                                 name="paymentMethod"
                                 value={method}
                                 checked={formData.paymentMethod === method}
                                 onChange={handleInputChange}
-                                className="w-5 h-5 text-primary-500"
+                                className="w-4 h-4 text-primary-500"
                               />
-                              <span className="font-semibold text-gray-800 capitalize">
+                              <span className="font-medium text-gray-800 text-sm capitalize">
                                 {method === "card"
                                   ? "Credit/Debit Card"
                                   : method === "cash"
-                                  ? "Cash on Delivery"
-                                  : "Bank Transfer"}
+                                    ? "Cash on Delivery"
+                                    : "Bank Transfer"}
                               </span>
                             </label>
                           ))}
@@ -567,17 +538,16 @@ const Checkout = () => {
 
                         {/* Shipping Options */}
                         {total < 100 && (
-                          <div className="mt-6 pt-6 border-t border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <h3 className="text-sm font-semibold text-gray-800 mb-3">
                               Shipping Options
                             </h3>
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                               <label
-                                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                                  shippingOption === "standard"
-                                    ? "border-primary-500 bg-primary-50"
-                                    : "border-gray-200 hover:border-gray-300"
-                                }`}>
+                                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${shippingOption === "standard"
+                                  ? "border-primary-500 bg-primary-50"
+                                  : "border-gray-200 hover:border-gray-300"
+                                  }`}>
                                 <div>
                                   <input
                                     type="radio"
@@ -601,12 +571,11 @@ const Checkout = () => {
                                 </span>
                               </label>
                               <label
-                                className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                                  shippingOption === "express"
-                                    ? "border-primary-500 bg-primary-50"
-                                    : "border-gray-200 hover:border-gray-300"
-                                }`}>
-                                <div>
+                                className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${shippingOption === "express"
+                                  ? "border-primary-500 bg-primary-50"
+                                  : "border-gray-200 hover:border-gray-300"
+                                  }`}>
+                                <div className="flex items-center">
                                   <input
                                     type="radio"
                                     name="shippingOption"
@@ -615,22 +584,24 @@ const Checkout = () => {
                                     onChange={(e) =>
                                       setShippingOption(e.target.value)
                                     }
-                                    className="w-5 h-5 text-primary-500 mr-3"
+                                    className="w-4 h-4 text-primary-500 mr-2"
                                   />
-                                  <span className="font-semibold text-gray-800">
-                                    Express Shipping
-                                  </span>
-                                  <p className="text-sm text-gray-600">
-                                    2-3 business days
-                                  </p>
+                                  <div>
+                                    <span className="font-medium text-gray-800 text-sm">
+                                      Express Shipping
+                                    </span>
+                                    <p className="text-xs text-gray-600">
+                                      2-3 business days
+                                    </p>
+                                  </div>
                                 </div>
-                                <span className="font-bold text-gray-800">
+                                <span className="font-bold text-gray-800 text-sm">
                                   {formatPrice(100)}
                                 </span>
                               </label>
                             </div>
                             {total >= 50 && (
-                              <p className="mt-3 text-sm text-primary-600 font-semibold">
+                              <p className="mt-2 text-xs text-primary-600 font-medium">
                                 💡 Add {formatPrice(100 - total)} more for free
                                 shipping!
                               </p>
@@ -645,75 +616,75 @@ const Checkout = () => {
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-card rounded-2xl p-6 mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                        className="glass-card rounded-xl p-4 mb-4">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4">
                           Order Review
                         </h2>
-                        <div className="space-y-4 mb-6">
-                          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                            <FiMapPin className="text-green-500 text-xl" />
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                            <FiMapPin className="text-green-500 text-lg" />
                             <div>
-                              <p className="font-semibold text-gray-800">
+                              <p className="font-medium text-gray-800 text-sm">
                                 {formData.address}
                               </p>
-                              <p className="text-sm text-gray-600">
+                              <p className="text-xs text-gray-600">
                                 {formData.city}, {formData.zipCode}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                            <FiPhone className="text-green-500 text-xl" />
-                            <p className="font-semibold text-gray-800">
+                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                            <FiPhone className="text-green-500 text-lg" />
+                            <p className="font-medium text-gray-800 text-sm">
                               {formData.phone}
                             </p>
                           </div>
-                          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
-                            <FiMail className="text-green-500 text-xl" />
-                            <p className="font-semibold text-gray-800">
+                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                            <FiMail className="text-green-500 text-lg" />
+                            <p className="font-medium text-gray-800 text-sm">
                               {formData.email}
                             </p>
                           </div>
                         </div>
-                        <div className="border-t border-gray-200 pt-6">
-                          <h3 className="font-bold text-gray-800 mb-4">
+                        <div className="border-t border-gray-200 pt-4">
+                          <h3 className="font-semibold text-gray-800 text-sm mb-3">
                             Order Items
                           </h3>
-                          <div className="space-y-6">
+                          <div className="space-y-4">
                             {itemsByVendor.map((vendorGroup) => (
                               <div
                                 key={vendorGroup.vendorId}
-                                className="space-y-3">
+                                className="space-y-2">
                                 {/* Vendor Header */}
-                                <div className="flex items-center gap-2 px-3 py-2 bg-primary-50 rounded-lg">
-                                  <FiShoppingBag className="text-primary-600" />
-                                  <span className="font-semibold text-primary-700">
+                                <div className="flex items-center gap-2 px-2 py-1.5 bg-primary-50 rounded-lg">
+                                  <FiShoppingBag className="text-primary-600 text-sm" />
+                                  <span className="font-medium text-primary-700 text-sm">
                                     {vendorGroup.vendorName}
                                   </span>
-                                  <span className="text-sm text-primary-600 ml-auto">
+                                  <span className="text-xs text-primary-600 ml-auto">
                                     {formatPrice(vendorGroup.subtotal)}
                                   </span>
                                 </div>
                                 {/* Vendor Items */}
-                                <div className="space-y-3 pl-2">
+                                <div className="space-y-2 pl-2">
                                   {vendorGroup.items.map((item) => (
                                     <div
                                       key={item.id}
-                                      className="flex items-center gap-4">
+                                      className="flex items-center gap-3">
                                       <img
                                         src={item.image}
                                         alt={item.name}
-                                        className="w-16 h-16 rounded-lg object-cover"
+                                        className="w-12 h-12 rounded-lg object-cover"
                                       />
                                       <div className="flex-1">
-                                        <p className="font-semibold text-gray-800">
+                                        <p className="font-medium text-gray-800 text-sm">
                                           {item.name}
                                         </p>
-                                        <p className="text-sm text-gray-600">
+                                        <p className="text-xs text-gray-600">
                                           {formatPrice(item.price)} ×{" "}
                                           {item.quantity}
                                         </p>
                                       </div>
-                                      <p className="font-bold text-gray-800">
+                                      <p className="font-bold text-gray-800 text-sm">
                                         {formatPrice(
                                           item.price * item.quantity
                                         )}
@@ -729,18 +700,18 @@ const Checkout = () => {
                     )}
 
                     {/* Navigation Buttons */}
-                    <div className="flex gap-4">
+                    <div className="flex gap-3">
                       {step > 1 && (
                         <button
                           type="button"
                           onClick={() => setStep(step - 1)}
-                          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors">
+                          className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-300 transition-colors">
                           Back
                         </button>
                       )}
                       <button
                         type="submit"
-                        className="flex-1 gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300 hover:scale-105">
+                        className="flex-1 gradient-green text-white py-2.5 rounded-lg font-semibold text-sm hover:shadow-glow-green transition-all duration-300 hover:scale-105">
                         {step === 3 ? "Place Order" : "Continue"}
                       </button>
                     </div>
@@ -749,36 +720,36 @@ const Checkout = () => {
 
                 {/* Order Summary */}
                 <div className="lg:col-span-1">
-                  <div className="glass-card rounded-2xl p-6 sticky top-4">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">
+                  <div className="glass-card rounded-xl p-4 sticky top-4">
+                    <h2 className="text-base font-bold text-gray-800 mb-4">
                       Order Summary
                     </h2>
-                    <div className="space-y-4 mb-6">
+                    <div className="space-y-3 mb-4">
                       {itemsByVendor.map((vendorGroup) => (
-                        <div key={vendorGroup.vendorId} className="space-y-3">
+                        <div key={vendorGroup.vendorId} className="space-y-2">
                           {/* Vendor Header */}
-                          <div className="flex items-center gap-2 px-2 py-1 bg-primary-50 rounded-lg">
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-primary-50 rounded">
                             <FiShoppingBag className="text-primary-600 text-xs" />
-                            <span className="text-xs font-semibold text-primary-700">
+                            <span className="text-xs font-medium text-primary-700">
                               {vendorGroup.vendorName}
                             </span>
                           </div>
                           {/* Vendor Items */}
-                          <div className="space-y-2 pl-2">
+                          <div className="space-y-1.5 pl-1">
                             {vendorGroup.items.map((item) => (
                               <div
                                 key={item.id}
-                                className="flex items-center gap-3">
+                                className="flex items-center gap-2">
                                 <img
                                   src={item.image}
                                   alt={item.name}
-                                  className="w-12 h-12 rounded-lg object-cover"
+                                  className="w-10 h-10 rounded object-cover"
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-gray-800 truncate">
+                                  <p className="text-xs font-medium text-gray-800 truncate">
                                     {item.name}
                                   </p>
-                                  <p className="text-xs text-gray-600">
+                                  <p className="text-xs text-gray-500">
                                     {formatPrice(item.price)} × {item.quantity}
                                   </p>
                                 </div>
@@ -790,10 +761,10 @@ const Checkout = () => {
                     </div>
 
                     {/* Coupon Code */}
-                    <div className="mb-6 pb-6 border-b border-gray-200">
+                    <div className="mb-4 pb-4 border-b border-gray-200">
                       {!appliedCoupon ? (
-                        <div className="space-y-2">
-                          <label className="block text-sm font-semibold text-gray-700">
+                        <div className="space-y-1.5">
+                          <label className="block text-xs font-semibold text-gray-700">
                             Coupon Code
                           </label>
                           <div className="flex gap-2">
@@ -802,20 +773,20 @@ const Checkout = () => {
                               value={couponCode}
                               onChange={(e) => setCouponCode(e.target.value)}
                               placeholder="Enter code"
-                              className="flex-1 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                              className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 text-xs"
                             />
                             <button
                               type="button"
                               onClick={handleApplyCoupon}
-                              className="px-4 py-2 gradient-green text-white rounded-lg font-semibold text-sm hover:shadow-glow-green transition-all">
+                              className="px-3 py-1.5 gradient-green text-white rounded-lg font-medium text-xs hover:shadow-glow-green transition-all">
                               Apply
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                        <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
                           <div>
-                            <p className="text-sm font-semibold text-green-800">
+                            <p className="text-xs font-semibold text-green-800">
                               {appliedCoupon.name} Applied
                             </p>
                             <p className="text-xs text-green-600">
@@ -826,28 +797,28 @@ const Checkout = () => {
                             type="button"
                             onClick={handleRemoveCoupon}
                             className="text-red-600 hover:text-red-700">
-                            <FiX className="text-lg" />
+                            <FiX className="text-base" />
                           </button>
                         </div>
                       )}
                     </div>
 
-                    <div className="border-t border-gray-200 pt-4 space-y-2">
-                      <div className="flex justify-between text-gray-600">
+                    <div className="border-t border-gray-200 pt-3 space-y-1.5">
+                      <div className="flex justify-between text-gray-600 text-xs">
                         <span>Subtotal</span>
                         <span>{formatPrice(total)}</span>
                       </div>
                       {discount > 0 && (
-                        <div className="flex justify-between text-green-600">
+                        <div className="flex justify-between text-green-600 text-xs">
                           <span>Discount</span>
                           <span>-{formatPrice(discount)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-gray-600">
+                      <div className="flex justify-between text-gray-600 text-xs">
                         <span>Shipping</span>
                         <span>
                           {shipping === 0 ? (
-                            <span className="text-green-600 font-semibold">
+                            <span className="text-green-600 font-medium">
                               FREE
                             </span>
                           ) : (
@@ -855,11 +826,11 @@ const Checkout = () => {
                           )}
                         </span>
                       </div>
-                      <div className="flex justify-between text-gray-600">
+                      <div className="flex justify-between text-gray-600 text-xs">
                         <span>Tax</span>
                         <span>{formatPrice(tax)}</span>
                       </div>
-                      <div className="flex justify-between text-lg font-bold text-gray-800 pt-2 border-t border-gray-200">
+                      <div className="flex justify-between text-sm font-bold text-gray-800 pt-2 border-t border-gray-200">
                         <span>Total</span>
                         <span className="text-primary-600">
                           {formatPrice(finalTotal)}
@@ -872,7 +843,6 @@ const Checkout = () => {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     </PageTransition>
   );

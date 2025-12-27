@@ -1,10 +1,41 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { brands } from '../../../../data/brands';
+import { useBrandStore } from '../../../../shared/store/brandStore';
 import LazyImage from '../../../../shared/components/LazyImage';
 
 const BrandLogosScroll = () => {
-  // Use existing brands, can be expanded to 8-10 when more brands are added
-  const displayBrands = brands.slice(0, 10);
+  const { brands, initialize, isLoading } = useBrandStore();
+  const [displayBrands, setDisplayBrands] = useState([]);
+
+  useEffect(() => {
+    const loadBrands = async () => {
+      await initialize();
+      const activeBrands = brands.filter(brand => brand.isActive !== false);
+      setDisplayBrands(activeBrands); // Show all active brands
+    };
+    loadBrands();
+    
+    // Refresh brands every 30 seconds to get latest updates
+    const refreshInterval = setInterval(async () => {
+      const { refreshBrands } = useBrandStore.getState();
+      if (refreshBrands) {
+        await refreshBrands();
+        const updatedBrands = useBrandStore.getState().brands;
+        const activeBrands = updatedBrands.filter(brand => brand.isActive !== false);
+        setDisplayBrands(activeBrands); // Show all active brands
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [initialize, brands]);
+
+  if (isLoading && displayBrands.length === 0) {
+    return null; // Don't show anything while loading
+  }
+
+  if (displayBrands.length === 0) {
+    return null; // Don't show section if no brands
+  }
 
   return (
     <section className="bg-transparent w-full overflow-hidden">

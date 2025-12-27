@@ -1,6 +1,9 @@
 import SupportTicket from '../models/SupportTicket.model.js';
 import SupportMessage from '../models/SupportMessage.model.js';
 import TicketType from '../models/TicketType.model.js';
+import User from '../models/User.model.js';
+import Vendor from '../models/Vendor.model.js';
+import Admin from '../models/Admin.model.js';
 
 /**
  * Get vendor's tickets with filters and pagination
@@ -119,12 +122,33 @@ export const getVendorTicketById = async (ticketId, vendorId) => {
 
     // Get messages
     const messages = await SupportMessage.find({ ticket: ticketId })
-      .populate('sender', 'name email')
       .sort({ createdAt: 1 })
       .lean();
 
+    // Manually populate sender based on senderType
+    const populatedMessages = await Promise.all(
+      messages.map(async (msg) => {
+        if (msg.sender && msg.senderType) {
+          try {
+            let sender;
+            if (msg.senderType === 'vendor') {
+              sender = await Vendor.findById(msg.sender).select('name email').lean();
+            } else if (msg.senderType === 'user') {
+              sender = await User.findById(msg.sender).select('name email').lean();
+            } else if (msg.senderType === 'admin') {
+              sender = await Admin.findById(msg.sender).select('name email').lean();
+            }
+            msg.sender = sender || null;
+          } catch (error) {
+            msg.sender = null;
+          }
+        }
+        return msg;
+      })
+    );
+
     // Transform messages to match frontend expectations
-    const transformedMessages = messages.map((msg) => ({
+    const transformedMessages = populatedMessages.map((msg) => ({
       id: msg._id,
       sender: msg.senderType, // 'vendor', 'admin', or 'user'
       senderName: msg.sender?.name || 'Unknown',
@@ -189,8 +213,30 @@ export const createVendorTicket = async (vendorId, ticketData) => {
       ticketTypeId = type;
     }
 
+    // Generate ticket number before creating (fallback if pre-save hook fails)
+    let ticketNumber;
+    try {
+      const count = await SupportTicket.countDocuments();
+      const ticketNum = String(count + 1).padStart(6, '0');
+      ticketNumber = `TKT-${ticketNum}`;
+      
+      // Check if ticket number already exists (handle race condition)
+      const existing = await SupportTicket.findOne({ ticketNumber });
+      if (existing) {
+        // If duplicate, generate new number
+        const newCount = await SupportTicket.countDocuments();
+        const newTicketNum = String(newCount + 1).padStart(6, '0');
+        ticketNumber = `TKT-${newTicketNum}`;
+      }
+    } catch (error) {
+      // If count fails, use timestamp-based fallback
+      const timestamp = Date.now().toString().slice(-8);
+      ticketNumber = `TKT-${timestamp}`;
+    }
+
     // Create ticket
     const ticket = await SupportTicket.create({
+      ticketNumber, // Explicitly set ticket number
       createdBy: vendorId,
       createdByType: 'vendor',
       type: ticketTypeId,
@@ -255,10 +301,23 @@ export const addVendorMessageToTicket = async (ticketId, vendorId, message) => {
     ticket.messages.push(supportMessage._id);
     await ticket.save();
 
-    // Populate and return
-    const populatedMessage = await SupportMessage.findById(supportMessage._id)
-      .populate('sender', 'name email')
-      .lean();
+    // Manually populate sender based on senderType
+    let populatedMessage = await SupportMessage.findById(supportMessage._id).lean();
+    if (populatedMessage.sender && populatedMessage.senderType) {
+      try {
+        let sender;
+        if (populatedMessage.senderType === 'vendor') {
+          sender = await Vendor.findById(populatedMessage.sender).select('name email').lean();
+        } else if (populatedMessage.senderType === 'user') {
+          sender = await User.findById(populatedMessage.sender).select('name email').lean();
+        } else if (populatedMessage.senderType === 'admin') {
+          sender = await Admin.findById(populatedMessage.sender).select('name email').lean();
+        }
+        populatedMessage.sender = sender || null;
+      } catch (error) {
+        populatedMessage.sender = null;
+      }
+    }
 
     return {
       id: populatedMessage._id,

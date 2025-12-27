@@ -15,7 +15,7 @@ const AddProduct = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
   const { categories, initialize: initCategories } = useCategoryStore();
-  const { brands, initialize: initBrands } = useBrandStore();
+  const { brands, initialize: initBrands, fetchBrands } = useBrandStore();
 
   const vendorId = vendor?.id;
   const vendorName = vendor?.storeName || vendor?.name || "Vendor";
@@ -59,9 +59,9 @@ const AddProduct = () => {
 
   useEffect(() => {
     initCategories();
-    initBrands();
+    fetchBrands(); // Fetch brands from API
     fetchAttributes();
-  }, [initCategories, initBrands]);
+  }, [initCategories, fetchBrands]);
 
   // Fetch all active attributes
   const fetchAttributes = async () => {
@@ -199,10 +199,12 @@ const AddProduct = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
+    // Use functional update to ensure proper state batching
+    // This fixes the issue where CategorySelector calls onChange twice
+    setFormData((prev) => ({
+      ...prev,
       [name]: type === "checkbox" ? checked : value,
-    });
+    }));
   };
 
   const handleImageUpload = (e) => {
@@ -370,10 +372,31 @@ const AddProduct = () => {
                 onChange={handleChange}
                 placeholder="Select Unit"
                 options={[
+                  { value: "", label: "Select Unit" },
                   { value: "pieces", label: "Pieces" },
-                  { value: "meter", label: "Meter" },
-                  { value: "litre", label: "Litre" },
-                  { value: "kg", label: "Kg" },
+                  { value: "pcs", label: "PCS" },
+                  { value: "nos", label: "NOS" },
+                  { value: "kg", label: "Kilogram (Kg)" },
+                  { value: "gram", label: "Gram (g)" },
+                  { value: "ton", label: "Ton" },
+                  { value: "meter", label: "Meter (m)" },
+                  { value: "cm", label: "Centimeter (cm)" },
+                  { value: "feet", label: "Feet (ft)" },
+                  { value: "yard", label: "Yard" },
+                  { value: "litre", label: "Litre (L)" },
+                  { value: "ml", label: "Milliliter (ml)" },
+                  { value: "gallon", label: "Gallon" },
+                  { value: "box", label: "Box" },
+                  { value: "pack", label: "Pack" },
+                  { value: "set", label: "Set" },
+                  { value: "pair", label: "Pair" },
+                  { value: "dozen", label: "Dozen" },
+                  { value: "carton", label: "Carton" },
+                  { value: "bundle", label: "Bundle" },
+                  { value: "roll", label: "Roll" },
+                  { value: "sheet", label: "Sheet" },
+                  { value: "sqft", label: "Square Feet (sqft)" },
+                  { value: "sqm", label: "Square Meter (sqm)" },
                 ]}
               />
             </div>
@@ -743,8 +766,8 @@ const AddProduct = () => {
                                         handleAttributeValueChange(index, newValues);
                                       }}
                                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isSelected
-                                          ? 'bg-primary-600 text-white hover:bg-primary-700'
-                                          : 'bg-white text-gray-700 border border-gray-300 hover:border-primary-500 hover:bg-primary-50'
+                                        ? 'bg-primary-600 text-white hover:bg-primary-700'
+                                        : 'bg-white text-gray-700 border border-gray-300 hover:border-primary-500 hover:bg-primary-50'
                                         }`}>
                                       {val.value}
                                     </button>

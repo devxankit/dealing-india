@@ -20,6 +20,7 @@ import {
   getVendorTicket,
   createVendorTicket,
   sendTicketMessage,
+  getTicketTypes,
 } from "../services/supportTicketService";
 import { initializeSocket, getSocket, disconnectSocket } from "../../../shared/utils/socket";
 import toast from "react-hot-toast";
@@ -169,7 +170,9 @@ const SupportTickets = () => {
       }
     } catch (error) {
       console.error("Error creating ticket:", error);
-      toast.error("Failed to create ticket");
+      // Show more detailed error message
+      const errorMessage = error.response?.data?.message || error.message || "Failed to create ticket";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -532,22 +535,19 @@ const TicketDetail = ({
               messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${
-                    msg.sender === "vendor" ? "justify-end" : "justify-start"
-                  }`}>
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      msg.sender === "vendor"
-                        ? "bg-primary-600 text-white"
-                        : "bg-gray-100 text-gray-800"
+                  className={`flex ${msg.sender === "vendor" ? "justify-end" : "justify-start"
                     }`}>
+                  <div
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.sender === "vendor"
+                      ? "bg-primary-600 text-white"
+                      : "bg-gray-100 text-gray-800"
+                      }`}>
                     <p className="text-sm">{msg.message}</p>
                     <p
-                      className={`text-xs mt-1 ${
-                        msg.sender === "vendor"
-                          ? "text-primary-100"
-                          : "text-gray-500"
-                      }`}>
+                      className={`text-xs mt-1 ${msg.sender === "vendor"
+                        ? "text-primary-100"
+                        : "text-gray-500"
+                        }`}>
                       {new Date(msg.time).toLocaleTimeString()}
                     </p>
                   </div>
@@ -587,13 +587,66 @@ const TicketDetail = ({
 const TicketForm = ({ onSave, onClose, loading }) => {
   const [formData, setFormData] = useState({
     subject: "",
-    type: "Technical Support",
+    type: "",
     priority: "medium",
     description: "",
   });
+  const [ticketTypes, setTicketTypes] = useState([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
+
+  // Load ticket types from API
+  useEffect(() => {
+    const loadTicketTypes = async () => {
+      try {
+        setLoadingTypes(true);
+        const response = await getTicketTypes({ status: 'active' });
+        if (response.success && response.data?.ticketTypes) {
+          const types = response.data.ticketTypes.map((type) => ({
+            id: type._id || type.id,
+            name: type.name,
+            description: type.description || '',
+          }));
+          setTicketTypes(types);
+          
+          // Set default to first type if available and formData.type is empty
+          setFormData((prev) => {
+            if (!prev.type && types.length > 0) {
+              return { ...prev, type: types[0].name };
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error("Error loading ticket types:", error);
+        // Fallback to hardcoded types if API fails
+        const fallbackTypes = [
+          { id: '1', name: "Technical Support" },
+          { id: '2', name: "Billing Inquiry" },
+          { id: '3', name: "Product Inquiry" },
+          { id: '4', name: "Other" },
+        ];
+        setTicketTypes(fallbackTypes);
+        setFormData((prev) => {
+          if (!prev.type) {
+            return { ...prev, type: fallbackTypes[0].name };
+          }
+          return prev;
+        });
+      } finally {
+        setLoadingTypes(false);
+      }
+    };
+
+    loadTicketTypes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!formData.type) {
+      toast.error("Please select a ticket type");
+      return;
+    }
     onSave(formData);
   };
 
@@ -624,12 +677,24 @@ const TicketForm = ({ onSave, onClose, loading }) => {
                 onChange={(e) =>
                   setFormData({ ...formData, type: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg">
-                <option>Technical Support</option>
-                <option>Billing Inquiry</option>
-                <option>Product Inquiry</option>
-                <option>Other</option>
+                disabled={loadingTypes}
+                required
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed">
+                {loadingTypes ? (
+                  <option value="">Loading types...</option>
+                ) : ticketTypes.length === 0 ? (
+                  <option value="">No types available</option>
+                ) : (
+                  ticketTypes.map((type) => (
+                    <option key={type.id || type.name} value={type.name}>
+                      {type.name}
+                    </option>
+                  ))
+                )}
               </select>
+              {loadingTypes && (
+                <p className="text-xs text-gray-500 mt-1">Loading ticket types...</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">

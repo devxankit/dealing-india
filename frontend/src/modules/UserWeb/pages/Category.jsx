@@ -1,10 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { FiFilter, FiGrid, FiList, FiLoader } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { products } from '../../../data/products';
-import { categories as fallbackCategories } from '../../../data/categories';
 import { useCategoryStore } from '../../../shared/store/categoryStore';
+import { getProductsByCategory } from '../../../shared/services/productService';
 import { formatPrice } from '../../../shared/utils/helpers';
 import Header from '../components/Layout/Header';
 import Navbar from '../components/Layout/Navbar';
@@ -14,10 +13,11 @@ import ProductCard from '../../../shared/components/ProductCard';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import useInfiniteScroll from '../../../shared/hooks/useInfiniteScroll';
 import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeaderPadding';
+import toast from 'react-hot-toast';
 
 const Category = () => {
   const { id } = useParams();
-  const categoryId = parseInt(id);
+  const categoryId = id; // Keep as string for API
   const { categories, initialize, getCategoryById, getCategoriesByParent } = useCategoryStore();
   
   // Initialize store on mount
@@ -25,10 +25,9 @@ const Category = () => {
     initialize();
   }, [initialize]);
 
-  // Get category from store or fallback
+  // Get category from store
   const category = useMemo(() => {
-    const cat = getCategoryById(categoryId);
-    return cat || fallbackCategories.find((cat) => cat.id === categoryId);
+    return getCategoryById(categoryId);
   }, [categoryId, categories, getCategoryById]);
 
   // Get subcategories for this category
@@ -41,52 +40,102 @@ const Category = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [sortBy, setSortBy] = useState('default'); // default, price-low, price-high, rating
   const [showFilters, setShowFilters] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [productsPagination, setProductsPagination] = useState({
+    total: 0,
+    page: 1,
+    totalPages: 1,
+  });
 
-  // Category to product keywords mapping
-  const categoryMap = {
-    1: ['t-shirt', 'shirt', 'jeans', 'dress', 'gown', 'skirt', 'blazer', 'jacket', 'cardigan', 'sweater', 'flannel', 'maxi'],
-    2: ['sneakers', 'pumps', 'boots', 'heels', 'shoes'],
-    3: ['bag', 'crossbody', 'handbag'],
-    4: ['necklace', 'watch', 'wristwatch'],
-    5: ['sunglasses', 'belt', 'scarf'],
-    6: ['athletic', 'running', 'track', 'sporty'],
-  };
-
-  // Filter products by category
-  const categoryProducts = useMemo(() => {
-    if (!category) return [];
-    
-    const keywords = categoryMap[categoryId] || [];
-    return products.filter((product) => {
-      const productName = product.name.toLowerCase();
-      return keywords.some((keyword) => productName.includes(keyword));
-    });
-  }, [categoryId, category]);
-
-  // Sort products
-  const sortedProducts = useMemo(() => {
-    let sorted = [...categoryProducts];
-
-    switch (sortBy) {
-      case 'price-low':
-        sorted.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        sorted.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating':
-        sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-        break;
-      default:
-        break;
+  // Fetch products by category
+  const fetchProducts = useCallback(async () => {
+    if (!categoryId) {
+      setProducts([]);
+      setProductsPagination({ total: 0, page: 1, totalPages: 1 });
+      return;
     }
 
-    return sorted;
-  }, [categoryProducts, sortBy]);
+    setLoadingProducts(true);
+    try {
+      // Determine sortBy and sortOrder based on sortBy state
+      let sortByParam = 'createdAt';
+      let sortOrderParam = 'desc';
+      
+      switch (sortBy) {
+        case 'price-low':
+          sortByParam = 'price';
+          sortOrderParam = 'asc';
+          break;
+        case 'price-high':
+          sortByParam = 'price';
+          sortOrderParam = 'desc';
+          break;
+        case 'rating':
+          sortByParam = 'rating';
+          sortOrderParam = 'desc';
+          break;
+        default:
+          sortByParam = 'createdAt';
+          sortOrderParam = 'desc';
+      }
+
+      const result = await getProductsByCategory(categoryId, {
+        page: 1,
+        limit: 100, // Get more products for better UX
+        sortBy: sortByParam,
+        sortOrder: sortOrderParam,
+      });
+
+      const fetchedProducts = result.products || result.data?.products || [];
+      
+      // Transform products to match frontend format
+      const transformedProducts = fetchedProducts.map((product) => ({
+        id: product._id || product.id,
+        name: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        image: product.image,
+        images: product.images || [],
+        description: product.description,
+        unit: product.unit,
+        rating: product.rating || 0,
+        reviewCount: product.reviewCount || 0,
+        stock: product.stock,
+        stockQuantity: product.stockQuantity,
+        categoryId: product.categoryId?._id || product.categoryId,
+        subcategoryId: product.subcategoryId?._id || product.subcategoryId,
+        brandId: product.brandId?._id || product.brandId,
+        vendorId: product.vendorId?._id || product.vendorId,
+        isNew: product.isNew,
+        isFeatured: product.isFeatured,
+        flashSale: product.flashSale,
+      }));
+
+      setProducts(transformedProducts);
+      setProductsPagination({
+        total: result.total || result.data?.total || 0,
+        page: result.page || result.data?.page || 1,
+        totalPages: result.totalPages || result.data?.totalPages || 1,
+      });
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
+      setProducts([]);
+      setProductsPagination({ total: 0, page: 1, totalPages: 1 });
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [categoryId, sortBy]);
+
+  // Fetch products when category or sortBy changes
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Infinite scroll hook
   const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } = useInfiniteScroll(
-    sortedProducts,
+    products,
     12,
     12
   );
@@ -124,21 +173,27 @@ const Category = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
-                      <img
-                        src={category.image}
-                        alt={category.name}
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/80x80?text=Category';
-                        }}
-                      />
+                      {category.image ? (
+                        <img
+                          src={category.image}
+                          alt={category.name}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/80x80?text=Category';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-2xl">
+                          {category.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-gradient mb-2 relative z-10">
                         {category.name}
                       </h1>
                       <p className="text-gray-600 text-sm sm:text-base">
-                        {sortedProducts.length} product{sortedProducts.length !== 1 ? 's' : ''} available
+                        {loadingProducts ? "Loading..." : `${products.length} product${products.length !== 1 ? 's' : ''} available`}
                       </p>
                     </div>
                   </div>
@@ -217,7 +272,12 @@ const Category = () => {
               </div>
 
               {/* Products Grid/List */}
-              {sortedProducts.length === 0 ? (
+              {loadingProducts ? (
+                <div className="glass-card rounded-2xl p-12 text-center">
+                  <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="mt-4 text-sm text-gray-600">Loading products...</p>
+                </div>
+              ) : products.length === 0 ? (
                 <div className="glass-card rounded-2xl p-12 text-center">
                   <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
                   <h3 className="text-xl font-bold text-gray-800 mb-2">No products found</h3>
@@ -346,4 +406,3 @@ const Category = () => {
 };
 
 export default Category;
-

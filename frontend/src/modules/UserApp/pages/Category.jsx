@@ -1,17 +1,17 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiFilter, FiArrowLeft, FiGrid, FiList, FiX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import MobileLayout from "../components/Layout/MobileLayout";
 import ProductCard from "../../../shared/components/ProductCard";
 import ProductListItem from "../components/Mobile/ProductListItem";
-import { products } from "../../../data/products";
-import { categories as fallbackCategories } from "../../../data/categories";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
+import { getProductsByCategory } from "../../../shared/services/productService";
 import PageTransition from "../../../shared/components/PageTransition";
 import useInfiniteScroll from "../../../shared/hooks/useInfiniteScroll";
 import LazyImage from "../../../shared/components/LazyImage";
 import { getPlaceholderImage } from "../../../shared/utils/helpers";
+import toast from "react-hot-toast";
 
 const MobileCategory = () => {
   const { id } = useParams();
@@ -25,10 +25,9 @@ const MobileCategory = () => {
     initialize();
   }, [initialize]);
 
-  // Get category from store or fallback
+  // Get category from store
   const category = useMemo(() => {
-    const cat = getCategoryById(categoryId);
-    return cat || fallbackCategories.find((cat) => cat.id === categoryId);
+    return getCategoryById(categoryId);
   }, [categoryId, categories, getCategoryById]);
 
   // Get subcategories for this category
@@ -47,59 +46,82 @@ const MobileCategory = () => {
     maxPrice: "",
     minRating: "",
   });
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [productsPagination, setProductsPagination] = useState({
+    total: 0,
+    page: 1,
+    totalPages: 1,
+  });
 
-  const categoryMap = {
-    1: [
-      "t-shirt",
-      "shirt",
-      "jeans",
-      "dress",
-      "gown",
-      "skirt",
-      "blazer",
-      "jacket",
-      "cardigan",
-      "sweater",
-      "flannel",
-      "maxi",
-    ],
-    2: ["sneakers", "pumps", "boots", "heels", "shoes"],
-    3: ["bag", "crossbody", "handbag"],
-    4: ["necklace", "watch", "wristwatch"],
-    5: ["sunglasses", "belt", "scarf"],
-    6: ["athletic", "running", "track", "sporty"],
-  };
-
-  const categoryProducts = useMemo(() => {
-    if (!category) return [];
-
-    const keywords = categoryMap[categoryId] || [];
-    let result = products.filter((product) => {
-      const productName = product.name.toLowerCase();
-      return keywords.some((keyword) => productName.includes(keyword));
-    });
-
-    if (filters.minPrice) {
-      result = result.filter(
-        (product) => product.price >= parseFloat(filters.minPrice)
-      );
-    }
-    if (filters.maxPrice) {
-      result = result.filter(
-        (product) => product.price <= parseFloat(filters.maxPrice)
-      );
-    }
-    if (filters.minRating) {
-      result = result.filter(
-        (product) => product.rating >= parseFloat(filters.minRating)
-      );
+  // Fetch products by category
+  const fetchProducts = useCallback(async () => {
+    if (!categoryId) {
+      setProducts([]);
+      setProductsPagination({ total: 0, page: 1, totalPages: 1 });
+      return;
     }
 
-    return result;
-  }, [categoryId, category, filters]);
+    setLoadingProducts(true);
+    try {
+      const result = await getProductsByCategory(categoryId, {
+        minPrice: filters.minPrice || undefined,
+        maxPrice: filters.maxPrice || undefined,
+        minRating: filters.minRating || undefined,
+        page: 1,
+        limit: 100, // Get more products for better UX
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
+
+      const fetchedProducts = result.products || result.data?.products || [];
+      
+      // Transform products to match frontend format
+      const transformedProducts = fetchedProducts.map((product) => ({
+        id: product._id || product.id,
+        name: product.name,
+        price: product.price,
+        originalPrice: product.originalPrice,
+        image: product.image,
+        images: product.images || [],
+        description: product.description,
+        unit: product.unit,
+        rating: product.rating || 0,
+        reviewCount: product.reviewCount || 0,
+        stock: product.stock,
+        stockQuantity: product.stockQuantity,
+        categoryId: product.categoryId?._id || product.categoryId,
+        subcategoryId: product.subcategoryId?._id || product.subcategoryId,
+        brandId: product.brandId?._id || product.brandId,
+        vendorId: product.vendorId?._id || product.vendorId,
+        isNew: product.isNew,
+        isFeatured: product.isFeatured,
+        flashSale: product.flashSale,
+      }));
+
+      setProducts(transformedProducts);
+      setProductsPagination({
+        total: result.total || result.data?.total || 0,
+        page: result.page || result.data?.page || 1,
+        totalPages: result.totalPages || result.data?.totalPages || 1,
+      });
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
+      setProducts([]);
+      setProductsPagination({ total: 0, page: 1, totalPages: 1 });
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, [categoryId, filters]);
+
+  // Fetch products when category or filters change
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } =
-    useInfiniteScroll(categoryProducts, 10, 10);
+    useInfiniteScroll(products, 10, 10);
 
   const filterButtonRef = useRef(null);
 
@@ -193,8 +215,7 @@ const MobileCategory = () => {
                   {category.name}
                 </h1>
                 <p className="text-sm text-gray-600">
-                  {categoryProducts.length} product
-                  {categoryProducts.length !== 1 ? "s" : ""}
+                  {loadingProducts ? "Loading..." : `${products.length} product${products.length !== 1 ? "s" : ""}`}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -373,7 +394,12 @@ const MobileCategory = () => {
 
           {/* Products List */}
           <div className="px-4 py-4">
-            {categoryProducts.length === 0 ? (
+            {loadingProducts ? (
+              <div className="text-center py-12">
+                <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-4 text-sm text-gray-600">Loading products...</p>
+              </div>
+            ) : products.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">

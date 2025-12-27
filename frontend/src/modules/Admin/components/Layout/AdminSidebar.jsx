@@ -66,9 +66,9 @@ const getChildRoute = (parentRoute, childName) => {
       "Product FAQs": "/admin/products/product-faqs",
     },
     "/admin/attributes": {
-      "Attribute Sets": "/admin/attributes/attribute-sets",
       Attributes: "/admin/attributes/attributes",
       "Attribute Values": "/admin/attributes/attribute-values",
+      "Attribute Sets": "/admin/attributes/attribute-sets",
     },
     "/admin/categories": {
       "Manage Categories": "/admin/categories/manage-categories",
