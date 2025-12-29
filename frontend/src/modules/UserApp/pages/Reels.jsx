@@ -6,15 +6,17 @@ import { getActiveReels } from "../../../shared/utils/reelHelpers";
 import toast from "react-hot-toast";
 import MobileLayout from "../components/Layout/MobileLayout";
 import useMobileHeaderHeight from "../hooks/useMobileHeaderHeight";
+import MegaRewardSheet from "../components/MegaRewardSheet";
 
-const MobileReels = () => {
+const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [reels, setReels] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [showMuteIcon, setShowMuteIcon] = useState(false);
+  const [showRewardPopup, setShowRewardPopup] = useState(false);
   const videoRefs = useRef([]);
   const containerRef = useRef(null);
   const pressTimer = useRef(null);
@@ -24,7 +26,7 @@ const MobileReels = () => {
 
   // Load reels data
   useEffect(() => {
-    const type = searchParams.get("type");
+    const type = defaultType || searchParams.get("type");
     let loadedReels = [];
 
     if (type === "promotional") {
@@ -86,7 +88,9 @@ const MobileReels = () => {
       }
     ];
 
-    setReels([...localReels, ...loadedReels]);
+    const combinedReels = [...localReels, ...loadedReels];
+    const uniqueReels = Array.from(new Map(combinedReels.map(reel => [reel.id, reel])).values());
+    setReels(uniqueReels);
   }, [searchParams]);
 
   // Handle Play/Pause on visibility change
@@ -150,15 +154,17 @@ const MobileReels = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50">
+    <div className={isEmbedded ? "relative w-full h-full bg-black rounded-xl overflow-hidden" : "fixed inset-0 bg-black z-50"}>
       {/* Top Header Overlay */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-4 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent">
-        <button onClick={() => navigate(-1)} className="text-white p-2">
-          <FiArrowLeft className="text-2xl" />
-        </button>
-        <span className="text-white font-bold tracking-wide">Reels</span>
-        <div className="w-8"></div> {/* Spacer */}
-      </div>
+      {!isEmbedded && (
+        <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-4 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent">
+          <button onClick={() => navigate(-1)} className="text-white p-2">
+            <FiArrowLeft className="text-2xl" />
+          </button>
+          <span className="text-white font-bold tracking-wide">Reels</span>
+          <div className="w-8"></div> {/* Spacer */}
+        </div>
+      )}
 
       {/* Vertical Scroll Container */}
       <div
@@ -168,7 +174,6 @@ const MobileReels = () => {
       >
         {reels.map((reel, index) => (
           <div key={reel.id} className="h-full w-full snap-start snap-always relative bg-gray-900 flex items-center justify-center">
-            {/* Video Player */}
             {/* Video Player */}
             <video
               ref={el => videoRefs.current[index] = el}
@@ -291,14 +296,14 @@ const MobileReels = () => {
 
                   <button onClick={() => handleShare(reel)} className="flex flex-col items-center gap-1 group">
                     <div className="p-3 rounded-full bg-white/10 backdrop-blur-md">
-                      <FiSend className="text-2xl text-white transform -rotate-45 translate-x-1" />
+                      <FiSend className="text-2xl text-white" />
                     </div>
                     <span className="text-white text-xs font-medium">Share</span>
                   </button>
 
                   {/* Mega Reward Promo Button */}
                   {reel.isPromotional && (
-                    <button className="flex flex-col items-center gap-1 animate-pulse">
+                    <button onClick={() => setShowRewardPopup(true)} className="flex flex-col items-center gap-1 animate-pulse">
                       <div className="p-3 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/50">
                         <FiGift className="text-2xl text-white" />
                       </div>
@@ -314,6 +319,13 @@ const MobileReels = () => {
 
       {/* Using MobileLayout context just for bottom nav if needed, but here we want full screen immersive */}
       {/* We can manually render bottom nav if we want it over the video, or just rely on back button */}
+
+      {/* Mega Reward Popup Sheet */}
+      <MegaRewardSheet
+        isOpen={showRewardPopup}
+        onClose={() => setShowRewardPopup(false)}
+        reel={reels[currentIndex]}
+      />
     </div>
   );
 };

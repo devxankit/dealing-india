@@ -40,10 +40,14 @@ export const registerVendor = async (vendorData) => {
 
     if (existingVendor) {
       if (existingVendor.email === email.toLowerCase()) {
-        throw new Error('Email already registered');
+        const error = new Error('Email already registered');
+        error.statusCode = 409;
+        throw error;
       }
       if (existingVendor.phone === phone) {
-        throw new Error('Phone number already registered');
+        const error = new Error('Phone number already registered');
+        error.statusCode = 409;
+        throw error;
       }
     }
 
@@ -137,25 +141,33 @@ export const loginVendor = async (email, password) => {
     }).select('+password'); // Include password field
 
     if (!vendor) {
-      throw new Error('Invalid credentials');
+      const error = new Error('Invalid credentials');
+      error.statusCode = 401;
+      throw error;
     }
 
     // Check if account is active
     if (!vendor.isActive) {
-      throw new Error('Account is inactive. Please contact support.');
+      const error = new Error('Account is inactive. Please contact support.');
+      error.statusCode = 403;
+      throw error;
     }
 
     // Check if vendor is approved (vendors can only login if approved)
     if (vendor.status !== 'approved') {
-      throw new Error(
+      const error = new Error(
         `Vendor account is ${vendor.status}. Please wait for admin approval before logging in.`
       );
+      error.statusCode = 403;
+      throw error;
     }
 
     // Verify password
     const isPasswordValid = await comparePassword(password, vendor.password);
     if (!isPasswordValid) {
-      throw new Error('Invalid credentials');
+      const error = new Error('Invalid credentials');
+      error.statusCode = 401;
+      throw error;
     }
 
     // Generate token
@@ -220,7 +232,9 @@ export const updateVendorProfile = async (vendorId, updateData) => {
         _id: { $ne: vendorId },
       });
       if (existingVendor) {
-        throw new Error('Phone number already in use');
+        const error = new Error('Phone number already in use');
+        error.statusCode = 409;
+        throw error;
       }
       updateFields.phone = phone.trim();
     }
@@ -244,7 +258,9 @@ export const updateVendorProfile = async (vendorId, updateData) => {
     );
 
     if (!vendor) {
-      throw new Error('Vendor not found');
+      const error = new Error('Vendor not found');
+      error.statusCode = 404;
+      throw error;
     }
 
     return vendor;
@@ -299,7 +315,9 @@ export const resendVendorVerificationOTP = async (email) => {
     // Check if vendor exists
     const vendor = await Vendor.findOne({ email: email.toLowerCase() });
     if (!vendor) {
-      throw new Error('Vendor not found');
+      const error = new Error('Vendor not found');
+      error.statusCode = 404;
+      throw error;
     }
 
     if (vendor.isEmailVerified) {
@@ -330,7 +348,9 @@ export const forgotVendorPassword = async (email) => {
     // Check if vendor exists
     const vendor = await Vendor.findOne({ email: email.toLowerCase() });
     if (!vendor) {
-      throw new Error('No vendor account found with this email address');
+      const error = new Error('No vendor account found with this email address');
+      error.statusCode = 404;
+      throw error;
     }
 
     // Check if email is verified
