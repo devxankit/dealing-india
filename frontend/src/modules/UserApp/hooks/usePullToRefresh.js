@@ -13,84 +13,122 @@ const usePullToRefresh = (onRefresh, options = {}) => {
   const [pullDistance, setPullDistance] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const startY = useRef(0);
-  const currentY = useRef(0);
+
   const elementRef = useRef(null);
 
-  const handleTouchStart = useCallback((e) => {
-    if (isRefreshing) return;
-    
-    const touch = e.touches[0];
-    startY.current = touch.clientY;
-    currentY.current = touch.clientY;
-    
-    // Only start pull if at the top of the scrollable area
-    const element = elementRef.current;
-    if (element && element.scrollTop === 0) {
-      setIsPulling(true);
-    }
-  }, [isRefreshing]);
+  // Keep latest callback to avoid re-binding listeners
+  const onRefreshLatest = useRef(onRefresh);
+  useEffect(() => {
+    onRefreshLatest.current = onRefresh;
+  }, [onRefresh]);
 
-  const handleTouchMove = useCallback((e) => {
-    if (!isPulling || isRefreshing) return;
-    
-    const touch = e.touches[0];
-    currentY.current = touch.clientY;
-    
+  // Refs for mutable state in event handlers
+  const stateRef = useRef({
+    startY: 0,
+    currentY: 0,
+    isPulling: false,
+    isRefreshing: false,
+    pullDistance: 0
+  });
+
+  // Sync state variables to ref for external access if needed (though we set them in handlers)
+  useEffect(() => {
+    stateRef.current.isPulling = isPulling;
+    stateRef.current.isRefreshing = isRefreshing;
+  }, [isPulling, isRefreshing]);
+
+  useEffect(() => {
     const element = elementRef.current;
-    if (element && element.scrollTop === 0) {
-      const deltaY = currentY.current - startY.current;
-      
-      if (deltaY > 0) {
-        e.preventDefault(); // Prevent default scroll
+    if (!element) return;
+
+    const handleTouchStart = (e) => {
+      // Don't start if already refreshing
+      if (stateRef.current.isRefreshing) return;
+
+      const touch = e.touches[0];
+      stateRef.current.startY = touch.clientY;
+      stateRef.current.currentY = touch.clientY;
+
+      // Only enable pull if we are at the top
+      if (element.scrollTop <= 0) {
+        stateRef.current.isPulling = true;
+        setIsPulling(true);
+      } else {
+        stateRef.current.isPulling = false;
+        setIsPulling(false);
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      if (!stateRef.current.isPulling || stateRef.current.isRefreshing) return;
+
+      const touch = e.touches[0];
+      stateRef.current.currentY = touch.clientY;
+      const deltaY = stateRef.current.currentY - stateRef.current.startY;
+
+      // If pulling down
+      if (deltaY > 0 && element.scrollTop <= 0) {
+        if (e.cancelable) {
+          e.preventDefault(); // Critical: prevent native scroll
+        }
+
         const distance = Math.min(deltaY / resistance, threshold * 1.5);
+        stateRef.current.pullDistance = distance;
         setPullDistance(distance);
+      } else {
+        // If scrolling up or not pulling, let native scroll happen and reset
+        stateRef.current.isPulling = false;
+        setIsPulling(false);
+        setPullDistance(0);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!stateRef.current.isPulling || stateRef.current.isRefreshing) return;
+
+      if (stateRef.current.pullDistance >= threshold) {
+        setIsRefreshing(true);
+        stateRef.current.isRefreshing = true;
+        setPullDistance(threshold);
+
+        Promise.resolve(onRefreshLatest.current()).finally(() => {
+          setTimeout(() => {
+            setIsRefreshing(false);
+            stateRef.current.isRefreshing = false;
+            setPullDistance(0);
+            setIsPulling(false);
+            stateRef.current.isPulling = false;
+            stateRef.current.pullDistance = 0;
+          }, 300);
+        });
       } else {
         setPullDistance(0);
         setIsPulling(false);
+        stateRef.current.isPulling = false;
+        stateRef.current.pullDistance = 0;
       }
-    }
-  }, [isPulling, isRefreshing, resistance, threshold]);
 
-  const handleTouchEnd = useCallback(() => {
-    if (!isPulling || isRefreshing) return;
-    
-    if (pullDistance >= threshold) {
-      setIsRefreshing(true);
-      setPullDistance(threshold);
-      
-      // Execute refresh callback
-      Promise.resolve(onRefresh()).finally(() => {
-        setTimeout(() => {
-          setIsRefreshing(false);
-          setPullDistance(0);
-          setIsPulling(false);
-        }, 300);
-      });
-    } else {
-      // Spring back
-      setPullDistance(0);
-      setIsPulling(false);
-    }
-    
-    startY.current = 0;
-    currentY.current = 0;
-  }, [isPulling, isRefreshing, pullDistance, threshold, onRefresh]);
+      stateRef.current.startY = 0;
+      stateRef.current.currentY = 0;
+    };
 
-  // Reset on mount
-  useEffect(() => {
-    setPullDistance(0);
-    setIsPulling(false);
-  }, []);
+    // Attach listeners. Passive: false is required for touchmove to preventDefault.
+    element.addEventListener('touchstart', handleTouchStart, { passive: true });
+    element.addEventListener('touchmove', handleTouchMove, { passive: false });
+    element.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      element.removeEventListener('touchstart', handleTouchStart);
+      element.removeEventListener('touchmove', handleTouchMove);
+      element.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [threshold, resistance]);
 
   return {
     pullDistance,
     isPulling,
     isRefreshing,
-    elementRef,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
+    elementRef
   };
 };
 

@@ -44,6 +44,7 @@ import publicAttributeRoutes from './routes/publicAttribute.routes.js';
 import publicAttributeValueRoutes from './routes/publicAttributeValue.routes.js';
 import publicBrandRoutes from './routes/publicBrand.routes.js';
 import publicProductRoutes from './routes/publicProduct.routes.js';
+import userSupportRoutes from './routes/userSupport.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -143,7 +144,11 @@ app.use('/api/admin/products', productManagementRoutes);
 app.use('/api/admin', taxPricingRoutes);
 app.use('/api/admin/product-ratings', productRatingsRoutes);
 app.use('/api/admin/product-faqs', productFAQsRoutes);
+app.use('/api/admin/product-faqs', productFAQsRoutes);
 app.use('/api/admin/support', supportDeskRoutes);
+
+// User management routes (require user authentication)
+app.use('/api/user/support', userSupportRoutes);
 
 // Vendor management routes (require vendor authentication)
 app.use('/api/vendor/products', vendorProductsRoutes);

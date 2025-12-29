@@ -40,6 +40,7 @@ const MobileCategories = () => {
   const activeCategoryRef = useRef(null);
   const filterButtonRef = useRef(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+  const [selectedSubSubcategory, setSelectedSubSubcategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -63,6 +64,13 @@ const MobileCategories = () => {
     return subcats.filter((cat) => cat.isActive !== false);
   }, [selectedCategoryId, categories, getCategoriesByParent]);
 
+  // Get sub-subcategories for selected subcategory
+  const subSubcategories = useMemo(() => {
+    if (!selectedSubcategory) return [];
+    const subSubcats = getCategoriesByParent(selectedSubcategory);
+    return subSubcats.filter((cat) => cat.isActive !== false);
+  }, [selectedSubcategory, categories, getCategoriesByParent]);
+
   // Reset selected subcategory when category changes
   useEffect(() => {
     if (subcategories.length > 0) {
@@ -71,6 +79,15 @@ const MobileCategories = () => {
       setSelectedSubcategory(null);
     }
   }, [selectedCategoryId, subcategories]);
+
+  // Reset selected sub-subcategory when subcategory changes
+  useEffect(() => {
+    if (subSubcategories.length > 0) {
+      setSelectedSubSubcategory(subSubcategories[0].id);
+    } else {
+      setSelectedSubSubcategory(null);
+    }
+  }, [selectedSubcategory, subSubcategories]);
 
   // Fetch products by category
   const fetchProducts = useCallback(async () => {
@@ -82,7 +99,8 @@ const MobileCategories = () => {
 
     setLoadingProducts(true);
     try {
-      const categoryIdToUse = selectedSubcategory || selectedCategoryId;
+      // Prioritize sub-sub-category, then sub-category, then main category
+      const categoryIdToUse = selectedSubSubcategory || selectedSubcategory || selectedCategoryId;
       const result = await getProductsByCategory(categoryIdToUse, {
         search: searchQuery || undefined,
         minPrice: filters.minPrice || undefined,
@@ -95,7 +113,7 @@ const MobileCategories = () => {
       });
 
       const fetchedProducts = result.products || result.data?.products || [];
-      
+
       // Transform products to match frontend format
       const transformedProducts = fetchedProducts.map((product) => ({
         id: product._id || product.id,
@@ -133,7 +151,7 @@ const MobileCategories = () => {
     } finally {
       setLoadingProducts(false);
     }
-  }, [selectedCategoryId, selectedSubcategory, searchQuery, filters]);
+  }, [selectedCategoryId, selectedSubcategory, selectedSubSubcategory, searchQuery, filters]);
 
   // Fetch products when category, subcategory, search, or filters change
   useEffect(() => {
@@ -456,8 +474,8 @@ const MobileCategories = () => {
                         <div className="flex flex-col items-center gap-1.5">
                           <div
                             className={`w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 transition-all duration-200 ${isActive
-                                ? "ring-2 ring-primary-500 ring-offset-1 scale-105"
-                                : ""
+                              ? "ring-2 ring-primary-500 ring-offset-1 scale-105"
+                              : ""
                               }`}
                             style={{
                               willChange: isActive ? "transform" : "auto",
@@ -508,11 +526,45 @@ const MobileCategories = () => {
                               }
                               whileTap={{ scale: 0.97 }}
                               className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap border ${isActive
-                                  ? "bg-white text-primary-600 border-primary-200 shadow-sm"
-                                  : "bg-gray-50 text-gray-600 border-gray-200 active:bg-gray-100"
+                                ? "bg-white text-primary-600 border-primary-200 shadow-sm"
+                                : "bg-gray-50 text-gray-600 border-gray-200 active:bg-gray-100"
                                 }`}
                               style={{ willChange: "transform" }}>
                               {subcategory.name}
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sub-subcategory Selector */}
+                {subSubcategories.length > 0 && (
+                  <div className="mb-3 pb-3 border-b border-gray-200">
+                    <div
+                      className="overflow-x-auto scrollbar-hide -mx-3 px-3"
+                      style={{
+                        scrollBehavior: "smooth",
+                        WebkitOverflowScrolling: "touch",
+                      }}>
+                      <div className="flex gap-1.5">
+                        {subSubcategories.map((subSub) => {
+                          const isActive =
+                            selectedSubSubcategory === subSub.id;
+                          return (
+                            <motion.button
+                              key={subSub.id}
+                              onClick={() =>
+                                setSelectedSubSubcategory(subSub.id)
+                              }
+                              whileTap={{ scale: 0.97 }}
+                              className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap border ${isActive
+                                ? "bg-white text-primary-600 border-primary-200 shadow-sm"
+                                : "bg-gray-50 text-gray-600 border-gray-200 active:bg-gray-100"
+                                }`}
+                              style={{ willChange: "transform" }}>
+                              {subSub.name}
                             </motion.button>
                           );
                         })}

@@ -13,6 +13,11 @@ const supportTicketSchema = new mongoose.Schema(
       required: [true, 'Ticket creator is required'],
       refPath: 'createdByType',
     },
+    relatedVendor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vendor',
+      default: null,
+    },
     createdByType: {
       type: String,
       required: [true, 'Creator type is required'],
@@ -84,7 +89,7 @@ supportTicketSchema.pre('save', async function (next) {
       const count = await this.constructor.countDocuments();
       const ticketNum = String(count + 1).padStart(6, '0');
       this.ticketNumber = `TKT-${ticketNum}`;
-      
+
       // Retry logic in case of duplicate ticket number (race condition)
       let attempts = 0;
       while (attempts < 5) {

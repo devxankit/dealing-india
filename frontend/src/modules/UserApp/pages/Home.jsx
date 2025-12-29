@@ -37,10 +37,10 @@ const MobileHome = () => {
   const [autoSlidePaused, setAutoSlidePaused] = useState(false);
 
   const slides = [
-    { image: heroSlide1 },
-    { image: heroSlide2 },
-    { image: heroSlide3 },
-    { image: heroSlide4 },
+    { image: heroSlide1, link: "/app/search" },
+    { image: heroSlide2, link: "/app/daily-deals" },
+    { image: heroSlide3, link: "/app/flash-sale" },
+    { image: heroSlide4, link: "/app/offers" },
   ];
 
   const mostPopular = getMostPopular();
@@ -132,9 +132,6 @@ const MobileHome = () => {
     isPulling,
     isRefreshing,
     elementRef,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
   } = usePullToRefresh(handleRefresh);
 
   return (
@@ -143,9 +140,6 @@ const MobileHome = () => {
         <div
           ref={elementRef}
           className="w-full min-h-screen bg-gray-50"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
           style={{
             transform: `translateY(${Math.min(pullDistance, 80)}px)`,
             transition: isPulling ? "none" : "transform 0.3s ease-out",
@@ -179,9 +173,10 @@ const MobileHome = () => {
                   type: "tween",
                 }}>
                 {slides.map((slide, index) => (
-                  <div
+                  <Link
+                    to={slide.link}
                     key={index}
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 block"
                     style={{
                       width: `${100 / slides.length}%`,
                       height: "100%",
@@ -196,7 +191,7 @@ const MobileHome = () => {
                           }`;
                       }}
                     />
-                  </div>
+                  </Link>
                 ))}
               </motion.div>
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 pointer-events-none">
@@ -209,8 +204,8 @@ const MobileHome = () => {
                       setTimeout(() => setAutoSlidePaused(false), 2000);
                     }}
                     className={`h-1.5 rounded-full transition-all pointer-events-auto shadow-sm ${index === currentSlide
-                        ? "bg-white w-6"
-                        : "bg-white/50 w-1.5 backdrop-blur-sm"
+                      ? "bg-white w-6"
+                      : "bg-white/50 w-1.5 backdrop-blur-sm"
                       }`}
                   />
                 ))}
@@ -306,16 +301,18 @@ const MobileHome = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               className="relative w-full h-40 rounded-xl overflow-hidden shadow-lg">
-              <LazyImage
-                src={heroBanner2}
-                alt="Trending Items Banner"
-                className="w-full h-full object-cover object-center"
-                context="hero"
-                onError={(e) => {
-                  e.target.src =
-                    "https://via.placeholder.com/1200x300?text=Banner";
-                }}
-              />
+              <Link to="/app/search?sort=trending" className="block w-full h-full">
+                <LazyImage
+                  src={heroBanner2}
+                  alt="Trending Items Banner"
+                  className="w-full h-full object-cover object-center"
+                  context="hero"
+                  onError={(e) => {
+                    e.target.src =
+                      "https://via.placeholder.com/1200x300?text=Banner";
+                  }}
+                />
+              </Link>
             </motion.div>
           </div>
 
