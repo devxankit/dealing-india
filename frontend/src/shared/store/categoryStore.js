@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { categories as initialCategories } from '../../data/categories';
 import toast from 'react-hot-toast';
 import api from '../utils/api.js';
 
@@ -39,8 +38,8 @@ export const useCategoryStore = create(
           set({ categories, isLoading: false });
         } catch (error) {
           console.error('Failed to fetch categories:', error);
-          // Fallback to initial categories on error
-          set({ categories: initialCategories, isLoading: false });
+          // Keep categories empty on error - don't use mock data
+          set({ categories: [], isLoading: false });
         }
       },
 

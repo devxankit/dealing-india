@@ -17,35 +17,16 @@ const __dirname = path.dirname(__filename);
 const brandsPath = path.join(__dirname, '../../frontend/src/assets/brands');
 
 /**
- * Get all brand folders
+ * Get all image files from brands folder
  */
-const getBrandFolders = () => {
+const getBrandImages = () => {
   try {
     if (!fs.existsSync(brandsPath)) {
       console.error(`❌ Brands path does not exist: ${brandsPath}`);
       return [];
     }
 
-    const items = fs.readdirSync(brandsPath, { withFileTypes: true });
-    const folders = items
-      .filter(item => item.isDirectory())
-      .map(item => item.name);
-
-    console.log(`📁 Found ${folders.length} brand folders:`, folders);
-    return folders;
-  } catch (error) {
-    console.error('❌ Error reading brands directory:', error.message);
-    return [];
-  }
-};
-
-/**
- * Get all image files from a brand folder
- */
-const getBrandImages = (brandFolder) => {
-  try {
-    const brandPath = path.join(brandsPath, brandFolder);
-    const items = fs.readdirSync(brandPath);
+    const items = fs.readdirSync(brandsPath);
 
     // Filter for image files
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
@@ -54,12 +35,43 @@ const getBrandImages = (brandFolder) => {
       return imageExtensions.includes(ext);
     });
 
-    console.log(`🖼️  Found ${images.length} images in ${brandFolder}:`, images);
-    return images.map(image => path.join(brandPath, image));
+    console.log(`🖼️  Found ${images.length} brand images:`, images);
+    return images.map(image => ({
+      filename: image,
+      filepath: path.join(brandsPath, image)
+    }));
   } catch (error) {
-    console.error(`❌ Error reading images from ${brandFolder}:`, error.message);
+    console.error('❌ Error reading brands directory:', error.message);
     return [];
   }
+};
+
+/**
+ * Generate brand name from filename
+ */
+const generateBrandName = (filename) => {
+  // Remove file extension
+  let name = path.parse(filename).name;
+
+  // Clean up filename - remove common prefixes/suffixes
+  name = name
+    .replace(/^images\s*\(\d+\)$/, '') // Remove "images (1)", "images (2)", etc.
+    .replace(/^images$/, '') // Remove just "images"
+    .replace(/-/g, ' ') // Replace hyphens with spaces
+    .replace(/_/g, ' ') // Replace underscores with spaces
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim();
+
+  // If name is empty after cleaning, use original filename without extension
+  if (!name) {
+    name = path.parse(filename).name;
+  }
+
+  // Capitalize first letter of each word
+  return name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 };
 
 /**
@@ -114,49 +126,41 @@ const createBrand = async (brandName, logoUrl) => {
 };
 
 /**
- * Process a single brand folder
+ * Process a single brand image
  */
-const processBrandFolder = async (brandFolder) => {
-  console.log(`\n🔄 Processing brand folder: ${brandFolder}`);
+const processBrandImage = async (imageInfo) => {
+  console.log(`\n🔄 Processing brand image: ${imageInfo.filename}`);
 
   try {
-    // Get images for this brand
-    const imagePaths = getBrandImages(brandFolder);
+    // Generate brand name from filename
+    const brandName = generateBrandName(imageInfo.filename);
+    console.log(`🏷️  Generated brand name: "${brandName}"`);
 
-    if (imagePaths.length === 0) {
-      console.log(`⚠️  No images found in ${brandFolder}, skipping...`);
-      return;
-    }
-
-    // Upload the first image as logo (or you can choose logic for selecting logo)
-    const logoImagePath = imagePaths[0];
-    const logoUrl = await uploadImage(logoImagePath, brandFolder);
+    // Upload image
+    const logoUrl = await uploadImage(imageInfo.filepath, brandName);
 
     if (!logoUrl) {
-      console.log(`❌ Failed to upload logo for ${brandFolder}, skipping brand creation...`);
+      console.log(`❌ Failed to upload logo for ${imageInfo.filename}, skipping brand creation...`);
       return;
     }
 
-    // Upload additional images if needed (you can modify this logic)
-    // For now, we'll just use the first image as logo
-
     // Create brand in database
-    const brand = await createBrand(brandFolder, logoUrl);
+    const brand = await createBrand(brandName, logoUrl);
 
     if (brand) {
-      console.log(`🎉 Successfully processed brand: ${brandFolder}`);
+      console.log(`🎉 Successfully processed brand: ${brandName}`);
     }
   } catch (error) {
-    console.error(`❌ Error processing brand folder ${brandFolder}:`, error.message);
+    console.error(`❌ Error processing brand image ${imageInfo.filename}:`, error.message);
   }
 };
 
 /**
- * Main function to seed brands
+ * Main function to seed brands from images
  */
-const seedBrands = async () => {
+const seedBrandsFromImages = async () => {
   try {
-    console.log('🚀 Starting brand seeding process...\n');
+    console.log('🚀 Starting brand seeding from images process...\n');
 
     // Connect to database
     if (!process.env.MONGODB_URI) {
@@ -166,19 +170,19 @@ const seedBrands = async () => {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 
-    // Get all brand folders
-    const brandFolders = getBrandFolders();
+    // Get all brand images
+    const brandImages = getBrandImages();
 
-    if (brandFolders.length === 0) {
-      console.log('❌ No brand folders found. Please ensure brands are in frontend/src/assets/brands/');
+    if (brandImages.length === 0) {
+      console.log('❌ No brand images found. Please ensure brand images are in frontend/src/assets/brands/');
       return;
     }
 
-    console.log(`\n📋 Processing ${brandFolders.length} brand(s)...\n`);
+    console.log(`\n📋 Processing ${brandImages.length} brand image(s)...\n`);
 
-    // Process each brand folder
-    for (const brandFolder of brandFolders) {
-      await processBrandFolder(brandFolder);
+    // Process each brand image
+    for (const imageInfo of brandImages) {
+      await processBrandImage(imageInfo);
 
       // Add a small delay to avoid overwhelming the system
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -202,4 +206,4 @@ const seedBrands = async () => {
 };
 
 // Run the script
-seedBrands();
+seedBrandsFromImages();

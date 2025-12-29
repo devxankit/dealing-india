@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { categories as staticCategories } from "../../../../data/categories";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { FiX, FiSave, FiUpload, FiPackage, FiShoppingBag, FiStar, FiTag, FiZap, FiHeart, FiHome, FiGrid, FiBox, FiLayers, FiShoppingCart, FiTruck, FiGift, FiCoffee, FiMusic, FiCamera, FiBook, FiWatch, FiHeadphones, FiSmartphone, FiMonitor, FiCpu, FiBattery, FiWifi, FiDroplet, FiScissors, FiUmbrella, FiSun, FiMoon, FiCloud, FiThermometer, FiActivity, FiAward, FiBriefcase, FiCreditCard, FiDollarSign, FiTrendingUp, FiBarChart2, FiSettings, FiTool, FiShield, FiLock, FiUnlock, FiKey, FiBell, FiMail, FiMessageCircle, FiUsers, FiUser, FiUserCheck, FiUserPlus, FiUserX, FiEye, FiEyeOff, FiSearch, FiFilter, FiRefreshCw, FiEdit, FiTrash2, FiPlus, FiMinus, FiCheck, FiXCircle, FiAlertCircle, FiInfo, FiHelpCircle, FiChevronRight, FiChevronLeft, FiChevronUp, FiChevronDown, FiArrowRight, FiArrowLeft, FiArrowUp, FiArrowDown, FiMove, FiCopy, FiDownload, FiShare2, FiLink, FiExternalLink, FiPrinter, FiFile, FiFolder, FiImage, FiVideo, FiFileText, FiArchive, FiDatabase, FiServer, FiHardDrive, FiGlobe, FiMap, FiMapPin, FiNavigation, FiCompass, FiFlag, FiCalendar, FiClock, FiMessageSquare, FiSend, FiInbox, FiPaperclip, FiLink2, FiShare, FiThumbsUp, FiThumbsDown, FiBookmark, FiTarget, FiCrosshair, FiPower, FiRadio, FiTv, FiTablet, FiMic, FiMicOff, FiVolume2, FiVolumeX, FiVolume, FiVolume1, FiSkipBack, FiSkipForward, FiPlay, FiPause, FiRepeat, FiShuffle, FiMaximize, FiMinimize, FiMaximize2, FiMinimize2, FiCornerUpRight, FiCornerUpLeft, FiCornerDownRight, FiCornerDownLeft, FiCornerRightUp, FiCornerRightDown, FiCornerLeftUp, FiCornerLeftDown, FiRotateCw, FiRotateCcw, FiType, FiAlignLeft, FiAlignCenter, FiAlignRight, FiAlignJustify, FiBold, FiItalic, FiUnderline, FiList, FiLayout, FiSidebar, FiColumns, FiSliders, FiToggleLeft, FiToggleRight, FiCheckSquare, FiSquare, FiCircle, FiCheckCircle, FiAlertTriangle, FiAlertOctagon, FiZapOff, FiBatteryCharging, FiWifiOff, FiRss, FiPhone, FiPhoneCall, FiPhoneOff } from "react-icons/fi";
 import { IoShirtOutline, IoBagHandleOutline, IoRestaurantOutline, IoFitnessOutline, IoCarOutline, IoHomeOutline, IoBookOutline, IoGameControllerOutline, IoMusicalNotesOutline, IoCameraOutline, IoPhonePortraitOutline, IoLaptopOutline, IoWatchOutline, IoHeadsetOutline, IoShirt, IoBedOutline } from "react-icons/io5";
@@ -54,16 +53,6 @@ const iconComponents = {
   FiUserCheck, FiUserPlus, FiUserX, FiUnlock,
 };
 
-// Fallback mapping for old categories without icon field
-const categoryIconsFallback = {
-  Clothing: IoShirtOutline,
-  Footwear: LuFootprints,
-  Bags: IoBagHandleOutline,
-  Jewelry: FiStar,
-  Accessories: FiTag,
-  Athletic: FiZap,
-};
-
 // Get icon component from category
 const getCategoryIcon = (category) => {
   // Only return icon if category has an icon field set
@@ -88,11 +77,21 @@ const MobileCategoryIcons = () => {
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef(null);
 
-  // Get categories from store (active root categories only)
-  const { categories: storeCategories } = useCategoryStore();
-  const categories = storeCategories.length > 0
-    ? storeCategories.filter(cat => cat.isActive && !cat.parentId).sort((a, b) => (a.order || 0) - (b.order || 0))
-    : staticCategories;
+  // Get categories from store (active root categories only) - only use real data
+  const { categories: storeCategories, getRootCategories, initialize, isLoading } = useCategoryStore();
+
+  // Initialize categories on mount
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Get root categories - only use real data, wait for loading to complete
+  const categories = useMemo(() => {
+    if (isLoading) return [];
+    return getRootCategories()
+      .filter(cat => cat.isActive !== false)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [storeCategories, isLoading, getRootCategories]);
 
   useEffect(() => {
     const handleScroll = () => {

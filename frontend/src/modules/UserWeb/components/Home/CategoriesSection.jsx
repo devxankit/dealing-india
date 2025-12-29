@@ -2,7 +2,6 @@ import { useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { gsapAnimations } from '../../../../shared/utils/animations';
 import CategoryCard from '../../../../shared/components/CategoryCard';
-import { categories as fallbackCategories } from '../../../../data/categories';
 import { useCategoryStore } from '../../../../shared/store/categoryStore';
 
 const CategoriesSection = () => {
@@ -14,10 +13,9 @@ const CategoriesSection = () => {
     initialize();
   }, [initialize]);
 
-  // Get root categories (categories without parent) or fallback
+  // Get root categories (categories without parent) - only use real data
   const displayCategories = useMemo(() => {
-    const roots = getRootCategories().filter(cat => cat.isActive !== false);
-    return roots.length > 0 ? roots : fallbackCategories;
+    return getRootCategories().filter(cat => cat.isActive !== false);
   }, [categories, getRootCategories]);
 
   useEffect(() => {
