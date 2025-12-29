@@ -23,6 +23,35 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
       ? getCategoryById(category.parentId)
       : null;
 
+  // Calculate category depth (1 = root, 2 = subcategory, 3 = sub-subcategory)
+  const getCategoryDepth = (catId) => {
+    if (!catId) return 1;
+    let depth = 1;
+    let currentId = catId;
+    const visited = new Set();
+
+    while (currentId) {
+      if (visited.has(String(currentId))) break; // Prevent infinite loop
+      visited.add(String(currentId));
+
+      const cat = getCategoryById(currentId);
+      if (!cat || !cat.parentId) break;
+
+      depth++;
+      if (depth > 3) return depth; // Already exceeded
+      currentId = cat.parentId;
+    }
+
+    return depth;
+  };
+
+  // Get current category depth
+  const currentDepth = isEdit && category?.parentId 
+    ? getCategoryDepth(category.parentId) + 1 
+    : parentId 
+      ? getCategoryDepth(parentId) + 1 
+      : 1;
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -428,6 +457,15 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
       return;
     }
 
+    // Validate depth before submission
+    if (!isEdit && formData.parentId) {
+      const parentDepth = getCategoryDepth(formData.parentId);
+      if (parentDepth >= 3) {
+        toast.error("Maximum category depth reached. Cannot create subcategories beyond level 3.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       if (isEdit) {
@@ -450,10 +488,40 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     }
   };
 
-  // Get available parent categories (exclude current category and its children)
+  // Get available parent categories (exclude current category, its children, and categories that would exceed level 3)
   const getAvailableParents = () => {
-    if (!isEdit) return categories.filter((cat) => cat.isActive);
-    return categories.filter((cat) => cat.id !== category.id && cat.isActive);
+    let available = categories.filter((cat) => cat.isActive);
+    
+    // Exclude current category if editing
+    if (isEdit) {
+      available = available.filter((cat) => cat.id !== category.id);
+    }
+
+    // Filter based on current depth:
+    // - Level 1 (root): Only root categories (depth 1) as parent
+    // - Level 2 (first subcategory): Only Level 1 (root) parents (depth 1)
+    // - Level 3 (second subcategory): Only Level 2 parents (depth 2)
+    if (currentDepth === 1) {
+      // Creating root category - allow all root categories (depth 1) as parent
+      available = available.filter((cat) => {
+        const catDepth = getCategoryDepth(cat.id);
+        return catDepth === 1; // Only root categories
+      });
+    } else if (currentDepth === 2) {
+      // Creating first subcategory - only allow Level 1 (root) parents
+      available = available.filter((cat) => {
+        const catDepth = getCategoryDepth(cat.id);
+        return catDepth === 1; // Only root categories
+      });
+    } else if (currentDepth === 3) {
+      // Creating second subcategory - only allow Level 2 parents
+      available = available.filter((cat) => {
+        const catDepth = getCategoryDepth(cat.id);
+        return catDepth === 2; // Only Level 2 categories
+      });
+    }
+
+    return available;
   };
 
   return (
@@ -595,33 +663,51 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Parent Category
                     </label>
-                    {isSubcategory || (isEdit && category.parentId) ? (
+                    {/* Show parent selector ONLY for Level 1 (root) when creating new category without parentId prop */}
+                    {/* If parentId prop is passed, parent is fixed (for first subcategory) */}
+                    {/* Level 3 (second subcategory) also has fixed parent */}
+                    {currentDepth === 1 && !parentId && !isEdit ? (
+                      <>
+                        <AnimatedSelect
+                          name="parentId"
+                          value={formData.parentId || ""}
+                          onChange={handleChange}
+                          placeholder="None (Root Category)"
+                          options={[
+                            { value: "", label: "None (Root Category)" },
+                            ...getAvailableParents().map((cat) => ({
+                              value: String(cat.id),
+                              label: cat.name,
+                            })),
+                          ]}
+                        />
+                        {formData.parentId && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Selected parent is at level {getCategoryDepth(formData.parentId)}. 
+                            {getCategoryDepth(formData.parentId) >= 3 
+                              ? " Cannot create subcategories beyond level 3." 
+                              : ` This will create a level ${getCategoryDepth(formData.parentId) + 1} category.`}
+                          </p>
+                        )}
+                      </>
+                    ) : (
                       <div className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg">
                         <div className="flex items-center gap-2">
                           <span className="text-gray-700 font-medium">
                             {parentCategory ? parentCategory.name : "None"}
                           </span>
-                          {isSubcategory && (
+                          {parentId && currentDepth === 2 && (
                             <span className="text-xs text-gray-500">
-                              (Cannot be changed)
+                              (Parent category is fixed)
+                            </span>
+                          )}
+                          {currentDepth >= 3 && (
+                            <span className="text-xs text-red-600 font-semibold">
+                              (Maximum depth reached - cannot add more subcategories)
                             </span>
                           )}
                         </div>
                       </div>
-                    ) : (
-                      <AnimatedSelect
-                        name="parentId"
-                        value={formData.parentId || ""}
-                        onChange={handleChange}
-                        placeholder="None (Root Category)"
-                        options={[
-                          { value: "", label: "None (Root Category)" },
-                          ...getAvailableParents().map((cat) => ({
-                            value: String(cat.id),
-                            label: cat.name,
-                          })),
-                        ]}
-                      />
                     )}
                   </div>
                 </div>
@@ -690,8 +776,9 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                 </div>
               )}
 
-              {/* Image - Only show for main categories, not subcategories */}
-              {!isSubcategory && (
+              {/* Image - Show only for Level 1 (root) and Level 3 (second subcategory), NOT for Level 2 (first subcategory) */}
+              {currentDepth === 1 || currentDepth === 3 ? (
+              <div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-800 mb-4">
                     Category Image
@@ -796,7 +883,8 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                     )}
                   </div>
                 </div>
-              )}
+              </div>
+              ) : null}
 
               {/* Settings */}
               <div>

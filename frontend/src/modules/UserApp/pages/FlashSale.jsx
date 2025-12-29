@@ -3,6 +3,7 @@ import { FiArrowLeft, FiFilter, FiGrid, FiList, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
+import MobileFilterPanel from "../components/Mobile/MobileFilterPanel";
 import ProductCard from '../../../shared/components/ProductCard';
 import ProductListItem from '../components/Mobile/ProductListItem';
 import { getFlashSale } from '../../../data/products';
@@ -140,9 +141,15 @@ const MobileFlashSale = () => {
                     />
                   </button>
 
-                  {/* Filter Dropdown */}
-                  <AnimatePresence>
-                    {showFilters && (
+                  {/* Filter Bottom Sheet */}
+                  <MobileFilterPanel
+                    isOpen={showFilters}
+                    onClose={() => setShowFilters(false)}
+                    filters={filters}
+                    onFilterChange={(name, value) => setFilters({ ...filters, [name]: value })}
+                    onClearFilters={() => setFilters({ category: '', minPrice: '', maxPrice: '', minRating: '' })}
+                  />
+                    {false && (
                       <>
                         {/* Backdrop */}
                         <motion.div

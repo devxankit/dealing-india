@@ -1,21 +1,15 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiArrowLeft, FiFilter, FiX } from "react-icons/fi";
+import { FiSearch } from "react-icons/fi";
 import MobileLayout from "../components/Layout/MobileLayout";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
-import { getProductsByCategory } from "../../../shared/services/productService";
 import PageTransition from "../../../shared/components/PageTransition";
 import LazyImage from "../../../shared/components/LazyImage";
-import ProductCard from "../../../shared/components/ProductCard";
-import useMobileHeaderHeight from "../hooks/useMobileHeaderHeight";
-import { getPlaceholderImage } from "../../../shared/utils/helpers";
-import toast from "react-hot-toast";
 
 const MobileCategories = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const defaultHeaderHeight = useMobileHeaderHeight();
   const { categories, initialize, getCategoriesByParent, getRootCategories } =
     useCategoryStore();
 
@@ -30,32 +24,11 @@ const MobileCategories = () => {
     return roots;
   }, [categories, getRootCategories]);
 
-  // Header is hidden on categories page, so use 0
-  const headerHeight =
-    location.pathname === "/app/categories" ? 0 : defaultHeaderHeight;
   const [selectedCategoryId, setSelectedCategoryId] = useState(
     rootCategories[0]?.id || null
   );
   const categoryListRef = useRef(null);
   const activeCategoryRef = useRef(null);
-  const filterButtonRef = useRef(null);
-  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-  const [selectedSubSubcategory, setSelectedSubSubcategory] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    category: "",
-    minPrice: "",
-    maxPrice: "",
-    minRating: "",
-  });
-  const [products, setProducts] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [productsPagination, setProductsPagination] = useState({
-    total: 0,
-    page: 1,
-    totalPages: 1,
-  });
 
   // Get subcategories for selected category
   const subcategories = useMemo(() => {
@@ -64,103 +37,19 @@ const MobileCategories = () => {
     return subcats.filter((cat) => cat.isActive !== false);
   }, [selectedCategoryId, categories, getCategoriesByParent]);
 
-  // Get sub-subcategories for selected subcategory
-  const subSubcategories = useMemo(() => {
-    if (!selectedSubcategory) return [];
-    const subSubcats = getCategoriesByParent(selectedSubcategory);
-    return subSubcats.filter((cat) => cat.isActive !== false);
-  }, [selectedSubcategory, categories, getCategoriesByParent]);
+  // Group subcategories - Show all first subcategories as cards, even if they have children
+  const groupedSubcategories = useMemo(() => {
+    if (!subcategories.length) return [];
+    
+    // Always show all first subcategories as cards in a single group
+    // If a first subcategory has children (second subcategories), those will be shown when clicked
+    return [{
+      parent: null,
+      children: subcategories // All first subcategories shown as cards
+    }];
+  }, [subcategories]);
 
-  // Reset selected subcategory when category changes
-  useEffect(() => {
-    if (subcategories.length > 0) {
-      setSelectedSubcategory(subcategories[0].id);
-    } else {
-      setSelectedSubcategory(null);
-    }
-  }, [selectedCategoryId, subcategories]);
-
-  // Reset selected sub-subcategory when subcategory changes
-  useEffect(() => {
-    if (subSubcategories.length > 0) {
-      setSelectedSubSubcategory(subSubcategories[0].id);
-    } else {
-      setSelectedSubSubcategory(null);
-    }
-  }, [selectedSubcategory, subSubcategories]);
-
-  // Fetch products by category
-  const fetchProducts = useCallback(async () => {
-    if (!selectedCategoryId) {
-      setProducts([]);
-      setProductsPagination({ total: 0, page: 1, totalPages: 1 });
-      return;
-    }
-
-    setLoadingProducts(true);
-    try {
-      // Prioritize sub-sub-category, then sub-category, then main category
-      const categoryIdToUse = selectedSubSubcategory || selectedSubcategory || selectedCategoryId;
-      const result = await getProductsByCategory(categoryIdToUse, {
-        search: searchQuery || undefined,
-        minPrice: filters.minPrice || undefined,
-        maxPrice: filters.maxPrice || undefined,
-        minRating: filters.minRating || undefined,
-        page: 1,
-        limit: 100, // Get more products for better UX
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      });
-
-      const fetchedProducts = result.products || result.data?.products || [];
-
-      // Transform products to match frontend format
-      const transformedProducts = fetchedProducts.map((product) => ({
-        id: product._id || product.id,
-        name: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        images: product.images || [],
-        description: product.description,
-        unit: product.unit,
-        rating: product.rating || 0,
-        reviewCount: product.reviewCount || 0,
-        stock: product.stock,
-        stockQuantity: product.stockQuantity,
-        categoryId: product.categoryId?._id || product.categoryId,
-        subcategoryId: product.subcategoryId?._id || product.subcategoryId,
-        brandId: product.brandId?._id || product.brandId,
-        vendorId: product.vendorId?._id || product.vendorId,
-        isNew: product.isNew,
-        isFeatured: product.isFeatured,
-        flashSale: product.flashSale,
-      }));
-
-      setProducts(transformedProducts);
-      setProductsPagination({
-        total: result.total || result.data?.total || 0,
-        page: result.page || result.data?.page || 1,
-        totalPages: result.totalPages || result.data?.totalPages || 1,
-      });
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      toast.error('Failed to load products');
-      setProducts([]);
-      setProductsPagination({ total: 0, page: 1, totalPages: 1 });
-    } finally {
-      setLoadingProducts(false);
-    }
-  }, [selectedCategoryId, selectedSubcategory, selectedSubSubcategory, searchQuery, filters]);
-
-  // Fetch products when category, subcategory, search, or filters change
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-
-
-  // Scroll active category into view (optimized with requestAnimationFrame) - Vertical scroll
+  // Scroll active category into view
   useEffect(() => {
     if (activeCategoryRef.current && categoryListRef.current) {
       const categoryElement = activeCategoryRef.current;
@@ -171,12 +60,10 @@ const MobileCategories = () => {
       const containerHeight = listContainer.clientHeight;
       const scrollTop = listContainer.scrollTop;
 
-      // Check if element is not fully visible
       if (
         elementTop < scrollTop ||
         elementTop + elementHeight > scrollTop + containerHeight
       ) {
-        // Use requestAnimationFrame for smoother scrolling
         requestAnimationFrame(() => {
           listContainer.scrollTo({
             top: elementTop - listContainer.offsetTop - 10,
@@ -191,51 +78,9 @@ const MobileCategories = () => {
     setSelectedCategoryId(categoryId);
   };
 
-  const handleFilterChange = (name, value) => {
-    setFilters({ ...filters, [name]: value });
+  const handleSubcategoryClick = (subcategoryId) => {
+    navigate(`/app/category/${subcategoryId}`);
   };
-
-  const clearFilters = () => {
-    setFilters({
-      category: "",
-      minPrice: "",
-      maxPrice: "",
-      minRating: "",
-    });
-  };
-
-  // Close filter dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        showFilters &&
-        filterButtonRef.current &&
-        !filterButtonRef.current.contains(event.target) &&
-        !event.target.closest(".filter-dropdown")
-      ) {
-        setShowFilters(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [showFilters]);
-
-  const selectedCategory = rootCategories.find(
-    (cat) => cat.id === selectedCategoryId
-  );
-
-  // Check if any filter is active
-  const hasActiveFilters =
-    filters.minPrice || filters.maxPrice || filters.minRating;
-
-  // Calculate available height for content (accounting for bottom nav and cart bar)
-  const contentHeight = `calc(100vh - 80px)`;
 
   // Handle empty categories
   if (rootCategories.length === 0) {
@@ -258,243 +103,77 @@ const MobileCategories = () => {
     );
   }
 
-  // Calculate header height for layout calculations
-  const headerSectionHeight = 80;
-
   return (
     <PageTransition>
       <MobileLayout showBottomNav={true} showCartBar={true}>
-        <div
-          className="w-full flex flex-col"
-          style={{ minHeight: contentHeight }}>
-          {/* Category Header - Fixed at top */}
-          {selectedCategory && (
-            <div className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3">
-              <div
-                key={`header-${selectedCategoryId}`}
-                className="flex items-center gap-3">
+        <div className="w-full flex flex-col h-screen overflow-hidden">
+          {/* Top Header - Fixed */}
+          <div className="sticky top-0 z-50 bg-white border-b border-gray-200">
+            <div className="flex items-center justify-between px-4 py-3">
+              {/* Title */}
+              <h1 className="text-lg font-bold text-gray-900">All Categories</h1>
+              
+              {/* Right Icons */}
+              <div className="flex items-center gap-4">
+                {/* Search Icon */}
                 <button
-                  onClick={() => navigate(-1)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0">
-                  <FiArrowLeft className="text-xl text-gray-700" />
+                  onClick={() => navigate('/app/search')}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <FiSearch className="text-xl text-gray-700" />
                 </button>
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-bold text-gray-800 mb-1">
-                    {selectedCategory.name}
-                  </h2>
-                  <p className="text-xs text-gray-600">
-                    {loadingProducts ? "Loading..." : `${products.length} product${products.length !== 1 ? "s" : ""} available`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 relative">
-                  <div ref={filterButtonRef} className="relative">
-                    <button
-                      onClick={() => setShowFilters(!showFilters)}
-                      className={`p-2 hover:bg-gray-100 rounded-full transition-colors ${showFilters ? "bg-gray-100" : ""
-                        }`}>
-                      <FiFilter
-                        className={`text-xl transition-colors ${hasActiveFilters ? "text-blue-600" : "text-gray-700"
-                          }`}
-                      />
-                    </button>
-
-                    {/* Filter Dropdown */}
-                    <AnimatePresence>
-                      {showFilters && (
-                        <>
-                          {/* Backdrop */}
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowFilters(false)}
-                            className="fixed inset-0 bg-black/20 z-40"
-                          />
-                          <motion.div
-                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 300,
-                              damping: 30,
-                            }}
-                            className="filter-dropdown absolute right-0 top-full w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
-                            style={{ marginTop: "-32px" }}>
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50">
-                              <div className="flex items-center gap-1.5">
-                                <FiFilter className="text-sm text-gray-700" />
-                                <h3 className="text-sm font-bold text-gray-800">
-                                  Filters
-                                </h3>
-                              </div>
-                              <button
-                                onClick={() => setShowFilters(false)}
-                                className="p-0.5 hover:bg-gray-200 rounded-full transition-colors">
-                                <FiX className="text-sm text-gray-600" />
-                              </button>
-                            </div>
-
-                            {/* Filter Content */}
-                            <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
-                              <div className="p-2 space-y-2">
-                                {/* Price Range */}
-                                <div>
-                                  <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                    Price Range
-                                  </h4>
-                                  <div className="space-y-1.5">
-                                    <input
-                                      type="number"
-                                      placeholder="Min Price"
-                                      value={filters.minPrice}
-                                      onChange={(e) =>
-                                        handleFilterChange(
-                                          "minPrice",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                    />
-                                    <input
-                                      type="number"
-                                      placeholder="Max Price"
-                                      value={filters.maxPrice}
-                                      onChange={(e) =>
-                                        handleFilterChange(
-                                          "maxPrice",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                    />
-                                  </div>
-                                </div>
-
-                                {/* Rating Filter */}
-                                <div>
-                                  <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                    Minimum Rating
-                                  </h4>
-                                  <div className="space-y-0.5">
-                                    {[4, 3, 2, 1].map((rating) => (
-                                      <label
-                                        key={rating}
-                                        className="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-50 transition-colors">
-                                        <input
-                                          type="radio"
-                                          name="minRating"
-                                          value={rating}
-                                          checked={
-                                            filters.minRating ===
-                                            rating.toString()
-                                          }
-                                          onChange={(e) =>
-                                            handleFilterChange(
-                                              "minRating",
-                                              e.target.value
-                                            )
-                                          }
-                                          className="w-3 h-3 appearance-none rounded-full border-2 border-gray-300 bg-white checked:bg-white checked:border-primary-500 relative cursor-pointer"
-                                          style={{
-                                            backgroundImage:
-                                              filters.minRating ===
-                                                rating.toString()
-                                                ? "radial-gradient(circle, #10b981 40%, transparent 40%)"
-                                                : "none",
-                                          }}
-                                        />
-                                        <span className="text-xs text-gray-700">
-                                          {rating}+ Stars
-                                        </span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Footer */}
-                            <div className="border-t border-gray-200 p-2 bg-gray-50 space-y-1.5">
-                              <button
-                                onClick={clearFilters}
-                                className="w-full py-1.5 bg-gray-200 text-gray-700 rounded-md font-semibold text-xs hover:bg-gray-300 transition-colors">
-                                Clear All
-                              </button>
-                              <button
-                                onClick={() => setShowFilters(false)}
-                                className="w-full py-1.5 gradient-green text-white rounded-md font-semibold text-xs hover:shadow-glow-green transition-all">
-                                Apply Filters
-                              </button>
-                            </div>
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Main Content Area - Sidebar and Products */}
-          <div
-            className="flex flex-1"
-            style={{
-              minHeight: `calc(${contentHeight} - ${headerSectionHeight}px)`,
-            }}>
-            {/* Left Panel - Vertical Category Sidebar */}
+          {/* Main Content Area - Sidebar and Subcategories */}
+          <div className="flex flex-1 overflow-hidden">
+            {/* Left Sidebar - Vertical Category List */}
             <div
               ref={categoryListRef}
-              className="w-[22%] bg-gray-50 border-r border-gray-200 overflow-y-auto scrollbar-hide flex-shrink-0"
-              style={{
-                maxHeight: `calc(${contentHeight} - ${headerSectionHeight}px)`,
-              }}>
-              <div className="pb-[190px]">
+              className="w-[80px] bg-gray-50 border-r border-gray-200 overflow-y-auto flex-shrink-0"
+            >
+              <div className="py-1">
                 {rootCategories.map((category) => {
                   const isActive = category.id === selectedCategoryId;
                   return (
                     <div
                       key={category.id}
                       ref={isActive ? activeCategoryRef : null}
-                      style={{
-                        willChange: isActive ? "transform" : "auto",
-                        transform: "translateZ(0)",
-                      }}>
+                    >
                       <motion.button
                         onClick={() => handleCategorySelect(category.id)}
-                        initial={false}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.2 }}
                         whileTap={{ scale: 0.95 }}
-                        className={`w-full px-2 py-3 text-left transition-all duration-200 relative ${isActive ? "bg-white shadow-sm" : "hover:bg-gray-100"
+                        className={`w-full px-1.5 py-3 flex flex-col items-center gap-1 transition-all ${
+                          isActive 
+                            ? "bg-blue-50" 
+                            : "hover:bg-gray-100"
+                        }`}
+                      >
+                        {/* Circular Category Icon */}
+                        <div
+                          className={`w-14 h-14 rounded-full overflow-hidden flex-shrink-0 transition-all ${
+                            isActive ? "ring-2 ring-blue-500" : ""
                           }`}
-                        style={{ willChange: "transform" }}>
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div
-                            className={`w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 transition-all duration-200 ${isActive
-                              ? "ring-2 ring-primary-500 ring-offset-1 scale-105"
-                              : ""
-                              }`}
-                            style={{
-                              willChange: isActive ? "transform" : "auto",
-                            }}>
-                            <LazyImage
-                              src={category.image}
-                              alt={category.name}
-                              className="w-full h-full object-cover"
-                              placeholderWidth={48}
-                              placeholderHeight={48}
-                              placeholderText={category.name}
-                            />
-                          </div>
-                          <span
-                            className={`text-[10px] font-semibold text-center leading-tight transition-colors ${isActive ? "text-primary-600" : "text-gray-700"
-                              }`}>
-                            {category.name}
-                          </span>
+                        >
+                          <LazyImage
+                            src={category.image}
+                            alt={category.name}
+                            className="w-full h-full object-cover"
+                            placeholderWidth={56}
+                            placeholderHeight={56}
+                            placeholderText={category.name}
+                          />
                         </div>
+                        
+                        {/* Category Name */}
+                        <span
+                          className={`text-[10px] font-semibold text-center leading-tight px-1 ${
+                            isActive ? "text-blue-600" : "text-gray-700"
+                          }`}
+                        >
+                          {category.name}
+                        </span>
                       </motion.button>
                     </div>
                   );
@@ -502,112 +181,79 @@ const MobileCategories = () => {
               </div>
             </div>
 
-            {/* Right Panel - Products Grid */}
-            <div className="w-[78%] bg-white flex-shrink-0">
-              <div className="p-3">
-                {/* Subcategory Selector - Above product cards */}
-                {subcategories.length > 0 && (
-                  <div className="mb-3 pb-3 border-b border-gray-200">
-                    <div
-                      className="overflow-x-auto scrollbar-hide -mx-3 px-3"
-                      style={{
-                        scrollBehavior: "smooth",
-                        WebkitOverflowScrolling: "touch",
-                      }}>
-                      <div className="flex gap-1.5">
-                        {subcategories.map((subcategory) => {
-                          const isActive =
-                            selectedSubcategory === subcategory.id;
-                          return (
-                            <motion.button
-                              key={subcategory.id}
-                              onClick={() =>
-                                setSelectedSubcategory(subcategory.id)
-                              }
-                              whileTap={{ scale: 0.97 }}
-                              className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap border ${isActive
-                                ? "bg-white text-primary-600 border-primary-200 shadow-sm"
-                                : "bg-gray-50 text-gray-600 border-gray-200 active:bg-gray-100"
-                                }`}
-                              style={{ willChange: "transform" }}>
-                              {subcategory.name}
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub-subcategory Selector */}
-                {subSubcategories.length > 0 && (
-                  <div className="mb-3 pb-3 border-b border-gray-200">
-                    <div
-                      className="overflow-x-auto scrollbar-hide -mx-3 px-3"
-                      style={{
-                        scrollBehavior: "smooth",
-                        WebkitOverflowScrolling: "touch",
-                      }}>
-                      <div className="flex gap-1.5">
-                        {subSubcategories.map((subSub) => {
-                          const isActive =
-                            selectedSubSubcategory === subSub.id;
-                          return (
-                            <motion.button
-                              key={subSub.id}
-                              onClick={() =>
-                                setSelectedSubSubcategory(subSub.id)
-                              }
-                              whileTap={{ scale: 0.97 }}
-                              className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap border ${isActive
-                                ? "bg-white text-primary-600 border-primary-200 shadow-sm"
-                                : "bg-gray-50 text-gray-600 border-gray-200 active:bg-gray-100"
-                                }`}
-                              style={{ willChange: "transform" }}>
-                              {subSub.name}
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {loadingProducts ? (
+            {/* Right Content - Subcategories Grid */}
+            <div className="flex-1 bg-white overflow-y-auto">
+              <div className="p-4">
+                {groupedSubcategories.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="mt-4 text-sm text-gray-600">Loading products...</p>
-                  </div>
-                ) : products.length === 0 ? (
-                  <div key="empty" className="text-center py-12">
-                    <div className="text-6xl text-gray-300 mx-auto mb-4">
-                      📦
-                    </div>
+                    <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
                     <h3 className="text-lg font-bold text-gray-800 mb-2">
-                      No products found
+                      No subcategories found
                     </h3>
                     <p className="text-sm text-gray-600">
-                      There are no products available in this category at the
-                      moment.
+                      There are no subcategories available in this category.
                     </p>
                   </div>
                 ) : (
-                  <motion.div
-                    key={`products-${selectedCategoryId}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="grid grid-cols-2 gap-2"
-                    style={{
-                      willChange: "opacity",
-                      transform: "translateZ(0)",
-                    }}>
-                    {products.map((product) => (
-                      <div key={product.id}>
-                        <ProductCard product={product} />
+                  groupedSubcategories.map((group, groupIndex) => (
+                    <div key={groupIndex} className={groupIndex > 0 ? "mt-8" : ""}>
+                      {/* Section Title */}
+                      {group.parent && (
+                        <h2 className="text-base font-bold text-gray-900 mb-4">
+                          {group.parent.name}
+                        </h2>
+                      )}
+                      
+                      {/* Subcategory Grid - 4 columns */}
+                      <div className="grid grid-cols-4 gap-2.5">
+                        {group.children.slice(0, 8).map((subcat) => (
+                          <motion.button
+                            key={subcat.id}
+                            onClick={() => handleSubcategoryClick(subcat.id)}
+                            whileTap={{ scale: 0.95 }}
+                            className="flex flex-col items-center gap-1.5"
+                          >
+                            {/* Square Image Card */}
+                            <div className="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 shadow-sm">
+                              <LazyImage
+                                src={subcat.image}
+                                alt={subcat.name}
+                                className="w-full h-full object-cover"
+                                placeholderWidth={80}
+                                placeholderHeight={80}
+                                placeholderText={subcat.name}
+                              />
+                            </div>
+                            
+                            {/* Subcategory Name */}
+                            <span className="text-[11px] font-medium text-gray-800 text-center leading-tight px-0.5">
+                              {subcat.name}
+                            </span>
+                          </motion.button>
+                        ))}
+                        
+                        {/* View All Button - Show if 8 or more items */}
+                        {group.children.length >= 8 && (
+                          <motion.button
+                            onClick={() => group.parent && handleSubcategoryClick(group.parent.id)}
+                            whileTap={{ scale: 0.95 }}
+                            className="flex flex-col items-center justify-center gap-1.5"
+                          >
+                            <div className="w-full aspect-square rounded-lg bg-gray-100 flex items-center justify-center shadow-sm">
+                              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
+                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                            </div>
+                            <span className="text-[11px] font-medium text-gray-800 text-center">
+                              View All
+                            </span>
+                          </motion.button>
+                        )}
                       </div>
-                    ))}
-                  </motion.div>
+                    </div>
+                  ))
                 )}
               </div>
             </div>

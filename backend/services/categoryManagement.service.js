@@ -98,6 +98,45 @@ export const hasChildren = async (categoryId) => {
 };
 
 /**
+ * Calculate the depth/level of a category (1 = root, 2 = subcategory, 3 = sub-subcategory)
+ * @param {String} categoryId - Category ID
+ * @returns {Promise<Number>} Depth level (1, 2, or 3)
+ */
+export const getCategoryDepth = async (categoryId) => {
+  try {
+    if (!categoryId) return 1; // Root level
+
+    let depth = 1;
+    let currentCategoryId = categoryId;
+    const visited = new Set();
+
+    // Traverse up the parent chain
+    while (currentCategoryId) {
+      if (visited.has(currentCategoryId.toString())) {
+        // Circular reference detected, return max depth to prevent infinite loop
+        return 3;
+      }
+      visited.add(currentCategoryId.toString());
+
+      const category = await Category.findById(currentCategoryId).lean();
+      if (!category || !category.parentId) {
+        break; // Reached root
+      }
+
+      depth++;
+      if (depth > 3) {
+        return depth; // Already exceeded max
+      }
+      currentCategoryId = category.parentId;
+    }
+
+    return depth;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Check for circular parent reference
  * @param {String} categoryId - Category ID to check
  * @param {String} parentId - Parent ID to set
@@ -149,6 +188,12 @@ export const createCategory = async (categoryData) => {
       const parent = await Category.findById(parentId);
       if (!parent) {
         throw new Error('Parent category not found');
+      }
+
+      // Check depth: Maximum 3 levels allowed (1 = root, 2 = subcategory, 3 = sub-subcategory)
+      const parentDepth = await getCategoryDepth(parentId);
+      if (parentDepth >= 3) {
+        throw new Error('Maximum category depth reached. Cannot create subcategories beyond level 3.');
       }
     }
 
@@ -217,6 +262,12 @@ export const updateCategory = async (categoryId, updateData) => {
         const parent = await Category.findById(parentId);
         if (!parent) {
           throw new Error('Parent category not found');
+        }
+
+        // Check depth: Maximum 3 levels allowed (1 = root, 2 = subcategory, 3 = sub-subcategory)
+        const parentDepth = await getCategoryDepth(parentId);
+        if (parentDepth >= 3) {
+          throw new Error('Maximum category depth reached. Cannot create subcategories beyond level 3.');
         }
       }
     }

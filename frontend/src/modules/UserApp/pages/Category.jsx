@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FiFilter, FiArrowLeft, FiGrid, FiList, FiX, FiChevronDown } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import MobileLayout from "../components/Layout/MobileLayout";
+import MobileFilterPanel from "../components/Mobile/MobileFilterPanel";
 import ProductCard from "../../../shared/components/ProductCard";
 import ProductListItem from "../components/Mobile/ProductListItem";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
@@ -18,7 +19,7 @@ const MobileCategory = () => {
   const navigate = useNavigate();
   // Use categoryId as string (MongoDB ObjectIds are strings, not numbers)
   const categoryId = id;
-  const { categories, initialize, getCategoryById, getCategoriesByParent, isLoading } =
+  const { categories, initialize, getCategoryById, getCategoriesByParent, getRootCategories, isLoading: isLoadingCategories } =
     useCategoryStore();
 
   // Initialize store on mount and refresh periodically
@@ -41,10 +42,39 @@ const MobileCategory = () => {
   // Get subcategories for this category
   const subcategories = useMemo(() => {
     if (!categoryId) return [];
-    return getCategoriesByParent(categoryId).filter(
+    const subs = getCategoriesByParent(categoryId).filter(
       (cat) => cat.isActive !== false
     );
+    // Debug: Log subcategories to help troubleshoot
+    if (subs.length > 0) {
+      console.log('📂 Subcategories for category:', categoryId, subs.map(s => s.name));
+    }
+    return subs;
   }, [categoryId, categories, getCategoriesByParent]);
+  
+  // Compute categories to show in filter
+  const filterCategories = useMemo(() => {
+    // First priority: subcategories of current category
+    if (subcategories && subcategories.length > 0) {
+      console.log('✅ Filter: Using subcategories', subcategories.length);
+      return subcategories;
+    }
+    // Second priority: root categories
+    if (categories && categories.length > 0) {
+      const rootCats = getRootCategories ? getRootCategories() : categories.filter(cat => !cat.parentId);
+      const activeRoots = rootCats.filter(cat => cat.isActive !== false);
+      if (activeRoots.length > 0) {
+        console.log('✅ Filter: Using root categories', activeRoots.length);
+        return activeRoots;
+      }
+      // Fallback: all active categories
+      const allActive = categories.filter(cat => cat.isActive !== false).slice(0, 20);
+      console.log('✅ Filter: Using all active categories', allActive.length);
+      return allActive;
+    }
+    console.log('⚠️ Filter: No categories available');
+    return [];
+  }, [subcategories, categories, getRootCategories]);
 
   // State for selected nested subcategories (supports unlimited depth)
   // Structure: { level0: categoryId, level1: subcategoryId, level2: subSubcategoryId, ... }
@@ -52,6 +82,9 @@ const MobileCategory = () => {
   
   // State for dropdown visibility for each category
   const [openDropdowns, setOpenDropdowns] = useState({});
+  
+  // State for filter dropdown visibility (for level 3+ categories)
+  const [openFilterDropdowns, setOpenFilterDropdowns] = useState({});
 
   // Get nested subcategories recursively for any level
   const getNestedSubcategories = useCallback((parentId) => {
@@ -450,10 +483,26 @@ const MobileCategory = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } =
+  const { displayedItems, hasMore, isLoading: isLoadingMore, loadMore, loadMoreRef } =
     useInfiniteScroll(products, 10, 10);
+  // Alias to avoid renaming multiple JSX occurrences
+  const isLoading = isLoadingMore;
 
   const filterButtonRef = useRef(null);
+
+  // Find the deepest selected category ID for filter
+  const deepestCategoryId = useMemo(() => {
+    let deepestId = null;
+    for (let i = 9; i >= 0; i--) {
+      const selectedId = selectedNestedCategories[`level${i}`];
+      if (selectedId) {
+        deepestId = selectedId?.toString() || String(selectedId);
+        break;
+      }
+    }
+    // If no nested selection, use the main categoryId
+    return deepestId || (categoryId?.toString() || String(categoryId));
+  }, [selectedNestedCategories, categoryId]);
 
   const handleFilterChange = (name, value) => {
     setFilters({ ...filters, [name]: value });
@@ -485,6 +534,7 @@ const MobileCategory = () => {
         !event.target.closest(".filter-dropdown")
       ) {
         setShowFilters(false);
+        setOpenFilterDropdowns({}); // Close all filter dropdowns
       }
     };
 
@@ -570,9 +620,15 @@ const MobileCategory = () => {
                     <FiGrid className="text-lg" />
                   </button>
                 </div>
-                <div ref={filterButtonRef} className="relative">
+                <div className="relative">
                   <button
-                    onClick={() => setShowFilters(!showFilters)}
+                    onClick={() => {
+                      // Refresh categories when opening filter to get latest additions
+                      if (!showFilters) {
+                        initialize(true);
+                      }
+                      setShowFilters(!showFilters);
+                    }}
                     className={`p-2.5 glass-card rounded-xl hover:bg-white/80 transition-colors ${
                       showFilters ? "bg-white/80" : ""
                     }`}>
@@ -583,242 +639,16 @@ const MobileCategory = () => {
                     />
                   </button>
 
-                  {/* Filter Dropdown */}
-                  <AnimatePresence>
-                    {showFilters && (
-                      <>
-                        {/* Backdrop */}
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          onClick={() => setShowFilters(false)}
-                          className="fixed inset-0 bg-black/20 z-[10000]"
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 300,
-                            damping: 30,
-                          }}
-                          className="filter-dropdown absolute right-0 top-full w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-[10001] overflow-hidden"
-                          style={{ marginTop: "-50px" }}>
-                          {/* Header */}
-                          <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50">
-                            <div className="flex items-center gap-1.5">
-                              <FiFilter className="text-sm text-gray-700" />
-                              <h3 className="text-sm font-bold text-gray-800">
-                                Filters
-                              </h3>
-                            </div>
-                            <button
-                              onClick={() => setShowFilters(false)}
-                              className="p-0.5 hover:bg-gray-200 rounded-full transition-colors">
-                              <FiX className="text-sm text-gray-600" />
-                            </button>
-                          </div>
-
-                          {/* Filter Content */}
-                          <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
-                            <div className="p-2 space-y-2">
-                              {/* Category Filter */}
-                              <div>
-                                <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                  Categories
-                                </h4>
-                                <div className="space-y-1 max-h-[200px] overflow-y-auto scrollbar-hide">
-                                  {isLoading ? (
-                                    <div className="text-xs text-gray-500 text-center py-2">
-                                      Loading categories...
-                                    </div>
-                                  ) : (() => {
-                                      const renderCategoryFilter = (category, level, parentPath = []) => {
-                                        const catId = category.id?.toString() || String(category.id);
-                                        const currentPath = [...parentPath, category.id];
-                                        const isSelected = selectedNestedCategories[`level${level}`] === catId;
-                                        const children = getNestedSubcategories(catId);
-                                        const hasDropdownChildren = dropdownLevels[catId] && dropdownLevels[catId].length > 0;
-                                        
-                                        return (
-                                          <div key={category.id} className="space-y-0.5">
-                                            <label className="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-50 transition-colors">
-                                              <input
-                                                type="radio"
-                                                name="filterCategory"
-                                                checked={isSelected}
-                                                onChange={() => {
-                                                  handleFilterCategorySelect(currentPath);
-                                                }}
-                                                className="w-3 h-3 appearance-none rounded-full border-2 border-gray-300 bg-white checked:bg-white checked:border-primary-500 relative cursor-pointer"
-                                                style={{
-                                                  backgroundImage: isSelected
-                                                    ? "radial-gradient(circle, #10b981 40%, transparent 40%)"
-                                                    : "none",
-                                                }}
-                                              />
-                                              <span className={`text-xs flex-1 ${
-                                                level === 0 ? "text-gray-700 font-medium" : 
-                                                level === 1 ? "text-gray-600" : 
-                                                "text-gray-500"
-                                              }`}>
-                                                {category.name}
-                                              </span>
-                                            </label>
-                                            
-                                            {/* Render children recursively - ALL levels */}
-                                            {children.length > 0 && (
-                                              <div className="ml-4 space-y-0.5">
-                                                {children.map(child => renderCategoryFilter(child, level + 1, currentPath))}
-                                              </div>
-                                            )}
-                                            
-                                            {/* Dropdown children (level 2+) */}
-                                            {hasDropdownChildren && dropdownLevels[catId] && (
-                                              <div className="ml-4 space-y-0.5">
-                                                {dropdownLevels[catId].map((dropdownLevel) => (
-                                                  <div key={`dropdown-${dropdownLevel.level}`} className="space-y-0.5">
-                                                    {dropdownLevel.categories.map((deepCat) => {
-                                                      return renderCategoryFilter(deepCat, dropdownLevel.level, currentPath);
-                                                    })}
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      };
-                                      
-                                      // Render level 0 categories
-                                      // Always use subcategories - they're the direct children of current category
-                                      const categoriesToShow = subcategories.length > 0 
-                                        ? subcategories 
-                                        : (buttonLevels.length > 0 && buttonLevels[0]?.categories.length > 0
-                                            ? buttonLevels[0].categories 
-                                            : []);
-                                      
-                                      // Debug logging
-                                      console.log('🔍 Filter Categories Debug:', {
-                                        buttonLevels: buttonLevels.length,
-                                        subcategories: subcategories.length,
-                                        categoriesToShow: categoriesToShow.length,
-                                        categoryId,
-                                        totalCategories: categories.length,
-                                        subcategoriesList: subcategories.map(c => c.name)
-                                      });
-                                      
-                                      if (categoriesToShow.length > 0) {
-                                        return (
-                                          <div className="space-y-1">
-                                            {categoriesToShow.map(cat => renderCategoryFilter(cat, 0))}
-                                          </div>
-                                        );
-                                      }
-                                      
-                                      return (
-                                        <div className="text-xs text-gray-500 text-center py-2">
-                                          No subcategories available
-                                        </div>
-                                      );
-                                    })()}
-                                  </div>
-                                </div>
-
-                              {/* Price Range */}
-                              <div>
-                                <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                  Price Range
-                                </h4>
-                                <div className="space-y-1.5">
-                                  <input
-                                    type="number"
-                                    placeholder="Min Price"
-                                    value={filters.minPrice}
-                                    onChange={(e) =>
-                                      handleFilterChange(
-                                        "minPrice",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                  />
-                                  <input
-                                    type="number"
-                                    placeholder="Max Price"
-                                    value={filters.maxPrice}
-                                    onChange={(e) =>
-                                      handleFilterChange(
-                                        "maxPrice",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Rating Filter */}
-                              <div>
-                                <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                  Minimum Rating
-                                </h4>
-                                <div className="space-y-0.5">
-                                  {[4, 3, 2, 1].map((rating) => (
-                                    <label
-                                      key={rating}
-                                      className="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-50 transition-colors">
-                                      <input
-                                        type="radio"
-                                        name="minRating"
-                                        value={rating}
-                                        checked={
-                                          filters.minRating ===
-                                          rating.toString()
-                                        }
-                                        onChange={(e) =>
-                                          handleFilterChange(
-                                            "minRating",
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-3 h-3 appearance-none rounded-full border-2 border-gray-300 bg-white checked:bg-white checked:border-primary-500 relative cursor-pointer"
-                                        style={{
-                                          backgroundImage:
-                                            filters.minRating ===
-                                            rating.toString()
-                                              ? "radial-gradient(circle, #10b981 40%, transparent 40%)"
-                                              : "none",
-                                        }}
-                                      />
-                                      <span className="text-xs text-gray-700">
-                                        {rating}+ Stars
-                                      </span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Footer */}
-                          <div className="border-t border-gray-200 p-2 bg-gray-50 space-y-1.5">
-                            <button
-                              onClick={clearFilters}
-                              className="w-full py-1.5 bg-gray-200 text-gray-700 rounded-md font-semibold text-xs hover:bg-gray-300 transition-colors">
-                              Clear All
-                            </button>
-                            <button
-                              onClick={() => setShowFilters(false)}
-                              className="w-full py-1.5 gradient-green text-white rounded-md font-semibold text-xs hover:shadow-glow-green transition-all">
-                              Apply Filters
-                            </button>
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
+                  {/* Filter Bottom Sheet */}
+                  <MobileFilterPanel
+                    isOpen={showFilters}
+                    onClose={() => setShowFilters(false)}
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    onClearFilters={clearFilters}
+                    hideCategoryFilter={true}
+                    deepestCategoryId={deepestCategoryId}
+                  />
                 </div>
               </div>
             </div>

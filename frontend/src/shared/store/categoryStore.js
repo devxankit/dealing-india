@@ -48,7 +48,10 @@ export const useCategoryStore = create(
           }
           
           const response = await api.get('/categories', { params });
-          const categories = transformCategories(response.data.categories || []);
+          // api returns body, which can be { success, message, data: { categories, ... } }
+          const result = response?.data || response;
+          const list = result?.categories || result?.data?.categories || [];
+          const categories = transformCategories(list);
           set({ categories, isLoading: false });
         } catch (error) {
           console.error('Failed to fetch categories:', error);
