@@ -149,6 +149,11 @@ const MobileFlashSale = lazy(() => import("./modules/UserApp/pages/FlashSale"));
 const MobileTrackOrder = lazy(() => import("./modules/UserApp/pages/TrackOrder"));
 const MobileOrderConfirmation = lazy(() => import("./modules/UserApp/pages/OrderConfirmation"));
 const MobileMegaReward = lazy(() => import("./modules/UserApp/pages/MegaReward"));
+const MobileHelp = lazy(() => import("./modules/UserApp/pages/Help"));
+const MobileSettings = lazy(() => import("./modules/UserApp/pages/Settings"));
+const MobileChangePassword = lazy(() => import("./modules/UserApp/pages/ChangePassword"));
+const MobileContentPage = lazy(() => import("./modules/UserApp/pages/ContentPage"));
+const MobileWallet = lazy(() => import("./modules/UserApp/pages/Wallet"));
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryProtectedRoute from "./modules/Delivery/components/DeliveryProtectedRoute";
@@ -808,6 +813,80 @@ const AppRoutes = () => {
             <RouteWrapper>
               <ProtectedRoute>
                 <MobileMegaReward />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/help"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileHelp />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/settings"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileSettings />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/change-password"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileChangePassword />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/terms"
+          element={
+            <RouteWrapper>
+              <MobileContentPage title="Terms of Service" type="terms" />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/privacy"
+          element={
+            <RouteWrapper>
+              <MobileContentPage title="Privacy Policy" type="privacy" />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/about"
+          element={
+            <RouteWrapper>
+              <MobileContentPage title="About Us" type="about" />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/notifications"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileContentPage title="Notifications" type="notifications" />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/wallet"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileWallet />
               </ProtectedRoute>
             </RouteWrapper>
           }

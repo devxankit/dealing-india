@@ -14,8 +14,8 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
     location.pathname === '/app/register' ||
     location.pathname === '/app/verification';
 
-  // Always show bottom nav on /app routes, except auth pages
-  const shouldShowBottomNav = location.pathname.startsWith('/app') && !isAuthPage ? true : (showBottomNav && !isAuthPage);
+  // Always show bottom nav on /app routes, except auth pages, unless explicitly disabled
+  const shouldShowBottomNav = location.pathname.startsWith('/app') && !isAuthPage ? showBottomNav : (showBottomNav && !isAuthPage);
   // Hide header on categories, search, wishlist, profile, checkout, and auth pages
   const shouldShowHeader = !isAuthPage &&
     location.pathname !== '/app/categories' &&
@@ -24,7 +24,15 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
     location.pathname !== '/app/profile' &&
     location.pathname !== '/app/reels' &&
     location.pathname !== '/app/mega-reward' &&
-    location.pathname !== '/app/checkout';
+    location.pathname !== '/app/checkout' &&
+    location.pathname !== '/app/help' &&
+    location.pathname !== '/app/settings' &&
+    !location.pathname.startsWith('/app/change-password') &&
+    !location.pathname.startsWith('/app/terms') &&
+    !location.pathname.startsWith('/app/privacy') &&
+    !location.pathname.startsWith('/app/about') &&
+    !location.pathname.startsWith('/app/notifications') &&
+    !location.pathname.startsWith('/app/wallet');
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {

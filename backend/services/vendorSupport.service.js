@@ -24,8 +24,10 @@ export const getVendorTickets = async (vendorId, filters = {}) => {
     } = filters;
 
     const query = {
-      createdBy: vendorId,
-      createdByType: 'vendor',
+      $or: [
+        { createdBy: vendorId, createdByType: 'vendor' },
+        { relatedVendor: vendorId }
+      ]
     };
 
     // Status filter
@@ -109,8 +111,10 @@ export const getVendorTicketById = async (ticketId, vendorId) => {
   try {
     const ticket = await SupportTicket.findOne({
       _id: ticketId,
-      createdBy: vendorId,
-      createdByType: 'vendor',
+      $or: [
+        { createdBy: vendorId, createdByType: 'vendor' },
+        { relatedVendor: vendorId }
+      ]
     })
       .populate('type', 'name description')
       .populate('assignedTo', 'name email')
@@ -219,7 +223,7 @@ export const createVendorTicket = async (vendorId, ticketData) => {
       const count = await SupportTicket.countDocuments();
       const ticketNum = String(count + 1).padStart(6, '0');
       ticketNumber = `TKT-${ticketNum}`;
-      
+
       // Check if ticket number already exists (handle race condition)
       const existing = await SupportTicket.findOne({ ticketNumber });
       if (existing) {
@@ -280,8 +284,10 @@ export const addVendorMessageToTicket = async (ticketId, vendorId, message) => {
     // Verify ticket exists and belongs to vendor
     const ticket = await SupportTicket.findOne({
       _id: ticketId,
-      createdBy: vendorId,
-      createdByType: 'vendor',
+      $or: [
+        { createdBy: vendorId, createdByType: 'vendor' },
+        { relatedVendor: vendorId }
+      ]
     });
 
     if (!ticket) {
@@ -347,8 +353,10 @@ export const updateVendorTicketStatus = async (ticketId, vendorId, status) => {
     // Verify ticket belongs to vendor
     const ticket = await SupportTicket.findOne({
       _id: ticketId,
-      createdBy: vendorId,
-      createdByType: 'vendor',
+      $or: [
+        { createdBy: vendorId, createdByType: 'vendor' },
+        { relatedVendor: vendorId }
+      ]
     });
 
     if (!ticket) {
