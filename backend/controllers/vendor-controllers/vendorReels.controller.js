@@ -6,6 +6,7 @@ import {
   deleteVendorReel,
   updateVendorReelStatus,
 } from '../../services/vendorReels.service.js';
+import { uploadToCloudinary } from '../../utils/cloudinary.util.js';
 
 /**
  * Get all reels for vendor
@@ -78,7 +79,56 @@ export const getReel = async (req, res, next) => {
 export const create = async (req, res, next) => {
   try {
     const vendorId = req.user.vendorId;
-    const reelData = req.body;
+    const reelData = { ...req.body };
+
+    // Handle video file upload
+    if (req.files && req.files.video && req.files.video[0]) {
+      try {
+        const videoFile = req.files.video[0];
+        const uploadResult = await uploadToCloudinary(
+          videoFile.buffer,
+          'reels/videos',
+          { resource_type: 'video' }
+        );
+        reelData.videoUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Video upload failed: ${uploadError.message}`,
+        });
+      }
+    } else if (req.body.videoUrl) {
+      // If no file upload but videoUrl is provided in body, use it
+      reelData.videoUrl = req.body.videoUrl;
+    }
+
+    // Handle thumbnail file upload
+    if (req.files && req.files.thumbnail && req.files.thumbnail[0]) {
+      try {
+        const thumbnailFile = req.files.thumbnail[0];
+        const uploadResult = await uploadToCloudinary(
+          thumbnailFile.buffer,
+          'reels/thumbnails'
+        );
+        reelData.thumbnail = uploadResult.secure_url;
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Thumbnail upload failed: ${uploadError.message}`,
+        });
+      }
+    } else if (req.body.thumbnail) {
+      // If no file upload but thumbnail is provided in body, use it
+      reelData.thumbnail = req.body.thumbnail;
+    }
+
+    // Validate that video URL is provided (either from file upload or body)
+    if (!reelData.videoUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Video is required. Please upload a video file or provide a video URL.',
+      });
+    }
 
     const reel = await createVendorReel(reelData, vendorId);
 
@@ -100,7 +150,48 @@ export const update = async (req, res, next) => {
   try {
     const { id } = req.params;
     const vendorId = req.user.vendorId;
-    const reelData = req.body;
+    const reelData = { ...req.body };
+
+    // Handle video file upload
+    if (req.files && req.files.video && req.files.video[0]) {
+      try {
+        const videoFile = req.files.video[0];
+        const uploadResult = await uploadToCloudinary(
+          videoFile.buffer,
+          'reels/videos',
+          { resource_type: 'video' }
+        );
+        reelData.videoUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Video upload failed: ${uploadError.message}`,
+        });
+      }
+    } else if (req.body.videoUrl) {
+      // If no file upload but videoUrl is provided in body, use it
+      reelData.videoUrl = req.body.videoUrl;
+    }
+
+    // Handle thumbnail file upload
+    if (req.files && req.files.thumbnail && req.files.thumbnail[0]) {
+      try {
+        const thumbnailFile = req.files.thumbnail[0];
+        const uploadResult = await uploadToCloudinary(
+          thumbnailFile.buffer,
+          'reels/thumbnails'
+        );
+        reelData.thumbnail = uploadResult.secure_url;
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Thumbnail upload failed: ${uploadError.message}`,
+        });
+      }
+    } else if (req.body.thumbnail) {
+      // If no file upload but thumbnail is provided in body, use it
+      reelData.thumbnail = req.body.thumbnail;
+    }
 
     const reel = await updateVendorReel(id, reelData, vendorId);
 

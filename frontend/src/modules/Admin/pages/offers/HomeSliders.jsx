@@ -15,10 +15,51 @@ const HomeSliders = () => {
   const [editingSlider, setEditingSlider] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
   const [isLoading, setIsLoading] = useState(false);
+  const [linkType, setLinkType] = useState("route"); // "route" or "custom"
+
+  // Common routes for dropdown
+  const routeOptions = [
+    { value: "/app/search", label: "Search Page" },
+    { value: "/app/offers", label: "Offers" },
+    { value: "/app/categories", label: "Categories" },
+    { value: "/app/flash-sale", label: "Flash Sale" },
+    { value: "/app/daily-deals", label: "Daily Deals" },
+    { value: "/app/profile", label: "Profile" },
+    { value: "/app/orders", label: "Orders" },
+    { value: "/app/wishlist", label: "Wishlist" },
+    { value: "/app/addresses", label: "Addresses" },
+    { value: "/app/cart", label: "Cart" },
+    { value: "/", label: "Home Page" },
+  ];
 
   useEffect(() => {
     fetchSliders();
   }, []);
+
+  // Set link type when editing slider
+  useEffect(() => {
+    if (editingSlider) {
+      const currentLink = editingSlider.link || "";
+      // Check if link matches any route option
+      const routeValues = [
+        "/app/search",
+        "/app/offers",
+        "/app/categories",
+        "/app/flash-sale",
+        "/app/daily-deals",
+        "/app/profile",
+        "/app/orders",
+        "/app/wishlist",
+        "/app/addresses",
+        "/app/cart",
+        "/",
+      ];
+      const isRoute = routeValues.includes(currentLink);
+      setLinkType(isRoute ? "route" : "custom");
+    } else {
+      setLinkType("route");
+    }
+  }, [editingSlider]);
 
   const fetchSliders = async () => {
     setIsLoading(true);
@@ -181,15 +222,16 @@ const HomeSliders = () => {
           </p>
         </div>
         <button
-          onClick={() =>
+          onClick={() => {
+            setLinkType("route");
             setEditingSlider({
               title: "",
               image: "",
-              link: "",
+              link: "/app/search",
               order: 1,
               status: "active",
-            })
-          }
+            });
+          }}
           className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm">
           <FiPlus />
           <span>Add Slider</span>
@@ -316,14 +358,67 @@ const HomeSliders = () => {
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
-                  <input
-                    type="text"
-                    name="link"
-                    defaultValue={editingSlider.link || ""}
-                    placeholder="Link URL"
-                    required
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Link URL
+                    </label>
+                    <div className="space-y-2">
+                      <AnimatedSelect
+                        name="linkType"
+                        value={linkType}
+                        onChange={(e) => {
+                          const newLinkType = e.target.value;
+                          setLinkType(newLinkType);
+                          // Reset link when switching types
+                          if (newLinkType === "route") {
+                            setEditingSlider({
+                              ...editingSlider,
+                              link: "/app/search",
+                            });
+                          } else {
+                            setEditingSlider({
+                              ...editingSlider,
+                              link: "",
+                            });
+                          }
+                        }}
+                        options={[
+                          { value: "route", label: "Select Route" },
+                          { value: "custom", label: "Custom URL" },
+                        ]}
+                        required
+                      />
+                      {linkType === "route" ? (
+                        <AnimatedSelect
+                          name="link"
+                          value={editingSlider.link || "/app/search"}
+                          onChange={(e) =>
+                            setEditingSlider({
+                              ...editingSlider,
+                              link: e.target.value,
+                            })
+                          }
+                          options={routeOptions}
+                          required
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          name="link"
+                          value={editingSlider.link || ""}
+                          onChange={(e) =>
+                            setEditingSlider({
+                              ...editingSlider,
+                              link: e.target.value,
+                            })
+                          }
+                          placeholder="Enter custom URL (e.g., https://example.com or /app/custom)"
+                          required
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      )}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <input
                       type="number"

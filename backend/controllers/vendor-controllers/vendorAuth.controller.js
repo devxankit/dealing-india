@@ -15,7 +15,7 @@ import {
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, phone, password, storeName, storeDescription, address } = req.body;
+    const { name, email, phone, password, storeName, storeDescription, address, documents } = req.body;
 
     const result = await registerVendor({
       name,
@@ -25,6 +25,7 @@ export const register = async (req, res, next) => {
       storeName,
       storeDescription,
       address,
+      documents,
     });
 
     res.status(201).json({

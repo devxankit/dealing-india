@@ -5,7 +5,7 @@ import path from 'path';
 const storage = multer.memoryStorage();
 
 // File filter for images
-const fileFilter = (req, file, cb) => {
+const imageFileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
   const extname = allowedTypes.test(
     path.extname(file.originalname).toLowerCase()
@@ -19,13 +19,64 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Multer configuration
+// File filter for videos
+const videoFileFilter = (req, file, cb) => {
+  const allowedTypes = /mp4|mov|avi|wmv|flv|webm|mkv/;
+  const extname = allowedTypes.test(
+    path.extname(file.originalname).toLowerCase()
+  );
+  const mimetype = allowedTypes.test(file.mimetype) || file.mimetype.startsWith('video/');
+
+  if (mimetype || extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Only video files are allowed (mp4, mov, avi, wmv, flv, webm, mkv)'));
+  }
+};
+
+// File filter for both images and videos
+const mediaFileFilter = (req, file, cb) => {
+  const imageTypes = /jpeg|jpg|png|gif|webp/;
+  const videoTypes = /mp4|mov|avi|wmv|flv|webm|mkv/;
+  const extname = imageTypes.test(path.extname(file.originalname).toLowerCase()) || 
+                  videoTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = imageTypes.test(file.mimetype) || 
+                   videoTypes.test(file.mimetype) || 
+                   file.mimetype.startsWith('image/') || 
+                   file.mimetype.startsWith('video/');
+
+  if (mimetype || extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Only image or video files are allowed'));
+  }
+};
+
+// Multer configuration for images only
 export const upload = multer({
   storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter,
+  fileFilter: imageFileFilter,
+});
+
+// Multer configuration for videos (larger file size)
+export const uploadVideo = multer({
+  storage,
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB limit for videos
+  },
+  fileFilter: videoFileFilter,
+});
+
+// Multer configuration for reels (video + thumbnail)
+export const uploadReel = multer({
+  storage,
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB limit
+  },
+  fileFilter: mediaFileFilter,
 });
 
 // Helper to get file URL (kept for backward compatibility)

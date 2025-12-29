@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiVideo } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiVideo, FiImage } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { createVendorReel } from "../../services/reelService";
 import { getVendorProducts } from "../../services/productService";
@@ -12,9 +12,11 @@ const AddReel = () => {
   const { vendor } = useVendorAuthStore();
   const [loading, setLoading] = useState(false);
   const [vendorProducts, setVendorProducts] = useState([]);
+  const [videoFile, setVideoFile] = useState(null);
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState("");
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [formData, setFormData] = useState({
-    videoUrl: "",
-    thumbnail: "",
     productId: "",
     productName: "",
     productPrice: "",
@@ -56,11 +58,63 @@ const AddReel = () => {
           ...prev,
           productName: product.name,
           productPrice: product.price,
-          thumbnail: product.image || prev.thumbnail,
         }));
+        // Set thumbnail preview from product image if no thumbnail file is selected
+        if (!thumbnailFile && product.image) {
+          setThumbnailPreview(product.image);
+        }
       }
     }
-  }, [formData.productId, vendorProducts]);
+  }, [formData.productId, vendorProducts, thumbnailFile]);
+
+  // Handle video file selection
+  const handleVideoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/wmv', 'video/flv', 'video/webm', 'video/mkv'];
+      const validExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv'];
+      const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+      
+      if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
+        toast.error('Please select a valid video file (mp4, mov, avi, wmv, flv, webm, mkv)');
+        return;
+      }
+
+      // Validate file size (100MB)
+      if (file.size > 100 * 1024 * 1024) {
+        toast.error('Video file size should be less than 100MB');
+        return;
+      }
+
+      setVideoFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setVideoPreview(previewUrl);
+    }
+  };
+
+  // Handle thumbnail file selection
+  const handleThumbnailChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast.error('Please select a valid image file (jpeg, jpg, png, gif, webp)');
+        return;
+      }
+
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Thumbnail file size should be less than 5MB');
+        return;
+      }
+
+      setThumbnailFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setThumbnailPreview(previewUrl);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -75,8 +129,8 @@ const AddReel = () => {
     setLoading(true);
 
     try {
-      if (!formData.videoUrl) {
-        toast.error("Please provide a video URL");
+      if (!videoFile) {
+        toast.error("Please upload a video file");
         setLoading(false);
         return;
       }
@@ -87,18 +141,20 @@ const AddReel = () => {
         return;
       }
 
-      const reelData = {
-        videoUrl: formData.videoUrl,
-        thumbnail: formData.thumbnail || null,
-        productId: formData.productId,
-        status: formData.status,
-        likes: parseInt(formData.likes) || 0,
-        comments: parseInt(formData.comments) || 0,
-        shares: parseInt(formData.shares) || 0,
-        views: 0,
-      };
+      // Create FormData for file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append('video', videoFile);
+      if (thumbnailFile) {
+        formDataToSend.append('thumbnail', thumbnailFile);
+      }
+      formDataToSend.append('productId', formData.productId);
+      formDataToSend.append('status', formData.status);
+      formDataToSend.append('likes', formData.likes);
+      formDataToSend.append('comments', formData.comments);
+      formDataToSend.append('shares', formData.shares);
+      formDataToSend.append('views', 0);
 
-      await createVendorReel(reelData);
+      await createVendorReel(formDataToSend);
       toast.success("Reel added successfully!");
       navigate("/vendor/reels/all-reels");
     } catch (error) {
@@ -162,36 +218,62 @@ const AddReel = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Video URL <span className="text-red-500">*</span>
+                    Upload Video <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
-                      type="url"
-                      name="videoUrl"
-                      value={formData.videoUrl}
-                      onChange={handleChange}
-                      placeholder="https://example.com/video.mp4"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all placeholder:text-gray-400"
+                      type="file"
+                      accept="video/mp4,video/mov,video/avi,video/wmv,video/flv,video/webm,video/mkv"
+                      onChange={handleVideoChange}
+                      className="hidden"
+                      id="video-upload"
                       required
                     />
-                    <FiVideo className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <label
+                      htmlFor="video-upload"
+                      className="flex items-center gap-3 w-full pl-4 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 cursor-pointer hover:bg-gray-100 transition-all"
+                    >
+                      <FiVideo className="text-gray-400 text-xl" />
+                      <span className="flex-1 text-sm">
+                        {videoFile ? videoFile.name : "Choose video file (max 100MB)"}
+                      </span>
+                      <FiUpload className="text-gray-400" />
+                    </label>
                   </div>
+                  {videoFile && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Selected: {videoFile.name} ({(videoFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Thumbnail URL
+                    Upload Thumbnail (Optional)
                   </label>
                   <div className="relative">
                     <input
-                      type="url"
-                      name="thumbnail"
-                      value={formData.thumbnail}
-                      onChange={handleChange}
-                      placeholder="https://example.com/thumb.jpg"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all placeholder:text-gray-400"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleThumbnailChange}
+                      className="hidden"
+                      id="thumbnail-upload"
                     />
-                    <FiUpload className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <label
+                      htmlFor="thumbnail-upload"
+                      className="flex items-center gap-3 w-full pl-4 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-900 cursor-pointer hover:bg-gray-100 transition-all"
+                    >
+                      <FiImage className="text-gray-400 text-xl" />
+                      <span className="flex-1 text-sm">
+                        {thumbnailFile ? thumbnailFile.name : "Choose thumbnail (max 5MB)"}
+                      </span>
+                      <FiUpload className="text-gray-400" />
+                    </label>
                   </div>
+                  {thumbnailFile && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Selected: {thumbnailFile.name} ({(thumbnailFile.size / (1024 * 1024)).toFixed(2)} MB)
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -284,11 +366,11 @@ const AddReel = () => {
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-xl z-20"></div>
 
               {/* Video Content */}
-              {formData.videoUrl || formData.thumbnail ? (
+              {videoPreview || thumbnailPreview ? (
                 <div className="relative w-full h-full">
-                  {formData.videoUrl ? (
+                  {videoPreview ? (
                     <video
-                      src={formData.videoUrl}
+                      src={videoPreview}
                       className="w-full h-full object-cover"
                       autoPlay
                       muted
@@ -296,7 +378,7 @@ const AddReel = () => {
                       playsInline
                     />
                   ) : (
-                    <img src={formData.thumbnail} className="w-full h-full object-cover" alt="Preview" />
+                    <img src={thumbnailPreview} className="w-full h-full object-cover" alt="Preview" />
                   )}
 
                   {/* Overlay Gradient */}

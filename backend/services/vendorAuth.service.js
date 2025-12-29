@@ -54,25 +54,46 @@ export const registerVendor = async (vendorData) => {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Process documents if provided - upload to Cloudinary
+    // Process documents/media if provided - upload to Cloudinary
     let processedDocuments = [];
     if (documents && Array.isArray(documents) && documents.length > 0) {
       for (const doc of documents) {
         if (doc.data && doc.name) {
           try {
+            // Determine file type and set appropriate resource_type for Cloudinary
+            const fileType = doc.type || 'application/pdf'; // Default to PDF if type not provided
+            const isImage = fileType.startsWith('image/');
+            const isVideo = fileType.startsWith('video/');
+            const isPDF = fileType === 'application/pdf';
+
+            let resourceType = 'auto'; // Cloudinary will auto-detect, but we can be specific
+            let folderName = 'vendor-documents';
+
+            if (isPDF) {
+              resourceType = 'raw'; // PDFs should be uploaded as raw files
+            } else if (isImage) {
+              resourceType = 'image';
+              folderName = 'vendor-documents/images';
+            } else if (isVideo) {
+              resourceType = 'video';
+              folderName = 'vendor-documents/videos';
+            }
+
             // Upload to Cloudinary
-            const result = await uploadBase64ToCloudinary(doc.data, 'vendor-documents', {
-              resource_type: 'raw', // For PDFs and other non-image files
+            const result = await uploadBase64ToCloudinary(doc.data, folderName, {
+              resource_type: resourceType,
             });
+
             processedDocuments.push({
               name: doc.name,
               url: result.secure_url,
               publicId: result.public_id,
+              type: fileType, // Store file type for proper display in admin panel
               uploadedAt: new Date(),
             });
           } catch (uploadError) {
-            console.error(`Failed to upload document ${doc.name}:`, uploadError.message);
-            // Continue with other documents even if one fails
+            console.error(`Failed to upload file ${doc.name}:`, uploadError.message);
+            // Continue with other files even if one fails
           }
         }
       }

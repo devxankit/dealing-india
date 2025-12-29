@@ -88,6 +88,7 @@ const vendorSchema = new mongoose.Schema(
       name: { type: String, required: true },
       url: { type: String, required: true },
       publicId: { type: String },
+      type: { type: String }, // MIME type (e.g., 'application/pdf', 'image/jpeg', 'video/mp4')
       uploadedAt: { type: Date, default: Date.now },
     }],
     bankDetails: {

@@ -21,6 +21,26 @@ export const getAllSliders = async () => {
 };
 
 /**
+ * Get active sliders only (for public endpoint)
+ */
+export const getActiveSliders = async () => {
+  try {
+    const sliders = await Slider.find({ status: 'active' })
+      .sort({ order: 1, createdAt: -1 })
+      .lean();
+
+    return sliders.map((slider) => ({
+      ...slider,
+      id: slider._id.toString(),
+      image: slider.imageUrl,
+      imageUrl: slider.imageUrl, // Keep both for compatibility
+    }));
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Get slider by ID
  */
 export const getSliderById = async (sliderId) => {

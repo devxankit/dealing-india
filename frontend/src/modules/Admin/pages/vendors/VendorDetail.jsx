@@ -17,6 +17,7 @@ import {
   FiFileText,
   FiDownload,
   FiFile,
+  FiEye,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorManagementStore } from "../../store/vendorManagementStore";
@@ -25,9 +26,160 @@ import DataTable from "../../components/DataTable";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 
+// PDF Preview Component - Uses multiple methods for reliable PDF display
+const PdfPreviewFrame = ({ doc, index }) => {
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [viewMethod, setViewMethod] = useState('google'); // 'google', 'direct', 'blob'
+
+  // Check if URL is Cloudinary
+  const isCloudinary = doc.url.includes('cloudinary.com');
+  
+  // Create different viewer URLs
+  const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(doc.url)}&embedded=true`;
+  const directUrl = isCloudinary ? `${doc.url}#toolbar=1&navpanes=1&scrollbar=1` : `${doc.url}#view=FitH`;
+  
+  // Determine which URL to use
+  const getIframeSrc = () => {
+    switch (viewMethod) {
+      case 'direct':
+        return directUrl;
+      case 'blob':
+        return null; // Will be set via blob URL
+      case 'google':
+      default:
+        return googleViewerUrl;
+    }
+  };
+
+  const [blobUrl, setBlobUrl] = useState(null);
+  const iframeSrc = viewMethod === 'blob' ? blobUrl : getIframeSrc();
+
+  useEffect(() => {
+    // Try to load blob URL if using blob method
+    if (viewMethod === 'blob') {
+      const loadBlob = async () => {
+        try {
+          const response = await fetch(doc.url, { mode: 'cors' });
+          if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            setBlobUrl(url);
+          } else {
+            throw new Error('Failed to fetch');
+          }
+        } catch (err) {
+          console.error('Blob load failed:', err);
+          setViewMethod('google'); // Fallback to Google Viewer
+        }
+      };
+      loadBlob();
+    }
+
+    // Set loading timeout
+    const timer = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      clearTimeout(timer);
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [viewMethod, doc.url]);
+
+  const handleIframeLoad = () => {
+    setLoading(false);
+    setError(false);
+  };
+
+  const handleIframeError = () => {
+    setLoading(false);
+    // Try next method
+    if (viewMethod === 'google') {
+      setViewMethod('direct');
+      setLoading(true);
+    } else if (viewMethod === 'direct') {
+      setViewMethod('blob');
+      setLoading(true);
+    } else {
+      setError(true);
+    }
+  };
+
+  if (error || (!iframeSrc && viewMethod !== 'blob')) {
+    return (
+      <div className="w-full h-96 flex items-center justify-center bg-gray-100 border border-gray-200 rounded">
+        <div className="text-center p-4">
+          <p className="text-gray-600 mb-3">PDF preview is not available.</p>
+          <div className="flex flex-col gap-2 items-center">
+            <button
+              type="button"
+              onClick={() => {
+                window.open(doc.url, '_blank', 'noopener,noreferrer');
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            >
+              Open PDF in New Tab
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setError(false);
+                setLoading(true);
+                setViewMethod('google');
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+            >
+              Retry Preview
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!iframeSrc && viewMethod === 'blob') {
+    return (
+      <div className="w-full h-96 flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-sm text-gray-600">Loading PDF...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-96">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">Loading PDF preview...</p>
+          </div>
+        </div>
+      )}
+      <iframe
+        src={iframeSrc}
+        className="w-full h-96 border-0"
+        title={`PDF Preview: ${doc.name}`}
+        onLoad={handleIframeLoad}
+        onError={handleIframeError}
+        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+        style={{ display: error ? 'none' : 'block' }}
+      />
+    </div>
+  );
+};
+
 const VendorDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [showPdfPreview, setShowPdfPreview] = useState({});
   const {
     selectedVendor,
     isLoading,
@@ -489,41 +641,206 @@ const VendorDetail = () => {
           {activeTab === "documents" && (
             <div>
               <h2 className="text-lg font-bold text-gray-800 mb-4">
-                Business Documents
+                Business Documents & Media
               </h2>
               {vendor.documents && vendor.documents.length > 0 ? (
-                <div className="space-y-3">
-                  {vendor.documents.map((doc, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                          <FiFile className="text-red-500 text-lg" />
+                <div className="space-y-4">
+                  {vendor.documents.map((doc, index) => {
+                    const isImage = doc.type?.startsWith('image/');
+                    const isVideo = doc.type?.startsWith('video/');
+                    const isPDF = !doc.type || doc.type === 'application/pdf';
+
+                    return (
+                      <div
+                        key={index}
+                        className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                              isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-purple-100'
+                            }`}>
+                              <FiFile className={`text-lg ${
+                                isPDF ? 'text-red-500' : isImage ? 'text-blue-500' : 'text-purple-500'
+                              }`} />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-800">
+                                {doc.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {/* View Button - Opens PDF in new tab for viewing only, NO download */}
+                            {isPDF && (
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.preventDefault();
+                                  try {
+                                    // Try multiple methods to view PDF without download
+                                    // Method 1: Try Google Docs Viewer first (most reliable)
+                                    const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(doc.url)}&embedded=false`;
+                                    
+                                    // Open Google Docs Viewer in new tab
+                                    const viewerWindow = window.open(googleViewerUrl, '_blank', 'noopener,noreferrer');
+                                    
+                                    if (!viewerWindow) {
+                                      // Popup blocked - try direct method
+                                      toast.info('Popup blocked. Trying alternative method...');
+                                      
+                                      // Method 2: Try fetching and creating blob URL
+                                      try {
+                                        const response = await fetch(doc.url, {
+                                          method: 'GET',
+                                          mode: 'cors',
+                                        });
+                                        
+                                        if (response.ok) {
+                                          const blob = await response.blob();
+                                          const blobUrl = URL.createObjectURL(blob);
+                                          
+                                          // Create a new window with blob URL
+                                          const blobWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+                                          
+                                          if (blobWindow) {
+                                            // Cleanup after 5 minutes
+                                            setTimeout(() => URL.revokeObjectURL(blobUrl), 300000);
+                                            toast.success('PDF opened in new tab');
+                                          } else {
+                                            // Last resort: direct URL
+                                            window.open(doc.url, '_blank', 'noopener,noreferrer');
+                                            toast.info('PDF opened. If it downloads, use Download button instead.');
+                                          }
+                                        } else {
+                                          throw new Error('Fetch failed');
+                                        }
+                                      } catch (fetchError) {
+                                        // Method 3: Direct URL as last resort
+                                        window.open(doc.url, '_blank', 'noopener,noreferrer');
+                                        toast.info('PDF opened directly. If it downloads instead of viewing, please use Download button.');
+                                      }
+                                    } else {
+                                      toast.success('Opening PDF viewer...');
+                                    }
+                                  } catch (error) {
+                                    console.error('Failed to view PDF:', error);
+                                    // Final fallback
+                                    window.open(doc.url, '_blank', 'noopener,noreferrer');
+                                    toast.error('Failed to open viewer. PDF opened directly.');
+                                  }
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                                title="View PDF in new tab"
+                              >
+                                <FiEye />
+                                View
+                              </button>
+                            )}
+                            {/* Download Button - Downloads the file only when clicked */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                // Always prevent default and handle download manually
+                                fetch(doc.url)
+                                  .then(res => {
+                                    if (!res.ok) throw new Error('Failed to fetch file');
+                                    return res.blob();
+                                  })
+                                  .then(blob => {
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = doc.name;
+                                    a.style.display = 'none';
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    // Cleanup
+                                    setTimeout(() => {
+                                      window.URL.revokeObjectURL(url);
+                                      document.body.removeChild(a);
+                                    }, 100);
+                                    toast.success('Download started');
+                                  })
+                                  .catch(err => {
+                                    console.error('Download failed:', err);
+                                    toast.error('Failed to download file. Please try again.');
+                                  });
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                              title="Download file"
+                            >
+                              <FiDownload />
+                              Download
+                            </button>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-800">
-                            {doc.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
-                          </p>
-                        </div>
+                        
+                        {/* Display PDF Preview - Optional preview, no auto-download */}
+                        {isPDF && (
+                          <div className="mt-3">
+                            {!showPdfPreview[index] ? (
+                              <button
+                                type="button"
+                                onClick={() => setShowPdfPreview(prev => ({ ...prev, [index]: true }))}
+                                className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 transition-colors"
+                              >
+                                Show PDF Preview
+                              </button>
+                            ) : (
+                              <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                                <div className="flex items-center justify-between p-2 bg-gray-100 border-b border-gray-200">
+                                  <span className="text-xs text-gray-600 font-medium">PDF Preview</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPdfPreview(prev => ({ ...prev, [index]: false }))}
+                                    className="text-xs text-gray-500 hover:text-gray-700"
+                                  >
+                                    Hide Preview
+                                  </button>
+                                </div>
+                                <PdfPreviewFrame doc={doc} index={index} />
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Display Image */}
+                        {isImage && (
+                          <div className="mt-3 rounded-lg overflow-hidden border border-gray-200">
+                            <img
+                              src={doc.url}
+                              alt={doc.name}
+                              className="w-full max-h-96 object-contain bg-white"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        {/* Display Video */}
+                        {isVideo && (
+                          <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-black">
+                            <video
+                              src={doc.url}
+                              controls
+                              className="w-full max-h-96"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            >
+                              Your browser does not support the video tag.
+                            </video>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                        >
-                          <FiDownload />
-                          View/Download
-                        </a>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">

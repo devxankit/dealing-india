@@ -27,10 +27,10 @@ const VendorRegister = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [documents, setDocuments] = useState([]); // Array of { name, data } objects
+  const [documents, setDocuments] = useState([]); // Array of { name, data, type } objects
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 
-  // Handle document upload
+  // Handle document/media upload
   const handleDocumentUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -39,15 +39,22 @@ const VendorRegister = () => {
     const newDocs = [];
 
     for (const file of files) {
-      // Validate file type (PDF only)
-      if (file.type !== 'application/pdf') {
-        toast.error(`${file.name} is not a PDF file`);
+      // Validate file type (PDF, images, videos)
+      const isPDF = file.type === 'application/pdf';
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+
+      if (!isPDF && !isImage && !isVideo) {
+        toast.error(`${file.name} is not a valid file type (PDF, image, or video)`);
         continue;
       }
 
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} is too large (max 5MB)`);
+      // Validate file size
+      // PDFs and images: max 5MB, Videos: max 50MB
+      const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const maxSizeMB = isVideo ? 50 : 5;
+        toast.error(`${file.name} is too large (max ${maxSizeMB}MB)`);
         continue;
       }
 
@@ -63,6 +70,7 @@ const VendorRegister = () => {
         newDocs.push({
           name: file.name,
           data: base64,
+          type: file.type, // Store file type for backend processing
         });
       } catch (error) {
         toast.error(`Failed to read ${file.name}`);
@@ -71,7 +79,7 @@ const VendorRegister = () => {
 
     if (newDocs.length > 0) {
       setDocuments(prev => [...prev, ...newDocs]);
-      toast.success(`${newDocs.length} document(s) added`);
+      toast.success(`${newDocs.length} file(s) added`);
     }
     setIsUploadingDocs(false);
     // Reset input
@@ -387,16 +395,16 @@ const VendorRegister = () => {
 
           {/* Document Upload Section */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Documents</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Documents & Media</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Upload your business documents for verification (PDF files only, max 5MB each)
+              Upload your business documents, images, or videos for verification (PDF/Images: max 5MB, Videos: max 50MB)
             </p>
 
             {/* Upload Button */}
             <div className="mb-4">
               <input
                 type="file"
-                accept=".pdf,application/pdf"
+                accept=".pdf,application/pdf,image/*,video/*"
                 multiple
                 onChange={handleDocumentUpload}
                 className="hidden"
@@ -410,7 +418,7 @@ const VendorRegister = () => {
               >
                 <FiUpload className="text-gray-500" />
                 <span className="text-gray-600 font-medium">
-                  {isUploadingDocs ? 'Processing...' : 'Click to upload PDF documents'}
+                  {isUploadingDocs ? 'Processing...' : 'Click to upload files (PDF, Images, Videos)'}
                 </span>
               </label>
             </div>
@@ -418,28 +426,36 @@ const VendorRegister = () => {
             {/* Document List */}
             {documents.length > 0 && (
               <div className="space-y-2">
-                {documents.map((doc, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FiFile className="text-red-500 text-xl" />
-                      <span className="text-sm text-gray-700 font-medium truncate max-w-[200px]">
-                        {doc.name}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeDocument(index)}
-                      className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                {documents.map((doc, index) => {
+                  const isImage = doc.type?.startsWith('image/');
+                  const isVideo = doc.type?.startsWith('video/');
+                  const isPDF = doc.type === 'application/pdf';
+                  
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
                     >
-                      <FiX />
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        {isImage && <FiFile className="text-blue-500 text-xl" />}
+                        {isVideo && <FiFile className="text-purple-500 text-xl" />}
+                        {isPDF && <FiFile className="text-red-500 text-xl" />}
+                        <span className="text-sm text-gray-700 font-medium truncate max-w-[200px]">
+                          {doc.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDocument(index)}
+                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  );
+                })}
                 <p className="text-xs text-gray-500 mt-2">
-                  {documents.length} document(s) selected
+                  {documents.length} file(s) selected
                 </p>
               </div>
             )}

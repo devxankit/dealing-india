@@ -13,6 +13,12 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    // If FormData, let axios set Content-Type automatically (multipart/form-data)
+    if (config.data instanceof FormData) {
+      // Remove Content-Type header to let browser set it with boundary
+      delete config.headers['Content-Type'];
+    }
+    
     // Determine which token to use based on request URL
     let token = null;
     const url = config.url || '';

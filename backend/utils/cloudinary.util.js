@@ -63,7 +63,7 @@ export const uploadBase64ToCloudinary = async (base64String, folderName, options
           public_id: extractPublicIdFromUrl(base64String),
         };
       }
-      throw new Error('Invalid base64 format. Expected data URL format (data:image/...)');
+      throw new Error('Invalid base64 format. Expected data URL format (data:image/... or data:video/... or data:application/...)');
     }
 
     const uploadOptions = {
