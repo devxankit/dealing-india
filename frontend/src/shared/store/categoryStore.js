@@ -6,10 +6,19 @@ import api from '../utils/api.js';
 // Helper to transform MongoDB _id to id for frontend compatibility
 const transformCategory = (category) => {
   if (!category) return null;
+  
+  // Convert _id to id
+  const id = category._id?.toString() || category.id?.toString() || category.id;
+  
+  // Convert parentId to string for consistent comparison
+  const parentId = category.parentId 
+    ? (category.parentId.toString ? category.parentId.toString() : String(category.parentId))
+    : null;
+  
   return {
     ...category,
-    id: category._id || category.id,
-    parentId: category.parentId || null,
+    id,
+    parentId,
   };
 };
 
@@ -179,9 +188,16 @@ export const useCategoryStore = create(
         const categories = get().categories;
         if (!parentId) return categories.filter((cat) => !cat.parentId);
 
-        const parentIdStr = parentId?.toString() || parentId;
+        // Normalize parentId to string for comparison
+        const parentIdStr = parentId?.toString() || String(parentId);
+        
         return categories.filter((cat) => {
-          const catParentId = cat.parentId?.toString() || cat.parentId;
+          // Normalize category's parentId to string
+          const catParentId = cat.parentId 
+            ? (cat.parentId.toString ? cat.parentId.toString() : String(cat.parentId))
+            : null;
+          
+          // Compare as strings
           return catParentId === parentIdStr;
         });
       },
