@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FiFilter, FiArrowLeft, FiGrid, FiList, FiX, FiChevronDown } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import MobileLayout from "../components/Layout/MobileLayout";
+import MobileFilterPanel from "../components/Mobile/MobileFilterPanel";
 import ProductCard from "../../../shared/components/ProductCard";
 import ProductListItem from "../components/Mobile/ProductListItem";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
@@ -18,7 +19,7 @@ const MobileCategory = () => {
   const navigate = useNavigate();
   // Use categoryId as string (MongoDB ObjectIds are strings, not numbers)
   const categoryId = id;
-  const { categories, initialize, getCategoryById, getCategoriesByParent, isLoading } =
+  const { categories, initialize, getCategoryById, getCategoriesByParent, getRootCategories, isLoading: isLoadingCategories } =
     useCategoryStore();
 
   // Initialize store on mount and refresh periodically
@@ -41,10 +42,39 @@ const MobileCategory = () => {
   // Get subcategories for this category
   const subcategories = useMemo(() => {
     if (!categoryId) return [];
-    return getCategoriesByParent(categoryId).filter(
+    const subs = getCategoriesByParent(categoryId).filter(
       (cat) => cat.isActive !== false
     );
+    // Debug: Log subcategories to help troubleshoot
+    if (subs.length > 0) {
+      console.log('📂 Subcategories for category:', categoryId, subs.map(s => s.name));
+    }
+    return subs;
   }, [categoryId, categories, getCategoriesByParent]);
+  
+  // Compute categories to show in filter
+  const filterCategories = useMemo(() => {
+    // First priority: subcategories of current category
+    if (subcategories && subcategories.length > 0) {
+      console.log('✅ Filter: Using subcategories', subcategories.length);
+      return subcategories;
+    }
+    // Second priority: root categories
+    if (categories && categories.length > 0) {
+      const rootCats = getRootCategories ? getRootCategories() : categories.filter(cat => !cat.parentId);
+      const activeRoots = rootCats.filter(cat => cat.isActive !== false);
+      if (activeRoots.length > 0) {
+        console.log('✅ Filter: Using root categories', activeRoots.length);
+        return activeRoots;
+      }
+      // Fallback: all active categories
+      const allActive = categories.filter(cat => cat.isActive !== false).slice(0, 20);
+      console.log('✅ Filter: Using all active categories', allActive.length);
+      return allActive;
+    }
+    console.log('⚠️ Filter: No categories available');
+    return [];
+  }, [subcategories, categories, getRootCategories]);
 
   // State for selected nested subcategories (supports unlimited depth)
   // Structure: { level0: categoryId, level1: subcategoryId, level2: subSubcategoryId, ... }
@@ -52,6 +82,9 @@ const MobileCategory = () => {
   
   // State for dropdown visibility for each category
   const [openDropdowns, setOpenDropdowns] = useState({});
+  
+  // State for filter dropdown visibility (for level 3+ categories)
+  const [openFilterDropdowns, setOpenFilterDropdowns] = useState({});
 
   // Get nested subcategories recursively for any level
   const getNestedSubcategories = useCallback((parentId) => {
@@ -450,8 +483,10 @@ const MobileCategory = () => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } =
+  const { displayedItems, hasMore, isLoading: isLoadingMore, loadMore, loadMoreRef } =
     useInfiniteScroll(products, 10, 10);
+  // Alias to avoid renaming multiple JSX occurrences
+  const isLoading = isLoadingMore;
 
   const filterButtonRef = useRef(null);
 
@@ -485,6 +520,7 @@ const MobileCategory = () => {
         !event.target.closest(".filter-dropdown")
       ) {
         setShowFilters(false);
+        setOpenFilterDropdowns({}); // Close all filter dropdowns
       }
     };
 
@@ -570,9 +606,15 @@ const MobileCategory = () => {
                     <FiGrid className="text-lg" />
                   </button>
                 </div>
-                <div ref={filterButtonRef} className="relative">
+                <div className="relative">
                   <button
-                    onClick={() => setShowFilters(!showFilters)}
+                    onClick={() => {
+                      // Refresh categories when opening filter to get latest additions
+                      if (!showFilters) {
+                        initialize(true);
+                      }
+                      setShowFilters(!showFilters);
+                    }}
                     className={`p-2.5 glass-card rounded-xl hover:bg-white/80 transition-colors ${
                       showFilters ? "bg-white/80" : ""
                     }`}>
@@ -583,68 +625,76 @@ const MobileCategory = () => {
                     />
                   </button>
 
-                  {/* Filter Dropdown */}
-                  <AnimatePresence>
-                    {showFilters && (
-                      <>
-                        {/* Backdrop */}
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          onClick={() => setShowFilters(false)}
-                          className="fixed inset-0 bg-black/20 z-[10000]"
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 300,
-                            damping: 30,
-                          }}
-                          className="filter-dropdown absolute right-0 top-full w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-[10001] overflow-hidden"
-                          style={{ marginTop: "-50px" }}>
-                          {/* Header */}
-                          <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50">
-                            <div className="flex items-center gap-1.5">
-                              <FiFilter className="text-sm text-gray-700" />
-                              <h3 className="text-sm font-bold text-gray-800">
-                                Filters
-                              </h3>
-                            </div>
-                            <button
-                              onClick={() => setShowFilters(false)}
-                              className="p-0.5 hover:bg-gray-200 rounded-full transition-colors">
-                              <FiX className="text-sm text-gray-600" />
-                            </button>
+                  {/* Filter Bottom Sheet */}
+                  <MobileFilterPanel
+                    isOpen={showFilters}
+                    onClose={() => setShowFilters(false)}
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    onClearFilters={clearFilters}
+                  />
+                  {false && (
+                    <div>
+                      {/* Backdrop */}
+                      <div
+                        onClick={() => setShowFilters(false)}
+                        className="fixed inset-0 bg-black/20 z-[10000]"
+                      />
+                      {/* Dropdown */}
+                      <div
+                        className="filter-dropdown absolute right-0 top-full w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-[10001] overflow-hidden"
+                        style={{ marginTop: "-50px" }}>
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50">
+                          <div className="flex items-center gap-1.5">
+                            <FiFilter className="text-sm text-gray-700" />
+                            <h3 className="text-sm font-bold text-gray-800">
+                              Filters
+                            </h3>
                           </div>
+                          <button
+                            onClick={() => setShowFilters(false)}
+                            className="p-0.5 hover:bg-gray-200 rounded-full transition-colors">
+                            <FiX className="text-sm text-gray-600" />
+                          </button>
+                        </div>
 
-                          {/* Filter Content */}
-                          <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
-                            <div className="p-2 space-y-2">
-                              {/* Category Filter */}
-                              <div>
-                                <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                  Categories
-                                </h4>
-                                <div className="space-y-1 max-h-[200px] overflow-y-auto scrollbar-hide">
-                                  {isLoading ? (
-                                    <div className="text-xs text-gray-500 text-center py-2">
-                                      Loading categories...
-                                    </div>
-                                  ) : (() => {
-                                      const renderCategoryFilter = (category, level, parentPath = []) => {
-                                        const catId = category.id?.toString() || String(category.id);
-                                        const currentPath = [...parentPath, category.id];
-                                        const isSelected = selectedNestedCategories[`level${level}`] === catId;
-                                        const children = getNestedSubcategories(catId);
-                                        const hasDropdownChildren = dropdownLevels[catId] && dropdownLevels[catId].length > 0;
-                                        
-                                        return (
-                                          <div key={category.id} className="space-y-0.5">
-                                            <label className="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-50 transition-colors">
+                        {/* Filter Content */}
+                        <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
+                          <div className="p-2 space-y-2">
+                            {/* Category Filter - Always show this section */}
+                            <div className="min-h-[60px] border-b border-gray-100 pb-2">
+                              <h4 className="font-semibold text-gray-700 mb-2 text-xs">
+                                Categories
+                              </h4>
+                              <div className="space-y-1 max-h-[200px] overflow-y-auto scrollbar-hide min-h-[40px] bg-gray-50 rounded-md p-2">
+                                {isLoadingCategories ? (
+                                  <div className="text-xs text-gray-500 text-center py-2">
+                                    Loading categories...
+                                  </div>
+                                ) : categories.length === 0 ? (
+                                  <div className="text-xs text-gray-500 text-center py-2">
+                                    No categories available
+                                  </div>
+                                ) : (() => {
+                                    const toggleFilterDropdown = (categoryId) => {
+                                      const normalizedId = categoryId?.toString() || String(categoryId);
+                                      setOpenFilterDropdowns(prev => ({
+                                        ...prev,
+                                        [normalizedId]: !prev[normalizedId]
+                                      }));
+                                    };
+                                    const renderCategoryFilter = (category, level, parentPath = []) => {
+                                      const catId = category.id?.toString() || String(category.id);
+                                      const currentPath = [...parentPath, category.id];
+                                      const isSelected = selectedNestedCategories[`level${level}`] === catId;
+                                      const children = getNestedSubcategories(catId);
+                                      const hasLevel3PlusChildren = level >= 2 && children.length > 0;
+                                      const isFilterDropdownOpen = openFilterDropdowns[catId] || false;
+                                      return (
+                                        <div key={category.id} className="space-y-0.5">
+                                          <div className="flex items-center gap-1.5">
+                                            <label className="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-50 transition-colors flex-1">
                                               <input
                                                 type="radio"
                                                 name="filterCategory"
@@ -662,69 +712,79 @@ const MobileCategory = () => {
                                               <span className={`text-xs flex-1 ${
                                                 level === 0 ? "text-gray-700 font-medium" : 
                                                 level === 1 ? "text-gray-600" : 
+                                                level === 2 ? "text-gray-600" :
                                                 "text-gray-500"
                                               }`}>
                                                 {category.name}
                                               </span>
                                             </label>
-                                            
-                                            {/* Render children recursively - ALL levels */}
-                                            {children.length > 0 && (
-                                              <div className="ml-4 space-y-0.5">
-                                                {children.map(child => renderCategoryFilter(child, level + 1, currentPath))}
-                                              </div>
-                                            )}
-                                            
-                                            {/* Dropdown children (level 2+) */}
-                                            {hasDropdownChildren && dropdownLevels[catId] && (
-                                              <div className="ml-4 space-y-0.5">
-                                                {dropdownLevels[catId].map((dropdownLevel) => (
-                                                  <div key={`dropdown-${dropdownLevel.level}`} className="space-y-0.5">
-                                                    {dropdownLevel.categories.map((deepCat) => {
-                                                      return renderCategoryFilter(deepCat, dropdownLevel.level, currentPath);
-                                                    })}
-                                                  </div>
-                                                ))}
-                                              </div>
+                                            {hasLevel3PlusChildren && (
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  toggleFilterDropdown(catId);
+                                                }}
+                                                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                              >
+                                                <FiChevronDown 
+                                                  className={`text-xs transition-transform duration-200 ${
+                                                    isFilterDropdownOpen ? 'rotate-180' : ''
+                                                  }`} 
+                                                />
+                                              </button>
                                             )}
                                           </div>
-                                        );
-                                      };
-                                      
-                                      // Render level 0 categories
-                                      // Always use subcategories - they're the direct children of current category
-                                      const categoriesToShow = subcategories.length > 0 
-                                        ? subcategories 
-                                        : (buttonLevels.length > 0 && buttonLevels[0]?.categories.length > 0
-                                            ? buttonLevels[0].categories 
-                                            : []);
-                                      
-                                      // Debug logging
-                                      console.log('🔍 Filter Categories Debug:', {
-                                        buttonLevels: buttonLevels.length,
-                                        subcategories: subcategories.length,
-                                        categoriesToShow: categoriesToShow.length,
-                                        categoryId,
-                                        totalCategories: categories.length,
-                                        subcategoriesList: subcategories.map(c => c.name)
-                                      });
-                                      
-                                      if (categoriesToShow.length > 0) {
-                                        return (
-                                          <div className="space-y-1">
-                                            {categoriesToShow.map(cat => renderCategoryFilter(cat, 0))}
-                                          </div>
-                                        );
-                                      }
-                                      
-                                      return (
-                                        <div className="text-xs text-gray-500 text-center py-2">
-                                          No subcategories available
+                                          {level < 2 && children.length > 0 && (
+                                            <div className="ml-4 space-y-0.5">
+                                              {children.map(child => renderCategoryFilter(child, level + 1, currentPath))}
+                                            </div>
+                                          )}
+                                          {hasLevel3PlusChildren && isFilterDropdownOpen && (
+                                            <div className="ml-6 mt-1 space-y-0.5 border-l-2 border-gray-200 pl-2">
+                                              {children.map(child => renderCategoryFilter(child, level + 1, currentPath))}
+                                            </div>
+                                          )}
                                         </div>
                                       );
-                                    })()}
-                                  </div>
+                                    };
+                                    let categoriesToShow = filterCategories || [];
+                                    if (categoriesToShow.length === 0 && categories && categories.length > 0) {
+                                      const rootCats = getRootCategories ? getRootCategories() : categories.filter(cat => !cat.parentId);
+                                      categoriesToShow = rootCats.filter(cat => cat.isActive !== false);
+                                      if (categoriesToShow.length === 0) {
+                                        categoriesToShow = categories.filter(cat => cat.isActive !== false).slice(0, 10);
+                                      }
+                                    }
+                                    if (categoriesToShow.length > 0) {
+                                      return (
+                                        <div className="space-y-1">
+                                          {categoriesToShow.map(cat => {
+                                            if (!cat || !cat.id) {
+                                              console.warn('⚠️ Invalid category:', cat);
+                                              return null;
+                                            }
+                                            return renderCategoryFilter(cat, 0);
+                                          })}
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div className="text-xs text-gray-500 text-center py-3 border-2 border-dashed border-gray-300 rounded-md bg-white">
+                                        <div className="font-medium">No categories found</div>
+                                        <div className="text-[10px] text-gray-400 mt-1">
+                                          Total: {categories.length} | Active: {categories.filter(c => c.isActive !== false).length}
+                                        </div>
+                                        {categories.length > 0 && (
+                                          <div className="text-[10px] text-blue-500 mt-1">
+                                            Debug: Check console for details
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
+                              </div>
 
                               {/* Price Range */}
                               <div>
@@ -815,10 +875,9 @@ const MobileCategory = () => {
                               Apply Filters
                             </button>
                           </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
+                        </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

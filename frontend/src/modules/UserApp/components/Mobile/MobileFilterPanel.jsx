@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiFilter } from 'react-icons/fi';
-import { categories } from '../../../../data/categories';
+// Dynamic categories from store
+import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import useSwipeGesture from '../../hooks/useSwipeGesture';
 
 const MobileFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onClearFilters }) => {
+  const { categories, initialize, getCategoriesByParent } = useCategoryStore();
   const [dragY, setDragY] = useState(0);
   const panelRef = useRef(null);
 
@@ -31,6 +33,51 @@ const MobileFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onClearFi
     onSwipeDown: handleSwipeDown,
     threshold: 100,
   });
+
+  // Refresh categories whenever panel opens
+  useEffect(() => {
+    if (isOpen) {
+      initialize(true);
+    }
+  }, [isOpen, initialize]);
+
+  const getChildren = (parentId) => {
+    const kids = getCategoriesByParent(parentId).filter(c => c.isActive !== false);
+    return kids;
+  };
+
+  const renderNestedCategories = (parentId = null, level = 0) => {
+    const list = parentId ? getChildren(parentId) : categories.filter(c => !c.parentId && c.isActive !== false);
+    if (!list || list.length === 0) return null;
+    return (
+      <div className={level === 0 ? 'space-y-2' : 'ml-4 space-y-1'}>
+        {list.map(cat => {
+          const catId = cat.id?.toString() || String(cat.id);
+          const hasChildren = getChildren(catId).length > 0;
+          return (
+            <div key={catId} className="space-y-1">
+              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                <input
+                  type="radio"
+                  name="category"
+                  value={catId}
+                  checked={filters.category === catId}
+                  onChange={(e) => onFilterChange('category', catId)}
+                  className="w-5 h-5 text-primary-500"
+                />
+                <span className={`text-sm text-gray-700 font-medium ${level === 0 ? '' : 'pl-1'}`}>{cat.name}</span>
+              </label>
+              {hasChildren && (
+                <div className="ml-6 border-l border-gray-200 pl-3">
+                  {renderNestedCategories(catId, level + 1)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -94,7 +141,7 @@ const MobileFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onClearFi
               <div className="mb-6">
                 <h3 className="font-semibold text-gray-700 mb-3 text-base">Category</h3>
                 <div className="space-y-2">
-                  {categories.map((category) => (
+                  {renderNestedCategories(null, 0) || (
                     <label
                       key={category.id}
                       className="flex items-center gap-3 cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors"
