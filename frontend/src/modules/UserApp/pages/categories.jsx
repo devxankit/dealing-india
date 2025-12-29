@@ -24,17 +24,49 @@ const MobileCategories = () => {
     return roots;
   }, [categories, getRootCategories]);
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState(
-    rootCategories[0]?.id || null
-  );
+  // Debug: Log categories when they change
+  useEffect(() => {
+    console.log('📦 Categories loaded:', categories.length);
+    console.log('📦 Root categories:', rootCategories.length, rootCategories.map(c => c.name));
+  }, [categories, rootCategories]);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   const categoryListRef = useRef(null);
   const activeCategoryRef = useRef(null);
 
-  // Get subcategories for selected category
+  // Set initial selected category when root categories are loaded
+  useEffect(() => {
+    if (rootCategories.length > 0 && !selectedCategoryId) {
+      setSelectedCategoryId(rootCategories[0]?.id || null);
+    }
+  }, [rootCategories, selectedCategoryId]);
+
+  // Get ONLY direct children (first level subcategories) for selected category
+  // In All Categories page, we only show first-level subcategories, not nested ones
+  // Nested subcategories will be shown in Category detail page
   const subcategories = useMemo(() => {
-    if (!selectedCategoryId) return [];
-    const subcats = getCategoriesByParent(selectedCategoryId);
-    return subcats.filter((cat) => cat.isActive !== false);
+    if (!selectedCategoryId) {
+      return [];
+    }
+    
+    // Get direct children only (first level subcategories)
+    // getCategoriesByParent already returns only direct children, so this should be correct
+    const directChildren = getCategoriesByParent(selectedCategoryId);
+    
+    // Filter: Only show active categories that are direct children
+    const filtered = directChildren.filter((cat) => {
+      // Must be active
+      if (cat.isActive === false) return false;
+      
+      // Double-check: Verify it's a direct child (parentId matches selectedCategoryId)
+      const catParentId = cat.parentId?.toString() || String(cat.parentId);
+      const selectedId = selectedCategoryId?.toString() || String(selectedCategoryId);
+      
+      // Only include if parentId matches (direct child)
+      return catParentId === selectedId;
+    });
+    
+    return filtered;
   }, [selectedCategoryId, categories, getCategoriesByParent]);
 
   // Group subcategories - Show all first subcategories as cards, even if they have children

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FiSave, FiSettings, FiImage, FiGlobe } from "react-icons/fi";
+import { FiSave, FiSettings, FiGlobe } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import AnimatedSelect from "../../components/AnimatedSelect";
@@ -8,14 +8,13 @@ import toast from "react-hot-toast";
 const GeneralSettings = () => {
   const { settings, updateSettings, initialize } = useSettingsStore();
   const [formData, setFormData] = useState({});
-  const [activeSection, setActiveSection] = useState("identity");
+  const [activeSection, setActiveSection] = useState("contact");
 
   useEffect(() => {
     initialize();
     if (settings && settings.general) {
       setFormData({
         ...settings.general,
-        ...settings.theme,
       });
     }
   }, []);
@@ -24,7 +23,6 @@ const GeneralSettings = () => {
     if (settings && settings.general) {
       setFormData({
         ...settings.general,
-        ...settings.theme,
       });
     }
   }, [settings]);
@@ -47,10 +45,6 @@ const GeneralSettings = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const {
-      primaryColor,
-      secondaryColor,
-      accentColor,
-      fontFamily,
       socialMedia,
       storeDescription,
       ...generalData
@@ -62,20 +56,11 @@ const GeneralSettings = () => {
       storeDescription: storeDescription || "",
     });
 
-    updateSettings("theme", {
-      primaryColor: primaryColor || "#10B981",
-      secondaryColor: secondaryColor || "#3B82F6",
-      accentColor: accentColor || "#FFE11B",
-      fontFamily: fontFamily || "Inter",
-    });
-
     toast.success("Settings saved successfully");
   };
 
   const sections = [
-    { id: "identity", label: "Store Identity", icon: FiSettings },
     { id: "contact", label: "Contact Info", icon: FiGlobe },
-    { id: "theme", label: "Theme & Colors", icon: FiImage },
     { id: "vendors", label: "Vendor Settings", icon: FiSettings },
   ];
 
@@ -89,7 +74,7 @@ const GeneralSettings = () => {
           General Settings
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Configure store identity, contact info, and theme
+          Configure contact info and vendor settings
         </p>
       </div>
 
@@ -117,67 +102,6 @@ const GeneralSettings = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-3 sm:p-4 md:p-6">
-          {/* Store Identity Section */}
-          {activeSection === "identity" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Store Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="storeName"
-                    value={formData.storeName || ""}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Store Logo URL
-                  </label>
-                  <input
-                    type="text"
-                    name="storeLogo"
-                    value={formData.storeLogo || ""}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Favicon URL
-                  </label>
-                  <input
-                    type="text"
-                    name="favicon"
-                    value={formData.favicon || ""}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Store Description
-                  </label>
-                  <textarea
-                    name="storeDescription"
-                    value={formData.storeDescription || ""}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="Brief description of your store"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Contact Info Section */}
           {activeSection === "contact" && (
             <div className="space-y-6">
@@ -349,121 +273,6 @@ const GeneralSettings = () => {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Theme & Colors Section */}
-          {activeSection === "theme" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Primary Color
-                  </label>
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <input
-                      type="color"
-                      name="primaryColor"
-                      value={formData.primaryColor || "#10B981"}
-                      onChange={handleChange}
-                      className="w-12 sm:w-16 h-9 sm:h-10 border border-gray-300 rounded cursor-pointer flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      name="primaryColor"
-                      value={formData.primaryColor || "#10B981"}
-                      onChange={handleChange}
-                      className="flex-1 min-w-0 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Secondary Color
-                  </label>
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <input
-                      type="color"
-                      name="secondaryColor"
-                      value={formData.secondaryColor || "#3B82F6"}
-                      onChange={handleChange}
-                      className="w-12 sm:w-16 h-9 sm:h-10 border border-gray-300 rounded cursor-pointer flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      name="secondaryColor"
-                      value={formData.secondaryColor || "#3B82F6"}
-                      onChange={handleChange}
-                      className="flex-1 min-w-0 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Accent Color
-                  </label>
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <input
-                      type="color"
-                      name="accentColor"
-                      value={formData.accentColor || "#FFE11B"}
-                      onChange={handleChange}
-                      className="w-12 sm:w-16 h-9 sm:h-10 border border-gray-300 rounded cursor-pointer flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      name="accentColor"
-                      value={formData.accentColor || "#FFE11B"}
-                      onChange={handleChange}
-                      className="flex-1 min-w-0 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Font Family
-                  </label>
-                  <AnimatedSelect
-                    name="fontFamily"
-                    value={formData.fontFamily || "Inter"}
-                    onChange={handleChange}
-                    options={[
-                      { value: "Inter", label: "Inter" },
-                      { value: "Roboto", label: "Roboto" },
-                      { value: "Open Sans", label: "Open Sans" },
-                      { value: "Poppins", label: "Poppins" },
-                      { value: "Lato", label: "Lato" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-2">Color Preview:</p>
-                <div className="flex gap-2">
-                  <div
-                    className="w-20 h-20 rounded-lg"
-                    style={{
-                      backgroundColor: formData.primaryColor || "#10B981",
-                    }}
-                  />
-                  <div
-                    className="w-20 h-20 rounded-lg"
-                    style={{
-                      backgroundColor: formData.secondaryColor || "#3B82F6",
-                    }}
-                  />
-                  <div
-                    className="w-20 h-20 rounded-lg"
-                    style={{
-                      backgroundColor: formData.accentColor || "#FFE11B",
-                    }}
-                  />
                 </div>
               </div>
             </div>
