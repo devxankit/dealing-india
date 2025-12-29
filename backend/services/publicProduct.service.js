@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
@@ -41,24 +42,57 @@ export const getPublicProducts = async (filters = {}) => {
 
     // Category filter - check both categoryId and subcategoryId
     if (categoryId && categoryId !== 'all') {
+      // Validate if categoryId is a valid MongoDB ObjectId
+      if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+        // If not a valid ObjectId, return empty results instead of error
+        return {
+          products: [],
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: 0,
+        };
+      }
       andConditions.push({
         $or: [
-          { categoryId: categoryId },
-          { subcategoryId: categoryId },
+          { categoryId: new mongoose.Types.ObjectId(categoryId) },
+          { subcategoryId: new mongoose.Types.ObjectId(categoryId) },
         ],
       });
     }
 
     // Subcategory filter (if provided separately)
     if (subcategoryId && subcategoryId !== 'all') {
+      // Validate if subcategoryId is a valid MongoDB ObjectId
+      if (!mongoose.Types.ObjectId.isValid(subcategoryId)) {
+        // If not a valid ObjectId, return empty results instead of error
+        return {
+          products: [],
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: 0,
+        };
+      }
       andConditions.push({
-        subcategoryId: subcategoryId,
+        subcategoryId: new mongoose.Types.ObjectId(subcategoryId),
       });
     }
 
     // Brand filter
     if (brandId && brandId !== 'all') {
-      query.brandId = brandId;
+      // Validate if brandId is a valid MongoDB ObjectId
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        // If not a valid ObjectId, return empty results instead of error
+        return {
+          products: [],
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: 0,
+        };
+      }
+      query.brandId = new mongoose.Types.ObjectId(brandId);
     }
 
     // Price range filter

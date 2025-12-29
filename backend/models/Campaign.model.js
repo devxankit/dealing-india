@@ -6,7 +6,6 @@ const campaignSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Campaign name is required'],
       trim: true,
-      index: true,
     },
     slug: {
       type: String,
@@ -14,7 +13,6 @@ const campaignSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
     route: {
       type: String,
@@ -24,7 +22,6 @@ const campaignSchema = new mongoose.Schema(
       type: String,
       enum: ['flash_sale', 'daily_deal', 'special_offer', 'festival'],
       required: true,
-      index: true,
     },
     description: {
       type: String,
@@ -44,12 +41,10 @@ const campaignSchema = new mongoose.Schema(
     startDate: {
       type: Date,
       required: true,
-      index: true,
     },
     endDate: {
       type: Date,
       required: true,
-      index: true,
     },
     productIds: [
       {
@@ -60,7 +55,6 @@ const campaignSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
     pageConfig: {
       showCountdown: {

@@ -6,7 +6,6 @@ const categorySchema = new mongoose.Schema(
       type: String,
       required: [true, 'Category name is required'],
       trim: true,
-      index: true,
       minlength: [1, 'Category name cannot be empty'],
       maxlength: [100, 'Category name cannot exceed 100 characters'],
     },
@@ -35,17 +34,24 @@ const categorySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
       default: null,
-      index: true,
     },
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
     order: {
       type: Number,
       default: 0,
       min: 0,
+    },
+    showInHeader: {
+      type: Boolean,
+      default: false,
+    },
+    headerColor: {
+      type: String,
+      trim: true,
+      default: null,
     },
   },
   {
@@ -58,6 +64,7 @@ categorySchema.index({ name: 1 });
 categorySchema.index({ parentId: 1 });
 categorySchema.index({ isActive: 1 });
 categorySchema.index({ order: 1 });
+categorySchema.index({ showInHeader: 1 });
 
 // Prevent circular parent references (validation in service layer)
 // Prevent self-reference as parent (validation in service layer)

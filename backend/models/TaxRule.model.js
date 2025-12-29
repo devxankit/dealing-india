@@ -6,7 +6,6 @@ const taxRuleSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Tax rule name is required'],
       trim: true,
-      index: true,
     },
     rate: {
       type: Number,
@@ -23,13 +22,11 @@ const taxRuleSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: 'all',
-      index: true,
     },
     status: {
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
-      index: true,
     },
   },
   {

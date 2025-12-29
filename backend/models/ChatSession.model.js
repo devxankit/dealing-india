@@ -6,7 +6,6 @@ const chatSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: [true, 'Participant is required'],
       refPath: 'participantType',
-      index: true,
     },
     participantType: {
       type: String,
@@ -30,7 +29,6 @@ const chatSessionSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'resolved'],
       default: 'active',
-      index: true,
     },
     messages: [
       {

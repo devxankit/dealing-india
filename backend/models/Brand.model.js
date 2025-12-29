@@ -7,7 +7,6 @@ const brandSchema = new mongoose.Schema(
       required: [true, 'Brand name is required'],
       trim: true,
       unique: true,
-      index: true,
       minlength: [2, 'Brand name must be at least 2 characters'],
       maxlength: [100, 'Brand name cannot exceed 100 characters'],
     },
@@ -37,7 +36,6 @@ const brandSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
   },
   {

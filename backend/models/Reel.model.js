@@ -16,19 +16,16 @@ const reelSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
       required: [true, 'Product ID is required'],
-      index: true,
     },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',
       required: [true, 'Vendor ID is required'],
-      index: true,
     },
     status: {
       type: String,
       enum: ['draft', 'active', 'archived'],
       default: 'draft',
-      index: true,
     },
     likes: {
       type: Number,

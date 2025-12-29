@@ -137,7 +137,7 @@ export const hasCircularReference = async (categoryId, parentId) => {
  */
 export const createCategory = async (categoryData) => {
   try {
-    const { name, description, image, icon, parentId, isActive, order } = categoryData;
+    const { name, description, image, icon, parentId, isActive, order, showInHeader, headerColor } = categoryData;
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -171,6 +171,8 @@ export const createCategory = async (categoryData) => {
       parentId: parentId || null,
       isActive: isActive !== undefined ? isActive : true,
       order: finalOrder,
+      showInHeader: showInHeader !== undefined ? showInHeader : false,
+      headerColor: headerColor || null,
     });
 
     return category.toObject();
@@ -190,7 +192,7 @@ export const createCategory = async (categoryData) => {
  */
 export const updateCategory = async (categoryId, updateData) => {
   try {
-    const { name, description, image, imagePublicId, icon, parentId, isActive, order } = updateData;
+    const { name, description, image, imagePublicId, icon, parentId, isActive, order, showInHeader, headerColor } = updateData;
 
     // Check if category exists
     const category = await Category.findById(categoryId);
@@ -229,6 +231,8 @@ export const updateCategory = async (categoryId, updateData) => {
     if (parentId !== undefined) updateObj.parentId = parentId || null;
     if (isActive !== undefined) updateObj.isActive = isActive;
     if (order !== undefined) updateObj.order = order;
+    if (showInHeader !== undefined) updateObj.showInHeader = showInHeader;
+    if (headerColor !== undefined) updateObj.headerColor = headerColor || null;
 
     const updatedCategory = await Category.findByIdAndUpdate(
       categoryId,

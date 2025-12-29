@@ -6,7 +6,6 @@ const supportTicketSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -38,13 +37,11 @@ const supportTicketSchema = new mongoose.Schema(
       type: String,
       enum: ['open', 'in_progress', 'resolved', 'closed'],
       default: 'open',
-      index: true,
     },
     priority: {
       type: String,
       enum: ['low', 'medium', 'high'],
       default: 'medium',
-      index: true,
     },
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,

@@ -6,7 +6,6 @@ const pricingRuleSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Pricing rule name is required'],
       trim: true,
-      index: true,
     },
     type: {
       type: String,
@@ -32,7 +31,6 @@ const pricingRuleSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
-      index: true,
     },
   },
   {

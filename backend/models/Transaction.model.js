@@ -6,19 +6,16 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Order',
       required: true,
-      index: true,
     },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     amount: {
       type: Number,
@@ -29,13 +26,11 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       enum: ['payment', 'refund'],
       required: true,
-      index: true,
     },
     status: {
       type: String,
       enum: ['pending', 'completed', 'failed'],
       default: 'pending',
-      index: true,
     },
     method: {
       type: String,
@@ -44,7 +39,6 @@ const transactionSchema = new mongoose.Schema(
     transactionDate: {
       type: Date,
       default: Date.now,
-      index: true,
     },
   },
   {

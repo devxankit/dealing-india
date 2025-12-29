@@ -26,7 +26,6 @@ const vendorSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
       validate: {
         validator: function (v) {
           return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -38,7 +37,6 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Phone is required'],
       trim: true,
-      index: true,
       validate: {
         validator: function (v) {
           const cleaned = v.replace(/[\s\-\(\)]/g, '');
@@ -72,7 +70,6 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       enum: ['pending', 'approved', 'rejected'],
       default: 'pending',
-      index: true,
     },
     isEmailVerified: {
       type: Boolean,

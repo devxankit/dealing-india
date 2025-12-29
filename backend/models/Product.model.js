@@ -6,7 +6,6 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Product name is required'],
       trim: true,
-      index: true,
     },
     description: {
       type: String,
@@ -40,7 +39,6 @@ const productSchema = new mongoose.Schema(
       type: String,
       enum: ['in_stock', 'low_stock', 'out_of_stock'],
       default: 'in_stock',
-      index: true,
     },
     stockQuantity: {
       type: Number,
@@ -61,24 +59,20 @@ const productSchema = new mongoose.Schema(
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
-      index: true,
     },
     subcategoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',
-      index: true,
       default: null,
     },
     brandId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Brand',
-      index: true,
     },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',
       required: true,
-      index: true,
     },
     vendorName: {
       type: String,
@@ -98,7 +92,6 @@ const productSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
     warrantyPeriod: {
       type: String,
@@ -130,7 +123,6 @@ const productSchema = new mongoose.Schema(
     isVisible: {
       type: Boolean,
       default: true,
-      index: true,
     },
     codAllowed: {
       type: Boolean,

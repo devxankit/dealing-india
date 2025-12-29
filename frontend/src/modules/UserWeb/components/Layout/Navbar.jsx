@@ -78,7 +78,7 @@ const Navbar = () => {
   // Get root categories from store - only use real data, wait for loading to complete
   const categories = useMemo(() => {
     if (isLoading) return [];
-    return getRootCategories().filter(cat => cat.isActive !== false);
+    return getRootCategories().filter(cat => cat.isActive !== false && cat.showInHeader === true);
   }, [storeCategories, isLoading, getRootCategories]);
   
   // Hide navbar on mobile app routes

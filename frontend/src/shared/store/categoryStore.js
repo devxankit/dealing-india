@@ -24,16 +24,21 @@ export const useCategoryStore = create(
       isLoading: false,
 
       // Initialize categories - fetch from API
-      initialize: async () => {
+      initialize: async (forceRefresh = false) => {
         set({ isLoading: true });
         try {
-          const response = await api.get('/categories', {
-            params: {
-              limit: 1000, // Get all categories
-              sortBy: 'order',
-              sortOrder: 'asc',
-            },
-          });
+          const params = {
+            limit: 1000, // Get all categories
+            sortBy: 'order',
+            sortOrder: 'asc',
+          };
+          
+          // Add cache-busting parameter if force refresh
+          if (forceRefresh) {
+            params._t = Date.now();
+          }
+          
+          const response = await api.get('/categories', { params });
           const categories = transformCategories(response.data.categories || []);
           set({ categories, isLoading: false });
         } catch (error) {
@@ -75,8 +80,8 @@ export const useCategoryStore = create(
           const response = await api.post('/admin/categories', payload);
           const newCategory = transformCategory(response.data.category);
 
-          // Refresh categories list
-          await get().initialize();
+          // Refresh categories list with force refresh
+          await get().initialize(true);
 
           set({ isLoading: false });
           toast.success('Category created successfully');
@@ -102,8 +107,8 @@ export const useCategoryStore = create(
           const response = await api.put(`/admin/categories/${categoryId}`, payload);
           const updatedCategory = transformCategory(response.data.category);
 
-          // Refresh categories list
-          await get().initialize();
+          // Refresh categories list with force refresh
+          await get().initialize(true);
 
           set({ isLoading: false });
           toast.success('Category updated successfully');
@@ -123,8 +128,8 @@ export const useCategoryStore = create(
           const categoryId = id?.toString() || id;
           await api.delete(`/admin/categories/${categoryId}`);
 
-          // Refresh categories list
-          await get().initialize();
+          // Refresh categories list with force refresh
+          await get().initialize(true);
 
           set({ isLoading: false });
           toast.success('Category deleted successfully');

@@ -62,7 +62,6 @@ const getChildRoute = (parentRoute, childName) => {
     "/vendor/products": {
       "Manage Products": "/vendor/products/manage-products",
       "Add Product": "/vendor/products/add-product",
-      "Bulk Upload": "/vendor/products/bulk-upload",
       "Product FAQs": "/vendor/products/product-faqs",
       "Tax & Pricing": "/vendor/products/tax-pricing",
       "Product Attributes": "/vendor/products/product-attributes",

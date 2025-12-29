@@ -169,7 +169,6 @@ import VendorDashboard from "./modules/Vendor/pages/Dashboard";
 import VendorProducts from "./modules/Vendor/pages/Products";
 import VendorManageProducts from "./modules/Vendor/pages/products/ManageProducts";
 import VendorAddProduct from "./modules/Vendor/pages/products/AddProduct";
-import VendorBulkUpload from "./modules/Vendor/pages/products/BulkUpload";
 import VendorProductForm from "./modules/Vendor/pages/products/ProductForm";
 import VendorOrders from "./modules/Vendor/pages/Orders";
 import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
@@ -544,7 +543,6 @@ const AppRoutes = () => {
             element={<VendorManageProducts />}
           />
           <Route path="products/add-product" element={<VendorAddProduct />} />
-          <Route path="products/bulk-upload" element={<VendorBulkUpload />} />
           <Route path="products/product-faqs" element={<VendorProductFAQs />} />
           <Route path="products/tax-pricing" element={<VendorTaxPricing />} />
           <Route

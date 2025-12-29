@@ -62,6 +62,10 @@ const ManageCategories = () => {
   }, [searchQuery, selectedStatus]);
 
   const handleCreate = () => {
+    // Prevent opening multiple forms
+    if (showForm) {
+      return;
+    }
     setEditingCategory(null);
     setParentCategoryId(null);
     setShowForm(true);
@@ -241,8 +245,9 @@ const ManageCategories = () => {
           category={editingCategory}
           parentId={parentCategoryId}
           onClose={handleFormClose}
-          onSave={() => {
-            initialize();
+          onSave={async () => {
+            // Force refresh categories list
+            await initialize(true);
             handleFormClose();
           }}
         />

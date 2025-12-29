@@ -13,10 +13,10 @@ import Button from "../Button";
 const CategoryForm = ({ category, parentId, onClose, onSave }) => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
-  const { categories, createCategory, updateCategory, getCategoryById } =
+  const { categories, createCategory, updateCategory, getCategoryById, isLoading } =
     useCategoryStore();
   const isEdit = !!category;
-  const isSubcategory = !isEdit && parentId !== null;
+  const isSubcategory = (!isEdit && parentId !== null) || (isEdit && category?.parentId !== null && category?.parentId !== undefined);
   const parentCategory = parentId
     ? getCategoryById(parentId)
     : category?.parentId
@@ -31,10 +31,13 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     parentId: null,
     isActive: true,
     order: 0,
+    showInHeader: false,
+    headerColor: null,
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [uploadMethod, setUploadMethod] = useState("upload"); // "upload" or "url"
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Available icons for selection - Comprehensive e-commerce icons (Unique only)
   const availableIcons = [
@@ -314,6 +317,8 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         parentId: category.parentId || null,
         isActive: category.isActive !== undefined ? category.isActive : true,
         order: category.order || 0,
+        showInHeader: category.showInHeader !== undefined ? category.showInHeader : false,
+        headerColor: category.headerColor || null,
       });
       // Set preview if image exists
       if (category.image) {
@@ -333,6 +338,8 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         parentId: parentId,
         isActive: true,
         order: 0,
+        showInHeader: false,
+        headerColor: null,
       });
       setImagePreview(null);
       setImageFile(null);
@@ -408,24 +415,38 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     setImageFile(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent multiple submissions
+    if (isSubmitting || isLoading) {
+      return;
+    }
 
     if (!formData.name.trim()) {
       toast.error("Category name is required");
       return;
     }
 
+    setIsSubmitting(true);
     try {
       if (isEdit) {
-        updateCategory(category.id, formData);
+        await updateCategory(category.id, formData);
       } else {
-        createCategory(formData);
+        await createCategory(formData);
       }
+      // Wait a bit to ensure store is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
       onSave?.();
       onClose();
     } catch (error) {
       // Error handled in store
+      setIsSubmitting(false);
+    } finally {
+      // Reset submitting state after a delay to prevent rapid re-submissions
+      setTimeout(() => {
+        setIsSubmitting(false);
+      }, 500);
     }
   };
 
@@ -444,7 +465,11 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          onClick={onClose}
+          onClick={() => {
+            if (!isSubmitting && !isLoading) {
+              onClose();
+            }
+          }}
           className="fixed inset-0 bg-black/50 z-[10000]"
         />
 
@@ -518,10 +543,15 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                 )}
               </div>
               <Button
-                onClick={onClose}
+                onClick={() => {
+                  if (!isSubmitting && !isLoading) {
+                    onClose();
+                  }
+                }}
                 variant="icon"
                 icon={FiX}
                 className="text-gray-600"
+                disabled={isSubmitting || isLoading}
               />
             </div>
 
@@ -800,16 +830,142 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                       Active
                     </span>
                   </label>
+
+                  {/* Header Category - Only show for main categories, not subcategories */}
+                  {!isSubcategory && (
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="showInHeader"
+                        checked={formData.showInHeader}
+                        onChange={handleChange}
+                        className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                      />
+                      <span className="text-sm font-semibold text-gray-700">
+                        Header Category
+                      </span>
+                    </label>
+                  )}
                 </div>
               </div>
 
+              {/* Header Color Picker - Only show when Header Category is checked and not a subcategory */}
+              {!isSubcategory && formData.showInHeader && (
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">
+                    Header Color
+                  </h3>
+                  <div className="space-y-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Select Color for Header Display
+                    </label>
+                    <div className="grid grid-cols-8 sm:grid-cols-10 gap-3 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                      {/* Color Palette Options */}
+                      {[
+                        { name: "Pink", value: "pink", color: "bg-pink-500", textColor: "text-pink-600", iconColor: "text-pink-500" },
+                        { name: "Amber", value: "amber", color: "bg-amber-500", textColor: "text-amber-600", iconColor: "text-amber-500" },
+                        { name: "Orange", value: "orange", color: "bg-orange-500", textColor: "text-orange-600", iconColor: "text-orange-500" },
+                        { name: "Green", value: "green", color: "bg-green-500", textColor: "text-green-600", iconColor: "text-green-500" },
+                        { name: "Purple", value: "purple", color: "bg-purple-500", textColor: "text-purple-600", iconColor: "text-purple-500" },
+                        { name: "Blue", value: "blue", color: "bg-blue-500", textColor: "text-blue-600", iconColor: "text-blue-500" },
+                        { name: "Red", value: "red", color: "bg-red-500", textColor: "text-red-600", iconColor: "text-red-500" },
+                        { name: "Indigo", value: "indigo", color: "bg-indigo-500", textColor: "text-indigo-600", iconColor: "text-indigo-500" },
+                        { name: "Teal", value: "teal", color: "bg-teal-500", textColor: "text-teal-600", iconColor: "text-teal-500" },
+                        { name: "Cyan", value: "cyan", color: "bg-cyan-500", textColor: "text-cyan-600", iconColor: "text-cyan-500" },
+                        { name: "Yellow", value: "yellow", color: "bg-yellow-500", textColor: "text-yellow-600", iconColor: "text-yellow-500" },
+                        { name: "Rose", value: "rose", color: "bg-rose-500", textColor: "text-rose-600", iconColor: "text-rose-500" },
+                        { name: "Violet", value: "violet", color: "bg-violet-500", textColor: "text-violet-600", iconColor: "text-violet-500" },
+                        { name: "Emerald", value: "emerald", color: "bg-emerald-500", textColor: "text-emerald-600", iconColor: "text-emerald-500" },
+                        { name: "Sky", value: "sky", color: "bg-sky-500", textColor: "text-sky-600", iconColor: "text-sky-500" },
+                        { name: "Fuchsia", value: "fuchsia", color: "bg-fuchsia-500", textColor: "text-fuchsia-600", iconColor: "text-fuchsia-500" },
+                      ].map((colorOption) => {
+                        const isSelected = formData.headerColor === colorOption.value;
+                        return (
+                          <button
+                            key={colorOption.value}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, headerColor: colorOption.value });
+                            }}
+                            className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
+                              isSelected
+                                ? "border-primary-500 bg-primary-50 shadow-md"
+                                : "border-gray-200 hover:border-gray-300 hover:bg-white"
+                            }`}
+                            title={colorOption.name}>
+                            <div
+                              className={`w-8 h-8 rounded-full ${colorOption.color} shadow-sm ${
+                                isSelected ? "ring-2 ring-primary-500 ring-offset-2" : ""
+                              }`}
+                            />
+                            <span
+                              className={`text-[10px] mt-1 text-center ${
+                                isSelected ? "text-primary-600 font-semibold" : "text-gray-500"
+                              }`}>
+                              {colorOption.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {formData.headerColor && (
+                      <div className="mt-4 flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm font-semibold text-gray-700">
+                          Selected Color:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-6 h-6 rounded-full ${
+                              [
+                                { value: "pink", color: "bg-pink-500" },
+                                { value: "amber", color: "bg-amber-500" },
+                                { value: "orange", color: "bg-orange-500" },
+                                { value: "green", color: "bg-green-500" },
+                                { value: "purple", color: "bg-purple-500" },
+                                { value: "blue", color: "bg-blue-500" },
+                                { value: "red", color: "bg-red-500" },
+                                { value: "indigo", color: "bg-indigo-500" },
+                                { value: "teal", color: "bg-teal-500" },
+                                { value: "cyan", color: "bg-cyan-500" },
+                                { value: "yellow", color: "bg-yellow-500" },
+                                { value: "rose", color: "bg-rose-500" },
+                                { value: "violet", color: "bg-violet-500" },
+                                { value: "emerald", color: "bg-emerald-500" },
+                                { value: "sky", color: "bg-sky-500" },
+                                { value: "fuchsia", color: "bg-fuchsia-500" },
+                              ].find((c) => c.value === formData.headerColor)?.color || "bg-gray-500"
+                            }`}
+                          />
+                          <span className="text-sm text-gray-600 capitalize">
+                            {formData.headerColor}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">
-                <Button type="button" onClick={onClose} variant="secondary">
+                <Button 
+                  type="button" 
+                  onClick={onClose} 
+                  variant="secondary"
+                  disabled={isSubmitting || isLoading}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" icon={FiSave}>
-                  {isEdit ? "Update Category" : "Create Category"}
+                <Button 
+                  type="submit" 
+                  variant="primary" 
+                  icon={FiSave}
+                  disabled={isSubmitting || isLoading}
+                >
+                  {isSubmitting || isLoading 
+                    ? (isEdit ? "Updating..." : "Creating...") 
+                    : (isEdit ? "Update Category" : "Create Category")
+                  }
                 </Button>
               </div>
             </form>

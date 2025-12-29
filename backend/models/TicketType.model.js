@@ -18,7 +18,6 @@ const ticketTypeSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
-      index: true,
     },
   },
   {

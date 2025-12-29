@@ -6,7 +6,6 @@ const bannerSchema = new mongoose.Schema(
       type: String,
       enum: ['hero', 'promotional'],
       required: true,
-      index: true,
     },
     title: {
       type: String,
@@ -36,12 +35,10 @@ const bannerSchema = new mongoose.Schema(
     order: {
       type: Number,
       default: 1,
-      index: true,
     },
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
     startDate: {
       type: Date,

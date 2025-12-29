@@ -6,13 +6,11 @@ const reviewSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
       required: [true, 'Product ID is required'],
-      index: true,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'User ID is required'],
-      index: true,
     },
     customerName: {
       type: String,
@@ -29,7 +27,6 @@ const reviewSchema = new mongoose.Schema(
       required: [true, 'Rating is required'],
       min: 1,
       max: 5,
-      index: true,
     },
     review: {
       type: String,
@@ -40,7 +37,6 @@ const reviewSchema = new mongoose.Schema(
       type: String,
       enum: ['approved', 'pending', 'rejected', 'hidden'],
       default: 'pending',
-      index: true,
     },
     vendorResponse: {
       type: String,

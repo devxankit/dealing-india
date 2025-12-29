@@ -6,7 +6,6 @@ const supportMessageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'SupportTicket',
       required: [true, 'Ticket reference is required'],
-      index: true,
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,

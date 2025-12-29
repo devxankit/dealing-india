@@ -15,7 +15,6 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
       validate: {
         validator: function (v) {
           return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -26,7 +25,6 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
-      index: true,
       sparse: true, // Allows multiple null values but enforces uniqueness for non-null
       validate: {
         validator: function (v) {

@@ -5,7 +5,6 @@ import {
   updateVendorProduct,
   deleteVendorProduct,
   updateVendorProductStatus,
-  bulkUploadVendorProducts,
 } from '../../services/vendorProducts.service.js';
 
 /**
@@ -161,30 +160,4 @@ export const updateStatus = async (req, res, next) => {
   }
 };
 
-/**
- * Bulk upload products
- * POST /api/vendor/products/bulk-upload
- */
-export const bulkUpload = async (req, res, next) => {
-  try {
-    const vendorId = req.user.vendorId;
-    const { products } = req.body;
-
-    if (!products || !Array.isArray(products)) {
-      const err = new Error('Products array is required');
-      err.status = 400;
-      throw err;
-    }
-
-    const result = await bulkUploadVendorProducts(products, vendorId);
-
-    res.status(200).json({
-      success: true,
-      message: `Bulk upload completed: ${result.success} succeeded, ${result.failed} failed`,
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 

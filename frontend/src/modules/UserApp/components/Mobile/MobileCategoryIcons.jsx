@@ -89,7 +89,7 @@ const MobileCategoryIcons = () => {
   const categories = useMemo(() => {
     if (isLoading) return [];
     return getRootCategories()
-      .filter(cat => cat.isActive !== false)
+      .filter(cat => cat.isActive !== false && cat.showInHeader === true)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [storeCategories, isLoading, getRootCategories]);
 
@@ -232,7 +232,7 @@ const MobileCategoryIcons = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [currentCategoryId]);
 
-  // Category color mapping - matching the gradient colors
+  // Category color mapping - matching the gradient colors (fallback for old categories)
   const categoryColors = {
     1: {
       icon: "text-pink-500",
@@ -266,6 +266,26 @@ const MobileCategoryIcons = () => {
     }, // Athletic - Blue
   };
 
+  // Color mapping for headerColor values
+  const headerColorMap = {
+    pink: { icon: "text-pink-500", text: "text-pink-600", indicator: "bg-pink-500" },
+    amber: { icon: "text-amber-500", text: "text-amber-600", indicator: "bg-amber-500" },
+    orange: { icon: "text-orange-500", text: "text-orange-600", indicator: "bg-orange-500" },
+    green: { icon: "text-green-500", text: "text-green-600", indicator: "bg-green-500" },
+    purple: { icon: "text-purple-500", text: "text-purple-600", indicator: "bg-purple-500" },
+    blue: { icon: "text-blue-500", text: "text-blue-600", indicator: "bg-blue-500" },
+    red: { icon: "text-red-500", text: "text-red-600", indicator: "bg-red-500" },
+    indigo: { icon: "text-indigo-500", text: "text-indigo-600", indicator: "bg-indigo-500" },
+    teal: { icon: "text-teal-500", text: "text-teal-600", indicator: "bg-teal-500" },
+    cyan: { icon: "text-cyan-500", text: "text-cyan-600", indicator: "bg-cyan-500" },
+    yellow: { icon: "text-yellow-500", text: "text-yellow-600", indicator: "bg-yellow-500" },
+    rose: { icon: "text-rose-500", text: "text-rose-600", indicator: "bg-rose-500" },
+    violet: { icon: "text-violet-500", text: "text-violet-600", indicator: "bg-violet-500" },
+    emerald: { icon: "text-emerald-500", text: "text-emerald-600", indicator: "bg-emerald-500" },
+    sky: { icon: "text-sky-500", text: "text-sky-600", indicator: "bg-sky-500" },
+    fuchsia: { icon: "text-fuchsia-500", text: "text-fuchsia-600", indicator: "bg-fuchsia-500" },
+  };
+
   const isActiveCategory = (categoryId) => {
     return (
       location.pathname === `/app/category/${categoryId}` ||
@@ -273,15 +293,25 @@ const MobileCategoryIcons = () => {
     );
   };
 
-  // Get color for active category
-  const getActiveColor = (categoryId) => {
+  // Get color for category - use headerColor if available, otherwise fallback to old mapping
+  const getCategoryColor = (category) => {
+    if (category?.headerColor && headerColorMap[category.headerColor]) {
+      return headerColorMap[category.headerColor];
+    }
+    // Fallback to old category ID mapping
+    const categoryId = category?.id || category?._id;
     return (
       categoryColors[categoryId] || {
-        icon: "text-primary-500",
-        text: "text-primary-500",
+        icon: "text-gray-700",
+        text: "text-gray-700",
         indicator: "bg-primary-500",
       }
     );
+  };
+
+  // Get color for active category (for indicator line)
+  const getActiveColor = (category) => {
+    return getCategoryColor(category);
   };
 
   return (
@@ -296,10 +326,8 @@ const MobileCategoryIcons = () => {
         {categories.map((category, index) => {
           const IconComponent = getCategoryIcon(category);
           const isActive = isActiveCategory(category.id);
-          const activeColors =
-            currentCategoryId && currentCategoryId === category.id
-              ? getActiveColor(category.id)
-              : null;
+          // Only use color for indicator line, keep icons and text default gray
+          const categoryColor = getCategoryColor(category);
           return (
             <div
               key={category.id}
@@ -313,12 +341,11 @@ const MobileCategoryIcons = () => {
                 {!isScrolling && IconComponent && (
                   <div>
                     <IconComponent
-                      className={`text-lg transition-colors duration-300 ${isActive && activeColors
-                        ? activeColors.icon
-                        : isActive
+                      className={`text-lg transition-colors duration-300 ${
+                        isActive
                           ? "text-primary-500"
-                          : "text-gray-700 hover:text-primary-600"
-                        }`}
+                          : "text-gray-700 hover:text-primary-600 opacity-70 hover:opacity-100"
+                      }`}
                       style={{
                         strokeWidth:
                           category.name === "Clothing" ||
@@ -337,12 +364,11 @@ const MobileCategoryIcons = () => {
                   </div>
                 )}
                 <span
-                  className={`text-[10px] font-semibold text-center line-clamp-1 transition-colors duration-300 ${isActive && activeColors
-                    ? activeColors.text
-                    : isActive
+                  className={`text-[10px] font-semibold text-center line-clamp-1 transition-colors duration-300 ${
+                    isActive
                       ? "text-primary-500"
-                      : "text-gray-700"
-                    }`}>
+                      : "text-gray-700 opacity-70"
+                  }`}>
                   {category.name}
                 </span>
               </Link>
@@ -350,21 +376,25 @@ const MobileCategoryIcons = () => {
           );
         })}
       </motion.div>
-      {/* Blue indicator line at bottom edge of header for selected category */}
-      {isLineVisible && currentCategoryId && (
-        <div
-          className="absolute h-1 bg-blue-500 rounded-full"
-          style={{
-            ...activeLineStyle,
-            bottom: '-12px', // Position at bottom edge of header (accounting for header py-3 padding)
-            transformOrigin: 'left center',
-            // Smooth transition when category changes, instant during scroll
-            transition: shouldTransition && !isScrollingRef.current
-              ? 'left 0.4s cubic-bezier(0.25, 0.1, 0.25, 1), width 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)'
-              : 'none',
-          }}
-        />
-      )}
+      {/* Color indicator line at bottom edge of header for selected category */}
+      {isLineVisible && currentCategoryId && (() => {
+        const activeCategory = categories.find(cat => cat.id === currentCategoryId);
+        const activeColor = activeCategory ? getActiveColor(activeCategory) : null;
+        return (
+          <div
+            className={`absolute h-1 rounded-full ${activeColor?.indicator || 'bg-blue-500'}`}
+            style={{
+              ...activeLineStyle,
+              bottom: '-12px', // Position at bottom edge of header (accounting for header py-3 padding)
+              transformOrigin: 'left center',
+              // Smooth transition when category changes, instant during scroll
+              transition: shouldTransition && !isScrollingRef.current
+                ? 'left 0.4s cubic-bezier(0.25, 0.1, 0.25, 1), width 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)'
+                : 'none',
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };

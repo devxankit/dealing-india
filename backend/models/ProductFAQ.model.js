@@ -6,13 +6,11 @@ const productFAQSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Product',
       required: [true, 'Product ID is required'],
-      index: true,
     },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',
       required: [true, 'Vendor ID is required'],
-      index: true,
     },
     question: {
       type: String,
@@ -33,7 +31,6 @@ const productFAQSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
-      index: true,
     },
   },
   {

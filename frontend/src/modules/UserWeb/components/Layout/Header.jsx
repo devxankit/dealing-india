@@ -13,6 +13,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
+import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import SearchBar from "../../../../shared/components/SearchBar";
 import { appLogo } from "../../../../data/logos";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
@@ -49,45 +50,77 @@ const Header = () => {
   const wishlistCount = useWishlistStore((state) => state.getItemCount());
   const toggleCart = useUIStore((state) => state.toggleCart);
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { getCategoryById, initialize } = useCategoryStore();
+  
+  // Initialize categories on mount
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
-  // Get current category from URL
+  // Get current category from URL (supports both numeric IDs and MongoDB ObjectIds)
   const getCurrentCategoryId = () => {
-    const match = location.pathname.match(/\/category\/(\d+)/);
-    return match ? parseInt(match[1]) : null;
+    const match = location.pathname.match(/\/category\/([a-zA-Z0-9]+)/);
+    return match ? match[1] : null;
   };
 
   const currentCategoryId = getCurrentCategoryId();
 
+  // Header color to gradient mapping
+  const headerColorGradients = {
+    pink: "linear-gradient(to bottom, rgb(252, 231, 243) 0%, rgb(255, 240, 245) 50%, rgb(255, 255, 255) 100%)",
+    amber: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 248, 220) 50%, rgb(255, 255, 255) 100%)",
+    orange: "linear-gradient(to bottom, rgb(255, 237, 213) 0%, rgb(255, 245, 230) 50%, rgb(255, 255, 255) 100%)",
+    green: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)",
+    purple: "linear-gradient(to bottom, rgb(243, 232, 255) 0%, rgb(250, 245, 255) 50%, rgb(255, 255, 255) 100%)",
+    blue: "linear-gradient(to bottom, rgb(219, 234, 254) 0%, rgb(239, 246, 255) 50%, rgb(255, 255, 255) 100%)",
+    red: "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(255, 241, 242) 50%, rgb(255, 255, 255) 100%)",
+    indigo: "linear-gradient(to bottom, rgb(224, 231, 255) 0%, rgb(238, 242, 255) 50%, rgb(255, 255, 255) 100%)",
+    teal: "linear-gradient(to bottom, rgb(204, 251, 241) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)",
+    cyan: "linear-gradient(to bottom, rgb(207, 250, 254) 0%, rgb(236, 254, 255) 50%, rgb(255, 255, 255) 100%)",
+    yellow: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 251, 235) 50%, rgb(255, 255, 255) 100%)",
+    rose: "linear-gradient(to bottom, rgb(255, 228, 230) 0%, rgb(255, 241, 242) 50%, rgb(255, 255, 255) 100%)",
+    violet: "linear-gradient(to bottom, rgb(237, 233, 254) 0%, rgb(245, 243, 255) 50%, rgb(255, 255, 255) 100%)",
+    emerald: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)",
+    sky: "linear-gradient(to bottom, rgb(224, 242, 254) 0%, rgb(240, 249, 255) 50%, rgb(255, 255, 255) 100%)",
+    fuchsia: "linear-gradient(to bottom, rgb(250, 232, 255) 0%, rgb(253, 244, 255) 50%, rgb(255, 255, 255) 100%)",
+  };
+
+  // Fallback gradient map for old categories (by ID)
+  const fallbackGradientMap = {
+    1: {
+      background: "linear-gradient(to bottom, rgb(252, 231, 243) 0%, rgb(255, 240, 245) 50%, rgb(255, 255, 255) 100%)",
+    }, // Pink - moderate
+    2: {
+      background: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 248, 220) 50%, rgb(255, 255, 255) 100%)",
+    }, // Brown/Amber - moderate
+    3: {
+      background: "linear-gradient(to bottom, rgb(255, 237, 213) 0%, rgb(255, 245, 230) 50%, rgb(255, 255, 255) 100%)",
+    }, // Orange - moderate
+    4: {
+      background: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)",
+    }, // Green - moderate
+    5: {
+      background: "linear-gradient(to bottom, rgb(243, 232, 255) 0%, rgb(250, 245, 255) 50%, rgb(255, 255, 255) 100%)",
+    }, // Purple - moderate
+    6: {
+      background: "linear-gradient(to bottom, rgb(219, 234, 254) 0%, rgb(239, 246, 255) 50%, rgb(255, 255, 255) 100%)",
+    }, // Blue - moderate
+  };
+
   // Get gradient background style - More intense at top, fading to white at bottom (fully opaque, moderate intensity)
   const getHeaderBackgroundStyle = () => {
     if (currentCategoryId) {
-      const gradientMap = {
-        1: {
-          background:
-            "linear-gradient(to bottom, rgb(252, 231, 243) 0%, rgb(255, 240, 245) 50%, rgb(255, 255, 255) 100%)",
-        }, // Pink - moderate
-        2: {
-          background:
-            "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 248, 220) 50%, rgb(255, 255, 255) 100%)",
-        }, // Brown/Amber - moderate
-        3: {
-          background:
-            "linear-gradient(to bottom, rgb(255, 237, 213) 0%, rgb(255, 245, 230) 50%, rgb(255, 255, 255) 100%)",
-        }, // Orange - moderate
-        4: {
-          background:
-            "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)",
-        }, // Green - moderate
-        5: {
-          background:
-            "linear-gradient(to bottom, rgb(243, 232, 255) 0%, rgb(250, 245, 255) 50%, rgb(255, 255, 255) 100%)",
-        }, // Purple - moderate
-        6: {
-          background:
-            "linear-gradient(to bottom, rgb(219, 234, 254) 0%, rgb(239, 246, 255) 50%, rgb(255, 255, 255) 100%)",
-        }, // Blue - moderate
-      };
-      return gradientMap[currentCategoryId] || {};
+      const category = getCategoryById(currentCategoryId);
+      
+      // If category has headerColor, use it
+      if (category?.headerColor && headerColorGradients[category.headerColor]) {
+        return {
+          background: headerColorGradients[category.headerColor],
+        };
+      }
+      
+      // Fallback to old category ID mapping
+      return fallbackGradientMap[currentCategoryId] || {};
     }
     return {};
   };

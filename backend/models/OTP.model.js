@@ -7,7 +7,6 @@ const otpSchema = new mongoose.Schema(
       required: true,
       trim: true,
       lowercase: true,
-      index: true,
     },
     code: {
       type: String,
@@ -24,7 +23,6 @@ const otpSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: ['email_verification', 'password_reset'],
-      index: true,
     },
     expiresAt: {
       type: Date,
@@ -34,7 +32,6 @@ const otpSchema = new mongoose.Schema(
     isUsed: {
       type: Boolean,
       default: false,
-      index: true,
     },
   },
   {

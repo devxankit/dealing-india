@@ -72,13 +72,4 @@ export const updateVendorProductStatus = async (productId, statusData) => {
   return response.data.product;
 };
 
-/**
- * Bulk upload products
- * @param {Array} products - Array of product data
- * @returns {Promise<Object>} { success, failed, errors }
- */
-export const bulkUploadVendorProducts = async (products) => {
-  const response = await api.post('/vendor/products/bulk-upload', { products });
-  return response.data || response;
-};
 
