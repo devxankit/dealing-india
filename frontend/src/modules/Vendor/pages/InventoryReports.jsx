@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   FiBarChart,
   FiPackage,
@@ -10,53 +10,54 @@ import DataTable from "../../Admin/components/DataTable";
 import ExportButton from "../../Admin/components/ExportButton";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useVendorStore } from "../store/vendorStore";
-import { useOrderStore } from "../../../shared/store/orderStore";
+import { getVendorInventoryReport } from "../services/inventoryService";
+import toast from "react-hot-toast";
 
 const InventoryReports = () => {
   const { vendor } = useVendorAuthStore();
-  const { getVendorProducts } = useVendorStore();
-  const { getVendorOrders } = useOrderStore();
+  const [inventoryData, setInventoryData] = useState([]);
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    totalStockValue: 0,
+    totalSold: 0,
+    lowStockItems: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
   const vendorId = vendor?.id;
-  const products = vendorId ? getVendorProducts(vendorId) : [];
-  const orders = vendorId ? getVendorOrders(vendorId) : [];
 
-  const inventoryData = useMemo(() => {
-    const productMap = {};
+  // Fetch inventory report from API
+  useEffect(() => {
+    const fetchInventoryReport = async () => {
+      if (!vendorId) {
+        setLoading(false);
+        return;
+      }
 
-    products.forEach((product) => {
-      productMap[product.id] = {
-        id: product.id,
-        name: product.name,
-        currentStock: product.stockQuantity || 0,
-        price: product.price || 0,
-        stockValue: (product.stockQuantity || 0) * (product.price || 0),
-        sold: 0,
-      };
-    });
+      try {
+        setLoading(true);
+        const response = await getVendorInventoryReport();
 
-    orders.forEach((order) => {
-      order.vendorItems?.forEach((vi) => {
-        if (vi.vendorId === vendorId) {
-          vi.items?.forEach((item) => {
-            if (productMap[item.id]) {
-              productMap[item.id].sold += item.quantity || 1;
-            }
+        if (response.success && response.data) {
+          setInventoryData(response.data.inventory || []);
+          setStats(response.data.stats || {
+            totalProducts: 0,
+            totalStockValue: 0,
+            totalSold: 0,
+            lowStockItems: 0,
           });
         }
-      });
-    });
+      } catch (error) {
+        console.error("Error fetching inventory report:", error);
+        toast.error("Failed to load inventory report");
+        setInventoryData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return Object.values(productMap);
-  }, [products, orders, vendorId]);
-
-  const lowStockItems = inventoryData.filter((p) => p.currentStock < 10);
-  const totalStockValue = inventoryData.reduce(
-    (sum, p) => sum + p.stockValue,
-    0
-  );
-  const totalSold = inventoryData.reduce((sum, p) => sum + p.sold, 0);
+    fetchInventoryReport();
+  }, [vendorId]);
 
   const columns = [
     { key: "name", label: "Product", sortable: true },
@@ -116,18 +117,20 @@ const InventoryReports = () => {
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-600 mb-2">Total Products</p>
           <p className="text-2xl font-bold text-gray-800">
-            {inventoryData.length}
+            {loading ? "..." : stats.totalProducts}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-600 mb-2">Total Stock Value</p>
           <p className="text-2xl font-bold text-gray-800">
-            {formatPrice(totalStockValue)}
+            {loading ? "..." : formatPrice(stats.totalStockValue)}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-600 mb-2">Units Sold</p>
-          <p className="text-2xl font-bold text-gray-800">{totalSold}</p>
+          <p className="text-2xl font-bold text-gray-800">
+            {loading ? "..." : stats.totalSold}
+          </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-600 mb-2 flex items-center gap-1">
@@ -135,7 +138,7 @@ const InventoryReports = () => {
             Low Stock Items
           </p>
           <p className="text-2xl font-bold text-red-600">
-            {lowStockItems.length}
+            {loading ? "..." : stats.lowStockItems}
           </p>
         </div>
       </div>
@@ -161,12 +164,22 @@ const InventoryReports = () => {
       </div>
 
       {/* Inventory Table */}
-      <DataTable
-        data={inventoryData}
-        columns={columns}
-        pagination={true}
-        itemsPerPage={10}
-      />
+      {loading ? (
+        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+          <p className="text-gray-500">Loading inventory report...</p>
+        </div>
+      ) : inventoryData.length > 0 ? (
+        <DataTable
+          data={inventoryData}
+          columns={columns}
+          pagination={true}
+          itemsPerPage={10}
+        />
+      ) : (
+        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+          <p className="text-gray-500">No inventory data found</p>
+        </div>
+      )}
     </motion.div>
   );
 };

@@ -10,7 +10,6 @@
     "children": [
       "Manage Products",
       "Add Product",
-      "Bulk Upload",
       "Product FAQs",
       "Tax & Pricing",
       "Product Attributes"
@@ -58,15 +57,6 @@
     ]
   },
   {
-    "title": "Wallet History",
-    "route": "/vendor/wallet-history",
-    "children": [
-      "All transactions",
-      "Pending payment",
-      "Paid payment"
-    ]
-  },
-  {
     "title": "Pickup Locations",
     "route": "/vendor/pickup-locations",
     "children": []
@@ -109,11 +99,6 @@
   {
     "title": "Performance Metrics",
     "route": "/vendor/performance-metrics",
-    "children": []
-  },
-  {
-    "title": "Documents",
-    "route": "/vendor/documents",
     "children": []
   },
   {

@@ -11,9 +11,16 @@ const DataTable = ({
   sortable = true,
   onRowClick,
   className = '',
+  // Server-side pagination props
+  currentPage: externalCurrentPage,
+  totalPages: externalTotalPages,
+  onPageChange: externalOnPageChange,
 }) => {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [internalCurrentPage, setInternalCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  
+  // Use external pagination if provided, otherwise use internal
+  const isServerSidePagination = externalCurrentPage !== undefined && externalTotalPages !== undefined;
 
   // Sorting
   const sortedData = useMemo(() => {
@@ -33,16 +40,25 @@ const DataTable = ({
     });
   }, [data, sortConfig, sortable]);
 
+  // Determine current page and total pages
+  const currentPage = isServerSidePagination ? externalCurrentPage : internalCurrentPage;
+  const totalPages = isServerSidePagination ? externalTotalPages : Math.ceil(sortedData.length / itemsPerPage);
+
   // Pagination
   const paginatedData = useMemo(() => {
     if (!pagination) return sortedData;
     
+    // For server-side pagination, data is already paginated
+    if (isServerSidePagination) {
+      return sortedData;
+    }
+    
+    // For client-side pagination, slice the data
+
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     return sortedData.slice(startIndex, endIndex);
-  }, [sortedData, currentPage, itemsPerPage, pagination]);
-
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  }, [sortedData, currentPage, itemsPerPage, pagination, isServerSidePagination]);
 
   const handleSort = (key) => {
     if (!sortable) return;
@@ -55,7 +71,11 @@ const DataTable = ({
   };
 
   const handlePageChange = (page) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    if (isServerSidePagination && externalOnPageChange) {
+      externalOnPageChange(Math.max(1, Math.min(page, totalPages)));
+    } else {
+      setInternalCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    }
   };
 
   // Get primary columns (exclude actions for mobile card view)
@@ -74,11 +94,10 @@ const DataTable = ({
           <div className="divide-y divide-gray-200">
             {paginatedData.map((row, index) => (
               <div
-                key={row.id || index}
+                key={`mobile-row-${row.id || index}`}
                 onClick={() => onRowClick && onRowClick(row)}
-                className={`p-4 ${
-                  onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
-                } transition-colors`}
+                className={`p-4 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
+                  } transition-colors`}
               >
                 <div className="space-y-2.5">
                   {primaryColumns.map((column) => {
@@ -86,10 +105,10 @@ const DataTable = ({
                     const value = column.render
                       ? column.render(rawValue, row)
                       : rawValue;
-                    
+
                     // Skip rendering if value is empty/null
                     if (!value && value !== 0) return null;
-                    
+
                     // Ensure value is renderable (not an object/array)
                     let displayValue = value;
                     if (typeof value === 'object' && value !== null && !React.isValidElement(value)) {
@@ -99,9 +118,9 @@ const DataTable = ({
                         displayValue = JSON.stringify(value);
                       }
                     }
-                    
+
                     return (
-                      <div key={column.key} className="flex items-start gap-2">
+                      <div key={`mobile-col-${column.key}-${row.id || index}`} className="flex items-start gap-2">
                         <span className="text-xs font-semibold text-gray-600 flex-shrink-0 min-w-[80px] sm:min-w-[100px]">
                           {column.label}:
                         </span>
@@ -130,12 +149,11 @@ const DataTable = ({
             <tr>
               {columns.map((column) => (
                 <th
-                  key={column.key}
-                  className={`px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider ${
-                    sortable && column.sortable !== false
+                  key={`header-${column.key}`}
+                  className={`px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider ${sortable && column.sortable !== false
                       ? 'cursor-pointer hover:bg-gray-100'
                       : ''
-                  }`}
+                    }`}
                   onClick={() => column.sortable !== false && handleSort(column.key)}
                 >
                   <div className="flex items-center gap-2">
@@ -169,18 +187,17 @@ const DataTable = ({
             ) : (
               paginatedData.map((row, index) => (
                 <tr
-                  key={row.id || index}
+                  key={`row-${row.id || index}`}
                   onClick={() => onRowClick && onRowClick(row)}
-                  className={`${
-                    onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
-                  } transition-colors`}
+                  className={`${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
+                    } transition-colors`}
                 >
                   {columns.map((column) => {
                     const rawValue = row[column.key];
                     let displayValue = column.render
                       ? column.render(rawValue, row)
                       : rawValue;
-                    
+
                     // Ensure value is renderable (not an object/array)
                     if (typeof displayValue === 'object' && displayValue !== null && !React.isValidElement(displayValue)) {
                       if (Array.isArray(displayValue)) {
@@ -189,10 +206,10 @@ const DataTable = ({
                         displayValue = JSON.stringify(displayValue);
                       }
                     }
-                    
+
                     return (
                       <td
-                        key={column.key}
+                        key={`cell-${row.id || index}-${column.key}`}
                         className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-700"
                       >
                         {displayValue}
@@ -210,9 +227,15 @@ const DataTable = ({
       {pagination && totalPages > 1 && (
         <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 border-t border-gray-200">
           <div className="text-xs sm:text-sm text-gray-700">
-            Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-            {Math.min(currentPage * itemsPerPage, sortedData.length)} of{' '}
-            {sortedData.length} results
+            {isServerSidePagination ? (
+              <>Page {currentPage} of {totalPages}</>
+            ) : (
+              <>
+                Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+                {Math.min(currentPage * itemsPerPage, sortedData.length)} of{' '}
+                {sortedData.length} results
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -232,7 +255,7 @@ const DataTable = ({
                 ) {
                   return (
                     <Button
-                      key={page}
+                      key={`page-${page}`}
                       onClick={() => handlePageChange(page)}
                       variant={currentPage === page ? 'primary' : 'ghost'}
                       size="sm"
@@ -245,7 +268,7 @@ const DataTable = ({
                   page === currentPage - 2 ||
                   page === currentPage + 2
                 ) {
-                  return <span key={page} className="px-1">...</span>;
+                  return <span key={`ellipsis-${page}`} className="px-1">...</span>;
                 }
                 return null;
               })}
@@ -264,4 +287,3 @@ const DataTable = ({
 };
 
 export default DataTable;
-

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiShoppingBag, FiMapPin } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiShoppingBag, FiMapPin, FiUpload, FiFile, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import toast from 'react-hot-toast';
@@ -27,6 +27,69 @@ const VendorRegister = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [documents, setDocuments] = useState([]); // Array of { name, data, type } objects
+  const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+
+  // Handle document/media upload
+  const handleDocumentUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsUploadingDocs(true);
+    const newDocs = [];
+
+    for (const file of files) {
+      // Validate file type (PDF, images, videos)
+      const isPDF = file.type === 'application/pdf';
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+
+      if (!isPDF && !isImage && !isVideo) {
+        toast.error(`${file.name} is not a valid file type (PDF, image, or video)`);
+        continue;
+      }
+
+      // Validate file size
+      // PDFs and images: max 5MB, Videos: max 50MB
+      const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        const maxSizeMB = isVideo ? 50 : 5;
+        toast.error(`${file.name} is too large (max ${maxSizeMB}MB)`);
+        continue;
+      }
+
+      // Convert to base64
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        newDocs.push({
+          name: file.name,
+          data: base64,
+          type: file.type, // Store file type for backend processing
+        });
+      } catch (error) {
+        toast.error(`Failed to read ${file.name}`);
+      }
+    }
+
+    if (newDocs.length > 0) {
+      setDocuments(prev => [...prev, ...newDocs]);
+      toast.success(`${newDocs.length} file(s) added`);
+    }
+    setIsUploadingDocs(false);
+    // Reset input
+    e.target.value = '';
+  };
+
+  // Remove document
+  const removeDocument = (index) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -72,9 +135,11 @@ const VendorRegister = () => {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        password: formData.password,
         storeName: formData.storeName,
         storeDescription: formData.storeDescription,
         address: formData.address,
+        documents: documents, // Include documents array
       });
 
       toast.success(result.message || 'Registration successful!');
@@ -326,6 +391,74 @@ const VendorRegister = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Document Upload Section */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Documents & Media</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Upload your business documents, images, or videos for verification (PDF/Images: max 5MB, Videos: max 50MB)
+            </p>
+
+            {/* Upload Button */}
+            <div className="mb-4">
+              <input
+                type="file"
+                accept=".pdf,application/pdf,image/*,video/*"
+                multiple
+                onChange={handleDocumentUpload}
+                className="hidden"
+                id="document-upload"
+                disabled={isUploadingDocs}
+              />
+              <label
+                htmlFor="document-upload"
+                className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors ${isUploadingDocs ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+              >
+                <FiUpload className="text-gray-500" />
+                <span className="text-gray-600 font-medium">
+                  {isUploadingDocs ? 'Processing...' : 'Click to upload files (PDF, Images, Videos)'}
+                </span>
+              </label>
+            </div>
+
+            {/* Document List */}
+            {documents.length > 0 && (
+              <div className="space-y-2">
+                {documents.map((doc, index) => {
+                  const isImage = doc.type?.startsWith('image/');
+                  const isVideo = doc.type?.startsWith('video/');
+                  const isPDF = doc.type === 'application/pdf';
+                  
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        {isImage && <FiFile className="text-blue-500 text-xl" />}
+                        {isVideo && <FiFile className="text-purple-500 text-xl" />}
+                        {isPDF && <FiFile className="text-red-500 text-xl" />}
+                        <span className="text-sm text-gray-700 font-medium truncate max-w-[200px]">
+                          {doc.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDocument(index)}
+                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  );
+                })}
+                <p className="text-xs text-gray-500 mt-2">
+                  {documents.length} file(s) selected
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Info Message */}

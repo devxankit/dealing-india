@@ -1,38 +1,93 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../../components/ConfirmModal';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
 
 const AttributeSets = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const [attributeSets, setAttributeSets] = useState([
-    { id: 1, name: 'Color Set', attributes: ['Red', 'Blue', 'Green'], status: 'active' },
-    { id: 2, name: 'Size Set', attributes: ['S', 'M', 'L', 'XL'], status: 'active' },
-    { id: 3, name: 'Material Set', attributes: ['Cotton', 'Polyester', 'Wool'], status: 'active' },
-  ]);
+  const [attributeSets, setAttributeSets] = useState([]);
+  const [allAttributes, setAllAttributes] = useState([]); // For dropdown
+  const [loading, setLoading] = useState(true);
   const [editingSet, setEditingSet] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
-  const handleSave = (setData) => {
-    if (editingSet && editingSet.id) {
-      setAttributeSets(attributeSets.map((s) => (s.id === editingSet.id ? { ...setData, id: editingSet.id } : s)));
-      toast.success('Attribute set updated');
-    } else {
-      const newId = attributeSets.length > 0 ? Math.max(...attributeSets.map(s => s.id)) + 1 : 1;
-      setAttributeSets([...attributeSets, { ...setData, id: newId }]);
-      toast.success('Attribute set added');
+  useEffect(() => {
+    fetchAttributeSets();
+    fetchAllAttributes();
+  }, []);
+
+  const fetchAllAttributes = async () => {
+    try {
+      const response = await api.get('/admin/attributes');
+      if (response.success && response.data?.attributes) {
+        setAllAttributes(response.data.attributes);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
     }
-    setEditingSet(null);
   };
 
-  const handleDelete = () => {
-    setAttributeSets(attributeSets.filter((s) => s.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success('Attribute set deleted');
+  const fetchAttributeSets = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/admin/attribute-sets');
+      if (response.success && response.data?.attributeSets) {
+        const transformed = response.data.attributeSets.map((set) => ({
+          id: set._id || set.id,
+          name: set.name,
+          attributes: set.attributes || [],
+          status: set.status,
+        }));
+        setAttributeSets(transformed);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (setData) => {
+    try {
+      const payload = {
+        name: setData.name,
+        attributes: Array.isArray(setData.attributes) ? setData.attributes : setData.attributes.split(',').map(a => a.trim()).filter(a => a),
+        status: setData.status,
+      };
+
+      let response;
+      if (editingSet && editingSet.id) {
+        response = await api.put(`/admin/attribute-sets/${editingSet.id}`, payload);
+      } else {
+        response = await api.post('/admin/attribute-sets', payload);
+      }
+
+      if (response.success) {
+        toast.success(editingSet && editingSet.id ? 'Attribute set updated' : 'Attribute set added');
+        setEditingSet(null);
+        fetchAttributeSets();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await api.delete(`/admin/attribute-sets/${deleteModal.id}`);
+      if (response.success) {
+        toast.success('Attribute set deleted');
+        setDeleteModal({ isOpen: false, id: null });
+        fetchAttributeSets();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
   };
 
   return (
@@ -55,8 +110,11 @@ const AttributeSets = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {attributeSets.map((set) => (
+      {loading ? (
+        <div className="text-center py-12 text-gray-500">Loading attribute sets...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {attributeSets.map((set) => (
           <div key={set.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
@@ -90,7 +148,8 @@ const AttributeSets = () => {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {editingSet !== null && (
@@ -154,8 +213,15 @@ const AttributeSets = () => {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const formData = new FormData(e.target);
-                    const attributes = formData.get('attributes').split(',').map(a => a.trim()).filter(a => a);
+                    const attributes = editingSet.attributes || [];
+                    
+                    if (attributes.length === 0) {
+                      toast.error('Please select at least one attribute');
+                      return;
+                    }
+                    
                     handleSave({
                       name: formData.get('name'),
                       attributes,
@@ -172,14 +238,55 @@ const AttributeSets = () => {
                     required
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
-                  <textarea
-                    name="attributes"
-                    defaultValue={editingSet.attributes?.join(', ') || ''}
-                    placeholder="Attributes (comma-separated)"
-                    required
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Attributes <span className="text-red-500">*</span>
+                    </label>
+                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1 bg-gray-50">
+                      {allAttributes.length === 0 ? (
+                        <p className="text-sm text-gray-500 p-2">Loading attributes...</p>
+                      ) : (
+                        allAttributes.map((attr) => {
+                          const attrId = attr._id || attr.id;
+                          const attrName = attr.name;
+                          const isSelected = editingSet.attributes?.includes(attrName) || 
+                                            editingSet.attributes?.includes(attrId);
+                          return (
+                            <label key={attrId} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={isSelected || false}
+                                onChange={(e) => {
+                                  const currentAttrs = editingSet.attributes || [];
+                                  if (e.target.checked) {
+                                    setEditingSet({
+                                      ...editingSet,
+                                      attributes: [...currentAttrs, attrName]
+                                    });
+                                  } else {
+                                    setEditingSet({
+                                      ...editingSet,
+                                      attributes: currentAttrs.filter(a => a !== attrName && a !== attrId)
+                                    });
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                              />
+                              <span className="text-sm text-gray-700 flex-1">{attrName}</span>
+                              <span className="text-xs text-gray-500 px-2 py-0.5 bg-gray-200 rounded">
+                                {attr.type}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                    {editingSet.attributes && editingSet.attributes.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        {editingSet.attributes.length} attribute(s) selected
+                      </p>
+                    )}
+                  </div>
                   <AnimatedSelect
                     name="status"
                     value={editingSet.status || 'active'}

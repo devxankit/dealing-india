@@ -5,40 +5,15 @@ import { FaInstagram, FaFacebook, FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import MobileLayout from '../components/Layout/MobileLayout';
 import PageTransition from '../../../shared/components/PageTransition';
-
 import toast from 'react-hot-toast';
 
 const MegaReward = () => {
     const navigate = useNavigate();
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
     const [status, setStatus] = useState({ entered: false, instagram: false, facebook: false, whatsapp: false, ticketId: null });
+    const [verifying, setVerifying] = useState({ instagram: false, facebook: false, whatsapp: false });
 
-    // DEV MODE: Reset Status Shortcut (Sequence: t, e, s, t)
-    useEffect(() => {
-        let keySequence = '';
-        const handleKeyDown = (e) => {
-            // Append key to sequence
-            keySequence += e.key.toLowerCase();
-            // Keep only the last 4 characters
-            if (keySequence.length > 4) {
-                keySequence = keySequence.slice(-4);
-            }
-
-            // Check for 'test' sequence
-            if (keySequence === 'test') {
-                localStorage.removeItem('mega_reward_last_entry');
-                localStorage.removeItem('mega_reward_ticket_id');
-                setStatus({ entered: false, instagram: false, facebook: false, whatsapp: false, ticketId: null });
-                toast.success('DEV: Mega Reward Entry Reset!', { icon: '🔧' });
-                keySequence = ''; // Reset sequence
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    // Calculate Time Left for Lucky Draw (End of Current Month)
+    // Calculate Time Left
     useEffect(() => {
         const calculateTimeLeft = () => {
             const now = new Date();
@@ -57,55 +32,103 @@ const MegaReward = () => {
         };
 
         calculateTimeLeft();
-        const timer = setInterval(calculateTimeLeft, 1000); // Update every second
+        const timer = setInterval(calculateTimeLeft, 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // Check Local Storage for Status
+    // Check Local Storage and Ticket Generation
+    // Check Local Storage on Mount
     useEffect(() => {
-        const lastEntryStr = localStorage.getItem('mega_reward_last_entry');
-        const storedTicketId = localStorage.getItem('mega_reward_ticket_id');
+        const checkStatus = () => {
+            const lastEntryStr = localStorage.getItem('mega_reward_last_entry');
+            const storedTicketId = localStorage.getItem('mega_reward_ticket_id');
+            const sharesCount = parseInt(localStorage.getItem('mega_reward_shares') || '0');
 
-        if (lastEntryStr) {
-            const lastEntry = new Date(lastEntryStr);
-            const now = new Date();
-            if (lastEntry.getMonth() === now.getMonth() && lastEntry.getFullYear() === now.getFullYear()) {
-
-                let finalTicketId = storedTicketId;
-                // Self-healing: Generate ticket if missing for existing entry
-                if (!finalTicketId) {
-                    const dateStr = now.toISOString().slice(0, 7).replace(/-/g, ''); // YYYYMM
-                    const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
-                    finalTicketId = `MR-${dateStr}-${randomStr}`;
-                    localStorage.setItem('mega_reward_ticket_id', finalTicketId);
+            if (lastEntryStr) {
+                const lastEntry = new Date(lastEntryStr);
+                const now = new Date();
+                if (lastEntry.getMonth() === now.getMonth() && lastEntry.getFullYear() === now.getFullYear()) {
+                    setStatus({
+                        entered: true,
+                        instagram: true,
+                        facebook: true,
+                        whatsapp: true,
+                        ticketId: storedTicketId || 'PENDING'
+                    });
+                    return;
                 }
-
-                setStatus({
-                    entered: true,
-                    instagram: true,
-                    facebook: true,
-                    whatsapp: true,
-                    ticketId: finalTicketId
-                });
             }
+
+            // Sync shares count to status
+            // 1 share = 1 step, 2 shares = 2 steps, etc.
+            setStatus(prev => ({
+                ...prev,
+                instagram: sharesCount >= 1,
+                facebook: sharesCount >= 2,
+                whatsapp: sharesCount >= 3,
+            }));
+        };
+        checkStatus();
+    }, []);
+
+    // Auto-generate ticket if conditions met
+    useEffect(() => {
+        if (!status.entered && status.instagram && status.facebook && status.whatsapp) {
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 7).replace(/-/g, '');
+            const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+            const ticketId = `MR-${dateStr}-${randomStr}`;
+
+            localStorage.setItem('mega_reward_last_entry', now.toISOString());
+            localStorage.setItem('mega_reward_ticket_id', ticketId);
+
+            setStatus(prev => ({ ...prev, entered: true, ticketId }));
+            toast.success("Ticket Generated!");
         }
+    }, [status]);
+
+    // Dev Mode: Reset State on typing 'TEST'
+    useEffect(() => {
+        let buffer = "";
+        const handleKeyDown = (e) => {
+            buffer += e.key.toUpperCase();
+            if (buffer.length > 4) {
+                buffer = buffer.slice(-4);
+            }
+            if (buffer === "TEST") {
+                localStorage.removeItem("mega_reward_last_entry");
+                localStorage.removeItem("mega_reward_ticket_id");
+                localStorage.removeItem("mega_reward_shares");
+                setStatus({
+                    entered: false,
+                    instagram: false,
+                    facebook: false,
+                    whatsapp: false,
+                    ticketId: null
+                });
+                toast.success("DEV MODE: Reward State Reset 🛠️");
+                buffer = ""; // Reset buffer
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
     }, []);
 
     return (
         <PageTransition>
             <MobileLayout showBottomNav={false}>
                 <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black text-white p-6 pb-24">
-
                     {/* Header */}
                     <div className="flex items-center mb-8">
                         <button onClick={() => navigate(-1)} className="p-2 bg-white/10 rounded-full backdrop-blur-md">
                             <FiArrowLeft className="text-xl" />
                         </button>
                         <h1 className="flex-1 text-center text-xl font-bold tracking-wider">MEGA REWARD</h1>
-                        <div className="w-9" /> {/* Spacer */}
+                        <div className="w-9" />
                     </div>
 
-                    {/* Main Prize Card */}
+                    {/* Prize Card */}
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
@@ -119,8 +142,8 @@ const MegaReward = () => {
                         <p className="text-purple-200 uppercase tracking-widest text-sm font-semibold">Monthly Jackpot</p>
                     </motion.div>
 
-                    {/* Countdown Timer */}
-                    <div className="mb-10">
+                    {/* Countdown */}
+                    <div className="mb-10 block">
                         <p className="text-center text-sm text-purple-300 mb-4 font-medium uppercase tracking-widest">Lucky Draw Ends In</p>
                         {timeLeft ? (
                             <div className="flex justify-center gap-3">
@@ -134,115 +157,82 @@ const MegaReward = () => {
                         )}
                     </div>
 
-                    {/* Steps & Ticket */}
+                    {/* Interaction Area */}
                     <div className="bg-white rounded-t-3xl text-black p-6 -mx-6 min-h-[40vh]">
-
-                        {status.entered ? (
-                            <motion.div
-                                initial={{ scale: 0.9, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                className="mb-8"
-                            >
+                        {status.entered && (
+                            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mb-8">
                                 <div className="bg-gradient-to-r from-yellow-100 to-yellow-50 border-2 border-yellow-400 border-dashed rounded-2xl p-6 relative overflow-hidden">
-                                    {/* Decorative Circles */}
-                                    <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full border-r-2 border-yellow-400" />
-                                    <div className="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full border-l-2 border-yellow-400" />
-
                                     <div className="text-center">
                                         <p className="text-yellow-700 font-bold uppercase tracking-widest text-xs mb-2">Your Ticket Number</p>
-                                        <div className="text-3xl font-black font-mono text-gray-900 tracking-wider mb-2">
-                                            {status.ticketId}
-                                        </div>
+                                        <div className="text-3xl font-black font-mono text-gray-900 tracking-wider mb-2">{status.ticketId}</div>
                                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
-                                            <FiCheckCircle />
-                                            REGISTERED
+                                            <FiCheckCircle /> REGISTERED
                                         </div>
                                     </div>
                                 </div>
-                                <p className="text-center text-gray-500 text-xs mt-4">
-                                    Keep this ticket handy. Winners will be announced via this Ticket ID.
-                                </p>
                             </motion.div>
-                        ) : (
-                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2">
-                                Steps to Participate
-                            </h3>
                         )}
 
                         <div className="space-y-4">
+                            {!status.entered && (
+                                <>
+                                    <h3 className="font-bold text-lg mb-2">How to Enter</h3>
+                                    <p className="text-sm text-gray-500 mb-4">Complete steps by sharing promotional reels. Each share unlocks a step!</p>
+
+                                    <button
+                                        onClick={() => navigate('/app/reels?type=promotional')}
+                                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-purple-200 active:scale-95 transition-transform flex items-center justify-center gap-2 mb-6"
+                                    >
+                                        <FiShare2 />
+                                        Watch & Share Reels to Enter
+                                    </button>
+                                    <div className="text-center text-gray-400 text-sm mb-4 font-bold">- PROGRESS -</div>
+                                </>
+                            )}
+
+                            {status.entered && (
+                                <h3 className="font-bold text-lg mb-4">Completed Steps</h3>
+                            )}
+
                             <StepItem
                                 icon={<FaInstagram className="text-pink-600" />}
-                                label="Share on Instagram Story"
-                                done={status.instagram}
+                                label="Share on Instagram"
+                                done={status.instagram || status.entered}
                             />
                             <StepItem
                                 icon={<FaFacebook className="text-blue-600" />}
-                                label="Share on Facebook Story"
-                                done={status.facebook}
+                                label="Share on Facebook"
+                                done={status.facebook || status.entered}
                             />
                             <StepItem
                                 icon={<FaWhatsapp className="text-green-600" />}
-                                label="Share to 5 Friends on WhatsApp"
-                                done={status.whatsapp}
+                                label="Share on WhatsApp"
+                                done={status.whatsapp || status.entered}
                             />
                         </div>
-
-                        {!status.entered ? (
-                            <button
-                                onClick={() => navigate('/app/reels')}
-                                className="w-full mt-8 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-purple-200 active:scale-95 transition-transform flex items-center justify-center gap-2"
-                            >
-                                <FiShare2 />
-                                Go to Reels to Participate
-                            </button>
-                        ) : null}
                     </div>
-
                 </div>
             </MobileLayout>
         </PageTransition>
     );
 };
 
-const TimerBox = ({ value, label }) => {
-    return (
-        <div className="flex flex-col items-center">
-            <div className="relative w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-lg mb-2 overflow-hidden transform-gpu">
-                {/* Simplified Infinite Sheen - Opacity only to save GPU */}
-                <motion.div
-                    animate={{ x: ['-100%', '200%'] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear", repeatDelay: 1 }}
-                    className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 will-change-transform"
-                />
-
-                {/* Number Animation - No Blur, Transform Only */}
-                <AnimatePresence mode="popLayout" initial={false}>
-                    <motion.span
-                        key={value}
-                        initial={{ y: '100%' }}
-                        animate={{ y: '0%' }}
-                        exit={{ y: '-100%' }}
-                        transition={{ duration: 0.3, ease: "backOut" }}
-                        className="text-2xl font-bold font-mono text-white absolute will-change-transform"
-                    >
-                        {String(value).padStart(2, '0')}
-                    </motion.span>
-                </AnimatePresence>
-            </div>
-            <span className="text-[10px] font-bold text-purple-200 tracking-wider bg-black/20 px-2 py-0.5 rounded-full border border-white/5">{label}</span>
+const TimerBox = ({ value, label }) => (
+    <div className="flex flex-col items-center">
+        <div className="w-14 h-14 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 shadow-lg mb-1">
+            <span className="text-xl font-bold font-mono text-white">{String(value).padStart(2, '0')}</span>
         </div>
-    );
-};
+        <span className="text-[10px] font-bold text-purple-200 tracking-wider bg-black/20 px-2 py-0.5 rounded-full">{label}</span>
+    </div>
+);
 
 const StepItem = ({ icon, label, done }) => (
-    <div className={`flex items-center p-4 rounded-xl border ${done ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'} will-change-transform`}>
+    <div className={`flex items-center p-4 rounded-xl border ${done ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'} transition-colors duration-300`}>
         <div className="text-2xl mr-4">{icon}</div>
-        <div className="flex-1 font-medium text-gray-800">{label}</div>
-        {done ? (
-            <FiCheckCircle className="text-xl text-green-500" />
-        ) : (
-            <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
-        )}
+        <div className="flex-1 font-medium text-gray-800 text-sm">{label}</div>
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 ${done ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
+            {done && <FiCheckCircle className="text-white text-sm" />}
+        </div>
     </div>
 );
 

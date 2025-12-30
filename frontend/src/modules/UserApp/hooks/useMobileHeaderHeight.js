@@ -5,12 +5,14 @@ import { useState, useEffect } from 'react';
  * This is useful for adding padding-top to mobile page content
  */
 const useMobileHeaderHeight = () => {
-  const [headerHeight, setHeaderHeight] = useState(64); // Default to 64px (pt-16)
+  // Default to a closer estimate of the full header (Logo + Search + Icons)
+  // 64px (base) + 50px (search) + 70px (icons/padding) ≈ 184px
+  const [headerHeight, setHeaderHeight] = useState(184);
 
   useEffect(() => {
     const calculateHeight = () => {
       const header = document.querySelector('header[class*="fixed"]');
-      
+
       if (header) {
         setHeaderHeight(header.offsetHeight);
       }
@@ -21,7 +23,7 @@ const useMobileHeaderHeight = () => {
 
     // Recalculate on resize
     window.addEventListener('resize', calculateHeight);
-    
+
     // Recalculate after delays to ensure elements are rendered
     const timeoutId = setTimeout(calculateHeight, 100);
     const timeoutId2 = setTimeout(calculateHeight, 500);
@@ -37,4 +39,3 @@ const useMobileHeaderHeight = () => {
 };
 
 export default useMobileHeaderHeight;
-

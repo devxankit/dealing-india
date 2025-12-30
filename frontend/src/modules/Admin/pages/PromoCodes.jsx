@@ -9,51 +9,13 @@ import ConfirmModal from '../components/ConfirmModal';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import toast from 'react-hot-toast';
+import api from '../../../shared/utils/api';
 
 const PromoCodes = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const [promoCodes, setPromoCodes] = useState([
-    {
-      id: 1,
-      code: 'SAVE20',
-      type: 'percentage',
-      value: 20,
-      minPurchase: 50,
-      maxDiscount: 100,
-      usageLimit: 100,
-      usedCount: 45,
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-    },
-    {
-      id: 2,
-      code: 'FLAT50',
-      type: 'fixed',
-      value: 50,
-      minPurchase: 100,
-      maxDiscount: 50,
-      usageLimit: 50,
-      usedCount: 32,
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-    },
-    {
-      id: 3,
-      code: 'WELCOME10',
-      type: 'percentage',
-      value: 10,
-      minPurchase: 0,
-      maxDiscount: 25,
-      usageLimit: 1,
-      usedCount: 0,
-      startDate: new Date().toISOString(),
-      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-    },
-  ]);
+  const [promoCodes, setPromoCodes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingCode, setEditingCode] = useState(null);
@@ -61,41 +23,96 @@ const PromoCodes = () => {
   const [copiedCode, setCopiedCode] = useState(null);
 
   useEffect(() => {
-    const savedCodes = localStorage.getItem('admin-promocodes');
-    if (savedCodes) {
-      setPromoCodes(JSON.parse(savedCodes));
-    } else {
-      localStorage.setItem('admin-promocodes', JSON.stringify(promoCodes));
+    fetchPromoCodes();
+  }, [statusFilter]);
+
+  const fetchPromoCodes = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+      const queryString = params.toString();
+      const url = `/admin/promocodes${queryString ? `?${queryString}` : ''}`;
+      const response = await api.get(url);
+      if (response.success && response.data?.promoCodes) {
+        // Transform backend data to match frontend format
+        const transformed = response.data.promoCodes.map((code) => ({
+          id: code._id || code.id,
+          code: code.code,
+          type: code.type,
+          value: code.value,
+          minPurchase: code.minPurchase || 0,
+          maxDiscount: code.maxDiscount,
+          usageLimit: code.usageLimit,
+          usedCount: code.usedCount || 0,
+          startDate: code.startDate,
+          endDate: code.endDate,
+          status: code.status,
+        }));
+        setPromoCodes(transformed);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  const filteredCodes = promoCodes.filter((code) => {
-    const matchesSearch =
-      !searchQuery ||
-      code.code.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || code.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleSave = (codeData) => {
-    const updatedCodes = editingCode && editingCode.id
-      ? promoCodes.map((c) => (c.id === editingCode.id ? { ...codeData, id: editingCode.id } : c))
-      : [...promoCodes, { ...codeData, id: promoCodes.length > 0 ? Math.max(...promoCodes.map(c => c.id)) + 1 : 1, usedCount: 0 }];
-
-    setPromoCodes(updatedCodes);
-    localStorage.setItem('admin-promocodes', JSON.stringify(updatedCodes));
-    setEditingCode(null);
-    toast.success(editingCode && editingCode.id ? 'Promo code updated' : 'Promo code added');
   };
 
-  const handleDelete = () => {
-    const updatedCodes = promoCodes.filter((c) => c.id !== deleteModal.id);
-    setPromoCodes(updatedCodes);
-    localStorage.setItem('admin-promocodes', JSON.stringify(updatedCodes));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success('Promo code deleted');
+  // Debounce search to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPromoCodes();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, statusFilter]);
+
+  const handleSave = async (codeData) => {
+    try {
+      const payload = {
+        code: codeData.code,
+        type: codeData.type,
+        value: codeData.value,
+        minPurchase: codeData.minPurchase || 0,
+        maxDiscount: codeData.maxDiscount || undefined,
+        usageLimit: codeData.usageLimit === '' || codeData.usageLimit === -1 ? -1 : codeData.usageLimit,
+        startDate: codeData.startDate,
+        endDate: codeData.endDate,
+        status: codeData.status,
+      };
+
+      let response;
+      if (editingCode && editingCode.id) {
+        response = await api.put(`/admin/promocodes/${editingCode.id}`, payload);
+      } else {
+        response = await api.post('/admin/promocodes', payload);
+      }
+
+      if (response.success) {
+        toast.success(editingCode && editingCode.id ? 'Promo code updated' : 'Promo code added');
+        setEditingCode(null);
+        fetchPromoCodes();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await api.delete(`/admin/promocodes/${deleteModal.id}`);
+      if (response.success) {
+        toast.success('Promo code deleted');
+        setDeleteModal({ isOpen: false, id: null });
+        fetchPromoCodes();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
   };
 
   const copyToClipboard = (code) => {
@@ -105,13 +122,17 @@ const PromoCodes = () => {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const toggleStatus = (id) => {
-    const updatedCodes = promoCodes.map((c) =>
-      c.id === id ? { ...c, status: c.status === 'active' ? 'inactive' : 'active' } : c
-    );
-    setPromoCodes(updatedCodes);
-    localStorage.setItem('admin-promocodes', JSON.stringify(updatedCodes));
-    toast.success('Status updated');
+  const toggleStatus = async (id, currentStatus) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+      const response = await api.patch(`/admin/promocodes/${id}/status`, { status: newStatus });
+      if (response.success) {
+        toast.success('Status updated');
+        fetchPromoCodes();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
   };
 
   const columns = [
@@ -183,9 +204,11 @@ const PromoCodes = () => {
       sortable: true,
       render: (value, row) => (
         <button
-          onClick={() => toggleStatus(row.id)}
+          onClick={() => toggleStatus(row.id, value)}
           className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${value === 'active'
               ? 'bg-green-100 text-green-800 hover:bg-green-200'
+              : value === 'expired'
+              ? 'bg-red-100 text-red-800 hover:bg-red-200'
               : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
             }`}
         >
@@ -264,13 +287,13 @@ const PromoCodes = () => {
 
         <div className="mt-4 flex justify-end">
           <ExportButton
-            data={filteredCodes}
+            data={promoCodes}
             headers={[
               { label: 'Code', accessor: (row) => row.code },
               { label: 'Type', accessor: (row) => row.type },
               { label: 'Value', accessor: (row) => row.type === 'percentage' ? `${row.value}%` : formatCurrency(row.value) },
               { label: 'Min Purchase', accessor: (row) => formatCurrency(row.minPurchase) },
-              { label: 'Usage', accessor: (row) => `${row.usedCount} / ${row.usageLimit}` },
+              { label: 'Usage', accessor: (row) => `${row.usedCount} / ${row.usageLimit === -1 ? '∞' : row.usageLimit}` },
               { label: 'Status', accessor: (row) => row.status },
             ]}
             filename="promo-codes"
@@ -279,12 +302,16 @@ const PromoCodes = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={filteredCodes}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading promo codes...</div>
+        ) : (
+          <DataTable
+            data={promoCodes}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       <AnimatePresence>

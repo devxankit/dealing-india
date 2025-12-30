@@ -1,27 +1,48 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { FiPackage, FiAlertCircle, FiTrendingDown } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import ExportButton from '../../components/ExportButton';
-import { products as initialProducts } from '../../../../data/products';
+import { formatPrice } from '../../../../shared/utils/helpers';
+import api from '../../../../shared/utils/api';
 
 const InventoryReport = () => {
-  const [products] = useState(() => {
-    const saved = localStorage.getItem('admin-products');
-    return saved ? JSON.parse(saved) : initialProducts;
+  const [products, setProducts] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [inventoryStats, setInventoryStats] = useState({
+    totalProducts: 0,
+    inStock: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0,
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const inventoryStats = useMemo(() => {
-    const totalProducts = products.length;
-    const inStock = products.filter(p => p.stock === 'in_stock').length;
-    const lowStock = products.filter(p => p.stock === 'low_stock').length;
-    const outOfStock = products.filter(p => p.stock === 'out_of_stock').length;
-    const totalValue = products.reduce((sum, p) => sum + (p.price * p.stockQuantity), 0);
+  useEffect(() => {
+    fetchInventoryReport();
+  }, []);
 
-    return { totalProducts, inStock, lowStock, outOfStock, totalValue };
-  }, [products]);
-
-  const lowStockProducts = products.filter(p => p.stock === 'low_stock' || p.stock === 'out_of_stock');
+  const fetchInventoryReport = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/admin/reports/inventory');
+      if (response.success && response.data) {
+        setProducts(response.data.products || []);
+        setLowStockProducts(response.data.lowStockProducts || []);
+        setInventoryStats(response.data.stats || {
+          totalProducts: 0,
+          inStock: 0,
+          lowStock: 0,
+          outOfStock: 0,
+          totalValue: 0,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch inventory report:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const columns = [
     {
@@ -66,13 +87,13 @@ const InventoryReport = () => {
       key: 'price',
       label: 'Price',
       sortable: true,
-      render: (value) => `$${value.toFixed(2)}`,
+      render: (value) => formatPrice(value),
     },
     {
       key: 'value',
       label: 'Total Value',
       sortable: true,
-      render: (_, row) => `$${(row.price * row.stockQuantity).toFixed(2)}`,
+      render: (_, row) => formatPrice(row.value || (row.price * (row.stockQuantity || 0))),
     },
   ];
 
@@ -114,7 +135,7 @@ const InventoryReport = () => {
             <p className="text-sm text-gray-600">Total Value</p>
             <FiTrendingDown className="text-purple-600" />
           </div>
-          <p className="text-2xl font-bold text-gray-800">${inventoryStats.totalValue.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-gray-800">{formatPrice(inventoryStats.totalValue)}</p>
         </div>
       </div>
 
@@ -135,7 +156,11 @@ const InventoryReport = () => {
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
         <h3 className="text-lg font-bold text-gray-800 mb-4">Low Stock Alert</h3>
-        {lowStockProducts.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading...</p>
+          </div>
+        ) : lowStockProducts.length > 0 ? (
           <DataTable
             data={lowStockProducts}
             columns={columns}
@@ -149,12 +174,20 @@ const InventoryReport = () => {
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
         <h3 className="text-lg font-bold text-gray-800 mb-4">All Products</h3>
-        <DataTable
-          data={products}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading...</p>
+          </div>
+        ) : products.length > 0 ? (
+          <DataTable
+            data={products}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        ) : (
+          <p className="text-gray-500 text-center py-8">No products found</p>
+        )}
       </div>
     </motion.div>
   );

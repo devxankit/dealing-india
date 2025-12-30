@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,35 +6,78 @@ import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
 
 const Attributes = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const [attributes, setAttributes] = useState([
-    { id: 1, name: 'Color', type: 'select', required: true, status: 'active' },
-    { id: 2, name: 'Size', type: 'select', required: true, status: 'active' },
-    { id: 3, name: 'Material', type: 'select', required: false, status: 'active' },
-    { id: 4, name: 'Weight', type: 'text', required: false, status: 'active' },
-  ]);
+  const [attributes, setAttributes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editingAttribute, setEditingAttribute] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
-  const handleSave = (attrData) => {
-    if (editingAttribute && editingAttribute.id) {
-      setAttributes(attributes.map((a) => (a.id === editingAttribute.id ? { ...attrData, id: editingAttribute.id } : a)));
-      toast.success('Attribute updated');
-    } else {
-      const newId = attributes.length > 0 ? Math.max(...attributes.map(a => a.id)) + 1 : 1;
-      setAttributes([...attributes, { ...attrData, id: newId }]);
-      toast.success('Attribute added');
+  useEffect(() => {
+    fetchAttributes();
+  }, []);
+
+  const fetchAttributes = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/admin/attributes');
+      if (response.success && response.data?.attributes) {
+        const transformed = response.data.attributes.map((attr) => ({
+          id: attr._id || attr.id,
+          name: attr.name,
+          type: attr.type,
+          required: attr.required,
+          status: attr.status,
+        }));
+        setAttributes(transformed);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setLoading(false);
     }
-    setEditingAttribute(null);
   };
 
-  const handleDelete = () => {
-    setAttributes(attributes.filter((a) => a.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success('Attribute deleted');
+  const handleSave = async (attrData) => {
+    try {
+      const payload = {
+        name: attrData.name,
+        type: attrData.type,
+        required: attrData.required === true || attrData.required === 'true',
+        status: attrData.status,
+      };
+
+      let response;
+      if (editingAttribute && editingAttribute.id) {
+        response = await api.put(`/admin/attributes/${editingAttribute.id}`, payload);
+      } else {
+        response = await api.post('/admin/attributes', payload);
+      }
+
+      if (response.success) {
+        toast.success(editingAttribute && editingAttribute.id ? 'Attribute updated' : 'Attribute added');
+        setEditingAttribute(null);
+        fetchAttributes();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await api.delete(`/admin/attributes/${deleteModal.id}`);
+      if (response.success) {
+        toast.success('Attribute deleted');
+        setDeleteModal({ isOpen: false, id: null });
+        fetchAttributes();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
   };
 
   const columns = [
@@ -120,12 +163,16 @@ const Attributes = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={attributes}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading attributes...</div>
+        ) : (
+          <DataTable
+            data={attributes}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       <AnimatePresence>

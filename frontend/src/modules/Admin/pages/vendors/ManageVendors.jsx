@@ -15,17 +15,18 @@ import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
-import { useVendorStore } from "../../../Vendor/store/vendorStore";
-import { useOrderStore } from "../../../../shared/store/orderStore";
-import { useCommissionStore } from "../../../../shared/store/commissionStore";
+import { useVendorManagementStore } from "../../store/vendorManagementStore";
 import toast from "react-hot-toast";
 
 const ManageVendors = () => {
   const navigate = useNavigate();
-  const { vendors, updateVendorStatus, updateCommissionRate } =
-    useVendorStore();
-  const { orders } = useOrderStore();
-  const { getVendorEarningsSummary } = useCommissionStore();
+  const {
+    vendors,
+    isLoading,
+    fetchVendors,
+    updateVendorStatus,
+    updateCommissionRate,
+  } = useVendorManagementStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -37,44 +38,39 @@ const ManageVendors = () => {
   });
   const [commissionRate, setCommissionRate] = useState("");
 
-  // Get vendor statistics
-  const getVendorStats = (vendorId) => {
-    const vendorOrders = orders.filter((order) => {
-      if (order.vendorItems && Array.isArray(order.vendorItems)) {
-        return order.vendorItems.some((vi) => vi.vendorId === vendorId);
+  // Fetch vendors on component mount and when filters change
+  useEffect(() => {
+    const loadVendors = async () => {
+      try {
+        await fetchVendors({
+          status: selectedStatus,
+          search: searchQuery,
+          page: 1,
+          limit: 100, // Get all for now, can implement pagination later
+        });
+      } catch (error) {
+        // Error toast is shown by API interceptor
       }
-      return false;
-    });
+    };
 
-    const earningsSummary = getVendorEarningsSummary(vendorId);
+    loadVendors();
+  }, [selectedStatus, searchQuery, fetchVendors]);
+
+  // Get vendor statistics (simplified - will be enhanced when orders are available)
+  const getVendorStats = (vendorId) => {
     const vendor = vendors.find((v) => v.id === vendorId);
-
     return {
-      totalOrders: vendorOrders.length,
-      totalEarnings: earningsSummary?.totalEarnings || 0,
-      pendingEarnings: earningsSummary?.pendingEarnings || 0,
+      totalOrders: 0, // Will be populated when orders are available
+      totalEarnings: 0,
+      pendingEarnings: 0,
       commissionRate: vendor?.commissionRate || 0,
     };
   };
 
   const filteredVendors = useMemo(() => {
-    let filtered = vendors;
-
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (vendor) =>
-          vendor.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          vendor.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          vendor.storeName?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter((vendor) => vendor.status === selectedStatus);
-    }
-
-    return filtered;
-  }, [vendors, searchQuery, selectedStatus]);
+    // Filtering is now done on backend, but we can add client-side filtering if needed
+    return vendors;
+  }, [vendors]);
 
   const columns = [
     {
@@ -231,43 +227,76 @@ const ManageVendors = () => {
     },
   ];
 
-  const handleApprove = () => {
-    updateVendorStatus(actionModal.vendorId, "approved");
-    setActionModal({
-      isOpen: false,
-      type: null,
-      vendorId: null,
-      vendorName: null,
-    });
-    toast.success("Vendor approved successfully");
+  const handleApprove = async () => {
+    try {
+      await updateVendorStatus(actionModal.vendorId, "approved");
+      setActionModal({
+        isOpen: false,
+        type: null,
+        vendorId: null,
+        vendorName: null,
+      });
+      toast.success("Vendor approved successfully");
+      // Refresh vendors list
+      await fetchVendors({
+        status: selectedStatus,
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
   };
 
-  const handleSuspend = () => {
-    updateVendorStatus(actionModal.vendorId, "suspended");
-    setActionModal({
-      isOpen: false,
-      type: null,
-      vendorId: null,
-      vendorName: null,
-    });
-    toast.success("Vendor suspended successfully");
+  const handleSuspend = async () => {
+    try {
+      await updateVendorStatus(actionModal.vendorId, "rejected");
+      setActionModal({
+        isOpen: false,
+        type: null,
+        vendorId: null,
+        vendorName: null,
+      });
+      toast.success("Vendor suspended successfully");
+      // Refresh vendors list
+      await fetchVendors({
+        status: selectedStatus,
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
   };
 
-  const handleCommissionUpdate = () => {
+  const handleCommissionUpdate = async () => {
     const rate = parseFloat(commissionRate) / 100;
     if (isNaN(rate) || rate < 0 || rate > 1) {
       toast.error("Please enter a valid commission rate (0-100%)");
       return;
     }
-    updateCommissionRate(actionModal.vendorId, rate);
-    setActionModal({
-      isOpen: false,
-      type: null,
-      vendorId: null,
-      vendorName: null,
-    });
-    setCommissionRate("");
-    toast.success("Commission rate updated successfully");
+    try {
+      await updateCommissionRate(actionModal.vendorId, rate);
+      setActionModal({
+        isOpen: false,
+        type: null,
+        vendorId: null,
+        vendorName: null,
+      });
+      setCommissionRate("");
+      toast.success("Commission rate updated successfully");
+      // Refresh vendors list
+      await fetchVendors({
+        status: selectedStatus,
+        search: searchQuery,
+        page: 1,
+        limit: 100,
+      });
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
   };
 
   const getModalContent = () => {
@@ -395,13 +424,23 @@ const ManageVendors = () => {
         </div>
 
         {/* DataTable */}
-        <DataTable
-          data={filteredVendors}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-          onRowClick={(row) => navigate(`/admin/vendors/${row.id}`)}
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading vendors...</p>
+          </div>
+        ) : filteredVendors.length > 0 ? (
+          <DataTable
+            data={filteredVendors}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+            onRowClick={(row) => navigate(`/admin/vendors/${row.id}`)}
+          />
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No vendors found</p>
+          </div>
+        )}
       </div>
 
       {/* Action Modals */}

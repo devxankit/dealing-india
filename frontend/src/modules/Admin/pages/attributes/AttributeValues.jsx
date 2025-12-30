@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,49 +6,115 @@ import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
 
 const AttributeValues = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const [attributeValues, setAttributeValues] = useState([
-    { id: 1, attributeId: 1, attributeName: 'Color', value: 'Red', displayOrder: 1, status: 'active' },
-    { id: 2, attributeId: 1, attributeName: 'Color', value: 'Blue', displayOrder: 2, status: 'active' },
-    { id: 3, attributeId: 1, attributeName: 'Color', value: 'Green', displayOrder: 3, status: 'active' },
-    { id: 4, attributeId: 2, attributeName: 'Size', value: 'S', displayOrder: 1, status: 'active' },
-    { id: 5, attributeId: 2, attributeName: 'Size', value: 'M', displayOrder: 2, status: 'active' },
-    { id: 6, attributeId: 2, attributeName: 'Size', value: 'L', displayOrder: 3, status: 'active' },
-  ]);
+  const [attributeValues, setAttributeValues] = useState([]);
+  const [attributes, setAttributes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editingValue, setEditingValue] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
   const [searchQuery, setSearchQuery] = useState('');
   const [attributeFilter, setAttributeFilter] = useState('all');
 
-  const filteredValues = attributeValues.filter((val) => {
-    const matchesSearch = !searchQuery || val.value.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesAttribute = attributeFilter === 'all' || val.attributeId.toString() === attributeFilter;
-    return matchesSearch && matchesAttribute;
-  });
+  useEffect(() => {
+    fetchAttributes();
+    fetchAttributeValues();
+  }, []);
 
-  const uniqueAttributes = Array.from(
-    new Map(attributeValues.map((v) => [v.attributeId, { id: v.attributeId, name: v.attributeName }])).values()
-  );
+  useEffect(() => {
+    fetchAttributeValues();
+  }, [attributeFilter]);
 
-  const handleSave = (valueData) => {
-    if (editingValue && editingValue.id) {
-      setAttributeValues(attributeValues.map((v) => (v.id === editingValue.id ? { ...valueData, id: editingValue.id } : v)));
-      toast.success('Attribute value updated');
-    } else {
-      const newId = attributeValues.length > 0 ? Math.max(...attributeValues.map(v => v.id)) + 1 : 1;
-      setAttributeValues([...attributeValues, { ...valueData, id: newId }]);
-      toast.success('Attribute value added');
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchAttributeValues();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, attributeFilter]);
+
+  const fetchAttributes = async () => {
+    try {
+      const response = await api.get('/admin/attributes');
+      if (response.success && response.data?.attributes) {
+        setAttributes(response.data.attributes);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
     }
-    setEditingValue(null);
   };
 
-  const handleDelete = () => {
-    setAttributeValues(attributeValues.filter((v) => v.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success('Attribute value deleted');
+  const fetchAttributeValues = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (attributeFilter !== 'all') {
+        params.append('attributeId', attributeFilter);
+      }
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+      const queryString = params.toString();
+      const url = `/admin/attribute-values${queryString ? `?${queryString}` : ''}`;
+      const response = await api.get(url);
+      if (response.success && response.data?.attributeValues) {
+        const transformed = response.data.attributeValues.map((val) => ({
+          id: val._id || val.id,
+          attributeId: val.attributeId?._id || val.attributeId?.id || val.attributeId,
+          attributeName: val.attributeId?.name || 'Unknown',
+          value: val.value,
+          displayOrder: val.displayOrder,
+          status: val.status,
+        }));
+        setAttributeValues(transformed);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (valueData) => {
+    try {
+      const payload = {
+        attributeId: valueData.attributeId,
+        value: valueData.value,
+        displayOrder: valueData.displayOrder || 1,
+        status: valueData.status,
+      };
+
+      let response;
+      if (editingValue && editingValue.id) {
+        response = await api.put(`/admin/attribute-values/${editingValue.id}`, payload);
+      } else {
+        response = await api.post('/admin/attribute-values', payload);
+      }
+
+      if (response.success) {
+        toast.success(editingValue && editingValue.id ? 'Attribute value updated' : 'Attribute value added');
+        setEditingValue(null);
+        fetchAttributeValues();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await api.delete(`/admin/attribute-values/${deleteModal.id}`);
+      if (response.success) {
+        toast.success('Attribute value deleted');
+        setDeleteModal({ isOpen: false, id: null });
+        fetchAttributeValues();
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
   };
 
   const columns = [
@@ -140,8 +206,8 @@ const AttributeValues = () => {
             onChange={(e) => setAttributeFilter(e.target.value)}
             options={[
               { value: 'all', label: 'All Attributes' },
-              ...uniqueAttributes.map((attr) => ({
-                value: attr.id.toString(),
+              ...attributes.map((attr) => ({
+                value: (attr._id || attr.id).toString(),
                 label: attr.name,
               })),
             ]}
@@ -151,12 +217,16 @@ const AttributeValues = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={filteredValues}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading attribute values...</div>
+        ) : (
+          <DataTable
+            data={attributeValues}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       <AnimatePresence>
@@ -222,9 +292,10 @@ const AttributeValues = () => {
                   onSubmit={(e) => {
                     e.preventDefault();
                     const formData = new FormData(e.target);
+                    const selectedAttr = attributes.find(a => (a._id || a.id).toString() === formData.get('attributeId'));
                     handleSave({
-                      attributeId: parseInt(formData.get('attributeId')),
-                      attributeName: formData.get('attributeName'),
+                      attributeId: formData.get('attributeId'),
+                      attributeName: selectedAttr?.name || '',
                       value: formData.get('value'),
                       displayOrder: parseInt(formData.get('displayOrder')),
                       status: formData.get('status'),
@@ -233,23 +304,23 @@ const AttributeValues = () => {
                   className="space-y-4"
                 >
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Attribute ID</label>
-                    <input
-                      type="number"
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Attribute</label>
+                    <AnimatedSelect
                       name="attributeId"
-                      defaultValue={editingValue.attributeId || ''}
+                      value={editingValue.attributeId || ''}
+                      onChange={(e) => {
+                        const selectedAttr = attributes.find(a => (a._id || a.id).toString() === e.target.value);
+                        setEditingValue({
+                          ...editingValue,
+                          attributeId: e.target.value,
+                          attributeName: selectedAttr?.name || '',
+                        });
+                      }}
+                      options={attributes.map((attr) => ({
+                        value: (attr._id || attr.id).toString(),
+                        label: attr.name,
+                      }))}
                       required
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Attribute Name</label>
-                    <input
-                      type="text"
-                      name="attributeName"
-                      defaultValue={editingValue.attributeName || ''}
-                      required
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
                   <div>

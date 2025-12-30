@@ -14,6 +14,7 @@ import VendorStore from "./modules/UserWeb/pages/VendorStore";
 import Login from "./modules/UserWeb/pages/Login";
 import Register from "./modules/UserWeb/pages/Register";
 import Verification from "./modules/UserWeb/pages/Verification";
+import UserForgotPassword from "./modules/UserWeb/pages/ForgotPassword";
 import Profile from "./modules/UserWeb/pages/Profile";
 import Orders from "./modules/UserWeb/pages/Orders";
 import Addresses from "./modules/UserWeb/pages/Addresses";
@@ -55,8 +56,6 @@ import OrderNotifications from "./modules/Admin/pages/orders/OrderNotifications"
 import Invoice from "./modules/Admin/pages/orders/Invoice";
 // Products child pages
 import ManageProducts from "./modules/Admin/pages/products/ManageProducts";
-import AddProduct from "./modules/Admin/pages/products/AddProduct";
-import BulkUpload from "./modules/Admin/pages/products/BulkUpload";
 import TaxPricing from "./modules/Admin/pages/products/TaxPricing";
 import ProductRatings from "./modules/Admin/pages/products/ProductRatings";
 import ProductFAQs from "./modules/Admin/pages/products/ProductFAQs";
@@ -74,9 +73,6 @@ import ViewCustomers from "./modules/Admin/pages/customers/ViewCustomers";
 import CustomerAddresses from "./modules/Admin/pages/customers/Addresses";
 import Transactions from "./modules/Admin/pages/customers/Transactions";
 import CustomerDetailPage from "./modules/Admin/pages/customers/CustomerDetailPage";
-// Delivery Management child pages
-import DeliveryBoys from "./modules/Admin/pages/delivery/DeliveryBoys";
-import CashCollection from "./modules/Admin/pages/delivery/CashCollection";
 // Vendors child pages
 import Vendors from "./modules/Admin/pages/Vendors";
 import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
@@ -84,9 +80,6 @@ import PendingApprovals from "./modules/Admin/pages/vendors/PendingApprovals";
 import VendorDetail from "./modules/Admin/pages/vendors/VendorDetail";
 import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
 import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
-// Locations child pages
-import Cities from "./modules/Admin/pages/locations/Cities";
-import Zipcodes from "./modules/Admin/pages/locations/Zipcodes";
 // Offers & Sliders child pages
 import HomeSliders from "./modules/Admin/pages/offers/HomeSliders";
 import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
@@ -94,6 +87,7 @@ import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
 import MegaRewardEntries from "./modules/Admin/pages/mega-reward/Entries";
 import MegaRewardWinners from "./modules/Admin/pages/mega-reward/Winners";
 import MegaRewardSettings from "./modules/Admin/pages/mega-reward/Settings";
+import MegaRewardPromotionalReels from "./modules/Admin/pages/mega-reward/PromotionalReels";
 // Notifications child pages
 import PushNotifications from "./modules/Admin/pages/notifications/PushNotifications";
 import CustomMessages from "./modules/Admin/pages/notifications/CustomMessages";
@@ -155,6 +149,11 @@ const MobileFlashSale = lazy(() => import("./modules/UserApp/pages/FlashSale"));
 const MobileTrackOrder = lazy(() => import("./modules/UserApp/pages/TrackOrder"));
 const MobileOrderConfirmation = lazy(() => import("./modules/UserApp/pages/OrderConfirmation"));
 const MobileMegaReward = lazy(() => import("./modules/UserApp/pages/MegaReward"));
+const MobileHelp = lazy(() => import("./modules/UserApp/pages/Help"));
+const MobileSettings = lazy(() => import("./modules/UserApp/pages/Settings"));
+const MobileChangePassword = lazy(() => import("./modules/UserApp/pages/ChangePassword"));
+const MobileContentPage = lazy(() => import("./modules/UserApp/pages/ContentPage"));
+const MobileWallet = lazy(() => import("./modules/UserApp/pages/Wallet"));
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryProtectedRoute from "./modules/Delivery/components/DeliveryProtectedRoute";
@@ -167,6 +166,7 @@ import DeliveryProfile from "./modules/Delivery/pages/Profile";
 import VendorLogin from "./modules/Vendor/pages/Login";
 import VendorRegister from "./modules/Vendor/pages/Register";
 import VendorVerification from "./modules/Vendor/pages/Verification";
+import VendorForgotPassword from "./modules/Vendor/pages/ForgotPassword";
 import VendorProtectedRoute from "./modules/Vendor/components/VendorProtectedRoute";
 import VendorLayout from "./modules/Vendor/components/Layout/VendorLayout";
 import VendorReels from "./modules/Vendor/pages/Reels";
@@ -174,7 +174,6 @@ import VendorDashboard from "./modules/Vendor/pages/Dashboard";
 import VendorProducts from "./modules/Vendor/pages/Products";
 import VendorManageProducts from "./modules/Vendor/pages/products/ManageProducts";
 import VendorAddProduct from "./modules/Vendor/pages/products/AddProduct";
-import VendorBulkUpload from "./modules/Vendor/pages/products/BulkUpload";
 import VendorProductForm from "./modules/Vendor/pages/products/ProductForm";
 import VendorOrders from "./modules/Vendor/pages/Orders";
 import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
@@ -184,7 +183,7 @@ import VendorAnalytics from "./modules/Vendor/pages/Analytics";
 import VendorEarnings from "./modules/Vendor/pages/Earnings";
 import VendorSettings from "./modules/Vendor/pages/Settings";
 import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
-import VendorWalletHistory from "./modules/Vendor/pages/WalletHistory";
+
 import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
 import VendorChat from "./modules/Vendor/pages/Chat";
 import VendorReturnRequests from "./modules/Vendor/pages/ReturnRequests";
@@ -204,16 +203,11 @@ import VendorSupportTickets from "./modules/Vendor/pages/SupportTickets";
 import VendorProductAttributes from "./modules/Vendor/pages/ProductAttributes";
 import VendorInventoryReports from "./modules/Vendor/pages/InventoryReports";
 import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics";
-import VendorDocuments from "./modules/Vendor/pages/Documents";
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-black">
-        <div className="w-10 h-10 border-4 border-gray-200 dark:border-gray-800 border-t-blue-600 rounded-full animate-spin"></div>
-      </div>
-    }>
+    <>
       <Routes>
         <Route
           path="/"
@@ -276,6 +270,14 @@ const AppRoutes = () => {
           element={
             <RouteWrapper>
               <Register />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <RouteWrapper>
+              <UserForgotPassword />
             </RouteWrapper>
           }
         />
@@ -403,8 +405,6 @@ const AppRoutes = () => {
           <Route path="products" element={<Products />} />
           <Route path="products/:id" element={<ProductForm />} />
           <Route path="products/manage-products" element={<ManageProducts />} />
-          <Route path="products/add-product" element={<AddProduct />} />
-          <Route path="products/bulk-upload" element={<BulkUpload />} />
           <Route path="products/tax-pricing" element={<TaxPricing />} />
           <Route path="products/product-ratings" element={<ProductRatings />} />
           <Route path="products/product-faqs" element={<ProductFAQs />} />
@@ -442,9 +442,6 @@ const AppRoutes = () => {
           />
           <Route path="stock" element={<Inventory />} />
           <Route path="inventory" element={<Inventory />} />
-          <Route path="delivery" element={<DeliveryBoys />} />
-          <Route path="delivery/delivery-boys" element={<DeliveryBoys />} />
-          <Route path="delivery/cash-collection" element={<CashCollection />} />
           <Route path="vendors" element={<Vendors />} />
           <Route path="vendors/manage-vendors" element={<ManageVendors />} />
           <Route
@@ -457,15 +454,14 @@ const AppRoutes = () => {
             element={<AdminVendorAnalytics />}
           />
           <Route path="vendors/:id" element={<VendorDetail />} />
-          <Route path="locations" element={<Cities />} />
-          <Route path="locations/cities" element={<Cities />} />
-          <Route path="locations/zipcodes" element={<Zipcodes />} />
           <Route path="offers" element={<HomeSliders />} />
           <Route path="offers/home-sliders" element={<HomeSliders />} />
           <Route path="offers/festival-offers" element={<FestivalOffers />} />
-          <Route path="mega-reward" element={<Navigate to="/admin/mega-reward/entries" replace />} />
+          {/* Mega Reward Routes */}
+          <Route path="mega-reward" element={<MegaRewardEntries />} />
           <Route path="mega-reward/entries" element={<MegaRewardEntries />} />
           <Route path="mega-reward/winners" element={<MegaRewardWinners />} />
+          <Route path="mega-reward/promotional-reels" element={<MegaRewardPromotionalReels />} />
           <Route path="mega-reward/settings" element={<MegaRewardSettings />} />
           <Route path="promocodes" element={<PromoCodes />} />
           <Route path="notifications" element={<PushNotifications />} />
@@ -536,6 +532,7 @@ const AppRoutes = () => {
         <Route path="/vendor/login" element={<VendorLogin />} />
         <Route path="/vendor/register" element={<VendorRegister />} />
         <Route path="/vendor/verification" element={<VendorVerification />} />
+        <Route path="/vendor/forgot-password" element={<VendorForgotPassword />} />
         <Route
           path="/vendor"
           element={
@@ -551,7 +548,6 @@ const AppRoutes = () => {
             element={<VendorManageProducts />}
           />
           <Route path="products/add-product" element={<VendorAddProduct />} />
-          <Route path="products/bulk-upload" element={<VendorBulkUpload />} />
           <Route path="products/product-faqs" element={<VendorProductFAQs />} />
           <Route path="products/tax-pricing" element={<VendorTaxPricing />} />
           <Route
@@ -593,10 +589,7 @@ const AppRoutes = () => {
           <Route path="stock-management/in-stock" element={<VendorStockManagement />} />
           <Route path="stock-management/low-stock" element={<VendorStockManagement />} />
           <Route path="stock-management/out-of-stock" element={<VendorStockManagement />} />
-          <Route path="wallet-history" element={<VendorWalletHistory />} />
-          <Route path="wallet-history/all-transactions" element={<VendorWalletHistory />} />
-          <Route path="wallet-history/pending-payment" element={<VendorWalletHistory />} />
-          <Route path="wallet-history/paid-payment" element={<VendorWalletHistory />} />
+
           <Route path="pickup-locations" element={<VendorPickupLocations />} />
           <Route path="chat" element={<VendorChat />} />
           <Route path="return-requests" element={<VendorReturnRequests />} />
@@ -620,7 +613,6 @@ const AppRoutes = () => {
             path="performance-metrics"
             element={<VendorPerformanceMetrics />}
           />
-          <Route path="documents" element={<VendorDocuments />} />
           <Route path="settings" element={<VendorSettings />} />
           <Route path="settings/store" element={<VendorSettings />} />
           <Route path="settings/payment" element={<VendorSettings />} />
@@ -707,6 +699,14 @@ const AppRoutes = () => {
           element={
             <RouteWrapper>
               <MobileRegister />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/forgot-password"
+          element={
+            <RouteWrapper>
+              <UserForgotPassword />
             </RouteWrapper>
           }
         />
@@ -814,8 +814,82 @@ const AppRoutes = () => {
             </RouteWrapper>
           }
         />
+        <Route
+          path="/app/help"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileHelp />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/settings"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileSettings />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/change-password"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileChangePassword />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/terms"
+          element={
+            <RouteWrapper>
+              <MobileContentPage title="Terms of Service" type="terms" />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/privacy"
+          element={
+            <RouteWrapper>
+              <MobileContentPage title="Privacy Policy" type="privacy" />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/about"
+          element={
+            <RouteWrapper>
+              <MobileContentPage title="About Us" type="about" />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/notifications"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileContentPage title="Notifications" type="notifications" />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/wallet"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileWallet />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
       </Routes>
-    </Suspense>
+    </>
   );
 };
 

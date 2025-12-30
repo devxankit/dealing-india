@@ -8,6 +8,7 @@ import { useBrandStore } from "../../../shared/store/brandStore";
 import CategorySelector from "../components/CategorySelector";
 import AnimatedSelect from "../components/AnimatedSelect";
 import toast from "react-hot-toast";
+import api from "../../../shared/utils/api.js";
 
 const ProductForm = () => {
   const navigate = useNavigate();
@@ -55,57 +56,77 @@ const ProductForm = () => {
   }, []);
 
   useEffect(() => {
-    if (isEdit && categories.length > 0) {
-      const savedProducts = localStorage.getItem("admin-products");
-      const products = savedProducts
-        ? JSON.parse(savedProducts)
-        : initialProducts;
-      const product = products.find((p) => p.id === parseInt(id));
+    const loadProduct = async () => {
+      if (isEdit && id && id !== "new") {
+        try {
+          const response = await api.get(`/admin/products/${id}`);
+          const product = response.data.product;
 
-      if (product) {
-        // Determine if categoryId is a subcategory
-        const category = categories.find(
-          (cat) => cat.id === product.categoryId
-        );
-        const isSubcategory = category && category.parentId;
+          if (product) {
+            // Determine if categoryId is a subcategory
+            const categoryId = product.categoryId?._id || product.categoryId?.id || product.categoryId;
+            const subcategoryId = product.subcategoryId?._id || product.subcategoryId?.id || product.subcategoryId;
+            const category = categories.find(
+              (cat) => (cat.id || cat._id)?.toString() === categoryId?.toString()
+            );
+            const isSubcategory = category && category.parentId;
 
-        setFormData({
-          name: product.name || "",
-          unit: product.unit || "",
-          price: product.price || "",
-          originalPrice: product.originalPrice || product.price || "",
-          image: product.image || "",
-          images: product.images || [],
-          categoryId: isSubcategory
-            ? category.parentId
-            : product.categoryId || null,
-          subcategoryId: isSubcategory
-            ? product.categoryId
-            : product.subcategoryId || null,
-          brandId: product.brandId || null,
-          stock: product.stock || "in_stock",
-          stockQuantity: product.stockQuantity || "",
-          flashSale: product.flashSale || false,
-          isNew: product.isNew || false,
-          isFeatured: product.isFeatured || false,
-          isVisible: product.isVisible !== undefined ? product.isVisible : true,
-          description: product.description || "",
-          tags: product.tags || [],
-          variants: {
-            sizes: product.variants?.sizes || [],
-            colors: product.variants?.colors || [],
-            materials: product.variants?.materials || [],
-            prices: product.variants?.prices || {},
-            defaultVariant: product.variants?.defaultVariant || {},
-          },
-          seoTitle: product.seoTitle || "",
-          seoDescription: product.seoDescription || "",
-          relatedProducts: product.relatedProducts || [],
-        });
-      } else {
-        toast.error("Product not found");
-        navigate(productsPath);
+            setFormData({
+              name: product.name || "",
+              unit: product.unit || "",
+              price: product.price || "",
+              originalPrice: product.originalPrice || product.price || "",
+              image: product.image || "",
+              images: product.images || [],
+              categoryId: isSubcategory
+                ? category.parentId
+                : categoryId || null,
+              subcategoryId: isSubcategory
+                ? categoryId
+                : subcategoryId || null,
+              brandId: product.brandId?._id || product.brandId?.id || product.brandId || null,
+              stock: product.stock || "in_stock",
+              stockQuantity: product.stockQuantity || "",
+              totalAllowedQuantity: product.totalAllowedQuantity || "",
+              minimumOrderQuantity: product.minimumOrderQuantity || "",
+              warrantyPeriod: product.warrantyPeriod || "",
+              guaranteePeriod: product.guaranteePeriod || "",
+              hsnCode: product.hsnCode || "",
+              flashSale: product.flashSale || false,
+              isNew: product.isNew || false,
+              isFeatured: product.isFeatured || false,
+              isVisible: product.isVisible !== undefined ? product.isVisible : true,
+              codAllowed: product.codAllowed !== undefined ? product.codAllowed : true,
+              returnable: product.returnable !== undefined ? product.returnable : true,
+              cancelable: product.cancelable !== undefined ? product.cancelable : true,
+              taxIncluded: product.taxIncluded || false,
+              description: product.description || "",
+              tags: product.tags || [],
+              variants: {
+                sizes: product.variants?.sizes || [],
+                colors: product.variants?.colors || [],
+                materials: product.variants?.materials || [],
+                prices: product.variants?.prices || {},
+                defaultVariant: product.variants?.defaultVariant || {},
+              },
+              seoTitle: product.seoTitle || "",
+              seoDescription: product.seoDescription || "",
+              relatedProducts: product.relatedProducts || [],
+            });
+          } else {
+            toast.error("Product not found");
+            navigate(productsPath);
+          }
+        } catch (error) {
+          console.error("Failed to load product:", error);
+          toast.error("Failed to load product");
+          navigate(productsPath);
+        }
       }
+    };
+
+    if (isEdit && categories.length > 0) {
+      loadProduct();
     }
   }, [id, isEdit, navigate, categories, productsPath]);
 
@@ -146,7 +167,7 @@ const ProductForm = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validation
@@ -155,66 +176,60 @@ const ProductForm = () => {
       return;
     }
 
-    const savedProducts = localStorage.getItem("admin-products");
-    const products = savedProducts
-      ? JSON.parse(savedProducts)
-      : initialProducts;
-
-    // Determine final categoryId - use subcategoryId if selected, otherwise categoryId
-    const finalCategoryId = formData.subcategoryId
-      ? parseInt(formData.subcategoryId)
-      : formData.categoryId
-      ? parseInt(formData.categoryId)
-      : null;
-
-    if (isEdit) {
-      // Update existing product
-      const updatedProducts = products.map((p) =>
-        p.id === parseInt(id)
-          ? {
-              ...p,
-              ...formData,
-              id: parseInt(id),
-              price: parseFloat(formData.price),
-              originalPrice: formData.originalPrice
-                ? parseFloat(formData.originalPrice)
-                : null,
-              stockQuantity: parseInt(formData.stockQuantity),
-              categoryId: finalCategoryId,
-              subcategoryId: formData.subcategoryId
-                ? parseInt(formData.subcategoryId)
-                : null,
-              brandId: formData.brandId ? parseInt(formData.brandId) : null,
-            }
-          : p
-      );
-      localStorage.setItem("admin-products", JSON.stringify(updatedProducts));
-      toast.success("Product updated successfully");
-    } else {
-      // Create new product
-      const newId = Math.max(...products.map((p) => p.id), 0) + 1;
-      const newProduct = {
-        id: newId,
-        ...formData,
+    try {
+      // Prepare payload
+      const payload = {
+        name: formData.name,
+        unit: formData.unit || "",
         price: parseFloat(formData.price),
-        originalPrice: formData.originalPrice
-          ? parseFloat(formData.originalPrice)
-          : null,
+        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
+        image: formData.image || null,
+        images: formData.images || [],
+        description: formData.description || "",
+        categoryId: formData.categoryId || null,
+        subcategoryId: formData.subcategoryId || null,
+        brandId: formData.brandId || null,
+        stock: formData.stock || "in_stock",
         stockQuantity: parseInt(formData.stockQuantity),
-        categoryId: finalCategoryId,
-        subcategoryId: formData.subcategoryId
-          ? parseInt(formData.subcategoryId)
-          : null,
-        brandId: formData.brandId ? parseInt(formData.brandId) : null,
-        rating: 0,
-        reviewCount: 0,
+        totalAllowedQuantity: formData.totalAllowedQuantity ? parseInt(formData.totalAllowedQuantity) : null,
+        minimumOrderQuantity: formData.minimumOrderQuantity ? parseInt(formData.minimumOrderQuantity) : null,
+        warrantyPeriod: formData.warrantyPeriod || null,
+        guaranteePeriod: formData.guaranteePeriod || null,
+        hsnCode: formData.hsnCode || null,
+        flashSale: formData.flashSale || false,
+        isNew: formData.isNew || false,
+        isFeatured: formData.isFeatured || false,
+        isVisible: formData.isVisible !== undefined ? formData.isVisible : true,
+        codAllowed: formData.codAllowed !== undefined ? formData.codAllowed : true,
+        returnable: formData.returnable !== undefined ? formData.returnable : true,
+        cancelable: formData.cancelable !== undefined ? formData.cancelable : true,
+        taxIncluded: formData.taxIncluded || false,
+        tags: formData.tags || [],
+        variants: formData.variants || {
+          sizes: [],
+          colors: [],
+          materials: [],
+          prices: {},
+          defaultVariant: {},
+        },
+        seoTitle: formData.seoTitle || "",
+        seoDescription: formData.seoDescription || "",
+        relatedProducts: formData.relatedProducts || [],
       };
-      const updatedProducts = [...products, newProduct];
-      localStorage.setItem("admin-products", JSON.stringify(updatedProducts));
-      toast.success("Product created successfully");
-    }
 
-    navigate(productsPath);
+      if (isEdit) {
+        await api.put(`/admin/products/${id}`, payload);
+        toast.success("Product updated successfully");
+      } else {
+        await api.post("/admin/products", payload);
+        toast.success("Product created successfully");
+      }
+
+      navigate(productsPath);
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to save product";
+      toast.error(errorMessage);
+    }
   };
 
   return (

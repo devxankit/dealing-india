@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiUsers, FiSearch, FiEye, FiMail, FiPhone } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -6,66 +6,71 @@ import DataTable from "../../Admin/components/DataTable";
 import ExportButton from "../../Admin/components/ExportButton";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useOrderStore } from "../../../shared/store/orderStore";
+import { getVendorCustomers } from "../services/customerService";
+import toast from "react-hot-toast";
 
 const Customers = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const { getVendorOrders } = useOrderStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [customers, setCustomers] = useState([]);
+  const [stats, setStats] = useState({
+    totalCustomers: 0,
+    totalRevenue: 0,
+    averageOrderValue: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const vendorId = vendor?.id;
-  const orders = vendorId ? getVendorOrders(vendorId) : [];
 
-  const customers = useMemo(() => {
-    const customerMap = {};
-
-    orders.forEach((order) => {
-      const vendorItem = order.vendorItems?.find(
-        (vi) => vi.vendorId === vendorId
-      );
-      if (!vendorItem) return;
-
-      const customerId = order.userId || `guest-${order.id}`;
-      const customerName = order.customer?.name || "Guest Customer";
-      const customerEmail = order.customer?.email || "";
-      const customerPhone = order.customer?.phone || "";
-
-      if (!customerMap[customerId]) {
-        customerMap[customerId] = {
-          id: customerId,
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone,
-          orders: 0,
-          totalSpent: 0,
-          lastOrderDate: null,
-        };
+  // Fetch customers from API
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      if (!vendorId) {
+        setLoading(false);
+        return;
       }
 
-      customerMap[customerId].orders += 1;
-      customerMap[customerId].totalSpent += vendorItem.vendorEarnings || 0;
+      try {
+        setLoading(true);
+        const response = await getVendorCustomers({
+          search: searchQuery,
+          page: currentPage,
+          limit: 10,
+        });
 
-      const orderDate = new Date(order.date);
-      if (
-        !customerMap[customerId].lastOrderDate ||
-        orderDate > new Date(customerMap[customerId].lastOrderDate)
-      ) {
-        customerMap[customerId].lastOrderDate = order.date;
+        if (response.success && response.data) {
+          setCustomers(response.data.customers || []);
+          setStats(response.data.stats || {
+            totalCustomers: 0,
+            totalRevenue: 0,
+            averageOrderValue: 0,
+          });
+          if (response.meta) {
+            setTotalPages(response.meta.pages || 1);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        toast.error("Failed to load customers");
+        setCustomers([]);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    return Object.values(customerMap);
-  }, [orders, vendorId]);
+    // Debounce search query
+    const timeoutId = setTimeout(() => {
+      fetchCustomers();
+    }, searchQuery ? 500 : 0);
 
-  const filteredCustomers = useMemo(() => {
-    if (!searchQuery) return customers;
-    return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [customers, searchQuery]);
+    return () => clearTimeout(timeoutId);
+  }, [vendorId, searchQuery, currentPage]);
+
+  // Search is handled by backend, so filteredCustomers is just customers
+  const filteredCustomers = customers;
 
   const columns = [
     {
@@ -154,23 +159,20 @@ const Customers = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-600 mb-2">Total Customers</p>
-          <p className="text-2xl font-bold text-gray-800">{customers.length}</p>
+          <p className="text-2xl font-bold text-gray-800">
+            {loading ? "..." : stats.totalCustomers}
+          </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-600 mb-2">Total Revenue</p>
           <p className="text-2xl font-bold text-gray-800">
-            {formatPrice(customers.reduce((sum, c) => sum + c.totalSpent, 0))}
+            {loading ? "..." : formatPrice(stats.totalRevenue)}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <p className="text-sm text-gray-600 mb-2">Average Order Value</p>
           <p className="text-2xl font-bold text-gray-800">
-            {formatPrice(
-              customers.length > 0
-                ? customers.reduce((sum, c) => sum + c.totalSpent, 0) /
-                customers.length
-                : 0
-            )}
+            {loading ? "..." : formatPrice(stats.averageOrderValue)}
           </p>
         </div>
       </div>
@@ -183,7 +185,10 @@ const Customers = () => {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1); // Reset to first page on search
+              }}
               placeholder="Search customers..."
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm sm:text-base"
             />
@@ -214,12 +219,19 @@ const Customers = () => {
       </div>
 
       {/* Customers Table */}
-      {filteredCustomers.length > 0 ? (
+      {loading ? (
+        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+          <p className="text-gray-500">Loading customers...</p>
+        </div>
+      ) : filteredCustomers.length > 0 ? (
         <DataTable
           data={filteredCustomers}
           columns={columns}
           pagination={true}
           itemsPerPage={10}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
         />
       ) : (
         <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">

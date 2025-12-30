@@ -1,0 +1,65 @@
+/**
+ * Centralized error handling middleware
+ * Formats error responses consistently
+ */
+export const errorHandler = (err, req, res, next) => {
+  // Don't log expected 404s for policies (they don't exist yet)
+  const isPolicy404 = req.originalUrl?.includes('/admin/policies/') && err.status === 404;
+  
+  // Log error for debugging (skip expected policy 404s)
+  if (!isPolicy404) {
+    console.error('Error:', {
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      url: req.originalUrl,
+      method: req.method,
+    });
+  }
+
+  // Default error status and message
+  let status = err.status || err.statusCode || 500;
+  let message = err.message || 'Internal Server Error';
+
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    status = 400;
+    message = 'Validation error';
+    // If it's a Mongoose validation error, extract field messages
+    if (err.errors) {
+      const errors = Object.values(err.errors).map((e) => e.message);
+      message = errors.join(', ');
+    }
+  } else if (err.name === 'CastError') {
+    status = 400;
+    message = 'Invalid ID format';
+  } else if (err.name === 'MongoServerError' && err.code === 11000) {
+    status = 409;
+    const field = Object.keys(err.keyPattern)[0];
+    message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`;
+  } else if (err.name === 'JsonWebTokenError') {
+    status = 401;
+    message = 'Invalid token';
+  } else if (err.name === 'TokenExpiredError') {
+    status = 401;
+    message = 'Token has expired';
+  }
+
+  // Send error response
+  res.status(status).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  });
+};
+
+/**
+ * Async handler wrapper to catch errors in async route handlers
+ * @param {Function} fn - Async route handler function
+ * @returns {Function} Wrapped function
+ */
+export const asyncHandler = (fn) => {
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+};
+

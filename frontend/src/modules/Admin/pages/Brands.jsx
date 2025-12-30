@@ -9,22 +9,24 @@ import {
   FiFilter,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { useBrandStore } from "../../../shared/store/brandStore";
+import { useBrandManagementStore } from "../store/brandManagementStore";
 import BrandForm from "../components/Brands/BrandForm";
 import ExportButton from "../components/ExportButton";
 import Pagination from "../components/Pagination";
 import Badge from "../../../shared/components/Badge";
+import AnimatedSelect from "../components/AnimatedSelect";
 import toast from "react-hot-toast";
 import Button from "../components/Button";
 
 const Brands = () => {
   const {
     brands,
-    initialize,
+    isLoading,
+    fetchBrands,
     deleteBrand,
     bulkDeleteBrands,
     toggleBrandStatus,
-  } = useBrandStore();
+  } = useBrandManagementStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -35,9 +37,26 @@ const Brands = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Fetch brands on component mount and when filters change
   useEffect(() => {
-    initialize();
-  }, []);
+    const loadBrands = async () => {
+      try {
+        await fetchBrands({
+          search: searchQuery,
+          isActive:
+            selectedStatus === "all"
+              ? undefined
+              : selectedStatus === "active",
+          page: 1,
+          limit: 1000, // Get all for pagination
+        });
+      } catch (error) {
+        // Error toast is shown by API interceptor
+      }
+    };
+
+    loadBrands();
+  }, [searchQuery, selectedStatus, fetchBrands]);
 
   // Filtered brands
   const filteredBrands = useMemo(() => {
@@ -81,13 +100,28 @@ const Brands = () => {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this brand?")) {
-      deleteBrand(id);
+      try {
+        await deleteBrand(id);
+        toast.success("Brand deleted successfully");
+        // Refresh brands list
+        await fetchBrands({
+          search: searchQuery,
+          isActive:
+            selectedStatus === "all"
+              ? undefined
+              : selectedStatus === "active",
+          page: 1,
+          limit: 1000,
+        });
+      } catch (error) {
+        // Error toast is shown by API interceptor
+      }
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedBrands.length === 0) {
       toast.error("Please select brands to delete");
       return;
@@ -97,8 +131,23 @@ const Brands = () => {
         `Are you sure you want to delete ${selectedBrands.length} brands?`
       )
     ) {
-      bulkDeleteBrands(selectedBrands);
-      setSelectedBrands([]);
+      try {
+        await bulkDeleteBrands(selectedBrands);
+        setSelectedBrands([]);
+        toast.success(`${selectedBrands.length} brands deleted successfully`);
+        // Refresh brands list
+        await fetchBrands({
+          search: searchQuery,
+          isActive:
+            selectedStatus === "all"
+              ? undefined
+              : selectedStatus === "active",
+          page: 1,
+          limit: 1000,
+        });
+      } catch (error) {
+        // Error toast is shown by API interceptor
+      }
     }
   };
 
@@ -107,8 +156,15 @@ const Brands = () => {
     setEditingBrand(null);
   };
 
-  const handleFormSave = () => {
-    // Brands will be refreshed automatically
+  const handleFormSave = async () => {
+    // Refresh brands list after save
+    await fetchBrands({
+      search: searchQuery,
+      isActive:
+        selectedStatus === "all" ? undefined : selectedStatus === "active",
+      page: 1,
+      limit: 1000,
+    });
   };
 
   return (
@@ -258,7 +314,11 @@ const Brands = () => {
 
       {/* Brands Grid */}
       <div className="bg-white rounded-xl p-3 sm:p-6 shadow-sm border border-gray-200">
-        {filteredBrands.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading brands...</p>
+          </div>
+        ) : filteredBrands.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">No brands found</p>
           </div>
@@ -324,7 +384,26 @@ const Brands = () => {
 
                   <div className="flex items-center gap-1.5 sm:gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
                     <Button
-                      onClick={() => toggleBrandStatus(brand.id)}
+                      onClick={async () => {
+                        try {
+                          await toggleBrandStatus(brand.id);
+                          toast.success(
+                            `Brand ${brand.isActive ? "deactivated" : "activated"} successfully`
+                          );
+                          // Refresh brands list
+                          await fetchBrands({
+                            search: searchQuery,
+                            isActive:
+                              selectedStatus === "all"
+                                ? undefined
+                                : selectedStatus === "active",
+                            page: 1,
+                            limit: 1000,
+                          });
+                        } catch (error) {
+                          // Error toast is shown by API interceptor
+                        }
+                      }}
                       variant="icon"
                       className="flex-1 text-gray-600"
                       icon={brand.isActive ? FiEyeOff : FiEye}

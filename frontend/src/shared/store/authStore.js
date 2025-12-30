@@ -11,34 +11,42 @@ export const useAuthStore = create(
       isLoading: false,
 
       // Login action
-      login: async (email, password, rememberMe = false) => {
+      login: async (identifier, password, rememberMe = false) => {
         set({ isLoading: true });
         try {
-          // For now, using mock authentication
-          // Replace with actual API call when backend is ready
-          // const response = await api.post('/auth/login', { email, password });
-          
-          // Mock response for development
-          const mockUser = {
-            id: '1',
-            name: 'John Doe',
-            email: email,
-            phone: '+1234567890',
-            avatar: null,
-          };
-          const mockToken = 'mock-jwt-token-' + Date.now();
-
-          set({
-            user: mockUser,
-            token: mockToken,
-            isAuthenticated: true,
-            isLoading: false,
+          const response = await api.post('/auth/user/login', { 
+            identifier, 
+            password 
           });
 
-          // Store token in localStorage for API interceptor
-          localStorage.setItem('token', mockToken);
-          
-          return { success: true, user: mockUser };
+          if (response.success && response.data) {
+            const { user, token } = response.data;
+            
+            // Transform backend user object to frontend format
+            const userData = {
+              id: user._id || user.id,
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              avatar: user.avatar || null,
+              isEmailVerified: user.isEmailVerified || false,
+              role: user.role || 'user',
+            };
+
+            set({
+              user: userData,
+              token: token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+
+            localStorage.setItem('token', token);
+            
+            return { success: true, user: userData };
+          } else {
+            throw new Error(response.message || 'Login failed');
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -49,31 +57,41 @@ export const useAuthStore = create(
       register: async (name, email, password, phone) => {
         set({ isLoading: true });
         try {
-          // For now, using mock registration
-          // Replace with actual API call when backend is ready
-          // const response = await api.post('/auth/register', { name, email, password, phone });
-          
-          // Mock response for development
-          const mockUser = {
-            id: '1',
-            name: name,
-            email: email,
-            phone: phone || '',
-            avatar: null,
-          };
-          const mockToken = 'mock-jwt-token-' + Date.now();
-
-          set({
-            user: mockUser,
-            token: mockToken,
-            isAuthenticated: true,
-            isLoading: false,
+          const response = await api.post('/auth/user/register', { 
+            name, 
+            email, 
+            password, 
+            phone 
           });
 
-          // Store token in localStorage for API interceptor
-          localStorage.setItem('token', mockToken);
-          
-          return { success: true, user: mockUser };
+          if (response.success && response.data) {
+            const { user, token } = response.data;
+            
+            // Transform backend user object to frontend format
+            const userData = {
+              id: user._id || user.id,
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              avatar: user.avatar || null,
+              isEmailVerified: user.isEmailVerified || false,
+              role: user.role || 'user',
+            };
+
+            set({
+              user: userData,
+              token: token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+
+            localStorage.setItem('token', token);
+            
+            return { success: true, user: userData };
+          } else {
+            throw new Error(response.message || 'Registration failed');
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -81,31 +99,60 @@ export const useAuthStore = create(
       },
 
       // Logout action
-      logout: () => {
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-        });
-        localStorage.removeItem('token');
+      logout: async () => {
+        try {
+          // Call backend logout endpoint if token exists
+          const token = get().token;
+          if (token) {
+            try {
+              await api.post('/auth/user/logout');
+            } catch (error) {
+              // Ignore logout errors, still clear local state
+              console.error('Logout API error:', error);
+            }
+          }
+        } catch (error) {
+          // Ignore errors, proceed with local logout
+        } finally {
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+          });
+          localStorage.removeItem('token');
+        }
       },
 
       // Update user profile
       updateProfile: async (profileData) => {
         set({ isLoading: true });
         try {
-          // Mock update - replace with actual API call
-          // const response = await api.put('/auth/profile', profileData);
-          
-          const currentUser = get().user;
-          const updatedUser = { ...currentUser, ...profileData };
-          
-          set({
-            user: updatedUser,
-            isLoading: false,
-          });
-          
-          return { success: true, user: updatedUser };
+          const response = await api.put('/auth/user/profile', profileData);
+
+          if (response.success && response.data) {
+            const user = response.data.user;
+            
+            // Transform backend user object to frontend format
+            const updatedUser = {
+              id: user._id || user.id,
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              avatar: user.avatar || null,
+              isEmailVerified: user.isEmailVerified || false,
+              role: user.role || 'user',
+            };
+            
+            set({
+              user: updatedUser,
+              isLoading: false,
+            });
+            
+            return { success: true, user: updatedUser };
+          } else {
+            throw new Error(response.message || 'Profile update failed');
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -116,29 +163,143 @@ export const useAuthStore = create(
       changePassword: async (currentPassword, newPassword) => {
         set({ isLoading: true });
         try {
-          // Mock change password - replace with actual API call
-          // await api.put('/auth/change-password', { currentPassword, newPassword });
-          
-          set({ isLoading: false });
-          return { success: true };
+          const response = await api.put('/auth/user/change-password', { 
+            currentPassword, 
+            newPassword 
+          });
+
+          if (response.success) {
+            set({ isLoading: false });
+            return { success: true };
+          } else {
+            throw new Error(response.message || 'Password change failed');
+          }
         } catch (error) {
           set({ isLoading: false });
           throw error;
         }
       },
 
-      // Initialize auth state from localStorage
-      initialize: () => {
+      // Verify email with OTP
+      verifyEmail: async (email, otp) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/verify-email', { email, otp });
+
+          if (response.success) {
+            // Update user's email verification status
+            const currentUser = get().user;
+            if (currentUser && currentUser.email === email) {
+              set({
+                user: { ...currentUser, isEmailVerified: true },
+                isLoading: false,
+              });
+            } else {
+              set({ isLoading: false });
+            }
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Email verification failed');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Resend verification OTP
+      resendOTP: async (email) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/resend-otp', { email });
+
+          if (response.success) {
+            set({ isLoading: false });
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Failed to resend OTP');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Forgot password
+      forgotPassword: async (email) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/forgot-password', { email });
+
+          if (response.success) {
+            set({ isLoading: false });
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Failed to send password reset OTP');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Reset password with OTP
+      resetPassword: async (email, otp, newPassword) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/auth/user/reset-password', { 
+            email, 
+            otp, 
+            newPassword 
+          });
+
+          if (response.success) {
+            set({ isLoading: false });
+            return { success: true, message: response.message };
+          } else {
+            throw new Error(response.message || 'Password reset failed');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Initialize auth state from localStorage and validate token
+      initialize: async () => {
         const token = localStorage.getItem('token');
         if (token) {
-          // In a real app, verify token with backend
-          const storedState = JSON.parse(localStorage.getItem('auth-storage') || '{}');
-          if (storedState.state?.user && storedState.state?.token) {
-            set({
-              user: storedState.state.user,
-              token: storedState.state.token,
-              isAuthenticated: true,
-            });
+          try {
+            // Validate token with backend
+            const response = await api.get('/auth/user/me');
+            
+            if (response.success && response.data) {
+              const user = response.data.user;
+              
+              // Transform backend user object to frontend format
+              const userData = {
+                id: user._id || user.id,
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone || '',
+                avatar: user.avatar || null,
+                isEmailVerified: user.isEmailVerified || false,
+                role: user.role || 'user',
+              };
+
+              set({
+                user: userData,
+                token: token,
+                isAuthenticated: true,
+              });
+            } else {
+              // Invalid token, clear storage
+              get().logout();
+            }
+          } catch (error) {
+            // Token invalid or expired, clear storage
+            get().logout();
           }
         }
       },

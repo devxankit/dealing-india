@@ -12,7 +12,7 @@ import {
   FiChevronDown,
   FiX,
   FiTrendingDown,
-  FiCreditCard,
+
   FiMapPin,
   FiMessageCircle,
   FiRefreshCw,
@@ -27,7 +27,6 @@ import {
   FiMessageSquare,
   FiLayers,
   FiTrendingUp,
-  FiFile,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
@@ -40,7 +39,7 @@ const iconMap = {
   "Return Requests": FiRefreshCw,
   "Product Reviews": FiStar,
   "Stock Management": FiTrendingDown,
-  "Wallet History": FiCreditCard,
+
   "Pickup Locations": FiMapPin,
   Chat: FiMessageCircle,
   Reels: FiVideo,
@@ -51,7 +50,6 @@ const iconMap = {
   "Support Tickets": FiMessageSquare,
   "Inventory Reports": FiBarChart2,
   "Performance Metrics": FiTrendingUp,
-  Documents: FiFile,
   Analytics: FiBarChart2,
   Earnings: FiDollarSign,
   Settings: FiSettings,
@@ -64,7 +62,6 @@ const getChildRoute = (parentRoute, childName) => {
     "/vendor/products": {
       "Manage Products": "/vendor/products/manage-products",
       "Add Product": "/vendor/products/add-product",
-      "Bulk Upload": "/vendor/products/bulk-upload",
       "Product FAQs": "/vendor/products/product-faqs",
       "Tax & Pricing": "/vendor/products/tax-pricing",
       "Product Attributes": "/vendor/products/product-attributes",
@@ -94,11 +91,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Low stock": "/vendor/stock-management/low-stock",
       "Out of stock": "/vendor/stock-management/out-of-stock",
     },
-    "/vendor/wallet-history": {
-      "All transactions": "/vendor/wallet-history/all-transactions",
-      "Pending payment": "/vendor/wallet-history/pending-payment",
-      "Paid payment": "/vendor/wallet-history/paid-payment",
-    },
+
     "/vendor/settings": {
       "Store Settings": "/vendor/settings/store",
       "Payment Settings": "/vendor/settings/payment",

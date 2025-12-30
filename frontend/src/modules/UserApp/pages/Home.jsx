@@ -20,10 +20,7 @@ import { categories } from "../../../data/categories";
 import PageTransition from "../../../shared/components/PageTransition";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import toast from "react-hot-toast";
-import heroSlide1 from "../../../../data/hero/slide1.png";
-import heroSlide2 from "../../../../data/hero/slide2.png";
-import heroSlide3 from "../../../../data/hero/slide3.png";
-import heroSlide4 from "../../../../data/hero/slide4.png";
+import api from "../../../shared/utils/api";
 import heroBanner2 from "../../../../data/hero/banner2.png";
 import babycareBanner from "../../../../data/banners/babycare-WEB.avif";
 import pharmacyBanner from "../../../../data/banners/pharmacy-WEB.avif";
@@ -35,13 +32,38 @@ const MobileHome = () => {
   const [touchEnd, setTouchEnd] = useState(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [autoSlidePaused, setAutoSlidePaused] = useState(false);
+  const [sliders, setSliders] = useState([]);
+  const [isLoadingSliders, setIsLoadingSliders] = useState(true);
 
-  const slides = [
-    { image: heroSlide1 },
-    { image: heroSlide2 },
-    { image: heroSlide3 },
-    { image: heroSlide4 },
-  ];
+  // Fetch sliders from API
+  useEffect(() => {
+    const fetchSliders = async () => {
+      try {
+        setIsLoadingSliders(true);
+        const response = await api.get("/sliders");
+        if (response.success && response.data?.sliders && response.data.sliders.length > 0) {
+          // Transform API sliders to match the expected format
+          const formattedSliders = response.data.sliders.map((slider) => ({
+            image: slider.imageUrl || slider.image,
+            link: slider.link || "/app/search",
+            id: slider.id || slider._id,
+            title: slider.title,
+          }));
+          setSliders(formattedSliders);
+        }
+      } catch (error) {
+        console.error("Failed to fetch sliders:", error);
+        toast.error("Failed to load sliders");
+      } finally {
+        setIsLoadingSliders(false);
+      }
+    };
+
+    fetchSliders();
+  }, []);
+
+  // Use API sliders only
+  const slides = sliders;
 
   const mostPopular = getMostPopular();
   const trending = getTrending();
@@ -132,9 +154,6 @@ const MobileHome = () => {
     isPulling,
     isRefreshing,
     elementRef,
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
   } = usePullToRefresh(handleRefresh);
 
   return (
@@ -143,9 +162,6 @@ const MobileHome = () => {
         <div
           ref={elementRef}
           className="w-full min-h-screen bg-gray-50"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
           style={{
             transform: `translateY(${Math.min(pullDistance, 80)}px)`,
             transition: isPulling ? "none" : "transform 0.3s ease-out",
@@ -178,43 +194,52 @@ const MobileHome = () => {
                   ease: [0.25, 0.46, 0.45, 0.94], // Smooth easing
                   type: "tween",
                 }}>
-                {slides.map((slide, index) => (
-                  <div
-                    key={index}
-                    className="flex-shrink-0"
-                    style={{
-                      width: `${100 / slides.length}%`,
-                      height: "100%",
-                    }}>
-                    <LazyImage
-                      src={slide.image}
-                      alt={`Slide ${index + 1}`}
-                      className="w-full h-full object-cover pointer-events-none select-none"
-                      draggable={false}
-                      onError={(e) => {
-                        e.target.src = `https://via.placeholder.com/400x200?text=Slide+${index + 1
-                          }`;
-                      }}
-                    />
+                {slides.length > 0 ? (
+                  slides.map((slide, index) => (
+                    <Link
+                      to={slide.link || "/app/search"}
+                      key={slide.id || index}
+                      className="flex-shrink-0 block"
+                      style={{
+                        width: `${100 / slides.length}%`,
+                        height: "100%",
+                      }}>
+                      <LazyImage
+                        src={slide.image}
+                        alt={slide.title || `Slide ${index + 1}`}
+                        className="w-full h-full object-cover pointer-events-none select-none"
+                        draggable={false}
+                        onError={(e) => {
+                          e.target.src = `https://via.placeholder.com/400x200?text=Slide+${index + 1}`;
+                        }}
+                      />
+                    </Link>
+                  ))
+                ) : (
+                  // Show loading or placeholder while fetching
+                  <div className="flex-shrink-0 w-full h-full flex items-center justify-center bg-gray-200">
+                    <p className="text-gray-500">Loading sliders...</p>
                   </div>
-                ))}
+                )}
               </motion.div>
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 pointer-events-none">
-                {slides.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setCurrentSlide(index);
-                      setAutoSlidePaused(true);
-                      setTimeout(() => setAutoSlidePaused(false), 2000);
-                    }}
-                    className={`h-1.5 rounded-full transition-all pointer-events-auto shadow-sm ${index === currentSlide
+              {slides.length > 0 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 pointer-events-none">
+                  {slides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setCurrentSlide(index);
+                        setAutoSlidePaused(true);
+                        setTimeout(() => setAutoSlidePaused(false), 2000);
+                      }}
+                      className={`h-1.5 rounded-full transition-all pointer-events-auto shadow-sm ${index === currentSlide
                         ? "bg-white w-6"
                         : "bg-white/50 w-1.5 backdrop-blur-sm"
-                      }`}
-                  />
-                ))}
-              </div>
+                        }`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -306,16 +331,18 @@ const MobileHome = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
               className="relative w-full h-40 rounded-xl overflow-hidden shadow-lg">
-              <LazyImage
-                src={heroBanner2}
-                alt="Trending Items Banner"
-                className="w-full h-full object-cover object-center"
-                context="hero"
-                onError={(e) => {
-                  e.target.src =
-                    "https://via.placeholder.com/1200x300?text=Banner";
-                }}
-              />
+              <Link to="/app/search?sort=trending" className="block w-full h-full">
+                <LazyImage
+                  src={heroBanner2}
+                  alt="Trending Items Banner"
+                  className="w-full h-full object-cover object-center"
+                  context="hero"
+                  onError={(e) => {
+                    e.target.src =
+                      "https://via.placeholder.com/1200x300?text=Banner";
+                  }}
+                />
+              </Link>
             </motion.div>
           </div>
 

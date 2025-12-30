@@ -13,6 +13,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
+import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { appLogo } from "../../../../data/logos";
 import { motion } from "framer-motion";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
@@ -30,7 +31,13 @@ const categoryGradients = {
 };
 
 const MobileHeader = () => {
+  const { getCategoryById, initialize } = useCategoryStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Initialize categories on mount
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
   const [showCartAnimation, setShowCartAnimation] = useState(false);
   const [positionsReady, setPositionsReady] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
@@ -60,8 +67,9 @@ const MobileHeader = () => {
 
   // Get current category from URL (supports both /category/:id and /app/category/:id)
   const getCurrentCategoryId = () => {
-    const match = location.pathname.match(/\/(?:app\/)?category\/(\d+)/);
-    return match ? parseInt(match[1]) : null;
+    // Match both numeric IDs and MongoDB ObjectIds (alphanumeric)
+    const match = location.pathname.match(/\/(?:app\/)?category\/([a-zA-Z0-9]+)/);
+    return match ? match[1] : null;
   };
 
   const currentCategoryId = getCurrentCategoryId();
@@ -87,20 +95,50 @@ const MobileHeader = () => {
 
   const currentPage = getCurrentPage();
 
+  // Header color to gradient mapping
+  const headerColorGradients = {
+    pink: "linear-gradient(to bottom, rgb(252, 231, 243) 0%, rgb(255, 240, 245) 50%, rgb(255, 255, 255) 100%)",
+    amber: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 248, 220) 50%, rgb(255, 255, 255) 100%)",
+    orange: "linear-gradient(to bottom, rgb(255, 237, 213) 0%, rgb(255, 245, 230) 50%, rgb(255, 255, 255) 100%)",
+    green: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)",
+    purple: "linear-gradient(to bottom, rgb(243, 232, 255) 0%, rgb(250, 245, 255) 50%, rgb(255, 255, 255) 100%)",
+    blue: "linear-gradient(to bottom, rgb(219, 234, 254) 0%, rgb(239, 246, 255) 50%, rgb(255, 255, 255) 100%)",
+    red: "linear-gradient(to bottom, rgb(254, 226, 226) 0%, rgb(255, 241, 242) 50%, rgb(255, 255, 255) 100%)",
+    indigo: "linear-gradient(to bottom, rgb(224, 231, 255) 0%, rgb(238, 242, 255) 50%, rgb(255, 255, 255) 100%)",
+    teal: "linear-gradient(to bottom, rgb(204, 251, 241) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)",
+    cyan: "linear-gradient(to bottom, rgb(207, 250, 254) 0%, rgb(236, 254, 255) 50%, rgb(255, 255, 255) 100%)",
+    yellow: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 251, 235) 50%, rgb(255, 255, 255) 100%)",
+    rose: "linear-gradient(to bottom, rgb(255, 228, 230) 0%, rgb(255, 241, 242) 50%, rgb(255, 255, 255) 100%)",
+    violet: "linear-gradient(to bottom, rgb(237, 233, 254) 0%, rgb(245, 243, 255) 50%, rgb(255, 255, 255) 100%)",
+    emerald: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)",
+    sky: "linear-gradient(to bottom, rgb(224, 242, 254) 0%, rgb(240, 249, 255) 50%, rgb(255, 255, 255) 100%)",
+    fuchsia: "linear-gradient(to bottom, rgb(250, 232, 255) 0%, rgb(253, 244, 255) 50%, rgb(255, 255, 255) 100%)",
+  };
+
+  // Fallback gradient map for old categories (by ID)
+  const fallbackGradientMap = {
+    1: "linear-gradient(to bottom, rgb(252, 231, 243) 0%, rgb(255, 240, 245) 50%, rgb(255, 255, 255) 100%)", // Pink - moderate
+    2: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 248, 220) 50%, rgb(255, 255, 255) 100%)", // Brown/Amber - moderate
+    3: "linear-gradient(to bottom, rgb(255, 237, 213) 0%, rgb(255, 245, 230) 50%, rgb(255, 255, 255) 100%)", // Orange - moderate
+    4: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)", // Green - moderate
+    5: "linear-gradient(to bottom, rgb(243, 232, 255) 0%, rgb(250, 245, 255) 50%, rgb(255, 255, 255) 100%)", // Purple - moderate
+    6: "linear-gradient(to bottom, rgb(219, 234, 254) 0%, rgb(239, 246, 255) 50%, rgb(255, 255, 255) 100%)", // Blue - moderate
+  };
+
   // Memoize gradient background style to prevent unnecessary re-renders
   const headerBackground = useMemo(() => {
-    // Category pages - keep existing category-specific gradients
+    // Category pages - use headerColor if available, otherwise fallback to old mapping
     if (currentCategoryId) {
-      const gradientMap = {
-        1: "linear-gradient(to bottom, rgb(252, 231, 243) 0%, rgb(255, 240, 245) 50%, rgb(255, 255, 255) 100%)", // Pink - moderate
-        2: "linear-gradient(to bottom, rgb(254, 243, 199) 0%, rgb(255, 248, 220) 50%, rgb(255, 255, 255) 100%)", // Brown/Amber - moderate
-        3: "linear-gradient(to bottom, rgb(255, 237, 213) 0%, rgb(255, 245, 230) 50%, rgb(255, 255, 255) 100%)", // Orange - moderate
-        4: "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 50%, rgb(255, 255, 255) 100%)", // Green - moderate
-        5: "linear-gradient(to bottom, rgb(243, 232, 255) 0%, rgb(250, 245, 255) 50%, rgb(255, 255, 255) 100%)", // Purple - moderate
-        6: "linear-gradient(to bottom, rgb(219, 234, 254) 0%, rgb(239, 246, 255) 50%, rgb(255, 255, 255) 100%)", // Blue - moderate
-      };
+      const category = getCategoryById(currentCategoryId);
+
+      // If category has headerColor, use it
+      if (category?.headerColor && headerColorGradients[category.headerColor]) {
+        return headerColorGradients[category.headerColor];
+      }
+
+      // Fallback to old category ID mapping
       return (
-        gradientMap[currentCategoryId] ||
+        fallbackGradientMap[currentCategoryId] ||
         "linear-gradient(to bottom, #EDE9FE 0%, #F5F3FF 50%, #FFFFFF 100%)"
       );
     }
@@ -136,7 +174,7 @@ const MobileHeader = () => {
     };
 
     return pageGradients[currentPage] || pageGradients.default;
-  }, [currentCategoryId, currentPage, location.pathname]);
+  }, [currentCategoryId, currentPage, location.pathname, getCategoryById]);
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -212,6 +250,10 @@ const MobileHeader = () => {
 
         // Only set positions if they're valid and animation hasn't played yet
         if (
+          Number.isFinite(positions.startX) &&
+          Number.isFinite(positions.endX) &&
+          Number.isFinite(positions.startY) &&
+          Number.isFinite(positions.endY) &&
           positions.startX > 0 &&
           positions.endX > 0 &&
           positions.startY > 0 &&
@@ -384,8 +426,8 @@ const MobileHeader = () => {
               animate={
                 cartAnimationTrigger > 0
                   ? {
-                      scale: [1, 1.2, 1],
-                    }
+                    scale: [1, 1.2, 1],
+                  }
                   : {}
               }
               transition={{ duration: 0.5, ease: "easeOut" }}>

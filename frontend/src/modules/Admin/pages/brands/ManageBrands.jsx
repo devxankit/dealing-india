@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FiPlus, FiSearch, FiEdit, FiTrash2 } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { useBrandStore } from "../../../../shared/store/brandStore";
+import { useBrandManagementStore } from "../../store/brandManagementStore";
 import BrandForm from "../../components/Brands/BrandForm";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
@@ -10,16 +10,38 @@ import AnimatedSelect from "../../components/AnimatedSelect";
 import toast from "react-hot-toast";
 
 const ManageBrands = () => {
-  const { brands, initialize, deleteBrand } = useBrandStore();
+  const {
+    brands,
+    isLoading,
+    fetchBrands,
+    deleteBrand,
+  } = useBrandManagementStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
+  // Fetch brands on component mount and when filters change
   useEffect(() => {
-    initialize();
-  }, []);
+    const loadBrands = async () => {
+      try {
+        await fetchBrands({
+          search: searchQuery,
+          isActive:
+            selectedStatus === "all"
+              ? undefined
+              : selectedStatus === "active",
+          page: 1,
+          limit: 1000,
+        });
+      } catch (error) {
+        // Error toast is shown by API interceptor
+      }
+    };
+
+    loadBrands();
+  }, [searchQuery, selectedStatus, fetchBrands]);
 
   const filteredBrands = brands.filter((brand) => {
     const matchesSearch =
@@ -48,10 +70,22 @@ const ManageBrands = () => {
     setDeleteModal({ isOpen: true, id });
   };
 
-  const confirmDelete = () => {
-    deleteBrand(deleteModal.id);
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success("Brand deleted");
+  const confirmDelete = async () => {
+    try {
+      await deleteBrand(deleteModal.id);
+      setDeleteModal({ isOpen: false, id: null });
+      toast.success("Brand deleted successfully");
+      // Refresh brands list
+      await fetchBrands({
+        search: searchQuery,
+        isActive:
+          selectedStatus === "all" ? undefined : selectedStatus === "active",
+        page: 1,
+        limit: 1000,
+      });
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
   };
 
   const columns = [
@@ -61,11 +95,11 @@ const ManageBrands = () => {
       sortable: true,
       render: (value, row) => (
         <div className="flex items-center gap-3">
-          {row.image && (
+          {row.logo && (
             <img
-              src={row.image}
+              src={row.logo}
               alt={value}
-              className="w-10 h-10 object-cover rounded-lg"
+              className="w-10 h-10 object-contain rounded-lg"
             />
           )}
           <span className="font-medium">{value}</span>
@@ -169,12 +203,22 @@ const ManageBrands = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={filteredBrands}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading brands...</p>
+          </div>
+        ) : filteredBrands.length > 0 ? (
+          <DataTable
+            data={filteredBrands}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No brands found</p>
+          </div>
+        )}
       </div>
 
       {showForm && (
@@ -184,8 +228,16 @@ const ManageBrands = () => {
             setShowForm(false);
             setEditingBrand(null);
           }}
-          onSave={() => {
-            initialize();
+          onSave={async () => {
+            await fetchBrands({
+              search: searchQuery,
+              isActive:
+                selectedStatus === "all"
+                  ? undefined
+                  : selectedStatus === "active",
+              page: 1,
+              limit: 1000,
+            });
             setShowForm(false);
             setEditingBrand(null);
           }}

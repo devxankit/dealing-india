@@ -29,10 +29,7 @@ import {
 import { FiThumbsUp, FiArrowRight } from "react-icons/fi";
 import PageTransition from "../../../shared/components/PageTransition";
 import useResponsiveHeaderPadding from "../../../shared/hooks/useResponsiveHeaderPadding";
-import heroSlide1 from "../../../../data/hero/slide1.png";
-import heroSlide2 from "../../../../data/hero/slide2.png";
-import heroSlide3 from "../../../../data/hero/slide3.png";
-import heroSlide4 from "../../../../data/hero/slide4.png";
+import api from "../../../shared/utils/api";
 import heroBanner2 from "../../../../data/hero/banner2.png";
 import babycareBanner from "../../../../data/banners/babycare-WEB.avif";
 import pharmacyBanner from "../../../../data/banners/pharmacy-WEB.avif";
@@ -42,13 +39,37 @@ const Home = () => {
   const { responsivePadding } = useResponsiveHeaderPadding();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [autoSlidePaused, setAutoSlidePaused] = useState(false);
+  const [sliders, setSliders] = useState([]);
+  const [isLoadingSliders, setIsLoadingSliders] = useState(true);
 
-  const slides = [
-    { image: heroSlide1 },
-    { image: heroSlide2 },
-    { image: heroSlide3 },
-    { image: heroSlide4 },
-  ];
+  // Fetch sliders from API
+  useEffect(() => {
+    const fetchSliders = async () => {
+      try {
+        setIsLoadingSliders(true);
+        const response = await api.get("/sliders");
+        if (response.success && response.data?.sliders && response.data.sliders.length > 0) {
+          // Transform API sliders to match the expected format
+          const formattedSliders = response.data.sliders.map((slider) => ({
+            image: slider.imageUrl || slider.image,
+            link: slider.link || "/app/search",
+            id: slider.id || slider._id,
+            title: slider.title,
+          }));
+          setSliders(formattedSliders);
+        }
+      } catch (error) {
+        console.error("Failed to fetch sliders:", error);
+      } finally {
+        setIsLoadingSliders(false);
+      }
+    };
+
+    fetchSliders();
+  }, []);
+
+  // Use API sliders only
+  const slides = sliders;
 
   const mostPopular = getMostPopular();
   const trending = getTrending();
@@ -90,53 +111,64 @@ const Home = () => {
               style={{ maxWidth: "996px", padding: "0 12px" }}>
               {/* Hero Banner Carousel */}
               <div className="py-4">
-                <div
-                  className="relative w-full h-64 rounded-2xl overflow-hidden shadow-xl cursor-pointer"
-                  onMouseEnter={() => setAutoSlidePaused(true)}
-                  onMouseLeave={() => setAutoSlidePaused(false)}>
-                  <AnimatePresence mode="wait">
-                    {slides.map((slide, index) => {
-                      if (index !== currentSlide) return null;
-                      return (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, scale: 1.05 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ duration: 0.6 }}
-                          className="absolute inset-0">
-                          <LazyImage
-                            src={slide.image}
-                            alt={`Slide ${index + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.src = `https://via.placeholder.com/1200x400?text=Slide+${
-                                index + 1
-                              }`;
+                {slides.length > 0 ? (
+                  <Link
+                    to={slides[currentSlide]?.link || "/app/search"}
+                    className="block">
+                    <div
+                      className="relative w-full h-64 rounded-2xl overflow-hidden shadow-xl cursor-pointer"
+                      onMouseEnter={() => setAutoSlidePaused(true)}
+                      onMouseLeave={() => setAutoSlidePaused(false)}>
+                      <AnimatePresence mode="wait">
+                        {slides.map((slide, index) => {
+                          if (index !== currentSlide) return null;
+                          return (
+                            <motion.div
+                              key={slide.id || index}
+                              initial={{ opacity: 0, scale: 1.05 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              transition={{ duration: 0.6 }}
+                              className="absolute inset-0">
+                              <LazyImage
+                                src={slide.image}
+                                alt={slide.title || `Slide ${index + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = `https://via.placeholder.com/1200x400?text=Slide+${
+                                    index + 1
+                                  }`;
+                                }}
+                              />
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                        {slides.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setCurrentSlide(index);
+                              setAutoSlidePaused(true);
+                              setTimeout(() => setAutoSlidePaused(false), 2000);
                             }}
+                            className={`h-2 rounded-full transition-all ${
+                              index === currentSlide
+                                ? "bg-white w-8"
+                                : "bg-white/50 w-2"
+                            }`}
                           />
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                    {slides.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={() => {
-                          setCurrentSlide(index);
-                          setAutoSlidePaused(true);
-                          setTimeout(() => setAutoSlidePaused(false), 2000);
-                        }}
-                        className={`h-2 rounded-full transition-all ${
-                          index === currentSlide
-                            ? "bg-white w-8"
-                            : "bg-white/50 w-2"
-                        }`}
-                      />
-                    ))}
+                        ))}
+                      </div>
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="relative w-full h-64 rounded-2xl overflow-hidden shadow-xl bg-gray-200 flex items-center justify-center">
+                    <p className="text-gray-500">Loading sliders...</p>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Brand Logos Scroll */}

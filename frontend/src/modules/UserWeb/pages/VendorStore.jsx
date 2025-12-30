@@ -8,6 +8,7 @@ import {
   FiFilter,
   FiGrid,
   FiList,
+  FiMessageSquare,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { getVendorById } from "../../../data/vendors";
@@ -222,7 +223,7 @@ const VendorStore = () => {
                         {vendor.storeDescription}
                       </p>
                     )}
-                    <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-3 text-xs mb-3">
                       {vendor.rating > 0 && (
                         <div className="flex items-center gap-1">
                           <FiStar className="text-yellow-400 fill-yellow-400 text-sm" />
@@ -241,6 +242,18 @@ const VendorStore = () => {
                         Products
                       </div>
                     </div>
+
+                    <button
+                      onClick={() => navigate('/app/help', {
+                        state: {
+                          vendorId: vendor.id,
+                          vendorName: vendor.storeName
+                        }
+                      })}
+                      className="w-full bg-black text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
+                    >
+                      <FiMessageSquare /> Chat with Vendor
+                    </button>
                   </div>
                 </div>
               </div>
@@ -251,11 +264,10 @@ const VendorStore = () => {
               <div className="flex items-center justify-between gap-2">
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-sm ${
-                    showFilters
-                      ? "bg-primary-50 border-primary-500 text-primary-700"
-                      : "bg-white border-gray-300 text-gray-700"
-                  }`}>
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-sm ${showFilters
+                    ? "bg-primary-50 border-primary-500 text-primary-700"
+                    : "bg-white border-gray-300 text-gray-700"
+                    }`}>
                   <FiFilter className="text-base" />
                   <span className="font-semibold">Filters</span>
                 </button>
@@ -272,20 +284,18 @@ const VendorStore = () => {
                 <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-300 p-1">
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`p-1.5 rounded transition-colors ${
-                      viewMode === "grid"
-                        ? "bg-primary-100 text-primary-700"
-                        : "text-gray-600"
-                    }`}>
+                    className={`p-1.5 rounded transition-colors ${viewMode === "grid"
+                      ? "bg-primary-100 text-primary-700"
+                      : "text-gray-600"
+                      }`}>
                     <FiGrid className="text-base" />
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`p-1.5 rounded transition-colors ${
-                      viewMode === "list"
-                        ? "bg-primary-100 text-primary-700"
-                        : "text-gray-600"
-                    }`}>
+                    className={`p-1.5 rounded transition-colors ${viewMode === "list"
+                      ? "bg-primary-100 text-primary-700"
+                      : "text-gray-600"
+                      }`}>
                     <FiList className="text-base" />
                   </button>
                 </div>
@@ -514,11 +524,10 @@ const VendorStore = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                    showFilters
-                      ? "bg-primary-50 border-primary-500 text-primary-700"
-                      : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                  }`}>
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${showFilters
+                    ? "bg-primary-50 border-primary-500 text-primary-700"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}>
                   <FiFilter />
                   <span className="text-sm font-semibold">Filters</span>
                 </button>
@@ -536,20 +545,18 @@ const VendorStore = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`p-2 rounded-lg transition-colors ${
-                    viewMode === "grid"
-                      ? "bg-primary-100 text-primary-700"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}>
+                  className={`p-2 rounded-lg transition-colors ${viewMode === "grid"
+                    ? "bg-primary-100 text-primary-700"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}>
                   <FiGrid />
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`p-2 rounded-lg transition-colors ${
-                    viewMode === "list"
-                      ? "bg-primary-100 text-primary-700"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}>
+                  className={`p-2 rounded-lg transition-colors ${viewMode === "list"
+                    ? "bg-primary-100 text-primary-700"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}>
                   <FiList />
                 </button>
               </div>

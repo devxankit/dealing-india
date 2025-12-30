@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { FiArrowLeft, FiFilter, FiGrid, FiList, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiFilter, FiGrid, FiList } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
+import MobileFilterPanel from "../components/Mobile/MobileFilterPanel";
 import ProductCard from '../../../shared/components/ProductCard';
 import ProductListItem from '../components/Mobile/ProductListItem';
 import { getDailyDeals } from '../../../data/products';
@@ -140,132 +141,14 @@ const MobileDailyDeals = () => {
                     />
                   </button>
 
-                  {/* Filter Dropdown */}
-                  <AnimatePresence>
-                    {showFilters && (
-                      <>
-                        {/* Backdrop */}
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          onClick={() => setShowFilters(false)}
-                          className="fixed inset-0 bg-black/20 z-[10000]"
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 300,
-                            damping: 30,
-                          }}
-                          className="filter-dropdown absolute right-0 top-full w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-[10001] overflow-hidden"
-                          style={{ marginTop: "-50px" }}>
-                          {/* Header */}
-                          <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50">
-                            <div className="flex items-center gap-1.5">
-                              <FiFilter className="text-sm text-gray-700" />
-                              <h3 className="text-sm font-bold text-gray-800">
-                                Filters
-                              </h3>
-                            </div>
-                            <button
-                              onClick={() => setShowFilters(false)}
-                              className="p-0.5 hover:bg-gray-200 rounded-full transition-colors">
-                              <FiX className="text-sm text-gray-600" />
-                            </button>
-                          </div>
-
-                          {/* Filter Content */}
-                          <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
-                            <div className="p-2 space-y-2">
-                              {/* Price Range */}
-                              <div>
-                                <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                  Price Range
-                                </h4>
-                                <div className="space-y-1.5">
-                                  <input
-                                    type="number"
-                                    placeholder="Min Price"
-                                    value={filters.minPrice}
-                                    onChange={(e) =>
-                                      handleFilterChange("minPrice", e.target.value)
-                                    }
-                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                  />
-                                  <input
-                                    type="number"
-                                    placeholder="Max Price"
-                                    value={filters.maxPrice}
-                                    onChange={(e) =>
-                                      handleFilterChange("maxPrice", e.target.value)
-                                    }
-                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Rating Filter */}
-                              <div>
-                                <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                  Minimum Rating
-                                </h4>
-                                <div className="space-y-0.5">
-                                  {[4, 3, 2, 1].map((rating) => (
-                                    <label
-                                      key={rating}
-                                      className="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-50 transition-colors">
-                                      <input
-                                        type="radio"
-                                        name="minRating"
-                                        value={rating}
-                                        checked={
-                                          filters.minRating === rating.toString()
-                                        }
-                                        onChange={(e) =>
-                                          handleFilterChange(
-                                            "minRating",
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-3 h-3 appearance-none rounded-full border-2 border-gray-300 bg-white checked:bg-white checked:border-primary-500 relative cursor-pointer"
-                                        style={{
-                                          backgroundImage:
-                                            filters.minRating === rating.toString()
-                                              ? "radial-gradient(circle, #10b981 40%, transparent 40%)"
-                                              : "none",
-                                        }}
-                                      />
-                                      <span className="text-xs text-gray-700">
-                                        {rating}+ Stars
-                                      </span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Footer */}
-                          <div className="border-t border-gray-200 p-2 bg-gray-50 space-y-1.5">
-                            <button
-                              onClick={clearFilters}
-                              className="w-full py-1.5 bg-gray-200 text-gray-700 rounded-md font-semibold text-xs hover:bg-gray-300 transition-colors">
-                              Clear All
-                            </button>
-                            <button
-                              onClick={() => setShowFilters(false)}
-                              className="w-full py-1.5 gradient-green text-white rounded-md font-semibold text-xs hover:shadow-glow-green transition-all">
-                              Apply Filters
-                            </button>
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
+                  {/* Filter Bottom Sheet Popup */}
+                  <MobileFilterPanel
+                    isOpen={showFilters}
+                    onClose={() => setShowFilters(false)}
+                    filters={filters}
+                    onFilterChange={handleFilterChange}
+                    onClearFilters={clearFilters}
+                  />
                 </div>
               </div>
             </div>

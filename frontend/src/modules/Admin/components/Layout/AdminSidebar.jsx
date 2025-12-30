@@ -10,9 +10,6 @@ import {
   FiGrid,
   FiTag,
   FiUsers,
-  FiBox,
-  FiTruck,
-  FiMapPin,
   FiImage,
   FiPercent,
   FiBell,
@@ -41,9 +38,7 @@ const iconMap = {
   Categories: FiGrid,
   Brands: FiTag,
   Customers: FiUsers,
-  "Stock Management": FiBox,
-  "Delivery Management": FiTruck,
-  Locations: FiMapPin,
+  Vendors: FiUsers,
   "Offers & Sliders": FiImage,
   "Mega Reward": FiGift,
   "Promo Codes": FiPercent,
@@ -66,16 +61,14 @@ const getChildRoute = (parentRoute, childName) => {
     },
     "/admin/products": {
       "Manage Products": "/admin/products/manage-products",
-      "Add Product": "/admin/products/add-product",
-      "Bulk Upload": "/admin/products/bulk-upload",
       "Tax & Pricing": "/admin/products/tax-pricing",
       "Product Ratings": "/admin/products/product-ratings",
       "Product FAQs": "/admin/products/product-faqs",
     },
     "/admin/attributes": {
-      "Attribute Sets": "/admin/attributes/attribute-sets",
       Attributes: "/admin/attributes/attributes",
       "Attribute Values": "/admin/attributes/attribute-values",
+      "Attribute Sets": "/admin/attributes/attribute-sets",
     },
     "/admin/categories": {
       "Manage Categories": "/admin/categories/manage-categories",
@@ -89,9 +82,11 @@ const getChildRoute = (parentRoute, childName) => {
       Addresses: "/admin/customers/addresses",
       Transactions: "/admin/customers/transactions",
     },
-    "/admin/delivery": {
-      "Delivery Boys": "/admin/delivery/delivery-boys",
-      "Cash Collection": "/admin/delivery/cash-collection",
+    "/admin/vendors": {
+      "Manage Vendors": "/admin/vendors/manage-vendors",
+      "Pending Approvals": "/admin/vendors/pending-approvals",
+      "Commission Rates": "/admin/vendors/commission-rates",
+      "Vendor Analytics": "/admin/vendors/vendor-analytics",
     },
     "/admin/locations": {
       Cities: "/admin/locations/cities",
@@ -104,6 +99,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/mega-reward": {
       "Entries": "/admin/mega-reward/entries",
       "Winners": "/admin/mega-reward/winners",
+      "Promotional Reels": "/admin/mega-reward/promotional-reels",
       "Settings": "/admin/mega-reward/settings",
     },
     "/admin/notifications": {

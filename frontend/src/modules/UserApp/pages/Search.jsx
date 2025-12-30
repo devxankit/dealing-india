@@ -325,7 +325,7 @@ const MobileSearch = () => {
                     <span className="font-semibold text-gray-700 text-sm">Filters</span>
                   </button>
 
-                  {/* Filter Dropdown */}
+                  {/* Filter Bottom Sheet Popup */}
                   <AnimatePresence>
                     {showFilters && (
                       <>
@@ -335,141 +335,132 @@ const MobileSearch = () => {
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           onClick={() => setShowFilters(false)}
-                          className="fixed inset-0 bg-black/20 z-[10000]"
+                          className="fixed inset-0 bg-black/50 z-[10000]"
                         />
+                        {/* Bottom Sheet */}
                         <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          initial={{ y: '100%' }}
+                          animate={{ y: 0 }}
+                          exit={{ y: '100%' }}
                           transition={{
                             type: "spring",
-                            stiffness: 300,
-                            damping: 30,
+                            damping: 25,
+                            stiffness: 200,
                           }}
-                          className="filter-dropdown absolute right-0 top-full w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-[10001] overflow-hidden"
-                          style={{ marginTop: "-50px" }}>
+                          className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[10001] flex flex-col max-h-[90vh]">
+                          {/* Drag Handle */}
+                          <div className="flex justify-center pt-3 pb-2">
+                            <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+                          </div>
+
                           {/* Header */}
-                          <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50">
-                            <div className="flex items-center gap-1.5">
-                              <FiFilter className="text-sm text-gray-700" />
-                              <h3 className="text-sm font-bold text-gray-800">
-                                Filters
-                              </h3>
+                          <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-200">
+                            <div className="flex items-center gap-2">
+                              <FiFilter className="text-xl text-gray-700" />
+                              <h2 className="text-xl font-bold text-gray-800">Filters</h2>
                             </div>
                             <button
                               onClick={() => setShowFilters(false)}
-                              className="p-0.5 hover:bg-gray-200 rounded-full transition-colors">
-                              <FiX className="text-sm text-gray-600" />
+                              className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                              <FiX className="text-xl text-gray-600" />
                             </button>
                           </div>
 
                           {/* Filter Content */}
-                          <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
-                            <div className="p-2 space-y-2">
-                              {/* Price Range */}
-                              <div>
-                                <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                  Price Range
-                                </h4>
-                                <div className="space-y-1.5">
-                                  <input
-                                    type="number"
-                                    placeholder="Min Price"
-                                    value={filters.minPrice}
-                                    onChange={(e) =>
-                                      handleFilterChange("minPrice", e.target.value)
-                                    }
-                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                  />
-                                  <input
-                                    type="number"
-                                    placeholder="Max Price"
-                                    value={filters.maxPrice}
-                                    onChange={(e) =>
-                                      handleFilterChange("maxPrice", e.target.value)
-                                    }
-                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                  />
-                                </div>
+                          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+                            {/* Price Range */}
+                            <div>
+                              <h3 className="font-semibold text-gray-700 mb-3 text-base">Price Range</h3>
+                              <div className="space-y-3">
+                                <input
+                                  type="number"
+                                  placeholder="Min Price"
+                                  value={filters.minPrice}
+                                  onChange={(e) =>
+                                    handleFilterChange("minPrice", e.target.value)
+                                  }
+                                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                                />
+                                <input
+                                  type="number"
+                                  placeholder="Max Price"
+                                  value={filters.maxPrice}
+                                  onChange={(e) =>
+                                    handleFilterChange("maxPrice", e.target.value)
+                                  }
+                                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                                />
                               </div>
+                            </div>
 
-                              {/* Vendor Filter */}
-                              <div>
-                                <div className="flex items-center justify-between mb-2">
-                                  <h4 className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
-                                    <FiShoppingBag className="text-primary-600" />
-                                    Vendor
-                                  </h4>
-                                  <span className="text-xs text-primary-600 font-semibold bg-primary-50 px-2 py-0.5 rounded-full">
-                                    {approvedVendors.length}+ Stores
-                                  </span>
-                                </div>
-                                <select
-                                  value={filters.vendor}
-                                  onChange={(e) => handleFilterChange('vendor', e.target.value)}
-                                  className="w-full px-3 py-2 rounded-lg border-2 border-primary-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm font-medium"
-                                >
-                                  <option value="">All Vendors ({approvedVendors.length})</option>
-                                  {approvedVendors.map((vendor) => (
-                                    <option key={vendor.id} value={vendor.id}>
-                                      {vendor.storeName || vendor.name}
-                                      {vendor.isVerified && ' ✓'}
-                                    </option>
-                                  ))}
-                                </select>
+                            {/* Vendor Filter */}
+                            <div>
+                              <div className="flex items-center justify-between mb-3">
+                                <h3 className="font-bold text-gray-800 text-base flex items-center gap-2">
+                                  <FiShoppingBag className="text-primary-600" />
+                                  Vendor
+                                </h3>
+                                <span className="text-sm text-primary-600 font-semibold bg-primary-50 px-3 py-1 rounded-full">
+                                  {approvedVendors.length}+ Stores
+                                </span>
                               </div>
+                              <select
+                                value={filters.vendor}
+                                onChange={(e) => handleFilterChange('vendor', e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-primary-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base font-medium"
+                              >
+                                <option value="">All Vendors ({approvedVendors.length})</option>
+                                {approvedVendors.map((vendor) => (
+                                  <option key={vendor.id} value={vendor.id}>
+                                    {vendor.storeName || vendor.name}
+                                    {vendor.isVerified && ' ✓'}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
 
-                              {/* Rating Filter */}
-                              <div>
-                                <h4 className="font-semibold text-gray-700 mb-1 text-xs">
-                                  Minimum Rating
-                                </h4>
-                                <div className="space-y-0.5">
-                                  {[4, 3, 2, 1].map((rating) => (
-                                    <label
-                                      key={rating}
-                                      className="flex items-center gap-1.5 cursor-pointer p-1 rounded-md hover:bg-gray-50 transition-colors">
-                                      <input
-                                        type="radio"
-                                        name="minRating"
-                                        value={rating}
-                                        checked={
-                                          filters.minRating === rating.toString()
-                                        }
-                                        onChange={(e) =>
-                                          handleFilterChange(
-                                            "minRating",
-                                            e.target.value
-                                          )
-                                        }
-                                        className="w-3 h-3 appearance-none rounded-full border-2 border-gray-300 bg-white checked:bg-white checked:border-primary-500 relative cursor-pointer"
-                                        style={{
-                                          backgroundImage:
-                                            filters.minRating === rating.toString()
-                                              ? "radial-gradient(circle, #10b981 40%, transparent 40%)"
-                                              : "none",
-                                        }}
-                                      />
-                                      <span className="text-xs text-gray-700">
-                                        {rating}+ Stars
-                                      </span>
-                                    </label>
-                                  ))}
-                                </div>
+                            {/* Rating Filter */}
+                            <div>
+                              <h3 className="font-semibold text-gray-700 mb-3 text-base">Minimum Rating</h3>
+                              <div className="space-y-2">
+                                {[4, 3, 2, 1].map((rating) => (
+                                  <label
+                                    key={rating}
+                                    className="flex items-center gap-3 cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                                    <input
+                                      type="radio"
+                                      name="minRating"
+                                      value={rating}
+                                      checked={
+                                        filters.minRating === rating.toString()
+                                      }
+                                      onChange={(e) =>
+                                        handleFilterChange(
+                                          "minRating",
+                                          e.target.value
+                                        )
+                                      }
+                                      className="w-5 h-5 text-primary-500"
+                                    />
+                                    <span className="text-sm text-gray-700 font-medium">
+                                      {rating}+ Stars
+                                    </span>
+                                  </label>
+                                ))}
                               </div>
                             </div>
                           </div>
 
                           {/* Footer */}
-                          <div className="border-t border-gray-200 p-2 bg-gray-50 space-y-1.5">
+                          <div className="border-t border-gray-200 p-4 space-y-2">
                             <button
                               onClick={clearFilters}
-                              className="w-full py-1.5 bg-gray-200 text-gray-700 rounded-md font-semibold text-xs hover:bg-gray-300 transition-colors">
+                              className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors">
                               Clear All
                             </button>
                             <button
                               onClick={() => setShowFilters(false)}
-                              className="w-full py-1.5 gradient-green text-white rounded-md font-semibold text-xs hover:shadow-glow-green transition-all">
+                              className="w-full py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all">
                               Apply Filters
                             </button>
                           </div>

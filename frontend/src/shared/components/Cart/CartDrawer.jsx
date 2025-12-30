@@ -146,7 +146,7 @@ const CartDrawer = () => {
     return (
       <motion.div
         initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0, x: swipeOffset }}
+        animate={{ opacity: 1, y: 0, x: Number.isFinite(swipeOffset) ? swipeOffset : 0 }}
         exit={{ opacity: 0, x: "100%" }}
         transition={{
           type: "spring",

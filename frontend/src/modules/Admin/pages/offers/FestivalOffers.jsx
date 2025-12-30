@@ -25,13 +25,13 @@ const FestivalOffers = () => {
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
   useEffect(() => {
-    initialize();
+    initialize({ type: "festival" });
   }, [initialize]);
 
-  // Get festival campaigns
+  // Get festival campaigns - already filtered by backend, but keep for compatibility
   const festivalCampaigns = useMemo(() => {
-    return getCampaignsByType("festival");
-  }, [campaigns, getCampaignsByType]);
+    return campaigns.filter((c) => c.type === "festival");
+  }, [campaigns]);
 
   // Convert campaigns to table format
   const offers = useMemo(() => {
@@ -61,9 +61,13 @@ const FestivalOffers = () => {
     });
   }, [festivalCampaigns]);
 
-  const handleDelete = () => {
-    deleteCampaign(deleteModal.id);
-    setDeleteModal({ isOpen: false, id: null });
+  const handleDelete = async () => {
+    try {
+      await deleteCampaign(deleteModal.id);
+      setDeleteModal({ isOpen: false, id: null });
+    } catch (error) {
+      console.error('Failed to delete offer:', error);
+    }
   };
 
   const handleFormClose = () => {

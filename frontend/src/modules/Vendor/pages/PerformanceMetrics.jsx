@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   FiTrendingUp,
   FiDollarSign,
@@ -8,39 +8,65 @@ import {
 import { motion } from "framer-motion";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useVendorStore } from "../store/vendorStore";
-import { useOrderStore } from "../../../shared/store/orderStore";
-import { useCommissionStore } from "../../../shared/store/commissionStore";
+import { getVendorPerformanceMetrics } from "../services/performanceService";
+import toast from "react-hot-toast";
 
 const PerformanceMetrics = () => {
   const { vendor } = useVendorAuthStore();
-  const { getVendorProducts, getVendorStats } = useVendorStore();
-  const { getVendorOrders } = useOrderStore();
-  const { getVendorEarningsSummary } = useCommissionStore();
+  const [metrics, setMetrics] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalProducts: 0,
+    avgOrderValue: 0,
+    conversionRate: 0,
+    customerCount: 0,
+  });
+  const [earnings, setEarnings] = useState({
+    totalEarnings: 0,
+    pendingEarnings: 0,
+    paidEarnings: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
   const vendorId = vendor?.id;
-  const products = vendorId ? getVendorProducts(vendorId) : [];
-  const orders = vendorId ? getVendorOrders(vendorId) : [];
-  const stats = vendorId ? getVendorStats(vendorId) : null;
-  const earnings = vendorId ? getVendorEarningsSummary(vendorId) : null;
 
-  const metrics = useMemo(() => {
-    const totalRevenue = earnings?.totalEarnings || 0;
-    const totalOrders = orders.length;
-    const totalProducts = products.length;
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-    const conversionRate = 0; // Would need visitor data
-    const customerCount = new Set(orders.map((o) => o.userId || o.id)).size;
+  // Fetch performance metrics from API
+  useEffect(() => {
+    const fetchPerformanceMetrics = async () => {
+      if (!vendorId) {
+        setLoading(false);
+        return;
+      }
 
-    return {
-      totalRevenue,
-      totalOrders,
-      totalProducts,
-      avgOrderValue,
-      conversionRate,
-      customerCount,
+      try {
+        setLoading(true);
+        const response = await getVendorPerformanceMetrics();
+
+        if (response.success && response.data) {
+          setMetrics(response.data.metrics || {
+            totalRevenue: 0,
+            totalOrders: 0,
+            totalProducts: 0,
+            avgOrderValue: 0,
+            conversionRate: 0,
+            customerCount: 0,
+          });
+          setEarnings(response.data.earnings || {
+            totalEarnings: 0,
+            pendingEarnings: 0,
+            paidEarnings: 0,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching performance metrics:", error);
+        toast.error("Failed to load performance metrics");
+      } finally {
+        setLoading(false);
+      }
     };
-  }, [products, orders, earnings]);
+
+    fetchPerformanceMetrics();
+  }, [vendorId]);
 
   if (!vendorId) {
     return (
@@ -73,7 +99,7 @@ const PerformanceMetrics = () => {
             <FiDollarSign className="text-green-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
-            {formatPrice(metrics.totalRevenue)}
+            {loading ? "..." : formatPrice(metrics.totalRevenue)}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
@@ -82,7 +108,7 @@ const PerformanceMetrics = () => {
             <FiShoppingBag className="text-blue-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
-            {metrics.totalOrders}
+            {loading ? "..." : metrics.totalOrders}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
@@ -91,7 +117,7 @@ const PerformanceMetrics = () => {
             <FiUsers className="text-purple-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
-            {metrics.totalProducts}
+            {loading ? "..." : metrics.totalProducts}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
@@ -100,7 +126,7 @@ const PerformanceMetrics = () => {
             <FiTrendingUp className="text-orange-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
-            {formatPrice(metrics.avgOrderValue)}
+            {loading ? "..." : formatPrice(metrics.avgOrderValue)}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
@@ -109,7 +135,7 @@ const PerformanceMetrics = () => {
             <FiUsers className="text-indigo-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
-            {metrics.customerCount}
+            {loading ? "..." : metrics.customerCount}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
@@ -118,7 +144,7 @@ const PerformanceMetrics = () => {
             <FiTrendingUp className="text-pink-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
-            {metrics.conversionRate.toFixed(1)}%
+            {loading ? "..." : metrics.conversionRate.toFixed(1)}%
           </p>
         </div>
       </div>
@@ -132,22 +158,19 @@ const PerformanceMetrics = () => {
           <div className="flex justify-between items-center">
             <span className="text-gray-600">Total Earnings</span>
             <span className="font-bold">
-              {formatPrice(earnings?.totalEarnings || 0)}
+              {loading ? "..." : formatPrice(earnings.totalEarnings)}
             </span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-gray-600">Pending Earnings</span>
             <span className="font-semibold text-yellow-600">
-              {formatPrice(earnings?.pendingEarnings || 0)}
+              {loading ? "..." : formatPrice(earnings.pendingEarnings)}
             </span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-gray-600">Paid Earnings</span>
             <span className="font-semibold text-green-600">
-              {formatPrice(
-                (earnings?.totalEarnings || 0) -
-                (earnings?.pendingEarnings || 0)
-              )}
+              {loading ? "..." : formatPrice(earnings.paidEarnings)}
             </span>
           </div>
         </div>

@@ -13,10 +13,12 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
 import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api.js";
 
 const ManageProducts = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { categories, initialize: initCategories } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,13 +40,36 @@ const ManageProducts = () => {
     loadProducts();
   }, []);
 
-  const loadProducts = () => {
-    const savedProducts = localStorage.getItem("admin-products");
-    if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
-    } else {
-      setProducts(initialProducts);
-      localStorage.setItem("admin-products", JSON.stringify(initialProducts));
+  // Helper to transform MongoDB _id to id
+  const transformProduct = (product) => {
+    if (!product) return null;
+    return {
+      ...product,
+      id: product._id || product.id,
+      categoryId: product.categoryId?._id || product.categoryId?.id || product.categoryId,
+      subcategoryId: product.subcategoryId?._id || product.subcategoryId?.id || product.subcategoryId,
+      brandId: product.brandId?._id || product.brandId?.id || product.brandId,
+    };
+  };
+
+  const loadProducts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get("/admin/products", {
+        params: {
+          limit: 1000, // Get all products for client-side filtering
+          sortBy: "createdAt",
+          sortOrder: "desc",
+        },
+      });
+      const transformedProducts = (response.data.products || []).map(transformProduct);
+      setProducts(transformedProducts);
+    } catch (error) {
+      console.error("Failed to load products:", error);
+      toast.error("Failed to load products");
+      setProducts([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -62,15 +87,18 @@ const ManageProducts = () => {
     }
 
     if (selectedCategory !== "all") {
-      filtered = filtered.filter(
-        (product) => product.categoryId === parseInt(selectedCategory)
-      );
+      filtered = filtered.filter((product) => {
+        const catId = product.categoryId?.toString() || product.categoryId;
+        const subCatId = product.subcategoryId?.toString() || product.subcategoryId;
+        return catId === selectedCategory || subCatId === selectedCategory;
+      });
     }
 
     if (selectedBrand !== "all") {
-      filtered = filtered.filter(
-        (product) => product.brandId === parseInt(selectedBrand)
-      );
+      filtered = filtered.filter((product) => {
+        const brandId = product.brandId?.toString() || product.brandId;
+        return brandId === selectedBrand;
+      });
     }
 
     return filtered;
@@ -81,6 +109,7 @@ const ManageProducts = () => {
       key: "id",
       label: "ID",
       sortable: true,
+      render: (value, row) => row.id || row._id || value,
     },
     {
       key: "name",
@@ -156,12 +185,17 @@ const ManageProducts = () => {
     },
   ];
 
-  const confirmDelete = () => {
-    const newProducts = products.filter((p) => p.id !== deleteModal.productId);
-    setProducts(newProducts);
-    localStorage.setItem("admin-products", JSON.stringify(newProducts));
-    setDeleteModal({ isOpen: false, productId: null });
-    toast.success("Product deleted successfully");
+  const confirmDelete = async () => {
+    try {
+      const productId = deleteModal.productId?.toString() || deleteModal.productId;
+      await api.delete(`/admin/products/${productId}`);
+      await loadProducts(); // Reload products
+      setDeleteModal({ isOpen: false, productId: null });
+      toast.success("Product deleted successfully");
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || "Failed to delete product";
+      toast.error(errorMessage);
+    }
   };
 
   return (
@@ -219,14 +253,6 @@ const ManageProducts = () => {
               className="w-full sm:w-auto min-w-[160px]"
             />
 
-            <button
-              onClick={() =>
-                setProductFormModal({ isOpen: true, productId: "new" })
-              }
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm sm:text-base whitespace-nowrap">
-              <span>Add New Product</span>
-            </button>
-
             <div className="w-full sm:w-auto">
               <ExportButton
                 data={filteredProducts}
@@ -247,15 +273,21 @@ const ManageProducts = () => {
         </div>
 
         {/* DataTable */}
-        <DataTable
-          data={filteredProducts}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-          onRowClick={(row) =>
-            setProductFormModal({ isOpen: true, productId: row.id })
-          }
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading products...</p>
+          </div>
+        ) : (
+          <DataTable
+            data={filteredProducts}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+            onRowClick={(row) =>
+              setProductFormModal({ isOpen: true, productId: row.id || row._id })
+            }
+          />
+        )}
       </div>
 
       <ConfirmModal

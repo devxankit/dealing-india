@@ -1,134 +1,92 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { brands as initialBrands } from '../../data/brands';
-import toast from 'react-hot-toast';
+import api from '../utils/api';
 
 export const useBrandStore = create(
   persist(
     (set, get) => ({
       brands: [],
       isLoading: false,
+      lastFetched: null,
 
-      // Initialize brands
-      initialize: () => {
-        const savedBrands = localStorage.getItem('admin-brands');
-        if (savedBrands) {
-          set({ brands: JSON.parse(savedBrands) });
-        } else {
-          set({ brands: initialBrands });
-          localStorage.setItem('admin-brands', JSON.stringify(initialBrands));
+      // Fetch brands from API
+      fetchBrands: async (forceRefresh = false) => {
+        const state = get();
+        // Cache for 30 seconds (reduced from 5 minutes for faster updates)
+        const CACHE_DURATION = 30 * 1000;
+        const now = Date.now();
+        
+        if (!forceRefresh && state.brands.length > 0 && state.lastFetched && (now - state.lastFetched) < CACHE_DURATION) {
+          return state.brands;
+        }
+
+        set({ isLoading: true });
+        try {
+          const response = await api.get('/brands?limit=100&sortBy=name&sortOrder=asc');
+          
+          if (response.success && response.data?.brands) {
+            // Transform API response to match expected format
+            const transformedBrands = response.data.brands.map((brand) => ({
+              id: brand._id || brand.id,
+              name: brand.name,
+              logo: brand.logo || '',
+              description: brand.description || '',
+              website: brand.website || '',
+              isActive: brand.isActive !== undefined ? brand.isActive : true,
+            }));
+
+            set({ 
+              brands: transformedBrands, 
+              isLoading: false,
+              lastFetched: now,
+            });
+            return transformedBrands;
+          } else {
+            throw new Error(response.message || 'Failed to fetch brands');
+          }
+        } catch (error) {
+          console.error('Error fetching brands:', error);
+          set({ isLoading: false });
+          // Return empty array on error, don't throw
+          return [];
         }
       },
 
-      // Get all brands
-      getBrands: () => {
+      // Initialize brands (fetch from API)
+      initialize: async () => {
         const state = get();
         if (state.brands.length === 0) {
-          state.initialize();
+          await state.fetchBrands();
         }
+        return get().brands;
+      },
+
+      // Get all brands (synchronous - returns cached brands)
+      getBrands: () => {
         return get().brands;
       },
 
       // Get brand by ID
       getBrandById: (id) => {
-        return get().brands.find((brand) => brand.id === parseInt(id));
+        const brands = get().brands;
+        // Try to match by _id (MongoDB) or id (transformed)
+        return brands.find((brand) => 
+          brand.id === id || 
+          brand.id === String(id) || 
+          brand._id === id ||
+          brand._id === String(id)
+        );
       },
 
-      // Create brand
-      createBrand: (brandData) => {
-        set({ isLoading: true });
-        try {
-          const brands = get().brands;
-          const newId = brands.length > 0
-            ? Math.max(...brands.map((b) => b.id)) + 1
-            : 1;
-
-          const newBrand = {
-            id: newId,
-            name: brandData.name,
-            logo: brandData.logo || '',
-            description: brandData.description || '',
-            website: brandData.website || '',
-            isActive: brandData.isActive !== undefined ? brandData.isActive : true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-
-          const updatedBrands = [...brands, newBrand];
-          set({ brands: updatedBrands, isLoading: false });
-          localStorage.setItem('admin-brands', JSON.stringify(updatedBrands));
-          toast.success('Brand created successfully');
-          return newBrand;
-        } catch (error) {
-          set({ isLoading: false });
-          toast.error('Failed to create brand');
-          throw error;
-        }
+      // Refresh brands from API (force refresh, bypass cache)
+      refreshBrands: async () => {
+        set({ lastFetched: null });
+        return await get().fetchBrands(true);
       },
 
-      // Update brand
-      updateBrand: (id, brandData) => {
-        set({ isLoading: true });
-        try {
-          const brands = get().brands;
-          const updatedBrands = brands.map((brand) =>
-            brand.id === parseInt(id)
-              ? { ...brand, ...brandData, updatedAt: new Date().toISOString() }
-              : brand
-          );
-          set({ brands: updatedBrands, isLoading: false });
-          localStorage.setItem('admin-brands', JSON.stringify(updatedBrands));
-          toast.success('Brand updated successfully');
-          return updatedBrands.find((brand) => brand.id === parseInt(id));
-        } catch (error) {
-          set({ isLoading: false });
-          toast.error('Failed to update brand');
-          throw error;
-        }
-      },
-
-      // Delete brand
-      deleteBrand: (id) => {
-        set({ isLoading: true });
-        try {
-          const brands = get().brands;
-          const updatedBrands = brands.filter((brand) => brand.id !== parseInt(id));
-          set({ brands: updatedBrands, isLoading: false });
-          localStorage.setItem('admin-brands', JSON.stringify(updatedBrands));
-          toast.success('Brand deleted successfully');
-          return true;
-        } catch (error) {
-          set({ isLoading: false });
-          toast.error('Failed to delete brand');
-          throw error;
-        }
-      },
-
-      // Bulk delete brands
-      bulkDeleteBrands: (ids) => {
-        set({ isLoading: true });
-        try {
-          const brands = get().brands;
-          const updatedBrands = brands.filter(
-            (brand) => !ids.includes(brand.id)
-          );
-          set({ brands: updatedBrands, isLoading: false });
-          localStorage.setItem('admin-brands', JSON.stringify(updatedBrands));
-          toast.success(`${ids.length} brands deleted successfully`);
-          return true;
-        } catch (error) {
-          set({ isLoading: false });
-          toast.error('Failed to delete brands');
-          throw error;
-        }
-      },
-
-      // Toggle brand status
-      toggleBrandStatus: (id) => {
-        const brand = get().getBrandById(id);
-        if (brand) {
-          get().updateBrand(id, { isActive: !brand.isActive });
-        }
+      // Invalidate cache (for immediate refresh on next fetch)
+      invalidateCache: () => {
+        set({ lastFetched: null });
       },
     }),
     {

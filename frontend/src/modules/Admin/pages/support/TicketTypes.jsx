@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,34 +6,74 @@ import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
 
 const TicketTypes = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const [ticketTypes, setTicketTypes] = useState([
-    { id: 1, name: 'Technical Support', description: 'Technical issues and bugs', status: 'active' },
-    { id: 2, name: 'Billing Inquiry', description: 'Payment and billing questions', status: 'active' },
-    { id: 3, name: 'Product Inquiry', description: 'Questions about products', status: 'active' },
-  ]);
+  const [ticketTypes, setTicketTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editingType, setEditingType] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
-  const handleSave = (typeData) => {
-    if (editingType && editingType.id) {
-      setTicketTypes(ticketTypes.map((t) => (t.id === editingType.id ? { ...typeData, id: editingType.id } : t)));
-      toast.success('Ticket type updated');
-    } else {
-      const newId = ticketTypes.length > 0 ? Math.max(...ticketTypes.map(t => t.id)) + 1 : 1;
-      setTicketTypes([...ticketTypes, { ...typeData, id: newId }]);
-      toast.success('Ticket type added');
+  useEffect(() => {
+    fetchTicketTypes();
+  }, []);
+
+  const fetchTicketTypes = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/admin/support/ticket-types');
+      if (response.success && response.data?.ticketTypes) {
+        const transformed = response.data.ticketTypes.map((type) => ({
+          id: type._id || type.id,
+          name: type.name,
+          description: type.description || '',
+          status: type.status,
+        }));
+        setTicketTypes(transformed);
+      }
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setLoading(false);
     }
-    setEditingType(null);
   };
 
-  const handleDelete = () => {
-    setTicketTypes(ticketTypes.filter((t) => t.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success('Ticket type deleted');
+  const handleSave = async (typeData) => {
+    try {
+      if (editingType && editingType.id) {
+        // Update existing
+        const response = await api.put(`/admin/support/ticket-types/${editingType.id}`, typeData);
+        if (response.success) {
+          toast.success('Ticket type updated');
+          await fetchTicketTypes();
+        }
+      } else {
+        // Create new
+        const response = await api.post('/admin/support/ticket-types', typeData);
+        if (response.success) {
+          toast.success('Ticket type added');
+          await fetchTicketTypes();
+        }
+      }
+      setEditingType(null);
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await api.delete(`/admin/support/ticket-types/${deleteModal.id}`);
+      if (response.success) {
+        toast.success('Ticket type deleted');
+        await fetchTicketTypes();
+      }
+      setDeleteModal({ isOpen: false, id: null });
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    }
   };
 
   const columns = [
@@ -104,12 +144,18 @@ const TicketTypes = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={ticketTypes}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-gray-500">Loading ticket types...</div>
+          </div>
+        ) : (
+          <DataTable
+            data={ticketTypes}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       <AnimatePresence>

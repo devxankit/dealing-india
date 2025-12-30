@@ -19,36 +19,29 @@ const ViewCustomers = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
   useEffect(() => {
-    initialize();
-  }, []);
+    const fetchCustomers = async () => {
+      const result = await initialize({
+        search: searchQuery,
+        status: selectedStatus,
+        page: currentPage,
+        limit: itemsPerPage,
+      });
+      if (result) {
+        setTotalPages(result.totalPages || 1);
+        setTotalItems(result.total || 0);
+      }
+    };
+    fetchCustomers();
+  }, [searchQuery, selectedStatus, currentPage]);
 
-  const filteredCustomers = useMemo(() => {
-    return customers.filter((customer) => {
-      const matchesSearch =
-        !searchQuery ||
-        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (customer.phone && customer.phone.includes(searchQuery));
+  const filteredCustomers = customers;
 
-      const matchesStatus =
-        selectedStatus === 'all' ||
-        (selectedStatus === 'active' && customer.status === 'active') ||
-        (selectedStatus === 'blocked' && customer.status === 'blocked');
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [customers, searchQuery, selectedStatus]);
-
-  // Pagination for grid view
-  const paginatedCustomers = useMemo(() => {
-    if (viewMode !== 'grid') return filteredCustomers;
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredCustomers.slice(startIndex, endIndex);
-  }, [filteredCustomers, currentPage, itemsPerPage, viewMode]);
-
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+  // Pagination for grid view - data already paginated from API
+  const paginatedCustomers = filteredCustomers;
 
   // Reset page when filters change
   useEffect(() => {
@@ -209,7 +202,7 @@ const ViewCustomers = () => {
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={filteredCustomers.length}
+              totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
               className="mt-6"
@@ -229,8 +222,13 @@ const ViewCustomers = () => {
         <CustomerDetail
           customer={selectedCustomer}
           onClose={handleCloseDetail}
-          onUpdate={() => {
-            initialize();
+          onUpdate={async () => {
+            await initialize({
+              search: searchQuery,
+              status: selectedStatus,
+              page: currentPage,
+              limit: itemsPerPage,
+            });
           }}
         />
       )}

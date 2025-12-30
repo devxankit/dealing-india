@@ -14,16 +14,25 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
     location.pathname === '/app/register' ||
     location.pathname === '/app/verification';
 
-  // Always show bottom nav on /app routes, except auth pages
-  const shouldShowBottomNav = location.pathname.startsWith('/app') && !isAuthPage ? true : (showBottomNav && !isAuthPage);
-  // Hide header on categories, search, wishlist, profile, and auth pages
+  // Always show bottom nav on /app routes, except auth pages, unless explicitly disabled
+  const shouldShowBottomNav = location.pathname.startsWith('/app') && !isAuthPage ? showBottomNav : (showBottomNav && !isAuthPage);
+  // Hide header on categories, search, wishlist, profile, checkout, and auth pages
   const shouldShowHeader = !isAuthPage &&
     location.pathname !== '/app/categories' &&
     location.pathname !== '/app/search' &&
     location.pathname !== '/app/wishlist' &&
     location.pathname !== '/app/profile' &&
     location.pathname !== '/app/reels' &&
-    location.pathname !== '/app/mega-reward';
+    location.pathname !== '/app/mega-reward' &&
+    location.pathname !== '/app/checkout' &&
+    location.pathname !== '/app/help' &&
+    location.pathname !== '/app/settings' &&
+    !location.pathname.startsWith('/app/change-password') &&
+    !location.pathname.startsWith('/app/terms') &&
+    !location.pathname.startsWith('/app/privacy') &&
+    !location.pathname.startsWith('/app/about') &&
+    !location.pathname.startsWith('/app/notifications') &&
+    !location.pathname.startsWith('/app/wallet');
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {
@@ -37,7 +46,7 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
     <>
       {shouldShowHeader && <MobileHeader />}
       <main
-        className={`min-h-screen w-full overflow-x-hidden ${shouldShowBottomNav ? 'pb-20' : ''} ${showCartBar ? 'pb-24' : ''}`}
+        className={`min-h-screen w-full overflow-x-hidden transition-all duration-300 ease-in-out ${shouldShowBottomNav ? 'pb-20' : ''} ${showCartBar ? 'pb-24' : ''}`}
         style={{ paddingTop: shouldShowHeader ? `${headerHeight}px` : '0px' }}
       >
         {children}
@@ -50,4 +59,3 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
 };
 
 export default MobileLayout;
-

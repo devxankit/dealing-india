@@ -6,59 +6,36 @@ import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { formatDateTime } from "../../utils/adminHelpers";
-import { mockOrders } from "../../../../data/adminMockData";
+import api from "../../../../shared/utils/api";
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Generate transactions from orders
-    const generatedTransactions = mockOrders.flatMap((order) => [
-      {
-        id: `TXN-${order.id}-1`,
-        orderId: order.id,
-        customerName: order.customer.name,
-        customerEmail: order.customer.email,
-        amount: order.total,
-        type: "payment",
-        status: order.status === "cancelled" ? "failed" : "completed",
-        method: "Credit Card",
-        date: order.date,
-      },
-      ...(order.status === "cancelled"
-        ? [
-            {
-              id: `TXN-${order.id}-2`,
-              orderId: order.id,
-              customerName: order.customer.name,
-              customerEmail: order.customer.email,
-              amount: order.total,
-              type: "refund",
-              status: "completed",
-              method: "Original Payment Method",
-              date: new Date(
-                new Date(order.date).getTime() + 86400000
-              ).toISOString(),
-            },
-          ]
-        : []),
-    ]);
-    setTransactions(generatedTransactions);
-  }, []);
+    fetchTransactions();
+  }, [searchQuery, statusFilter]);
 
-  const filteredTransactions = transactions.filter((txn) => {
-    const matchesSearch =
-      !searchQuery ||
-      txn.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      txn.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      txn.customerEmail.toLowerCase().includes(searchQuery.toLowerCase());
+  const fetchTransactions = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get("/admin/customers/transactions", {
+        params: { search: searchQuery, status: statusFilter },
+      });
+      if (response.success && response.data?.transactions) {
+        setTransactions(response.data.transactions);
+      }
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const matchesStatus = statusFilter === "all" || txn.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
+  // Transactions are already filtered by backend, but we can do client-side filtering if needed
+  const filteredTransactions = transactions;
 
   const columns = [
     {
@@ -215,12 +192,22 @@ const Transactions = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={filteredTransactions}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading transactions...</p>
+          </div>
+        ) : filteredTransactions.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No transactions found</p>
+          </div>
+        ) : (
+          <DataTable
+            data={filteredTransactions}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
     </motion.div>
   );

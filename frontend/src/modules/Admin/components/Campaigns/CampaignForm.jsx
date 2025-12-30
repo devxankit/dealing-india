@@ -18,8 +18,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useCampaignStore } from "../../../../shared/store/campaignStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
-import { products as initialProducts } from "../../../../data/products";
 import { generateSlug } from "../../../../shared/store/campaignStore";
+import api from "../../../../shared/utils/api";
 import { createCampaignBanner } from "@modules/Admin/utils/campaignHelpers";
 import AnimatedSelect from "../AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
@@ -62,10 +62,8 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
     },
   });
 
-  const [products] = useState(() => {
-    const savedProducts = localStorage.getItem("admin-products");
-    return savedProducts ? JSON.parse(savedProducts) : initialProducts;
-  });
+  const [products, setProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
   // Product selection filters
   const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -84,11 +82,47 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
   } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
 
-  // Initialize stores
+  // Initialize stores and fetch products
   useEffect(() => {
     initCategories();
     initBrands();
+    fetchProducts();
   }, [initCategories, initBrands]);
+
+  // Fetch products from API
+  const fetchProducts = async () => {
+    setIsLoadingProducts(true);
+    try {
+      const response = await api.get("/admin/products", {
+        params: {
+          limit: 1000, // Get all products for selection
+          sortBy: "name",
+          sortOrder: "asc",
+        },
+      });
+      
+      if (response.success && response.data && response.data.products) {
+        // Transform products to match expected format
+        const transformedProducts = response.data.products.map((product) => ({
+          id: product._id || product.id,
+          name: product.name,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          image: product.images && product.images.length > 0 ? product.images[0] : product.image || "https://via.placeholder.com/200?text=Product",
+          categoryId: product.categoryId?._id || product.categoryId?.id || product.categoryId,
+          brandId: product.brandId?._id || product.brandId?.id || product.brandId,
+          stock: product.stock || "in_stock",
+        }));
+        setProducts(transformedProducts);
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      toast.error("Failed to load products");
+      setProducts([]);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
 
   // Generate slug from name
   const generatedSlug = useMemo(() => {
@@ -248,18 +282,20 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
       const allCategoryIds = [
         parentCategoryId,
         ...subcategories.map((cat) => cat.id),
-      ];
+      ].map(id => id?.toString());
 
-      filtered = filtered.filter((product) =>
-        allCategoryIds.includes(product.categoryId)
-      );
+      filtered = filtered.filter((product) => {
+        const productCategoryId = product.categoryId?.toString() || product.categoryId?.toString();
+        return allCategoryIds.includes(productCategoryId);
+      });
     }
 
     // Brand filter
     if (selectedProductBrand !== "all") {
-      filtered = filtered.filter(
-        (product) => product.brandId === parseInt(selectedProductBrand)
-      );
+      filtered = filtered.filter((product) => {
+        const productBrandId = product.brandId?.toString() || product.brandId;
+        return productBrandId === selectedProductBrand;
+      });
     }
 
     // Stock filter
@@ -364,22 +400,16 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({
-          ...formData,
-          bannerConfig: {
-            ...formData.bannerConfig,
-            image: reader.result, // Base64 data URL
-            customImage: true, // Flag to indicate custom image
-          },
-        });
-        toast.success("Banner image uploaded successfully");
-      };
-      reader.onerror = () => {
-        toast.error("Error reading image file");
-      };
-      reader.readAsDataURL(file);
+      // Store File object directly for multipart upload
+      setFormData({
+        ...formData,
+        bannerConfig: {
+          ...formData.bannerConfig,
+          image: file, // File object for multipart upload
+          customImage: true, // Flag to indicate custom image
+        },
+      });
+      toast.success("Banner image selected");
     }
   };
 
@@ -817,10 +847,19 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
 
                 {/* Products List */}
                 <div className="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto scrollbar-admin">
-                  {filteredProducts.length === 0 ? (
+                  {isLoadingProducts ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                      <p className="text-gray-500">Loading products...</p>
+                    </div>
+                  ) : filteredProducts.length === 0 ? (
                     <div className="text-center py-8">
                       <FiSearch className="text-4xl text-gray-300 mx-auto mb-2" />
-                      <p className="text-gray-500">No products found</p>
+                      <p className="text-gray-500">
+                        {products.length === 0 
+                          ? "No products available. Please add products first."
+                          : "No products found"}
+                      </p>
                       {(productSearchQuery ||
                         selectedProductCategory !== "all" ||
                         selectedProductBrand !== "all" ||
@@ -1179,7 +1218,11 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                                 <div className="mt-3">
                                   <div className="relative inline-block">
                                     <img
-                                      src={formData.bannerConfig.image}
+                                      src={
+                                        formData.bannerConfig.image instanceof File
+                                          ? URL.createObjectURL(formData.bannerConfig.image)
+                                          : formData.bannerConfig.image
+                                      }
                                       alt="Banner preview"
                                       className="w-full max-w-xs h-32 object-cover rounded-lg border border-gray-200"
                                       onError={(e) => {

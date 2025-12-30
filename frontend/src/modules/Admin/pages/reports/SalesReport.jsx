@@ -1,28 +1,50 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { FiDownload, FiCalendar, FiTrendingUp } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import ExportButton from '../../components/ExportButton';
 import { formatPrice } from '../../../../shared/utils/helpers';
-import { mockOrders } from '../../../../data/adminMockData';
+import { formatDateTime } from '../../utils/adminHelpers';
+import api from '../../../../shared/utils/api';
 
 const SalesReport = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [orders] = useState(mockOrders);
+  const [orders, setOrders] = useState([]);
+  const [summary, setSummary] = useState({
+    totalSales: 0,
+    totalOrders: 0,
+    averageOrderValue: 0,
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredOrders = useMemo(() => {
-    if (!dateRange.start && !dateRange.end) return orders;
-    return orders.filter((order) => {
-      const orderDate = new Date(order.date);
-      const start = dateRange.start ? new Date(dateRange.start) : null;
-      const end = dateRange.end ? new Date(dateRange.end) : null;
-      return (!start || orderDate >= start) && (!end || orderDate <= end);
-    });
-  }, [orders, dateRange]);
+  useEffect(() => {
+    fetchSalesReport();
+  }, [dateRange.start, dateRange.end]);
 
-  const totalSales = filteredOrders.reduce((sum, order) => sum + order.total, 0);
-  const totalOrders = filteredOrders.length;
-  const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+  const fetchSalesReport = async () => {
+    setIsLoading(true);
+    try {
+      const params = {};
+      if (dateRange.start) params.startDate = dateRange.start;
+      if (dateRange.end) params.endDate = dateRange.end;
+
+      const response = await api.get('/admin/reports/sales', { params });
+      if (response.success && response.data) {
+        setOrders(response.data.orders || []);
+        setSummary(response.data.summary || {
+          totalSales: 0,
+          totalOrders: 0,
+          averageOrderValue: 0,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch sales report:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const { totalSales, totalOrders, averageOrderValue } = summary;
 
   const columns = [
     {
@@ -35,7 +57,12 @@ const SalesReport = () => {
       key: 'customer',
       label: 'Customer',
       sortable: true,
-      render: (value) => value.name,
+      render: (value, row) => (
+        <div>
+          <p className="font-medium text-gray-800">{value?.name || row.customer?.name || ''}</p>
+          <p className="text-xs text-gray-500">{value?.email || row.customer?.email || ''}</p>
+        </div>
+      ),
     },
     {
       key: 'date',
@@ -123,10 +150,10 @@ const SalesReport = () => {
           </div>
           <div className="flex items-end">
             <ExportButton
-              data={filteredOrders}
+              data={orders}
               headers={[
                 { label: 'Order ID', accessor: (row) => row.id },
-                { label: 'Customer', accessor: (row) => row.customer.name },
+                { label: 'Customer', accessor: (row) => row.customer?.name || '' },
                 { label: 'Date', accessor: (row) => formatDateTime(row.date) },
                 { label: 'Amount', accessor: (row) => formatPrice(row.total) },
                 { label: 'Status', accessor: (row) => row.status },
@@ -138,12 +165,22 @@ const SalesReport = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={filteredOrders}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Loading sales report...</p>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No orders found for the selected date range</p>
+          </div>
+        ) : (
+          <DataTable
+            data={orders}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
     </motion.div>
   );

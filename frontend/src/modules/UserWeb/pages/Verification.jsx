@@ -4,6 +4,7 @@ import { FiArrowLeft, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const Verification = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ const Verification = () => {
   const [codes, setCodes] = useState(['', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef([]);
+  const { verifyEmail, resendOTP } = useAuthStore();
   
   const email = location.state?.email || 'your email';
 
@@ -61,21 +63,41 @@ const Verification = () => {
       return;
     }
 
+    if (!email || email === 'your email') {
+      toast.error('Email not found. Please register again.');
+      navigate('/register');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success('Verification successful!');
-      navigate('/');
+      const result = await verifyEmail(email, verificationCode);
+      if (result.success) {
+        toast.success(result.message || 'Verification successful!');
+        navigate('/');
+      }
     } catch (error) {
-      toast.error('Invalid verification code. Please try again.');
+      // Error toast is already shown by API interceptor
+      // Don't show duplicate error message
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResend = () => {
-    toast.success('Verification code sent to your email');
+  const handleResend = async () => {
+    if (!email || email === 'your email') {
+      toast.error('Email not found. Please register again.');
+      return;
+    }
+
+    try {
+      const result = await resendOTP(email);
+      if (result.success) {
+        toast.success(result.message || 'Verification code sent to your email');
+      }
+    } catch (error) {
+      // Error toast is already shown by API interceptor
+    }
   };
 
   return (
