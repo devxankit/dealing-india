@@ -183,7 +183,7 @@ import VendorAnalytics from "./modules/Vendor/pages/Analytics";
 import VendorEarnings from "./modules/Vendor/pages/Earnings";
 import VendorSettings from "./modules/Vendor/pages/Settings";
 import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
-import VendorWalletHistory from "./modules/Vendor/pages/WalletHistory";
+
 import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
 import VendorChat from "./modules/Vendor/pages/Chat";
 import VendorReturnRequests from "./modules/Vendor/pages/ReturnRequests";
@@ -589,10 +589,7 @@ const AppRoutes = () => {
           <Route path="stock-management/in-stock" element={<VendorStockManagement />} />
           <Route path="stock-management/low-stock" element={<VendorStockManagement />} />
           <Route path="stock-management/out-of-stock" element={<VendorStockManagement />} />
-          <Route path="wallet-history" element={<VendorWalletHistory />} />
-          <Route path="wallet-history/all-transactions" element={<VendorWalletHistory />} />
-          <Route path="wallet-history/pending-payment" element={<VendorWalletHistory />} />
-          <Route path="wallet-history/paid-payment" element={<VendorWalletHistory />} />
+
           <Route path="pickup-locations" element={<VendorPickupLocations />} />
           <Route path="chat" element={<VendorChat />} />
           <Route path="return-requests" element={<VendorReturnRequests />} />

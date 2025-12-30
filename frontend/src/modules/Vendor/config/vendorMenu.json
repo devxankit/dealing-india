@@ -57,15 +57,6 @@
     ]
   },
   {
-    "title": "Wallet History",
-    "route": "/vendor/wallet-history",
-    "children": [
-      "All transactions",
-      "Pending payment",
-      "Paid payment"
-    ]
-  },
-  {
     "title": "Pickup Locations",
     "route": "/vendor/pickup-locations",
     "children": []

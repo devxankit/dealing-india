@@ -33,7 +33,7 @@ const categoryGradients = {
 const MobileHeader = () => {
   const { getCategoryById, initialize } = useCategoryStore();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  
+
   // Initialize categories on mount
   useEffect(() => {
     initialize();
@@ -130,12 +130,12 @@ const MobileHeader = () => {
     // Category pages - use headerColor if available, otherwise fallback to old mapping
     if (currentCategoryId) {
       const category = getCategoryById(currentCategoryId);
-      
+
       // If category has headerColor, use it
       if (category?.headerColor && headerColorGradients[category.headerColor]) {
         return headerColorGradients[category.headerColor];
       }
-      
+
       // Fallback to old category ID mapping
       return (
         fallbackGradientMap[currentCategoryId] ||
@@ -250,6 +250,10 @@ const MobileHeader = () => {
 
         // Only set positions if they're valid and animation hasn't played yet
         if (
+          Number.isFinite(positions.startX) &&
+          Number.isFinite(positions.endX) &&
+          Number.isFinite(positions.startY) &&
+          Number.isFinite(positions.endY) &&
           positions.startX > 0 &&
           positions.endX > 0 &&
           positions.startY > 0 &&

@@ -12,7 +12,7 @@ import {
   FiChevronDown,
   FiX,
   FiTrendingDown,
-  FiCreditCard,
+
   FiMapPin,
   FiMessageCircle,
   FiRefreshCw,
@@ -39,7 +39,7 @@ const iconMap = {
   "Return Requests": FiRefreshCw,
   "Product Reviews": FiStar,
   "Stock Management": FiTrendingDown,
-  "Wallet History": FiCreditCard,
+
   "Pickup Locations": FiMapPin,
   Chat: FiMessageCircle,
   Reels: FiVideo,
@@ -91,11 +91,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Low stock": "/vendor/stock-management/low-stock",
       "Out of stock": "/vendor/stock-management/out-of-stock",
     },
-    "/vendor/wallet-history": {
-      "All transactions": "/vendor/wallet-history/all-transactions",
-      "Pending payment": "/vendor/wallet-history/pending-payment",
-      "Paid payment": "/vendor/wallet-history/paid-payment",
-    },
+
     "/vendor/settings": {
       "Store Settings": "/vendor/settings/store",
       "Payment Settings": "/vendor/settings/payment",
