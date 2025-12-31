@@ -150,6 +150,19 @@ const MobileProductDetail = () => {
 
   const currentPrice = useMemo(() => {
     if (!product) return 0;
+    
+    // New colorVariants structure
+    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+      const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
+      if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
+        const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
+        if (sizeVariant.price !== null && sizeVariant.price !== undefined) {
+          return sizeVariant.price;
+        }
+      }
+    }
+    
+    // Legacy structure support
     if (selectedVariant && product.variants?.prices) {
       if (
         selectedVariant.size &&
@@ -204,13 +217,39 @@ const MobileProductDetail = () => {
   }
 
   const handleAddToCart = () => {
-    if (product.stock === "out_of_stock") {
+    // Check stock for new colorVariants structure
+    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+      const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
+      if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
+        const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
+        if (sizeVariant.stockQuantity === 0 || sizeVariant.stockStatus === 'out_of_stock') {
+          toast.error("This variation is out of stock");
+          return;
+        }
+        if (quantity > sizeVariant.stockQuantity) {
+          toast.error(`Only ${sizeVariant.stockQuantity} items available for this variation`);
+          return;
+        }
+      }
+    } else if (product.stock === "out_of_stock") {
       toast.error("Product is out of stock");
       return;
     }
 
     let finalPrice = product.price;
-    if (selectedVariant && product.variants?.prices) {
+    
+    // New colorVariants structure
+    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+      const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
+      if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
+        const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
+        if (sizeVariant.price !== null && sizeVariant.price !== undefined) {
+          finalPrice = sizeVariant.price;
+        }
+      }
+    }
+    // Legacy structure support
+    else if (selectedVariant && product.variants?.prices) {
       if (
         selectedVariant.size &&
         product.variants.prices[selectedVariant.size]
@@ -251,7 +290,17 @@ const MobileProductDetail = () => {
 
   const handleQuantityChange = (change) => {
     const newQuantity = quantity + change;
-    if (newQuantity >= 1 && newQuantity <= (product?.stockQuantity || 10)) {
+    
+    // Get max quantity based on selected variant
+    let maxQuantity = product?.stockQuantity || 10;
+    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+      const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
+      if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
+        maxQuantity = colorVariant.sizeVariants[selectedVariant.sizeIndex].stockQuantity;
+      }
+    }
+    
+    if (newQuantity >= 1 && newQuantity <= maxQuantity) {
       setQuantity(newQuantity);
     }
   };

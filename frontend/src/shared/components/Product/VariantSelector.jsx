@@ -4,11 +4,26 @@ import { formatPrice } from '../../utils/helpers';
 
 const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
   const [selectedVariant, setSelectedVariant] = useState(null);
+  const [selectedColorIndex, setSelectedColorIndex] = useState(null);
 
   useEffect(() => {
     // Initialize with default variant or first available
     if (variants) {
-      if (variants.defaultVariant) {
+      // New colorVariants structure
+      if (variants.colorVariants && variants.colorVariants.length > 0) {
+        const firstColor = variants.colorVariants[0];
+        if (firstColor.sizeVariants && firstColor.sizeVariants.length > 0) {
+          setSelectedColorIndex(0);
+          setSelectedVariant({
+            color: firstColor.colorName,
+            colorIndex: 0,
+            size: firstColor.sizeVariants[0].size,
+            sizeIndex: 0,
+          });
+        }
+      }
+      // Legacy structure support
+      else if (variants.defaultVariant) {
         setSelectedVariant(variants.defaultVariant);
       } else if (variants.sizes && variants.sizes.length > 0) {
         setSelectedVariant({ size: variants.sizes[0] });
@@ -24,36 +39,104 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
     }
   }, [selectedVariant, onVariantChange]);
 
-  if (!variants || (!variants.sizes && !variants.colors)) {
+  // Check if new colorVariants structure exists
+  const hasColorVariants = variants?.colorVariants && variants.colorVariants.length > 0;
+
+  if (!variants || (!hasColorVariants && !variants.sizes && !variants.colors)) {
     return null;
   }
 
-  const handleSizeSelect = (size) => {
-    setSelectedVariant((prev) => ({
-      ...prev,
-      size,
-    }));
+  const handleColorSelect = (colorIndexOrColor) => {
+    // New colorVariants structure
+    if (typeof colorIndexOrColor === 'number' && variants.colorVariants) {
+      const colorIndex = colorIndexOrColor;
+      const colorVariant = variants.colorVariants[colorIndex];
+      setSelectedColorIndex(colorIndex);
+      
+      // Auto-select first available size for the color
+      if (colorVariant.sizeVariants && colorVariant.sizeVariants.length > 0) {
+        const firstAvailableSize = colorVariant.sizeVariants.find(
+          (sv) => sv.stockQuantity > 0
+        ) || colorVariant.sizeVariants[0];
+        
+        setSelectedVariant({
+          color: colorVariant.colorName,
+          colorIndex,
+          size: firstAvailableSize.size,
+          sizeIndex: colorVariant.sizeVariants.indexOf(firstAvailableSize),
+        });
+      } else {
+        setSelectedVariant({
+          color: colorVariant.colorName,
+          colorIndex,
+        });
+      }
+    } else {
+      // Legacy color selection
+      setSelectedVariant((prev) => ({
+        ...prev,
+        color: colorIndexOrColor,
+      }));
+    }
   };
 
-  const handleColorSelect = (color) => {
-    setSelectedVariant((prev) => ({
-      ...prev,
-      color,
-    }));
+  const handleSizeSelect = (sizeIndex) => {
+    if (selectedColorIndex !== null) {
+      const colorVariant = variants.colorVariants[selectedColorIndex];
+      const sizeVariant = colorVariant.sizeVariants[sizeIndex];
+      
+      setSelectedVariant({
+        color: colorVariant.colorName,
+        colorIndex: selectedColorIndex,
+        size: sizeVariant.size,
+        sizeIndex,
+      });
+    } else {
+      // Legacy size selection
+      setSelectedVariant((prev) => ({
+        ...prev,
+        size: variants.sizes[sizeIndex],
+      }));
+    }
   };
 
   const getVariantPrice = () => {
-    if (!variants.prices || !selectedVariant) return currentPrice;
+    if (!selectedVariant) return currentPrice;
+
+    // New colorVariants structure
+    if (selectedColorIndex !== null && selectedVariant.sizeIndex !== undefined) {
+      const colorVariant = variants.colorVariants[selectedColorIndex];
+      const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
+      if (sizeVariant && sizeVariant.price !== null && sizeVariant.price !== undefined) {
+        return sizeVariant.price;
+      }
+    }
+
+    // Legacy structure
+    if (variants.prices) {
+      if (selectedVariant.size && variants.prices[selectedVariant.size]) {
+        return variants.prices[selectedVariant.size];
+      }
+      if (selectedVariant.color && variants.prices[selectedVariant.color]) {
+        return variants.prices[selectedVariant.color];
+      }
+    }
     
-    if (selectedVariant.size && variants.prices[selectedVariant.size]) {
-      return variants.prices[selectedVariant.size];
-    }
-    if (selectedVariant.color && variants.prices[selectedVariant.color]) {
-      return variants.prices[selectedVariant.color];
-    }
     return currentPrice;
   };
 
+  const getSelectedSizeVariants = () => {
+    if (selectedColorIndex !== null && variants.colorVariants) {
+      return variants.colorVariants[selectedColorIndex].sizeVariants || [];
+    }
+    return [];
+  };
+
+  const isSizeAvailable = (sizeVariant) => {
+    return sizeVariant.stockQuantity > 0 && sizeVariant.stockStatus !== 'out_of_stock';
+  };
+
+  // Legacy support functions
   const isVariantAvailable = (variantType, value) => {
     if (!variants.stock) return true;
     const key = variantType === 'size' ? `size_${value}` : `color_${value}`;
@@ -62,21 +145,145 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
 
   return (
     <div className="space-y-6">
-      {/* Size Variants */}
-      {variants.sizes && variants.sizes.length > 0 && (
+      {/* New Color Variants Structure */}
+      {hasColorVariants && (
+        <>
+          {/* Color Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Color: <span className="font-normal text-gray-600">
+                {selectedVariant?.color || 'Select color'}
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-3">
+              {variants.colorVariants.map((colorVariant, index) => {
+                const isSelected = selectedColorIndex === index;
+                const hasStock = colorVariant.sizeVariants?.some(sv => sv.stockQuantity > 0);
+                
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleColorSelect(index)}
+                    disabled={!hasStock}
+                    className={`relative rounded-lg border-2 transition-all duration-300 overflow-hidden ${
+                      isSelected
+                        ? 'border-primary-600 scale-105 shadow-lg'
+                        : hasStock
+                        ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
+                        : 'border-gray-200 opacity-50 cursor-not-allowed'
+                    }`}
+                    title={colorVariant.colorName}
+                  >
+                    {colorVariant.thumbnailImage ? (
+                      <div className="w-16 h-16 relative">
+                        <img
+                          src={colorVariant.thumbnailImage}
+                          alt={colorVariant.colorName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                        <div
+                          className="w-full h-full hidden items-center justify-center text-xs font-semibold text-gray-700"
+                          style={
+                            colorVariant.colorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(colorVariant.colorCode)
+                              ? { backgroundColor: colorVariant.colorCode }
+                              : { backgroundColor: '#f3f4f6' }
+                          }
+                        >
+                          {colorVariant.colorName.charAt(0)}
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="w-16 h-16 flex items-center justify-center text-xs font-semibold text-gray-700"
+                        style={
+                          colorVariant.colorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(colorVariant.colorCode)
+                            ? { backgroundColor: colorVariant.colorCode }
+                            : { backgroundColor: '#f3f4f6' }
+                        }
+                      >
+                        {colorVariant.colorName.charAt(0)}
+                      </div>
+                    )}
+                    {isSelected && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
+                        <FiCheck className="text-white text-xs" />
+                      </span>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 text-center truncate">
+                      {colorVariant.colorName}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Size Selection (Dynamic based on selected color) */}
+          {selectedColorIndex !== null && getSelectedSizeVariants().length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Size: <span className="font-normal text-gray-600">
+                  {selectedVariant?.size || 'Select size'}
+                </span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {getSelectedSizeVariants().map((sizeVariant, index) => {
+                  const isSelected = selectedVariant?.sizeIndex === index;
+                  const isAvailable = isSizeAvailable(sizeVariant);
+                  
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleSizeSelect(index)}
+                      disabled={!isAvailable}
+                      className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${
+                        isSelected
+                          ? 'border-primary-600 bg-primary-50 text-primary-700'
+                          : isAvailable
+                          ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
+                          : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                      }`}
+                      title={`Stock: ${sizeVariant.stockQuantity}`}
+                    >
+                      {sizeVariant.size}
+                      {sizeVariant.stockQuantity <= 10 && sizeVariant.stockQuantity > 0 && (
+                        <span className="absolute -top-1 -left-1 text-xs bg-yellow-500 text-white px-1 rounded">
+                          Low
+                        </span>
+                      )}
+                      {isSelected && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
+                          <FiCheck className="text-white text-xs" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Legacy Size Variants */}
+      {!hasColorVariants && variants.sizes && variants.sizes.length > 0 && (
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
             Size: <span className="font-normal text-gray-600">{selectedVariant?.size || 'Select size'}</span>
           </label>
           <div className="flex flex-wrap gap-3">
-            {variants.sizes.map((size) => {
+            {variants.sizes.map((size, index) => {
               const isSelected = selectedVariant?.size === size;
               const isAvailable = isVariantAvailable('size', size);
               
               return (
                 <button
                   key={size}
-                  onClick={() => handleSizeSelect(size)}
+                  onClick={() => handleSizeSelect(index)}
                   disabled={!isAvailable}
                   className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${
                     isSelected
@@ -99,8 +306,8 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
         </div>
       )}
 
-      {/* Color Variants */}
-      {variants.colors && variants.colors.length > 0 && (
+      {/* Legacy Color Variants */}
+      {!hasColorVariants && variants.colors && variants.colors.length > 0 && (
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
             Color: <span className="font-normal text-gray-600">{selectedVariant?.color || 'Select color'}</span>

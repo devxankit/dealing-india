@@ -7,6 +7,14 @@ const productSchema = new mongoose.Schema(
       required: [true, 'Product name is required'],
       trim: true,
     },
+    sku: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true, // Allow multiple null values
+      uppercase: true,
+      maxlength: [100, 'SKU cannot exceed 100 characters'],
+    },
     description: {
       type: String,
       trim: true,
@@ -152,6 +160,7 @@ const productSchema = new mongoose.Schema(
       default: 0,
     },
     variants: {
+      // Legacy support - keep for backward compatibility
       sizes: {
         type: [String],
         default: [],
@@ -171,6 +180,65 @@ const productSchema = new mongoose.Schema(
       defaultVariant: {
         type: mongoose.Schema.Types.Mixed,
         default: {},
+      },
+      // New comprehensive variation structure
+      colorVariants: {
+        type: [
+          {
+            colorName: {
+              type: String,
+              required: true,
+              trim: true,
+            },
+            colorCode: {
+              type: String,
+              trim: true,
+              default: null, // Hex color code or color name
+            },
+            thumbnailImage: {
+              type: String,
+              default: null,
+            },
+            thumbnailImagePublicId: {
+              type: String,
+              default: null,
+            },
+            sizeVariants: {
+              type: [
+                {
+                  size: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                  },
+                  price: {
+                    type: Number,
+                    min: 0,
+                    default: null, // null means use base product price
+                  },
+                  originalPrice: {
+                    type: Number,
+                    min: 0,
+                    default: null,
+                  },
+                  stockQuantity: {
+                    type: Number,
+                    required: true,
+                    min: 0,
+                    default: 0,
+                  },
+                  stockStatus: {
+                    type: String,
+                    enum: ['in_stock', 'low_stock', 'out_of_stock'],
+                    default: 'in_stock',
+                  },
+                },
+              ],
+              default: [],
+            },
+          },
+        ],
+        default: [],
       },
     },
     tags: {
@@ -224,6 +292,7 @@ const productSchema = new mongoose.Schema(
 
 // Indexes
 productSchema.index({ name: 1 });
+productSchema.index({ sku: 1 });
 productSchema.index({ vendorId: 1, isActive: 1 });
 productSchema.index({ stock: 1, stockQuantity: 1 });
 productSchema.index({ categoryId: 1, isVisible: 1 });

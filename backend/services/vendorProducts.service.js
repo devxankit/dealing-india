@@ -141,6 +141,7 @@ export const createVendorProduct = async (productData, vendorId) => {
   try {
     const {
       name,
+      sku,
       unit,
       price,
       originalPrice,
@@ -177,6 +178,20 @@ export const createVendorProduct = async (productData, vendorId) => {
       const err = new Error('Name, price, and stock quantity are required');
       err.status = 400;
       throw err;
+    }
+
+    // Validate SKU uniqueness if provided
+    if (sku && sku.trim()) {
+      const existingProduct = await Product.findOne({ 
+        sku: sku.trim().toUpperCase(),
+        isActive: true,
+        _id: { $ne: vendorId } // Exclude current product if updating
+      });
+      if (existingProduct) {
+        const err = new Error('SKU already exists. Please use a unique SKU.');
+        err.status = 400;
+        throw err;
+      }
     }
 
     // Validate category exists
@@ -281,6 +296,140 @@ export const createVendorProduct = async (productData, vendorId) => {
       }
     }
 
+    // Process color variants if provided
+    let processedColorVariants = [];
+    if (variants && variants.colorVariants && Array.isArray(variants.colorVariants)) {
+      for (const colorVariant of variants.colorVariants) {
+        if (!colorVariant.colorName) {
+          continue; // Skip invalid color variants
+        }
+
+        // Upload thumbnail image if provided
+        let thumbnailImageUrl = null;
+        let thumbnailImagePublicId = null;
+        if (colorVariant.thumbnailImage) {
+          if (colorVariant.thumbnailImage.startsWith('data:') || colorVariant.thumbnailImage.startsWith('http')) {
+            const uploadResult = await uploadBase64ToCloudinary(colorVariant.thumbnailImage, 'products/variants');
+            thumbnailImageUrl = uploadResult.secure_url;
+            thumbnailImagePublicId = uploadResult.public_id;
+          } else {
+            thumbnailImageUrl = colorVariant.thumbnailImage;
+          }
+        }
+
+        // Process size variants for this color
+        const processedSizeVariants = [];
+        if (colorVariant.sizeVariants && Array.isArray(colorVariant.sizeVariants)) {
+          for (const sizeVariant of colorVariant.sizeVariants) {
+            if (!sizeVariant.size || sizeVariant.stockQuantity === undefined) {
+              continue; // Skip invalid size variants
+            }
+
+            // Calculate stock status for size variant
+            const sizeStockStatus = sizeVariant.stockQuantity === 0
+              ? 'out_of_stock'
+              : sizeVariant.stockQuantity <= 10
+                ? 'low_stock'
+                : 'in_stock';
+
+            processedSizeVariants.push({
+              size: sizeVariant.size.trim(),
+              price: sizeVariant.price !== undefined && sizeVariant.price !== null
+                ? parseFloat(sizeVariant.price)
+                : null,
+              originalPrice: sizeVariant.originalPrice !== undefined && sizeVariant.originalPrice !== null
+                ? parseFloat(sizeVariant.originalPrice)
+                : null,
+              stockQuantity: parseInt(sizeVariant.stockQuantity),
+              stockStatus: sizeVariant.stockStatus || sizeStockStatus,
+            });
+          }
+        }
+
+        processedColorVariants.push({
+          colorName: colorVariant.colorName.trim(),
+          colorCode: colorVariant.colorCode ? colorVariant.colorCode.trim() : null,
+          thumbnailImage: thumbnailImageUrl,
+          thumbnailImagePublicId: thumbnailImagePublicId,
+          sizeVariants: processedSizeVariants,
+        });
+      }
+    }
+
+    // Validate variation consistency
+    if (processedColorVariants.length > 0) {
+      // Ensure at least one color variant has at least one size variant
+      const hasValidVariants = processedColorVariants.some(cv => cv.sizeVariants.length > 0);
+      if (!hasValidVariants) {
+        const err = new Error('At least one color variant must have size variants');
+        err.status = 400;
+        throw err;
+      }
+
+      // Validate each color variant
+      for (const cv of processedColorVariants) {
+        if (!cv.colorName || cv.colorName.trim() === '') {
+          const err = new Error('All color variants must have a color name');
+          err.status = 400;
+          throw err;
+        }
+
+        // Validate size variants for this color
+        const sizeNames = new Set();
+        for (const sv of cv.sizeVariants) {
+          if (!sv.size || sv.size.trim() === '') {
+            const err = new Error(`Size variant for color "${cv.colorName}" must have a size name`);
+            err.status = 400;
+            throw err;
+          }
+
+          // Check for duplicate sizes
+          if (sizeNames.has(sv.size.trim())) {
+            const err = new Error(`Duplicate size "${sv.size}" found for color "${cv.colorName}"`);
+            err.status = 400;
+            throw err;
+          }
+          sizeNames.add(sv.size.trim());
+
+          // Validate pricing consistency
+          if (sv.price !== null && sv.price !== undefined) {
+            if (sv.price < 0) {
+              const err = new Error(`Price for size "${sv.size}" in color "${cv.colorName}" cannot be negative`);
+              err.status = 400;
+              throw err;
+            }
+            if (sv.originalPrice !== null && sv.originalPrice !== undefined) {
+              if (sv.originalPrice < sv.price) {
+                const err = new Error(`Original price for size "${sv.size}" in color "${cv.colorName}" must be greater than or equal to the sale price`);
+                err.status = 400;
+                throw err;
+              }
+            }
+          }
+
+          // Validate stock quantity
+          if (sv.stockQuantity < 0) {
+            const err = new Error(`Stock quantity for size "${sv.size}" in color "${cv.colorName}" cannot be negative`);
+            err.status = 400;
+            throw err;
+          }
+        }
+      }
+
+      // Calculate total stock quantity from all variants
+      let totalVariantStock = 0;
+      processedColorVariants.forEach(cv => {
+        cv.sizeVariants.forEach(sv => {
+          totalVariantStock += sv.stockQuantity;
+        });
+      });
+
+      // If variants are provided, use variant stock as base stock
+      if (stockQuantity === undefined || stockQuantity === null) {
+        stockQuantity = totalVariantStock;
+      }
+    }
+
     // Calculate stock status
     const stockStatus = stockQuantity === 0 
       ? 'out_of_stock' 
@@ -296,6 +445,7 @@ export const createVendorProduct = async (productData, vendorId) => {
     // Create product
     const product = await Product.create({
       name: name.trim(),
+      sku: sku && sku.trim() ? sku.trim().toUpperCase() : null,
       unit: unit || '',
       price: parseFloat(price),
       originalPrice: originalPrice ? parseFloat(originalPrice) : null,
@@ -322,12 +472,15 @@ export const createVendorProduct = async (productData, vendorId) => {
       returnable: returnable !== undefined ? returnable : true,
       cancelable: cancelable !== undefined ? cancelable : true,
       taxIncluded: taxIncluded || false,
-      variants: variants || {
-        sizes: [],
-        colors: [],
-        materials: [],
-        prices: {},
-        defaultVariant: {},
+      variants: {
+        ...(variants || {
+          sizes: [],
+          colors: [],
+          materials: [],
+          prices: {},
+          defaultVariant: {},
+        }),
+        ...(processedColorVariants.length > 0 && { colorVariants: processedColorVariants }),
       },
       tags: tags || [],
       attributes: processedAttributes,
@@ -370,6 +523,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
 
     const {
       name,
+      sku,
       unit,
       price,
       originalPrice,
@@ -435,6 +589,20 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         throw err;
       }
       validatedBrandId = brand._id;
+    }
+
+    // Validate SKU uniqueness if provided
+    if (sku !== undefined && sku && sku.trim()) {
+      const existingProduct = await Product.findOne({ 
+        sku: sku.trim().toUpperCase(),
+        isActive: true,
+        _id: { $ne: productId }
+      });
+      if (existingProduct) {
+        const err = new Error('SKU already exists. Please use a unique SKU.');
+        err.status = 400;
+        throw err;
+      }
     }
 
     // Validate and process attributes if provided
@@ -540,6 +708,138 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       }
     }
 
+    // Process color variants if provided
+    let processedColorVariants = existingProduct.variants?.colorVariants || [];
+    if (variants !== undefined && variants.colorVariants !== undefined) {
+      // Delete old variant thumbnail images
+      if (existingProduct.variants?.colorVariants) {
+        for (const oldCv of existingProduct.variants.colorVariants) {
+          if (oldCv.thumbnailImagePublicId) {
+            await deleteFromCloudinary(oldCv.thumbnailImagePublicId);
+          }
+        }
+      }
+
+      processedColorVariants = [];
+      if (Array.isArray(variants.colorVariants)) {
+        for (const colorVariant of variants.colorVariants) {
+          if (!colorVariant.colorName) {
+            continue; // Skip invalid color variants
+          }
+
+          // Upload thumbnail image if provided
+          let thumbnailImageUrl = null;
+          let thumbnailImagePublicId = null;
+          if (colorVariant.thumbnailImage) {
+            if (colorVariant.thumbnailImage.startsWith('data:') || colorVariant.thumbnailImage.startsWith('http')) {
+              const uploadResult = await uploadBase64ToCloudinary(colorVariant.thumbnailImage, 'products/variants');
+              thumbnailImageUrl = uploadResult.secure_url;
+              thumbnailImagePublicId = uploadResult.public_id;
+            } else {
+              thumbnailImageUrl = colorVariant.thumbnailImage;
+            }
+          }
+
+          // Process size variants for this color
+          const processedSizeVariants = [];
+          if (colorVariant.sizeVariants && Array.isArray(colorVariant.sizeVariants)) {
+            for (const sizeVariant of colorVariant.sizeVariants) {
+              if (!sizeVariant.size || sizeVariant.stockQuantity === undefined) {
+                continue; // Skip invalid size variants
+              }
+
+              // Calculate stock status for size variant
+              const sizeStockStatus = sizeVariant.stockQuantity === 0
+                ? 'out_of_stock'
+                : sizeVariant.stockQuantity <= 10
+                  ? 'low_stock'
+                  : 'in_stock';
+
+              processedSizeVariants.push({
+                size: sizeVariant.size.trim(),
+                price: sizeVariant.price !== undefined && sizeVariant.price !== null
+                  ? parseFloat(sizeVariant.price)
+                  : null,
+                originalPrice: sizeVariant.originalPrice !== undefined && sizeVariant.originalPrice !== null
+                  ? parseFloat(sizeVariant.originalPrice)
+                  : null,
+                stockQuantity: parseInt(sizeVariant.stockQuantity),
+                stockStatus: sizeVariant.stockStatus || sizeStockStatus,
+              });
+            }
+          }
+
+          processedColorVariants.push({
+            colorName: colorVariant.colorName.trim(),
+            colorCode: colorVariant.colorCode ? colorVariant.colorCode.trim() : null,
+            thumbnailImage: thumbnailImageUrl,
+            thumbnailImagePublicId: thumbnailImagePublicId,
+            sizeVariants: processedSizeVariants,
+          });
+        }
+      }
+
+      // Validate variation consistency
+      if (processedColorVariants.length > 0) {
+        const hasValidVariants = processedColorVariants.some(cv => cv.sizeVariants.length > 0);
+        if (!hasValidVariants) {
+          const err = new Error('At least one color variant must have size variants');
+          err.status = 400;
+          throw err;
+        }
+
+        // Validate each color variant
+        for (const cv of processedColorVariants) {
+          if (!cv.colorName || cv.colorName.trim() === '') {
+            const err = new Error('All color variants must have a color name');
+            err.status = 400;
+            throw err;
+          }
+
+          // Validate size variants for this color
+          const sizeNames = new Set();
+          for (const sv of cv.sizeVariants) {
+            if (!sv.size || sv.size.trim() === '') {
+              const err = new Error(`Size variant for color "${cv.colorName}" must have a size name`);
+              err.status = 400;
+              throw err;
+            }
+
+            // Check for duplicate sizes
+            if (sizeNames.has(sv.size.trim())) {
+              const err = new Error(`Duplicate size "${sv.size}" found for color "${cv.colorName}"`);
+              err.status = 400;
+              throw err;
+            }
+            sizeNames.add(sv.size.trim());
+
+            // Validate pricing consistency
+            if (sv.price !== null && sv.price !== undefined) {
+              if (sv.price < 0) {
+                const err = new Error(`Price for size "${sv.size}" in color "${cv.colorName}" cannot be negative`);
+                err.status = 400;
+                throw err;
+              }
+              if (sv.originalPrice !== null && sv.originalPrice !== undefined) {
+                if (sv.originalPrice < sv.price) {
+                  const err = new Error(`Original price for size "${sv.size}" in color "${cv.colorName}" must be greater than or equal to the sale price`);
+                  err.status = 400;
+                  throw err;
+                }
+              }
+            }
+
+            // Validate stock quantity
+            if (sv.stockQuantity < 0) {
+              const err = new Error(`Stock quantity for size "${sv.size}" in color "${cv.colorName}" cannot be negative`);
+              err.status = 400;
+              throw err;
+            }
+          }
+        }
+      }
+    }
+
     // Calculate stock status if stockQuantity changed
     const finalStockQuantity = stockQuantity !== undefined 
       ? parseInt(stockQuantity) 
@@ -555,6 +855,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       productId,
       {
         ...(name !== undefined && { name: name.trim() }),
+        ...(sku !== undefined && { sku: sku && sku.trim() ? sku.trim().toUpperCase() : null }),
         ...(unit !== undefined && { unit: unit || '' }),
         ...(price !== undefined && { price: parseFloat(price) }),
         ...(originalPrice !== undefined && { originalPrice: originalPrice ? parseFloat(originalPrice) : null }),
@@ -580,7 +881,16 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ...(returnable !== undefined && { returnable }),
         ...(cancelable !== undefined && { cancelable }),
         ...(taxIncluded !== undefined && { taxIncluded }),
-        ...(variants !== undefined && { variants }),
+        ...(variants !== undefined && {
+          variants: {
+            ...(variants.sizes !== undefined && { sizes: variants.sizes }),
+            ...(variants.colors !== undefined && { colors: variants.colors }),
+            ...(variants.materials !== undefined && { materials: variants.materials }),
+            ...(variants.prices !== undefined && { prices: variants.prices }),
+            ...(variants.defaultVariant !== undefined && { defaultVariant: variants.defaultVariant }),
+            ...(processedColorVariants.length > 0 && { colorVariants: processedColorVariants }),
+          },
+        }),
         ...(tags !== undefined && { tags }),
         ...(attributes !== undefined && { attributes: processedAttributes }),
         ...(seoTitle !== undefined && { seoTitle: seoTitle || '' }),
