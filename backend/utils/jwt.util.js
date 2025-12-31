@@ -9,7 +9,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
 /**
  * Generate JWT access token
  * @param {Object} payload - Token payload (userId, email, role, etc.)
- * @param {String} expiresIn - Token expiration time (default: 24h)
+ * @param {String} expiresIn - Token expiration time (default: 30d)
  * @returns {String} JWT token
  */
 export const generateToken = (payload, expiresIn = JWT_EXPIRES_IN) => {

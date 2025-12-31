@@ -185,7 +185,8 @@ const ManageCategories = () => {
           </div>
         ) : viewMode === 'tree' ? (
           <CategoryTree
-            categories={filteredCategories}
+            categories={categories}
+            filteredCategoryIds={new Set(filteredCategories.map(cat => cat.id?.toString()))}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onAddSubcategory={handleAddSubcategory}

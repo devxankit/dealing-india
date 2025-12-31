@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FiChevronDown, FiChevronRight, FiEdit, FiTrash2, FiEye, FiEyeOff, FiPlus } from 'react-icons/fi';
 import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import Badge from '../../../../shared/components/Badge';
 import toast from 'react-hot-toast';
 import Button from '../Button';
 
-const CategoryTree = ({ categories, onEdit, onDelete, onAddSubcategory, level = 0 }) => {
+const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAddSubcategory, level = 0 }) => {
   const { toggleCategoryStatus } = useCategoryStore();
   const [expanded, setExpanded] = useState({});
 
@@ -14,13 +14,87 @@ const CategoryTree = ({ categories, onEdit, onDelete, onAddSubcategory, level = 
   };
 
   const getChildren = (parentId) => {
-    return categories.filter((cat) => cat.parentId === parentId);
+    if (!parentId) return [];
+    
+    // Normalize parentId to string for consistent comparison
+    const parentIdStr = parentId?.toString() || String(parentId);
+    
+    return categories.filter((cat) => {
+      // Normalize category's parentId to string
+      const catParentId = cat.parentId 
+        ? (cat.parentId.toString ? cat.parentId.toString() : String(cat.parentId))
+        : null;
+      
+      // Compare as strings to handle type mismatches
+      return catParentId === parentIdStr;
+    });
+  };
+
+  // Build Set of all category IDs that should be visible (including parents of filtered categories)
+  const visibleCategoryIds = useMemo(() => {
+    if (!filteredCategoryIds) {
+      // If no filter, all categories are visible
+      return new Set(categories.map(cat => cat.id?.toString()));
+    }
+
+    const visible = new Set(filteredCategoryIds);
+    
+    // Add all parents of filtered categories to maintain tree structure
+    const addParents = (categoryId) => {
+      const category = categories.find(cat => {
+        const catId = cat.id?.toString();
+        return catId === categoryId;
+      });
+      
+      if (category && category.parentId) {
+        const parentId = category.parentId?.toString();
+        if (parentId && !visible.has(parentId)) {
+          visible.add(parentId);
+          addParents(parentId); // Recursively add parent's parent
+        }
+      }
+    };
+
+    // For each filtered category, add its parents
+    filteredCategoryIds.forEach(catId => addParents(catId));
+    
+    return visible;
+  }, [categories, filteredCategoryIds]);
+
+  // Check if category should be visible
+  const shouldShowCategory = (category) => {
+    const categoryId = category.id?.toString();
+    return visibleCategoryIds.has(categoryId);
+  };
+  
+  const getDepth = (catId) => {
+    // Depth: 1 = root, 2 = first subcategory, 3 = second subcategory
+    let depth = 1;
+    let currentId = catId;
+    const visited = new Set();
+    while (currentId) {
+      if (visited.has(String(currentId))) break;
+      visited.add(String(currentId));
+      const cat = categories.find((c) => c.id === currentId);
+      if (!cat || !cat.parentId) break;
+      depth += 1;
+      currentId = cat.parentId;
+      if (depth > 3) break;
+    }
+    return depth;
   };
 
   const renderCategory = (category) => {
-    const children = getChildren(category.id);
+    // Check if this category should be shown
+    if (!shouldShowCategory(category)) {
+      return null;
+    }
+
+    const children = getChildren(category.id).filter(child => shouldShowCategory(child));
     const hasChildren = children.length > 0;
     const isExpanded = expanded[category.id];
+    const depth = getDepth(category.id);
+    const canAddSubcategory = depth < 3;
 
     return (
       <div key={category.id} className="select-none">
@@ -92,7 +166,7 @@ const CategoryTree = ({ categories, onEdit, onDelete, onAddSubcategory, level = 
 
             {/* Action Buttons - Horizontal Layout */}
             <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-              {onAddSubcategory && (
+              {onAddSubcategory && canAddSubcategory && (
                 <Button
                   onClick={() => onAddSubcategory(category.id)}
                   variant="ghostBlue"
@@ -182,7 +256,7 @@ const CategoryTree = ({ categories, onEdit, onDelete, onAddSubcategory, level = 
               {category.isActive ? 'Active' : 'Inactive'}
             </Badge>
             <div className="flex items-center gap-2">
-              {onAddSubcategory && (
+              {onAddSubcategory && canAddSubcategory && (
                 <Button
                   onClick={() => onAddSubcategory(category.id)}
                   variant="iconBlue"
@@ -231,11 +305,15 @@ const CategoryTree = ({ categories, onEdit, onDelete, onAddSubcategory, level = 
 
   const rootCategories = categories
     .filter((cat) => !cat.parentId)
+    .filter(cat => shouldShowCategory(cat))
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   return (
     <div className="space-y-2 sm:space-y-1">
-      {rootCategories.map((category) => renderCategory(category))}
+      {rootCategories.map((category) => {
+        const rendered = renderCategory(category);
+        return rendered;
+      }).filter(Boolean)}
     </div>
   );
 };
