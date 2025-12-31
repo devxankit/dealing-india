@@ -47,6 +47,8 @@ import publicProductRoutes from './routes/publicProduct.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
 import publicSliderRoutes from './routes/publicSlider.routes.js';
 import userSupportRoutes from './routes/userSupport.routes.js';
+import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
+import vendorSubscriptionRoutes from './routes/vendorSubscription.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -153,6 +155,8 @@ app.use('/api/admin/support', supportDeskRoutes);
 
 // User management routes (require user authentication)
 app.use('/api/user/support', userSupportRoutes);
+app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
+app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 
 // Vendor management routes (require vendor authentication)
 app.use('/api/vendor/products', vendorProductsRoutes);

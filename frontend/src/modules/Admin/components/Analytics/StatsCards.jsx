@@ -48,7 +48,7 @@ const StatsCards = ({ stats }) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
       {cards.map((card, index) => {
         const Icon = card.icon;
         const isPositive = card.change >= 0;
@@ -56,29 +56,32 @@ const StatsCards = ({ stats }) => {
         return (
           <motion.div
             key={card.title}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={`${card.cardBg} rounded-xl p-4 sm:p-6 shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-300 relative overflow-hidden`}
+            transition={{ delay: index * 0.1, duration: 0.3 }}
+            className={`${card.cardBg} rounded-2xl p-5 lg:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 relative overflow-hidden group`}
           >
             {/* Decorative gradient overlay */}
-            <div className={`absolute top-0 right-0 w-32 h-32 ${card.bgColor} opacity-10 rounded-full -mr-16 -mt-16`}></div>
+            <div className={`absolute top-0 right-0 w-32 h-32 ${card.bgColor} opacity-[0.03] rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500`}></div>
 
-            <div className="flex items-center justify-between mb-3 sm:mb-4 relative z-10">
-              <div className={`${card.bgColor} ${card.iconBg} p-2 sm:p-3 rounded-lg shadow-md`}>
-                <Icon className={`${card.color} text-lg sm:text-xl`} />
+            <div className="flex items-start justify-between relative z-10 mb-4">
+              <div className={`${card.bgColor} p-3 rounded-xl shadow-lg shadow-blue-500/10`}>
+                <Icon className="text-white text-xl" />
               </div>
               <div
-                className={`text-xs sm:text-sm font-semibold px-2 py-1 rounded-full ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                className={`text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}
               >
-                {isPositive ? '+' : ''}
-                {card.change}%
+                {isPositive ? '↑' : '↓'}
+                {Math.abs(card.change)}%
               </div>
             </div>
+            
             <div className="relative z-10">
-              <h3 className="text-gray-600 text-xs sm:text-sm font-medium mb-1">{card.title}</h3>
-              <p className="text-gray-800 text-xl sm:text-2xl font-bold">{card.value}</p>
+              <h3 className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{card.title}</h3>
+              <div className="flex items-baseline gap-2">
+                <p className="text-gray-900 text-2xl font-extrabold tracking-tight">{card.value}</p>
+              </div>
             </div>
           </motion.div>
         );

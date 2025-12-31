@@ -5,6 +5,7 @@ import {
   FiHome,
   FiPackage,
   FiShoppingBag,
+  FiBarChart2,
   FiSettings,
 } from "react-icons/fi";
 
@@ -14,6 +15,7 @@ const AdminBottomNav = () => {
   const navItems = [
     { path: "/admin/dashboard", icon: FiHome, label: "Home" },
     { path: "/admin/products", icon: FiPackage, label: "Products" },
+    { path: "/admin/subscriptions", icon: FiBarChart2, label: "Subs" },
     { path: "/admin/orders", icon: FiShoppingBag, label: "Orders" },
     { path: "/admin/settings", icon: FiSettings, label: "Setting" },
   ];

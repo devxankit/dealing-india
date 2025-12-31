@@ -120,7 +120,25 @@ const AllReels = () => {
         <div className="flex items-center gap-4">
           <div className="w-12 h-20 rounded-lg overflow-hidden relative bg-gray-100 shadow-sm group cursor-pointer" onClick={() => handleView(row)}>
             {row.videoUrl ? (
-              <video src={row.videoUrl} className="w-full h-full object-cover" muted />
+              <video 
+                src={row.videoUrl} 
+                className="w-full h-full object-cover" 
+                 muted 
+                 loop
+                 preload="metadata"
+                 onEnded={(e) => {
+                   e.target.currentTime = 0;
+                   e.target.play().catch(() => {});
+                 }}
+                 onError={(e) => {
+                  const video = e.target;
+                  if (!video.getAttribute('src')) return;
+                  if (video.error) {
+                    if (video.error.code === 4 && (!video.src || video.src === window.location.href)) return;
+                    console.error(`Error loading reel ${row.id || row._id}:`, video.error);
+                  }
+                }}
+              />
             ) : (
               <img src={row.thumbnail || row.productId?.image} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://via.placeholder.com/64"; }} />
             )}

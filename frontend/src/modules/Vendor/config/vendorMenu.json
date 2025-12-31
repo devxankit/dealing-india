@@ -107,6 +107,11 @@
     "children": []
   },
   {
+    "title": "Subscription",
+    "route": "/vendor/subscription",
+    "children": []
+  },
+  {
     "title": "Earnings",
     "route": "/vendor/earnings",
     "children": [

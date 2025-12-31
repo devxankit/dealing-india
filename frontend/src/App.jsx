@@ -80,6 +80,7 @@ import PendingApprovals from "./modules/Admin/pages/vendors/PendingApprovals";
 import VendorDetail from "./modules/Admin/pages/vendors/VendorDetail";
 import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
 import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
+import Subscriptions from "./modules/Admin/pages/vendors/Subscriptions";
 // Offers & Sliders child pages
 import HomeSliders from "./modules/Admin/pages/offers/HomeSliders";
 import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
@@ -182,6 +183,7 @@ import VendorOrderDetail from "./modules/Vendor/pages/orders/OrderDetail";
 import VendorAnalytics from "./modules/Vendor/pages/Analytics";
 import VendorEarnings from "./modules/Vendor/pages/Earnings";
 import VendorSettings from "./modules/Vendor/pages/Settings";
+import VendorSubscription from "./modules/Vendor/pages/Subscription";
 import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
 
 import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
@@ -453,6 +455,10 @@ const AppRoutes = () => {
             path="vendors/vendor-analytics"
             element={<AdminVendorAnalytics />}
           />
+          <Route
+            path="subscriptions"
+            element={<Subscriptions />}
+          />
           <Route path="vendors/:id" element={<VendorDetail />} />
           <Route path="offers" element={<HomeSliders />} />
           <Route path="offers/home-sliders" element={<HomeSliders />} />
@@ -614,6 +620,7 @@ const AppRoutes = () => {
             element={<VendorPerformanceMetrics />}
           />
           <Route path="settings" element={<VendorSettings />} />
+              <Route path="subscription" element={<VendorSubscription />} />
           <Route path="settings/store" element={<VendorSettings />} />
           <Route path="settings/payment" element={<VendorSettings />} />
           <Route path="settings/payment-settings" element={<VendorSettings />} />
