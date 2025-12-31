@@ -105,6 +105,11 @@ const vendorSchema = new mongoose.Schema(
       min: 0,
       max: 1,
     },
+    currentSubscription: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VendorSubscription',
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { formatCurrency, formatDate, filterByDateRange, getDateRange } from '../../utils/adminHelpers';
 
-const RevenueChart = ({ data, period = 'month' }) => {
+const RevenueChart = ({ data = [], period = 'month' }) => {
   const filteredData = useMemo(() => {
+    if (!Array.isArray(data)) return [];
     const range = getDateRange(period);
     return filterByDateRange(data, range.start, range.end);
   }, [data, period]);
@@ -10,29 +11,45 @@ const RevenueChart = ({ data, period = 'month' }) => {
   const maxRevenue = Math.max(...filteredData.map((d) => d.revenue), 1);
 
   return (
-    <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
-      <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-4 sm:mb-6">Revenue Trend</h3>
-      <div className="max-h-96 overflow-y-auto scrollbar-admin md:pr-2">
-        <div className="space-y-3 sm:space-y-4">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-full">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h3 className="text-lg font-bold text-gray-800">Revenue Trend</h3>
+          <p className="text-xs text-gray-500 font-medium">Monthly performance overview</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Revenue</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-h-[400px] overflow-y-auto no-scrollbar md:pr-2">
+        <div className="space-y-6">
           {filteredData.map((item, index) => {
             const percentage = (item.revenue / maxRevenue) * 100;
             
             return (
-              <div key={index} className="flex items-center gap-2 sm:gap-4">
-                <div className="w-16 sm:w-20 text-xs text-gray-600 text-right flex-shrink-0">
-                  {formatDate(item.date, { month: 'short', day: 'numeric' })}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="relative h-8 bg-gray-100 rounded-lg overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-green-400 rounded-lg transition-all duration-500"
-                      style={{ width: `${percentage}%` }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-between px-2 sm:px-3 text-xs font-semibold text-gray-700">
-                      <span className="truncate">{formatCurrency(item.revenue)}</span>
-                      <span className="ml-2 whitespace-nowrap">{item.orders} orders</span>
-                    </div>
+              <div key={index} className="group">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                    {formatDate(item.date, { month: 'short', day: 'numeric' })}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-extrabold text-blue-600">{formatCurrency(item.revenue)}</span>
+                    <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-colors">
+                      {item.orders} ORDERS
+                    </span>
                   </div>
+                </div>
+                <div className="relative h-2.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${percentage}%` }}
+                    transition={{ duration: 1, ease: "easeOut", delay: index * 0.05 }}
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full shadow-[0_0_10px_rgba(37,99,235,0.2)]"
+                  />
                 </div>
               </div>
             );

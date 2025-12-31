@@ -62,6 +62,16 @@
     ]
   },
   {
+    "title": "Subscriptions",
+    "route": "/admin/subscriptions",
+    "children": [
+      "Analytics",
+      "Tier Config",
+      "Monitoring",
+      "Support Tools"
+    ]
+  },
+  {
     "title": "Vendors",
     "route": "/admin/vendors",
     "children": [

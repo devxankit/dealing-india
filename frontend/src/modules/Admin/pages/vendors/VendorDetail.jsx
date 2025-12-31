@@ -829,6 +829,11 @@ const VendorDetail = () => {
                             <video
                               src={doc.url}
                               controls
+                              loop
+                              onEnded={(e) => {
+                                e.target.currentTime = 0;
+                                e.target.play().catch(() => {});
+                              }}
                               className="w-full max-h-96"
                               onError={(e) => {
                                 e.target.style.display = 'none';

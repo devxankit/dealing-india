@@ -376,6 +376,18 @@ const AddReel = () => {
                       muted
                       loop
                       playsInline
+                      onEnded={(e) => {
+                        e.target.currentTime = 0;
+                        e.target.play().catch(() => {});
+                      }}
+                      onError={(e) => {
+                        const video = e.target;
+                        if (!video.getAttribute('src')) return;
+                        if (video.error) {
+                          if (video.error.code === 4 && (!video.src || video.src === window.location.href)) return;
+                          console.error("Preview Video Error:", video.error);
+                        }
+                      }}
                     />
                   ) : (
                     <img src={thumbnailPreview} className="w-full h-full object-cover" alt="Preview" />

@@ -17,6 +17,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
   const [isMuted, setIsMuted] = useState(true);
   const [showMuteIcon, setShowMuteIcon] = useState(false);
   const [showRewardPopup, setShowRewardPopup] = useState(false);
+  const [videoStatus, setVideoStatus] = useState({}); // { [id]: { loading: boolean, error: boolean } }
 
   // New State for Interactions
   const [likedReels, setLikedReels] = useState({}); // { [id]: boolean }
@@ -105,9 +106,18 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
     videoRefs.current.forEach((video, index) => {
       if (video) {
         if (index === currentIndex) {
+          // Reset and play current video
           video.currentTime = 0;
-          video.play().catch(e => console.log("Autoplay prevented", e));
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(e => {
+              if (e.name !== 'AbortError') {
+                console.error("Video playback error:", e);
+              }
+            });
+          }
         } else {
+          // Pause others
           video.pause();
         }
       }
@@ -205,11 +215,46 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
             {/* Video Player */}
             <video
               ref={el => videoRefs.current[index] = el}
-              src={reel.videoUrl}
-              className="h-full w-full object-cover"
+              src={Math.abs(index - currentIndex) <= 1 ? reel.videoUrl : ""}
+              poster={reel.thumbnail}
+              className={`h-full w-full object-cover transition-opacity duration-300 ${videoStatus[reel.id]?.loading ? 'opacity-50' : 'opacity-100'}`}
               loop
               muted={isMuted}
               playsInline
+              preload="metadata"
+              onLoadStart={() => {
+                setVideoStatus(prev => ({ ...prev, [reel.id]: { ...prev[reel.id], loading: true, error: false } }));
+              }}
+              onCanPlay={() => {
+                setVideoStatus(prev => ({ ...prev, [reel.id]: { ...prev[reel.id], loading: false } }));
+              }}
+              onEnded={(e) => {
+                e.target.currentTime = 0;
+                e.target.play().catch(() => {});
+              }}
+              onError={(e) => {
+                const video = e.target;
+                const src = video.getAttribute('src');
+                
+                // If src attribute is missing, empty, or hasn't been set yet, ignore the error
+                if (!src || src === "" || src === "undefined") return;
+                
+                // Check if it's a real error
+                const error = video.error;
+                if (error) {
+                  // Ignore "Empty src attribute" or similar errors that occur during lazy loading transitions
+                  if (error.code === 4 && (!video.src || video.src === window.location.href || video.src === window.location.origin + '/')) {
+                    return;
+                  }
+
+                  console.error(`Video Error (ID: ${reel.id}):`, {
+                    code: error.code,
+                    message: error.message,
+                    src: video.src
+                  });
+                  setVideoStatus(prev => ({ ...prev, [reel.id]: { loading: false, error: true } }));
+                }
+              }}
               onMouseDown={(e) => {
                 const video = e.target;
                 isLongPress.current = false;
@@ -259,6 +304,35 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                 }
               }}
             />
+
+            {/* Loading Spinner */}
+            {videoStatus[reel.id]?.loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] z-10">
+                <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {videoStatus[reel.id]?.error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/80 z-20 px-6 text-center">
+                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                  <FiX className="text-3xl text-red-500" />
+                </div>
+                <h3 className="text-white font-bold mb-2">Failed to Load Video</h3>
+                <p className="text-gray-400 text-sm mb-6">Something went wrong while trying to play this reel.</p>
+                <button 
+                  onClick={() => {
+                    setVideoStatus(prev => ({ ...prev, [reel.id]: { loading: true, error: false } }));
+                    if (videoRefs.current[index]) {
+                      videoRefs.current[index].load();
+                    }
+                  }}
+                  className="px-6 py-2 bg-white text-black rounded-full font-bold text-sm"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
 
             {/* Mute Indicator */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">

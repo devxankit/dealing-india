@@ -40,6 +40,9 @@ const MOCK_INITIAL_REELS = [
 ];
 
 const PromotionalReels = () => {
+    // Track which reel is being hovered to load its video source lazily
+    const [hoveredReelId, setHoveredReelId] = useState(null);
+
     // Initialize state from localStorage or fallback to Mock Data
     const [reels, setReels] = useState(() => {
         const savedReels = localStorage.getItem('promotional_reels');
@@ -253,10 +256,52 @@ const PromotionalReels = () => {
                     </div>
                 ) : (
                     reels.map(reel => (
-                        <div key={reel.id} className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 group">
+                        <div 
+                            key={reel.id} 
+                            onMouseEnter={() => setHoveredReelId(reel.id)}
+                            onMouseLeave={() => setHoveredReelId(null)}
+                            className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 group"
+                        >
                             {/* Video Preview */}
                             <div className="relative aspect-[9/16] bg-black">
-                                <video src={reel.videoUrl} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                <video 
+                                    src={hoveredReelId === reel.id ? reel.videoUrl : ""} 
+                                    poster={reel.thumbnail}
+                                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" 
+                                    preload="none"
+                                    muted
+                                    loop
+                                    playsInline
+                                    onEnded={(e) => {
+                                        e.target.currentTime = 0;
+                                        e.target.play().catch(() => {});
+                                    }}
+                                    onMouseOver={(e) => {
+                                        const playPromise = e.target.play();
+                                        if (playPromise !== undefined) {
+                                            playPromise.catch(() => { /* Ignore abort errors */ });
+                                        }
+                                    }}
+                                    onMouseOut={(e) => e.target.pause()}
+                                    onError={(e) => {
+                                        const video = e.target;
+                                        const srcAttr = video.getAttribute('src');
+                                        
+                                        // Ignore errors when src is not yet set or intentionally empty
+                                        if (!srcAttr || srcAttr === "" || !hoveredReelId) return;
+
+                                        if (video.error) {
+                                            // Ignore "Empty src" code 4 errors during hover transitions
+                                            if (video.error.code === 4 && (!video.src || video.src === window.location.href)) return;
+
+                                            console.error(`Promotional Video Error (ID: ${reel.id}):`, {
+                                                code: video.error.code,
+                                                message: video.error.message,
+                                                src: video.src
+                                            });
+                                        }
+                                    }}
+                                />
 
                                 {/* Overlay Gradient */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />

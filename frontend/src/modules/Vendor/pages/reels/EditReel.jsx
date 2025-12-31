@@ -311,9 +311,20 @@ const EditReel = () => {
               <video
                 src={videoPreview}
                 controls
+                loop
+                onEnded={(e) => {
+                  e.target.currentTime = 0;
+                  e.target.play().catch(() => {});
+                }}
                 className="mt-2 w-full max-w-md rounded-lg border border-gray-200 dark:border-gray-700"
                 onError={(e) => {
-                  e.target.style.display = "none";
+                  const video = e.target;
+                  if (!video.getAttribute('src')) return;
+                  if (video.error) {
+                    if (video.error.code === 4 && (!video.src || video.src === window.location.href)) return;
+                    console.error("Edit Preview Video Error:", video.error);
+                    video.style.display = "none";
+                  }
                 }}
               />
             )}

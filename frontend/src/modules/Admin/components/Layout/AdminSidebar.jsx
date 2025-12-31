@@ -42,6 +42,7 @@ const iconMap = {
   "Offers & Sliders": FiImage,
   "Mega Reward": FiGift,
   "Promo Codes": FiPercent,
+  Subscriptions: FiBarChart2,
   Notifications: FiBell,
   "Support Desk": FiMessageCircle,
   Reports: FiFileText,
@@ -87,6 +88,12 @@ const getChildRoute = (parentRoute, childName) => {
       "Pending Approvals": "/admin/vendors/pending-approvals",
       "Commission Rates": "/admin/vendors/commission-rates",
       "Vendor Analytics": "/admin/vendors/vendor-analytics",
+    },
+    "/admin/subscriptions": {
+      "Analytics": "/admin/subscriptions?tab=analytics",
+      "Tier Config": "/admin/subscriptions?tab=tiers",
+      "Monitoring": "/admin/subscriptions?tab=monitoring",
+      "Support Tools": "/admin/subscriptions?tab=support",
     },
     "/admin/locations": {
       Cities: "/admin/locations/cities",

@@ -79,37 +79,39 @@ const DataTable = ({
   };
 
   // Get primary columns (exclude actions for mobile card view)
-  const primaryColumns = columns.filter(col => col.key !== 'actions');
-  const actionsColumn = columns.find(col => col.key === 'actions');
+  const primaryColumns = columns.filter(col => (col.key || col.accessor) !== 'actions');
+  const actionsColumn = columns.find(col => (col.key || col.accessor) === 'actions');
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden ${className}`}>
       {/* Mobile Card View - Show on mobile, hide on desktop */}
       <div className="md:hidden">
         {paginatedData.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-500">
-            No data available
+          <div className="px-6 py-16 text-center">
+            <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiChevronDown className="text-gray-300 text-2xl" />
+            </div>
+            <p className="text-gray-500 font-medium">No records found</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-100">
             {paginatedData.map((row, index) => (
               <div
                 key={`mobile-row-${row.id || index}`}
                 onClick={() => onRowClick && onRowClick(row)}
-                className={`p-4 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
-                  } transition-colors`}
+                className={`p-5 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
+                  } transition-colors active:bg-gray-100`}
               >
-                <div className="space-y-2.5">
+                <div className="space-y-4">
                   {primaryColumns.map((column) => {
-                    const rawValue = row[column.key];
-                    const value = column.render
-                      ? column.render(rawValue, row)
+                    const colKey = column.key || column.accessor;
+                    const rawValue = row[colKey];
+                    const value = column.render || column.cell
+                      ? (column.render || column.cell)(rawValue, row)
                       : rawValue;
 
-                    // Skip rendering if value is empty/null
                     if (!value && value !== 0) return null;
 
-                    // Ensure value is renderable (not an object/array)
                     let displayValue = value;
                     if (typeof value === 'object' && value !== null && !React.isValidElement(value)) {
                       if (Array.isArray(value)) {
@@ -120,18 +122,18 @@ const DataTable = ({
                     }
 
                     return (
-                      <div key={`mobile-col-${column.key}-${row.id || index}`} className="flex items-start gap-2">
-                        <span className="text-xs font-semibold text-gray-600 flex-shrink-0 min-w-[80px] sm:min-w-[100px]">
-                          {column.label}:
+                      <div key={`mobile-col-${colKey || column.label || column.header}-${row.id || index}`} className="flex flex-col gap-1">
+                        <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+                          {column.label || column.header}
                         </span>
-                        <span className="text-sm text-gray-800 break-words flex-1">
+                        <div className="text-sm font-semibold text-gray-800 break-words">
                           {displayValue}
-                        </span>
+                        </div>
                       </div>
                     );
                   })}
                   {actionsColumn && (
-                    <div className="pt-2 border-t border-gray-100 mt-3">
+                    <div className="pt-4 border-t border-gray-50 mt-4 flex justify-end">
                       {actionsColumn.render(null, row)}
                     </div>
                   )}
@@ -143,45 +145,52 @@ const DataTable = ({
       </div>
 
       {/* Desktop Table View - Hide on mobile, show on desktop */}
-      <div className="hidden md:block overflow-x-auto scrollbar-admin">
+      <div className="hidden md:block overflow-x-auto no-scrollbar">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50/50 border-b border-gray-100">
             <tr>
-              {columns.map((column) => (
-                <th
-                  key={`header-${column.key}`}
-                  className={`px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider ${sortable && column.sortable !== false
-                      ? 'cursor-pointer hover:bg-gray-100'
-                      : ''
-                    }`}
-                  onClick={() => column.sortable !== false && handleSort(column.key)}
-                >
-                  <div className="flex items-center gap-2">
-                    {column.label}
-                    {sortable &&
-                      column.sortable !== false &&
-                      sortConfig.key === column.key && (
-                        <span>
-                          {sortConfig.direction === 'asc' ? (
-                            <FiChevronUp className="inline" />
-                          ) : (
-                            <FiChevronDown className="inline" />
-                          )}
-                        </span>
-                      )}
-                  </div>
-                </th>
-              ))}
+              {columns.map((column) => {
+                const colKey = column.key || column.accessor;
+                const colLabel = column.label || column.header;
+                return (
+                  <th
+                    key={`header-${colKey || colLabel}`}
+                    className={`px-6 py-4 text-left text-[11px] font-extrabold text-gray-500 uppercase tracking-wider ${sortable && column.sortable !== false
+                        ? 'cursor-pointer hover:bg-gray-100 transition-colors'
+                        : ''
+                      }`}
+                    onClick={() => column.sortable !== false && handleSort(colKey)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {colLabel}
+                      {sortable &&
+                        column.sortable !== false &&
+                        sortConfig.key === colKey && (
+                          <span className="text-blue-500">
+                            {sortConfig.direction === 'asc' ? (
+                              <FiChevronUp />
+                            ) : (
+                              <FiChevronDown />
+                            )}
+                          </span>
+                        )}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-50">
             {paginatedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-3 sm:px-6 py-8 sm:py-12 text-center text-gray-500"
+                  className="px-6 py-20 text-center"
                 >
-                  No data available
+                  <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiChevronDown className="text-gray-300 text-2xl" />
+                  </div>
+                  <p className="text-gray-500 font-medium">No records available at the moment</p>
                 </td>
               </tr>
             ) : (
@@ -189,16 +198,16 @@ const DataTable = ({
                 <tr
                   key={`row-${row.id || index}`}
                   onClick={() => onRowClick && onRowClick(row)}
-                  className={`${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
-                    } transition-colors`}
+                  className={`${onRowClick ? 'cursor-pointer hover:bg-gray-50/80' : ''
+                    } transition-colors group`}
                 >
                   {columns.map((column) => {
-                    const rawValue = row[column.key];
-                    let displayValue = column.render
-                      ? column.render(rawValue, row)
+                    const colKey = column.key || column.accessor;
+                    const rawValue = row[colKey];
+                    let displayValue = column.render || column.cell
+                      ? (column.render || column.cell)(rawValue, row)
                       : rawValue;
 
-                    // Ensure value is renderable (not an object/array)
                     if (typeof displayValue === 'object' && displayValue !== null && !React.isValidElement(displayValue)) {
                       if (Array.isArray(displayValue)) {
                         displayValue = `${displayValue.length} items`;
@@ -210,7 +219,7 @@ const DataTable = ({
                     return (
                       <td
                         key={`cell-${row.id || index}-${column.key}`}
-                        className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-700"
+                        className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700"
                       >
                         {displayValue}
                       </td>
@@ -225,60 +234,40 @@ const DataTable = ({
 
       {/* Pagination */}
       {pagination && totalPages > 1 && (
-        <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 border-t border-gray-200">
-          <div className="text-xs sm:text-sm text-gray-700">
+        <div className="bg-gray-50/30 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100">
+          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
             {isServerSidePagination ? (
               <>Page {currentPage} of {totalPages}</>
             ) : (
               <>
                 Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
                 {Math.min(currentPage * itemsPerPage, sortedData.length)} of{' '}
-                {sortedData.length} results
+                {sortedData.length}
               </>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Button
+          <div className="flex items-center gap-1">
+            <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              variant="secondary"
-              icon={FiChevronLeft}
-            />
-            <div className="flex items-center gap-1">
-              {[...Array(totalPages)].map((_, index) => {
-                const page = index + 1;
-                // Show first, last, current, and adjacent pages
-                if (
-                  page === 1 ||
-                  page === totalPages ||
-                  (page >= currentPage - 1 && page <= currentPage + 1)
-                ) {
-                  return (
-                    <Button
-                      key={`page-${page}`}
-                      onClick={() => handlePageChange(page)}
-                      variant={currentPage === page ? 'primary' : 'ghost'}
-                      size="sm"
-                      className={currentPage === page ? '' : 'text-gray-700'}
-                    >
-                      {page}
-                    </Button>
-                  );
-                } else if (
-                  page === currentPage - 2 ||
-                  page === currentPage + 2
-                ) {
-                  return <span key={`ellipsis-${page}`} className="px-1">...</span>;
-                }
-                return null;
-              })}
+              className="p-2 rounded-lg border border-gray-200 bg-white text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              <FiChevronLeft />
+            </button>
+            
+            <div className="flex items-center px-4">
+              <span className="text-sm font-bold text-blue-600">{currentPage}</span>
+              <span className="mx-2 text-gray-300">/</span>
+              <span className="text-sm font-bold text-gray-500">{totalPages}</span>
             </div>
-            <Button
+
+            <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              variant="secondary"
-              icon={FiChevronRight}
-            />
+              className="p-2 rounded-lg border border-gray-200 bg-white text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              <FiChevronRight />
+            </button>
           </div>
         </div>
       )}

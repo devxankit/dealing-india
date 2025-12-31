@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiUser, FiPackage, FiMapPin, FiCreditCard, FiGift,
   FiLogOut, FiChevronRight, FiEdit2, FiSettings, FiCamera,
-  FiShield, FiHelpCircle
+  FiShield, FiHelpCircle, FiArrowLeft
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -70,34 +70,42 @@ const MobileProfile = () => {
 
             <div className="px-4 -mt-4 relative z-20 space-y-4">
 
-              {/* Mega Reward Card */}
+              {/* Mega Reward Card - Compact & Elegant */}
               <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
+                initial={{ scale: 0.98, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => navigate('/app/mega-reward')}
-                className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden cursor-pointer"
+                className="w-full bg-[#0A0A0A] rounded-xl p-4 text-white shadow-xl relative overflow-hidden cursor-pointer border border-yellow-500/20"
               >
-                <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/10 rounded-full blur-xl" />
-                <div className="absolute bottom-0 left-0 -ml-4 -mb-4 w-20 h-20 bg-black/10 rounded-full blur-lg" />
-
-                <div className="relative z-10 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="bg-yellow-400 text-black text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">New</span>
-                      <h3 className="font-bold text-lg">Mega Monthly Reward</h3>
+                {/* Subtle Glow */}
+                <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl" />
+                
+                <div className="relative z-10 flex items-center gap-4">
+                  {/* Compact Icon Section */}
+                  <div className="relative flex-shrink-0">
+                    <div className="absolute inset-0 bg-yellow-500/10 blur-lg rounded-full" />
+                    <div className="relative w-12 h-12 bg-gradient-to-tr from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center shadow-lg border border-white/10 rotate-3">
+                      <FiGift className="text-2xl text-white drop-shadow-md -rotate-3" />
                     </div>
-                    <p className="text-white/90 text-sm mb-3 max-w-[200px]">
-                      {isRewardEntered
-                        ? "You've entered for this month! Fingers crossed."
-                        : "Share & Enter to win exclusive prizes worth ₹50,000!"}
-                    </p>
-                    <button className="bg-white text-purple-600 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide shadow-md">
-                      {isRewardEntered ? "View Details" : "Enter Now"}
-                    </button>
                   </div>
-                  <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
-                    <FiGift className="text-3xl text-yellow-300" />
+
+                  {/* Text Section */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="font-black text-sm tracking-[0.1em] text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200 uppercase">
+                        Mega Reward
+                      </h3>
+                      <span className="flex h-1.5 w-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider truncate">
+                      {isRewardEntered ? "Confirmed entry • View Ticket" : "Win ₹50,000 • Enter Now"}
+                    </p>
+                  </div>
+
+                  {/* Subtle Arrow */}
+                  <div className="text-yellow-500/50">
+                    <FiArrowLeft className="rotate-180 text-lg" />
                   </div>
                 </div>
               </motion.div>
