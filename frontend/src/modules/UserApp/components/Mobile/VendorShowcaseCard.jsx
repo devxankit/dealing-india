@@ -6,7 +6,8 @@ import LazyImage from '../../../../shared/components/LazyImage';
 const VendorShowcaseCard = ({ vendor, index = 0 }) => {
   const location = useLocation();
   const isMobileApp = location.pathname.startsWith('/app');
-  const vendorLink = isMobileApp ? `/app/vendor/${vendor.id}` : `/vendor/${vendor.id}`;
+  const vendorId = vendor.id || vendor._id;
+  const vendorLink = isMobileApp ? `/app/vendor/${vendorId}` : `/vendor/${vendorId}`;
 
   if (!vendor) return null;
 

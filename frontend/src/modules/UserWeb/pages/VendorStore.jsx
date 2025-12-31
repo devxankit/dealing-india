@@ -56,8 +56,10 @@ const VendorStore = () => {
       try {
         // Fetch vendor details
         const vendorRes = await api.get(`/vendors/${id}`);
-        if (vendorRes.data?.success) {
-          setVendor(vendorRes.data.data.vendor);
+        let currentVendor = null;
+        if (vendorRes?.success) {
+          currentVendor = vendorRes.data.vendor;
+          setVendor(currentVendor);
         }
 
         // Fetch products for this vendor
@@ -68,8 +70,29 @@ const VendorStore = () => {
           }
         });
         
-        if (productsRes.data?.success) {
-          setProducts(productsRes.data.data.products || []);
+        if (productsRes?.success && currentVendor) {
+          const transformedProducts = (productsRes.data.products || []).map(p => ({
+            id: p._id.toString(),
+            _id: p._id,
+            name: p.name,
+            price: p.price,
+            originalPrice: p.originalPrice,
+            image: p.image,
+            rating: p.rating || 0,
+            reviewCount: p.reviewCount || 0,
+            unit: p.unit,
+            stock: p.stock,
+            vendor: {
+              id: currentVendor.id || currentVendor._id,
+              _id: currentVendor._id || currentVendor.id,
+              storeName: currentVendor.storeName,
+              storeLogo: currentVendor.storeLogo,
+              isVerified: currentVendor.isVerified
+            },
+            categoryId: p.categoryId,
+            subcategoryId: p.subcategoryId,
+          }));
+          setProducts(transformedProducts);
         }
       } catch (error) {
         console.error("Error fetching vendor store data:", error);
@@ -243,11 +266,6 @@ const VendorStore = () => {
                         />
                       )}
                     </div>
-                    {vendor.storeDescription && (
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {vendor.storeDescription}
-                      </p>
-                    )}
                     <div className="flex flex-wrap items-center gap-3 text-xs mb-3">
                       {vendor.rating > 0 && (
                         <div className="flex items-center gap-1">
@@ -262,23 +280,11 @@ const VendorStore = () => {
                       )}
                       <div className="text-gray-600">
                         <span className="font-semibold">
-                          {vendor.totalProducts || vendorProducts.length}
+                          {vendor.totalProducts || products.length}
                         </span>{" "}
                         Products
                       </div>
                     </div>
-
-                    <button
-                      onClick={() => navigate('/app/help', {
-                        state: {
-                          vendorId: vendor.id,
-                          vendorName: vendor.storeName
-                        }
-                      })}
-                      className="w-full bg-black text-white text-xs font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2"
-                    >
-                      <FiMessageSquare /> Chat with Vendor
-                    </button>
                   </div>
                 </div>
               </div>
@@ -510,11 +516,6 @@ const VendorStore = () => {
                       />
                     )}
                   </div>
-                  {vendor.storeDescription && (
-                    <p className="text-gray-600 mb-3">
-                      {vendor.storeDescription}
-                    </p>
-                  )}
                   <div className="flex flex-wrap items-center gap-4 text-sm">
                     {vendor.rating > 0 && (
                       <div className="flex items-center gap-1">
@@ -529,7 +530,7 @@ const VendorStore = () => {
                     )}
                     <div className="text-gray-600">
                       <span className="font-semibold">
-                        {vendor.totalProducts || vendorProducts.length}
+                        {vendor.totalProducts || products.length}
                       </span>{" "}
                       Products
                     </div>

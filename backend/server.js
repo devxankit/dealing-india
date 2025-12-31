@@ -48,6 +48,7 @@ import publicProductRoutes from './routes/publicProduct.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
 import publicSliderRoutes from './routes/publicSlider.routes.js';
 import userSupportRoutes from './routes/userSupport.routes.js';
+import wishlistRoutes from './routes/wishlist.routes.js';
 import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
 import vendorSubscriptionRoutes from './routes/vendorSubscription.routes.js';
 
@@ -157,6 +158,7 @@ app.use('/api/admin/support', supportDeskRoutes);
 
 // User management routes (require user authentication)
 app.use('/api/user/support', userSupportRoutes);
+app.use('/api/user/wishlist', wishlistRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiHeart, FiArrowLeft, FiGrid, FiList } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
@@ -13,12 +13,17 @@ import ProtectedRoute from "../../../shared/components/Auth/ProtectedRoute";
 
 const MobileWishlist = () => {
   const navigate = useNavigate();
-  const { items, removeItem, moveToCart, clearWishlist } = useWishlistStore();
+  const { items, removeItem, moveToCart, clearWishlist, initialize, isLoading } = useWishlistStore();
   const { addItem } = useCartStore();
   const [viewMode, setViewMode] = useState("list"); // 'list' or 'grid'
 
-  const handleMoveToCart = (item) => {
-    const wishlistItem = moveToCart(item.id);
+  // Initialize wishlist from backend when component mounts
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  const handleMoveToCart = async (item) => {
+    const wishlistItem = await moveToCart(item.id);
     if (wishlistItem) {
       addItem({
         ...wishlistItem,

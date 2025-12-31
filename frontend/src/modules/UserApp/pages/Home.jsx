@@ -18,9 +18,6 @@ import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
 import { getProducts } from "../../../shared/services/productService";
 import heroBanner2 from "../../../../data/hero/banner2.png";
-import babycareBanner from "../../../../data/banners/babycare-WEB.avif";
-import pharmacyBanner from "../../../../data/banners/pharmacy-WEB.avif";
-import petCareBanner from "../../../../data/banners/Pet-Care_WEB.avif";
 
 const MobileHome = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -340,43 +337,6 @@ const MobileHome = () => {
           {/* New Arrivals */}
           <div className="px-2">
             <NewArrivalsSection />
-          </div>
-
-          {/* Premium Curated Collections */}
-          <div className="py-2 mb-2">
-            <div className="px-4 mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-800">Curated Collections</h2>
-              <Link to="/app/categories" className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">View All</Link>
-            </div>
-            <div className="flex gap-4 overflow-x-auto scrollbar-hide px-4 pb-4 snap-x snap-mandatory">
-              {[
-                { img: babycareBanner, title: "Baby Care", sub: "Gentle Essentials", link: "/app/offers", color: "from-pink-500" },
-                { img: pharmacyBanner, title: "Pharmacy", sub: "Health First", link: "/app/offers", color: "from-blue-500" },
-                { img: petCareBanner, title: "Pet Supplies", sub: "For Furry Friends", link: "/app/offers", color: "from-orange-500" }
-              ].map((item, idx) => (
-                <Link to={item.link} key={idx} className="block flex-shrink-0 snap-center">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="relative w-[75vw] h-44 rounded-2xl overflow-hidden shadow-lg shadow-gray-200"
-                  >
-                    <LazyImage
-                      src={item.img}
-                      className="w-full h-full object-cover transition-transform duration-700"
-                      alt={item.title}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-5">
-                      <div className={`w-8 h-1 mb-3 rounded-full bg-gradient-to-r ${item.color} to-white/50`}></div>
-                      <h3 className="text-white font-bold text-2xl leading-none mb-1 tracking-tight">{item.title}</h3>
-                      <p className="text-white/80 text-sm font-medium tracking-wide">{item.sub}</p>
-                    </div>
-                  </motion.div>
-                </Link>
-              ))}
-            </div>
           </div>
 
           {/* Most Popular */}

@@ -444,8 +444,26 @@ const MobileHeader = () => {
               )}
             </motion.button>
 
-            {/* User Menu */}
-            {isAuthenticated ? (
+            {/* Wishlist Button - Always visible */}
+            <Link
+              to="/app/wishlist"
+              className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300"
+              aria-label="Wishlist">
+              <FiHeart className="text-xl text-gray-700" />
+              {wishlistCount > 0 && (
+                <motion.span
+                  key={wishlistCount}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                  style={{ backgroundColor: "#ef4444" }}>
+                  {wishlistCount > 9 ? "9+" : wishlistCount}
+                </motion.span>
+              )}
+            </Link>
+
+            {/* User Menu - Only when authenticated */}
+            {isAuthenticated && (
               <div ref={userMenuRef} className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
@@ -506,18 +524,6 @@ const MobileHeader = () => {
                   </div>
                 )}
               </div>
-            ) : (
-              <Link
-                to="/app/wishlist"
-                className="relative flex items-center gap-1 px-2 py-1 text-primary-600"
-                aria-label="Wishlist">
-                <FiHeart className="text-xl text-gray-700" />
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] leading-[18px] text-center font-bold">
-                    {wishlistCount > 9 ? "9+" : wishlistCount}
-                  </span>
-                )}
-              </Link>
             )}
           </div>
         </motion.div>
