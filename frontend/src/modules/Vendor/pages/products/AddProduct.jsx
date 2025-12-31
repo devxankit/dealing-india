@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiUpload, FiX, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiSave, FiUpload, FiX, FiPlus, FiTrash2, FiChevronRight, FiChevronLeft, FiCopy } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
@@ -22,6 +22,7 @@ const AddProduct = () => {
 
   const [formData, setFormData] = useState({
     name: "",
+    sku: "",
     unit: "",
     price: "",
     originalPrice: "",
@@ -57,6 +58,13 @@ const AddProduct = () => {
   const [availableAttributes, setAvailableAttributes] = useState([]);
   const [attributeValuesMap, setAttributeValuesMap] = useState({}); // { attributeId: [values] }
   const [loadingAttributes, setLoadingAttributes] = useState(false);
+
+  // Multi-step form state
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 3; // Basic Info, Variations, Additional Details
+
+  // Color variants state
+  const [colorVariants, setColorVariants] = useState([]);
 
   useEffect(() => {
     initCategories();
@@ -282,6 +290,131 @@ const AddProduct = () => {
     });
   };
 
+  // Color variant management functions
+  const addColorVariant = () => {
+    setColorVariants([
+      ...colorVariants,
+      {
+        colorName: "",
+        colorCode: "",
+        thumbnailImage: "",
+        sizeVariants: [],
+      },
+    ]);
+  };
+
+  const removeColorVariant = (index) => {
+    setColorVariants(colorVariants.filter((_, i) => i !== index));
+  };
+
+  const updateColorVariant = (index, field, value) => {
+    const updated = [...colorVariants];
+    updated[index] = { ...updated[index], [field]: value };
+    setColorVariants(updated);
+  };
+
+  const handleColorThumbnailUpload = (index, file) => {
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      updateColorVariant(index, "thumbnailImage", reader.result);
+    };
+    reader.onerror = () => {
+      toast.error("Error reading image file");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Size variant management functions
+  const addSizeVariant = (colorIndex) => {
+    const updated = [...colorVariants];
+    updated[colorIndex].sizeVariants = [
+      ...updated[colorIndex].sizeVariants,
+      {
+        size: "",
+        price: null,
+        originalPrice: null,
+        stockQuantity: 0,
+      },
+    ];
+    setColorVariants(updated);
+  };
+
+  const removeSizeVariant = (colorIndex, sizeIndex) => {
+    const updated = [...colorVariants];
+    updated[colorIndex].sizeVariants = updated[colorIndex].sizeVariants.filter(
+      (_, i) => i !== sizeIndex
+    );
+    setColorVariants(updated);
+  };
+
+  const updateSizeVariant = (colorIndex, sizeIndex, field, value) => {
+    const updated = [...colorVariants];
+    updated[colorIndex].sizeVariants[sizeIndex] = {
+      ...updated[colorIndex].sizeVariants[sizeIndex],
+      [field]: value,
+    };
+    setColorVariants(updated);
+  };
+
+  // Bulk editing functions
+  const bulkEditSizes = (colorIndex, sizes) => {
+    const updated = [...colorVariants];
+    const existingSizes = updated[colorIndex].sizeVariants.map((sv) => sv.size);
+    const newSizes = sizes.filter((s) => !existingSizes.includes(s));
+
+    newSizes.forEach((size) => {
+      updated[colorIndex].sizeVariants.push({
+        size,
+        price: null,
+        originalPrice: null,
+        stockQuantity: 0,
+      });
+    });
+
+    setColorVariants(updated);
+  };
+
+  const copySizeVariantsFromColor = (fromColorIndex, toColorIndex) => {
+    const updated = [...colorVariants];
+    const sourceSizes = updated[fromColorIndex].sizeVariants;
+    updated[toColorIndex].sizeVariants = sourceSizes.map((sv) => ({
+      ...sv,
+      stockQuantity: 0, // Reset stock for new color
+    }));
+    setColorVariants(updated);
+    toast.success("Size variants copied successfully");
+  };
+
+  // Step navigation
+  const nextStep = () => {
+    if (currentStep === 1) {
+      // Validate basic info
+      if (!formData.name || !formData.price || !formData.categoryId) {
+        toast.error("Please fill in all required fields");
+        return;
+      }
+    }
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -291,20 +424,55 @@ const AddProduct = () => {
     }
 
     // Validation
-    if (!formData.name || !formData.price || !formData.stockQuantity) {
+    if (!formData.name || !formData.price) {
       toast.error("Please fill in all required fields");
       return;
     }
 
+    // Validate color variants if provided
+    if (colorVariants.length > 0) {
+      for (let i = 0; i < colorVariants.length; i++) {
+        const cv = colorVariants[i];
+        if (!cv.colorName) {
+          toast.error(`Color variant ${i + 1} must have a color name`);
+          return;
+        }
+        if (cv.sizeVariants.length === 0) {
+          toast.error(`Color variant "${cv.colorName}" must have at least one size`);
+          return;
+        }
+        for (let j = 0; j < cv.sizeVariants.length; j++) {
+          const sv = cv.sizeVariants[j];
+          if (!sv.size || sv.stockQuantity === undefined) {
+            toast.error(`Size variant ${j + 1} for "${cv.colorName}" is incomplete`);
+            return;
+          }
+        }
+      }
+    }
+
     try {
+      // Calculate total stock from variants if provided
+      let totalStock = 0;
+      if (colorVariants.length > 0) {
+        colorVariants.forEach((cv) => {
+          cv.sizeVariants.forEach((sv) => {
+            totalStock += parseInt(sv.stockQuantity) || 0;
+          });
+        });
+      } else {
+        totalStock = parseInt(formData.stockQuantity) || 0;
+      }
+
       // Prepare product data
       const productData = {
         ...formData,
+        sku: formData.sku && formData.sku.trim() ? formData.sku.trim().toUpperCase() : null,
         price: parseFloat(formData.price),
         originalPrice: formData.originalPrice
           ? parseFloat(formData.originalPrice)
           : null,
-        stockQuantity: parseInt(formData.stockQuantity),
+        stockQuantity: totalStock,
         totalAllowedQuantity: formData.totalAllowedQuantity
           ? parseInt(formData.totalAllowedQuantity)
           : null,
@@ -315,6 +483,10 @@ const AddProduct = () => {
         subcategoryId: formData.subcategoryId ? formData.subcategoryId : null,
         subSubCategoryId: formData.subSubCategoryId ? formData.subSubCategoryId : null,
         brandId: formData.brandId ? formData.brandId : null,
+        variants: {
+          ...(formData.variants || {}),
+          colorVariants: colorVariants.length > 0 ? colorVariants : undefined,
+        },
       };
 
       await createVendorProduct(productData);
@@ -339,10 +511,49 @@ const AddProduct = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-3">
+      {/* Step Indicator */}
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+        <div className="flex items-center justify-between">
+          {[1, 2, 3].map((step) => (
+            <div key={step} className="flex items-center flex-1">
+              <div className="flex flex-col items-center flex-1">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
+                    currentStep === step
+                      ? "bg-primary-600 text-white"
+                      : currentStep > step
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-200 text-gray-600"
+                  }`}>
+                  {currentStep > step ? "✓" : step}
+                </div>
+                <span className="text-xs mt-1 text-gray-600">
+                  {step === 1
+                    ? "Basic Info"
+                    : step === 2
+                    ? "Variations"
+                    : "Additional"}
+                </span>
+              </div>
+              {step < 3 && (
+                <div
+                  className={`h-1 flex-1 mx-2 ${
+                    currentStep > step ? "bg-green-500" : "bg-gray-200"
+                  }`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Form */}
       <form
         onSubmit={handleSubmit}
         className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200 space-y-4">
+        {/* Step 1: Basic Information */}
+        {currentStep === 1 && (
+          <>
         {/* Basic Information */}
         <div>
           <h2 className="text-base font-bold text-gray-800 mb-2">
@@ -362,6 +573,28 @@ const AddProduct = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 placeholder="Enter product name"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                SKU (Stock Keeping Unit)
+              </label>
+              <input
+                type="text"
+                name="sku"
+                value={formData.sku}
+                onChange={(e) => {
+                  // Auto-uppercase SKU and allow only alphanumeric, dash, underscore
+                  const value = e.target.value.toUpperCase().replace(/[^A-Z0-9-_]/g, '');
+                  setFormData({ ...formData, sku: value });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="PROD-001"
+                maxLength={100}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Unique identifier for inventory tracking (optional)
+              </p>
             </div>
 
             <div>
@@ -612,18 +845,24 @@ const AddProduct = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Stock Quantity <span className="text-red-500">*</span>
+                Stock Quantity {colorVariants.length === 0 && <span className="text-red-500">*</span>}
               </label>
               <input
                 type="number"
                 name="stockQuantity"
                 value={formData.stockQuantity}
                 onChange={handleChange}
-                required
+                required={colorVariants.length === 0}
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                disabled={colorVariants.length > 0}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                 placeholder="0"
               />
+              {colorVariants.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Stock will be calculated from color/size variants
+                </p>
+              )}
             </div>
 
             <div>
@@ -644,6 +883,333 @@ const AddProduct = () => {
           </div>
         </div>
 
+        {/* Step Navigation for Step 1 */}
+        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={() => navigate("/vendor/products/manage-products")}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={nextStep}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold text-sm">
+            Next: Variations
+            <FiChevronRight />
+          </button>
+        </div>
+          </>
+        )}
+
+        {/* Step 2: Color & Size Variations */}
+        {currentStep === 2 && (
+          <>
+        <div>
+          <h2 className="text-base font-bold text-gray-800 mb-3">
+            Product Variations
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Add color options with size variants. Each color can have different sizes with individual pricing and inventory.
+          </p>
+
+          {/* Add Color Variant Button */}
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={addColorVariant}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold text-sm">
+              <FiPlus />
+              Add Color Variant
+            </button>
+          </div>
+
+          {/* Color Variants List */}
+          {colorVariants.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+              <p className="text-sm text-gray-600 mb-2">No color variants added</p>
+              <p className="text-xs text-gray-500">
+                Click "Add Color Variant" to start adding product variations
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {colorVariants.map((colorVariant, colorIndex) => (
+                <div
+                  key={colorIndex}
+                  className="border-2 border-primary-200 rounded-xl p-4 bg-gradient-to-br from-primary-50 to-white">
+                  <div className="flex items-start justify-between mb-4">
+                    <h3 className="text-sm font-bold text-gray-800">
+                      Color Variant {colorIndex + 1}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => removeColorVariant(colorIndex)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors">
+                      <FiTrash2 className="text-sm" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    {/* Color Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Color Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={colorVariant.colorName}
+                        onChange={(e) =>
+                          updateColorVariant(colorIndex, "colorName", e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                        placeholder="e.g., Red, Blue, Black"
+                        required
+                      />
+                    </div>
+
+                    {/* Color Code with Hex Picker */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Color Code (Hex)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={colorVariant.colorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(colorVariant.colorCode) 
+                            ? colorVariant.colorCode 
+                            : "#000000"}
+                          onChange={(e) =>
+                            updateColorVariant(colorIndex, "colorCode", e.target.value)
+                          }
+                          className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                          title="Pick a color"
+                        />
+                        <input
+                          type="text"
+                          value={colorVariant.colorCode || ""}
+                          onChange={(e) => {
+                            let value = e.target.value;
+                            // Validate hex color format
+                            if (value === "" || /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value)) {
+                              updateColorVariant(colorIndex, "colorCode", value);
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                          placeholder="#FF0000"
+                          pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Use color picker or enter hex code (e.g., #FF0000)
+                      </p>
+                    </div>
+
+                    {/* Thumbnail Image */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Thumbnail Image
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            handleColorThumbnailUpload(
+                              colorIndex,
+                              e.target.files[0]
+                            )
+                          }
+                          className="hidden"
+                          id={`color-thumbnail-${colorIndex}`}
+                        />
+                        <label
+                          htmlFor={`color-thumbnail-${colorIndex}`}
+                          className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white text-sm">
+                          <FiUpload className="text-base text-primary-600" />
+                          <span className="text-xs font-medium text-gray-700">
+                            {colorVariant.thumbnailImage
+                              ? "Change Thumbnail"
+                              : "Upload Thumbnail"}
+                          </span>
+                        </label>
+                        {colorVariant.thumbnailImage && (
+                          <img
+                            src={colorVariant.thumbnailImage}
+                            alt="Thumbnail"
+                            className="w-16 h-16 object-cover rounded-lg border-2 border-primary-300"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Size Variants for this Color */}
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-gray-700">
+                        Size Variants
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        {colorIndex > 0 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copySizeVariantsFromColor(0, colorIndex)
+                            }
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                            <FiCopy className="text-xs" />
+                            Copy from First
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addSizeVariant(colorIndex)}
+                          className="flex items-center gap-1 px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors">
+                          <FiPlus className="text-xs" />
+                          Add Size
+                        </button>
+                      </div>
+                    </div>
+
+                    {colorVariant.sizeVariants.length === 0 ? (
+                      <div className="text-center py-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                        <p className="text-xs text-gray-500">
+                          No sizes added. Click "Add Size" to add size variants.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {colorVariant.sizeVariants.map((sizeVariant, sizeIndex) => (
+                          <div
+                            key={sizeIndex}
+                            className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 bg-white border border-gray-200 rounded-lg">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                Size <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={sizeVariant.size}
+                                onChange={(e) =>
+                                  updateSizeVariant(
+                                    colorIndex,
+                                    sizeIndex,
+                                    "size",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                placeholder="S, M, L, XL"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                Price
+                              </label>
+                              <input
+                                type="number"
+                                value={sizeVariant.price || ""}
+                                onChange={(e) =>
+                                  updateSizeVariant(
+                                    colorIndex,
+                                    sizeIndex,
+                                    "price",
+                                    e.target.value ? parseFloat(e.target.value) : null
+                                  )
+                                }
+                                min="0"
+                                step="0.01"
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                placeholder="Base price"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                Original Price
+                              </label>
+                              <input
+                                type="number"
+                                value={sizeVariant.originalPrice || ""}
+                                onChange={(e) =>
+                                  updateSizeVariant(
+                                    colorIndex,
+                                    sizeIndex,
+                                    "originalPrice",
+                                    e.target.value ? parseFloat(e.target.value) : null
+                                  )
+                                }
+                                min="0"
+                                step="0.01"
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                placeholder="Original"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                Stock <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="number"
+                                value={sizeVariant.stockQuantity}
+                                onChange={(e) =>
+                                  updateSizeVariant(
+                                    colorIndex,
+                                    sizeIndex,
+                                    "stockQuantity",
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                                min="0"
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                required
+                              />
+                            </div>
+                            <div className="flex items-end">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeSizeVariant(colorIndex, sizeIndex)
+                                }
+                                className="w-full px-2 py-1.5 text-red-600 hover:bg-red-50 rounded transition-colors text-sm">
+                                <FiTrash2 className="mx-auto" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Step Navigation for Step 2 */}
+        <div className="flex justify-between gap-2 pt-4 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={prevStep}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
+            <FiChevronLeft />
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={nextStep}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold text-sm">
+            Next: Additional Details
+            <FiChevronRight />
+          </button>
+        </div>
+          </>
+        )}
+
+        {/* Step 3: Additional Details */}
+        {currentStep === 3 && (
+          <>
         {/* Product Attributes */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -874,21 +1440,32 @@ const AddProduct = () => {
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-gray-200">
+        {/* Step Navigation for Step 3 */}
+        <div className="flex justify-between gap-2 pt-4 border-t border-gray-200">
           <button
             type="button"
-            onClick={() => navigate("/vendor/products/manage-products")}
-            className="w-full sm:w-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
-            Cancel
+            onClick={prevStep}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
+            <FiChevronLeft />
+            Previous
           </button>
-          <button
-            type="submit"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm">
-            <FiSave />
-            Create Product
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/vendor/products/manage-products")}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex items-center justify-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm">
+              <FiSave />
+              Create Product
+            </button>
+          </div>
         </div>
+          </>
+        )}
       </form>
     </motion.div>
   );
