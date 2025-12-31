@@ -601,10 +601,10 @@ const MobileCategory = () => {
 
   return (
     <PageTransition>
-      <MobileLayout showBottomNav={true} showCartBar={true}>
-        <div className="w-full pb-24">
-          {/* Header */}
-          <div className="px-3 py-2 bg-white border-b border-gray-200 sticky top-0 z-50">
+      <MobileLayout showBottomNav={true} showCartBar={true} fullScreen={true}>
+        <div className="flex flex-col h-full overflow-hidden bg-gray-50">
+          {/* Header - Fixed */}
+          <div className="px-3 py-2 bg-white border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate(-1)}
@@ -688,10 +688,10 @@ const MobileCategory = () => {
             </div>
           </div>
 
-
-
-          {/* Products List */}
-          <div className="px-4 py-2">
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-behavior-smooth pb-24">
+            {/* Products List */}
+            <div className="px-4 py-2">
             {loadingProducts ? (
               <div className="text-center py-12">
                 <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
@@ -702,32 +702,32 @@ const MobileCategory = () => {
                 {subcategories.length > 0 ? (
                   <div className="space-y-4">
                     {viewMode === "grid" ? (
-                      <div className="grid grid-cols-2 gap-3">
-                        {subcategories.map((sub, index) => (
-                          <motion.button
-                            key={sub.id}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: index * 0.05 }}
-                            onClick={() => navigate(`/app/category/${sub.id}`)}
-                            className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm active:scale-95 transition-all"
-                          >
-                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50">
-                              <LazyImage
-                                src={sub.image}
-                                alt={sub.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.src = getPlaceholderImage(64, 64, "Sub");
-                                }}
-                              />
-                            </div>
-                            <span className="text-xs font-semibold text-gray-800 text-center line-clamp-1">
-                              {sub.name}
-                            </span>
-                          </motion.button>
-                        ))}
-                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3 md:gap-4">
+                          {subcategories.map((sub, index) => (
+                            <motion.button
+                              key={sub.id}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.05 }}
+                              onClick={() => navigate(`/app/category/${sub.id}`)}
+                              className="flex flex-col items-center gap-2 active:scale-95 transition-all p-2 rounded-2xl hover:bg-gray-50/50"
+                            >
+                              <div className="w-24 h-24 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-gray-50 border-2 border-white shadow-sm hover:shadow-md transition-shadow">
+                                <LazyImage
+                                  src={sub.image}
+                                  alt={sub.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = getPlaceholderImage(120, 120, "Sub");
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs sm:text-[11px] font-bold text-gray-800 text-center line-clamp-1 w-full px-1">
+                                {sub.name}
+                              </span>
+                            </motion.button>
+                          ))}
+                        </div>
                     ) : (
                       <div className="space-y-3">
                         {subcategories.map((sub, index) => (
@@ -778,17 +778,17 @@ const MobileCategory = () => {
               </div>
             ) : viewMode === "grid" ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  {displayedItems.map((product, index) => (
-                    <motion.div
-                      key={product.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}>
-                      <ProductCard product={product} />
-                    </motion.div>
-                  ))}
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-5">
+                {displayedItems.map((product, index) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}>
+                    <ProductCard product={product} />
+                  </motion.div>
+                ))}
+              </div>
 
                 {hasMore && (
                   <div
@@ -796,57 +796,44 @@ const MobileCategory = () => {
                     className="mt-6 flex flex-col items-center gap-4">
                     {isLoading && (
                       <div className="flex items-center gap-2 text-gray-600">
-                        <span className="text-sm">
-                          Loading more products...
-                        </span>
+                        <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs font-medium">Loading more products...</span>
                       </div>
                     )}
-                    <button
-                      onClick={loadMore}
-                      disabled={isLoading}
-                      className="px-6 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                      {isLoading ? "Loading..." : "Load More"}
-                    </button>
                   </div>
                 )}
               </>
             ) : (
-              <>
-                <div className="space-y-3">
-                  {displayedItems.map((product, index) => (
-                    <ProductListItem
-                      key={product.id}
-                      product={product}
-                      index={index}
-                    />
-                  ))}
-                </div>
-
+              <div className="space-y-3">
+                {displayedItems.map((product, index) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}>
+                    <ProductListItem product={product} />
+                  </motion.div>
+                ))}
+                
                 {hasMore && (
                   <div
                     ref={loadMoreRef}
                     className="mt-6 flex flex-col items-center gap-4">
                     {isLoading && (
                       <div className="flex items-center gap-2 text-gray-600">
-                        <span className="text-sm">
-                          Loading more products...
-                        </span>
+                        <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs font-medium">Loading more products...</span>
                       </div>
                     )}
-                    <button
-                      onClick={loadMore}
-                      disabled={isLoading}
-                      className="px-6 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                      {isLoading ? "Loading..." : "Load More"}
-                    </button>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
-      </MobileLayout>
-    </PageTransition>
+      </div>
+    </MobileLayout>
+  </PageTransition>
   );
 };
 
