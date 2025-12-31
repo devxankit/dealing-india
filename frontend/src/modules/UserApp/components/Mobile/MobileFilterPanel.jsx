@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiFilter, FiGrid, FiDollarSign, FiStar } from 'react-icons/fi';
+import { FiX, FiFilter, FiGrid, FiDollarSign, FiStar, FiCheck, FiTag, FiTrendingUp } from 'react-icons/fi';
 // Dynamic categories from store
 import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import useSwipeGesture from '../../hooks/useSwipeGesture';
@@ -20,15 +21,9 @@ const MobileFilterPanel = ({
   const panelRef = useRef(null);
 
   // Set default active section based on whether category filter is hidden
-  // But if deepestCategoryId is provided, we still want to show categories (just not in sidebar)
   useEffect(() => {
-    if (hideCategoryFilter && !deepestCategoryId) {
-      setActiveSection('price');
-    } else if (!hideCategoryFilter) {
-      setActiveSection('category');
-    }
-    // If hideCategoryFilter is true but deepestCategoryId exists, keep current section (will show categories in content)
-  }, [hideCategoryFilter, deepestCategoryId]);
+    setActiveSection('price');
+  }, [isOpen]);
 
   // Prevent body scroll when panel is open
   useEffect(() => {
@@ -167,90 +162,140 @@ const MobileFilterPanel = ({
     );
   };
 
-  // Filter sections configuration - hide category if hideCategoryFilter is true
+  // Filter sections configuration
   const filterSections = [
-    ...(hideCategoryFilter ? [] : [{ id: 'category', label: 'Category', icon: FiGrid }]),
+    { id: 'sort', label: 'Sort By', icon: FiTrendingUp },
     { id: 'price', label: 'Price', icon: FiDollarSign },
     { id: 'rating', label: 'Rating', icon: FiStar },
+    { id: 'discount', label: 'Discount', icon: FiTag },
+    { id: 'brand', label: 'Brand', icon: FiCheck },
   ];
 
   // Render content based on active section
   const renderContent = () => {
-    // If deepestCategoryId is provided, always show categories (even if category is hidden from sidebar)
-    if (deepestCategoryId && hideCategoryFilter) {
-      return (
-        <div>
-          <h3 className="font-bold text-gray-800 mb-3 text-base flex items-center gap-2">
-            <FiGrid className="text-primary-500" />
-            Select Subcategory
-          </h3>
-          <div className="space-y-1 max-h-[50vh] overflow-y-auto">
-            {renderNestedCategories(null, 0) || (
-              <p className="text-xs text-gray-500 py-4 text-center">
-                No subcategories available
-              </p>
-            )}
-          </div>
-        </div>
-      );
-    }
-    
     switch (activeSection) {
-      case 'category':
+      case 'sort':
         return (
           <div>
-            <h3 className="font-bold text-gray-800 mb-3 text-base flex items-center gap-2">
-              <FiGrid className="text-primary-500" />
-              {deepestCategoryId ? 'Select Subcategory' : 'Select Category'}
+            <h3 className="font-semibold text-gray-700 mb-3 text-sm flex items-center gap-2">
+              <FiTrendingUp className="text-primary-500" />
+              Sort Products By
             </h3>
-            <div className="space-y-1 max-h-[50vh] overflow-y-auto">
-              {renderNestedCategories(null, 0) || (
-                <p className="text-xs text-gray-500 py-4 text-center">
-                  {deepestCategoryId ? 'No subcategories available' : 'No categories available'}
-                </p>
-              )}
+            <div className="space-y-1">
+              {[
+                { id: 'newest', label: 'Newest First' },
+                { id: 'price_low', label: 'Price: Low to High' },
+                { id: 'price_high', label: 'Price: High to Low' },
+                { id: 'popularity', label: 'Popularity' },
+                { id: 'rating', label: 'Customer Rating' },
+              ].map((option) => (
+                <label
+                  key={option.id}
+                  className="flex items-center justify-between cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
+                >
+                  <span className="text-sm text-gray-700 font-medium">{option.label}</span>
+                  <input
+                    type="radio"
+                    name="sortBy"
+                    value={option.id}
+                    checked={filters.sortBy === option.id}
+                    onChange={(e) => onFilterChange('sortBy', e.target.value)}
+                    className="w-4 h-4 text-primary-500"
+                  />
+                </label>
+              ))}
             </div>
-            {!deepestCategoryId && (
-              <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-700">
-                  <span className="font-semibold">Tip:</span> Select any category including subcategories like "Shirts", "Vivo" etc.
-                </p>
-              </div>
-            )}
           </div>
         );
       case 'price':
         return (
           <div>
-            <h3 className="font-semibold text-gray-700 mb-2 text-sm">Price Range</h3>
-            <div className="space-y-2">
-              <input
-                type="number"
-                placeholder="Min Price"
-                value={filters.minPrice}
-                onChange={(e) => onFilterChange('minPrice', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm"
-              />
-              <input
-                type="number"
-                placeholder="Max Price"
-                value={filters.maxPrice}
-                onChange={(e) => onFilterChange('maxPrice', e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm"
-              />
+            <h3 className="font-semibold text-gray-700 mb-3 text-sm flex items-center gap-2">
+              <FiDollarSign className="text-primary-500" />
+              Price Range
+            </h3>
+            <div className="space-y-4 p-1">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 space-y-1.5">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase ml-1">Min</span>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={filters.minPrice}
+                      onChange={(e) => onFilterChange('minPrice', e.target.value)}
+                      className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm bg-gray-50/50"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase ml-1">Max</span>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
+                    <input
+                      type="number"
+                      placeholder="50000+"
+                      value={filters.maxPrice}
+                      onChange={(e) => onFilterChange('maxPrice', e.target.value)}
+                      className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm bg-gray-50/50"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'Under ₹500', min: '0', max: '500' },
+                  { label: '₹500 - ₹1000', min: '500', max: '1000' },
+                  { label: '₹1000 - ₹5000', min: '1000', max: '5000' },
+                  { label: 'Over ₹5000', min: '5000', max: '100000' }
+                ].map((range) => (
+                  <button
+                    key={range.label}
+                    onClick={() => {
+                      onFilterChange({ 
+                        minPrice: range.min, 
+                        maxPrice: range.max 
+                      });
+                    }}
+                    className={`px-3 py-1.5 rounded-full border text-[11px] transition-colors ${
+                      filters.minPrice === range.min && filters.maxPrice === range.max
+                        ? 'border-primary-500 bg-primary-50 text-primary-600 font-bold'
+                        : 'border-gray-200 text-gray-600 hover:border-primary-500 hover:text-primary-600'
+                    }`}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         );
       case 'rating':
         return (
           <div>
-            <h3 className="font-semibold text-gray-700 mb-2 text-sm">Minimum Rating</h3>
-            <div className="space-y-1">
+            <h3 className="font-semibold text-gray-700 mb-3 text-sm flex items-center gap-2">
+              <FiStar className="text-primary-500" />
+              Customer Rating
+            </h3>
+            <div className="space-y-2">
               {[4, 3, 2, 1].map((rating) => (
                 <label
                   key={rating}
-                  className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
                 >
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center text-yellow-400">
+                      {[...Array(5)].map((_, i) => (
+                        <FiStar 
+                          key={i} 
+                          className={`text-xs ${i < rating ? 'fill-current' : 'text-gray-200'}`} 
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-700 font-medium">{rating}.0 & Above</span>
+                  </div>
                   <input
                     type="radio"
                     name="minRating"
@@ -259,7 +304,69 @@ const MobileFilterPanel = ({
                     onChange={(e) => onFilterChange('minRating', e.target.value)}
                     className="w-4 h-4 text-primary-500"
                   />
-                  <span className="text-xs text-gray-700 font-medium">{rating}+ Stars</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      case 'discount':
+        return (
+          <div>
+            <h3 className="font-semibold text-gray-700 mb-3 text-sm flex items-center gap-2">
+              <FiTag className="text-primary-500" />
+              Discount Offers
+            </h3>
+            <div className="space-y-1">
+              {[
+                { id: '10', label: '10% and above' },
+                { id: '20', label: '20% and above' },
+                { id: '30', label: '30% and above' },
+                { id: '50', label: '50% and above' },
+                { id: '70', label: '70% and above' },
+              ].map((option) => (
+                <label
+                  key={option.id}
+                  className="flex items-center justify-between cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
+                >
+                  <span className="text-sm text-gray-700 font-medium">{option.label}</span>
+                  <input
+                    type="radio"
+                    name="discount"
+                    value={option.id}
+                    checked={filters.discount === option.id}
+                    onChange={(e) => onFilterChange('discount', e.target.value)}
+                    className="w-4 h-4 text-primary-500"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      case 'brand':
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
+                <FiCheck className="text-primary-500" />
+                Popular Brands
+              </h3>
+              <span className="text-[10px] text-primary-600 font-bold uppercase tracking-tighter">Search</span>
+            </div>
+            <div className="space-y-1 max-h-[40vh] overflow-y-auto pr-1 scrollbar-hide">
+              {['Samsung', 'Apple', 'Nike', 'Adidas', 'Sony', 'LG', 'Puma', 'Zara', 'H&M', 'OnePlus', 'Xiaomi'].map((brand) => (
+                <label
+                  key={brand}
+                  className="flex items-center justify-between cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
+                >
+                  <span className="text-sm text-gray-700 font-medium">{brand}</span>
+                  <input
+                    type="checkbox"
+                    name="brand"
+                    value={brand}
+                    checked={filters.brand && filters.brand.includes(brand)}
+                    onChange={() => onFilterChange('brand', brand)}
+                    className="w-4 h-4 rounded text-primary-500 border-gray-300 focus:ring-primary-500"
+                  />
                 </label>
               ))}
             </div>
@@ -270,7 +377,7 @@ const MobileFilterPanel = ({
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -280,7 +387,7 @@ const MobileFilterPanel = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 z-[10000]"
+            className="fixed inset-0 bg-black/50 z-[100000]"
           />
 
           {/* Filter Panel - Bottom Sheet */}
@@ -290,7 +397,7 @@ const MobileFilterPanel = ({
             animate={{ y: dragY > 0 ? dragY : 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[10001] flex flex-col max-h-[70vh]"
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[100001] flex flex-col max-h-[70vh]"
             onTouchStart={swipeHandlers.onTouchStart}
             onTouchMove={(e) => {
               if (swipeHandlers.swipeState.isSwiping && swipeHandlers.swipeState.offset > 0) {
@@ -378,7 +485,8 @@ const MobileFilterPanel = ({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 

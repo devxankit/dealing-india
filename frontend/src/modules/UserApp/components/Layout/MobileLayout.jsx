@@ -32,6 +32,7 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
     !location.pathname.startsWith('/app/privacy') &&
     !location.pathname.startsWith('/app/about') &&
     !location.pathname.startsWith('/app/notifications') &&
+    !location.pathname.startsWith('/app/category/') &&
     !location.pathname.startsWith('/app/wallet');
 
   // Ensure body scroll is restored when component mounts
