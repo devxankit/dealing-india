@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiFilter, FiArrowLeft, FiGrid, FiList, FiX, FiChevronDown } from "react-icons/fi";
+import { FiFilter, FiArrowLeft, FiGrid, FiList, FiX, FiChevronDown, FiChevronRight } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import MobileLayout from "../components/Layout/MobileLayout";
 import MobileFilterPanel from "../components/Mobile/MobileFilterPanel";
@@ -399,6 +399,9 @@ const MobileCategory = () => {
     minPrice: "",
     maxPrice: "",
     minRating: "",
+    sortBy: "newest",
+    discount: "",
+    brand: [],
   });
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -431,10 +434,12 @@ const MobileCategory = () => {
         minPrice: filters.minPrice || undefined,
         maxPrice: filters.maxPrice || undefined,
         minRating: filters.minRating || undefined,
+        sortBy: filters.sortBy || 'createdAt',
+        sortOrder: filters.sortBy === 'price_high' ? 'desc' : (filters.sortBy === 'price_low' ? 'asc' : 'desc'),
+        discount: filters.discount || undefined,
+        brands: filters.brand && filters.brand.length > 0 ? filters.brand.join(',') : undefined,
         page: 1,
         limit: 100, // Get more products for better UX
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
       });
 
       const fetchedProducts = result.products || result.data?.products || [];
@@ -504,8 +509,28 @@ const MobileCategory = () => {
     return deepestId || (categoryId?.toString() || String(categoryId));
   }, [selectedNestedCategories, categoryId]);
 
-  const handleFilterChange = (name, value) => {
-    setFilters({ ...filters, [name]: value });
+  const handleFilterChange = (nameOrObj, value) => {
+    setFilters(prev => {
+      // If first argument is an object, merge it
+      if (typeof nameOrObj === 'object' && nameOrObj !== null) {
+        return { ...prev, ...nameOrObj };
+      }
+
+      // Handle brand array separately
+      if (nameOrObj === 'brand') {
+        const currentBrands = [...prev.brand];
+        const index = currentBrands.indexOf(value);
+        if (index > -1) {
+          currentBrands.splice(index, 1);
+        } else {
+          currentBrands.push(value);
+        }
+        return { ...prev, brand: currentBrands };
+      }
+
+      // Handle single value update
+      return { ...prev, [nameOrObj]: value };
+    });
   };
 
   const clearFilters = () => {
@@ -514,6 +539,9 @@ const MobileCategory = () => {
       minPrice: "",
       maxPrice: "",
       minRating: "",
+      sortBy: "newest",
+      discount: "",
+      brand: [],
     });
   };
 
@@ -522,7 +550,10 @@ const MobileCategory = () => {
     filters.minPrice ||
     filters.maxPrice ||
     filters.minRating ||
-    filters.category;
+    filters.category ||
+    filters.discount ||
+    filters.brand.length > 0 ||
+    filters.sortBy !== "newest";
 
   // Close filter dropdown when clicking outside
   useEffect(() => {
@@ -573,73 +604,76 @@ const MobileCategory = () => {
       <MobileLayout showBottomNav={true} showCartBar={true}>
         <div className="w-full pb-24">
           {/* Header */}
-          <div className="px-4 py-4 bg-white border-b border-gray-200">
-            <div className="flex items-center gap-3 mb-4">
+          <div className="px-3 py-2 bg-white border-b border-gray-200 sticky top-0 z-50">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <FiArrowLeft className="text-xl text-gray-700" />
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors">
+                <FiArrowLeft className="text-lg text-gray-700" />
               </button>
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                <LazyImage
-                  src={category.image}
-                  alt={category.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = getPlaceholderImage(48, 48, "Category");
-                  }}
-                />
+              
+              <div className="flex-1 flex items-center gap-2 overflow-hidden">
+                <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                  <LazyImage
+                    src={category.image}
+                    alt={category.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = getPlaceholderImage(32, 32, "Category");
+                    }}
+                  />
+                </div>
+                <div className="overflow-hidden">
+                  <h1 className="text-base font-bold text-gray-800 truncate leading-tight">
+                    {category.name}
+                  </h1>
+                  <p className="text-[10px] text-gray-500 leading-none">
+                    {loadingProducts ? "Loading..." : `${products.length} products`}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h1 className="text-xl font-bold text-gray-800">
-                  {category.name}
-                </h1>
-                <p className="text-sm text-gray-600">
-                  {loadingProducts ? "Loading..." : `${products.length} product${products.length !== 1 ? "s" : ""}`}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
+
+              <div className="flex items-center gap-1.5">
                 {/* View Toggle Buttons */}
-                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`p-1.5 rounded transition-colors ${
+                    className={`p-1 rounded transition-colors ${
                       viewMode === "list"
                         ? "bg-white text-primary-600 shadow-sm"
-                        : "text-gray-600"
+                        : "text-gray-500"
                     }`}>
-                    <FiList className="text-lg" />
+                    <FiList className="text-base" />
                   </button>
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`p-1.5 rounded transition-colors ${
+                    className={`p-1 rounded transition-colors ${
                       viewMode === "grid"
                         ? "bg-white text-primary-600 shadow-sm"
-                        : "text-gray-600"
+                        : "text-gray-500"
                     }`}>
-                    <FiGrid className="text-lg" />
+                    <FiGrid className="text-base" />
                   </button>
                 </div>
+                
                 <div className="relative">
                   <button
                     onClick={() => {
-                      // Refresh categories when opening filter to get latest additions
                       if (!showFilters) {
                         initialize(true);
                       }
                       setShowFilters(!showFilters);
                     }}
-                    className={`p-2.5 glass-card rounded-xl hover:bg-white/80 transition-colors ${
+                    className={`p-1.5 glass-card rounded-lg hover:bg-white/80 transition-colors ${
                       showFilters ? "bg-white/80" : ""
                     }`}>
                     <FiFilter
-                      className={`text-lg transition-colors ${
-                        hasActiveFilters ? "text-blue-600" : "text-gray-600"
+                      className={`text-base transition-colors ${
+                        hasActiveFilters ? "text-blue-600" : "text-gray-500"
                       }`}
                     />
                   </button>
 
-                  {/* Filter Bottom Sheet */}
                   <MobileFilterPanel
                     isOpen={showFilters}
                     onClose={() => setShowFilters(false)}
@@ -654,174 +688,93 @@ const MobileCategory = () => {
             </div>
           </div>
 
-          {/* Category Filter Buttons (First 2 Levels) */}
-          {buttonLevels.map((levelData, index) => (
-            levelData.categories.length > 0 && (
-              <div key={`level-${levelData.level}`} className="px-4 py-3 bg-white border-b border-gray-200">
-                <div
-                  className="overflow-x-auto scrollbar-hide -mx-4 px-4"
-                  style={{
-                    scrollBehavior: "smooth",
-                    WebkitOverflowScrolling: "touch",
-                  }}>
-                  <div className="flex gap-1.5">
-                    {levelData.categories.map((subcategory) => {
-                      // Normalize IDs for comparison
-                      const subcategoryId = subcategory.id?.toString() || String(subcategory.id);
-                      const selectedId = levelData.selectedId?.toString() || String(levelData.selectedId || '');
-                      const isActive = levelData.selectedId && subcategoryId === selectedId;
-                      
-                      // Check if this category has deeper levels (dropdown)
-                      // Level 1 categories show dropdowns for level 2+
-                      // Level 0 categories can also show dropdowns if level 1 doesn't exist as buttons
-                      const hasDropdown = (levelData.level === 1 || (levelData.level === 0 && buttonLevels.length === 1)) 
-                        && dropdownLevels[subcategoryId] 
-                        && dropdownLevels[subcategoryId].length > 0;
-                      const isDropdownOpen = openDropdowns[subcategoryId] || false;
-                      
-                      return (
-                        <div key={subcategory.id} className="relative flex-shrink-0">
-                          <motion.button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNestedCategorySelect(levelData.level, subcategory.id);
-                              if (hasDropdown) {
-                                toggleDropdown(subcategory.id);
-                              } else {
-                                closeAllDropdowns();
-                              }
-                            }}
-                            whileTap={{ scale: 0.97 }}
-                            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap border ${
-                              isActive
-                                ? "bg-white text-primary-600 border-primary-200 shadow-sm"
-                                : "bg-gray-50 text-gray-600 border-gray-200 active:bg-gray-100"
-                            }`}
-                            style={{ willChange: "transform" }}>
-                            <span>{subcategory.name}</span>
-                            {hasDropdown && (
-                              <FiChevronDown 
-                                className={`text-xs transition-transform duration-200 ${
-                                  isDropdownOpen ? 'rotate-180' : ''
-                                }`} 
-                              />
-                            )}
-                          </motion.button>
-                          
-                          {/* Dropdown for deeper levels (Level 2+) */}
-                          {hasDropdown && isDropdownOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="category-dropdown-container absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[150px] max-h-[300px] overflow-y-auto">
-                              {dropdownLevels[subcategoryId].map((dropdownLevel) => (
-                                <div key={`dropdown-level-${dropdownLevel.level}`} className="p-2">
-                                  <div className="text-xs font-semibold text-gray-700 mb-1 px-2">
-                                    Level {dropdownLevel.level + 1}
-                                  </div>
-                                  {dropdownLevel.categories.map((deepCategory) => {
-                                    const deepCategoryId = deepCategory.id?.toString() || String(deepCategory.id);
-                                    const deepSelectedId = dropdownLevel.selectedId?.toString() || String(dropdownLevel.selectedId || '');
-                                    const isDeepActive = dropdownLevel.selectedId && deepCategoryId === deepSelectedId;
-                                    
-                                    // Check if this deep category has even deeper levels
-                                    const hasDeepDropdown = dropdownLevels[deepCategoryId] && dropdownLevels[deepCategoryId].length > 0;
-                                    const isDeepDropdownOpen = openDropdowns[deepCategoryId] || false;
-                                    
-                                    return (
-                                      <div key={deepCategory.id} className="relative">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleNestedCategorySelect(dropdownLevel.level, deepCategory.id);
-                                            if (hasDeepDropdown) {
-                                              toggleDropdown(deepCategory.id);
-                                            }
-                                          }}
-                                          className={`w-full text-left px-3 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between ${
-                                            isDeepActive
-                                              ? "bg-primary-50 text-primary-600 font-medium"
-                                              : "text-gray-700 hover:bg-gray-50"
-                                          }`}>
-                                          <span>{deepCategory.name}</span>
-                                          {hasDeepDropdown && (
-                                            <FiChevronDown 
-                                              className={`text-xs transition-transform duration-200 ${
-                                                isDeepDropdownOpen ? 'rotate-180' : ''
-                                              }`} 
-                                            />
-                                          )}
-                                        </button>
-                                        
-                                        {/* Nested dropdown for even deeper levels */}
-                                        {hasDeepDropdown && isDeepDropdownOpen && (
-                                          <motion.div
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: -10 }}
-                                            className="ml-2 mt-1 border-l-2 border-gray-200 pl-2">
-                                            {dropdownLevels[deepCategoryId].map((nestedDropdownLevel) => (
-                                              <div key={`nested-dropdown-level-${nestedDropdownLevel.level}`} className="py-1">
-                                                {nestedDropdownLevel.categories.map((nestedCategory) => {
-                                                  const nestedCategoryId = nestedCategory.id?.toString() || String(nestedCategory.id);
-                                                  const nestedSelectedId = nestedDropdownLevel.selectedId?.toString() || String(nestedDropdownLevel.selectedId || '');
-                                                  const isNestedActive = nestedDropdownLevel.selectedId && nestedCategoryId === nestedSelectedId;
-                                                  
-                                                  return (
-                                                    <button
-                                                      key={nestedCategory.id}
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleNestedCategorySelect(nestedDropdownLevel.level, nestedCategory.id);
-                                                      }}
-                                                      className={`w-full text-left px-3 py-1 rounded-md text-xs transition-colors ${
-                                                        isNestedActive
-                                                          ? "bg-primary-50 text-primary-600 font-medium"
-                                                          : "text-gray-600 hover:bg-gray-50"
-                                                      }`}>
-                                                      {nestedCategory.name}
-                                                    </button>
-                                                  );
-                                                })}
-                                              </div>
-                                            ))}
-                                          </motion.div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              ))}
-                            </motion.div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )
-          ))}
+
 
           {/* Products List */}
-          <div className="px-4 py-4">
+          <div className="px-4 py-2">
             {loadingProducts ? (
               <div className="text-center py-12">
                 <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
                 <p className="mt-4 text-sm text-gray-600">Loading products...</p>
               </div>
             ) : products.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  No products found
-                </h3>
-                <p className="text-gray-600">
-                  There are no products available in this category at the
-                  moment.
-                </p>
+              <div className="px-4 py-2">
+                {subcategories.length > 0 ? (
+                  <div className="space-y-4">
+                    {viewMode === "grid" ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        {subcategories.map((sub, index) => (
+                          <motion.button
+                            key={sub.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.05 }}
+                            onClick={() => navigate(`/app/category/${sub.id}`)}
+                            className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl border border-gray-100 shadow-sm active:scale-95 transition-all"
+                          >
+                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50">
+                              <LazyImage
+                                src={sub.image}
+                                alt={sub.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = getPlaceholderImage(64, 64, "Sub");
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold text-gray-800 text-center line-clamp-1">
+                              {sub.name}
+                            </span>
+                          </motion.button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {subcategories.map((sub, index) => (
+                          <motion.button
+                            key={sub.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            onClick={() => navigate(`/app/category/${sub.id}`)}
+                            className="flex items-center gap-4 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-all w-full text-left"
+                          >
+                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
+                              <LazyImage
+                                src={sub.image}
+                                alt={sub.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = getPlaceholderImage(48, 48, "Sub");
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                              <h4 className="text-sm font-semibold text-gray-800 truncate">
+                                {sub.name}
+                              </h4>
+                              <p className="text-[10px] text-gray-500">
+                                Explore subcategories
+                              </p>
+                            </div>
+                            <FiChevronRight className="text-gray-400" />
+                          </motion.button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                      No products found
+                    </h3>
+                    <p className="text-gray-600">
+                      There are no products available in this category at the
+                      moment.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : viewMode === "grid" ? (
               <>
