@@ -31,13 +31,15 @@ const TaxPricing = () => {
   const loadTaxRules = async () => {
     setIsLoading(true);
     try {
+      // API interceptor returns response.data, so response is already { success, message, data }
       const response = await api.get("/admin/tax-rules");
-      const rules = response.data.data || [];
+      const rules = response.data || [];
       // Transform _id to id for frontend compatibility
       setTaxRules(rules.map((rule) => ({ ...rule, id: rule._id || rule.id })));
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to load tax rules";
       toast.error(errorMessage);
+      setTaxRules([]);
     } finally {
       setIsLoading(false);
     }
@@ -45,32 +47,37 @@ const TaxPricing = () => {
 
   const loadPricingRules = async () => {
     try {
+      // API interceptor returns response.data, so response is already { success, message, data }
       const response = await api.get("/admin/pricing-rules");
-      const rules = response.data.data || [];
+      const rules = response.data || [];
       // Transform _id to id for frontend compatibility
       setPricingRules(rules.map((rule) => ({ ...rule, id: rule._id || rule.id })));
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to load pricing rules";
       toast.error(errorMessage);
+      setPricingRules([]);
     }
   };
 
   const handleSaveTax = async (taxData) => {
     try {
+      // API interceptor returns response.data, so response is already { success, message, data }
       if (editingTax && editingTax.id) {
         // Update existing tax rule
         const response = await api.put(`/admin/tax-rules/${editingTax.id}`, taxData);
-        const updatedRule = { ...response.data.data, id: response.data.data._id || editingTax.id };
+        const updatedRule = { ...response.data, id: response.data._id || editingTax.id };
         setTaxRules(taxRules.map((t) => (t.id === editingTax.id ? updatedRule : t)));
         toast.success("Tax rule updated");
       } else {
         // Create new tax rule
         const response = await api.post("/admin/tax-rules", taxData);
-        const newRule = { ...response.data.data, id: response.data.data._id };
+        const newRule = { ...response.data, id: response.data._id };
         setTaxRules([...taxRules, newRule]);
         toast.success("Tax rule added");
       }
       setEditingTax(null);
+      // Reload tax rules to ensure data is in sync
+      await loadTaxRules();
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to save tax rule";
       toast.error(errorMessage);
@@ -79,20 +86,23 @@ const TaxPricing = () => {
 
   const handleSavePricing = async (pricingData) => {
     try {
+      // API interceptor returns response.data, so response is already { success, message, data }
       if (editingPricing && editingPricing.id) {
         // Update existing pricing rule
         const response = await api.put(`/admin/pricing-rules/${editingPricing.id}`, pricingData);
-        const updatedRule = { ...response.data.data, id: response.data.data._id || editingPricing.id };
+        const updatedRule = { ...response.data, id: response.data._id || editingPricing.id };
         setPricingRules(pricingRules.map((p) => (p.id === editingPricing.id ? updatedRule : p)));
         toast.success("Pricing rule updated");
       } else {
         // Create new pricing rule
         const response = await api.post("/admin/pricing-rules", pricingData);
-        const newRule = { ...response.data.data, id: response.data.data._id };
+        const newRule = { ...response.data, id: response.data._id };
         setPricingRules([...pricingRules, newRule]);
         toast.success("Pricing rule added");
       }
       setEditingPricing(null);
+      // Reload pricing rules to ensure data is in sync
+      await loadPricingRules();
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to save pricing rule";
       toast.error(errorMessage);
@@ -111,6 +121,12 @@ const TaxPricing = () => {
         toast.success("Pricing rule deleted");
       }
       setDeleteModal({ isOpen: false, id: null, type: null });
+      // Reload rules to ensure data is in sync
+      if (deleteModal.type === "tax") {
+        await loadTaxRules();
+      } else {
+        await loadPricingRules();
+      }
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to delete rule";
       toast.error(errorMessage);
@@ -145,6 +161,9 @@ const TaxPricing = () => {
           </div>
 
           <div className="space-y-3">
+            {taxRules.length === 0 && !isLoading && (
+              <p className="text-gray-500 text-center py-8">No tax rules found. Click "Add Tax Rule" to create one.</p>
+            )}
             {taxRules.map((tax) => (
               <div
                 key={tax.id}

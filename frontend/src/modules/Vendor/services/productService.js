@@ -17,8 +17,10 @@ export const getVendorProducts = async (filters = {}) => {
   if (filters.sortBy) params.append('sortBy', filters.sortBy);
   if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
 
+  // API interceptor returns response.data, so response is already the data object
+  // Backend returns: { success, message, data: { products }, pagination }
   const response = await api.get(`/vendor/products?${params.toString()}`);
-  return response.data || response;
+  return response;
 };
 
 /**

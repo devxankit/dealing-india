@@ -18,6 +18,7 @@ export const getPublicProducts = async (filters = {}) => {
       minPrice,
       maxPrice,
       minRating,
+      vendorId,
       page = 1,
       limit = 20,
       sortBy = 'createdAt',
@@ -29,6 +30,20 @@ export const getPublicProducts = async (filters = {}) => {
       isVisible: true, // Only show visible products
     };
     const andConditions = [];
+
+    // Vendor filter
+    if (vendorId) {
+      if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+        return {
+          products: [],
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: 0,
+        };
+      }
+      query.vendorId = new mongoose.Types.ObjectId(vendorId);
+    }
 
     // Search filter
     if (search) {
@@ -126,7 +141,7 @@ export const getPublicProducts = async (filters = {}) => {
         .populate('categoryId', 'name image icon')
         .populate('subcategoryId', 'name image icon')
         .populate('brandId', 'name')
-        .populate('vendorId', 'businessName storeName')
+        .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))
@@ -162,7 +177,7 @@ export const getPublicProductById = async (productId) => {
       .populate('categoryId', 'name image icon')
       .populate('subcategoryId', 'name image icon')
       .populate('brandId', 'name')
-      .populate('vendorId', 'businessName storeName')
+      .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status')
       .lean();
 
     if (!product) {

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
 import logoImage from "../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
+import api from "../utils/api";
 
 const defaultSettings = {
   general: {
@@ -155,17 +156,44 @@ export const useSettingsStore = create(
       settings: defaultSettings,
       isLoading: false,
 
-      // Initialize settings
-      initialize: () => {
-        const savedSettings = localStorage.getItem("admin-settings");
-        if (savedSettings) {
-          set({ settings: JSON.parse(savedSettings) });
-        } else {
-          set({ settings: defaultSettings });
-          localStorage.setItem(
-            "admin-settings",
-            JSON.stringify(defaultSettings)
-          );
+      // Initialize settings - fetch from API
+      initialize: async () => {
+        try {
+          set({ isLoading: true });
+          const response = await api.get("/admin/settings");
+          
+          if (response.success && response.data?.settings) {
+            const apiSettings = response.data.settings;
+            // Merge API settings with defaults to ensure all fields exist
+            const mergedSettings = {
+              ...defaultSettings,
+              general: { ...defaultSettings.general, ...(apiSettings.general || {}) },
+              products: { ...defaultSettings.products, ...(apiSettings.products || {}) },
+              tax: { ...defaultSettings.tax, ...(apiSettings.tax || {}) },
+            };
+            set({ settings: mergedSettings, isLoading: false });
+            // Also save to localStorage as backup
+            localStorage.setItem("admin-settings", JSON.stringify(mergedSettings));
+          } else {
+            // If API fails, use localStorage or defaults
+            const savedSettings = localStorage.getItem("admin-settings");
+            if (savedSettings) {
+              set({ settings: JSON.parse(savedSettings), isLoading: false });
+            } else {
+              set({ settings: defaultSettings, isLoading: false });
+              localStorage.setItem("admin-settings", JSON.stringify(defaultSettings));
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch settings from API:", error);
+          // Fallback to localStorage or defaults
+          const savedSettings = localStorage.getItem("admin-settings");
+          if (savedSettings) {
+            set({ settings: JSON.parse(savedSettings), isLoading: false });
+          } else {
+            set({ settings: defaultSettings, isLoading: false });
+            localStorage.setItem("admin-settings", JSON.stringify(defaultSettings));
+          }
         }
       },
 
@@ -178,29 +206,51 @@ export const useSettingsStore = create(
         return get().settings;
       },
 
-      // Update settings
-      updateSettings: (category, settingsData) => {
+      // Update settings - save to API
+      updateSettings: async (category, settingsData) => {
         set({ isLoading: true });
         try {
-          const currentSettings = get().settings;
-          const updatedSettings = {
-            ...currentSettings,
-            [category]: {
-              ...currentSettings[category],
-              ...settingsData,
-            },
-          };
-          set({ settings: updatedSettings, isLoading: false });
-          localStorage.setItem(
-            "admin-settings",
-            JSON.stringify(updatedSettings)
-          );
-          toast.success("Settings updated successfully");
-          return updatedSettings;
+          // Update via API
+          const response = await api.put(`/admin/settings/${category}`, settingsData);
+          
+          if (response.success && response.data?.settings) {
+            const apiSettings = response.data.settings;
+            const currentSettings = get().settings;
+            const updatedSettings = {
+              ...currentSettings,
+              general: apiSettings.general || currentSettings.general,
+              products: apiSettings.products || currentSettings.products,
+              tax: apiSettings.tax || currentSettings.tax,
+            };
+            set({ settings: updatedSettings, isLoading: false });
+            // Also save to localStorage as backup
+            localStorage.setItem("admin-settings", JSON.stringify(updatedSettings));
+            toast.success("Settings updated successfully");
+            return updatedSettings;
+          } else {
+            throw new Error("Failed to update settings");
+          }
         } catch (error) {
-          set({ isLoading: false });
-          toast.error("Failed to update settings");
-          throw error;
+          console.error("Failed to update settings:", error);
+          // Fallback to localStorage only
+          try {
+            const currentSettings = get().settings;
+            const updatedSettings = {
+              ...currentSettings,
+              [category]: {
+                ...currentSettings[category],
+                ...settingsData,
+              },
+            };
+            set({ settings: updatedSettings, isLoading: false });
+            localStorage.setItem("admin-settings", JSON.stringify(updatedSettings));
+            toast.error("Settings saved locally (API update failed)");
+            return updatedSettings;
+          } catch (localError) {
+            set({ isLoading: false });
+            toast.error("Failed to update settings");
+            throw localError;
+          }
         }
       },
     }),

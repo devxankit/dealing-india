@@ -1,6 +1,6 @@
 import { FiHeart, FiShoppingBag, FiStar } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCartStore, useUIStore } from "../store/useStore";
 import { useWishlistStore } from "../store/wishlistStore";
 import { formatPrice, getPlaceholderImage } from "../utils/helpers";
@@ -15,11 +15,20 @@ import { getVendorById } from "../../data/vendors";
 
 const ProductCard = ({ product, hideRating = false }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   // Check if we're in the mobile app section
   const isMobileApp = location.pathname.startsWith("/app");
   const productLink = isMobileApp
     ? `/app/product/${product.id}`
     : `/product/${product.id}`;
+  
+  const handleCardClick = (e) => {
+    // Don't navigate if clicking on button or favorite icon
+    if (e.target.closest('button') || e.target.closest('[data-no-navigate]')) {
+      return;
+    }
+    navigate(productLink);
+  };
   const addItem = useCartStore((state) => state.addItem);
   const triggerCartAnimation = useUIStore(
     (state) => state.triggerCartAnimation
@@ -139,12 +148,14 @@ const ProductCard = ({ product, hideRating = false }) => {
         whileTap={{ scale: 0.98 }}
         style={{ willChange: "transform", transform: "translateZ(0)" }}
         className="glass-card rounded-lg overflow-hidden group cursor-pointer h-full flex flex-col"
+        onClick={handleCardClick}
         {...longPressHandlers}>
         <div className="relative">
           {/* Favorite Icon */}
           <div className="absolute top-1.5 right-1.5 z-10">
             <button
               onClick={handleFavorite}
+              data-no-navigate
               className="p-1 glass rounded-full shadow-lg transition-all duration-300 group">
               <FiHeart
                 className={`text-xs transition-all duration-300 ${
@@ -157,38 +168,34 @@ const ProductCard = ({ product, hideRating = false }) => {
           </div>
 
           {/* Product Image */}
-          <Link to={productLink}>
-            <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden relative">
-              <LazyImage
-                src={product.image}
-                alt={product.name}
-                className="w-full h-full object-contain max-w-[85%] max-h-[85%]"
-                style={{ willChange: "transform", transform: "translateZ(0)" }}
-                context="product-listing"
-                onError={(e) => {
-                  e.target.src = getPlaceholderImage(300, 300, "Product Image");
-                }}
-              />
-            </div>
-          </Link>
+          <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden relative">
+            <LazyImage
+              src={product.image}
+              alt={product.name}
+              className="w-full h-full object-contain max-w-[85%] max-h-[85%]"
+              style={{ willChange: "transform", transform: "translateZ(0)" }}
+              context="product-listing"
+              onError={(e) => {
+                e.target.src = getPlaceholderImage(300, 300, "Product Image");
+              }}
+            />
+          </div>
         </div>
 
         {/* Product Info */}
         <div className="p-2 flex-1 flex flex-col">
-          <Link to={productLink}>
-            <h3 className="font-bold text-gray-800 mb-0.5 line-clamp-2 text-xs transition-colors leading-tight">
-              {product.name}
-            </h3>
-          </Link>
+          <h3 className="font-bold text-gray-800 mb-0.5 line-clamp-2 text-xs transition-colors leading-tight">
+            {product.name}
+          </h3>
           <p className="text-[10px] text-gray-500 mb-0.5 font-medium">
             {product.unit}
           </p>
 
           {/* Vendor Badge */}
-          {product.vendorId && (
+          {(product.vendor || product.vendorId) && (
             <div className="mb-1">
               <VendorBadge
-                vendor={getVendorById(product.vendorId)}
+                vendor={product.vendor || getVendorById(product.vendorId)}
                 showVerified={true}
                 size="sm"
                 showLogo={true}
@@ -197,7 +204,7 @@ const ProductCard = ({ product, hideRating = false }) => {
           )}
 
           {/* Rating */}
-          {product.rating && !hideRating && (
+          {product.rating > 0 && !hideRating && (
             <div className="flex items-center gap-0.5 mb-0.5">
               <div className="flex items-center">
                 {[...Array(5)].map((_, i) => (
@@ -212,7 +219,7 @@ const ProductCard = ({ product, hideRating = false }) => {
                 ))}
               </div>
               <span className="text-[9px] text-gray-600 font-medium">
-                {product.rating}
+                {product.rating?.toFixed(1) || '0.0'}
               </span>
             </div>
           )}
@@ -233,6 +240,7 @@ const ProductCard = ({ product, hideRating = false }) => {
           <motion.button
             ref={buttonRef}
             onClick={handleAddToCart}
+            data-no-navigate
             disabled={product.stock === "out_of_stock" || isAdding}
             whileTap={{ scale: 0.95 }}
             animate={

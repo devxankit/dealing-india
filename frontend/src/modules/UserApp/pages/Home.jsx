@@ -11,16 +11,12 @@ import RecommendedSection from "../components/Mobile/RecommendedSection";
 import FeaturedVendorsSection from "../components/Mobile/FeaturedVendorsSection";
 import BrandLogosScroll from "../../UserWeb/components/Home/BrandLogosScroll";
 import LazyImage from "../../../shared/components/LazyImage";
-import {
-  getMostPopular,
-  getTrending,
-  getFlashSale,
-} from "../../../data/products";
 import { categories } from "../../../data/categories";
 import PageTransition from "../../../shared/components/PageTransition";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
+import { getProducts } from "../../../shared/services/productService";
 import heroBanner2 from "../../../../data/hero/banner2.png";
 import babycareBanner from "../../../../data/banners/babycare-WEB.avif";
 import pharmacyBanner from "../../../../data/banners/pharmacy-WEB.avif";
@@ -34,6 +30,10 @@ const MobileHome = () => {
   const [autoSlidePaused, setAutoSlidePaused] = useState(false);
   const [sliders, setSliders] = useState([]);
   const [isLoadingSliders, setIsLoadingSliders] = useState(true);
+  const [mostPopular, setMostPopular] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [flashSale, setFlashSale] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
   // Fetch sliders from API
   useEffect(() => {
@@ -62,12 +62,93 @@ const MobileHome = () => {
     fetchSliders();
   }, []);
 
+  // Fetch products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoadingProducts(true);
+        
+        // Fetch most popular products (sorted by rating/createdAt)
+        const popularResponse = await getProducts({
+          limit: 6,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        });
+        
+        // Fetch trending products (sorted by rating)
+        const trendingResponse = await getProducts({
+          limit: 6,
+          sortBy: 'rating',
+          sortOrder: 'desc',
+        });
+        
+        // Fetch flash sale products
+        const flashSaleResponse = await getProducts({
+          limit: 10,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        });
+
+        // Transform products to match frontend format
+        const transformProduct = (product) => {
+          // Handle vendor data - can be ObjectId or populated object
+          const vendor = product.vendorId;
+          const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+            ? {
+                id: (vendor._id || vendor.id).toString(),
+                _id: vendor._id || vendor.id,
+                storeName: vendor.storeName || vendor.businessName || vendor.name,
+                businessName: vendor.businessName,
+                name: vendor.name,
+                storeLogo: vendor.storeLogo || vendor.logo,
+                isVerified: vendor.isVerified !== undefined 
+                  ? vendor.isVerified 
+                  : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+              }
+            : null;
+          
+          return {
+            id: product._id || product.id,
+            name: product.name,
+            price: product.price,
+            originalPrice: product.originalPrice,
+            image: product.image,
+            images: product.images || [],
+            unit: product.unit || 'Piece',
+            rating: product.rating || 0,
+            reviewCount: product.reviewCount || 0,
+            stock: product.stock,
+            stockQuantity: product.stockQuantity,
+            vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+            vendor: vendorData,
+            flashSale: product.flashSale || false,
+          };
+        };
+
+        // API interceptor returns response.data, so structure is: { success, message, data: { products, total, ... } }
+        const popularProducts = (popularResponse.data?.products || popularResponse.products || []).map(transformProduct);
+        const trendingProducts = (trendingResponse.data?.products || trendingResponse.products || []).map(transformProduct);
+        const flashSaleProducts = (flashSaleResponse.data?.products || flashSaleResponse.products || []).filter(p => p.flashSale || p.originalPrice).map(transformProduct);
+
+        setMostPopular(popularProducts);
+        setTrending(trendingProducts);
+        setFlashSale(flashSaleProducts);
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
+        toast.error("Failed to load products");
+        setMostPopular([]);
+        setTrending([]);
+        setFlashSale([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
   // Use API sliders only
   const slides = sliders;
-
-  const mostPopular = getMostPopular();
-  const trending = getTrending();
-  const flashSale = getFlashSale();
 
   // Auto-slide functionality (pauses when user is dragging)
   useEffect(() => {
@@ -322,7 +403,7 @@ const MobileHome = () => {
           </div>
 
           {/* Daily Deals */}
-          <DailyDealsSection />
+          <DailyDealsSection products={flashSale} />
 
           {/* Trending Banner */}
           <div className="px-4 py-4">

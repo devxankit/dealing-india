@@ -1,4 +1,5 @@
 import Product from '../models/Product.model.js';
+import TaxRule from '../models/TaxRule.model.js';
 import mongoose from 'mongoose';
 
 /**
@@ -218,6 +219,84 @@ export const bulkUpdateProductPrices = async (vendorId, updates) => {
     }
 
     return { updated, failed };
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Get active tax rules for vendor to use
+ * @returns {Promise<Array>} Array of active tax rules
+ */
+export const getActiveTaxRules = async () => {
+  try {
+    const taxRules = await TaxRule.find({ status: 'active' })
+      .sort({ createdAt: -1 })
+      .select('_id name rate type applicableTo')
+      .lean();
+    
+    return taxRules.map((rule) => ({
+      id: rule._id.toString(),
+      _id: rule._id.toString(),
+      name: rule.name,
+      rate: rule.rate,
+      type: rule.type,
+      applicableTo: rule.applicableTo,
+    }));
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Bulk apply tax rate to products
+ * @param {String} vendorId - Vendor ID
+ * @param {Number} taxRate - Tax rate to apply (0-100)
+ * @param {Array} productIds - Array of product IDs (empty array = all products)
+ * @returns {Promise<Object>} { updated, failed }
+ */
+export const bulkApplyTaxRate = async (vendorId, taxRate, productIds = []) => {
+  try {
+    if (taxRate === undefined || taxRate === null || taxRate < 0 || taxRate > 100) {
+      const err = new Error('Tax rate must be between 0 and 100');
+      err.status = 400;
+      throw err;
+    }
+
+    // Build query
+    const query = { vendorId, isActive: true };
+    if (productIds && productIds.length > 0) {
+      // Validate all product IDs
+      const validIds = productIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (validIds.length === 0) {
+        const err = new Error('No valid product IDs provided');
+        err.status = 400;
+        throw err;
+      }
+      query._id = { $in: validIds.map(id => new mongoose.Types.ObjectId(id)) };
+    }
+
+    // Update all matching products
+    const result = await Product.updateMany(
+      query,
+      { taxRate: parseFloat(taxRate) },
+      { runValidators: true }
+    );
+
+    // Get updated products
+    const updatedProducts = await Product.find(query)
+      .select('_id name price taxRate')
+      .lean();
+
+    return {
+      updated: updatedProducts.map((product) => ({
+        ...product,
+        id: product._id.toString(),
+        _id: product._id.toString(),
+      })),
+      failed: [],
+      count: result.modifiedCount,
+    };
   } catch (error) {
     throw error;
   }

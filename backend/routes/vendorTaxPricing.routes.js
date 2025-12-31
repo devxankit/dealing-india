@@ -4,6 +4,8 @@ import {
   updatePrice,
   updateTaxRate,
   bulkUpdatePrices,
+  getTaxRules,
+  bulkApplyTax,
 } from '../controllers/vendor-controllers/vendorTaxPricing.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
@@ -41,6 +43,16 @@ router.patch(
 router.post(
   '/products/bulk-update',
   asyncHandler(bulkUpdatePrices)
+);
+
+router.get(
+  '/tax-rules',
+  asyncHandler(getTaxRules)
+);
+
+router.post(
+  '/products/bulk-apply-tax',
+  asyncHandler(bulkApplyTax)
 );
 
 export default router;

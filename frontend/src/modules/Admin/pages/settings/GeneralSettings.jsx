@@ -11,12 +11,11 @@ const GeneralSettings = () => {
   const [activeSection, setActiveSection] = useState("contact");
 
   useEffect(() => {
-    initialize();
-    if (settings && settings.general) {
-      setFormData({
-        ...settings.general,
-      });
-    }
+    const loadSettings = async () => {
+      await initialize();
+    };
+    loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -42,21 +41,23 @@ const GeneralSettings = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const {
-      socialMedia,
-      storeDescription,
-      ...generalData
-    } = formData;
+    try {
+      const {
+        socialMedia,
+        storeDescription,
+        ...generalData
+      } = formData;
 
-    updateSettings("general", {
-      ...generalData,
-      socialMedia: socialMedia || {},
-      storeDescription: storeDescription || "",
-    });
-
-    toast.success("Settings saved successfully");
+      await updateSettings("general", {
+        ...generalData,
+        socialMedia: socialMedia || {},
+        storeDescription: storeDescription || "",
+      });
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+    }
   };
 
   const sections = [

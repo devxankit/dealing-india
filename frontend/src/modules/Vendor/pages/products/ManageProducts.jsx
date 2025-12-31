@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiEdit, FiTrash2 } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -36,26 +36,7 @@ const ManageProducts = () => {
 
   const vendorId = vendor?.id;
 
-  useEffect(() => {
-    initCategories();
-    initBrands();
-    loadProducts();
-  }, [vendorId, currentPage, selectedStatus, selectedCategory, selectedBrand]);
-
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (currentPage === 1) {
-        loadProducts();
-      } else {
-        setCurrentPage(1);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     if (!vendorId) return;
 
     setLoading(true);
@@ -71,10 +52,14 @@ const ManageProducts = () => {
         sortOrder: "desc",
       });
 
-      // API interceptor returns response.data, so response is already the data object
-      setProducts(response.data?.products || []);
-      setTotalPages(response.pagination?.pages || 1);
-      setTotal(response.pagination?.total || 0);
+      // API interceptor returns response.data, so response structure is:
+      // { success, message, data: { products }, pagination }
+      const productsData = response.data?.products || [];
+      const paginationData = response.pagination || {};
+      
+      setProducts(productsData);
+      setTotalPages(paginationData.pages || 1);
+      setTotal(paginationData.total || 0);
     } catch (error) {
       console.error("Error loading products:", error);
       toast.error("Failed to load products");
@@ -82,7 +67,33 @@ const ManageProducts = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [vendorId, searchQuery, selectedStatus, selectedCategory, selectedBrand, currentPage]);
+
+  useEffect(() => {
+    if (vendorId) {
+      initCategories();
+      initBrands();
+    }
+  }, [vendorId, initCategories, initBrands]);
+
+  useEffect(() => {
+    if (vendorId) {
+      loadProducts();
+    }
+  }, [vendorId, loadProducts]);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage === 1) {
+        loadProducts();
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, loadProducts, currentPage]);
 
   // Products are already filtered by API, no need for client-side filtering
   const filteredProducts = products;

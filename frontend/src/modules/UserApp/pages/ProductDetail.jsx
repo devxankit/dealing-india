@@ -14,8 +14,7 @@ import { motion } from "framer-motion";
 import { useCartStore } from "../../../shared/store/useStore";
 import { useWishlistStore } from "../../../shared/store/wishlistStore";
 import { useReviewsStore } from "../../../shared/store/reviewsStore";
-import { getProductById, getSimilarProducts } from "../../../data/products";
-import { getVendorById } from "../../../data/vendors";
+import { getProductById as getProductByIdAPI, getProducts } from "../../../shared/services/productService";
 import { formatPrice } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -28,8 +27,10 @@ import Badge from "../../../shared/components/Badge";
 const MobileProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = getProductById(id);
-  const vendor = product ? getVendorById(product.vendorId) : null;
+  const [product, setProduct] = useState(null);
+  const [vendor, setVendor] = useState(null);
+  const [similarProducts, setSimilarProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(null);
 
@@ -44,11 +45,142 @@ const MobileProductDetail = () => {
   const isFavorite = product ? isInWishlist(product.id) : false;
   const productReviews = product ? sortReviews(product.id, "newest") : [];
 
+  // Fetch product from API
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true);
+        const productData = await getProductByIdAPI(id);
+        
+        if (productData) {
+          // Transform product data to match frontend format
+          const transformedProduct = {
+            id: productData._id || productData.id,
+            name: productData.name,
+            price: productData.price,
+            originalPrice: productData.originalPrice,
+            image: productData.image,
+            images: productData.images || [],
+            unit: productData.unit || 'Piece',
+            rating: productData.rating || 0,
+            reviewCount: productData.reviewCount || 0,
+            stock: productData.stock,
+            stockQuantity: productData.stockQuantity,
+            vendorId: productData.vendorId?._id || productData.vendorId,
+            flashSale: productData.flashSale || false,
+            variants: productData.variants,
+            description: productData.description,
+          };
+          
+          setProduct(transformedProduct);
+          
+          // Handle vendor data
+          const vendorData = productData.vendorId;
+          if (vendorData && typeof vendorData === 'object' && (vendorData._id || vendorData.id)) {
+            setVendor({
+              id: (vendorData._id || vendorData.id).toString(),
+              _id: vendorData._id || vendorData.id,
+              storeName: vendorData.storeName || vendorData.businessName || vendorData.name,
+              businessName: vendorData.businessName,
+              name: vendorData.name,
+              storeLogo: vendorData.storeLogo || vendorData.logo,
+              isVerified: vendorData.isVerified !== undefined 
+                ? vendorData.isVerified 
+                : (vendorData.status === 'approved' || vendorData.isEmailVerified || false),
+              rating: vendorData.rating || 0,
+              reviewCount: vendorData.reviewCount || 0,
+            });
+          }
+          
+          // Fetch similar products (same category)
+          if (productData.categoryId) {
+            try {
+              const similarResponse = await getProducts({
+                categoryId: productData.categoryId._id || productData.categoryId,
+                limit: 4,
+              });
+              const similar = (similarResponse.data?.products || similarResponse.products || [])
+                .filter(p => (p._id || p.id) !== transformedProduct.id)
+                .slice(0, 4)
+                .map(p => ({
+                  id: p._id || p.id,
+                  name: p.name,
+                  price: p.price,
+                  originalPrice: p.originalPrice,
+                  image: p.image,
+                  images: p.images || [],
+                  unit: p.unit || 'Piece',
+                  rating: p.rating || 0,
+                  reviewCount: p.reviewCount || 0,
+                  stock: p.stock,
+                  stockQuantity: p.stockQuantity,
+                  vendorId: p.vendorId?._id || p.vendorId,
+                }));
+              setSimilarProducts(similar);
+            } catch (error) {
+              console.error('Error fetching similar products:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        toast.error('Failed to load product');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProduct();
+    }
+  }, [id]);
+
   useEffect(() => {
     if (product?.variants?.defaultVariant) {
       setSelectedVariant(product.variants.defaultVariant);
     }
   }, [product]);
+
+  const productImages = useMemo(() => {
+    if (!product) return [];
+    return product.images && product.images.length > 0
+      ? product.images
+      : [product.image];
+  }, [product]);
+
+  const currentPrice = useMemo(() => {
+    if (!product) return 0;
+    if (selectedVariant && product.variants?.prices) {
+      if (
+        selectedVariant.size &&
+        product.variants.prices[selectedVariant.size]
+      ) {
+        return product.variants.prices[selectedVariant.size];
+      }
+      if (
+        selectedVariant.color &&
+        product.variants.prices[selectedVariant.color]
+      ) {
+        return product.variants.prices[selectedVariant.color];
+      }
+    }
+    return product.price;
+  }, [product, selectedVariant]);
+
+  if (isLoading) {
+    return (
+      <PageTransition>
+        <MobileLayout showBottomNav={false} showCartBar={false}>
+          <div className="flex items-center justify-center min-h-[60vh] px-4">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading product...</p>
+            </div>
+          </div>
+        </MobileLayout>
+      </PageTransition>
+    );
+  }
 
   if (!product) {
     return (
@@ -119,38 +251,10 @@ const MobileProductDetail = () => {
 
   const handleQuantityChange = (change) => {
     const newQuantity = quantity + change;
-    if (newQuantity >= 1 && newQuantity <= (product.stockQuantity || 10)) {
+    if (newQuantity >= 1 && newQuantity <= (product?.stockQuantity || 10)) {
       setQuantity(newQuantity);
     }
   };
-
-  const productImages = useMemo(() => {
-    return product.images && product.images.length > 0
-      ? product.images
-      : [product.image];
-  }, [product]);
-
-  const currentPrice = useMemo(() => {
-    if (selectedVariant && product.variants?.prices) {
-      if (
-        selectedVariant.size &&
-        product.variants.prices[selectedVariant.size]
-      ) {
-        return product.variants.prices[selectedVariant.size];
-      }
-      if (
-        selectedVariant.color &&
-        product.variants.prices[selectedVariant.color]
-      ) {
-        return product.variants.prices[selectedVariant.color];
-      }
-    }
-    return product.price;
-  }, [product, selectedVariant]);
-
-  const similarProducts = useMemo(() => {
-    return getSimilarProducts(product.id, 4);
-  }, [product?.id]);
 
   return (
     <PageTransition>
@@ -243,7 +347,7 @@ const MobileProductDetail = () => {
             )}
 
             {/* Rating */}
-            {product.rating && (
+            {product.rating > 0 && (
               <div className="flex items-center gap-2 mb-3">
                 <div className="flex items-center">
                   {[...Array(5)].map((_, i) => (
@@ -257,7 +361,7 @@ const MobileProductDetail = () => {
                   ))}
                 </div>
                 <span className="text-sm text-gray-600 font-medium">
-                  {product.rating} ({product.reviewCount || 0} reviews)
+                  {product.rating?.toFixed(1) || '0.0'} ({product.reviewCount || 0} reviews)
                 </span>
               </div>
             )}
@@ -347,10 +451,7 @@ const MobileProductDetail = () => {
                 Description
               </h3>
               <p className="text-gray-600 leading-relaxed text-sm">
-                High-quality {product.name.toLowerCase()} available in{" "}
-                {product.unit.toLowerCase()}. This product is carefully selected
-                to ensure the best quality and freshness. Perfect for your daily
-                needs with excellent value for money.
+                {product.description || `High-quality ${product.name.toLowerCase()} available in ${product.unit.toLowerCase()}. This product is carefully selected to ensure the best quality and freshness. Perfect for your daily needs with excellent value for money.`}
               </p>
             </div>
 

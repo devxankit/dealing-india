@@ -12,11 +12,11 @@ const ProductsInventorySettings = () => {
   const [activeSection, setActiveSection] = useState('products');
 
   useEffect(() => {
-    initialize();
-    if (settings) {
-      if (settings.products) setProductsData(settings.products);
-      if (settings.tax) setTaxData(settings.tax);
-    }
+    const loadSettings = async () => {
+      await initialize();
+    };
+    loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -42,11 +42,14 @@ const ProductsInventorySettings = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    updateSettings('products', productsData);
-    updateSettings('tax', taxData);
-    toast.success('Settings saved successfully');
+    try {
+      await updateSettings('products', productsData);
+      await updateSettings('tax', taxData);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
   };
 
   const sections = [

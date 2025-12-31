@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -9,10 +9,9 @@ import {
   FiGrid,
   FiList,
   FiMessageSquare,
+  FiLoader,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { getVendorById } from "../../../data/vendors";
-import { products } from "../../../data/products";
 import { formatPrice } from "../../../shared/utils/helpers";
 import ProductCard from "../../../shared/components/ProductCard";
 import ProductListItem from "../../UserApp/components/Mobile/ProductListItem";
@@ -26,18 +25,17 @@ import useResponsiveHeaderPadding from "../../../shared/hooks/useResponsiveHeade
 import useInfiniteScroll from "../../../shared/hooks/useInfiniteScroll";
 import Badge from "../../../shared/components/Badge";
 import logoImage from "../../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
-import { getImagePath } from "../../../shared/utils/imagePaths";
+import api from "../../../shared/utils/api";
 
 const VendorStore = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { responsivePadding } = useResponsiveHeaderPadding();
-  const vendor = getVendorById(id);
 
-  // Check if we're in the mobile app section
-  const isMobileApp = location.pathname.startsWith("/app");
-
+  const [vendor, setVendor] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("grid");
   const [sortBy, setSortBy] = useState("popular");
   const [showFilters, setShowFilters] = useState(false);
@@ -48,27 +46,46 @@ const VendorStore = () => {
     inStock: false,
   });
 
-  // Get vendor products
-  const vendorProducts = useMemo(() => {
-    if (!vendor) return [];
-    return products.filter((p) => {
-      const productVendorId =
-        typeof p.vendorId === "string"
-          ? parseInt(p.vendorId.replace("vendor-", ""))
-          : p.vendorId;
-      const vendorIdNum =
-        typeof vendor.id === "string" ? parseInt(vendor.id) : vendor.id;
-      return (
-        productVendorId === vendorIdNum ||
-        p.vendorId === vendor.id ||
-        p.vendorId === vendorIdNum
-      );
-    });
-  }, [vendor]);
+  // Check if we're in the mobile app section
+  const isMobileApp = location.pathname.startsWith("/app");
 
-  // Filter and sort products
+  // Fetch vendor details and products from API
+  useEffect(() => {
+    const fetchVendorData = async () => {
+      setLoading(true);
+      try {
+        // Fetch vendor details
+        const vendorRes = await api.get(`/vendors/${id}`);
+        if (vendorRes.data?.success) {
+          setVendor(vendorRes.data.data.vendor);
+        }
+
+        // Fetch products for this vendor
+        const productsRes = await api.get(`/products`, {
+          params: {
+            vendorId: id,
+            limit: 100, // Fetch a good number for the store
+          }
+        });
+        
+        if (productsRes.data?.success) {
+          setProducts(productsRes.data.data.products || []);
+        }
+      } catch (error) {
+        console.error("Error fetching vendor store data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchVendorData();
+    }
+  }, [id]);
+
+  // Filter and sort products (local filtering for smoother experience)
   const filteredProducts = useMemo(() => {
-    let filtered = [...vendorProducts];
+    let filtered = [...products];
 
     // Apply filters
     if (filters.minPrice) {
@@ -102,10 +119,10 @@ const VendorStore = () => {
         filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
       case "newest":
-        filtered.sort((a, b) => b.id - a.id);
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         break;
       default:
-        // Popular (by rating and review count)
+        // Popular
         filtered.sort((a, b) => {
           const scoreA = (a.rating || 0) * (a.reviewCount || 0);
           const scoreB = (b.rating || 0) * (b.reviewCount || 0);
@@ -114,13 +131,21 @@ const VendorStore = () => {
     }
 
     return filtered;
-  }, [vendorProducts, filters, sortBy]);
+  }, [products, filters, sortBy]);
 
   const { displayedItems, hasMore, loadMore, loadMoreRef } = useInfiniteScroll(
     filteredProducts,
     12,
     12
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <FiLoader className="text-4xl text-primary-600 animate-spin" />
+      </div>
+    );
+  }
 
   if (!vendor) {
     if (isMobileApp) {

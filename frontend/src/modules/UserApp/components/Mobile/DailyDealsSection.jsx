@@ -3,10 +3,9 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { FiClock, FiZap } from "react-icons/fi";
 import ProductCard from "../../../../shared/components/ProductCard";
-import { getDailyDeals } from "../../../../data/products";
 
-const DailyDealsSection = () => {
-  const dailyDeals = getDailyDeals().slice(0, 4);
+const DailyDealsSection = ({ products = [] }) => {
+  const dailyDeals = products.slice(0, 4);
   const [timeLeft, setTimeLeft] = useState({
     hours: 23,
     minutes: 59,

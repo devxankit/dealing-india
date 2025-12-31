@@ -51,3 +51,26 @@ export const bulkUpdateProductPrices = async (updates) => {
   return response.data;
 };
 
+/**
+ * Get active tax rules (admin created tax rules)
+ * @returns {Promise<Array>} Array of active tax rules
+ */
+export const getActiveTaxRules = async () => {
+  const response = await api.get('/vendor/tax-pricing/tax-rules');
+  return response.data?.taxRules || [];
+};
+
+/**
+ * Bulk apply tax rate to products
+ * @param {Number} taxRate - Tax rate to apply (0-100)
+ * @param {Array} productIds - Array of product IDs (empty = all products)
+ * @returns {Promise<Object>} { updated, failed, count }
+ */
+export const bulkApplyTaxRate = async (taxRate, productIds = []) => {
+  const response = await api.post('/vendor/tax-pricing/products/bulk-apply-tax', {
+    taxRate,
+    productIds,
+  });
+  return response.data;
+};
+

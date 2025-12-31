@@ -3,6 +3,8 @@ import {
   updateProductPrice,
   updateProductTaxRate,
   bulkUpdateProductPrices,
+  getActiveTaxRules,
+  bulkApplyTaxRate,
 } from '../../services/vendorTaxPricing.service.js';
 
 /**
@@ -123,6 +125,57 @@ export const bulkUpdatePrices = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: `Updated ${result.updated.length} products`,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get active tax rules for vendor
+ * GET /api/vendor/tax-pricing/tax-rules
+ */
+export const getTaxRules = async (req, res, next) => {
+  try {
+    const taxRules = await getActiveTaxRules();
+    res.status(200).json({
+      success: true,
+      message: 'Tax rules fetched successfully',
+      data: { taxRules },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Bulk apply tax rate to products
+ * POST /api/vendor/tax-pricing/products/bulk-apply-tax
+ */
+export const bulkApplyTax = async (req, res, next) => {
+  try {
+    const vendorId = req.user.vendorId;
+    if (!vendorId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Vendor ID not found',
+      });
+    }
+
+    const { taxRate, productIds } = req.body;
+    
+    if (taxRate === undefined || taxRate === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tax rate is required',
+      });
+    }
+
+    const result = await bulkApplyTaxRate(vendorId, taxRate, productIds || []);
+    res.status(200).json({
+      success: true,
+      message: `Tax rate applied to ${result.count} products`,
       data: result,
     });
   } catch (error) {

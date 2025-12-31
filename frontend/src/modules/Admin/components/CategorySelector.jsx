@@ -244,7 +244,7 @@ const CategorySelector = ({
     return "Select Category";
   }, [selectedCategory, selectedSubcategory, selectedSubSubCategory, parentCategory]);
 
-  const selectedCategoryIcon = useMemo(() => {
+  const SelectedCategoryIcon = useMemo(() => {
     if (selectedSubSubCategory) return getCategoryIcon(selectedSubSubCategory) || getCategoryIcon(selectedSubcategory) || getCategoryIcon(selectedCategory);
     if (selectedSubcategory) return getCategoryIcon(selectedSubcategory) || getCategoryIcon(parentCategory);
     if (selectedCategory) return getCategoryIcon(selectedCategory);
@@ -268,8 +268,8 @@ const CategorySelector = ({
         }}
         className={`w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white flex items-center justify-between transition-all duration-200 hover:border-primary-400 ${!value ? "text-gray-500" : "text-gray-900"}`}>
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {selectedCategoryIcon && (
-            <selectedCategoryIcon className="text-lg flex-shrink-0 text-primary-600" />
+          {SelectedCategoryIcon && (
+            <SelectedCategoryIcon className="text-lg flex-shrink-0 text-primary-600" />
           )}
           <span className="truncate">{displayText}</span>
         </div>

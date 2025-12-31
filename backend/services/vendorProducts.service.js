@@ -224,8 +224,9 @@ export const createVendorProduct = async (productData, vendorId) => {
         }
 
         // Validate attribute values
+        let validValues = [];
         if (attr.values && attr.values.length > 0) {
-          const validValues = await AttributeValue.find({
+          validValues = await AttributeValue.find({
             _id: { $in: attr.values },
             attributeId: attr.attributeId,
             status: 'active',
@@ -243,7 +244,7 @@ export const createVendorProduct = async (productData, vendorId) => {
           attributeName: attr.attributeName || attribute.name,
           values: (attr.values || []).map(val => {
             // Find the matching value object to get its _id
-            const valueObj = validValues.find(v => 
+            const valueObj = validValues?.find(v => 
               v._id.toString() === val.toString() || v._id.toString() === val
             );
             return valueObj ? valueObj._id : val;
@@ -251,9 +252,6 @@ export const createVendorProduct = async (productData, vendorId) => {
         });
       }
     }
-
-    // Determine final categoryId (subcategory takes precedence)
-    const finalCategoryIdToUse = validatedSubcategoryId || validatedCategoryId || null;
 
     // Upload main image if provided (base64)
     let imageUrl = null;
@@ -306,9 +304,9 @@ export const createVendorProduct = async (productData, vendorId) => {
       images: imageUrls,
       imagesPublicIds: imagePublicIds,
       description: description || '',
-      categoryId: finalCategoryIdToUse,
-      subcategoryId: validatedSubcategoryId || null,
-      brandId: validatedBrandId || null,
+      categoryId: categoryId || null,
+      subcategoryId: subcategoryId || null,
+      brandId: brandId || null,
       stock: stock || stockStatus,
       stockQuantity: parseInt(stockQuantity),
       totalAllowedQuantity: totalAllowedQuantity ? parseInt(totalAllowedQuantity) : null,
@@ -454,8 +452,9 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
             throw err;
           }
 
+          let validValues = [];
           if (attr.values && attr.values.length > 0) {
-            const validValues = await AttributeValue.find({
+            validValues = await AttributeValue.find({
               _id: { $in: attr.values },
               attributeId: attr.attributeId,
               status: 'active',

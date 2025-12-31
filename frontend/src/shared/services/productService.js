@@ -21,6 +21,8 @@ export const getProducts = async (filters = {}) => {
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
 
+    // API interceptor returns response.data, so response is already the data object
+    // Backend returns: { success, message, data: { products, total, page, totalPages } }
     const response = await api.get(`/products?${params.toString()}`);
     return response.data || response;
   } catch (error) {
@@ -62,6 +64,8 @@ export const getProductsBySubcategory = async (subcategoryId, filters = {}) => {
  */
 export const getProductById = async (productId) => {
   try {
+    // API interceptor returns response.data, so response is already the data object
+    // Backend returns: { success, message, data: { product } }
     const response = await api.get(`/products/${productId}`);
     return response.data?.product || response.product;
   } catch (error) {
