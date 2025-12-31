@@ -702,9 +702,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                             </span>
                           )}
                           {currentDepth >= 3 && (
-                            <span className="text-xs text-red-600 font-semibold">
-                              (Maximum depth reached - cannot add more subcategories)
-                            </span>
+                            <span className="text-xs text-red-600 font-semibold"></span>
                           )}
                         </div>
                       </div>

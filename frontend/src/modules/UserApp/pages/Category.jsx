@@ -614,23 +614,23 @@ const MobileCategory = () => {
               
               <div className="flex-1 flex items-center gap-2 overflow-hidden">
                 <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                  <LazyImage
-                    src={category.image}
-                    alt={category.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
+                <LazyImage
+                  src={category.image}
+                  alt={category.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
                       e.target.src = getPlaceholderImage(32, 32, "Category");
-                    }}
-                  />
-                </div>
+                  }}
+                />
+              </div>
                 <div className="overflow-hidden">
                   <h1 className="text-base font-bold text-gray-800 truncate leading-tight">
-                    {category.name}
-                  </h1>
+                  {category.name}
+                </h1>
                   <p className="text-[10px] text-gray-500 leading-none">
                     {loadingProducts ? "Loading..." : `${products.length} products`}
-                  </p>
-                </div>
+                </p>
+              </div>
               </div>
 
               <div className="flex items-center gap-1.5">
@@ -683,10 +683,10 @@ const MobileCategory = () => {
                     hideCategoryFilter={true}
                     deepestCategoryId={deepestCategoryId}
                   />
-                </div>
-              </div>
-            </div>
-          </div>
+                          </div>
+                        </div>
+                                </div>
+                              </div>
 
 
 
@@ -696,7 +696,7 @@ const MobileCategory = () => {
               <div className="text-center py-12">
                 <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
                 <p className="mt-4 text-sm text-gray-600">Loading products...</p>
-              </div>
+                          </div>
             ) : products.length === 0 ? (
               <div className="px-4 py-2">
                 {subcategories.length > 0 ? (
@@ -727,14 +727,14 @@ const MobileCategory = () => {
                             </span>
                           </motion.button>
                         ))}
-                      </div>
+                                  </div>
                     ) : (
                       <div className="space-y-3">
                         {subcategories.map((sub, index) => (
                           <motion.button
                             key={sub.id}
                             initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
+                                            animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.05 }}
                             onClick={() => navigate(`/app/category/${sub.id}`)}
                             className="flex items-center gap-4 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-all w-full text-left"
@@ -748,7 +748,7 @@ const MobileCategory = () => {
                                   e.target.src = getPlaceholderImage(48, 48, "Sub");
                                 }}
                               />
-                            </div>
+                                              </div>
                             <div className="flex-1 overflow-hidden">
                               <h4 className="text-sm font-semibold text-gray-800 truncate">
                                 {sub.name}
@@ -756,23 +756,23 @@ const MobileCategory = () => {
                               <p className="text-[10px] text-gray-500">
                                 Explore subcategories
                               </p>
-                            </div>
+                                      </div>
                             <FiChevronRight className="text-gray-400" />
                           </motion.button>
-                        ))}
+                              ))}
                       </div>
-                    )}
-                  </div>
+                          )}
+                        </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">
-                      No products found
-                    </h3>
-                    <p className="text-gray-600">
-                      There are no products available in this category at the
-                      moment.
-                    </p>
+              <div className="text-center py-12">
+                <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  No products found
+                </h3>
+                <p className="text-gray-600">
+                  There are no products available in this category at the
+                  moment.
+                </p>
                   </div>
                 )}
               </div>

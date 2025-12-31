@@ -34,7 +34,11 @@ export const useCategoryStore = create(
 
       // Initialize categories - fetch from API
       initialize: async (forceRefresh = false) => {
-        set({ isLoading: true });
+        const currentState = get();
+        // Don't set loading if this is a background refresh and we already have categories
+        if (!forceRefresh || currentState.categories.length === 0) {
+          set({ isLoading: true });
+        }
         try {
           const params = {
             limit: 1000, // Get all categories
@@ -52,11 +56,27 @@ export const useCategoryStore = create(
           const result = response?.data || response;
           const list = result?.categories || result?.data?.categories || [];
           const categories = transformCategories(list);
-          set({ categories, isLoading: false });
+          
+          // Deduplicate categories by ID to prevent duplicates
+          const categoryMap = new Map();
+          categories.forEach((cat) => {
+            const catId = cat.id?.toString();
+            if (catId && !categoryMap.has(catId)) {
+              categoryMap.set(catId, cat);
+            }
+          });
+          const deduplicatedCategories = Array.from(categoryMap.values());
+          
+          set({ categories: deduplicatedCategories, isLoading: false });
         } catch (error) {
           console.error('Failed to fetch categories:', error);
-          // Keep categories empty on error - don't use mock data
-          set({ categories: [], isLoading: false });
+          // Only clear categories if this was a non-background refresh
+          if (!forceRefresh || currentState.categories.length === 0) {
+            set({ categories: [], isLoading: false });
+          } else {
+            // Keep existing categories on background refresh failure
+            set({ isLoading: false });
+          }
         }
       },
 
@@ -84,18 +104,23 @@ export const useCategoryStore = create(
         set({ isLoading: true });
         try {
           // Convert id to _id if needed for parentId
-          const payload = {
-            ...categoryData,
-            parentId: categoryData.parentId || null,
-          };
+          const payload = { ...categoryData };
+          if ('parentId' in categoryData) {
+            payload.parentId = categoryData.parentId || null;
+          }
 
           const response = await api.post('/admin/categories', payload);
           const newCategory = transformCategory(response.data.category);
 
-          // Refresh categories list with force refresh
-          await get().initialize(true);
+          // Optimistically update categories without blocking UI
+          set((state) => ({
+            categories: [...state.categories, newCategory],
+            isLoading: false,
+          }));
 
-          set({ isLoading: false });
+          // Background refresh to ensure consistency (non-blocking)
+          get().initialize(true);
+
           toast.success('Category created successfully');
           return newCategory;
         } catch (error) {
@@ -113,16 +138,50 @@ export const useCategoryStore = create(
           const categoryId = id?.toString() || id;
           const payload = {
             ...categoryData,
-            parentId: categoryData.parentId || null,
           };
+
+          // Only include parentId if it's explicitly provided in categoryData
+          // This prevents accidentally resetting parentId to null during simple status toggles (like active/inactive)
+          if ('parentId' in categoryData) {
+            payload.parentId = categoryData.parentId || null;
+          }
 
           const response = await api.put(`/admin/categories/${categoryId}`, payload);
           const updatedCategory = transformCategory(response.data.category);
 
-          // Refresh categories list with force refresh
-          await get().initialize(true);
+          // Update category in place to maintain position and prevent duplicates
+          set((state) => {
+            const categoryIdStr = updatedCategory.id?.toString();
+            
+            // Find existing category index to preserve position
+            const existingIndex = state.categories.findIndex((cat) => {
+              const catId = cat.id?.toString() || cat._id?.toString();
+              return catId === categoryIdStr;
+            });
 
-          set({ isLoading: false });
+            if (existingIndex >= 0) {
+              // Update existing category in its current position (no reordering)
+              const updatedCategories = [...state.categories];
+              updatedCategories[existingIndex] = { ...updatedCategories[existingIndex], ...updatedCategory };
+              return { categories: updatedCategories, isLoading: false };
+            } else {
+              // Fallback: update by map if index not found
+              return {
+                categories: state.categories.map((cat) => {
+                  const catId = cat.id?.toString() || cat._id?.toString();
+                  return catId === categoryIdStr ? { ...cat, ...updatedCategory } : cat;
+                }),
+                isLoading: false,
+              };
+            }
+          });
+
+          // Silent background refresh for consistency (errors are ignored to avoid disrupting UX)
+          get().initialize(true).catch(() => {
+            // Background refresh failed, but optimistic update is already applied
+            // This ensures the UI stays responsive even if refresh fails
+          });
+
           toast.success('Category updated successfully');
           return updatedCategory;
         } catch (error) {
