@@ -6,6 +6,7 @@ import MobileLayout from "../components/Layout/MobileLayout";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
 import PageTransition from "../../../shared/components/PageTransition";
 import LazyImage from "../../../shared/components/LazyImage";
+import Sidebar from "../../../shared/components/Sidebar/Sidebar";
 
 const MobileCategories = () => {
   const location = useLocation();
@@ -137,10 +138,10 @@ const MobileCategories = () => {
 
   return (
     <PageTransition>
-      <MobileLayout showBottomNav={true} showCartBar={true}>
-        <div className="w-full flex flex-col h-screen overflow-hidden">
-          {/* Top Header - Fixed */}
-          <div className="sticky top-0 z-50 bg-white border-b border-gray-200">
+      <MobileLayout showBottomNav={true} showCartBar={true} fullScreen={true}>
+        <div className="w-full flex flex-col h-full overflow-hidden">
+            {/* Top Header - Fixed */}
+            <div className="flex-shrink-0 bg-white border-b border-gray-200">
             <div className="flex items-center justify-between px-4 py-3">
               {/* Title */}
               <h1 className="text-lg font-bold text-gray-900">All Categories</h1>
@@ -161,9 +162,9 @@ const MobileCategories = () => {
           {/* Main Content Area - Sidebar and Subcategories */}
           <div className="flex flex-1 overflow-hidden">
             {/* Left Sidebar - Vertical Category List */}
-            <div
-              ref={categoryListRef}
-              className="w-[80px] bg-gray-50 border-r border-gray-200 overflow-y-auto flex-shrink-0"
+            <Sidebar
+              scrollRef={categoryListRef}
+              width="80px"
             >
               <div className="py-1">
                 {rootCategories.map((category) => {
@@ -211,7 +212,7 @@ const MobileCategories = () => {
                   );
                 })}
               </div>
-            </div>
+            </Sidebar>
 
             {/* Right Content - Subcategories Grid */}
             <div className="flex-1 bg-white overflow-y-auto">
@@ -236,8 +237,8 @@ const MobileCategories = () => {
                         </h2>
                       )}
                       
-                      {/* Subcategory Grid - 4 columns */}
-                      <div className="grid grid-cols-4 gap-2.5">
+                      {/* Subcategory Grid - 2 columns */}
+                      <div className="grid grid-cols-2 gap-3">
                         {group.children.slice(0, 8).map((subcat) => (
                           <motion.button
                             key={subcat.id}

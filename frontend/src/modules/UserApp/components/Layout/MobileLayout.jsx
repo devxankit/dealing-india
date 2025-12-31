@@ -6,7 +6,7 @@ import MobileCartBar from './MobileCartBar';
 import CartDrawer from '../../../../shared/components/Cart/CartDrawer';
 import useMobileHeaderHeight from '../../hooks/useMobileHeaderHeight';
 
-const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) => {
+const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, fullScreen = false }) => {
   const location = useLocation();
   const headerHeight = useMobileHeaderHeight();
   // Hide header and bottom nav on login, register, and verification pages
@@ -37,17 +37,23 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {
-    document.body.style.overflowY = '';
-    return () => {
+    if (fullScreen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100%';
+    } else {
       document.body.style.overflowY = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.height = '';
     };
-  }, []);
+  }, [fullScreen]);
 
   return (
-    <>
+    <div className={fullScreen ? "h-screen overflow-hidden flex flex-col" : ""}>
       {shouldShowHeader && <MobileHeader />}
       <main
-        className={`min-h-screen w-full overflow-x-hidden transition-all duration-300 ease-in-out ${shouldShowBottomNav ? 'pb-20' : ''} ${showCartBar ? 'pb-24' : ''}`}
+        className={`${fullScreen ? "flex-1 overflow-hidden" : "min-h-screen w-full overflow-x-hidden"} transition-all duration-300 ease-in-out ${!fullScreen && shouldShowBottomNav ? 'pb-20' : ''} ${!fullScreen && showCartBar ? 'pb-24' : ''}`}
         style={{ paddingTop: shouldShowHeader ? `${headerHeight}px` : '0px' }}
       >
         {children}
@@ -55,7 +61,7 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
       {showCartBar && <MobileCartBar />}
       {shouldShowBottomNav && <MobileBottomNav />}
       <CartDrawer />
-    </>
+    </div>
   );
 };
 
