@@ -32,6 +32,7 @@ const ProductForm = () => {
     images: [],
     categoryId: null,
     subcategoryId: null,
+    subSubCategoryId: null,
     brandId: null,
     stock: "in_stock",
     stockQuantity: "",
@@ -213,11 +214,10 @@ const ProductForm = () => {
     try {
       const product = await getVendorProductById(id);
 
-      // Determine if categoryId is a subcategory
-      const category = categories.find(
-        (cat) => cat.id === product.categoryId?.toString()
-      );
-      const isSubcategory = category && category.parentId;
+      // Map categories from the product
+      const categoryId = product.categoryId?._id || product.categoryId?.toString() || null;
+      const subcategoryId = product.subcategoryId?._id || product.subcategoryId?.toString() || null;
+      const subSubCategoryId = product.subSubCategoryId?._id || product.subSubCategoryId?.toString() || null;
 
       setFormData({
         name: product.name || "",
@@ -226,12 +226,9 @@ const ProductForm = () => {
         originalPrice: product.originalPrice || product.price || "",
         image: product.image || "",
         images: product.images || [],
-        categoryId: isSubcategory
-          ? category.parentId
-          : product.categoryId?.toString() || null,
-        subcategoryId: isSubcategory
-          ? product.categoryId?.toString()
-          : product.subcategoryId?.toString() || null,
+        categoryId: categoryId,
+        subcategoryId: subcategoryId,
+        subSubCategoryId: subSubCategoryId,
         brandId: product.brandId?.toString() || null,
         stock: product.stock || "in_stock",
         stockQuantity: product.stockQuantity || "",
@@ -388,6 +385,7 @@ const ProductForm = () => {
           : null,
         categoryId: formData.categoryId ? formData.categoryId : null,
         subcategoryId: formData.subcategoryId ? formData.subcategoryId : null,
+        subSubCategoryId: formData.subSubCategoryId ? formData.subSubCategoryId : null,
         brandId: formData.brandId ? formData.brandId : null,
       };
 
@@ -499,6 +497,7 @@ const ProductForm = () => {
               <CategorySelector
                 value={formData.categoryId}
                 subcategoryId={formData.subcategoryId}
+                subSubCategoryId={formData.subSubCategoryId}
                 onChange={handleChange}
                 required
               />

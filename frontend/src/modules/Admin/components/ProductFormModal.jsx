@@ -28,6 +28,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     images: [],
     categoryId: null,
     subcategoryId: null,
+    subSubCategoryId: null,
     brandId: null,
     stock: "in_stock",
     stockQuantity: "",
@@ -72,12 +73,9 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
           if (product) {
             // Determine if categoryId is a subcategory
-            const categoryId = product.categoryId?._id || product.categoryId?.id || product.categoryId;
-            const subcategoryId = product.subcategoryId?._id || product.subcategoryId?.id || product.subcategoryId;
-            const category = categories.find(
-              (cat) => (cat.id || cat._id)?.toString() === categoryId?.toString()
-            );
-            const isSubcategory = category && category.parentId;
+            const categoryId = product.categoryId?._id || product.categoryId?.id || product.categoryId || null;
+            const subcategoryId = product.subcategoryId?._id || product.subcategoryId?.id || product.subcategoryId || null;
+            const subSubCategoryId = product.subSubCategoryId?._id || product.subSubCategoryId?.id || product.subSubCategoryId || null;
 
             setFormData({
               name: product.name || "",
@@ -86,12 +84,9 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
               originalPrice: product.originalPrice || product.price || "",
               image: product.image || "",
               images: product.images || [],
-              categoryId: isSubcategory
-                ? category.parentId
-                : categoryId || null,
-              subcategoryId: isSubcategory
-                ? categoryId
-                : subcategoryId || null,
+              categoryId: categoryId,
+              subcategoryId: subcategoryId,
+              subSubCategoryId: subSubCategoryId,
               brandId: product.brandId?._id || product.brandId?.id || product.brandId || null,
               stock: product.stock || "in_stock",
               stockQuantity: product.stockQuantity || "",
@@ -452,6 +447,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                         <CategorySelector
                           value={formData.categoryId}
                           subcategoryId={formData.subcategoryId}
+                          subSubCategoryId={formData.subSubCategoryId}
                           onChange={handleChange}
                           required
                         />

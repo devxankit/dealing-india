@@ -776,8 +776,8 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                 </div>
               )}
 
-              {/* Image - Show only for Level 1 (root) and Level 3 (second subcategory), NOT for Level 2 (first subcategory) */}
-              {currentDepth === 1 || currentDepth === 3 ? (
+              {/* Image */}
+              {currentDepth === 1 || currentDepth === 2 || currentDepth === 3 ? (
               <div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-800 mb-4">

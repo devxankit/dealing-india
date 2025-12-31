@@ -29,6 +29,7 @@ const ProductForm = () => {
     images: [],
     categoryId: null,
     subcategoryId: null,
+    subSubCategoryId: null,
     brandId: null,
     stock: "in_stock",
     stockQuantity: "",
@@ -64,12 +65,9 @@ const ProductForm = () => {
 
           if (product) {
             // Determine if categoryId is a subcategory
-            const categoryId = product.categoryId?._id || product.categoryId?.id || product.categoryId;
-            const subcategoryId = product.subcategoryId?._id || product.subcategoryId?.id || product.subcategoryId;
-            const category = categories.find(
-              (cat) => (cat.id || cat._id)?.toString() === categoryId?.toString()
-            );
-            const isSubcategory = category && category.parentId;
+            const categoryId = product.categoryId?._id || product.categoryId?.id || product.categoryId || null;
+            const subcategoryId = product.subcategoryId?._id || product.subcategoryId?.id || product.subcategoryId || null;
+            const subSubCategoryId = product.subSubCategoryId?._id || product.subSubCategoryId?.id || product.subSubCategoryId || null;
 
             setFormData({
               name: product.name || "",
@@ -78,12 +76,9 @@ const ProductForm = () => {
               originalPrice: product.originalPrice || product.price || "",
               image: product.image || "",
               images: product.images || [],
-              categoryId: isSubcategory
-                ? category.parentId
-                : categoryId || null,
-              subcategoryId: isSubcategory
-                ? categoryId
-                : subcategoryId || null,
+              categoryId: categoryId,
+              subcategoryId: subcategoryId,
+              subSubCategoryId: subSubCategoryId,
               brandId: product.brandId?._id || product.brandId?.id || product.brandId || null,
               stock: product.stock || "in_stock",
               stockQuantity: product.stockQuantity || "",
@@ -188,6 +183,7 @@ const ProductForm = () => {
         description: formData.description || "",
         categoryId: formData.categoryId || null,
         subcategoryId: formData.subcategoryId || null,
+        subSubCategoryId: formData.subSubCategoryId || null,
         brandId: formData.brandId || null,
         stock: formData.stock || "in_stock",
         stockQuantity: parseInt(formData.stockQuantity),
@@ -301,6 +297,7 @@ const ProductForm = () => {
               <CategorySelector
                 value={formData.categoryId}
                 subcategoryId={formData.subcategoryId}
+                subSubCategoryId={formData.subSubCategoryId}
                 onChange={handleChange}
                 required
               />

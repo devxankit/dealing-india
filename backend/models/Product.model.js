@@ -65,6 +65,11 @@ const productSchema = new mongoose.Schema(
       ref: 'Category',
       default: null,
     },
+    subSubCategoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Category',
+      default: null,
+    },
     brandId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Brand',

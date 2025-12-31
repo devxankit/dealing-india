@@ -29,6 +29,7 @@ const AddProduct = () => {
     images: [],
     categoryId: null,
     subcategoryId: null,
+    subSubCategoryId: null,
     brandId: null,
     stock: "in_stock",
     stockQuantity: "",
@@ -312,6 +313,7 @@ const AddProduct = () => {
           : null,
         categoryId: formData.categoryId ? formData.categoryId : null,
         subcategoryId: formData.subcategoryId ? formData.subcategoryId : null,
+        subSubCategoryId: formData.subSubCategoryId ? formData.subSubCategoryId : null,
         brandId: formData.brandId ? formData.brandId : null,
       };
 
@@ -408,6 +410,7 @@ const AddProduct = () => {
               <CategorySelector
                 value={formData.categoryId}
                 subcategoryId={formData.subcategoryId}
+                subSubCategoryId={formData.subSubCategoryId}
                 onChange={handleChange}
                 required
               />
