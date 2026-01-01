@@ -430,6 +430,8 @@ const MobileCategory = () => {
           break;
         }
       }
+      console.log('Fetching products for category:', categoryIdToUse);
+      
       const result = await getProductsByCategory(categoryIdToUse, {
         minPrice: filters.minPrice || undefined,
         maxPrice: filters.maxPrice || undefined,
@@ -442,7 +444,12 @@ const MobileCategory = () => {
         limit: 100, // Get more products for better UX
       });
 
-      const fetchedProducts = result.products || result.data?.products || [];
+      console.log('Products API response:', result);
+      
+      // Handle different response structures
+      const fetchedProducts = result.products || result.data?.products || result.data || [];
+      
+      console.log('Fetched products:', fetchedProducts.length, fetchedProducts);
       
       // Transform products to match frontend format
       const transformedProducts = fetchedProducts.map((product) => ({

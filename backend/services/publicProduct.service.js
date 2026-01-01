@@ -30,6 +30,13 @@ export const getPublicProducts = async (filters = {}) => {
       isVisible: true, // Only show visible products
     };
     const andConditions = [];
+    
+    console.log('🔍 Fetching products with filters:', {
+      categoryId,
+      subcategoryId,
+      search,
+      vendorId,
+    });
 
     // Vendor filter
     if (vendorId) {
@@ -55,7 +62,8 @@ export const getPublicProducts = async (filters = {}) => {
       });
     }
 
-    // Category filter - check both categoryId and subcategoryId
+    // Category filter - check categoryId, subcategoryId, and subSubCategoryId
+    // This ensures products in any level of category hierarchy are found
     if (categoryId && categoryId !== 'all') {
       // Validate if categoryId is a valid MongoDB ObjectId
       if (!mongoose.Types.ObjectId.isValid(categoryId)) {
@@ -68,15 +76,23 @@ export const getPublicProducts = async (filters = {}) => {
           totalPages: 0,
         };
       }
-      andConditions.push({
+      const categoryObjectId = new mongoose.Types.ObjectId(categoryId);
+      const categoryFilter = {
         $or: [
-          { categoryId: new mongoose.Types.ObjectId(categoryId) },
-          { subcategoryId: new mongoose.Types.ObjectId(categoryId) },
+          { categoryId: categoryObjectId },
+          { subcategoryId: categoryObjectId },
+          { subSubCategoryId: categoryObjectId },
         ],
+      };
+      andConditions.push(categoryFilter);
+      console.log('📦 Category filter applied:', {
+        categoryId: categoryId,
+        checkingFields: ['categoryId', 'subcategoryId', 'subSubCategoryId'],
       });
     }
 
     // Subcategory filter (if provided separately)
+    // This filters products that have this subcategoryId OR subSubCategoryId
     if (subcategoryId && subcategoryId !== 'all') {
       // Validate if subcategoryId is a valid MongoDB ObjectId
       if (!mongoose.Types.ObjectId.isValid(subcategoryId)) {
@@ -89,8 +105,12 @@ export const getPublicProducts = async (filters = {}) => {
           totalPages: 0,
         };
       }
+      const subcategoryObjectId = new mongoose.Types.ObjectId(subcategoryId);
       andConditions.push({
-        subcategoryId: new mongoose.Types.ObjectId(subcategoryId),
+        $or: [
+          { subcategoryId: subcategoryObjectId },
+          { subSubCategoryId: subcategoryObjectId }, // Also check deepest subcategory
+        ],
       });
     }
 
@@ -127,6 +147,8 @@ export const getPublicProducts = async (filters = {}) => {
     if (andConditions.length > 0) {
       query.$and = andConditions;
     }
+    
+    console.log('🔎 Final MongoDB query:', JSON.stringify(query, null, 2));
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -140,6 +162,7 @@ export const getPublicProducts = async (filters = {}) => {
       Product.find(query)
         .populate('categoryId', 'name image icon')
         .populate('subcategoryId', 'name image icon')
+        .populate('subSubCategoryId', 'name image icon') // Also populate deepest subcategory
         .populate('brandId', 'name')
         .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status')
         .sort(sortOptions)
@@ -148,6 +171,18 @@ export const getPublicProducts = async (filters = {}) => {
         .lean(),
       Product.countDocuments(query),
     ]);
+
+    console.log(`✅ Found ${products.length} products (total: ${total}) for category: ${categoryId || 'all'}`);
+    if (products.length > 0) {
+      console.log('📦 Sample product categories:', products.slice(0, 3).map(p => ({
+        name: p.name,
+        categoryId: p.categoryId?._id || p.categoryId,
+        subcategoryId: p.subcategoryId?._id || p.subcategoryId,
+        subSubCategoryId: p.subSubCategoryId?._id || p.subSubCategoryId,
+      })));
+    }
+
+    console.log(`✅ Found ${products.length} products (total: ${total}) for category: ${categoryId || 'all'}`);
 
     const totalPages = Math.ceil(total / parseInt(limit));
 

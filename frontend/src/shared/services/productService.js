@@ -23,10 +23,19 @@ export const getProducts = async (filters = {}) => {
     if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
 
     // API interceptor returns response.data, so response is already the data object
-    // Backend returns: { success, message, data: { products, total, page, totalPages } }
+    // Backend returns: { success: true, message: "...", data: { products, total, page, totalPages } }
+    // After interceptor: response = { success: true, message: "...", data: { products, total, page, totalPages } }
     const response = await api.get(`/products?${params.toString()}`);
-    // Extract data from response structure
-    return response.data || { products: [], total: 0, page: 1, totalPages: 0 };
+    
+    // Extract the inner data object which contains products array
+    if (response && response.data && Array.isArray(response.data.products)) {
+      return response.data; // Return { products, total, page, totalPages }
+    } else if (response && Array.isArray(response.products)) {
+      return response; // Already in correct format
+    }
+    
+    console.warn('Unexpected API response structure:', response);
+    return { products: [], total: 0, page: 1, totalPages: 0 };
   } catch (error) {
     console.error('Error fetching products:', error);
     throw error;

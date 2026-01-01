@@ -93,10 +93,21 @@ export const createOrder = async (req, res, next) => {
         await order.save();
       } catch (razorpayError) {
         console.error('Razorpay order creation failed:', razorpayError);
+        
+        // Provide more specific error message
+        let errorMessage = 'Failed to initialize payment gateway. Please try again.';
+        if (razorpayError.message.includes('authentication failed')) {
+          errorMessage = 'Payment gateway configuration error. Please contact support.';
+        } else if (razorpayError.message.includes('not configured')) {
+          errorMessage = 'Payment gateway is not configured. Please contact support.';
+        } else {
+          errorMessage = razorpayError.message || errorMessage;
+        }
+        
         // Order is created but Razorpay failed - user can retry payment
         return res.status(500).json({
           success: false,
-          message: 'Failed to initialize payment gateway. Please try again.',
+          message: errorMessage,
           error: razorpayError.message,
         });
       }

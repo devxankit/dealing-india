@@ -16,7 +16,13 @@ class RazorpayService {
 
     if (!keyId || !keySecret) {
       console.warn('⚠️ Razorpay keys not found in environment variables');
+      console.warn('⚠️ Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your backend/.env file');
       return;
+    }
+
+    // Validate key format
+    if (!keyId.startsWith('rzp_')) {
+      console.warn('⚠️ Invalid RAZORPAY_KEY_ID format. Should start with "rzp_"');
     }
 
     try {
@@ -40,8 +46,21 @@ class RazorpayService {
    * @returns {Promise<Object>} Razorpay order object
    */
   async createOrder(amount, currency = 'INR', receipt, notes = {}) {
+    // Check if Razorpay is initialized
     if (!this.razorpay) {
-      throw new Error('Razorpay not initialized. Please check environment variables.');
+      const keyId = process.env.RAZORPAY_KEY_ID;
+      const keySecret = process.env.RAZORPAY_KEY_SECRET;
+      
+      if (!keyId || !keySecret) {
+        throw new Error('Razorpay not configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your .env file.');
+      }
+      
+      // Try to re-initialize
+      this.initializeRazorpay();
+      
+      if (!this.razorpay) {
+        throw new Error('Failed to initialize Razorpay. Please check your API keys.');
+      }
     }
 
     try {
@@ -52,7 +71,16 @@ class RazorpayService {
         notes: notes,
       };
 
+      console.log('Creating Razorpay order with options:', {
+        amount: options.amount,
+        currency: options.currency,
+        receipt: options.receipt,
+      });
+
       const order = await this.razorpay.orders.create(options);
+      
+      console.log('Razorpay order created successfully:', order.id);
+      
       return {
         id: order.id,
         entity: order.entity,
@@ -67,8 +95,20 @@ class RazorpayService {
         created_at: order.created_at,
       };
     } catch (error) {
-      console.error('Error creating Razorpay order:', error);
-      throw new Error(`Failed to create Razorpay order: ${error.message}`);
+      console.error('Error creating Razorpay order:', {
+        statusCode: error.statusCode,
+        error: error.error,
+        message: error.message,
+      });
+      
+      // Provide more specific error messages
+      if (error.statusCode === 401) {
+        throw new Error('Razorpay authentication failed. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env file.');
+      } else if (error.statusCode === 400) {
+        throw new Error(`Invalid Razorpay request: ${error.error?.description || error.message}`);
+      } else {
+        throw new Error(`Failed to create Razorpay order: ${error.error?.description || error.message}`);
+      }
     }
   }
 

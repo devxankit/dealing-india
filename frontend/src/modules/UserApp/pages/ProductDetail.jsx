@@ -99,23 +99,47 @@ const MobileProductDetail = () => {
                 categoryId: productData.categoryId._id || productData.categoryId,
                 limit: 4,
               });
+              
+              // Transform products to match frontend format (same as Home page)
+              const transformProduct = (product) => {
+                // Handle vendor data - can be ObjectId or populated object
+                const vendor = product.vendorId;
+                const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+                  ? {
+                      id: (vendor._id || vendor.id).toString(),
+                      _id: vendor._id || vendor.id,
+                      storeName: vendor.storeName || vendor.businessName || vendor.name,
+                      businessName: vendor.businessName,
+                      name: vendor.name,
+                      storeLogo: vendor.storeLogo || vendor.logo,
+                      isVerified: vendor.isVerified !== undefined 
+                        ? vendor.isVerified 
+                        : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+                    }
+                  : null;
+                
+                return {
+                  id: product._id || product.id,
+                  name: product.name,
+                  price: product.price,
+                  originalPrice: product.originalPrice,
+                  image: product.image,
+                  images: product.images || [],
+                  unit: product.unit || 'Piece',
+                  rating: product.rating || 0,
+                  reviewCount: product.reviewCount || 0,
+                  stock: product.stock,
+                  stockQuantity: product.stockQuantity,
+                  vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+                  vendor: vendorData,
+                  flashSale: product.flashSale || false,
+                };
+              };
+              
               const similar = (similarResponse.data?.products || similarResponse.products || [])
                 .filter(p => (p._id || p.id) !== transformedProduct.id)
                 .slice(0, 4)
-                .map(p => ({
-                  id: p._id || p.id,
-                  name: p.name,
-                  price: p.price,
-                  originalPrice: p.originalPrice,
-                  image: p.image,
-                  images: p.images || [],
-                  unit: p.unit || 'Piece',
-                  rating: p.rating || 0,
-                  reviewCount: p.reviewCount || 0,
-                  stock: p.stock,
-                  stockQuantity: p.stockQuantity,
-                  vendorId: p.vendorId?._id || p.vendorId,
-                }));
+                .map(transformProduct);
               setSimilarProducts(similar);
             } catch (error) {
               console.error('Error fetching similar products:', error);

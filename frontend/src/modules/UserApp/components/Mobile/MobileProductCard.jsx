@@ -169,10 +169,10 @@ const MobileProductCard = ({ product }) => {
               <p className="text-xs text-gray-500 mb-2">{product.unit}</p>
 
               {/* Vendor Badge */}
-              {product.vendorId && (
+              {(product.vendor || product.vendorId) && (
                 <div className="mb-2">
                   <VendorBadge
-                    vendor={getVendorById(product.vendorId)}
+                    vendor={product.vendor || getVendorById(product.vendorId)}
                     showVerified={true}
                     size="sm"
                     disableLink={true}
@@ -181,7 +181,7 @@ const MobileProductCard = ({ product }) => {
               )}
 
               {/* Rating */}
-              {product.rating && (
+              {product.rating > 0 && (
                 <div className="flex items-center gap-1 mb-2">
                   <div className="flex items-center">
                     {[...Array(5)].map((_, i) => (
@@ -196,7 +196,7 @@ const MobileProductCard = ({ product }) => {
                     ))}
                   </div>
                   <span className="text-xs text-gray-600 font-medium">
-                    {product.rating} ({product.reviewCount || 0})
+                    {product.rating?.toFixed(1) || '0.0'} ({product.reviewCount || 0})
                   </span>
                 </div>
               )}
