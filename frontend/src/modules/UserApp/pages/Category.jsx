@@ -452,27 +452,46 @@ const MobileCategory = () => {
       console.log('Fetched products:', fetchedProducts.length, fetchedProducts);
       
       // Transform products to match frontend format
-      const transformedProducts = fetchedProducts.map((product) => ({
-        id: product._id || product.id,
-        name: product.name,
-        price: product.price,
-        originalPrice: product.originalPrice,
-        image: product.image,
-        images: product.images || [],
-        description: product.description,
-        unit: product.unit,
-        rating: product.rating || 0,
-        reviewCount: product.reviewCount || 0,
-        stock: product.stock,
-        stockQuantity: product.stockQuantity,
-        categoryId: product.categoryId?._id || product.categoryId,
-        subcategoryId: product.subcategoryId?._id || product.subcategoryId,
-        brandId: product.brandId?._id || product.brandId,
-        vendorId: product.vendorId?._id || product.vendorId,
-        isNew: product.isNew,
-        isFeatured: product.isFeatured,
-        flashSale: product.flashSale,
-      }));
+      const transformedProducts = fetchedProducts.map((product) => {
+        // Handle vendor data - can be ObjectId or populated object
+        const vendor = product.vendorId || product.vendor;
+        const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+          ? {
+              id: (vendor._id || vendor.id).toString(),
+              _id: vendor._id || vendor.id,
+              storeName: vendor.storeName || vendor.businessName || vendor.name,
+              businessName: vendor.businessName,
+              name: vendor.name,
+              storeLogo: vendor.storeLogo || vendor.logo,
+              isVerified: vendor.isVerified !== undefined 
+                ? vendor.isVerified 
+                : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+            }
+          : null;
+
+        return {
+          id: product._id || product.id,
+          name: product.name,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          image: product.image,
+          images: product.images || [],
+          description: product.description,
+          unit: product.unit || 'Piece',
+          rating: product.rating || 0,
+          reviewCount: product.reviewCount || 0,
+          stock: product.stock,
+          stockQuantity: product.stockQuantity,
+          categoryId: product.categoryId?._id || product.categoryId,
+          subcategoryId: product.subcategoryId?._id || product.subcategoryId,
+          brandId: product.brandId?._id || product.brandId,
+          vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+          vendor: vendorData,
+          isNew: product.isNew,
+          isFeatured: product.isFeatured,
+          flashSale: product.flashSale,
+        };
+      });
 
       setProducts(transformedProducts);
       setProductsPagination({

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
+import { getCategoryDepth } from './categoryManagement.service.js';
 
 /**
  * Get all public products with optional filters (only visible products)
@@ -62,8 +63,8 @@ export const getPublicProducts = async (filters = {}) => {
       });
     }
 
-    // Category filter - check categoryId, subcategoryId, and subSubCategoryId
-    // This ensures products in any level of category hierarchy are found
+    // Category filter - intelligently check based on category depth
+    // This ensures products are found correctly at each hierarchy level
     if (categoryId && categoryId !== 'all') {
       // Validate if categoryId is a valid MongoDB ObjectId
       if (!mongoose.Types.ObjectId.isValid(categoryId)) {
@@ -76,18 +77,70 @@ export const getPublicProducts = async (filters = {}) => {
           totalPages: 0,
         };
       }
+      
       const categoryObjectId = new mongoose.Types.ObjectId(categoryId);
-      const categoryFilter = {
-        $or: [
-          { categoryId: categoryObjectId },
-          { subcategoryId: categoryObjectId },
-          { subSubCategoryId: categoryObjectId },
-        ],
-      };
+      
+      // Determine the depth/level of the category
+      let categoryDepth = 1;
+      try {
+        categoryDepth = await getCategoryDepth(categoryId);
+      } catch (error) {
+        console.warn('⚠️ Could not determine category depth, defaulting to level 1:', error.message);
+        categoryDepth = 1;
+      }
+      
+      let categoryFilter;
+      let checkingFields = [];
+      
+      // Build filter based on category depth:
+      // Depth 1 (main category): Check categoryId OR subcategoryId OR subSubCategoryId (show all in category tree)
+      // Depth 2 (subcategory): Check subcategoryId OR subSubCategoryId (show products in this subcategory and its sub-subcategories)
+      // Depth 3+ (sub-subcategory): Check ONLY subSubCategoryId OR subcategoryId (exact match only, no parent categories)
+      // Note: For sub-subcategories, we check both fields because products might be stored incorrectly,
+      // but we DON'T check parent categories - only exact sub-subcategory match
+      if (categoryDepth === 1) {
+        // Main category - show all products in this category and its children
+        categoryFilter = {
+          $or: [
+            { categoryId: categoryObjectId },
+            { subcategoryId: categoryObjectId },
+            { subSubCategoryId: categoryObjectId },
+          ],
+        };
+        checkingFields = ['categoryId', 'subcategoryId', 'subSubCategoryId'];
+      } else if (categoryDepth === 2) {
+        // Subcategory - show products in this subcategory and its sub-subcategories
+        categoryFilter = {
+          $or: [
+            { subcategoryId: categoryObjectId },
+            { subSubCategoryId: categoryObjectId },
+          ],
+        };
+        checkingFields = ['subcategoryId', 'subSubCategoryId'];
+      } else {
+        // Sub-subcategory (depth 3+) - check subSubCategoryId field
+        // When a product is added with subcategory and sub-subcategory:
+        // - categoryId: main category
+        // - subcategoryId: subcategory
+        // - subSubCategoryId: sub-subcategory
+        // 
+        // IMPORTANT: We check ONLY subSubCategoryId to ensure products show ONLY in the exact selected sub-subcategory
+        // NOT in other sub-subcategories. This prevents products from showing in all sub-subcategories.
+        // 
+        // If products have subSubCategoryId = null, they won't show (which is correct behavior)
+        // Products must have subSubCategoryId set to the exact sub-subcategory ID to show
+        categoryFilter = {
+          subSubCategoryId: categoryObjectId,
+        };
+        checkingFields = ['subSubCategoryId'];
+      }
+      
       andConditions.push(categoryFilter);
       console.log('📦 Category filter applied:', {
         categoryId: categoryId,
-        checkingFields: ['categoryId', 'subcategoryId', 'subSubCategoryId'],
+        depth: categoryDepth,
+        checkingFields: checkingFields,
+        filterQuery: JSON.stringify(categoryFilter),
       });
     }
 
@@ -173,6 +226,28 @@ export const getPublicProducts = async (filters = {}) => {
     ]);
 
     console.log(`✅ Found ${products.length} products (total: ${total}) for category: ${categoryId || 'all'}`);
+    
+    // Debug: Check all products with subSubCategoryId to understand data structure
+    if (categoryId && categoryId !== 'all') {
+      try {
+        const debugProducts = await Product.find({ isVisible: true })
+          .select('name categoryId subcategoryId subSubCategoryId')
+          .populate('categoryId', 'name')
+          .populate('subcategoryId', 'name')
+          .populate('subSubCategoryId', 'name')
+          .limit(10)
+          .lean();
+        console.log('🔍 Debug - Sample products in database:', debugProducts.map(p => ({
+          name: p.name,
+          categoryId: p.categoryId?._id?.toString() || p.categoryId?.toString() || null,
+          subcategoryId: p.subcategoryId?._id?.toString() || p.subcategoryId?.toString() || null,
+          subSubCategoryId: p.subSubCategoryId?._id?.toString() || p.subSubCategoryId?.toString() || null,
+        })));
+      } catch (error) {
+        console.warn('⚠️ Debug query failed:', error.message);
+      }
+    }
+    
     if (products.length > 0) {
       console.log('📦 Sample product categories:', products.slice(0, 3).map(p => ({
         name: p.name,

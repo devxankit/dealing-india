@@ -85,7 +85,8 @@ const ProductForm = () => {
   const fetchAttributes = async () => {
     try {
       setLoadingAttributes(true);
-      const response = await api.get('/admin/attributes');
+      // Use vendor endpoint instead of admin endpoint
+      const response = await api.get('/attributes');
       if (response.success && response.data?.attributes) {
         const activeAttributes = response.data.attributes
           .filter(attr => attr.status === 'active')
@@ -102,7 +103,8 @@ const ProductForm = () => {
         await Promise.all(
           activeAttributes.map(async (attr) => {
             try {
-              const valuesResponse = await api.get(`/admin/attribute-values?attributeId=${attr.id}`);
+              // Use vendor endpoint instead of admin endpoint
+              const valuesResponse = await api.get(`/attribute-values?attributeId=${attr.id}`);
               if (valuesResponse.success && valuesResponse.data?.attributeValues) {
                 const activeValues = valuesResponse.data.attributeValues
                   .filter(val => val.status === 'active')

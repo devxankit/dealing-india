@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
@@ -149,6 +150,7 @@ export const createVendorProduct = async (productData, vendorId) => {
       images = [],
       categoryId,
       subcategoryId,
+      subSubCategoryId, // This should be set when sub-subcategory is selected
       brandId,
       stock,
       stockQuantity,
@@ -442,6 +444,13 @@ export const createVendorProduct = async (productData, vendorId) => {
     const vendor = await Vendor.findById(vendorId);
     const vendorName = vendor?.businessName || vendor?.storeName || '';
 
+    // Debug: Log category data before creating product
+    console.log('📝 Creating product with categories:', {
+      categoryId: categoryId || null,
+      subcategoryId: subcategoryId || null,
+      subSubCategoryId: subSubCategoryId || null,
+    });
+
     // Create product
     const product = await Product.create({
       name: name.trim(),
@@ -456,6 +465,10 @@ export const createVendorProduct = async (productData, vendorId) => {
       description: description || '',
       categoryId: categoryId || null,
       subcategoryId: subcategoryId || null,
+      // Ensure subSubCategoryId is properly set (not empty string, not undefined)
+      subSubCategoryId: (subSubCategoryId && subSubCategoryId.toString().trim() !== '') 
+        ? subSubCategoryId 
+        : null,
       brandId: brandId || null,
       stock: stock || stockStatus,
       stockQuantity: parseInt(stockQuantity),
@@ -531,6 +544,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       images,
       categoryId,
       subcategoryId,
+      subSubCategoryId,
       brandId,
       stock,
       stockQuantity,
@@ -558,7 +572,18 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
     // Validate category if provided
     let validatedCategoryId = null;
     if (categoryId) {
-      const category = await Category.findById(categoryId);
+      // Handle categoryId - it might be an object, string, or already an ObjectId
+      let categoryIdToCheck = categoryId;
+      if (typeof categoryId === 'object' && categoryId !== null) {
+        categoryIdToCheck = categoryId._id || categoryId.id || categoryId;
+      }
+      const categoryIdStr = categoryIdToCheck?.toString() || String(categoryIdToCheck);
+      if (!mongoose.Types.ObjectId.isValid(categoryIdStr)) {
+        const err = new Error('Invalid category ID format');
+        err.status = 400;
+        throw err;
+      }
+      const category = await Category.findById(categoryIdStr);
       if (!category) {
         const err = new Error('Category not found');
         err.status = 404;
@@ -570,7 +595,18 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
     // Validate subcategory if provided
     let validatedSubcategoryId = null;
     if (subcategoryId) {
-      const subcategory = await Category.findById(subcategoryId);
+      // Handle subcategoryId - it might be an object, string, or already an ObjectId
+      let subcategoryIdToCheck = subcategoryId;
+      if (typeof subcategoryId === 'object' && subcategoryId !== null) {
+        subcategoryIdToCheck = subcategoryId._id || subcategoryId.id || subcategoryId;
+      }
+      const subcategoryIdStr = subcategoryIdToCheck?.toString() || String(subcategoryIdToCheck);
+      if (!mongoose.Types.ObjectId.isValid(subcategoryIdStr)) {
+        const err = new Error('Invalid subcategory ID format');
+        err.status = 400;
+        throw err;
+      }
+      const subcategory = await Category.findById(subcategoryIdStr);
       if (!subcategory) {
         const err = new Error('Subcategory not found');
         err.status = 404;
@@ -579,10 +615,46 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       validatedSubcategoryId = subcategory._id;
     }
 
+    // Validate sub-subcategory if provided
+    let validatedSubSubCategoryId = null;
+    if (subSubCategoryId) {
+      // Handle subSubCategoryId - it might be an object, string, or already an ObjectId
+      let subSubCategoryIdToCheck = subSubCategoryId;
+      if (typeof subSubCategoryId === 'object' && subSubCategoryId !== null) {
+        subSubCategoryIdToCheck = subSubCategoryId._id || subSubCategoryId.id || subSubCategoryId;
+      }
+      const subSubCategoryIdStr = subSubCategoryIdToCheck?.toString() || String(subSubCategoryIdToCheck);
+      if (!mongoose.Types.ObjectId.isValid(subSubCategoryIdStr)) {
+        const err = new Error('Invalid sub-subcategory ID format');
+        err.status = 400;
+        throw err;
+      }
+      const subSubCategory = await Category.findById(subSubCategoryIdStr);
+      if (!subSubCategory) {
+        const err = new Error('Sub-subcategory not found');
+        err.status = 404;
+        throw err;
+      }
+      validatedSubSubCategoryId = subSubCategory._id;
+    }
+
     // Validate brand if provided
     let validatedBrandId = null;
     if (brandId) {
-      const brand = await Brand.findById(brandId);
+      // Handle brandId - it might be an object, string, or already an ObjectId
+      let brandIdToCheck = brandId;
+      if (typeof brandId === 'object' && brandId !== null) {
+        // If it's an object, extract the _id or id field
+        brandIdToCheck = brandId._id || brandId.id || brandId;
+      }
+      // Convert to string and validate ObjectId format
+      const brandIdStr = brandIdToCheck?.toString() || String(brandIdToCheck);
+      if (!mongoose.Types.ObjectId.isValid(brandIdStr)) {
+        const err = new Error('Invalid brand ID format');
+        err.status = 400;
+        throw err;
+      }
+      const brand = await Brand.findById(brandIdStr);
       if (!brand || !brand.isActive) {
         const err = new Error('Brand not found or inactive');
         err.status = 404;
@@ -864,6 +936,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ...(description !== undefined && { description: description || '' }),
         ...((categoryId !== undefined || subcategoryId !== undefined) && { categoryId: finalCategoryIdToUse }),
         ...(subcategoryId !== undefined && { subcategoryId: validatedSubcategoryId || null }),
+        ...(subSubCategoryId !== undefined && { subSubCategoryId: validatedSubSubCategoryId || null }),
         ...(categoryId !== undefined && subcategoryId === undefined && { subcategoryId: null }),
         ...(brandId !== undefined && { brandId: validatedBrandId || null }),
         ...(stockQuantity !== undefined && { stockQuantity: finalStockQuantity, stock: stock || stockStatus }),
