@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiShoppingBag, FiTrash2 } from "react-icons/fi";
+import { FiShoppingBag, FiTrash2, FiStar } from "react-icons/fi";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { useCartStore } from "../../../../shared/store/useStore";
 import {
@@ -11,6 +11,8 @@ import {
 import toast from "react-hot-toast";
 import LazyImage from "../../../../shared/components/LazyImage";
 import useSwipeGesture from "../../hooks/useSwipeGesture";
+import VendorBadge from "../../../Vendor/components/VendorBadge";
+import { getVendorById } from "../../../../data/vendors";
 
 const SwipeableWishlistItem = ({ item, index, onMoveToCart, onRemove }) => {
   const [swipeOffset, setSwipeOffset] = useState(0);
@@ -96,18 +98,68 @@ const SwipeableWishlistItem = ({ item, index, onMoveToCart, onRemove }) => {
         </Link>
 
         {/* Product Info */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex flex-col">
           <Link to={`/app/product/${item.id}`}>
             <h3 className="font-bold text-gray-800 text-sm mb-1 line-clamp-2">
               {item.name}
             </h3>
           </Link>
-          <p className="text-lg font-bold text-primary-600 mb-3">
-            {formatPrice(item.price)}
-          </p>
+          
+          {/* Unit */}
+          {item.unit && (
+            <p className="text-xs text-gray-500 mb-1 font-medium">
+              {item.unit}
+            </p>
+          )}
+
+          {/* Vendor Badge */}
+          {(item.vendor || item.vendorId) && (
+            <div className="mb-1.5">
+              <VendorBadge
+                vendor={item.vendor || getVendorById(item.vendorId)}
+                showVerified={true}
+                size="sm"
+                showLogo={true}
+              />
+            </div>
+          )}
+
+          {/* Rating */}
+          {item.rating > 0 && (
+            <div className="flex items-center gap-1 mb-1.5">
+              <div className="flex items-center">
+                {[...Array(5)].map((_, i) => (
+                  <FiStar
+                    key={i}
+                    className={`text-xs ${
+                      i < Math.floor(item.rating)
+                        ? "text-yellow-400 fill-yellow-400"
+                        : "text-gray-300"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-xs text-gray-600 font-medium">
+                {item.rating?.toFixed(1) || '0.0'}
+                {item.reviewCount > 0 && ` (${item.reviewCount})`}
+              </span>
+            </div>
+          )}
+
+          {/* Price */}
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg font-bold text-primary-600">
+              {formatPrice(item.price)}
+            </span>
+            {item.originalPrice && (
+              <span className="text-sm text-gray-400 line-through font-medium">
+                {formatPrice(item.originalPrice)}
+              </span>
+            )}
+          </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-auto">
             <button
               onClick={() => onMoveToCart(item)}
               className="flex-1 py-2.5 gradient-green text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:shadow-glow-green transition-all">

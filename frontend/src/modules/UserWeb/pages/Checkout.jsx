@@ -19,6 +19,7 @@ import { useAddressStore } from "../../../shared/store/addressStore";
 import { useOrderStore } from "../../../shared/store/orderStore";
 import { formatPrice } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
+import { initializeRazorpayCheckout, handlePaymentSuccess } from "../../../shared/services/paymentService";
 import Header from "../components/Layout/Header";
 import Navbar from "../components/Layout/Navbar";
 import Footer from "../components/Layout/Footer";
@@ -32,8 +33,9 @@ const Checkout = () => {
   const { items, getTotal, clearCart, getItemsByVendor } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
   const { addresses, getDefaultAddress, addAddress } = useAddressStore();
-  const { createOrder } = useOrderStore();
+  const { createOrder, createOrderAPI, verifyPaymentAPI } = useOrderStore();
   const { responsivePadding } = useResponsiveHeaderPadding();
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Group items by vendor
   const itemsByVendor = useMemo(
@@ -203,17 +205,43 @@ const Checkout = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
       setStep(3);
     } else {
-      // Place order
-      const order = createOrder({
-        userId: isAuthenticated ? user?.id : null,
-        items: items,
+      // Check if payment method requires Razorpay
+      const onlinePaymentMethods = ['card', 'creditCard', 'debitCard', 'upi', 'wallet'];
+      const requiresRazorpay = onlinePaymentMethods.includes(formData.paymentMethod);
+
+      if (requiresRazorpay && isAuthenticated) {
+        // Online payment flow with Razorpay
+        await handleOnlinePayment();
+      } else {
+        // COD or guest order flow
+        handleCODOrder();
+      }
+    }
+  };
+
+  const handleOnlinePayment = async () => {
+    if (isProcessingPayment) return;
+    
+    setIsProcessingPayment(true);
+    try {
+      // Create order via API
+      const orderData = {
+        userId: user?.id,
+        items: items.map(item => ({
+          id: item.id,
+          productId: item.productId || item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image,
+        })),
         shippingAddress: {
           name: formData.name,
           email: formData.email,
@@ -224,26 +252,92 @@ const Checkout = () => {
           state: formData.state,
           country: formData.country,
         },
-        paymentMethod: formData.paymentMethod,
+        paymentMethod: formData.paymentMethod === 'card' ? 'creditCard' : formData.paymentMethod,
         subtotal: total,
         shipping: shipping,
         tax: tax,
         discount: discount,
         total: finalTotal,
         couponCode: appliedCoupon ? couponCode : null,
+      };
+
+      const result = await createOrderAPI(orderData);
+      const { order, razorpay } = result;
+
+      if (!razorpay || !razorpay.orderId) {
+        throw new Error('Failed to initialize payment gateway');
+      }
+
+      // Initialize Razorpay checkout
+      await initializeRazorpayCheckout({
+        key: razorpay.keyId,
+        amount: finalTotal,
+        currency: 'INR',
+        name: 'Appzeto',
+        description: `Order ${order.orderCode}`,
+        orderId: razorpay.orderId,
+        prefill: {
+          name: formData.name,
+          email: formData.email,
+          contact: formData.phone,
+        },
+        handler: async (paymentResponse) => {
+          try {
+            // Verify payment
+            const paymentData = handlePaymentSuccess(paymentResponse);
+            const verifyResult = await verifyPaymentAPI(order.id || order.orderCode, paymentData);
+            
+            clearCart();
+            toast.success("Payment successful! Order placed.");
+            navigate(`/order-confirmation/${order.id || order.orderCode}`);
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            toast.error("Payment verification failed. Please contact support.");
+          } finally {
+            setIsProcessingPayment(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessingPayment(false);
+            toast.error("Payment cancelled");
+          },
+        },
       });
-
-      clearCart();
-
-      // Play success sound
-      // const audio = new Audio(successSound); // Commented out - file not found
-      // audio.play().catch((error) => {
-      //   console.log('Could not play sound:', error);
-      // });
-
-      toast.success("Order placed successfully!");
-      navigate(`/order-confirmation/${order.id}`);
+    } catch (error) {
+      console.error('Payment error:', error);
+      setIsProcessingPayment(false);
+      toast.error(error.message || "Failed to process payment. Please try again.");
     }
+  };
+
+  const handleCODOrder = () => {
+    // For COD or guest orders, use local storage (backward compatibility)
+    const order = createOrder({
+      userId: isAuthenticated ? user?.id : null,
+      items: items,
+      shippingAddress: {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        zipCode: formData.zipCode,
+        state: formData.state,
+        country: formData.country,
+      },
+      paymentMethod: formData.paymentMethod,
+      subtotal: total,
+      shipping: shipping,
+      tax: tax,
+      discount: discount,
+      total: finalTotal,
+      couponCode: appliedCoupon ? couponCode : null,
+    });
+
+    clearCart();
+    toast.success("Order placed successfully!");
+    navigate(`/order-confirmation/${order.id}`);
   };
 
   return (
@@ -510,27 +604,32 @@ const Checkout = () => {
                           Payment Method
                         </h2>
                         <div className="space-y-2">
-                          {["card", "cash", "bank"].map((method) => (
+                          {[
+                            { value: "card", label: "Credit/Debit Card", online: true },
+                            { value: "upi", label: "UPI", online: true },
+                            { value: "wallet", label: "Wallet", online: true },
+                            { value: "cash", label: "Cash on Delivery", online: false },
+                          ].map((method) => (
                             <label
-                              key={method}
-                              className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.paymentMethod === method
+                              key={method.value}
+                              className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.paymentMethod === method.value
                                 ? "border-primary-500 bg-primary-50"
                                 : "border-gray-200 hover:border-gray-300"
-                                }`}>
+                                } ${!isAuthenticated && method.online ? "opacity-50 cursor-not-allowed" : ""}`}>
                               <input
                                 type="radio"
                                 name="paymentMethod"
-                                value={method}
-                                checked={formData.paymentMethod === method}
+                                value={method.value}
+                                checked={formData.paymentMethod === method.value}
                                 onChange={handleInputChange}
+                                disabled={!isAuthenticated && method.online}
                                 className="w-4 h-4 text-primary-500"
                               />
-                              <span className="font-medium text-gray-800 text-sm capitalize">
-                                {method === "card"
-                                  ? "Credit/Debit Card"
-                                  : method === "cash"
-                                    ? "Cash on Delivery"
-                                    : "Bank Transfer"}
+                              <span className="font-medium text-gray-800 text-sm">
+                                {method.label}
+                                {!isAuthenticated && method.online && (
+                                  <span className="text-xs text-red-500 ml-2">(Login required)</span>
+                                )}
                               </span>
                             </label>
                           ))}
@@ -711,8 +810,13 @@ const Checkout = () => {
                       )}
                       <button
                         type="submit"
-                        className="flex-1 gradient-green text-white py-2.5 rounded-lg font-semibold text-sm hover:shadow-glow-green transition-all duration-300 hover:scale-105">
-                        {step === 3 ? "Place Order" : "Continue"}
+                        disabled={isProcessingPayment}
+                        className="flex-1 gradient-green text-white py-2.5 rounded-lg font-semibold text-sm hover:shadow-glow-green transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isProcessingPayment
+                          ? "Processing..."
+                          : step === 3
+                          ? "Place Order"
+                          : "Continue"}
                       </button>
                     </div>
                   </form>

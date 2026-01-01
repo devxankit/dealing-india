@@ -49,8 +49,12 @@ import publicVendorRoutes from './routes/publicVendor.routes.js';
 import publicSliderRoutes from './routes/publicSlider.routes.js';
 import userSupportRoutes from './routes/userSupport.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
+import cartRoutes from './routes/cart.routes.js';
 import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
 import vendorSubscriptionRoutes from './routes/vendorSubscription.routes.js';
+import orderRoutes from './routes/order.routes.js';
+import addressRoutes from './routes/address.routes.js';
+import walletRoutes from './routes/wallet.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -159,6 +163,10 @@ app.use('/api/admin/support', supportDeskRoutes);
 // User management routes (require user authentication)
 app.use('/api/user/support', userSupportRoutes);
 app.use('/api/user/wishlist', wishlistRoutes);
+app.use('/api/user/cart', cartRoutes);
+app.use('/api/user/orders', orderRoutes);
+app.use('/api/user/addresses', addressRoutes);
+app.use('/api/user/wallet', walletRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 

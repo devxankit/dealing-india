@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import MobileLayout from "../components/Layout/MobileLayout";
 import PageTransition from '../../../shared/components/PageTransition';
+import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
+import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 
 const MobileChangePassword = () => {
     const navigate = useNavigate();
+    const { changePassword } = useAuthStore();
     const [formData, setFormData] = useState({
         currentPassword: '',
         newPassword: '',
@@ -17,25 +20,41 @@ const MobileChangePassword = () => {
         new: false,
         confirm: false
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        
         if (formData.newPassword !== formData.confirmPassword) {
             toast.error("New passwords do not match");
             return;
         }
-        // Simulate API call
-        toast.success("Password updated successfully");
-        navigate(-1);
+
+        if (formData.newPassword.length < 6) {
+            toast.error("Password must be at least 6 characters");
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            await changePassword(formData.currentPassword, formData.newPassword);
+            toast.success("Password updated successfully");
+            navigate(-1);
+        } catch (error) {
+            toast.error(error.message || "Failed to update password");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
-        <PageTransition>
-            <MobileLayout showBottomNav={false} showCartBar={false}>
+        <ProtectedRoute>
+            <PageTransition>
+                <MobileLayout showBottomNav={false} showCartBar={false}>
                 <div className="min-h-screen bg-gray-50">
                     {/* Header */}
                     <div className="bg-white sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
@@ -126,9 +145,10 @@ const MobileChangePassword = () => {
 
                                 <button
                                     type="submit"
-                                    className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold shadow-md shadow-gray-200 mt-2"
+                                    disabled={isSubmitting}
+                                    className="w-full py-3 bg-gray-900 text-white rounded-xl font-semibold shadow-md shadow-gray-200 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Update Password
+                                    {isSubmitting ? 'Updating...' : 'Update Password'}
                                 </button>
                             </form>
                         </div>
@@ -136,6 +156,7 @@ const MobileChangePassword = () => {
                 </div>
             </MobileLayout>
         </PageTransition>
+        </ProtectedRoute>
     );
 };
 

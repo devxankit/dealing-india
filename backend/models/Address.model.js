@@ -12,6 +12,10 @@ const addressSchema = new mongoose.Schema(
       required: [true, 'Address name is required'],
       trim: true,
     },
+    fullName: {
+      type: String,
+      trim: true,
+    },
     address: {
       type: String,
       required: [true, 'Address is required'],

@@ -1,14 +1,12 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { FiSearch, FiFilter, FiX, FiMic, FiGrid, FiList, FiShoppingBag } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiX, FiGrid, FiList, FiShoppingBag } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
 import ProductCard from '../../../shared/components/ProductCard';
 import ProductListItem from '../components/Mobile/ProductListItem';
 import SearchSuggestions from '../components/Mobile/SearchSuggestions';
-import { products } from '../../../data/products';
-import { categories } from '../../../data/categories';
-import { getApprovedVendors } from '../../../data/vendors';
+import { getProducts } from '../../../shared/services/productService';
 import PageTransition from '../../../shared/components/PageTransition';
 import useInfiniteScroll from '../../../shared/hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
@@ -19,7 +17,6 @@ const MobileSearch = () => {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [showFilters, setShowFilters] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [recentSearches, setRecentSearches] = useState(() => {
     const stored = localStorage.getItem('recentSearches');
@@ -31,6 +28,13 @@ const MobileSearch = () => {
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
     minRating: searchParams.get('minRating') || '',
+  });
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    totalPages: 1,
   });
 
   // Load recent searches from localStorage
@@ -55,89 +59,100 @@ const MobileSearch = () => {
     localStorage.setItem('recentSearches', JSON.stringify(updated));
   };
 
-  const handleVoiceSearch = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast.error('Voice search is not supported in your browser');
-      return;
-    }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    setIsListening(true);
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setSearchQuery(transcript);
-      setShowSuggestions(false);
-      setIsListening(false);
-      saveRecentSearch(transcript);
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-      toast.error('Voice recognition error');
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
-  };
-
-  const filteredProducts = useMemo(() => {
-    let result = products;
-
-    if (searchQuery) {
-      result = result.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (filters.category) {
-      const categoryMap = {
-        'Fresh Vegetables': ['potato', 'cauliflower', 'onion', 'okra', 'coriander'],
-        'Fresh Fruits': ['tomato', 'cherry'],
-        'Chicken': ['chicken'],
-        'Beef': ['beef', 'steak'],
-      };
-      const categoryKeywords = categoryMap[filters.category] || [];
-      result = result.filter((product) =>
-        categoryKeywords.some((keyword) =>
-          product.name.toLowerCase().includes(keyword)
-        )
-      );
-    }
-
-    // Vendor filter
-    if (filters.vendor) {
-      result = result.filter((product) => {
-        const productVendorId = typeof product.vendorId === 'string'
-          ? parseInt(product.vendorId.replace('vendor-', ''))
-          : product.vendorId;
-        return productVendorId === parseInt(filters.vendor) || product.vendorId === filters.vendor;
+  // Fetch products from backend
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getProducts({
+        search: searchQuery || undefined,
+        categoryId: filters.category || undefined,
+        vendorId: filters.vendor || undefined,
+        minPrice: filters.minPrice || undefined,
+        maxPrice: filters.maxPrice || undefined,
+        minRating: filters.minRating || undefined,
+        page: 1,
+        limit: 100, // Get more products for better UX
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
       });
-    }
 
-    if (filters.minPrice) {
-      result = result.filter((product) => product.price >= parseFloat(filters.minPrice));
-    }
-    if (filters.maxPrice) {
-      result = result.filter((product) => product.price <= parseFloat(filters.maxPrice));
-    }
+      // Transform backend products to match frontend format (same as Home page)
+      const transformedProducts = (result.products || []).map((product) => {
+        // Handle vendor data - can be ObjectId or populated object
+        const vendor = product.vendorId;
+        const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+          ? {
+              id: (vendor._id || vendor.id).toString(),
+              _id: vendor._id || vendor.id,
+              storeName: vendor.storeName || vendor.businessName || vendor.name,
+              businessName: vendor.businessName,
+              name: vendor.name,
+              storeLogo: vendor.storeLogo || vendor.logo,
+              isVerified: vendor.isVerified !== undefined 
+                ? vendor.isVerified 
+                : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+            }
+          : null;
 
-    if (filters.minRating) {
-      result = result.filter(
-        (product) => product.rating >= parseFloat(filters.minRating)
-      );
-    }
+        // Get main image - ALWAYS prioritize product.image (main image) over gallery images
+        // Backend model: image (String) = main image, images ([String]) = gallery images
+        // We should NEVER use gallery images if main image exists
+        let mainImage = product.image;
+        
+        // Debug: Log if we're using gallery image instead of main
+        if (!mainImage && product.images && product.images.length > 0) {
+          console.warn(`Product ${product.name} has no main image, using gallery image:`, product.images[0]);
+          mainImage = product.images[0];
+        }
+        
+        // Ensure we're using the main image, not gallery
+        if (product.image && product.images && product.images.includes(product.image)) {
+          // Main image is also in gallery, that's fine - use main image
+          mainImage = product.image;
+        }
 
-    return result;
-  }, [searchQuery, filters]);
+        return {
+          id: product._id || product.id,
+          name: product.name,
+          price: product.price,
+          originalPrice: product.originalPrice || product.price,
+          image: mainImage || null, // Always use main image field, never gallery images unless main is missing
+          images: product.images || [],
+          unit: product.unit || 'Piece',
+          rating: product.rating || 0,
+          reviewCount: product.reviewCount || 0,
+          stock: product.stock || 'in_stock',
+          stockQuantity: product.stockQuantity || 0,
+          vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+          vendor: vendorData,
+          vendorName: vendorData?.storeName || product.vendorName || 'Unknown Vendor',
+          flashSale: product.flashSale || false,
+          variants: product.variants || {},
+        };
+      });
+
+      setProducts(transformedProducts);
+      setPagination({
+        total: result.total || 0,
+        page: result.page || 1,
+        totalPages: result.totalPages || 1,
+      });
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, filters.category, filters.vendor, filters.minPrice, filters.maxPrice, filters.minRating]);
+
+  // Fetch products when search query or filters change
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const filteredProducts = products;
 
   const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } = useInfiniteScroll(
     filteredProducts,
@@ -218,7 +233,22 @@ const MobileSearch = () => {
     setSearchParams({});
   };
 
-  const approvedVendors = getApprovedVendors();
+  // Get vendors from products (for filter dropdown)
+  const vendors = useMemo(() => {
+    const vendorMap = new Map();
+    products.forEach((product) => {
+      if (product.vendorId && product.vendorName) {
+        if (!vendorMap.has(product.vendorId)) {
+          vendorMap.set(product.vendorId, {
+            id: product.vendorId,
+            name: product.vendorName,
+            storeName: product.vendorName,
+          });
+        }
+      }
+    });
+    return Array.from(vendorMap.values());
+  }, [products]);
 
   return (
     <PageTransition>
@@ -238,28 +268,10 @@ const MobileSearch = () => {
                   }}
                   onFocus={() => setShowSuggestions(true)}
                   placeholder="Search products..."
-                  className="w-full pl-12 pr-20 py-3 glass-card rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-700 placeholder:text-gray-400 text-base"
+                  className="w-full pl-12 pr-12 py-3 glass-card rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-700 placeholder:text-gray-400 text-base"
                   autoFocus
                 />
                 <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-                  <motion.button
-                    type="button"
-                    onClick={handleVoiceSearch}
-                    whileTap={{ scale: 0.9 }}
-                    className={`p-2 rounded-lg transition-colors ${isListening
-                      ? 'bg-red-100 text-red-600'
-                      : 'hover:bg-gray-100 text-gray-400'
-                      }`}
-                  >
-                    <motion.div
-                      animate={isListening ? {
-                        scale: [1, 1.2, 1],
-                      } : {}}
-                      transition={{ duration: 0.5, repeat: isListening ? Infinity : 0 }}
-                    >
-                      <FiMic className="text-lg" />
-                    </motion.div>
-                  </motion.button>
                   {searchQuery && (
                     <button
                       type="button"
@@ -288,7 +300,7 @@ const MobileSearch = () => {
             {/* Filter Toggle and View Mode */}
             <div className="flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Found {filteredProducts.length} product(s)
+                {loading ? 'Loading...' : `Found ${pagination.total} product(s)`}
               </p>
               <div className="flex items-center gap-2">
                 {/* View Toggle Buttons */}
@@ -401,7 +413,7 @@ const MobileSearch = () => {
                                   Vendor
                                 </h3>
                                 <span className="text-sm text-primary-600 font-semibold bg-primary-50 px-3 py-1 rounded-full">
-                                  {approvedVendors.length}+ Stores
+                                  {vendors.length}+ Stores
                                 </span>
                               </div>
                               <select
@@ -409,11 +421,10 @@ const MobileSearch = () => {
                                 onChange={(e) => handleFilterChange('vendor', e.target.value)}
                                 className="w-full px-4 py-3 rounded-xl border-2 border-primary-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base font-medium"
                               >
-                                <option value="">All Vendors ({approvedVendors.length})</option>
-                                {approvedVendors.map((vendor) => (
+                                <option value="">All Vendors ({vendors.length})</option>
+                                {vendors.map((vendor) => (
                                   <option key={vendor.id} value={vendor.id}>
                                     {vendor.storeName || vendor.name}
-                                    {vendor.isVerified && ' ✓'}
                                   </option>
                                 ))}
                               </select>
@@ -475,7 +486,16 @@ const MobileSearch = () => {
 
           {/* Products List */}
           <div className="px-4 py-4">
-            {filteredProducts.length === 0 ? (
+            {loading && products.length === 0 ? (
+              <div className="text-center py-12">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4"
+                />
+                <p className="text-gray-600">Loading products...</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-12">
                 <FiSearch className="text-6xl text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-gray-800 mb-2">No products found</h3>

@@ -56,6 +56,18 @@ const orderSchema = new mongoose.Schema(
       enum: ['pending', 'completed', 'failed', 'refunded'],
       default: 'pending',
     },
+    razorpayOrderId: {
+      type: String,
+      sparse: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      sparse: true,
+    },
+    razorpaySignature: {
+      type: String,
+      sparse: true,
+    },
     shippingAddress: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Address',

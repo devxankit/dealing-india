@@ -62,14 +62,29 @@ export const useAdminAuthStore = create(
       // Admin logout action
       logout: async () => {
         try {
-          // Call backend logout endpoint if token exists
+          // Call backend logout endpoint if token exists and is valid
           const token = get().token;
           if (token) {
             try {
-              await api.post('/auth/admin/logout');
+              // Check if token is expired before making API call
+              const tokenParts = token.split('.');
+              if (tokenParts.length === 3) {
+                try {
+                  const payload = JSON.parse(atob(tokenParts[1]));
+                  const exp = payload.exp;
+                  const now = Math.floor(Date.now() / 1000);
+                  
+                  // Only call logout API if token is not expired
+                  if (exp && exp > now) {
+                    await api.post('/auth/admin/logout');
+                  }
+                } catch (e) {
+                  // Token parsing failed, skip API call
+                }
+              }
             } catch (error) {
-              // Ignore logout errors, still clear local state
-              console.error('Logout API error:', error);
+              // Silently ignore logout API errors (token might be expired)
+              // Still proceed with local logout
             }
           }
         } catch (error) {
@@ -88,6 +103,31 @@ export const useAdminAuthStore = create(
       initialize: async () => {
         const token = localStorage.getItem('admin-token');
         if (token) {
+          // First check if token is expired locally before making API call
+          try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              const exp = payload.exp;
+              const now = Math.floor(Date.now() / 1000);
+              
+              // If token is expired, clear storage immediately
+              if (exp && exp <= now) {
+                set({
+                  admin: null,
+                  token: null,
+                  isAuthenticated: false,
+                  isLoading: false,
+                });
+                localStorage.removeItem('admin-token');
+                return false;
+              }
+            }
+          } catch (e) {
+            // Token parsing failed, might be invalid format
+            // Continue to API validation
+          }
+          
           try {
             // Validate token with backend
             const response = await api.get('/auth/admin/me');
@@ -125,7 +165,7 @@ export const useAdminAuthStore = create(
               return false;
             }
           } catch (error) {
-            // Token invalid or expired, clear storage
+            // Token invalid or expired, clear storage silently
             // Don't call logout here as it might cause redirect loops
             set({
               admin: null,

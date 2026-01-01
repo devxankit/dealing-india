@@ -11,7 +11,6 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore, useUIStore } from "../../store/useStore";
 import { useWishlistStore } from "../../store/wishlistStore";
-import { getProductById } from "../../../data/products";
 import { formatPrice } from "../../utils/helpers";
 import { Link, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -30,9 +29,15 @@ const CartDrawer = () => {
     getTotal,
     clearCart,
     getItemsByVendor,
+    initialize,
   } = useCartStore();
   const { addItem: addToWishlist } = useWishlistStore();
   const total = getTotal();
+
+  // Initialize cart from backend when component mounts
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
   // Group items by vendor
   const itemsByVendor = useMemo(
@@ -53,7 +58,7 @@ const CartDrawer = () => {
   }, [isCartOpen]);
 
   const handleQuantityChange = (id, currentQuantity, change) => {
-    const product = getProductById(id);
+    const item = items.find((i) => i.id === id);
     const newQuantity = currentQuantity + change;
 
     if (newQuantity <= 0) {
@@ -61,8 +66,8 @@ const CartDrawer = () => {
       return;
     }
 
-    if (product && newQuantity > product.stockQuantity) {
-      toast.error(`Only ${product.stockQuantity} items available in stock`);
+    if (item && newQuantity > (item.stockQuantity || 0)) {
+      toast.error(`Only ${item.stockQuantity} items available in stock`);
       return;
     }
 
@@ -70,18 +75,18 @@ const CartDrawer = () => {
   };
 
   const getProductStock = (id) => {
-    const product = getProductById(id);
-    return product ? product.stockQuantity : null;
+    const item = items.find((i) => i.id === id);
+    return item ? item.stockQuantity : null;
   };
 
   const isMaxQuantity = (id, quantity) => {
-    const product = getProductById(id);
-    return product ? quantity >= product.stockQuantity : false;
+    const item = items.find((i) => i.id === id);
+    return item ? quantity >= (item.stockQuantity || 0) : false;
   };
 
   const isLowStock = (id) => {
-    const product = getProductById(id);
-    return product ? product.stock === "low_stock" : false;
+    const item = items.find((i) => i.id === id);
+    return item ? item.stock === "low_stock" : false;
   };
 
   const handleSaveForLater = (item) => {

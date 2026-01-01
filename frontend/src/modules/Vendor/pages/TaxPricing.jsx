@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FiDollarSign, FiTrendingUp, FiPackage } from "react-icons/fi";
+import { FiDollarSign, FiPackage } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import { formatPrice } from "../../../shared/utils/helpers";
@@ -7,7 +7,6 @@ import { useVendorAuthStore } from "../store/vendorAuthStore";
 import {
   getVendorProductsPricing,
   updateProductTaxRate,
-  bulkUpdateProductPrices,
   getActiveTaxRules,
   bulkApplyTaxRate,
 } from "../services/taxPricingService";
@@ -18,10 +17,6 @@ const TaxPricing = () => {
   const { vendor } = useVendorAuthStore();
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [bulkAction, setBulkAction] = useState({
-    type: "percentage",
-    value: 0,
-  });
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [taxRules, setTaxRules] = useState([]);
   const [selectedTaxRule, setSelectedTaxRule] = useState("");
@@ -59,63 +54,6 @@ const TaxPricing = () => {
     };
     fetchData();
   }, [vendorId]);
-
-  const handleBulkUpdate = async () => {
-    if (!bulkAction.value || bulkAction.value <= 0) {
-      toast.error("Please enter a valid value");
-      return;
-    }
-
-    if (selectedProducts.length === 0) {
-      toast.error("Please select at least one product");
-      return;
-    }
-
-    try {
-      const updates = selectedProducts.map((productId) => {
-        const product = products.find(
-          (p) => (p._id?.toString() || p.id?.toString()) === productId.toString()
-        );
-        if (!product) return null;
-
-        const newPrice =
-          bulkAction.type === "percentage"
-            ? product.price * (1 + bulkAction.value / 100)
-            : product.price + bulkAction.value;
-
-        return {
-          productId: product._id?.toString() || product.id?.toString(),
-          price: Math.max(0, newPrice),
-        };
-      }).filter(Boolean);
-
-      const result = await bulkUpdateProductPrices(updates);
-
-      if (result.updated && result.updated.length > 0) {
-        // Update local state with updated products
-        const updatedMap = new Map(
-          result.updated.map((p) => [p._id?.toString() || p.id?.toString(), p])
-        );
-        setProducts((prev) =>
-          prev.map((p) => {
-            const id = p._id?.toString() || p.id?.toString();
-            return updatedMap.get(id) || p;
-          })
-        );
-        toast.success(`Updated ${result.updated.length} products`);
-      }
-
-      if (result.failed && result.failed.length > 0) {
-        toast.error(`Failed to update ${result.failed.length} products`);
-      }
-
-      setSelectedProducts([]);
-      setBulkAction({ type: "percentage", value: 0 });
-    } catch (error) {
-      console.error("Error updating prices:", error);
-      toast.error(error.response?.data?.message || "Failed to update prices");
-    }
-  };
 
   const handleTaxUpdate = async (productId, taxRate) => {
     try {
@@ -310,47 +248,6 @@ const TaxPricing = () => {
             {taxApplyMode === "all" 
               ? "Apply to All Products" 
               : `Apply to Selected (${selectedProducts.length})`}
-          </button>
-        </div>
-      </div>
-
-      {/* Bulk Pricing */}
-      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <FiTrendingUp />
-          Bulk Price Update
-        </h3>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <select
-            value={bulkAction.type}
-            onChange={(e) =>
-              setBulkAction({ ...bulkAction, type: e.target.value })
-            }
-            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-            <option value="percentage">Percentage</option>
-            <option value="fixed">Fixed Amount</option>
-          </select>
-          <input
-            type="number"
-            value={bulkAction.value}
-            onChange={(e) =>
-              setBulkAction({
-                ...bulkAction,
-                value: parseFloat(e.target.value) || 0,
-              })
-            }
-            placeholder={
-              bulkAction.type === "percentage"
-                ? "Enter percentage"
-                : "Enter amount"
-            }
-            className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-          <button
-            onClick={handleBulkUpdate}
-            disabled={selectedProducts.length === 0}
-            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-            Update Selected ({selectedProducts.length})
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useCommissionStore } from './commissionStore';
+import * as orderService from '../services/orderService';
 
 export const useOrderStore = create(
   persist(
@@ -140,6 +141,170 @@ export const useOrderStore = create(
             order.id === orderId ? { ...order, status: 'cancelled' } : order
           ),
         }));
+      },
+
+      // API Methods for backend integration
+      
+      // Create order via API
+      createOrderAPI: async (orderData) => {
+        try {
+          const response = await orderService.createOrder(orderData);
+          const order = response.order;
+          
+          // Store order locally for backward compatibility
+          const newOrder = {
+            id: order.id || order.orderCode,
+            orderCode: order.orderCode,
+            userId: orderData.userId || null,
+            date: order.createdAt || new Date().toISOString(),
+            status: order.status,
+            items: orderData.items || [],
+            shippingAddress: orderData.shippingAddress || {},
+            paymentMethod: order.paymentMethod,
+            paymentStatus: order.paymentStatus,
+            subtotal: orderData.subtotal || 0,
+            shipping: orderData.shipping || 0,
+            tax: orderData.tax || 0,
+            discount: orderData.discount || 0,
+            total: order.total,
+            couponCode: orderData.couponCode || null,
+            razorpay: response.razorpay,
+          };
+
+          set((state) => ({
+            orders: [newOrder, ...state.orders],
+          }));
+
+          return {
+            order: newOrder,
+            razorpay: response.razorpay,
+          };
+        } catch (error) {
+          console.error('Error creating order via API:', error);
+          throw error;
+        }
+      },
+
+      // Verify payment via API
+      verifyPaymentAPI: async (orderId, paymentData) => {
+        try {
+          const response = await orderService.verifyPayment(orderId, paymentData);
+          const order = response.order;
+          
+          // Update local order
+          set((state) => ({
+            orders: state.orders.map((o) =>
+              o.id === orderId || o.orderCode === order.orderCode
+                ? {
+                    ...o,
+                    status: order.status,
+                    paymentStatus: order.paymentStatus,
+                  }
+                : o
+            ),
+          }));
+
+          return response;
+        } catch (error) {
+          console.error('Error verifying payment:', error);
+          throw error;
+        }
+      },
+
+      // Fetch order by ID from API
+      fetchOrderById: async (orderId) => {
+        try {
+          const response = await orderService.getOrderById(orderId);
+          const order = response.order;
+          
+          // Update or add order to local storage
+          set((state) => {
+            const existingIndex = state.orders.findIndex(
+              (o) => o.id === orderId || o.orderCode === order.orderCode
+            );
+            
+            const formattedOrder = {
+              id: order._id || order.orderCode,
+              orderCode: order.orderCode,
+              userId: order.customerId?._id || order.customerId,
+              date: order.orderDate || order.createdAt,
+              status: order.status,
+              paymentStatus: order.paymentStatus,
+              items: order.items || [],
+              shippingAddress: order.shippingAddress || {},
+              paymentMethod: order.paymentMethod,
+              total: order.total,
+            };
+
+            if (existingIndex >= 0) {
+              const updated = [...state.orders];
+              updated[existingIndex] = formattedOrder;
+              return { orders: updated };
+            } else {
+              return { orders: [formattedOrder, ...state.orders] };
+            }
+          });
+
+          return response;
+        } catch (error) {
+          console.error('Error fetching order:', error);
+          throw error;
+        }
+      },
+
+      // Fetch user orders from API
+      fetchUserOrders: async (filters = {}) => {
+        try {
+          const response = await orderService.getUserOrders(filters);
+          const orders = response.orders || [];
+          
+          // Update local orders
+          set((state) => {
+            const existingIds = new Set(state.orders.map((o) => o.id || o.orderCode));
+            const newOrders = orders
+              .filter((o) => !existingIds.has(o._id) && !existingIds.has(o.orderCode))
+              .map((order) => ({
+                id: order._id || order.orderCode,
+                orderCode: order.orderCode,
+                userId: order.customerId?._id || order.customerId,
+                date: order.orderDate || order.createdAt,
+                status: order.status,
+                paymentStatus: order.paymentStatus,
+                items: order.items || [],
+                shippingAddress: order.shippingAddress || {},
+                paymentMethod: order.paymentMethod,
+                total: order.total,
+              }));
+
+            return { orders: [...newOrders, ...state.orders] };
+          });
+
+          return response;
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+          throw error;
+        }
+      },
+
+      // Cancel order via API
+      cancelOrderAPI: async (orderId) => {
+        try {
+          const response = await orderService.cancelOrder(orderId);
+          
+          // Update local order
+          set((state) => ({
+            orders: state.orders.map((order) =>
+              order.id === orderId || order.orderCode === response.order.orderCode
+                ? { ...order, status: 'cancelled' }
+                : order
+            ),
+          }));
+
+          return response;
+        } catch (error) {
+          console.error('Error cancelling order:', error);
+          throw error;
+        }
       },
     }),
     {

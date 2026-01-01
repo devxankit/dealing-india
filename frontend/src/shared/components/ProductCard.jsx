@@ -50,7 +50,7 @@ const ProductCard = ({ product, hideRating = false }) => {
   const buttonRef = useRef(null);
   const cartIconRef = useRef(null);
 
-  const handleAddToCart = (e) => {
+  const handleAddToCart = async (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -90,16 +90,25 @@ const ProductCard = ({ product, hideRating = false }) => {
       setShowFlyingItem(true);
     }, 50);
 
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity: 1,
-    });
-    triggerCartAnimation();
-    toast.success("Added to cart!");
-    setTimeout(() => setIsAdding(false), 600);
+    try {
+      // Add product to cart - pass product ID and let cartStore fetch full product data if needed
+      await addItem({
+        id: product.id || product._id,
+        name: product.name,
+        price: product.price,
+        image: product.image || product.images?.[0],
+        quantity: 1,
+        vendorId: product.vendorId || product.vendor?.id || product.vendor?._id,
+        vendorName: product.vendorName || product.vendor?.storeName || product.vendor?.businessName,
+      });
+      triggerCartAnimation();
+      // Toast is shown by cartStore, so we don't need to show it here
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      // Error toast is shown by cartStore
+    } finally {
+      setTimeout(() => setIsAdding(false), 600);
+    }
   };
 
   const handleLongPress = (e) => {
@@ -170,9 +179,9 @@ const ProductCard = ({ product, hideRating = false }) => {
           {/* Product Image */}
           <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden relative">
             <LazyImage
-              src={product.image}
+              src={product.image || (product.images && product.images.length > 0 ? product.images[0] : getPlaceholderImage(300, 300, "Product Image"))}
               alt={product.name}
-              className="w-full h-full object-contain max-w-[85%] max-h-[85%]"
+              className="w-full h-full object-cover"
               style={{ willChange: "transform", transform: "translateZ(0)" }}
               context="product-listing"
               onError={(e) => {

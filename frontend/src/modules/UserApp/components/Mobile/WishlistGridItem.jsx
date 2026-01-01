@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiShoppingBag, FiTrash2, FiStar, FiHeart } from 'react-icons/fi';
-import { formatPrice } from '../../../../shared/utils/helpers';
+import { formatPrice, getPlaceholderImage } from '../../../../shared/utils/helpers';
 import LazyImage from '../../../../shared/components/LazyImage';
+import VendorBadge from '../../../Vendor/components/VendorBadge';
+import { getVendorById } from '../../../../data/vendors';
 
 const WishlistGridItem = ({ item, index, onMoveToCart, onRemove }) => {
   return (
@@ -39,10 +41,11 @@ const WishlistGridItem = ({ item, index, onMoveToCart, onRemove }) => {
             <LazyImage
               src={item.image}
               alt={item.name}
-              className="w-full h-full object-contain p-2"
+              className="w-full h-full object-contain max-w-[85%] max-h-[85%]"
               style={{ willChange: 'transform', transform: 'translateZ(0)' }}
+              context="product-listing"
               onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/300x300?text=Product+Image';
+                e.target.src = getPlaceholderImage(300, 300, 'Product Image');
               }}
             />
           </div>
@@ -54,12 +57,24 @@ const WishlistGridItem = ({ item, index, onMoveToCart, onRemove }) => {
         <Link to={`/app/product/${item.id}`}>
           <h3 className="font-bold text-gray-800 mb-0.5 line-clamp-2 text-xs transition-colors leading-tight">{item.name}</h3>
         </Link>
-        {item.unit && (
-          <p className="text-[10px] text-gray-500 mb-0.5 font-medium">{item.unit}</p>
+        <p className="text-[10px] text-gray-500 mb-0.5 font-medium">
+          {item.unit}
+        </p>
+
+        {/* Vendor Badge */}
+        {(item.vendor || item.vendorId) && (
+          <div className="mb-1">
+            <VendorBadge
+              vendor={item.vendor || getVendorById(item.vendorId)}
+              showVerified={true}
+              size="sm"
+              showLogo={true}
+            />
+          </div>
         )}
 
         {/* Rating */}
-        {item.rating && (
+        {item.rating > 0 && (
           <div className="flex items-center gap-0.5 mb-0.5">
             <div className="flex items-center">
               {[...Array(5)].map((_, i) => (
@@ -74,7 +89,7 @@ const WishlistGridItem = ({ item, index, onMoveToCart, onRemove }) => {
               ))}
             </div>
             <span className="text-[9px] text-gray-600 font-medium">
-              {item.rating}
+              {item.rating?.toFixed(1) || '0.0'}
             </span>
           </div>
         )}

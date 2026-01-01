@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiFilter } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -13,10 +13,11 @@ import toast from 'react-hot-toast';
 
 const MobileOrders = () => {
   const navigate = useNavigate();
-  const { getAllOrders } = useOrderStore();
-  const { user } = useAuthStore();
+  const { getAllOrders, fetchUserOrders } = useOrderStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showFilter, setShowFilter] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const statusOptions = [
     { value: 'all', label: 'All Orders' },
@@ -27,6 +28,27 @@ const MobileOrders = () => {
     { value: 'cancelled', label: 'Cancelled' },
   ];
 
+  // Fetch orders from backend on mount and when user changes
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      loadOrders();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated, user?.id]);
+
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      await fetchUserOrders({ status: selectedStatus === 'all' ? undefined : selectedStatus });
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      toast.error('Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const allOrders = getAllOrders(user?.id || null);
 
   const filteredOrders = useMemo(() => {
@@ -36,13 +58,14 @@ const MobileOrders = () => {
 
   // Pull to refresh handler
   const handleRefresh = async () => {
-    // Simulate refresh - in real app, this would fetch new orders
-    return new Promise((resolve) => {
-      setTimeout(() => {
+    if (isAuthenticated && user?.id) {
+      try {
+        await fetchUserOrders({ status: selectedStatus === 'all' ? undefined : selectedStatus });
         toast.success('Orders refreshed');
-        resolve();
-      }, 1000);
-    });
+      } catch (error) {
+        toast.error('Failed to refresh orders');
+      }
+    }
   };
 
   const {
@@ -117,7 +140,12 @@ const MobileOrders = () => {
                 transition: isPulling ? 'none' : 'transform 0.3s ease-out',
               }}
             >
-              {filteredOrders.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">Loading orders...</h3>
+                </div>
+              ) : filteredOrders.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
                   <h3 className="text-xl font-bold text-gray-800 mb-2">No orders found</h3>

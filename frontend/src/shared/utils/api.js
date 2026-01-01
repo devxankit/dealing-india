@@ -61,49 +61,80 @@ api.interceptors.response.use(
       error.message ||
       'Something went wrong';
     
-    // Show error toast
-    toast.error(message);
-    
     // Handle 401 (Unauthorized) - clear appropriate token and redirect
     if (error.response?.status === 401) {
       const url = error.config?.url || '';
       const currentPath = window.location.pathname;
       
-      // Don't redirect if already on login page
-      if (currentPath.includes('/login')) {
-        return Promise.reject(error);
-      }
+      // Determine which token to clear based on URL
+      let shouldRedirect = false;
+      let redirectPath = '';
       
       // Check for admin routes first (including admin vendor management)
-      // config.url is relative, so check for /auth/admin or /admin/
       if (url.startsWith('/auth/admin') || url.startsWith('/admin/')) {
         localStorage.removeItem('admin-token');
-        // Trigger admin logout if on admin pages (but not already on login)
+        // Only redirect if on admin pages and not already on login
         if (currentPath.startsWith('/admin') && !currentPath.includes('/login')) {
-          // Use setTimeout to avoid blocking and allow state updates
-          setTimeout(() => {
-            window.location.href = '/admin/login';
-          }, 100);
+          shouldRedirect = true;
+          redirectPath = '/admin/login';
         }
       } 
       // Check for vendor routes (but NOT admin vendor management)
       else if (url.startsWith('/auth/vendor') || 
                (url.startsWith('/vendor/') && !url.startsWith('/admin/vendors'))) {
         localStorage.removeItem('vendor-token');
-        // Trigger vendor logout if on vendor pages (but not already on login)
+        // Only redirect if on vendor pages and not already on login
         if (currentPath.startsWith('/vendor') && !currentPath.includes('/login')) {
-          window.location.href = '/vendor/login';
+          shouldRedirect = true;
+          redirectPath = '/vendor/login';
         }
       } 
       // Default to user token
       else {
         localStorage.removeItem('token');
-        // Trigger user logout if not on vendor or admin pages (but not already on login)
+        // Only redirect if not on vendor or admin pages and not already on login
         if (!currentPath.startsWith('/vendor') && !currentPath.startsWith('/admin') && !currentPath.includes('/login')) {
-          window.location.href = '/login';
+          shouldRedirect = true;
+          redirectPath = '/login';
         }
       }
+      
+      // Suppress toast for certain expected 401 scenarios
+      const isBackgroundOperation = 
+        url.includes('/cart') || 
+        url.includes('/wishlist') || 
+        url.includes('/auth/user/logout') ||
+        url.includes('/auth/admin/logout') ||
+        url.includes('/auth/vendor/logout') ||
+        url.includes('/auth/user/me') ||
+        url.includes('/auth/admin/me') ||
+        url.includes('/auth/vendor/me');
+      
+      // Only show toast for unexpected 401s (user-initiated actions)
+      if (!isBackgroundOperation && !currentPath.includes('/login')) {
+        // Show a user-friendly message
+        if (message.includes('expired') || message.includes('Token has expired')) {
+          toast.error('Your session has expired. Please login again.');
+        } else if (message.includes('Authentication required')) {
+          toast.error('Please login to continue.');
+        } else {
+          toast.error(message);
+        }
+      }
+      
+      // Redirect if needed (only for user-initiated actions or when on protected routes)
+      if (shouldRedirect && !isBackgroundOperation) {
+        setTimeout(() => {
+          window.location.href = redirectPath;
+        }, 100);
+      }
+      
+      // For background operations, silently reject
+      return Promise.reject(error);
     }
+    
+    // Show error toast for non-401 errors
+    toast.error(message);
     
     return Promise.reject(error);
   }

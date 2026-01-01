@@ -1,74 +1,123 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronLeft, FiCreditCard, FiClock, FiPlus, FiArrowUpRight, FiArrowDownLeft } from 'react-icons/fi';
 import MobileLayout from "../components/Layout/MobileLayout";
 import PageTransition from '../../../shared/components/PageTransition';
+import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
+import { useAuthStore } from '../../../shared/store/authStore';
+import { getWallet, getWalletTransactions } from '../../../shared/services/walletService';
+import toast from 'react-hot-toast';
 
 const MobileWallet = () => {
     const navigate = useNavigate();
+    const { user, isAuthenticated } = useAuthStore();
     const [activeTab, setActiveTab] = useState('transactions');
+    const [loading, setLoading] = useState(true);
+    const [walletBalance, setWalletBalance] = useState(0);
+    const [totalCredit, setTotalCredit] = useState(0);
+    const [totalDebit, setTotalDebit] = useState(0);
+    const [transactions, setTransactions] = useState([]);
 
-    // Dummy data
-    const walletBalance = 1250.00;
-    const transactions = [
-        { id: 1, type: 'credit', amount: 500, description: 'Cashback Received', date: '29 Dec, 2024', status: 'success' },
-        { id: 2, type: 'debit', amount: 1299, description: 'Order #O-12345', date: '25 Dec, 2024', status: 'success' },
-        { id: 3, type: 'credit', amount: 200, description: 'Referral Bonus', date: '20 Dec, 2024', status: 'success' },
-        { id: 4, type: 'debit', amount: 850, description: 'Order #O-98765', date: '15 Dec, 2024', status: 'success' },
-    ];
+    useEffect(() => {
+        if (isAuthenticated && user?.id) {
+            loadWalletData();
+        } else {
+            setLoading(false);
+        }
+    }, [isAuthenticated, user?.id]);
+
+    const loadWalletData = async () => {
+        try {
+            setLoading(true);
+            const [walletResponse, transactionsResponse] = await Promise.all([
+                getWallet(),
+                getWalletTransactions({ limit: 10 }),
+            ]);
+
+            const walletData = walletResponse.data || walletResponse;
+            setWalletBalance(walletData.balance || 0);
+            setTotalCredit(walletData.totalCredit || 0);
+            setTotalDebit(walletData.totalDebit || 0);
+
+            const transactionsData = transactionsResponse.data || transactionsResponse;
+            setTransactions(transactionsData.transactions || []);
+        } catch (error) {
+            console.error('Error loading wallet data:', error);
+            toast.error('Failed to load wallet data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    };
 
     return (
-        <PageTransition>
-            <MobileLayout showBottomNav={false} showCartBar={false}>
-                <div className="min-h-screen bg-gray-50 pb-safe">
-                    {/* Header */}
-                    <div className="bg-white sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
-                        >
-                            <FiChevronLeft className="text-xl text-gray-800" />
-                        </button>
-                        <h1 className="text-lg font-bold text-gray-900">Wallet & Payments</h1>
-                    </div>
-
-                    <div className="p-4 space-y-6">
-                        {/* Balance Card */}
-                        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                            <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-                            <div className="absolute bottom-0 left-0 -ml-6 -mb-6 w-24 h-24 bg-black/10 rounded-full blur-xl" />
-
-                            <div className="relative z-10 text-center">
-                                <p className="text-white/80 text-sm font-medium mb-1">Total Balance</p>
-                                <h2 className="text-4xl font-bold mb-4">₹{walletBalance.toFixed(2)}</h2>
-
-                                <button className="bg-white/20 hover:bg-white/30 backdrop-blur-md px-6 py-2 rounded-full text-sm font-semibold transition-colors flex items-center gap-2 mx-auto">
-                                    <FiPlus /> Add Money
-                                </button>
-                            </div>
+        <ProtectedRoute>
+            <PageTransition>
+                <MobileLayout showBottomNav={false} showCartBar={false}>
+                    <div className="min-h-screen bg-gray-50 pb-safe">
+                        {/* Header */}
+                        <div className="bg-white sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <FiChevronLeft className="text-xl text-gray-800" />
+                            </button>
+                            <h1 className="text-lg font-bold text-gray-900">Wallet & Payments</h1>
                         </div>
 
-                        {/* Quick Actions / Stats */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
-                                    <FiArrowDownLeft className="text-lg" />
-                                </div>
-                                <div>
-                                    <p className="text-xs text-gray-500">Total Credit</p>
-                                    <p className="font-bold text-gray-900">₹2,450</p>
+                        {loading ? (
+                            <div className="p-4">
+                                <div className="text-center py-12">
+                                    <div className="text-6xl text-gray-300 mx-auto mb-4">💳</div>
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">Loading wallet...</h3>
                                 </div>
                             </div>
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
-                                    <FiArrowUpRight className="text-lg" />
+                        ) : (
+                            <div className="p-4 space-y-6">
+                                {/* Balance Card */}
+                                <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+                                    <div className="absolute bottom-0 left-0 -ml-6 -mb-6 w-24 h-24 bg-black/10 rounded-full blur-xl" />
+
+                                    <div className="relative z-10 text-center">
+                                        <p className="text-white/80 text-sm font-medium mb-1">Total Balance</p>
+                                        <h2 className="text-4xl font-bold mb-4">₹{walletBalance.toFixed(2)}</h2>
+
+                                        <button 
+                                            onClick={() => toast.info('Add money feature coming soon')}
+                                            className="bg-white/20 hover:bg-white/30 backdrop-blur-md px-6 py-2 rounded-full text-sm font-semibold transition-colors flex items-center gap-2 mx-auto">
+                                            <FiPlus /> Add Money
+                                        </button>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-xs text-gray-500">Total Spent</p>
-                                    <p className="font-bold text-gray-900">₹1,200</p>
+
+                                {/* Quick Actions / Stats */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
+                                            <FiArrowDownLeft className="text-lg" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500">Total Credit</p>
+                                            <p className="font-bold text-gray-900">₹{totalCredit.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+                                            <FiArrowUpRight className="text-lg" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500">Total Spent</p>
+                                            <p className="font-bold text-gray-900">₹{totalDebit.toFixed(2)}</p>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
                         {/* Transactions List */}
                         <div>
@@ -88,14 +137,14 @@ const MobileWallet = () => {
                                                     </div>
                                                     <div>
                                                         <p className="font-semibold text-gray-900 text-sm">{tx.description}</p>
-                                                        <p className="text-xs text-gray-500">{tx.date}</p>
+                                                        <p className="text-xs text-gray-500">{formatDate(tx.date)}</p>
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className={`font-bold text-sm ${tx.type === 'credit' ? 'text-green-600' : 'text-gray-900'}`}>
-                                                        {tx.type === 'credit' ? '+' : '-'}₹{tx.amount}
+                                                        {tx.type === 'credit' ? '+' : '-'}₹{tx.amount.toFixed(2)}
                                                     </p>
-                                                    <p className="text-[10px] text-gray-400 uppercase">{tx.status}</p>
+                                                    <p className="text-[10px] text-gray-400 uppercase">{tx.status || 'completed'}</p>
                                                 </div>
                                             </div>
                                         ))}
@@ -108,10 +157,12 @@ const MobileWallet = () => {
                                 )}
                             </div>
                         </div>
+                            </div>
+                        )}
                     </div>
-                </div>
-            </MobileLayout>
-        </PageTransition>
+                </MobileLayout>
+            </PageTransition>
+        </ProtectedRoute>
     );
 };
 

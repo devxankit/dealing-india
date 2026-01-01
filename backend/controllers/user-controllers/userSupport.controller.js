@@ -7,7 +7,13 @@ import {
 
 export const getUserTicketsController = async (req, res, next) => {
     try {
-        const userId = req.user.userId;
+        const userId = req.user.userId || req.user.id;
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: 'User ID not found in token',
+            });
+        }
         const {
             search,
             status,
@@ -40,7 +46,7 @@ export const getUserTicketsController = async (req, res, next) => {
 
 export const getUserTicketController = async (req, res, next) => {
     try {
-        const userId = req.user.userId;
+        const userId = req.user.userId || req.user.id;
         const { id } = req.params;
 
         const ticket = await getUserTicketById(id, userId);
@@ -57,7 +63,7 @@ export const getUserTicketController = async (req, res, next) => {
 
 export const createUserTicketController = async (req, res, next) => {
     try {
-        const userId = req.user.userId;
+        const userId = req.user.userId || req.user.id;
         const { subject, type, priority, description, vendorId } = req.body;
 
         if (!subject || !description || !type) {
@@ -87,7 +93,7 @@ export const createUserTicketController = async (req, res, next) => {
 
 export const sendUserTicketMessageController = async (req, res, next) => {
     try {
-        const userId = req.user.userId;
+        const userId = req.user.userId || req.user.id;
         const { id } = req.params;
         const { message } = req.body;
 

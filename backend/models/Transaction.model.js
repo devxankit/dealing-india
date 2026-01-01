@@ -36,6 +36,22 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    paymentGateway: {
+      type: String,
+      default: 'razorpay',
+    },
+    razorpayOrderId: {
+      type: String,
+      sparse: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      sparse: true,
+    },
+    razorpaySignature: {
+      type: String,
+      sparse: true,
+    },
     transactionDate: {
       type: Date,
       default: Date.now,

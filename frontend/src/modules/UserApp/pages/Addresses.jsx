@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { FiMapPin, FiEdit, FiTrash2, FiPlus, FiCheck, FiX, FiArrowLeft } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,13 +9,24 @@ import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
 import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
 import { useAddressStore } from '../../../shared/store/addressStore';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const MobileAddresses = () => {
   const navigate = useNavigate();
-  const { addresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } =
+  const { user, isAuthenticated } = useAuthStore();
+  const { addresses, isLoading, fetchAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } =
     useAddressStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
+
+  // Fetch addresses on mount
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      fetchAddresses().catch((error) => {
+        console.error('Error loading addresses:', error);
+      });
+    }
+  }, [isAuthenticated, user?.id, fetchAddresses]);
 
   const {
     register,
@@ -24,17 +35,21 @@ const MobileAddresses = () => {
     formState: { errors },
   } = useForm();
 
-  const onSubmit = (data) => {
-    if (editingAddress) {
-      updateAddress(editingAddress.id, data);
-      toast.success('Address updated successfully!');
-    } else {
-      addAddress(data);
-      toast.success('Address added successfully!');
+  const onSubmit = async (data) => {
+    try {
+      if (editingAddress) {
+        await updateAddress(editingAddress.id || editingAddress._id, data);
+        toast.success('Address updated successfully!');
+      } else {
+        await addAddress(data);
+        toast.success('Address added successfully!');
+      }
+      reset();
+      setIsFormOpen(false);
+      setEditingAddress(null);
+    } catch (error) {
+      toast.error(error.message || 'Failed to save address');
     }
-    reset();
-    setIsFormOpen(false);
-    setEditingAddress(null);
   };
 
   const handleEdit = (address) => {
@@ -43,10 +58,14 @@ const MobileAddresses = () => {
     setIsFormOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this address?')) {
-      deleteAddress(id);
-      toast.success('Address deleted successfully!');
+      try {
+        await deleteAddress(id);
+        toast.success('Address deleted successfully!');
+      } catch (error) {
+        toast.error(error.message || 'Failed to delete address');
+      }
     }
   };
 
@@ -82,7 +101,12 @@ const MobileAddresses = () => {
 
             {/* Addresses List */}
             <div className="px-4 py-4">
-              {addresses.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl text-gray-300 mx-auto mb-4">📍</div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">Loading addresses...</h3>
+                </div>
+              ) : addresses.length === 0 ? (
                 <div className="text-center py-12">
                   <FiMapPin className="text-6xl text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-800 mb-2">No addresses saved</h3>
@@ -127,12 +151,19 @@ const MobileAddresses = () => {
                       </div>
                       <div className="flex gap-2 pt-3 border-t border-gray-200">
                         {!address.isDefault && (
-                          <button
-                            onClick={() => setDefaultAddress(address.id)}
-                            className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors"
-                          >
-                            Set as Default
-                          </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await setDefaultAddress(address.id || address._id);
+                              toast.success('Default address updated');
+                            } catch (error) {
+                              toast.error(error.message || 'Failed to set default address');
+                            }
+                          }}
+                          className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors"
+                        >
+                          Set as Default
+                        </button>
                         )}
                         <button
                           onClick={() => handleEdit(address)}

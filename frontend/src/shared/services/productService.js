@@ -13,6 +13,7 @@ export const getProducts = async (filters = {}) => {
     if (filters.categoryId) params.append('categoryId', filters.categoryId);
     if (filters.subcategoryId) params.append('subcategoryId', filters.subcategoryId);
     if (filters.brandId) params.append('brandId', filters.brandId);
+    if (filters.vendorId) params.append('vendorId', filters.vendorId);
     if (filters.minPrice) params.append('minPrice', filters.minPrice);
     if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
     if (filters.minRating) params.append('minRating', filters.minRating);
@@ -24,7 +25,8 @@ export const getProducts = async (filters = {}) => {
     // API interceptor returns response.data, so response is already the data object
     // Backend returns: { success, message, data: { products, total, page, totalPages } }
     const response = await api.get(`/products?${params.toString()}`);
-    return response.data || response;
+    // Extract data from response structure
+    return response.data || { products: [], total: 0, page: 1, totalPages: 0 };
   } catch (error) {
     console.error('Error fetching products:', error);
     throw error;

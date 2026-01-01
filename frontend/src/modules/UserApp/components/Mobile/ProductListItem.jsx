@@ -104,23 +104,30 @@ const ProductListItem = ({ product, index }) => {
             </button>
           </div>
 
+          {/* Unit */}
+          {product.unit && (
+            <p className="text-[10px] text-gray-500 mb-0.5 font-medium">
+              {product.unit}
+            </p>
+          )}
+
+          {/* Vendor Badge */}
+          {(product.vendor || product.vendorId) && (
+            <div className="mb-0.5">
+              <VendorBadge
+                vendor={product.vendor || getVendorById(product.vendorId)}
+                showVerified={true}
+                size="sm"
+              />
+            </div>
+          )}
+
           {/* Rating */}
-          {product.rating && (
+          {product.rating > 0 && (
             <div className="flex items-center gap-0.5 mb-0.5">
               <span className="text-[10px] text-gray-600 font-medium">
                 ⭐ {product.rating} ({product.reviewCount || 0})
               </span>
-            </div>
-          )}
-
-          {/* Vendor Badge */}
-          {product.vendorId && (
-            <div className="mb-0.5">
-              <VendorBadge
-                vendor={getVendorById(product.vendorId)}
-                showVerified={true}
-                size="sm"
-              />
             </div>
           )}
 
