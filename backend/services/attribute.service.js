@@ -40,7 +40,7 @@ export const getAttributeById = async (id) => {
  */
 export const createAttribute = async (data) => {
   try {
-    const { name, type = 'select', required = false, status = 'active' } = data;
+    const { name, type = 'select', required = false, categoryIds = [], status = 'active' } = data;
 
     if (!name) {
       const err = new Error('Attribute name is required');
@@ -62,6 +62,7 @@ export const createAttribute = async (data) => {
       name: name.trim(),
       type,
       required: required === true || required === 'true',
+      categoryIds,
       status,
     });
 
@@ -108,6 +109,9 @@ export const updateAttribute = async (id, data) => {
     if (data.type !== undefined) attribute.type = data.type;
     if (data.required !== undefined) {
       attribute.required = data.required === true || data.required === 'true';
+    }
+    if (data.categoryIds !== undefined) {
+      attribute.categoryIds = data.categoryIds;
     }
     if (data.status !== undefined) attribute.status = data.status;
 

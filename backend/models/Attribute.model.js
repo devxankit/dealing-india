@@ -19,6 +19,11 @@ const attributeSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    categoryIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Category',
+      default: [],
+    }],
     status: {
       type: String,
       enum: ['active', 'inactive'],

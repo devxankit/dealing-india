@@ -193,3 +193,4 @@ The implementation maintains backward compatibility with the existing `variants`
 6. **Image Optimization**: Automatic image compression and optimization
 7. **Variation Search**: Filter products by specific color/size combinations
 
+

@@ -15,13 +15,15 @@ const attributesData = [
     type: 'select',
     required: true,
     status: 'active',
-    values: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4', '6', '8', '10', '12', '14', '16', '18', '20', '22', '24', '26', '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48', '50']
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f', '6954d888a4d9ccee08c9c71b', '6954d8fda4d9ccee08c9c734', '6954da0fa4d9ccee08c9c78b', '6954da3ea4d9ccee08c9c79b'],
+    values: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4', '6', '8', '10', '12', '14', '16', '18', '20', '22', '24', '26', '28', '30', '32', '34', '36', '38', '40', '42', '44', '46', '48', '50', 'UK 3', 'UK 4', 'UK 5', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'UK 12', 'EU 36', 'EU 37', 'EU 38', 'EU 39', 'EU 40', 'EU 41', 'EU 42', 'EU 43', 'EU 44', 'EU 45', 'US 4', 'US 5', 'US 6', 'US 7', 'US 8', 'US 9', 'US 10', 'US 11', 'US 12', 'US 13']
   },
   {
     name: 'Color',
     type: 'select',
     required: true,
     status: 'active',
+    categoryIds: [], // All categories
     values: ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Gray', 'Brown', 'Pink', 'Purple', 'Orange', 'Navy', 'Maroon', 'Beige', 'Khaki', 'Olive', 'Teal', 'Cyan', 'Magenta', 'Gold', 'Silver', 'Bronze', 'Ivory', 'Cream', 'Tan', 'Peach', 'Coral', 'Lavender', 'Mint', 'Turquoise']
   },
   {
@@ -29,20 +31,23 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
-    values: ['Cotton', 'Polyester', 'Silk', 'Wool', 'Linen', 'Denim', 'Leather', 'Synthetic', 'Bamboo', 'Rayon', 'Spandex', 'Nylon', 'Cashmere', 'Chiffon', 'Georgette', 'Jersey', 'Satin', 'Velvet', 'Corduroy', 'Twill', 'Canvas', 'Mesh', 'Fleece', 'Terry', 'Tulle', 'Organza', 'Crepe', 'Poplin', 'Muslin', 'Taffeta']
+    categoryIds: [], // All categories
+    values: ['Cotton', 'Polyester', 'Silk', 'Wool', 'Linen', 'Denim', 'Leather', 'Synthetic', 'Bamboo', 'Rayon', 'Spandex', 'Nylon', 'Cashmere', 'Chiffon', 'Georgette', 'Jersey', 'Satin', 'Velvet', 'Corduroy', 'Twill', 'Canvas', 'Mesh', 'Fleece', 'Terry', 'Tulle', 'Organza', 'Crepe', 'Poplin', 'Muslin', 'Taffeta', 'Leather', 'Suede', 'Synthetic Leather', 'Canvas', 'Rubber', 'Mesh', 'Knit']
   },
   {
     name: 'Brand',
     type: 'select',
     required: false,
     status: 'active',
-    values: ['Zara', 'Forever 21', 'Puma', 'Levi\'s', 'Tommy Hilfiger', 'Fabindia', 'Biba', 'Manyavar', 'Allen Solly', 'Pantaloons', 'Nike', 'Adidas', 'H&M', 'Uniqlo', 'Gap']
+    categoryIds: [], // All categories
+    values: ['Zara', 'Forever 21', 'Puma', 'Levi\'s', 'Tommy Hilfiger', 'Fabindia', 'Biba', 'Manyavar', 'Allen Solly', 'Pantaloons', 'Nike', 'Adidas', 'H&M', 'Uniqlo', 'Gap', 'Bata', 'Woodland', 'Red Tape', 'Liberty', 'Metro', 'Mochi', 'Skechers', 'Reebok', 'New Balance', 'Converse']
   },
   {
     name: 'Style',
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f', '6954d888a4d9ccee08c9c71b', '6954d8fda4d9ccee08c9c734'],
     values: ['Casual', 'Formal', 'Sporty', 'Vintage', 'Modern', 'Classic', 'Bohemian', 'Minimalist', 'Streetwear', 'Ethnic', 'Western', 'Fusion', 'Traditional', 'Contemporary', 'Retro']
   },
   {
@@ -50,6 +55,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Solid', 'Striped', 'Polka Dot', 'Floral', 'Geometric', 'Abstract', 'Plaid', 'Checkered', 'Paisley', 'Animal Print', 'Tie-Dye', 'Embroidered', 'Printed', 'Woven', 'Knit']
   },
   {
@@ -57,6 +63,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Sleeveless', 'Short Sleeve', 'Three-Quarter Sleeve', 'Long Sleeve', 'Cap Sleeve', 'Raglan Sleeve', 'Bell Sleeve', 'Puff Sleeve']
   },
   {
@@ -64,6 +71,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Round Neck', 'V-Neck', 'Collar', 'Hooded', 'Turtle Neck', 'Crew Neck', 'Boat Neck', 'Off Shoulder', 'Halter Neck', 'Square Neck']
   },
   {
@@ -71,6 +79,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Regular Fit', 'Slim Fit', 'Loose Fit', 'Oversized', 'Skinny Fit', 'Relaxed Fit', 'Tapered Fit', 'Straight Fit']
   },
   {
@@ -78,6 +87,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['High Waist', 'Mid Waist', 'Low Waist', 'Elastic Waist', 'Drawstring Waist', 'Zip Waist']
   },
   {
@@ -85,6 +95,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Short', 'Regular', 'Long', 'Extra Long', 'Knee Length', 'Ankle Length', 'Floor Length']
   },
   {
@@ -92,6 +103,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: [],
     values: ['Spring', 'Summer', 'Monsoon', 'Winter', 'All Season']
   },
   {
@@ -99,6 +111,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: [],
     values: ['Machine Wash', 'Hand Wash', 'Dry Clean Only', 'Do Not Wash', 'Cold Wash', 'Warm Wash', 'Bleach', 'Do Not Bleach', 'Tumble Dry', 'Line Dry', 'Do Not Dry']
   },
   {
@@ -106,6 +119,7 @@ const attributesData = [
     type: 'number',
     required: false,
     status: 'active',
+    categoryIds: [],
     values: ['1', '2', '3', '6', '12', '18', '24', '36']
   },
   {
@@ -113,6 +127,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: [],
     values: ['India', 'China', 'Bangladesh', 'USA', 'UK', 'Italy', 'France', 'Germany', 'Japan', 'South Korea', 'Thailand', 'Vietnam', 'Turkey', 'Spain', 'Portugal']
   },
   {
@@ -120,6 +135,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f', '6954d888a4d9ccee08c9c71b', '6954d8fda4d9ccee08c9c734'],
     values: ['Men', 'Women', 'Unisex', 'Boys', 'Girls', 'Kids']
   },
   {
@@ -127,6 +143,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: [],
     values: ['Infant (0-2)', 'Toddler (2-4)', 'Kids (4-8)', 'Pre-Teen (8-12)', 'Teen (12-16)', 'Adult (16+)', 'Senior (60+)']
   },
   {
@@ -134,6 +151,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f', '6954d888a4d9ccee08c9c71b', '6954d8fda4d9ccee08c9c734'],
     values: ['Casual', 'Party', 'Wedding', 'Festival', 'Office', 'Sports', 'Travel', 'Beach', 'Formal Event', 'Date Night', 'Everyday Wear']
   },
   {
@@ -141,6 +159,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Light', 'Medium', 'Heavy', 'Ultra Light', 'Ultra Heavy']
   },
   {
@@ -148,6 +167,7 @@ const attributesData = [
     type: 'boolean',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Yes', 'No']
   },
   {
@@ -155,6 +175,7 @@ const attributesData = [
     type: 'boolean',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f', '6954d888a4d9ccee08c9c71b', '6954d8fda4d9ccee08c9c734'],
     values: ['Yes', 'No']
   },
   {
@@ -162,6 +183,7 @@ const attributesData = [
     type: 'boolean',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f', '6954d888a4d9ccee08c9c71b', '6954d8fda4d9ccee08c9c734'],
     values: ['Yes', 'No']
   },
   {
@@ -169,6 +191,7 @@ const attributesData = [
     type: 'boolean',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Yes', 'No']
   },
   {
@@ -176,6 +199,7 @@ const attributesData = [
     type: 'boolean',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Yes', 'No']
   },
   {
@@ -183,6 +207,7 @@ const attributesData = [
     type: 'boolean',
     required: false,
     status: 'active',
+    categoryIds: ['695225c0d0e906cc1323b2d9', '6952268cd0e906cc1323b311', '695226b0d0e906cc1323b31f'],
     values: ['Yes', 'No']
   },
   {
@@ -190,6 +215,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: [],
     values: ['Box', 'Polybag', 'Hanger', 'Vacuum Pack', 'Gift Box', 'Eco-Friendly Pack']
   },
   {
@@ -197,6 +223,7 @@ const attributesData = [
     type: 'select',
     required: false,
     status: 'active',
+    categoryIds: [],
     values: ['Organic', 'Fair Trade', 'OEKO-TEX', 'GOTS', 'ISO Certified', 'BIS Certified', 'FSC Certified', 'No Certification']
   }
 ];
@@ -276,8 +303,15 @@ const seedAttributes = async () => {
         });
 
         if (existingAttr) {
-          console.log(`⏭️  Skipped Attribute: "${attrData.name}" (already exists)`);
-          skippedAttributes++;
+          // Update existing attribute with new categoryIds if provided
+          existingAttr.categoryIds = attrData.categoryIds || [];
+          existingAttr.required = attrData.required;
+          existingAttr.type = attrData.type;
+          existingAttr.status = attrData.status;
+          await existingAttr.save();
+          
+          console.log(`✅ Updated Attribute: "${attrData.name}" (with ${existingAttr.categoryIds.length} categories)`);
+          skippedAttributes++; // Still count as skipped/processed
           attributeMap[attrData.name] = existingAttr._id;
           continue;
         }
@@ -288,6 +322,7 @@ const seedAttributes = async () => {
           type: attrData.type,
           required: attrData.required,
           status: attrData.status,
+          categoryIds: attrData.categoryIds || [],
         });
 
         console.log(`✅ Created Attribute: "${attribute.name}" (ID: ${attribute._id})`);

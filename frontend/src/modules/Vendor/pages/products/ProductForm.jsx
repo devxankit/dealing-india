@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiCopy } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
 import CategorySelector from "../../../Admin/components/CategorySelector";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
+import TagInput from "../../components/TagInput";
+import ColorPicker from "../../components/ColorPicker";
 import { getVendorProductById, updateVendorProduct, createVendorProduct } from "../../services/productService";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
@@ -69,6 +71,7 @@ const ProductForm = () => {
   const [loadingAttributes, setLoadingAttributes] = useState(false);
   const [showAttributeSelector, setShowAttributeSelector] = useState(false);
   const [selectedAttributeToAdd, setSelectedAttributeToAdd] = useState('');
+  const [colorVariants, setColorVariants] = useState([]);
 
   useEffect(() => {
     initCategories();
@@ -91,6 +94,7 @@ const ProductForm = () => {
             name: attr.name,
             type: attr.type,
             required: attr.required,
+            categoryIds: attr.categoryIds || [],
           }));
         setAvailableAttributes(activeAttributes);
         
@@ -129,9 +133,20 @@ const ProductForm = () => {
   // Get available attributes that haven't been added yet
   const getAvailableAttributesForSelection = () => {
     return availableAttributes.filter(
-      attr => !formData.attributes.some(a => 
-        (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
-      )
+      attr => {
+        // Filter by category if selected
+        const isInCategory = !attr.categoryIds || 
+                            attr.categoryIds.length === 0 || 
+                            (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
+                            (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
+                            (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
+        
+        if (!isInCategory) return false;
+
+        return !formData.attributes.some(a => 
+          (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
+        );
+      }
     );
   };
 
@@ -207,6 +222,47 @@ const ProductForm = () => {
     }
   }, [isEdit, id, vendorId, navigate]);
 
+  useEffect(() => {
+    if (availableAttributes.length > 0) {
+      const requiredAttrs = availableAttributes.filter(attr => {
+        const isRequired = attr.required;
+        const isInCategory = !attr.categoryIds || 
+                            attr.categoryIds.length === 0 || 
+                            (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
+                            (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
+                            (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
+        
+        return isRequired && isInCategory;
+      });
+
+      // Add required attributes if they aren't already there
+      const newAttributes = [...formData.attributes];
+      let updated = false;
+
+      requiredAttrs.forEach(reqAttr => {
+        const alreadyExists = newAttributes.some(
+          a => (a.attributeId || a.attributeId?.toString()) === (reqAttr.id || reqAttr._id)?.toString()
+        );
+
+        if (!alreadyExists) {
+          newAttributes.push({
+            attributeId: reqAttr.id || reqAttr._id,
+            attributeName: reqAttr.name,
+            values: [],
+          });
+          updated = true;
+        }
+      });
+
+      if (updated) {
+        setFormData(prev => ({
+          ...prev,
+          attributes: newAttributes
+        }));
+      }
+    }
+  }, [formData.categoryId, formData.subcategoryId, formData.subSubCategoryId, availableAttributes]);
+
   const loadProduct = async () => {
     if (!id || !vendorId) return;
 
@@ -263,6 +319,16 @@ const ProductForm = () => {
         seoDescription: product.seoDescription || "",
         relatedProducts: product.relatedProducts || [],
       });
+
+      // Initialize color variants
+      if (product.variants?.colorVariants && product.variants.colorVariants.length > 0) {
+        setColorVariants(product.variants.colorVariants.map(cv => ({
+          ...cv,
+          sizeVariants: cv.sizeVariants || []
+        })));
+      } else {
+        setColorVariants([]);
+      }
     } catch (error) {
       console.error("Error loading product:", error);
       toast.error("Failed to load product");
@@ -354,6 +420,113 @@ const ProductForm = () => {
     });
   };
 
+  // Color variant management functions
+  const addColorVariant = () => {
+    setColorVariants([
+      ...colorVariants,
+      {
+        colorName: "",
+        colorCode: "",
+        thumbnailImage: "",
+        sizeVariants: [],
+      },
+    ]);
+  };
+
+  const removeColorVariant = (index) => {
+    setColorVariants(colorVariants.filter((_, i) => i !== index));
+  };
+
+  const updateColorVariant = (index, updates) => {
+    setColorVariants((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...updates };
+      return updated;
+    });
+  };
+
+  const handleColorThumbnailUpload = (index, file) => {
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      updateColorVariant(index, { thumbnailImage: reader.result });
+    };
+    reader.onerror = () => {
+      toast.error("Error reading image file");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Size variant management functions
+  const addSizeVariant = (colorIndex) => {
+    const updated = [...colorVariants];
+    updated[colorIndex].sizeVariants = [
+      ...updated[colorIndex].sizeVariants,
+      {
+        size: "",
+        price: null,
+        originalPrice: null,
+        stockQuantity: 0,
+      },
+    ];
+    setColorVariants(updated);
+  };
+
+  const removeSizeVariant = (colorIndex, sizeIndex) => {
+    const updated = [...colorVariants];
+    updated[colorIndex].sizeVariants = updated[colorIndex].sizeVariants.filter(
+      (_, i) => i !== sizeIndex
+    );
+    setColorVariants(updated);
+  };
+
+  const updateSizeVariant = (colorIndex, sizeIndex, field, value) => {
+    const updated = [...colorVariants];
+    updated[colorIndex].sizeVariants[sizeIndex] = {
+      ...updated[colorIndex].sizeVariants[sizeIndex],
+      [field]: value,
+    };
+    setColorVariants(updated);
+  };
+
+  // Bulk editing functions
+  const bulkEditSizes = (colorIndex, sizes) => {
+    const updated = [...colorVariants];
+    const existingSizes = updated[colorIndex].sizeVariants.map((sv) => sv.size);
+    const newSizes = sizes.filter((s) => !existingSizes.includes(s));
+
+    newSizes.forEach((size) => {
+      updated[colorIndex].sizeVariants.push({
+        size,
+        price: null,
+        originalPrice: null,
+        stockQuantity: 0,
+      });
+    });
+
+    setColorVariants(updated);
+  };
+
+  const copySizeVariantsFromColor = (fromColorIndex, toColorIndex) => {
+    const updated = [...colorVariants];
+    const sourceSizes = updated[fromColorIndex].sizeVariants;
+    updated[toColorIndex].sizeVariants = sourceSizes.map((sv) => ({
+      ...sv,
+      stockQuantity: 0, // Reset stock for new color
+    }));
+    setColorVariants(updated);
+    toast.success("Size variants copied successfully");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -368,25 +541,101 @@ const ProductForm = () => {
       return;
     }
 
+    // Validate category-specific required attributes
+    const missingRequiredAttributes = availableAttributes.filter(attr => {
+      const isRequired = attr.required;
+      const isInCategory = !attr.categoryIds || 
+                          attr.categoryIds.length === 0 || 
+                          (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
+                          (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
+                          (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
+      
+      if (isRequired && isInCategory) {
+        // Skip validation for Color and Size attributes if they are being handled by the Variations system
+        if (colorVariants.length > 0 && (attr.name === 'Color' || attr.name === 'Size')) {
+          return false;
+        }
+
+        const addedAttr = formData.attributes.find(
+          a => (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
+        );
+        return !addedAttr || !addedAttr.values || addedAttr.values.length === 0;
+      }
+      return false;
+    });
+
+    if (missingRequiredAttributes.length > 0) {
+      const missingNames = missingRequiredAttributes.map(attr => attr.name).join(', ');
+      toast.error(`Please provide values for required attributes: ${missingNames}`);
+      
+      // Error logging for missing field configurations
+      console.error('Missing required category-specific fields:', {
+        categoryId: formData.categoryId,
+        subcategoryId: formData.subcategoryId,
+        subSubCategoryId: formData.subSubCategoryId,
+        missingAttributes: missingRequiredAttributes.map(attr => ({
+          id: attr.id,
+          name: attr.name
+        }))
+      });
+      return;
+    }
+
+    // Validate color variants if provided
+    if (colorVariants.length > 0) {
+      console.log('Validating color variants:', colorVariants);
+      for (let i = 0; i < colorVariants.length; i++) {
+        const cv = colorVariants[i];
+        console.log(`Checking color variant ${i + 1}:`, cv);
+        if (!cv.colorName || cv.colorName.trim() === '') {
+          toast.error(`Color variant ${i + 1} must have a color name`);
+          return;
+        }
+        if (cv.sizeVariants.length === 0) {
+          toast.error(`Color variant "${cv.colorName}" must have at least one size`);
+          return;
+        }
+        for (let j = 0; j < cv.sizeVariants.length; j++) {
+          const sv = cv.sizeVariants[j];
+          if (!sv.size || sv.stockQuantity === undefined) {
+            toast.error(`Size variant ${j + 1} for "${cv.colorName}" is incomplete`);
+            return;
+          }
+        }
+      }
+    }
+
     try {
-      // Prepare product data
+      // Final product data
       const productData = {
         ...formData,
+        vendorId,
+        vendorName,
         price: parseFloat(formData.price),
         originalPrice: formData.originalPrice
           ? parseFloat(formData.originalPrice)
           : null,
-        stockQuantity: parseInt(formData.stockQuantity),
+        stockQuantity: parseInt(formData.stockQuantity) || 0,
         totalAllowedQuantity: formData.totalAllowedQuantity
           ? parseInt(formData.totalAllowedQuantity)
           : null,
         minimumOrderQuantity: formData.minimumOrderQuantity
           ? parseInt(formData.minimumOrderQuantity)
-          : null,
-        categoryId: formData.categoryId ? formData.categoryId : null,
-        subcategoryId: formData.subcategoryId ? formData.subcategoryId : null,
-        subSubCategoryId: formData.subSubCategoryId ? formData.subSubCategoryId : null,
-        brandId: formData.brandId ? formData.brandId : null,
+          : 1,
+        variants: {
+          ...formData.variants,
+          colorVariants: colorVariants.map((cv) => ({
+            ...cv,
+            sizeVariants: cv.sizeVariants.map((sv) => ({
+              ...sv,
+              price: sv.price ? parseFloat(sv.price) : null,
+              originalPrice: sv.originalPrice
+                ? parseFloat(sv.originalPrice)
+                : null,
+              stockQuantity: parseInt(sv.stockQuantity) || 0,
+            })),
+          })),
+        },
       };
 
       if (isEdit) {
@@ -764,6 +1013,7 @@ const ProductForm = () => {
                       value={selectedAttributeToAdd}
                       onChange={(e) => setSelectedAttributeToAdd(e.target.value)}
                       placeholder="Choose an attribute"
+                      searchable={true}
                       options={[
                         { value: '', label: 'Choose an attribute' },
                         ...getAvailableAttributesForSelection().map(attr => ({
@@ -882,78 +1132,257 @@ const ProductForm = () => {
           )}
         </div>
 
-        {/* Product Variants */}
-        <div>
-          <h2 className="text-base font-bold text-gray-800 mb-2">
-            Product Variants
-          </h2>
-          <div className="space-y-3">
+        {/* Product Variants (Advanced) */}
+        <div className="bg-gradient-to-br from-primary-50 to-white rounded-xl p-4 border-2 border-primary-100 shadow-md">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Sizes (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={(formData.variants?.sizes || []).join(", ")}
-                onChange={(e) => {
-                  const sizes = e.target.value
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter((s) => s);
-                  setFormData({
-                    ...formData,
-                    variants: { ...formData.variants, sizes },
-                  });
-                }}
-                placeholder="S, M, L, XL"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-              />
+              <h2 className="text-base font-bold text-gray-800">
+                Product Variants
+              </h2>
+              <p className="text-xs text-gray-500">
+                Add color options with size variants.
+              </p>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Colors (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={(formData.variants?.colors || []).join(", ")}
-                onChange={(e) => {
-                  const colors = e.target.value
-                    .split(",")
-                    .map((c) => c.trim())
-                    .filter((c) => c);
-                  setFormData({
-                    ...formData,
-                    variants: { ...formData.variants, colors },
-                  });
-                }}
-                placeholder="Red, Blue, Green, Black"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={addColorVariant}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold shadow-sm">
+              <FiPlus /> Add Color
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {colorVariants.map((colorVariant, colorIndex) => (
+              <div
+                key={colorIndex}
+                className="border-2 border-primary-200 rounded-xl p-4 bg-white">
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-sm font-bold text-gray-800">
+                    Color Variant {colorIndex + 1}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => removeColorVariant(colorIndex)}
+                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors">
+                    <FiTrash2 className="text-sm" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                  {/* Color Selection */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-700 mb-2">
+                      Color Selection <span className="text-red-500">*</span>
+                    </label>
+                    <ColorPicker
+                      selectedColors={colorVariant.colorName ? [{ 
+                        name: colorVariant.colorName, 
+                        value: colorVariant.colorCode || colorVariant.colorName.toLowerCase() 
+                      }] : []}
+                      onChange={(colors) => {
+                      const color = colors[colors.length - 1];
+                      if (color) {
+                        updateColorVariant(colorIndex, {
+                          colorName: color.name,
+                          colorCode: color.value
+                        });
+                      } else {
+                        updateColorVariant(colorIndex, {
+                          colorName: "",
+                          colorCode: ""
+                        });
+                      }
+                    }}
+                    />
+                  </div>
+
+                  {/* Thumbnail Image */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Thumbnail Image
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleColorThumbnailUpload(
+                            colorIndex,
+                            e.target.files[0]
+                          )
+                        }
+                        className="hidden"
+                        id={`color-thumbnail-${colorIndex}`}
+                      />
+                      <label
+                        htmlFor={`color-thumbnail-${colorIndex}`}
+                        className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white text-sm">
+                        <FiUpload className="text-base text-primary-600" />
+                        <span className="text-xs font-medium text-gray-700">
+                          {colorVariant.thumbnailImage
+                            ? "Change Thumbnail"
+                            : "Upload Thumbnail"}
+                        </span>
+                      </label>
+                      {colorVariant.thumbnailImage && (
+                        <img
+                          src={colorVariant.thumbnailImage}
+                          alt="Thumbnail"
+                          className="w-16 h-16 object-cover rounded-lg border-2 border-primary-300"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Size Variants */}
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-700">
+                      Size Variants
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      {colorIndex > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            copySizeVariantsFromColor(0, colorIndex)
+                          }
+                          className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+                          <FiCopy className="text-xs" />
+                          Copy from First
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => addSizeVariant(colorIndex)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors">
+                        <FiPlus className="text-xs" />
+                        Add Size
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bulk Add Sizes */}
+                  <div className="mb-4 p-3 bg-primary-50/50 rounded-lg border border-primary-100">
+                    <label className="block text-[10px] font-bold text-primary-700 uppercase tracking-wider mb-2">
+                      Bulk Add Sizes (Type and press Enter)
+                    </label>
+                    <TagInput
+                      tags={[]}
+                      onChange={(sizes) => bulkEditSizes(colorIndex, sizes)}
+                      placeholder="e.g. S, M, L, XL"
+                    />
+                  </div>
+
+                  {colorVariant.sizeVariants.length === 0 ? (
+                    <div className="text-center py-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                      <p className="text-xs text-gray-500">
+                        No sizes added. Click "Add Size" to add size variants.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {colorVariant.sizeVariants.map((sizeVariant, sizeIndex) => (
+                        <div
+                          key={sizeIndex}
+                          className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
+                              Size <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={sizeVariant.size}
+                              onChange={(e) =>
+                                updateSizeVariant(
+                                  colorIndex,
+                                  sizeIndex,
+                                  "size",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                              placeholder="S, M, L"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
+                              Price
+                            </label>
+                            <input
+                              type="number"
+                              value={sizeVariant.price || ""}
+                              onChange={(e) =>
+                                updateSizeVariant(
+                                  colorIndex,
+                                  sizeIndex,
+                                  "price",
+                                  e.target.value ? parseFloat(e.target.value) : null
+                                )
+                              }
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                              placeholder="Base price"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1">
+                              Stock <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              value={sizeVariant.stockQuantity}
+                              onChange={(e) =>
+                                updateSizeVariant(
+                                  colorIndex,
+                                  sizeIndex,
+                                  "stockQuantity",
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                              required
+                            />
+                          </div>
+                          <div className="flex items-end pb-1.5">
+                            <button
+                              type="button"
+                              onClick={() => removeSizeVariant(colorIndex, sizeIndex)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors">
+                              <FiTrash2 className="text-sm" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {colorVariants.length === 0 && (
+              <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
+                <p className="text-sm text-gray-500 mb-2">No variants added yet</p>
+                <button
+                  type="button"
+                  onClick={addColorVariant}
+                  className="inline-flex items-center gap-1.5 text-primary-600 font-semibold hover:text-primary-700 transition-colors">
+                  <FiPlus /> Add your first color variant
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Tags */}
         <div>
           <h2 className="text-base font-bold text-gray-800 mb-2">Tags</h2>
-          <div>
-            <input
-              type="text"
-              value={(formData.tags || []).join(", ")}
-              onChange={(e) => {
-                const tags = e.target.value
-                  .split(",")
-                  .map((t) => t.trim())
-                  .filter((t) => t);
-                setFormData({ ...formData, tags });
-              }}
-              placeholder="tag1, tag2, tag3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Separate tags with commas
-            </p>
-          </div>
+          <TagInput
+            tags={formData.tags || []}
+            onChange={(tags) => setFormData({ ...formData, tags })}
+            placeholder="Add tags (e.g. Cotton, Summer, Blue)"
+          />
         </div>
 
         {/* Options */}
