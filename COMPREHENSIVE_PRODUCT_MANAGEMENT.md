@@ -77,10 +77,11 @@ This document outlines the comprehensive product management system with all impl
 - Bulk editing capabilities
 
 #### ✅ Attribute Assignment
-- Dynamic attribute loading
-- Attribute value selection
-- Multi-value support
-- Required attribute validation
+- Dynamic attribute loading based on category/subcategory/sub-subcategory
+- Category-specific required attribute auto-population
+- Validation for category-specific required fields
+- Attribute value selection with multi-value support
+- Support for extensive size scales (UK/EU/US) for Fashion & Footwear
 
 ### Form Structure
 1. **Step 1: Basic Information**
@@ -101,6 +102,23 @@ This document outlines the comprehensive product management system with all impl
    - Tags
    - SEO
    - Product options
+
+### 3. Category-Specific Requirements
+
+The system now supports dynamic attribute filtering and validation based on the selected category hierarchy.
+
+#### Implementation Details
+- **Dynamic Filtering**: Attributes are filtered based on `categoryIds` stored in the `Attribute` model. If an attribute has no `categoryIds`, it is treated as a global attribute.
+- **Auto-Population**: When a category is selected, any required attributes specifically linked to that category (or its ancestors) are automatically added to the product form.
+- **Validation**: Before submission, the form validates that all required attributes for the selected category path have at least one value assigned.
+- **Error Logging**: Missing field configurations or validation errors are logged for administrative review.
+
+#### Specific Category Configurations
+
+##### Fashion > Footwear
+- **Required Attributes**: Size, Color, Material, Brand.
+- **Size Scales**: Supports UK (3-12), EU (36-45), and US (4-13) sizing scales in addition to standard XS-XXXL.
+- **Path-Specific Logic**: Size selection options are dynamically restricted to these scales when any footwear-related subcategory is selected.
 
 ### Files
 - `frontend/src/modules/Vendor/pages/products/AddProduct.jsx`
@@ -417,4 +435,5 @@ The comprehensive product management system is now fully functional with:
 - ✅ Testing structure
 
 The system is ready for production use with proper monitoring and maintenance procedures in place.
+
 

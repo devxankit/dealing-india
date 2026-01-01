@@ -7,6 +7,8 @@ import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
 import CategorySelector from "../../../Admin/components/CategorySelector";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
+import TagInput from "../../components/TagInput";
+import ColorPicker from "../../components/ColorPicker";
 import { createVendorProduct } from "../../services/productService";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
@@ -85,6 +87,7 @@ const AddProduct = () => {
             name: attr.name,
             type: attr.type,
             required: attr.required,
+            categoryIds: attr.categoryIds || [],
           }));
         setAvailableAttributes(activeAttributes);
 
@@ -121,15 +124,67 @@ const AddProduct = () => {
     }
   };
 
+  useEffect(() => {
+    if (availableAttributes.length > 0) {
+      const requiredAttrs = availableAttributes.filter(attr => {
+        const isRequired = attr.required;
+        const isInCategory = !attr.categoryIds || 
+                            attr.categoryIds.length === 0 || 
+                            (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
+                            (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
+                            (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
+        
+        return isRequired && isInCategory;
+      });
+
+      // Add required attributes if they aren't already there
+      const newAttributes = [...formData.attributes];
+      let updated = false;
+
+      requiredAttrs.forEach(reqAttr => {
+        const alreadyExists = newAttributes.some(
+          a => (a.attributeId || a.attributeId?.toString()) === (reqAttr.id || reqAttr._id)?.toString()
+        );
+
+        if (!alreadyExists) {
+          newAttributes.push({
+            attributeId: reqAttr.id || reqAttr._id,
+            attributeName: reqAttr.name,
+            values: [],
+          });
+          updated = true;
+        }
+      });
+
+      if (updated) {
+        setFormData(prev => ({
+          ...prev,
+          attributes: newAttributes
+        }));
+      }
+    }
+  }, [formData.categoryId, formData.subcategoryId, formData.subSubCategoryId, availableAttributes]);
+
   const [showAttributeSelector, setShowAttributeSelector] = useState(false);
   const [selectedAttributeToAdd, setSelectedAttributeToAdd] = useState('');
 
-  // Get available attributes that haven't been added yet
+  // Get available attributes that haven't been added yet and match current category
   const getAvailableAttributesForSelection = () => {
     return availableAttributes.filter(
-      attr => !formData.attributes.some(a =>
-        (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
-      )
+      attr => {
+        // Filter by category if selected
+        const isInCategory = !attr.categoryIds || 
+                            attr.categoryIds.length === 0 || 
+                            (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
+                            (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
+                            (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
+        
+        if (!isInCategory) return false;
+
+        return !formData.attributes.some(a =>
+          (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
+        );
+      }
     );
   };
 
@@ -307,10 +362,12 @@ const AddProduct = () => {
     setColorVariants(colorVariants.filter((_, i) => i !== index));
   };
 
-  const updateColorVariant = (index, field, value) => {
-    const updated = [...colorVariants];
-    updated[index] = { ...updated[index], [field]: value };
-    setColorVariants(updated);
+  const updateColorVariant = (index, updates) => {
+    setColorVariants((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...updates };
+      return updated;
+    });
   };
 
   const handleColorThumbnailUpload = (index, file) => {
@@ -326,7 +383,7 @@ const AddProduct = () => {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      updateColorVariant(index, "thumbnailImage", reader.result);
+      updateColorVariant(index, { thumbnailImage: reader.result });
     };
     reader.onerror = () => {
       toast.error("Error reading image file");
@@ -429,11 +486,53 @@ const AddProduct = () => {
       return;
     }
 
+    // Validate category-specific required attributes
+    const missingRequiredAttributes = availableAttributes.filter(attr => {
+      const isRequired = attr.required;
+      const isInCategory = !attr.categoryIds || 
+                          attr.categoryIds.length === 0 || 
+                          (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
+                          (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
+                          (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
+      
+      if (isRequired && isInCategory) {
+        // Skip validation for Color and Size attributes if they are being handled by the Variations system
+        if (colorVariants.length > 0 && (attr.name === 'Color' || attr.name === 'Size')) {
+          return false;
+        }
+
+        const addedAttr = formData.attributes.find(
+          a => (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
+        );
+        return !addedAttr || !addedAttr.values || addedAttr.values.length === 0;
+      }
+      return false;
+    });
+
+    if (missingRequiredAttributes.length > 0) {
+      const missingNames = missingRequiredAttributes.map(attr => attr.name).join(', ');
+      toast.error(`Please provide values for required attributes: ${missingNames}`);
+      
+      // Error logging for missing field configurations
+      console.error('Missing required category-specific fields:', {
+        categoryId: formData.categoryId,
+        subcategoryId: formData.subcategoryId,
+        subSubCategoryId: formData.subSubCategoryId,
+        missingAttributes: missingRequiredAttributes.map(attr => ({
+          id: attr.id,
+          name: attr.name
+        }))
+      });
+      return;
+    }
+
     // Validate color variants if provided
     if (colorVariants.length > 0) {
+      console.log('Validating color variants:', colorVariants);
       for (let i = 0; i < colorVariants.length; i++) {
         const cv = colorVariants[i];
-        if (!cv.colorName) {
+        console.log(`Checking color variant ${i + 1}:`, cv);
+        if (!cv.colorName || cv.colorName.trim() === '') {
           toast.error(`Color variant ${i + 1} must have a color name`);
           return;
         }
@@ -951,58 +1050,31 @@ const AddProduct = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                    {/* Color Name */}
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Color Name <span className="text-red-500">*</span>
+                    {/* Color Selection */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-gray-700 mb-2">
+                        Color Selection <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={colorVariant.colorName}
-                        onChange={(e) =>
-                          updateColorVariant(colorIndex, "colorName", e.target.value)
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                        placeholder="e.g., Red, Blue, Black"
-                        required
-                      />
-                    </div>
-
-                    {/* Color Code with Hex Picker */}
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
-                        Color Code (Hex)
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={colorVariant.colorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(colorVariant.colorCode) 
-                            ? colorVariant.colorCode 
-                            : "#000000"}
-                          onChange={(e) =>
-                            updateColorVariant(colorIndex, "colorCode", e.target.value)
+                      <ColorPicker
+                        selectedColors={colorVariant.colorName ? [{ 
+                          name: colorVariant.colorName, 
+                          value: colorVariant.colorCode || colorVariant.colorName.toLowerCase() 
+                        }] : []}
+                        onChange={(colors) => {
+                          const color = colors[colors.length - 1]; // Take the last selected color
+                          if (color) {
+                            updateColorVariant(colorIndex, {
+                              colorName: color.name,
+                              colorCode: color.value
+                            });
+                          } else {
+                            updateColorVariant(colorIndex, {
+                              colorName: "",
+                              colorCode: ""
+                            });
                           }
-                          className="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
-                          title="Pick a color"
-                        />
-                        <input
-                          type="text"
-                          value={colorVariant.colorCode || ""}
-                          onChange={(e) => {
-                            let value = e.target.value;
-                            // Validate hex color format
-                            if (value === "" || /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value)) {
-                              updateColorVariant(colorIndex, "colorCode", value);
-                            }
-                          }}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                          placeholder="#FF0000"
-                          pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Use color picker or enter hex code (e.g., #FF0000)
-                      </p>
+                        }}
+                      />
                     </div>
 
                     {/* Thumbnail Image */}
@@ -1070,6 +1142,18 @@ const AddProduct = () => {
                           Add Size
                         </button>
                       </div>
+                    </div>
+
+                    {/* Bulk Add Sizes */}
+                    <div className="mb-4 p-3 bg-primary-50/50 rounded-lg border border-primary-100">
+                      <label className="block text-[10px] font-bold text-primary-700 uppercase tracking-wider mb-2">
+                        Bulk Add Sizes (Type and press Enter)
+                      </label>
+                      <TagInput
+                        tags={[]}
+                        onChange={(sizes) => bulkEditSizes(colorIndex, sizes)}
+                        placeholder="e.g. S, M, L, XL"
+                      />
                     </div>
 
                     {colorVariant.sizeVariants.length === 0 ? (
@@ -1243,6 +1327,7 @@ const AddProduct = () => {
                       value={selectedAttributeToAdd}
                       onChange={(e) => setSelectedAttributeToAdd(e.target.value)}
                       placeholder="Choose an attribute"
+                      searchable={true}
                       options={[
                         { value: '', label: 'Choose an attribute' },
                         ...getAvailableAttributesForSelection().map(attr => ({
@@ -1363,24 +1448,11 @@ const AddProduct = () => {
         {/* Tags */}
         <div>
           <h2 className="text-base font-bold text-gray-800 mb-2">Tags</h2>
-          <div>
-            <input
-              type="text"
-              value={(formData.tags || []).join(", ")}
-              onChange={(e) => {
-                const tags = e.target.value
-                  .split(",")
-                  .map((t) => t.trim())
-                  .filter((t) => t);
-                setFormData({ ...formData, tags });
-              }}
-              placeholder="tag1, tag2, tag3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Separate tags with commas
-            </p>
-          </div>
+          <TagInput
+            tags={formData.tags || []}
+            onChange={(tags) => setFormData({ ...formData, tags })}
+            placeholder="Add tags (e.g. Cotton, Summer, Blue)"
+          />
         </div>
 
         {/* Options */}

@@ -287,6 +287,46 @@ const Attributes = () => {
                     ]}
                     required
                   />
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                      <FiTag className="text-primary-500" />
+                      Link to Categories (Optional)
+                    </label>
+                    <CategorySelector
+                      onChange={(e) => {
+                        const { name, value } = e.target;
+                        const currentIds = editingAttribute.categoryIds || [];
+                        if (value && !currentIds.includes(value)) {
+                          setEditingAttribute({
+                            ...editingAttribute,
+                            categoryIds: [...currentIds, value]
+                          });
+                        }
+                      }}
+                    />
+                    {editingAttribute.categoryIds?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
+                        {editingAttribute.categoryIds.map((id) => (
+                          <div key={id} className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md text-[10px] font-medium text-gray-700 shadow-sm">
+                            ID: {id.substring(0, 8)}...
+                            <button
+                              type="button"
+                              onClick={() => setEditingAttribute({
+                                ...editingAttribute,
+                                categoryIds: editingAttribute.categoryIds.filter(cid => cid !== id)
+                              })}
+                              className="text-red-500 hover:text-red-700 ml-1"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[10px] text-gray-500 italic">
+                      If no categories are selected, this attribute will be available for all categories.
+                    </p>
+                  </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="submit"
