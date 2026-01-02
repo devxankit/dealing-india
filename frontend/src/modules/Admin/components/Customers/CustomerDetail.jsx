@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiX, FiMail, FiPhone, FiMapPin, FiShoppingBag, FiDollarSign, FiClock, FiEdit, FiCreditCard } from 'react-icons/fi';
+import { FiX, FiMail, FiPhone, FiMapPin, FiShoppingBag, FiClock, FiEdit, FiCreditCard } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../../../shared/store/customerStore';
 import Badge from '../../../../shared/components/Badge';
@@ -224,7 +225,7 @@ const CustomerDetail = ({ customer, onClose, onUpdate }) => {
             </div>
             <div className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="flex items-center gap-2 text-gray-600 mb-2">
-                <FiDollarSign />
+                <IndianRupee />
                 <span className="text-sm font-semibold">Total Spent</span>
               </div>
               <p className="text-2xl font-bold text-gray-800">

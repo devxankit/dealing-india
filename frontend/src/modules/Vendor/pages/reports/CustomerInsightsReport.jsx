@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { FiUsers, FiRepeat, FiDollarSign } from 'react-icons/fi';
+import { FiUsers, FiRepeat } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DataTable from '../../../Admin/components/DataTable';
 import ExportButton from '../../../Admin/components/ExportButton';
@@ -128,7 +129,7 @@ const CustomerInsightsReport = () => {
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Average Order Value</p>
-            <FiDollarSign className="text-purple-600" />
+            <IndianRupee className="text-purple-600" />
           </div>
           <p className="text-xl sm:text-2xl font-bold text-gray-800">{formatPrice(averageOrderValue)}</p>
         </div>

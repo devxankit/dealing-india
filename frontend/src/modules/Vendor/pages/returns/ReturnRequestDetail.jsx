@@ -10,7 +10,6 @@ import {
   FiCalendar,
   FiRefreshCw,
   FiShoppingBag,
-  FiDollarSign,
   FiAlertCircle,
   FiEdit,
 } from "react-icons/fi";
@@ -18,6 +17,7 @@ import { motion } from "framer-motion";
 import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
+import { IndianRupee } from "lucide-react";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { mockReturnRequests } from "../../../../data/adminMockData";
 import toast from "react-hot-toast";
@@ -427,7 +427,7 @@ const ReturnRequestDetail = () => {
           {/* Refund Summary */}
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
             <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <FiDollarSign className="text-primary-600 text-base" />
+              <IndianRupee className="text-primary-600 text-base" />
               Refund Summary
             </h2>
             <div className="space-y-2">

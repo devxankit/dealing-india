@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import {
   FiTrendingUp,
-  FiDollarSign,
   FiShoppingBag,
   FiUsers,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { IndianRupee } from "lucide-react";
 import { getVendorPerformanceMetrics } from "../services/performanceService";
 import toast from "react-hot-toast";
 
@@ -96,7 +96,7 @@ const PerformanceMetrics = () => {
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Revenue</p>
-            <FiDollarSign className="text-green-600" />
+            <IndianRupee className="text-green-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
             {loading ? "..." : formatPrice(metrics.totalRevenue)}

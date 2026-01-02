@@ -5,7 +5,6 @@ import {
   FiMail,
   FiPhone,
   FiShoppingBag,
-  FiDollarSign,
   FiClock,
   FiPackage,
 } from "react-icons/fi";
@@ -13,6 +12,7 @@ import { motion } from "framer-motion";
 import Badge from "../../../shared/components/Badge";
 import DataTable from "../../Admin/components/DataTable";
 import { formatPrice } from "../../../shared/utils/helpers";
+import { IndianRupee } from "lucide-react";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { useOrderStore } from "../../../shared/store/orderStore";
 import toast from "react-hot-toast";
@@ -167,7 +167,7 @@ const CustomerDetail = () => {
       textColor: "text-blue-700",
     },
     {
-      icon: FiDollarSign,
+      icon: IndianRupee,
       label: "Total Spent",
       value: formatPrice(customer.totalSpent),
       color: "bg-green-500",

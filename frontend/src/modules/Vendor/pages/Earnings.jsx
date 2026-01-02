@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  FiDollarSign,
   FiTrendingUp,
   FiClock,
   FiCheckCircle,
@@ -14,6 +13,7 @@ import Badge from "../../../shared/components/Badge";
 import ExportButton from "../../Admin/components/ExportButton";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../shared/utils/helpers";
+import { IndianRupee } from "lucide-react";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { useCommissionStore } from "../../../shared/store/commissionStore";
 import { useOrderStore } from "../../../shared/store/orderStore";
@@ -124,7 +124,7 @@ const Earnings = () => {
                 ? "border-purple-600 text-purple-600 font-semibold"
                 : "border-transparent text-gray-600 hover:text-gray-800"
                 }`}>
-              <FiDollarSign />
+              <IndianRupee />
               <span>Overview</span>
             </button>
             <button
@@ -167,7 +167,7 @@ const Earnings = () => {
                     <p className="text-sm text-green-700 font-medium">
                       Total Earnings
                     </p>
-                    <FiDollarSign className="text-green-600" />
+                    <IndianRupee className="text-green-600" />
                   </div>
                   <p className="text-2xl font-bold text-green-800">
                     {earningsSummary

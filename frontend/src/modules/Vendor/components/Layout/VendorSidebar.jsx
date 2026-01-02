@@ -6,13 +6,12 @@ import {
   FiPackage,
   FiShoppingBag,
   FiBarChart2,
-  FiDollarSign,
   FiSettings,
   FiUser,
   FiChevronDown,
   FiX,
   FiTrendingDown,
-
+  FiClock,
   FiMapPin,
   FiMessageCircle,
   FiRefreshCw,
@@ -30,12 +29,20 @@ import {
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
+import { IndianRupee } from "lucide-react";
 
 // Icon mapping for menu items
 const iconMap = {
   Dashboard: FiHome,
   Products: FiPackage,
   Order: FiShoppingBag,
+  "All orders": FiShoppingBag,
+  "Hold order": FiClock,
+  "Pending order": FiClock,
+  "Ready to ship": FiPackage,
+  "Dispatch order": FiTruck,
+  "Shipped seller": FiTruck,
+  "Canceled order": FiX,
   "Return Requests": FiRefreshCw,
   "Product Reviews": FiStar,
   "Stock Management": FiTrendingDown,
@@ -51,7 +58,7 @@ const iconMap = {
   "Inventory Reports": FiBarChart2,
   "Performance Metrics": FiTrendingUp,
   Analytics: FiBarChart2,
-  Earnings: FiDollarSign,
+  Earnings: IndianRupee,
   Settings: FiSettings,
   Profile: FiUser,
 };

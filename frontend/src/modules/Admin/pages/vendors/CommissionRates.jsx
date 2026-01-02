@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit, FiDollarSign } from "react-icons/fi";
+import { FiSearch, FiEdit } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";

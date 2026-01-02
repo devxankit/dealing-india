@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { FiDollarSign, FiTrendingUp, FiTrendingDown } from "react-icons/fi";
+import { FiTrendingUp, FiTrendingDown } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import ProfitLossChart from "../../components/Analytics/ProfitLossChart";
 import AnimatedSelect from "../../components/AnimatedSelect";
@@ -111,7 +112,7 @@ const ProfitLoss = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Net Profit</p>
-            <FiDollarSign className="text-blue-600" />
+            <IndianRupee className="text-blue-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
             {formatPrice(financials.netProfit)}

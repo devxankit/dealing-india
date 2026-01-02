@@ -6,7 +6,6 @@ import {
   FiPhone,
   FiMapPin,
   FiShoppingBag,
-  FiDollarSign,
   FiClock,
   FiEdit,
   FiPackage,
@@ -25,6 +24,7 @@ import Badge from "../../../../shared/components/Badge";
 import DataTable from "../../components/DataTable";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
+import { IndianRupee } from "lucide-react";
 
 // PDF Preview Component - Uses multiple methods for reliable PDF display
 const PdfPreviewFrame = ({ doc, index }) => {

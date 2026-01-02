@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { FiPackage, FiChevronRight, FiCalendar, FiDollarSign, FiShoppingBag } from 'react-icons/fi';
+import { FiPackage, FiChevronRight, FiCalendar, FiShoppingBag } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { motion } from 'framer-motion';
 
@@ -60,7 +61,7 @@ const MobileOrderCard = ({ order }) => {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600 flex items-center gap-1">
-              <FiDollarSign className="text-xs" />
+              <IndianRupee className="text-xs" />
               Total
             </span>
             <span className="text-base font-bold text-primary-600">

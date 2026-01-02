@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSave, FiUpload, FiX, FiPlus, FiTrash2, FiChevronRight, FiChevronLeft, FiCopy } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -12,6 +12,341 @@ import ColorPicker from "../../components/ColorPicker";
 import { createVendorProduct } from "../../services/productService";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
+
+// Component for creating attribute values inline (kept for backward compatibility)
+const AttributeValueInputField = ({ attributeIndex, attributeName, onCreateValue }) => {
+  const [newValue, setNewValue] = useState('');
+  const [creating, setCreating] = useState(false);
+  const inputRef = useRef(null);
+
+  const handleCreate = async () => {
+    if (!newValue.trim()) return;
+    
+    setCreating(true);
+    const valueId = await onCreateValue(attributeIndex, newValue);
+    if (valueId) {
+      setNewValue('');
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }
+    setCreating(false);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        ref={inputRef}
+        type="text"
+        value={newValue}
+        onChange={(e) => setNewValue(e.target.value)}
+        placeholder={`Add new ${attributeName} value`}
+        className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+        onKeyPress={(e) => {
+          if (e.key === 'Enter' && !creating) {
+            e.preventDefault();
+            handleCreate();
+          }
+        }}
+        disabled={creating}
+      />
+      <button
+        type="button"
+        onClick={handleCreate}
+        disabled={!newValue.trim() || creating}
+        className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+        {creating ? '...' : <FiPlus className="text-sm" />}
+      </button>
+    </div>
+  );
+};
+
+// Creatable Select Component - Auto-creates values when typed
+const CreatableSelect = ({ attributeIndex, attributeId, attributeName, values, selectedValue, onValueChange, onCreateValue, required }) => {
+  const [inputValue, setInputValue] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  // Find selected value label
+  const selectedLabel = values.find(v => v.id.toString() === selectedValue)?.value || '';
+
+  // Filter options based on input
+  const filteredOptions = values.filter(val => 
+    val.value.toLowerCase().includes(inputValue.toLowerCase())
+  );
+
+  // Check if input value exists
+  const inputExists = values.some(val => 
+    val.value.toLowerCase() === inputValue.trim().toLowerCase()
+  );
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    setShowDropdown(true);
+  };
+
+  const handleSelectOption = (valueId) => {
+    onValueChange(valueId);
+    setInputValue('');
+    setShowDropdown(false);
+    if (inputRef.current) {
+      inputRef.current.blur();
+    }
+  };
+
+  const handleCreateAndSelect = async () => {
+    if (!inputValue.trim() || inputExists || isCreating) return;
+    
+    setIsCreating(true);
+    try {
+      const valueId = await onCreateValue(attributeIndex, inputValue.trim());
+      if (valueId) {
+        handleSelectOption(valueId);
+        toast.success('Value created and selected');
+      }
+    } catch (error) {
+      // Error already handled in onCreateValue
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && inputValue.trim() && !inputExists) {
+      e.preventDefault();
+      handleCreateAndSelect();
+    } else if (e.key === 'Escape') {
+      setShowDropdown(false);
+      setInputValue('');
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
+          inputRef.current && !inputRef.current.contains(event.target)) {
+        setShowDropdown(false);
+        setInputValue('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue || selectedLabel}
+          onChange={handleInputChange}
+          onFocus={() => {
+            setShowDropdown(true);
+            if (selectedLabel) {
+              setInputValue('');
+            }
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder={`Type or select ${attributeName}`}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+          disabled={isCreating}
+        />
+        {isCreating && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-500 border-t-transparent"></div>
+          </div>
+        )}
+      </div>
+      
+      {showDropdown && (inputValue || filteredOptions.length > 0) && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+          {filteredOptions.length > 0 && (
+            <div className="py-1">
+              {filteredOptions.map((val) => (
+                <button
+                  key={val.id}
+                  type="button"
+                  onClick={() => handleSelectOption(val.id.toString())}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors ${
+                    selectedValue === val.id.toString() ? 'bg-primary-100 text-primary-700' : 'text-gray-700'
+                  }`}>
+                  {val.value}
+                </button>
+              ))}
+            </div>
+          )}
+          {inputValue.trim() && !inputExists && (
+            <button
+              type="button"
+              onClick={handleCreateAndSelect}
+              disabled={isCreating}
+              className="w-full text-left px-3 py-2 text-sm text-green-600 hover:bg-green-50 border-t border-gray-200 font-medium flex items-center gap-2">
+              <FiPlus className="text-xs" />
+              Create "{inputValue.trim()}"
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Creatable Multi-Select Component - Auto-creates values when typed
+const CreatableMultiSelect = ({ attributeIndex, attributeId, attributeName, values, selectedValues, onValuesChange, onCreateValue, required }) => {
+  const [inputValue, setInputValue] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  // Filter options based on input (exclude already selected)
+  const filteredOptions = values.filter(val => 
+    val.value.toLowerCase().includes(inputValue.toLowerCase()) &&
+    !selectedValues.includes(val.id.toString())
+  );
+
+  // Check if input value exists
+  const inputExists = values.some(val => 
+    val.value.toLowerCase() === inputValue.trim().toLowerCase()
+  );
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    setShowDropdown(true);
+  };
+
+  const handleToggleOption = (valueId) => {
+    const isSelected = selectedValues.includes(valueId);
+    const newValues = isSelected
+      ? selectedValues.filter(v => v !== valueId)
+      : [...selectedValues, valueId];
+    onValuesChange(newValues);
+  };
+
+  const handleCreateAndAdd = async () => {
+    if (!inputValue.trim() || inputExists || isCreating) return;
+    
+    setIsCreating(true);
+    try {
+      const valueId = await onCreateValue(attributeIndex, inputValue.trim());
+      if (valueId) {
+        onValuesChange([...selectedValues, valueId]);
+        setInputValue('');
+        toast.success('Value created and added');
+      }
+    } catch (error) {
+      // Error already handled in onCreateValue
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && inputValue.trim() && !inputExists) {
+      e.preventDefault();
+      handleCreateAndAdd();
+    } else if (e.key === 'Escape') {
+      setShowDropdown(false);
+      setInputValue('');
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
+          inputRef.current && !inputRef.current.contains(event.target)) {
+        setShowDropdown(false);
+        setInputValue('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="space-y-2">
+      {/* Selected values chips */}
+      {selectedValues.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selectedValues.map((valueId) => {
+            const val = values.find(v => v.id.toString() === valueId);
+            if (!val) return null;
+            return (
+              <span
+                key={valueId}
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs font-medium">
+                {val.value}
+                <button
+                  type="button"
+                  onClick={() => handleToggleOption(valueId)}
+                  className="hover:text-red-200">
+                  <FiX className="text-xs" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Input with dropdown */}
+      <div className="relative" ref={dropdownRef}>
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={handleInputChange}
+            onFocus={() => setShowDropdown(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={`Type to add ${attributeName} values`}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+            disabled={isCreating}
+          />
+          {isCreating && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-500 border-t-transparent"></div>
+            </div>
+          )}
+        </div>
+        
+        {showDropdown && (inputValue || filteredOptions.length > 0) && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+            {filteredOptions.length > 0 && (
+              <div className="py-1">
+                {filteredOptions.map((val) => (
+                  <button
+                    key={val.id}
+                    type="button"
+                    onClick={() => handleToggleOption(val.id.toString())}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors text-gray-700">
+                    {val.value}
+                  </button>
+                ))}
+              </div>
+            )}
+            {inputValue.trim() && !inputExists && (
+              <button
+                type="button"
+                onClick={handleCreateAndAdd}
+                disabled={isCreating}
+                className="w-full text-left px-3 py-2 text-sm text-green-600 hover:bg-green-50 border-t border-gray-200 font-medium flex items-center gap-2">
+                <FiPlus className="text-xs" />
+                Create "{inputValue.trim()}"
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const AddProduct = () => {
   const navigate = useNavigate();
@@ -78,7 +413,8 @@ const AddProduct = () => {
   const fetchAttributes = async () => {
     try {
       setLoadingAttributes(true);
-      const response = await api.get('/attributes');
+      // Use vendor endpoint to get vendor-specific attributes
+      const response = await api.get('/vendor/attributes');
       if (response.success && response.data?.attributes) {
         const activeAttributes = response.data.attributes
           .filter(attr => attr.status === 'active')
@@ -95,7 +431,8 @@ const AddProduct = () => {
         await Promise.all(
           activeAttributes.map(async (attr) => {
             try {
-              const valuesResponse = await api.get(`/attribute-values?attributeId=${attr.id}`);
+              // Use vendor endpoint to get vendor-specific attribute values
+              const valuesResponse = await api.get(`/vendor/attribute-values?attributeId=${attr.id}`);
               if (valuesResponse.success && valuesResponse.data?.attributeValues) {
                 const activeValues = valuesResponse.data.attributeValues
                   .filter(val => val.status === 'active')
@@ -148,7 +485,7 @@ const AddProduct = () => {
 
         if (!alreadyExists) {
           newAttributes.push({
-            attributeId: reqAttr.id || reqAttr._id,
+            attributeId: (reqAttr.id || reqAttr._id)?.toString(),
             attributeName: reqAttr.name,
             values: [],
           });
@@ -167,6 +504,9 @@ const AddProduct = () => {
 
   const [showAttributeSelector, setShowAttributeSelector] = useState(false);
   const [selectedAttributeToAdd, setSelectedAttributeToAdd] = useState('');
+  const [newAttributeName, setNewAttributeName] = useState('');
+  const [newAttributeType, setNewAttributeType] = useState('select');
+  const [creatingAttribute, setCreatingAttribute] = useState(false);
 
   // Get available attributes that haven't been added yet and match current category
   const getAvailableAttributesForSelection = () => {
@@ -188,19 +528,102 @@ const AddProduct = () => {
     );
   };
 
+  // Create new attribute on the fly
+  const handleCreateNewAttribute = async () => {
+    if (!newAttributeName.trim()) {
+      toast.error('Please enter an attribute name');
+      return;
+    }
+
+    // Check if attribute with same name already exists
+    const existingAttr = availableAttributes.find(
+      attr => attr.name.toLowerCase() === newAttributeName.trim().toLowerCase()
+    );
+
+    if (existingAttr) {
+      // Use existing attribute
+      setFormData({
+        ...formData,
+        attributes: [
+          ...formData.attributes,
+          {
+            attributeId: (existingAttr.id || existingAttr._id)?.toString(),
+            attributeName: existingAttr.name,
+            values: [],
+          },
+        ],
+      });
+      setNewAttributeName('');
+      setShowAttributeSelector(false);
+      toast.success('Attribute added');
+      return;
+    }
+
+    try {
+      setCreatingAttribute(true);
+      const payload = {
+        name: newAttributeName.trim(),
+        type: newAttributeType,
+        required: false,
+        status: 'active',
+        categoryIds: formData.categoryId ? [formData.categoryId] : [],
+      };
+
+      const response = await api.post('/vendor/attributes', payload);
+      
+      // API interceptor returns response.data, so response is already the data object
+      // Backend returns: { success: true, data: { attribute } }
+      const newAttr = response.data?.attribute || response.attribute;
+      
+      if (response.success && newAttr) {
+        // Ensure ID is a string
+        const attributeId = (newAttr._id || newAttr.id)?.toString();
+        
+        const attributeData = {
+          id: attributeId,
+          name: newAttr.name,
+          type: newAttr.type,
+          required: newAttr.required,
+          categoryIds: newAttr.categoryIds || [],
+        };
+
+        // Add to available attributes
+        setAvailableAttributes(prev => [...prev, attributeData]);
+        
+        // Add to form data with string attributeId
+        setFormData({
+          ...formData,
+          attributes: [
+            ...formData.attributes,
+            {
+              attributeId: attributeId,
+              attributeName: attributeData.name,
+              values: [],
+            },
+          ],
+        });
+
+        // Initialize empty values map for new attribute
+        setAttributeValuesMap(prev => ({
+          ...prev,
+          [attributeData.id]: [],
+        }));
+
+        setNewAttributeName('');
+        setNewAttributeType('select');
+        setShowAttributeSelector(false);
+        toast.success('Attribute created and added');
+      }
+    } catch (error) {
+      console.error('Error creating attribute:', error);
+      toast.error(error.response?.data?.message || 'Failed to create attribute');
+    } finally {
+      setCreatingAttribute(false);
+    }
+  };
+
   // Add attribute to product
   const handleAddAttribute = () => {
-    if (availableAttributes.length === 0) {
-      toast.error('No attributes available');
-      return;
-    }
-
-    const availableAttrs = getAvailableAttributesForSelection();
-    if (availableAttrs.length === 0) {
-      toast.error('All available attributes have been added');
-      return;
-    }
-
     setShowAttributeSelector(true);
   };
 
@@ -225,7 +648,7 @@ const AddProduct = () => {
       attributes: [
         ...formData.attributes,
         {
-          attributeId: selectedAttr.id || selectedAttr._id,
+          attributeId: (selectedAttr.id || selectedAttr._id)?.toString(),
           attributeName: selectedAttr.name,
           values: [],
         },
@@ -254,12 +677,114 @@ const AddProduct = () => {
     });
   };
 
-  useEffect(() => {
-    if (!vendorId) {
-      toast.error("Please log in to add products");
-      navigate("/vendor/login");
+  // Create new attribute value on the fly
+  const handleCreateAttributeValue = async (attributeIndex, newValue) => {
+    if (!newValue.trim()) {
+      toast.error('Please enter a value');
+      return;
     }
-  }, [vendorId, navigate]);
+
+    const attr = formData.attributes[attributeIndex];
+    if (!attr || !attr.attributeId) {
+      toast.error('Invalid attribute');
+      return null;
+    }
+
+    // Ensure attributeId is a string/ObjectId, not an object (declare outside try-catch for error handling)
+    let attributeIdValue = attr.attributeId;
+    
+    // Handle different attributeId formats
+    if (typeof attributeIdValue === 'object') {
+      attributeIdValue = attributeIdValue._id || attributeIdValue.id || attributeIdValue;
+    }
+    
+    // Convert to string
+    attributeIdValue = attributeIdValue?.toString();
+    
+    if (!attributeIdValue || attributeIdValue === 'undefined' || attributeIdValue === 'null') {
+      console.error('Invalid attribute ID:', { attr, attributeId: attr.attributeId });
+      toast.error('Invalid attribute ID. Please refresh and try again.');
+      return null;
+    }
+
+    // Validate value
+    const trimmedValue = newValue.trim();
+    if (!trimmedValue) {
+      toast.error('Please enter a value');
+      return null;
+    }
+
+    try {
+      const payload = {
+        attributeId: attributeIdValue,
+        value: trimmedValue,
+        displayOrder: 1,
+        status: 'active',
+      };
+
+      console.log('Creating attribute value with payload:', payload);
+
+      const response = await api.post('/vendor/attribute-values', payload);
+      
+      // API interceptor returns response.data, so response is already the data object
+      // Backend returns: { success: true, data: { value } }
+      const newValueData = response.data?.value || response.value;
+      
+      if (response.success && newValueData) {
+        const valueObj = {
+          id: newValueData._id || newValueData.id,
+          value: newValueData.value,
+          displayOrder: newValueData.displayOrder || 0,
+        };
+
+        // Add to attribute values map (use the correct attributeId)
+        setAttributeValuesMap(prev => ({
+          ...prev,
+          [attributeIdValue.toString()]: [...(prev[attributeIdValue.toString()] || []), valueObj],
+        }));
+
+        // Add to form data
+        const updatedAttributes = [...formData.attributes];
+        updatedAttributes[attributeIndex].values = [
+          ...updatedAttributes[attributeIndex].values,
+          valueObj.id.toString(),
+        ];
+        
+        setFormData({
+          ...formData,
+          attributes: updatedAttributes,
+        });
+
+        toast.success('Attribute value created and added');
+        return valueObj.id.toString();
+      }
+    } catch (error) {
+      console.error('Error creating attribute value:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create attribute value';
+      console.error('Error details:', {
+        payload: { attributeId: attributeIdValue, value: newValue.trim() },
+        attribute: attr,
+        error: errorMessage,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      toast.error(errorMessage);
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    // Only check vendorId on mount, not on every change
+    // This prevents unnecessary redirects when state updates
+    if (!vendorId && vendor === null) {
+      // Only redirect if vendor is actually null (not just loading)
+      const token = localStorage.getItem('vendor-token');
+      if (!token) {
+        toast.error("Please log in to add products");
+        navigate("/vendor/login");
+      }
+    }
+  }, []); // Empty dependency array - only run on mount
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -363,11 +888,20 @@ const AddProduct = () => {
   };
 
   const updateColorVariant = (index, updates) => {
-    setColorVariants((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], ...updates };
-      return updated;
-    });
+    try {
+      setColorVariants((prev) => {
+        if (!prev || !prev[index]) {
+          console.warn('Invalid color variant index:', index);
+          return prev;
+        }
+        const updated = [...prev];
+        updated[index] = { ...updated[index], ...updates };
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error updating color variant:', error);
+      toast.error('Failed to update color variant');
+    }
   };
 
   const handleColorThumbnailUpload = (index, file) => {
@@ -1061,17 +1595,23 @@ const AddProduct = () => {
                           value: colorVariant.colorCode || colorVariant.colorName.toLowerCase() 
                         }] : []}
                         onChange={(colors) => {
-                          const color = colors[colors.length - 1]; // Take the last selected color
-                          if (color) {
-                            updateColorVariant(colorIndex, {
-                              colorName: color.name,
-                              colorCode: color.value
-                            });
-                          } else {
-                            updateColorVariant(colorIndex, {
-                              colorName: "",
-                              colorCode: ""
-                            });
+                          try {
+                            const color = colors && colors.length > 0 ? colors[colors.length - 1] : null; // Take the last selected color
+                            if (color && color.name) {
+                              updateColorVariant(colorIndex, {
+                                colorName: color.name,
+                                colorCode: color.value || color.name.toLowerCase().replace(/\s+/g, '-')
+                              });
+                            } else {
+                              updateColorVariant(colorIndex, {
+                                colorName: "",
+                                colorCode: ""
+                              });
+                            }
+                          } catch (error) {
+                            console.error('Error handling color change:', error);
+                            // Don't show error toast to prevent user confusion
+                            // Just log the error silently
                           }
                         }}
                       />
@@ -1303,7 +1843,7 @@ const AddProduct = () => {
             <button
               type="button"
               onClick={handleAddAttribute}
-              disabled={loadingAttributes || getAvailableAttributesForSelection().length === 0}
+              disabled={loadingAttributes}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
               <FiPlus className="text-sm" />
               Add Attribute
@@ -1319,36 +1859,95 @@ const AddProduct = () => {
               {/* Attribute Selector Modal */}
               {showAttributeSelector && (
                 <div className="mb-3 p-3 border border-primary-300 rounded-lg bg-primary-50">
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-gray-700">
-                      Select Attribute to Add
-                    </label>
-                    <AnimatedSelect
-                      value={selectedAttributeToAdd}
-                      onChange={(e) => setSelectedAttributeToAdd(e.target.value)}
-                      placeholder="Choose an attribute"
-                      searchable={true}
-                      options={[
-                        { value: '', label: 'Choose an attribute' },
-                        ...getAvailableAttributesForSelection().map(attr => ({
-                          value: (attr.id || attr._id).toString(),
-                          label: attr.name,
-                        })),
-                      ]}
-                    />
+                  <div className="space-y-3">
+                    {/* Select Existing Attribute */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Select Existing Attribute
+                      </label>
+                      <AnimatedSelect
+                        value={selectedAttributeToAdd}
+                        onChange={(e) => setSelectedAttributeToAdd(e.target.value)}
+                        placeholder="Choose an attribute"
+                        searchable={true}
+                        options={[
+                          { value: '', label: 'Choose an attribute' },
+                          ...getAvailableAttributesForSelection().map(attr => ({
+                            value: (attr.id || attr._id).toString(),
+                            label: attr.name,
+                          })),
+                        ]}
+                      />
+                    </div>
+
+                    {/* Divider */}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-primary-300"></div>
+                      </div>
+                      <div className="relative flex justify-center text-xs">
+                        <span className="bg-primary-50 px-2 text-gray-500">OR</span>
+                      </div>
+                    </div>
+
+                    {/* Create New Attribute */}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Create New Attribute
+                      </label>
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={newAttributeName}
+                          onChange={(e) => setNewAttributeName(e.target.value)}
+                          placeholder="Enter attribute name (e.g., Material, Brand)"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && newAttributeName.trim()) {
+                              handleCreateNewAttribute();
+                            }
+                          }}
+                        />
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-gray-600">Type:</label>
+                          <select
+                            value={newAttributeType}
+                            onChange={(e) => setNewAttributeType(e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="select">Select</option>
+                            <option value="text">Text</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleConfirmAddAttribute}
-                        disabled={!selectedAttributeToAdd}
-                        className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-                        Add
-                      </button>
+                      {selectedAttributeToAdd && (
+                        <button
+                          type="button"
+                          onClick={handleConfirmAddAttribute}
+                          className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold">
+                          Add Selected
+                        </button>
+                      )}
+                      {newAttributeName.trim() && (
+                        <button
+                          type="button"
+                          onClick={handleCreateNewAttribute}
+                          disabled={creatingAttribute}
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                          {creatingAttribute ? 'Creating...' : 'Create & Add'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
                           setShowAttributeSelector(false);
                           setSelectedAttributeToAdd('');
+                          setNewAttributeName('');
+                          setNewAttributeType('select');
                         }}
                         className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-xs font-semibold">
                         Cancel
@@ -1385,49 +1984,34 @@ const AddProduct = () => {
                           </button>
                         </div>
 
-                        {values.length === 0 ? (
-                          <p className="text-xs text-gray-500">No values available for this attribute</p>
-                        ) : (
+                        <div className="space-y-2">
                           <div className="space-y-2">
                             {attribute?.type === 'select' ? (
-                              <AnimatedSelect
-                                value={attr.values[0] || ''}
-                                onChange={(e) => {
-                                  handleAttributeValueChange(index, e.target.value ? [e.target.value] : []);
+                              <CreatableSelect
+                                attributeIndex={index}
+                                attributeId={attr.attributeId}
+                                attributeName={attr.attributeName}
+                                values={values}
+                                selectedValue={attr.values[0] || ''}
+                                onValueChange={(valueId) => {
+                                  handleAttributeValueChange(index, valueId ? [valueId] : []);
                                 }}
-                                placeholder={`Select ${attr.attributeName}`}
-                                options={[
-                                  { value: '', label: `Select ${attr.attributeName}` },
-                                  ...values.map(val => ({
-                                    value: val.id.toString(),
-                                    label: val.value,
-                                  })),
-                                ]}
+                                onCreateValue={handleCreateAttributeValue}
                                 required={attribute?.required}
                               />
                             ) : (
-                              <div className="flex flex-wrap gap-2">
-                                {values.map((val) => {
-                                  const isSelected = attr.values.includes(val.id.toString());
-                                  return (
-                                    <button
-                                      key={val.id}
-                                      type="button"
-                                      onClick={() => {
-                                        const newValues = isSelected
-                                          ? attr.values.filter(v => v !== val.id.toString())
-                                          : [...attr.values, val.id.toString()];
-                                        handleAttributeValueChange(index, newValues);
-                                      }}
-                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isSelected
-                                        ? 'bg-primary-600 text-white hover:bg-primary-700'
-                                        : 'bg-white text-gray-700 border border-gray-300 hover:border-primary-500 hover:bg-primary-50'
-                                        }`}>
-                                      {val.value}
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                              <CreatableMultiSelect
+                                attributeIndex={index}
+                                attributeId={attr.attributeId}
+                                attributeName={attr.attributeName}
+                                values={values}
+                                selectedValues={attr.values}
+                                onValuesChange={(valueIds) => {
+                                  handleAttributeValueChange(index, valueIds);
+                                }}
+                                onCreateValue={handleCreateAttributeValue}
+                                required={attribute?.required}
+                              />
                             )}
                             {attr.values.length > 0 && (
                               <p className="text-xs text-gray-500">
@@ -1435,7 +2019,7 @@ const AddProduct = () => {
                               </p>
                             )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     );
                   })}

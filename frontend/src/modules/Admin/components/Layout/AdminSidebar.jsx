@@ -34,7 +34,6 @@ const iconMap = {
   Orders: FiShoppingBag,
   "Return Requests": FiRotateCcw,
   Products: FiPackage,
-  "Attribute Management": FiLayers,
   Categories: FiGrid,
   Brands: FiTag,
   Customers: FiUsers,
@@ -65,11 +64,6 @@ const getChildRoute = (parentRoute, childName) => {
       "Tax & Pricing": "/admin/products/tax-pricing",
       "Product Ratings": "/admin/products/product-ratings",
       "Product FAQs": "/admin/products/product-faqs",
-    },
-    "/admin/attributes": {
-      Attributes: "/admin/attributes/attributes",
-      "Attribute Values": "/admin/attributes/attribute-values",
-      "Attribute Sets": "/admin/attributes/attribute-sets",
     },
     "/admin/categories": {
       "Manage Categories": "/admin/categories/manage-categories",

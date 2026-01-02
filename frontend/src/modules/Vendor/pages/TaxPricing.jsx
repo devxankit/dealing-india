@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { FiDollarSign, FiPackage } from "react-icons/fi";
+import { FiPackage } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import { formatPrice } from "../../../shared/utils/helpers";
@@ -191,7 +192,7 @@ const TaxPricing = () => {
       className="space-y-6">
       <div className="lg:hidden">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-          <FiDollarSign className="text-primary-600" />
+          <IndianRupee className="text-primary-600" />
           Tax & Pricing Management
         </h1>
         <p className="text-sm sm:text-base text-gray-600">

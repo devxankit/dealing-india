@@ -5,9 +5,13 @@ const attributeSetSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, 'Attribute set name is required'],
-      unique: true,
       trim: true,
       maxlength: [100, 'Attribute set name cannot exceed 100 characters'],
+    },
+    vendorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vendor',
+      required: [true, 'Vendor ID is required'],
     },
     attributes: {
       type: [String],
@@ -31,7 +35,8 @@ const attributeSetSchema = new mongoose.Schema(
 );
 
 // Indexes (define once, not in schema fields)
-attributeSetSchema.index({ name: 1 });
+attributeSetSchema.index({ name: 1, vendorId: 1 }, { unique: true });
+attributeSetSchema.index({ vendorId: 1 });
 attributeSetSchema.index({ status: 1 });
 
 const AttributeSet = mongoose.model('AttributeSet', attributeSetSchema);

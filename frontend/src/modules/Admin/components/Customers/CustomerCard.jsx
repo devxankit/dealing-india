@@ -1,4 +1,5 @@
-import { FiMail, FiPhone, FiShoppingBag, FiDollarSign, FiEye } from 'react-icons/fi';
+import { FiMail, FiPhone, FiShoppingBag, FiEye } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import Badge from '../../../../shared/components/Badge';
 import { formatCurrency } from '../../utils/adminHelpers';
 
@@ -34,7 +35,7 @@ const CustomerCard = ({ customer, onView }) => {
         </div>
         <div>
           <div className="flex items-center gap-2 text-gray-600 mb-1">
-            <FiDollarSign className="text-sm" />
+            <IndianRupee className="text-sm" />
             <span className="text-xs">Total Spent</span>
           </div>
           <p className="font-bold text-gray-800">

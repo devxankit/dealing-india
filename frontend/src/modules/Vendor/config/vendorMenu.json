@@ -11,8 +11,16 @@
       "Manage Products",
       "Add Product",
       "Product FAQs",
-      "Tax & Pricing",
-      "Product Attributes"
+      "Tax & Pricing"
+    ]
+  },
+  {
+    "title": "Attribute Management",
+    "route": "/vendor/attributes",
+    "children": [
+      "Attributes",
+      "Attribute Values",
+      "Attribute Sets"
     ]
   },
   {
@@ -27,6 +35,41 @@
       "Shipped seller",
       "Canceled order"
     ]
+  },
+  {
+    "title": "All orders",
+    "route": "/vendor/orders/all-orders",
+    "children": []
+  },
+  {
+    "title": "Hold order",
+    "route": "/vendor/orders/hold-order",
+    "children": []
+  },
+  {
+    "title": "Pending order",
+    "route": "/vendor/orders/pending-order",
+    "children": []
+  },
+  {
+    "title": "Ready to ship",
+    "route": "/vendor/orders/ready-to-ship",
+    "children": []
+  },
+  {
+    "title": "Dispatch order",
+    "route": "/vendor/orders/dispatch-order",
+    "children": []
+  },
+  {
+    "title": "Shipped seller",
+    "route": "/vendor/orders/shipped-seller",
+    "children": []
+  },
+  {
+    "title": "Canceled order",
+    "route": "/vendor/orders/canceled-order",
+    "children": []
   },
   {
     "title": "Reels",

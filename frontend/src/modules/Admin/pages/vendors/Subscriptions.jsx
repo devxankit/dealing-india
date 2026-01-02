@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiTrendingUp, FiUsers, FiDollarSign, FiSettings, FiActivity } from 'react-icons/fi';
+import { FiTrendingUp, FiUsers, FiSettings, FiActivity } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import DataTable from '../../components/DataTable';
 import StatsCards from '../../components/Analytics/StatsCards';
 import RevenueChart from '../../components/Analytics/RevenueChart';
@@ -99,7 +100,7 @@ const Subscriptions = () => {
   }, []);
 
   const stats = [
-    { title: 'Total Revenue', value: `$${analytics?.revenue.toLocaleString()}`, icon: <FiDollarSign />, color: 'blue' },
+    { title: 'Total Revenue', value: `₹${analytics?.revenue.toLocaleString()}`, icon: <IndianRupee />, color: 'blue' },
     { title: 'Active Subscriptions', value: analytics?.activeSubscriptions, icon: <FiUsers />, color: 'green' },
     { title: 'Monthly Growth', value: '+12%', icon: <FiTrendingUp />, color: 'purple' },
     { title: 'Churn Rate', value: '2.4%', icon: <FiActivity />, color: 'red' }

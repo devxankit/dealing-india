@@ -3,11 +3,13 @@ import Attribute from '../models/Attribute.model.js';
 
 /**
  * Get all attribute sets with populated attribute names
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Array>} Array of attribute sets
  */
-export const getAllAttributeSets = async () => {
+export const getAllAttributeSets = async (vendorId) => {
   try {
-    const attributeSets = await AttributeSet.find().sort({ name: 1 }).lean();
+    const query = vendorId ? { vendorId } : {};
+    const attributeSets = await AttributeSet.find(query).sort({ name: 1 }).lean();
     
     // Populate attribute names
     const populatedSets = await Promise.all(
@@ -17,7 +19,7 @@ export const getAllAttributeSets = async () => {
           const attributeNames = await Promise.all(
             set.attributes.map(async (attrId) => {
               try {
-                const attr = await Attribute.findById(attrId).select('name').lean();
+                const attr = await Attribute.findOne({ _id: attrId, vendorId }).select('name').lean();
                 return attr ? attr.name : attrId; // Return name if found, else return ID
               } catch (error) {
                 return attrId; // Return ID if error
@@ -47,11 +49,15 @@ export const getAllAttributeSets = async () => {
 /**
  * Get attribute set by ID with populated attribute names
  * @param {String} id - Attribute set ID
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Attribute set object
  */
-export const getAttributeSetById = async (id) => {
+export const getAttributeSetById = async (id, vendorId) => {
   try {
-    const attributeSet = await AttributeSet.findById(id).lean();
+    const query = { _id: id };
+    if (vendorId) query.vendorId = vendorId;
+
+    const attributeSet = await AttributeSet.findOne(query).lean();
     if (!attributeSet) {
       const err = new Error('Attribute set not found');
       err.status = 404;
@@ -63,7 +69,7 @@ export const getAttributeSetById = async (id) => {
       const attributeNames = await Promise.all(
         attributeSet.attributes.map(async (attrId) => {
           try {
-            const attr = await Attribute.findById(attrId).select('name').lean();
+            const attr = await Attribute.findOne({ _id: attrId, vendorId }).select('name').lean();
             return attr ? attr.name : attrId;
           } catch (error) {
             return attrId;
@@ -90,9 +96,10 @@ export const getAttributeSetById = async (id) => {
 /**
  * Helper function to convert attribute names/IDs to attribute IDs
  * @param {Array} attributes - Array of attribute names or IDs
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Array>} Array of attribute IDs
  */
-const convertAttributesToIds = async (attributes) => {
+const convertAttributesToIds = async (attributes, vendorId) => {
   if (!Array.isArray(attributes) || attributes.length === 0) {
     return [];
   }
@@ -103,14 +110,15 @@ const convertAttributesToIds = async (attributes) => {
       
       // Check if it's already a valid MongoDB ObjectId (24 hex characters)
       if (typeof trimmedAttr === 'string' && /^[0-9a-fA-F]{24}$/.test(trimmedAttr)) {
-        // It's an ID, verify it exists
-        const exists = await Attribute.findById(trimmedAttr);
+        // It's an ID, verify it exists and belongs to this vendor
+        const exists = await Attribute.findOne({ _id: trimmedAttr, vendorId });
         return exists ? trimmedAttr : null;
       }
       
-      // It's a name, find the attribute by name
+      // It's a name, find the attribute by name for THIS vendor
       const attrDoc = await Attribute.findOne({
-        name: { $regex: new RegExp(`^${trimmedAttr}$`, 'i') }
+        name: { $regex: new RegExp(`^${trimmedAttr}$`, 'i') },
+        vendorId
       });
       return attrDoc ? attrDoc._id.toString() : null;
     })
@@ -122,14 +130,21 @@ const convertAttributesToIds = async (attributes) => {
 /**
  * Create new attribute set
  * @param {Object} data - Attribute set data
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Created attribute set
  */
-export const createAttributeSet = async (data) => {
+export const createAttributeSet = async (data, vendorId) => {
   try {
     const { name, attributes = [], status = 'active' } = data;
 
     if (!name) {
       const err = new Error('Attribute set name is required');
+      err.status = 400;
+      throw err;
+    }
+
+    if (!vendorId) {
+      const err = new Error('Vendor ID is required');
       err.status = 400;
       throw err;
     }
@@ -140,9 +155,10 @@ export const createAttributeSet = async (data) => {
       throw err;
     }
 
-    // Check if attribute set with same name exists
+    // Check if attribute set with same name exists for THIS vendor
     const existingSet = await AttributeSet.findOne({
       name: { $regex: new RegExp(`^${name}$`, 'i') },
+      vendorId
     });
     if (existingSet) {
       const err = new Error('Attribute set with this name already exists');
@@ -150,8 +166,8 @@ export const createAttributeSet = async (data) => {
       throw err;
     }
 
-    // Convert attribute names/IDs to IDs
-    const attributeIds = await convertAttributesToIds(attributes);
+    // Convert attribute names/IDs to IDs for THIS vendor
+    const attributeIds = await convertAttributesToIds(attributes, vendorId);
     
     if (attributeIds.length === 0) {
       const err = new Error('No valid attributes found. Please provide valid attribute names or IDs.');
@@ -161,6 +177,7 @@ export const createAttributeSet = async (data) => {
 
     const attributeSet = await AttributeSet.create({
       name: name.trim(),
+      vendorId,
       attributes: attributeIds,
       status,
     });
@@ -180,21 +197,23 @@ export const createAttributeSet = async (data) => {
  * Update attribute set
  * @param {String} id - Attribute set ID
  * @param {Object} data - Update data
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Updated attribute set
  */
-export const updateAttributeSet = async (id, data) => {
+export const updateAttributeSet = async (id, data, vendorId) => {
   try {
-    const attributeSet = await AttributeSet.findById(id);
+    const attributeSet = await AttributeSet.findOne({ _id: id, vendorId });
     if (!attributeSet) {
       const err = new Error('Attribute set not found');
       err.status = 404;
       throw err;
     }
 
-    // If name is being updated, check for duplicates
+    // If name is being updated, check for duplicates for THIS vendor
     if (data.name && data.name.trim().toLowerCase() !== attributeSet.name.toLowerCase()) {
       const existingSet = await AttributeSet.findOne({
         name: { $regex: new RegExp(`^${data.name.trim()}$`, 'i') },
+        vendorId,
         _id: { $ne: id },
       });
       if (existingSet) {
@@ -212,8 +231,8 @@ export const updateAttributeSet = async (id, data) => {
         throw err;
       }
       
-      // Convert attribute names/IDs to IDs
-      const attributeIds = await convertAttributesToIds(data.attributes);
+      // Convert attribute names/IDs to IDs for THIS vendor
+      const attributeIds = await convertAttributesToIds(data.attributes, vendorId);
       
       if (attributeIds.length === 0) {
         const err = new Error('No valid attributes found. Please provide valid attribute names or IDs.');
@@ -243,11 +262,12 @@ export const updateAttributeSet = async (id, data) => {
 /**
  * Delete attribute set
  * @param {String} id - Attribute set ID
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Deletion result
  */
-export const deleteAttributeSet = async (id) => {
+export const deleteAttributeSet = async (id, vendorId) => {
   try {
-    const attributeSet = await AttributeSet.findByIdAndDelete(id);
+    const attributeSet = await AttributeSet.findOneAndDelete({ _id: id, vendorId });
     if (!attributeSet) {
       const err = new Error('Attribute set not found');
       err.status = 404;
