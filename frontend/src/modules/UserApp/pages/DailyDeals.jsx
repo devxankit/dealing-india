@@ -6,14 +6,15 @@ import MobileLayout from "../components/Layout/MobileLayout";
 import MobileFilterPanel from "../components/Mobile/MobileFilterPanel";
 import ProductCard from '../../../shared/components/ProductCard';
 import ProductListItem from '../components/Mobile/ProductListItem';
-import { getDailyDeals } from '../../../data/products';
+import { useCampaignStore } from '../../../shared/store/campaignStore';
 import PageTransition from '../../../shared/components/PageTransition';
 import useInfiniteScroll from '../../../shared/hooks/useInfiniteScroll';
+import toast from 'react-hot-toast';
 
 const MobileDailyDeals = () => {
   const navigate = useNavigate();
-  // Memoize the items array to prevent infinite loops in useInfiniteScroll
-  const allDeals = useMemo(() => getDailyDeals(), []);
+  const [allDeals, setAllDeals] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [filters, setFilters] = useState({
@@ -22,6 +23,108 @@ const MobileDailyDeals = () => {
     maxPrice: '',
     minRating: '',
   });
+
+  // Transform product to match frontend format
+  const transformProduct = (product) => {
+    const vendor = product.vendorId;
+    const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+      ? {
+          id: (vendor._id || vendor.id).toString(),
+          _id: vendor._id || vendor.id,
+          storeName: vendor.storeName || vendor.businessName || vendor.name,
+          businessName: vendor.businessName,
+          name: vendor.name,
+          storeLogo: vendor.storeLogo || vendor.logo,
+          isVerified: vendor.isVerified !== undefined 
+            ? vendor.isVerified 
+            : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+        }
+      : null;
+    
+    return {
+      id: product._id || product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice || product.price,
+      image: product.image,
+      images: product.images || [],
+      unit: product.unit || 'Piece',
+      rating: product.rating || 0,
+      reviewCount: product.reviewCount || 0,
+      stock: product.stock,
+      stockQuantity: product.stockQuantity,
+      vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+      vendor: vendorData,
+      flashSale: product.flashSale || false,
+    };
+  };
+
+  // Fetch daily deals from campaigns
+  useEffect(() => {
+    const fetchDailyDeals = async () => {
+      try {
+        setIsLoadingProducts(true);
+        const campaignStore = useCampaignStore.getState();
+        
+        // Fetch daily_deal campaigns
+        await campaignStore.initializePublic({ type: 'daily_deal', limit: 100 });
+        const campaigns = campaignStore.getPublicCampaignsByType('daily_deal');
+        
+        // Collect all products from all daily deal campaigns
+        let allProducts = [];
+        campaigns.forEach(campaign => {
+          if (campaign.products && campaign.products.length > 0) {
+            const campaignProducts = campaign.products.map(product => {
+              // First transform the product to ensure proper format
+              const transformedProduct = transformProduct(product);
+              
+              // Apply campaign discount
+              let discountedPrice = transformedProduct.price;
+              let originalPrice = transformedProduct.originalPrice || transformedProduct.price;
+              
+              if (campaign.discountType === 'percentage' && campaign.discountValue) {
+                discountedPrice = transformedProduct.price * (1 - campaign.discountValue / 100);
+                originalPrice = transformedProduct.price;
+              } else if (campaign.discountType === 'fixed' && campaign.discountValue) {
+                discountedPrice = Math.max(0, transformedProduct.price - campaign.discountValue);
+                originalPrice = transformedProduct.price;
+              } else if (campaign.discount) {
+                // Fallback for old format
+                const discountValue = campaign.discount;
+                discountedPrice = transformedProduct.price * (1 - discountValue / 100);
+                originalPrice = transformedProduct.price;
+              }
+              
+              return {
+                ...transformedProduct,
+                price: discountedPrice,
+                originalPrice: originalPrice,
+              };
+            });
+            allProducts = [...allProducts, ...campaignProducts];
+          }
+        });
+        
+        // Remove duplicates based on product ID
+        const uniqueProducts = allProducts.reduce((acc, product) => {
+          if (!acc.find(p => p.id === product.id)) {
+            acc.push(product);
+          }
+          return acc;
+        }, []);
+        
+        setAllDeals(uniqueProducts);
+      } catch (error) {
+        console.error('Error fetching daily deals from campaigns:', error);
+        toast.error('Failed to load daily deals');
+        setAllDeals([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchDailyDeals();
+  }, []);
 
   const filteredProducts = useMemo(() => {
     let result = allDeals;
@@ -156,7 +259,13 @@ const MobileDailyDeals = () => {
 
           {/* Products List */}
           <div className="px-4 py-4">
-            {filteredProducts.length === 0 ? (
+            {isLoadingProducts ? (
+              <div className="text-center py-12">
+                <div className="text-6xl text-gray-300 mx-auto mb-4 animate-pulse">⚡</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Loading daily deals...</h3>
+                <p className="text-gray-600">Please wait</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl text-gray-300 mx-auto mb-4">⚡</div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">No deals found</h3>

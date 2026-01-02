@@ -5,6 +5,8 @@ import {
   FiTag,
   FiCopy,
   FiCheck,
+  FiCalendar,
+  FiPackage,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
@@ -15,15 +17,20 @@ import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { getVendorPromotions } from "../services/promotionService";
+import { getVendorCampaigns } from "../services/campaignService";
 import toast from "react-hot-toast";
 
 const Promotions = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
+  const [activeTab, setActiveTab] = useState("campaigns"); // "campaigns" or "promocodes"
   const [promotions, setPromotions] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [copiedCode, setCopiedCode] = useState(null);
@@ -32,22 +39,30 @@ const Promotions = () => {
 
   useEffect(() => {
     if (vendorId) {
-      loadPromotions();
+      if (activeTab === "campaigns") {
+        loadCampaigns();
+      } else {
+        loadPromotions();
+      }
     }
-  }, [vendorId, currentPage, statusFilter]);
+  }, [vendorId, currentPage, statusFilter, typeFilter, activeTab]);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (currentPage === 1) {
-        loadPromotions();
+        if (activeTab === "campaigns") {
+          loadCampaigns();
+        } else {
+          loadPromotions();
+        }
       } else {
         setCurrentPage(1);
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, activeTab]);
 
   const loadPromotions = async () => {
     if (!vendorId) return;
@@ -81,6 +96,39 @@ const Promotions = () => {
     }
   };
 
+  const loadCampaigns = async () => {
+    if (!vendorId) return;
+
+    setCampaignsLoading(true);
+    try {
+      const response = await getVendorCampaigns({
+        search: searchQuery,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        type: typeFilter !== "all" ? typeFilter : undefined,
+        page: currentPage,
+        limit: 10,
+      });
+
+      // Handle response structure
+      if (response?.data?.campaigns) {
+        setCampaigns(response.data.campaigns);
+        setTotalPages(response.pagination?.pages || 1);
+      } else if (Array.isArray(response)) {
+        setCampaigns(response);
+        setTotalPages(1);
+      } else {
+        setCampaigns([]);
+        setTotalPages(1);
+      }
+    } catch (error) {
+      console.error("Error loading campaigns:", error);
+      toast.error("Failed to load campaigns");
+      setCampaigns([]);
+    } finally {
+      setCampaignsLoading(false);
+    }
+  };
+
   // Promotions are already filtered by API
   const filteredPromotions = promotions;
 
@@ -98,11 +146,13 @@ const Promotions = () => {
       active: "success",
       inactive: "warning",
       expired: "error",
+      upcoming: "warning",
     };
     return statusMap[status] || "warning";
   };
 
-  const columns = [
+  // Columns for PromoCodes
+  const promoCodeColumns = [
     {
       key: "code",
       label: "Promo Code",
@@ -180,6 +230,78 @@ const Promotions = () => {
     },
   ];
 
+  // Columns for Campaigns
+  const campaignColumns = [
+    {
+      key: "name",
+      label: "Campaign Name",
+      sortable: true,
+      render: (value) => (
+        <div className="flex items-center gap-2">
+          <FiTag className="text-primary-600" />
+          <span className="font-semibold text-gray-800">{value}</span>
+        </div>
+      ),
+    },
+    {
+      key: "type",
+      label: "Type",
+      sortable: true,
+      render: (value) => (
+        <Badge variant="info">
+          {value ? value.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "N/A"}
+        </Badge>
+      ),
+    },
+    {
+      key: "discount",
+      label: "Discount",
+      sortable: true,
+      render: (value, row) => (
+        <span className="font-bold text-green-600">
+          {value}%
+        </span>
+      ),
+    },
+    {
+      key: "productCount",
+      label: "Products",
+      sortable: true,
+      render: (value) => (
+        <div className="flex items-center gap-1">
+          <FiPackage className="text-gray-500" />
+          <span className="font-semibold">{value || 0}</span>
+        </div>
+      ),
+    },
+    {
+      key: "startDate",
+      label: "Period",
+      sortable: true,
+      render: (value, row) => (
+        <div className="text-sm">
+          <div className="flex items-center gap-1">
+            <FiCalendar className="text-gray-400 text-xs" />
+            <p>{new Date(value).toLocaleDateString()}</p>
+          </div>
+          <p className="text-xs text-gray-500">
+            to {new Date(row.endDate).toLocaleDateString()}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value) => (
+        <Badge variant={getStatusVariant(value)}>
+          {value ? value.charAt(0).toUpperCase() + value.slice(1) : "N/A"}
+        </Badge>
+      ),
+    },
+  ];
+
   if (!vendorId) {
     return (
       <div className="text-center py-12">
@@ -197,13 +319,43 @@ const Promotions = () => {
         <div className="lg:hidden">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2">
             <FiTag className="text-primary-600" />
-            Promotions & Offers
+            Promotions & Campaigns
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            Manage discounts and promotional offers
+            View active campaigns and promotional offers
           </p>
         </div>
-        {/* Vendors can only view promotions, not create them */}
+        {/* Vendors can only view promotions and campaigns, not create them */}
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-xl p-1 shadow-sm border border-gray-200">
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setActiveTab("campaigns");
+              setCurrentPage(1);
+            }}
+            className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-colors ${
+              activeTab === "campaigns"
+                ? "bg-primary-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}>
+            Campaigns ({campaigns.length})
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("promocodes");
+              setCurrentPage(1);
+            }}
+            className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-colors ${
+              activeTab === "promocodes"
+                ? "bg-primary-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}>
+            Promo Codes ({promotions.length})
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -228,57 +380,111 @@ const Promotions = () => {
               { value: "active", label: "Active" },
               { value: "inactive", label: "Inactive" },
               { value: "expired", label: "Expired" },
+              { value: "upcoming", label: "Upcoming" },
             ]}
             className="w-full sm:w-auto min-w-[140px]"
           />
 
+          {activeTab === "campaigns" && (
+            <AnimatedSelect
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              options={[
+                { value: "all", label: "All Types" },
+                { value: "festival", label: "Festival" },
+                { value: "flash_sale", label: "Flash Sale" },
+                { value: "daily_deal", label: "Daily Deal" },
+                { value: "special_offer", label: "Special Offer" },
+              ]}
+              className="w-full sm:w-auto min-w-[140px]"
+            />
+          )}
+
           <div className="w-full sm:w-auto">
             <ExportButton
-              data={filteredPromotions}
-              headers={[
-                { label: "Code", accessor: (row) => row.code },
-                { label: "Type", accessor: (row) => row.type },
-                {
-                  label: "Discount",
-                  accessor: (row) =>
-                    row.type === "percentage"
-                      ? `${row.value}%`
-                      : formatPrice(row.value),
-                },
-                { label: "Status", accessor: (row) => row.status },
-                {
-                  label: "Usage",
-                  accessor: (row) =>
-                    `${row.usedCount || 0} / ${row.usageLimit === -1 ? "∞" : (row.usageLimit || "∞")}`,
-                },
-              ]}
-              filename="vendor-promotions"
+              data={activeTab === "campaigns" ? campaigns : promotions}
+              headers={
+                activeTab === "campaigns"
+                  ? [
+                      { label: "Name", accessor: (row) => row.name },
+                      { label: "Type", accessor: (row) => row.type?.replace(/_/g, " ") || "N/A" },
+                      { label: "Discount", accessor: (row) => `${row.discount || row.discountValue}%` },
+                      { label: "Products", accessor: (row) => row.productCount || 0 },
+                      { label: "Status", accessor: (row) => row.status },
+                      { label: "Start Date", accessor: (row) => new Date(row.startDate).toLocaleDateString() },
+                      { label: "End Date", accessor: (row) => new Date(row.endDate).toLocaleDateString() },
+                    ]
+                  : [
+                      { label: "Code", accessor: (row) => row.code },
+                      { label: "Type", accessor: (row) => row.type },
+                      {
+                        label: "Discount",
+                        accessor: (row) =>
+                          row.type === "percentage"
+                            ? `${row.value}%`
+                            : formatPrice(row.value),
+                      },
+                      { label: "Status", accessor: (row) => row.status },
+                      {
+                        label: "Usage",
+                        accessor: (row) =>
+                          `${row.usedCount || 0} / ${row.usageLimit === -1 ? "∞" : (row.usageLimit || "∞")}`,
+                      },
+                    ]
+              }
+              filename={activeTab === "campaigns" ? "vendor-campaigns" : "vendor-promotions"}
             />
           </div>
         </div>
       </div>
 
-      {/* Promotions Table */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="mt-4 text-gray-500">Loading promotions...</p>
-        </div>
-      ) : filteredPromotions.length > 0 ? (
-        <DataTable
-          data={filteredPromotions}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
+      {/* Campaigns or Promotions Table */}
+      {activeTab === "campaigns" ? (
+        campaignsLoading ? (
+          <div className="text-center py-12">
+            <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-500">Loading campaigns...</p>
+          </div>
+        ) : campaigns.length > 0 ? (
+          <DataTable
+            data={campaigns}
+            columns={campaignColumns}
+            pagination={true}
+            itemsPerPage={10}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        ) : (
+          <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+            <FiTag className="text-6xl text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No campaigns available</p>
+            <p className="text-sm text-gray-400 mt-2">Campaigns are created by admin</p>
+          </div>
+        )
       ) : (
-        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
-          <p className="text-gray-500">No promotions available</p>
-          <p className="text-sm text-gray-400 mt-2">Promotions are created by admin</p>
-        </div>
+        loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-500">Loading promotions...</p>
+          </div>
+        ) : promotions.length > 0 ? (
+          <DataTable
+            data={promotions}
+            columns={promoCodeColumns}
+            pagination={true}
+            itemsPerPage={10}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        ) : (
+          <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+            <FiTag className="text-6xl text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No promotions available</p>
+            <p className="text-sm text-gray-400 mt-2">Promotions are created by admin</p>
+          </div>
+        )
       )}
     </motion.div>
   );

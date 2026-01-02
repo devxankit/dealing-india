@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { FiClock, FiGrid, FiList, FiZap, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { getDailyDeals } from '../../../data/products';
 import { useCampaignStore } from '../../../shared/store/campaignStore';
 import { formatPrice } from '../../../shared/utils/helpers';
 import Header from '../components/Layout/Header';
@@ -14,42 +13,123 @@ import ProductCard from '../../../shared/components/ProductCard';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import Badge from '../../../shared/components/Badge';
 import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeaderPadding';
+import toast from 'react-hot-toast';
 
 const DailyDeals = () => {
   const navigate = useNavigate();
-  const { getCampaignsByType, initialize } = useCampaignStore();
+  const { getPublicCampaignsByType, initializePublic } = useCampaignStore();
+  const [allDeals, setAllDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeCampaign, setActiveCampaign] = useState(null);
   
-  // Initialize campaigns
+  // Transform product to match frontend format
+  const transformProduct = (product) => {
+    const vendor = product.vendorId;
+    const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+      ? {
+          id: (vendor._id || vendor.id).toString(),
+          _id: vendor._id || vendor.id,
+          storeName: vendor.storeName || vendor.businessName || vendor.name,
+          businessName: vendor.businessName,
+          name: vendor.name,
+          storeLogo: vendor.storeLogo || vendor.logo,
+          isVerified: vendor.isVerified !== undefined 
+            ? vendor.isVerified 
+            : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+        }
+      : null;
+    
+    return {
+      id: product._id || product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice || product.price,
+      image: product.image,
+      images: product.images || [],
+      unit: product.unit || 'Piece',
+      rating: product.rating || 0,
+      reviewCount: product.reviewCount || 0,
+      stock: product.stock,
+      stockQuantity: product.stockQuantity,
+      vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+      vendor: vendorData,
+      flashSale: product.flashSale || false,
+    };
+  };
+
+  // Initialize public campaigns - ONLY real campaign data, no mock/fallback
   useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  // Get active daily deal campaigns
-  const dailyDealCampaigns = useMemo(() => {
-    const allCampaigns = getCampaignsByType('daily_deal');
-    const now = new Date();
-    return allCampaigns.filter(
-      campaign =>
-        campaign.isActive &&
-        new Date(campaign.startDate) <= now &&
-        new Date(campaign.endDate) >= now
-    );
-  }, [getCampaignsByType]);
-
-  // If there's exactly one active daily deal campaign, redirect to it
-  useEffect(() => {
-    if (dailyDealCampaigns.length === 1 && dailyDealCampaigns[0].route) {
-      navigate(dailyDealCampaigns[0].route, { replace: true });
-    }
-  }, [dailyDealCampaigns, navigate]);
-
-  // Fallback to static data if no campaigns
-  const allDeals = useMemo(() => {
-    if (dailyDealCampaigns.length > 0) {
-      return getDailyDeals();
-    }
-    return getDailyDeals();
-  }, [dailyDealCampaigns]);
+    const fetchCampaigns = async () => {
+      try {
+        setLoading(true);
+        await initializePublic({ type: 'daily_deal', limit: 100 });
+        
+        // Get active daily deal campaigns
+        const campaigns = getPublicCampaignsByType('daily_deal');
+        
+        if (campaigns.length > 0) {
+          // Use the first active campaign for timer
+          setActiveCampaign(campaigns[0]);
+          
+          // Collect products from all active daily_deal campaigns
+          let allProducts = [];
+          campaigns.forEach(campaign => {
+            if (campaign.products && campaign.products.length > 0) {
+              const campaignProducts = campaign.products.map(product => {
+                // First transform the product to ensure proper format
+                const transformedProduct = transformProduct(product);
+                
+                // Apply campaign discount
+                let discountedPrice = transformedProduct.price;
+                let originalPrice = transformedProduct.originalPrice || transformedProduct.price;
+                
+                if (campaign.discountType === 'percentage' && campaign.discountValue) {
+                  discountedPrice = transformedProduct.price * (1 - campaign.discountValue / 100);
+                  originalPrice = transformedProduct.price;
+                } else if (campaign.discountType === 'fixed' && campaign.discountValue) {
+                  discountedPrice = Math.max(0, transformedProduct.price - campaign.discountValue);
+                  originalPrice = transformedProduct.price;
+                } else if (campaign.discount) {
+                  // Fallback for old format
+                  const discountValue = campaign.discount;
+                  discountedPrice = transformedProduct.price * (1 - discountValue / 100);
+                  originalPrice = transformedProduct.price;
+                }
+                
+                return {
+                  ...transformedProduct,
+                  price: discountedPrice,
+                  originalPrice: originalPrice,
+                };
+              });
+              
+              allProducts = [...allProducts, ...campaignProducts];
+            }
+          });
+          
+          // Remove duplicates based on product ID
+          const uniqueProducts = allProducts.reduce((acc, product) => {
+            if (!acc.find(p => p.id === product.id)) {
+              acc.push(product);
+            }
+            return acc;
+          }, []);
+          
+          setAllDeals(uniqueProducts);
+        } else {
+          setAllDeals([]);
+        }
+      } catch (error) {
+        console.error('Error fetching campaigns:', error);
+        toast.error('Failed to load daily deals');
+        setAllDeals([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCampaigns();
+  }, [initializePublic, getPublicCampaignsByType]);
   const { responsivePadding } = useResponsiveHeaderPadding();
   const [viewMode, setViewMode] = useState('grid');
   const [timeLeft, setTimeLeft] = useState({
@@ -58,14 +138,21 @@ const DailyDeals = () => {
     seconds: 59,
   });
 
-  // Countdown timer - resets daily
+  // Countdown timer - based on campaign end date or end of day
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date();
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
+      let endDate;
+      
+      if (activeCampaign && activeCampaign.endDate) {
+        endDate = new Date(activeCampaign.endDate);
+      } else {
+        // Fallback to end of day
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
+      }
 
-      const difference = endOfDay - now;
+      const difference = endDate - now;
 
       if (difference > 0) {
         const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
@@ -82,7 +169,7 @@ const DailyDeals = () => {
     const interval = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [activeCampaign]);
 
   // Calculate discount for each deal
   const dealsWithDiscount = useMemo(() => {
@@ -239,7 +326,12 @@ const DailyDeals = () => {
               </div>
 
               {/* Products Grid/List */}
-              {allDeals.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="mt-4 text-gray-500">Loading daily deals...</p>
+                </div>
+              ) : allDeals.length === 0 ? (
                 <div className="glass-card rounded-2xl p-12 text-center">
                   <FiZap className="text-6xl text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-800 mb-2">No deals available</h3>

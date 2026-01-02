@@ -4,15 +4,11 @@ import {
   FiX,
   FiSave,
   FiCalendar,
-  FiLink,
-  FiEye,
   FiSearch,
   FiFilter,
   FiCheckSquare,
   FiSquare,
   FiXCircle,
-  FiUpload,
-  FiImage,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCampaignStore } from "../../../../shared/store/campaignStore";
@@ -20,7 +16,7 @@ import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
 import { generateSlug } from "../../../../shared/store/campaignStore";
 import api from "../../../../shared/utils/api";
-import { createCampaignBanner } from "@modules/Admin/utils/campaignHelpers";
+import { createCampaignBanner } from "../../utils/campaignHelpers";
 import AnimatedSelect from "../AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
@@ -30,7 +26,8 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
   const { createCampaign, updateCampaign } = useCampaignStore();
-  const isEdit = !!campaign;
+  // isEdit should be true only if campaign has an ID (either id or _id)
+  const isEdit = !!(campaign && (campaign.id || campaign._id));
 
   const [formData, setFormData] = useState({
     name: "",
@@ -149,8 +146,9 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
   const generatedSlug = useMemo(() => {
     if (formData.name) {
       const campaigns = useCampaignStore.getState().campaigns;
-      const existingCampaigns = isEdit
-        ? campaigns.filter((c) => c.id !== campaign.id)
+      const campaignId = campaign?.id || campaign?._id;
+      const existingCampaigns = isEdit && campaignId
+        ? campaigns.filter((c) => (c.id || c._id) !== campaignId)
         : campaigns;
       return generateSlug(formData.name, existingCampaigns);
     }
@@ -191,9 +189,11 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
         type: campaign.type || "flash_sale",
         description: campaign.description || "",
         discountType: campaign.discountType || "percentage",
-        discountValue: campaign.discountValue || "",
-        startDate: campaign.startDate ? campaign.startDate.split("T")[0] : "",
-        endDate: campaign.endDate ? campaign.endDate.split("T")[0] : "",
+        discountValue: campaign.discountValue !== undefined && campaign.discountValue !== null 
+          ? String(campaign.discountValue) 
+          : "",
+        startDate: campaign.startDate ? new Date(campaign.startDate).toISOString().split("T")[0] : "",
+        endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().split("T")[0] : "",
         productIds: productIds,
         isActive: campaign.isActive !== undefined ? campaign.isActive : true,
         slug: campaign.slug || "",
@@ -213,7 +213,9 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
         },
         bannerConfig: campaign.bannerConfig
           ? {
-              ...campaign.bannerConfig,
+              title: campaign.bannerConfig.title || "",
+              subtitle: campaign.bannerConfig.subtitle || "",
+              image: campaign.bannerConfig.imageUrl || campaign.bannerConfig.image || "",
               // Detect if image is base64 (custom uploaded image)
               customImage:
                 campaign.bannerConfig.image &&
@@ -255,7 +257,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
             type === "checkbox"
               ? checked
               : type === "number"
-              ? parseInt(value)
+              ? (value === "" ? (configKey === "productsPerPage" ? 12 : 0) : (parseInt(value) || (configKey === "productsPerPage" ? 12 : 0)))
               : value,
         },
       });
@@ -273,15 +275,15 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
     }
     // Handle viewModes array
     else if (name === "viewMode") {
-      const viewModes = formData.pageConfig.viewModes || [];
+      const viewModes = formData.pageConfig?.viewModes || [];
       const newViewModes = checked
         ? [...viewModes, value]
         : viewModes.filter((m) => m !== value);
       setFormData({
         ...formData,
         pageConfig: {
-          ...formData.pageConfig,
-          viewModes: newViewModes,
+          ...(formData.pageConfig || {}),
+          viewModes: newViewModes.length > 0 ? newViewModes : ["grid"],
         },
       });
     } else {
@@ -291,7 +293,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
           type === "checkbox"
             ? checked
             : type === "number"
-            ? parseFloat(value)
+            ? (value === "" ? "" : (isNaN(parseFloat(value)) ? "" : parseFloat(value)))
             : value,
       });
     }
@@ -419,35 +421,8 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
   }, [filteredProducts, formData.productIds]);
 
   // Handle custom banner image upload
-  const handleBannerImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Check if file is an image
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please select an image file");
-        return;
-      }
 
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size should be less than 5MB");
-        return;
-      }
-
-      // Store File object directly for multipart upload
-      setFormData({
-        ...formData,
-        bannerConfig: {
-          ...formData.bannerConfig,
-          image: file, // File object for multipart upload
-          customImage: true, // Flag to indicate custom image
-        },
-      });
-      toast.success("Banner image selected");
-    }
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -468,19 +443,32 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
     }
 
     try {
+      // Validate discountValue
+      const discountValueNum = parseFloat(formData.discountValue);
+      if (isNaN(discountValueNum) || discountValueNum < 0) {
+        toast.error("Please enter a valid discount value");
+        return;
+      }
+
       const campaignData = {
         ...formData,
         slug: formData.slug || generatedSlug,
         startDate: new Date(formData.startDate).toISOString(),
         endDate: new Date(formData.endDate).toISOString(),
-        discountValue: parseFloat(formData.discountValue),
+        discountValue: discountValueNum,
       };
 
       let createdCampaign;
       if (isEdit) {
-        createdCampaign = updateCampaign(campaign.id, campaignData);
+        // Get campaign ID - check both id and _id
+        const campaignId = campaign.id || campaign._id;
+        if (!campaignId) {
+          toast.error("Campaign ID is missing. Please refresh and try again.");
+          return;
+        }
+        createdCampaign = await updateCampaign(campaignId, campaignData);
       } else {
-        createdCampaign = createCampaign(campaignData);
+        createdCampaign = await createCampaign(campaignData);
 
         // Auto-create banner if enabled
         if (campaignData.autoCreateBanner && createdCampaign) {
@@ -611,59 +599,6 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleChange}
-                      rows={3}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="Campaign description..."
-                    />
-                  </div>
-
-                  {/* Slug and Route Preview */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        URL Slug
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          name="slug"
-                          value={formData.slug}
-                          onChange={handleChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          placeholder="Auto-generated from name"
-                        />
-                        <FiLink className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        URL-friendly version of campaign name
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Page URL
-                      </label>
-                      <div className="relative">
-                        <div className="w-full px-4 py-2 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-600 flex items-center gap-2">
-                          <FiEye className="text-gray-400" />
-                          <span>
-                            /sale/
-                            {formData.slug || generatedSlug || "campaign-slug"}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Preview of the campaign page URL
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -696,7 +631,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                     <input
                       type="number"
                       name="discountValue"
-                      value={formData.discountValue}
+                      value={formData.discountValue || ""}
                       onChange={handleChange}
                       required
                       min="0"
@@ -1012,364 +947,6 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                 )}
               </div>
 
-              {/* Page Options */}
-              <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-4">
-                  Page Options
-                </h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          name="pageConfig.showCountdown"
-                          checked={formData.pageConfig.showCountdown}
-                          onChange={handleChange}
-                          className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                        />
-                        <span className="text-sm font-semibold text-gray-700">
-                          Show Countdown Timer
-                        </span>
-                      </label>
-                      {formData.pageConfig.showCountdown && (
-                        <div className="mt-2">
-                          <label className="block text-xs text-gray-600 mb-1">
-                            Countdown Type
-                          </label>
-                          <AnimatedSelect
-                            name="pageConfig.countdownType"
-                            value={formData.pageConfig.countdownType}
-                            onChange={handleChange}
-                            options={[
-                              { value: "campaign_end", label: "Campaign End" },
-                              { value: "daily_reset", label: "Daily Reset" },
-                            ]}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          name="pageConfig.showStats"
-                          checked={formData.pageConfig.showStats}
-                          onChange={handleChange}
-                          className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                        />
-                        <span className="text-sm font-semibold text-gray-700">
-                          Show Stats Banner
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        View Modes
-                      </label>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            name="viewMode"
-                            value="grid"
-                            checked={formData.pageConfig.viewModes.includes(
-                              "grid"
-                            )}
-                            onChange={handleChange}
-                            className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                          />
-                          <span className="text-sm text-gray-700">
-                            Grid View
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            name="viewMode"
-                            value="list"
-                            checked={formData.pageConfig.viewModes.includes(
-                              "list"
-                            )}
-                            onChange={handleChange}
-                            className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                          />
-                          <span className="text-sm text-gray-700">
-                            List View
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Default View Mode
-                      </label>
-                      <AnimatedSelect
-                        name="pageConfig.defaultViewMode"
-                        value={formData.pageConfig.defaultViewMode}
-                        onChange={handleChange}
-                        options={formData.pageConfig.viewModes.map((mode) => ({
-                          value: mode,
-                          label: mode.charAt(0).toUpperCase() + mode.slice(1),
-                        }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          name="pageConfig.enableFilters"
-                          checked={formData.pageConfig.enableFilters}
-                          onChange={handleChange}
-                          className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                        />
-                        <span className="text-sm font-semibold text-gray-700">
-                          Enable Filters
-                        </span>
-                      </label>
-                    </div>
-                    <div>
-                      <label className="flex items-center gap-2 mb-2">
-                        <input
-                          type="checkbox"
-                          name="pageConfig.enableSorting"
-                          checked={formData.pageConfig.enableSorting}
-                          onChange={handleChange}
-                          className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                        />
-                        <span className="text-sm font-semibold text-gray-700">
-                          Enable Sorting
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Products Per Page
-                    </label>
-                    <input
-                      type="number"
-                      name="pageConfig.productsPerPage"
-                      value={formData.pageConfig.productsPerPage}
-                      onChange={handleChange}
-                      min="6"
-                      max="48"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Banner Settings */}
-              <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-4">
-                  Banner Settings
-                </h3>
-                <div className="space-y-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="autoCreateBanner"
-                      checked={formData.autoCreateBanner}
-                      onChange={handleChange}
-                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                    />
-                    <span className="text-sm font-semibold text-gray-700">
-                      Auto-create Banner
-                    </span>
-                  </label>
-
-                  {formData.autoCreateBanner && (
-                    <div className="space-y-4 pl-6 border-l-2 border-gray-200">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Banner Title (Optional - defaults to campaign name)
-                        </label>
-                        <input
-                          type="text"
-                          name="bannerConfig.title"
-                          value={formData.bannerConfig.title}
-                          onChange={handleChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          placeholder="Leave empty to use campaign name"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Banner Subtitle (Optional - defaults to discount info)
-                        </label>
-                        <input
-                          type="text"
-                          name="bannerConfig.subtitle"
-                          value={formData.bannerConfig.subtitle}
-                          onChange={handleChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          placeholder="Leave empty for auto-generated subtitle"
-                        />
-                      </div>
-
-                      {/* Banner Image Options */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Banner Image
-                        </label>
-                        <div className="space-y-3">
-                          {/* Option 1: Upload Custom Image */}
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-2">
-                              Option 1: Upload Custom Image
-                            </label>
-                            <div className="relative">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleBannerImageUpload}
-                                className="hidden"
-                                id="banner-image-upload"
-                              />
-                              <label
-                                htmlFor="banner-image-upload"
-                                className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white">
-                                <FiUpload className="text-lg text-primary-600" />
-                                <span className="text-sm font-medium text-gray-700">
-                                  {formData.bannerConfig.image &&
-                                  formData.bannerConfig.customImage
-                                    ? "Change Custom Banner Image"
-                                    : "Upload Custom Banner Image"}
-                                </span>
-                              </label>
-                            </div>
-                            {/* Preview for custom uploaded image */}
-                            {formData.bannerConfig.image &&
-                              formData.bannerConfig.customImage && (
-                                <div className="mt-3">
-                                  <div className="relative inline-block">
-                                    <img
-                                      src={
-                                        formData.bannerConfig.image instanceof File
-                                          ? URL.createObjectURL(formData.bannerConfig.image)
-                                          : formData.bannerConfig.image
-                                      }
-                                      alt="Banner preview"
-                                      className="w-full max-w-xs h-32 object-cover rounded-lg border border-gray-200"
-                                      onError={(e) => {
-                                        e.target.style.display = "none";
-                                      }}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setFormData({
-                                          ...formData,
-                                          bannerConfig: {
-                                            ...formData.bannerConfig,
-                                            image: "",
-                                            customImage: false,
-                                          },
-                                        });
-                                      }}
-                                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                                      title="Remove image">
-                                      <FiX className="text-sm" />
-                                    </button>
-                                  </div>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Custom uploaded image
-                                  </p>
-                                </div>
-                              )}
-
-                            {/* Preview for URL image */}
-                            {formData.bannerConfig.image &&
-                              !formData.bannerConfig.customImage &&
-                              !formData.bannerConfig.image.startsWith(
-                                "data:"
-                              ) && (
-                                <div className="mt-3">
-                                  <div className="relative inline-block">
-                                    <img
-                                      src={formData.bannerConfig.image}
-                                      alt="Banner preview"
-                                      className="w-full max-w-xs h-32 object-cover rounded-lg border border-gray-200"
-                                      onError={(e) => {
-                                        e.target.parentElement.style.display =
-                                          "none";
-                                      }}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setFormData({
-                                          ...formData,
-                                          bannerConfig: {
-                                            ...formData.bannerConfig,
-                                            image: "",
-                                          },
-                                        });
-                                      }}
-                                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                                      title="Remove image">
-                                      <FiX className="text-sm" />
-                                    </button>
-                                  </div>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Image from URL
-                                  </p>
-                                </div>
-                              )}
-                          </div>
-
-                          {/* Option 2: Image URL */}
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-2">
-                              Option 2: Use Image URL (Optional - defaults to
-                              promotional image)
-                            </label>
-                            <div className="relative">
-                              <FiImage className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                              <input
-                                type="text"
-                                name="bannerConfig.image"
-                                value={
-                                  formData.bannerConfig.customImage
-                                    ? ""
-                                    : formData.bannerConfig.image
-                                }
-                                onChange={(e) => {
-                                  setFormData({
-                                    ...formData,
-                                    bannerConfig: {
-                                      ...formData.bannerConfig,
-                                      image: e.target.value,
-                                      customImage: false,
-                                    },
-                                  });
-                                }}
-                                disabled={formData.bannerConfig.customImage}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                placeholder="data/promotional/beauty.jpg"
-                              />
-                            </div>
-                            {formData.bannerConfig.image &&
-                              !formData.bannerConfig.customImage && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Leave empty to use default promotional image
-                                </p>
-                              )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
 
               {/* Settings */}
               <div>

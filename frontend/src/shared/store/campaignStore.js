@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 
@@ -22,15 +23,21 @@ export const generateSlug = (name, existingCampaigns = []) => {
   return uniqueSlug;
 };
 
-export const useCampaignStore = create((set, get) => ({
-  campaigns: [],
-  isLoading: false,
+export const useCampaignStore = create(
+  persist(
+    (set, get) => ({
+      campaigns: [],
+      publicCampaigns: [], // Separate store for public campaigns
+      isLoading: false,
+      isPublicLoading: false,
+      lastPublicFetch: null, // Track when campaigns were last fetched
 
-  // Initialize campaigns from API
+  // Initialize campaigns from API (admin endpoint)
   initialize: async (filters = {}) => {
     set({ isLoading: true });
     try {
-      const { type, page = 1, limit = 10 } = filters;
+      // Default to fetching all campaigns (limit 100) if no limit specified
+      const { type, page = 1, limit = filters.limit || 100 } = filters;
       const response = await api.get('/admin/offers', {
         params: { type, page, limit },
       });
@@ -43,7 +50,58 @@ export const useCampaignStore = create((set, get) => ({
     } catch (error) {
       set({ isLoading: false, campaigns: [] });
       console.error('Failed to initialize campaigns:', error);
-      return { campaigns: [], total: 0, page: 1, limit: 10, totalPages: 0 };
+      return { campaigns: [], total: 0, page: 1, limit: 100, totalPages: 0 };
+    }
+  },
+
+  // Initialize public campaigns from API (public endpoint)
+  initializePublic: async (filters = {}, forceRefresh = false) => {
+    const state = get();
+    const now = Date.now();
+    const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache (reduced from 5 minutes for better freshness)
+    
+    // Use cached data if available and not forcing refresh
+    // IMPORTANT: Only use cache if it's valid and not empty
+    if (!forceRefresh && state.publicCampaigns && state.publicCampaigns.length > 0 && state.lastPublicFetch) {
+      const timeSinceLastFetch = now - state.lastPublicFetch;
+      if (timeSinceLastFetch < CACHE_DURATION) {
+        console.log('campaignStore - Using cached public campaigns');
+        return { campaigns: state.publicCampaigns, total: state.publicCampaigns.length, page: 1, limit: 100, totalPages: 1 };
+      }
+    }
+
+    set({ isPublicLoading: true });
+    try {
+      const { type, page = 1, limit = filters.limit || 100 } = filters;
+      const response = await api.get('/campaigns', {
+        params: { type, page, limit },
+      });
+
+      // API interceptor returns response.data, so response is already { success, data: { campaigns }, pagination }
+      if (response.success && response.data) {
+        const campaigns = response.data.campaigns || [];
+        console.log('campaignStore - Setting publicCampaigns:', campaigns.length, 'campaigns');
+        set({ 
+          publicCampaigns: campaigns, 
+          isPublicLoading: false,
+          lastPublicFetch: now 
+        });
+        return response.data;
+      }
+      throw new Error(response.message || 'Failed to fetch campaigns');
+    } catch (error) {
+      // Don't clear campaigns on error, keep existing ones
+      set({ isPublicLoading: false });
+      console.error('Failed to initialize public campaigns:', error);
+      // Return cached campaigns if available, otherwise empty
+      const cachedCampaigns = get().publicCampaigns;
+      return { 
+        campaigns: cachedCampaigns || [], 
+        total: cachedCampaigns?.length || 0, 
+        page: 1, 
+        limit: 100, 
+        totalPages: 0 
+      };
     }
   },
 
@@ -55,6 +113,9 @@ export const useCampaignStore = create((set, get) => ({
   // Get campaign by ID
   getCampaignById: async (id) => {
     try {
+      if (!id) {
+        throw new Error('Campaign ID is required');
+      }
       const response = await api.get(`/admin/offers/${id}`);
       if (response.success && response.data?.campaign) {
         return response.data.campaign;
@@ -62,11 +123,15 @@ export const useCampaignStore = create((set, get) => ({
       throw new Error(response.message || 'Campaign not found');
     } catch (error) {
       console.error('Failed to get campaign:', error);
-      throw error;
+      // Provide more detailed error message
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load campaign';
+      const enhancedError = new Error(errorMessage);
+      enhancedError.response = error.response;
+      throw enhancedError;
     }
   },
 
-  // Get campaign by slug
+  // Get campaign by slug (admin)
   getCampaignBySlug: async (slug) => {
     try {
       const campaigns = get().campaigns;
@@ -83,6 +148,39 @@ export const useCampaignStore = create((set, get) => ({
       console.error('Failed to get campaign by slug:', error);
       return null;
     }
+  },
+
+  // Get public campaign by ID or slug
+  getPublicCampaignById: async (identifier) => {
+    try {
+      if (!identifier) {
+        throw new Error('Campaign identifier is required');
+      }
+      const response = await api.get(`/campaigns/${identifier}`);
+      if (response.success && response.data?.campaign) {
+        return response.data.campaign;
+      }
+      throw new Error(response.message || 'Campaign not found');
+    } catch (error) {
+      console.error('Failed to get public campaign:', error);
+      throw error;
+    }
+  },
+
+  // Get public campaigns by type
+  getPublicCampaignsByType: (type) => {
+    return get().publicCampaigns.filter((campaign) => campaign.type === type);
+  },
+
+  // Get active public campaigns
+  getActivePublicCampaigns: () => {
+    const now = new Date();
+    return get().publicCampaigns.filter(
+      (campaign) =>
+        campaign.isActive &&
+        new Date(campaign.startDate) <= now &&
+        new Date(campaign.endDate) >= now
+    );
   },
 
   // Get campaigns by type
@@ -135,9 +233,21 @@ export const useCampaignStore = create((set, get) => ({
 
       if (response.success && response.data?.campaign) {
         const newCampaign = response.data.campaign;
+        // Add new campaign to public campaigns cache if it's active and within date range
+        const now = new Date();
+        const startDate = new Date(newCampaign.startDate);
+        const endDate = new Date(newCampaign.endDate);
+        const isActive = newCampaign.isActive && startDate <= now && endDate >= now;
+        
+        const currentPublicCampaigns = get().publicCampaigns;
+        const updatedPublicCampaigns = isActive 
+          ? [...currentPublicCampaigns, newCampaign]
+          : currentPublicCampaigns;
+        
         set({
           campaigns: [...get().campaigns, newCampaign],
           isLoading: false,
+          publicCampaigns: updatedPublicCampaigns, // Add new campaign to cache if active
         });
         toast.success('Campaign created successfully');
         return newCampaign;
@@ -153,6 +263,16 @@ export const useCampaignStore = create((set, get) => ({
   updateCampaign: async (id, campaignData) => {
     set({ isLoading: true });
     try {
+      // Validate ID
+      if (!id) {
+        throw new Error('Campaign ID is required');
+      }
+
+      // Validate productIds
+      if (campaignData.productIds && (!Array.isArray(campaignData.productIds) || campaignData.productIds.length === 0)) {
+        throw new Error('Please select at least one product');
+      }
+
       // Handle file upload if image is present
       const formData = new FormData();
       
@@ -168,7 +288,12 @@ export const useCampaignStore = create((set, get) => ({
             formData.append(key, JSON.stringify(campaignData[key]));
           }
         } else if (key === 'productIds' || key === 'pageConfig') {
-          formData.append(key, JSON.stringify(campaignData[key]));
+          // Ensure productIds is properly formatted array
+          if (key === 'productIds' && Array.isArray(campaignData[key])) {
+            formData.append(key, JSON.stringify(campaignData[key]));
+          } else if (key === 'pageConfig') {
+            formData.append(key, JSON.stringify(campaignData[key]));
+          }
         } else {
           formData.append(key, campaignData[key]);
         }
@@ -188,13 +313,48 @@ export const useCampaignStore = create((set, get) => ({
             ? updatedCampaign
             : campaign
         );
-        set({ campaigns: updatedCampaigns, isLoading: false });
+        
+        // Update public campaigns cache with updated campaign
+        const publicCampaigns = get().publicCampaigns;
+        const now = new Date();
+        const startDate = new Date(updatedCampaign.startDate);
+        const endDate = new Date(updatedCampaign.endDate);
+        const isActive = updatedCampaign.isActive && startDate <= now && endDate >= now;
+        
+        // Find and update or add/remove campaign from public cache
+        const campaignExists = publicCampaigns.some(c => c.id === id || c._id === id);
+        let updatedPublicCampaigns;
+        
+        if (isActive) {
+          // Add or update campaign in cache
+          if (campaignExists) {
+            updatedPublicCampaigns = publicCampaigns.map(campaign =>
+              campaign.id === id || campaign._id === id ? updatedCampaign : campaign
+            );
+          } else {
+            updatedPublicCampaigns = [...publicCampaigns, updatedCampaign];
+          }
+        } else {
+          // Remove campaign from cache if it's no longer active
+          updatedPublicCampaigns = publicCampaigns.filter(
+            campaign => campaign.id !== id && campaign._id !== id
+          );
+        }
+        
+        set({ 
+          campaigns: updatedCampaigns, 
+          isLoading: false,
+          publicCampaigns: updatedPublicCampaigns, // Update cache with modified campaign
+        });
         toast.success('Campaign updated successfully');
         return updatedCampaign;
       }
       throw new Error(response.message || 'Failed to update campaign');
     } catch (error) {
       set({ isLoading: false });
+      // Provide better error message
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update campaign';
+      toast.error(errorMessage);
       throw error;
     }
   },
@@ -209,7 +369,22 @@ export const useCampaignStore = create((set, get) => ({
         const updatedCampaigns = campaigns.filter(
           (campaign) => campaign.id !== id && campaign._id !== id
         );
-        set({ campaigns: updatedCampaigns, isLoading: false });
+        
+        // IMPORTANT: Remove deleted campaign from public campaigns cache
+        // Instead of clearing entire cache, just remove the deleted one
+        // This prevents all banners from disappearing
+        const publicCampaigns = get().publicCampaigns;
+        const updatedPublicCampaigns = publicCampaigns.filter(
+          (campaign) => campaign.id !== id && campaign._id !== id
+        );
+        
+        set({ 
+          campaigns: updatedCampaigns, 
+          isLoading: false,
+          publicCampaigns: updatedPublicCampaigns, // Remove only deleted campaign
+          // Keep lastPublicFetch so cache still works, but mark for refresh on next access
+        });
+        
         toast.success('Campaign deleted successfully');
         return true;
       }
@@ -232,7 +407,37 @@ export const useCampaignStore = create((set, get) => ({
             ? updatedCampaign
             : campaign
         );
-        set({ campaigns: updatedCampaigns });
+        
+        // Update public campaigns cache based on new status
+        const publicCampaigns = get().publicCampaigns;
+        const now = new Date();
+        const startDate = new Date(updatedCampaign.startDate);
+        const endDate = new Date(updatedCampaign.endDate);
+        const isActive = updatedCampaign.isActive && startDate <= now && endDate >= now;
+        
+        const campaignExists = publicCampaigns.some(c => c.id === id || c._id === id);
+        let updatedPublicCampaigns;
+        
+        if (isActive) {
+          // Add or update campaign in cache
+          if (campaignExists) {
+            updatedPublicCampaigns = publicCampaigns.map(campaign =>
+              campaign.id === id || campaign._id === id ? updatedCampaign : campaign
+            );
+          } else {
+            updatedPublicCampaigns = [...publicCampaigns, updatedCampaign];
+          }
+        } else {
+          // Remove campaign from cache if it's no longer active
+          updatedPublicCampaigns = publicCampaigns.filter(
+            campaign => campaign.id !== id && campaign._id !== id
+          );
+        }
+        
+        set({ 
+          campaigns: updatedCampaigns,
+          publicCampaigns: updatedPublicCampaigns, // Update cache with status change
+        });
         return updatedCampaign;
       }
       throw new Error(response.message || 'Failed to toggle campaign status');
@@ -240,4 +445,21 @@ export const useCampaignStore = create((set, get) => ({
       throw error;
     }
   },
-}));
+
+  // Clear public campaigns cache (useful for forcing refresh)
+  clearPublicCampaignsCache: () => {
+    set({ 
+      publicCampaigns: [], 
+      lastPublicFetch: null 
+    });
+  },
+    }),
+    {
+      name: 'campaign-store', // unique name for localStorage
+      partialize: (state) => ({
+        publicCampaigns: state.publicCampaigns,
+        lastPublicFetch: state.lastPublicFetch,
+      }), // Only persist public campaigns and last fetch time
+    }
+  )
+);

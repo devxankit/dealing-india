@@ -3,7 +3,6 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import { FiClock, FiGrid, FiList, FiZap, FiTag, FiFilter, FiX, FiTrendingDown } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCampaignStore } from '../../../shared/store/campaignStore';
-import { getProductById, products } from '../../../data/products';
 import { formatPrice } from '../../../shared/utils/helpers';
 import Header from '../components/Layout/Header';
 import Navbar from '../components/Layout/Navbar';
@@ -14,28 +13,52 @@ import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import Badge from '../../../shared/components/Badge';
 import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeaderPadding';
 import useInfiniteScroll from '../../../shared/hooks/useInfiniteScroll';
+import toast from 'react-hot-toast';
 
 const CampaignPage = () => {
   const { slug, id } = useParams();
-  const { getCampaignBySlug, getCampaignById, initialize } = useCampaignStore();
+  const { getPublicCampaignById } = useCampaignStore();
   const { responsivePadding } = useResponsiveHeaderPadding();
+  const [campaign, setCampaign] = useState(null);
+  const [loading, setLoading] = useState(true);
   
-  // Initialize campaigns if needed
+  // Fetch campaign by slug or ID
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    const fetchCampaign = async () => {
+      try {
+        setLoading(true);
+        const identifier = slug || id;
+        if (!identifier) {
+          setCampaign(null);
+          return;
+        }
+        
+        const fetchedCampaign = await getPublicCampaignById(identifier);
+        setCampaign(fetchedCampaign);
+      } catch (error) {
+        console.error('Error fetching campaign:', error);
+        toast.error('Campaign not found');
+        setCampaign(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCampaign();
+  }, [slug, id, getPublicCampaignById]);
 
-  // Get campaign by slug or ID
-  const campaign = useMemo(() => {
-    if (slug) {
-      return getCampaignBySlug(slug);
-    } else if (id) {
-      return getCampaignById(id);
-    }
-    return null;
-  }, [slug, id, getCampaignBySlug, getCampaignById]);
-
-  // Redirect if campaign not found
+  // Show loading or redirect if campaign not found
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-500">Loading campaign...</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (!campaign) {
     return <Navigate to="/" replace />;
   }
@@ -62,40 +85,36 @@ const CampaignPage = () => {
     seconds: 0,
   });
 
-  // Get products for this campaign
+  // Get products for this campaign (already populated from API)
   const campaignProducts = useMemo(() => {
-    if (!campaign.productIds || campaign.productIds.length === 0) {
+    if (!campaign.products || campaign.products.length === 0) {
       return [];
     }
     
-    // Get products from localStorage first, then fallback to static data
-    const savedProducts = localStorage.getItem('admin-products');
-    const allProducts = savedProducts ? JSON.parse(savedProducts) : products;
-    
-    return campaign.productIds
-      .map(productId => {
-        const product = allProducts.find(p => p.id === parseInt(productId));
-        return product ? {
+    // Apply campaign discount to products
+    return campaign.products.map(product => {
+      if (campaign.discount) {
+        const discountValue = campaign.discount;
+        const discountedPrice = product.price * (1 - discountValue / 100);
+        return {
           ...product,
-          // Apply campaign discount if applicable
-          campaignPrice: campaign.discountType === 'percentage' 
-            ? product.price * (1 - campaign.discountValue / 100)
-            : product.price - campaign.discountValue,
+          price: discountedPrice,
           originalPrice: product.originalPrice || product.price,
-        } : null;
-      })
-      .filter(Boolean);
-  }, [campaign.productIds, campaign.discountType, campaign.discountValue]);
+        };
+      }
+      return product;
+    });
+  }, [campaign.products, campaign.discount]);
 
   // Calculate discount for each product
   const productsWithDiscount = useMemo(() => {
     return campaignProducts.map((product) => {
-      const finalPrice = product.campaignPrice || product.price;
+      const finalPrice = product.price;
       const originalPrice = product.originalPrice || product.price;
       const discount = originalPrice > finalPrice
         ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
         : 0;
-      return { ...product, discount, finalPrice };
+      return { ...product, discount, price: finalPrice, originalPrice };
     });
   }, [campaignProducts]);
 

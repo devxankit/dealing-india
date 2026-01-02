@@ -2,9 +2,9 @@ import { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiFilter, FiGrid, FiList, FiTrendingDown, FiX, FiLoader } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { getOffers } from '../../../data/products';
 import { useCampaignStore } from '../../../shared/store/campaignStore';
 import { formatPrice } from '../../../shared/utils/helpers';
+import { getProducts } from '../../../shared/services/productService';
 import Header from '../components/Layout/Header';
 import Navbar from '../components/Layout/Navbar';
 import Footer from '../components/Layout/Footer';
@@ -15,35 +15,70 @@ import Badge from '../../../shared/components/Badge';
 import useInfiniteScroll from '../../../shared/hooks/useInfiniteScroll';
 import ProductGridSkeleton from '../../../shared/components/Skeletons/ProductGridSkeleton';
 import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeaderPadding';
+import toast from 'react-hot-toast';
 
 const Offers = () => {
   const location = useLocation();
-  const { getCampaignsByType, initialize } = useCampaignStore();
+  const { getPublicCampaignsByType, initializePublic } = useCampaignStore();
+  const [allOffers, setAllOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
   
-  // Initialize campaigns
+  // Initialize public campaigns
   useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  // Get active special offer campaigns
-  const specialOfferCampaigns = useMemo(() => {
-    const allCampaigns = getCampaignsByType('special_offer');
-    const now = new Date();
-    return allCampaigns.filter(
-      campaign =>
-        campaign.isActive &&
-        new Date(campaign.startDate) <= now &&
-        new Date(campaign.endDate) >= now
-    );
-  }, [getCampaignsByType]);
-
-  // Fallback to static data if no campaigns
-  const allOffers = useMemo(() => {
-    if (specialOfferCampaigns.length > 0) {
-      return getOffers();
-    }
-    return getOffers();
-  }, [specialOfferCampaigns]);
+    const fetchCampaigns = async () => {
+      try {
+        setLoading(true);
+        await initializePublic({ type: 'special_offer', limit: 100 });
+        
+        // Get active special offer campaigns
+        const campaigns = getPublicCampaignsByType('special_offer');
+        
+        if (campaigns.length > 0) {
+          // Collect all products from all campaigns (products are already populated)
+          const allProducts = campaigns.flatMap(campaign => campaign.products || []);
+          
+          // Remove duplicates and apply campaign discount
+          const uniqueProducts = [];
+          const seenIds = new Set();
+          
+          allProducts.forEach(product => {
+            if (!seenIds.has(product.id)) {
+              seenIds.add(product.id);
+              
+              // Find which campaign this product belongs to
+              const campaign = campaigns.find(c => 
+                c.products && c.products.some(p => p.id === product.id)
+              );
+              
+              if (campaign && campaign.discount) {
+                const discountValue = campaign.discount;
+                const discountedPrice = product.price * (1 - discountValue / 100);
+                uniqueProducts.push({
+                  ...product,
+                  price: discountedPrice,
+                  originalPrice: product.originalPrice || product.price,
+                });
+              } else {
+                uniqueProducts.push(product);
+              }
+            }
+          });
+          
+          setAllOffers(uniqueProducts);
+        } else {
+          setAllOffers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching campaigns:', error);
+        toast.error('Failed to load offers');
+        setAllOffers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCampaigns();
+  }, [initializePublic, getPublicCampaignsByType]);
   const { responsivePadding } = useResponsiveHeaderPadding();
   const [viewMode, setViewMode] = useState('grid');
   const [sortBy, setSortBy] = useState('discount'); // discount, price-low, price-high, rating
@@ -262,7 +297,9 @@ const Offers = () => {
               </div>
 
               {/* Products Grid/List */}
-              {filteredAndSortedProducts.length === 0 ? (
+              {loading ? (
+                <ProductGridSkeleton count={12} />
+              ) : filteredAndSortedProducts.length === 0 ? (
                 <div className="glass-card rounded-2xl p-12 text-center">
                   <FiTrendingDown className="text-6xl text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-800 mb-2">No offers found</h3>

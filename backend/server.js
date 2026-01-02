@@ -32,6 +32,7 @@ import vendorReelsRoutes from './routes/vendorReels.routes.js';
 import vendorReviewsRoutes from './routes/vendorReviews.routes.js';
 import vendorStockRoutes from './routes/vendorStock.routes.js';
 import vendorPromotionsRoutes from './routes/vendorPromotions.routes.js';
+import vendorCampaignsRoutes from './routes/vendorCampaigns.routes.js';
 import vendorFAQsRoutes from './routes/vendorFAQs.routes.js';
 import vendorTaxPricingRoutes from './routes/vendorTaxPricing.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
@@ -59,6 +60,7 @@ import walletRoutes from './routes/wallet.routes.js';
 import heroBannerAdminRoutes from './routes/heroBannerAdmin.routes.js';
 import heroBannerVendorRoutes from './routes/heroBannerVendor.routes.js';
 import publicHeroBannerRoutes from './routes/publicHeroBanner.routes.js';
+import publicCampaignsRoutes from './routes/publicCampaigns.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -144,6 +146,7 @@ app.use('/api/vendors', publicVendorRoutes);
 app.use('/api/sliders', publicSliderRoutes);
 app.use('/api/reviews', publicReviewRoutes);
 app.use('/api/hero-banners', publicHeroBannerRoutes);
+app.use('/api/campaigns', publicCampaignsRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);
@@ -183,6 +186,7 @@ app.use('/api/vendor/reels', vendorReelsRoutes);
 app.use('/api/vendor/reviews', vendorReviewsRoutes);
 app.use('/api/vendor/stock', vendorStockRoutes);
 app.use('/api/vendor/promotions', vendorPromotionsRoutes);
+app.use('/api/vendor/campaigns', vendorCampaignsRoutes);
 app.use('/api/vendor/faqs', vendorFAQsRoutes);
 app.use('/api/vendor/tax-pricing', vendorTaxPricingRoutes);
 app.use('/api/vendor/customers', vendorCustomersRoutes);

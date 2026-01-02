@@ -4,10 +4,8 @@ import {
   FiEdit,
   FiTrash2,
   FiTag,
-  FiExternalLink,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
 import { useBannerStore } from "../../../../shared/store/bannerStore";
 import { useCampaignStore } from "../../../../shared/store/campaignStore";
 import CampaignForm from "../../components/Campaigns/CampaignForm";
@@ -27,7 +25,8 @@ const FestivalOffers = () => {
   useEffect(() => {
     const fetchFestivalCampaigns = async () => {
       try {
-        await initialize({ type: "festival", limit: 100 });
+        // Fetch all campaigns, not just festival type, so we can see all campaigns
+        await initialize({ limit: 100 });
       } catch (error) {
         console.error("Failed to fetch festival campaigns:", error);
         toast.error("Failed to load festival offers");
@@ -36,9 +35,10 @@ const FestivalOffers = () => {
     fetchFestivalCampaigns();
   }, [initialize]);
 
-  // Get festival campaigns - already filtered by backend, but keep for compatibility
+  // Get all campaigns (show all types, not just festival)
   const festivalCampaigns = useMemo(() => {
-    return campaigns.filter((c) => c.type === "festival");
+    // Show all campaigns, not filtered by type
+    return campaigns;
   }, [campaigns]);
 
   // Convert campaigns to table format
@@ -60,6 +60,7 @@ const FestivalOffers = () => {
       return {
         id: campaign.id,
         title: campaign.name,
+        type: campaign.type,
         discount: campaign.discountValue,
         startDate: campaign.startDate,
         endDate: campaign.endDate,
@@ -92,6 +93,16 @@ const FestivalOffers = () => {
           <FiTag className="text-primary-600" />
           <span className="font-semibold text-gray-800">{value}</span>
         </div>
+      ),
+    },
+    {
+      key: "type",
+      label: "Type",
+      sortable: true,
+      render: (value) => (
+        <Badge variant="info">
+          {value ? value.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "N/A"}
+        </Badge>
       ),
     },
     {
@@ -149,16 +160,6 @@ const FestivalOffers = () => {
       sortable: false,
       render: (_, row) => (
         <div className="flex items-center gap-2">
-          {row.campaign?.route && (
-            <Link
-              to={row.campaign.route}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="View Campaign Page">
-              <FiExternalLink />
-            </Link>
-          )}
           <button
             onClick={async () => {
               try {
@@ -167,9 +168,12 @@ const FestivalOffers = () => {
                 setEditingOffer(fullCampaign);
               } catch (error) {
                 console.error("Failed to fetch campaign:", error);
-                toast.error("Failed to load campaign data");
+                const errorMessage = error.response?.data?.message || error.message || "Failed to load campaign data";
+                toast.error(errorMessage);
                 // Fallback to row.campaign if API fails
-                setEditingOffer(row.campaign);
+                if (row.campaign) {
+                  setEditingOffer(row.campaign);
+                }
               }
             }}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
@@ -193,17 +197,17 @@ const FestivalOffers = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="lg:hidden">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-            Festival Offers
+            Campaigns & Offers
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            Manage seasonal and festival offers
+            Manage all campaigns and offers
           </p>
         </div>
         <button
           onClick={() => setEditingOffer({ type: "festival" })}
           className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm">
           <FiPlus />
-          <span>Add Festival Offer</span>
+          <span>Add Campaign</span>
         </button>
       </div>
 
@@ -211,15 +215,15 @@ const FestivalOffers = () => {
         <div className="bg-white rounded-xl p-12 text-center shadow-sm border border-gray-200">
           <FiTag className="text-6xl text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-800 mb-2">
-            No Festival Offers
+            No Campaigns Found
           </h3>
           <p className="text-gray-600 mb-6">
-            Create your first festival offer to get started!
+            Create your first campaign to get started!
           </p>
           <button
             onClick={() => setEditingOffer({ type: "festival" })}
             className="px-6 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all">
-            Create Festival Offer
+            Create Campaign
           </button>
         </div>
       ) : (
@@ -238,8 +242,9 @@ const FestivalOffers = () => {
         <CampaignForm
           campaign={editingOffer}
           onClose={handleFormClose}
-          onSave={() => {
-            initialize();
+          onSave={async () => {
+            // Refresh campaigns after save
+            await initialize({ limit: 100 });
             handleFormClose();
           }}
         />

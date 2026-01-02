@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { FiClock, FiGrid, FiList, FiZap, FiTrendingUp } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { getFlashSale } from '../../../data/products';
 import { useCampaignStore } from '../../../shared/store/campaignStore';
 import { formatPrice } from '../../../shared/utils/helpers';
 import Header from '../components/Layout/Header';
@@ -14,44 +13,62 @@ import ProductCard from '../../../shared/components/ProductCard';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import Badge from '../../../shared/components/Badge';
 import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeaderPadding';
+import toast from 'react-hot-toast';
 
 const FlashSale = () => {
   const navigate = useNavigate();
-  const { getActiveCampaigns, getCampaignsByType, initialize } = useCampaignStore();
+  const { getPublicCampaignsByType, initializePublic } = useCampaignStore();
+  const [allFlashSale, setAllFlashSale] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeCampaign, setActiveCampaign] = useState(null);
   
-  // Initialize campaigns
+  // Initialize public campaigns
   useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  // Get active flash sale campaigns
-  const flashSaleCampaigns = useMemo(() => {
-    const allCampaigns = getCampaignsByType('flash_sale');
-    const now = new Date();
-    return allCampaigns.filter(
-      campaign =>
-        campaign.isActive &&
-        new Date(campaign.startDate) <= now &&
-        new Date(campaign.endDate) >= now
-    );
-  }, [getCampaignsByType]);
-
-  // If there's exactly one active flash sale campaign, redirect to it
-  useEffect(() => {
-    if (flashSaleCampaigns.length === 1 && flashSaleCampaigns[0].route) {
-      navigate(flashSaleCampaigns[0].route, { replace: true });
-    }
-  }, [flashSaleCampaigns, navigate]);
-
-  // Fallback to static data if no campaigns
-  const allFlashSale = useMemo(() => {
-    if (flashSaleCampaigns.length > 0) {
-      // If multiple campaigns, use products from the first one
-      // For now, fallback to static data
-      return getFlashSale();
-    }
-    return getFlashSale();
-  }, [flashSaleCampaigns]);
+    const fetchCampaigns = async () => {
+      try {
+        setLoading(true);
+        await initializePublic({ type: 'flash_sale', limit: 100 });
+        
+        // Get active flash sale campaigns
+        const campaigns = getPublicCampaignsByType('flash_sale');
+        
+        if (campaigns.length > 0) {
+          // Use the first active campaign
+          const campaign = campaigns[0];
+          setActiveCampaign(campaign);
+          
+          // Get products from campaign (already populated)
+          const products = campaign.products || [];
+          
+          // Apply campaign discount
+          const flashSaleProducts = products.map(product => {
+            if (campaign.discount) {
+              const discountValue = campaign.discount;
+              const discountedPrice = product.price * (1 - discountValue / 100);
+              return {
+                ...product,
+                price: discountedPrice,
+                originalPrice: product.originalPrice || product.price,
+              };
+            }
+            return product;
+          });
+          
+          setAllFlashSale(flashSaleProducts);
+        } else {
+          setAllFlashSale([]);
+        }
+      } catch (error) {
+        console.error('Error fetching campaigns:', error);
+        toast.error('Failed to load flash sale');
+        setAllFlashSale([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCampaigns();
+  }, [initializePublic, getPublicCampaignsByType]);
   const { responsivePadding } = useResponsiveHeaderPadding();
   const [viewMode, setViewMode] = useState('grid');
   const [timeLeft, setTimeLeft] = useState({
@@ -60,15 +77,15 @@ const FlashSale = () => {
     seconds: 59,
   });
 
-  // Countdown timer - Flash sale typically runs for 12 hours
+  // Countdown timer - based on campaign end date
   useEffect(() => {
+    if (!activeCampaign) return;
+    
     const calculateTimeLeft = () => {
       const now = new Date();
-      const flashSaleEnd = new Date();
-      // Set flash sale to end in 12 hours from now (or you can set a specific time)
-      flashSaleEnd.setHours(now.getHours() + 12, 59, 59, 999);
+      const endDate = new Date(activeCampaign.endDate);
 
-      const difference = flashSaleEnd - now;
+      const difference = endDate - now;
 
       if (difference > 0) {
         const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
@@ -85,7 +102,7 @@ const FlashSale = () => {
     const interval = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [activeCampaign]);
 
   // Calculate discount for each flash sale product
   const flashSaleWithDiscount = useMemo(() => {
@@ -256,7 +273,12 @@ const FlashSale = () => {
               </div>
 
               {/* Products Grid/List */}
-              {allFlashSale.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="mt-4 text-gray-500">Loading flash sale...</p>
+                </div>
+              ) : allFlashSale.length === 0 ? (
                 <div className="glass-card rounded-2xl p-12 text-center">
                   <FiZap className="text-6xl text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-800 mb-2">No flash sale items</h3>

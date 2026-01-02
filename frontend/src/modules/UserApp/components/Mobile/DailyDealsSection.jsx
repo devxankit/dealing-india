@@ -4,31 +4,74 @@ import { Link } from "react-router-dom";
 import { FiClock, FiZap } from "react-icons/fi";
 import ProductCard from "../../../../shared/components/ProductCard";
 
-const DailyDealsSection = ({ products = [] }) => {
+const DailyDealsSection = ({ products = [], campaign = null, isLoading = false }) => {
   const dailyDeals = products.slice(0, 4);
   const [timeLeft, setTimeLeft] = useState({
-    hours: 23,
-    minutes: 59,
-    seconds: 59,
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
   });
 
-  // Countdown timer - resets daily
+
+  // Countdown timer - always show timer when campaign exists
+  // Uses campaign endDate (admin selected date) if available, otherwise defaults to end of day
   useEffect(() => {
+    if (!campaign) {
+      // No campaign, set timer to 0
+      setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      return;
+    }
+
     const calculateTimeLeft = () => {
       const now = new Date();
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
+      let targetDate;
 
-      const difference = endOfDay - now;
+      // Priority 1: Check if countdown is disabled in pageConfig
+      if (campaign.pageConfig?.showCountdown === false) {
+        // Countdown disabled, use end of day as fallback
+        targetDate = new Date();
+        targetDate.setHours(23, 59, 59, 999);
+      } 
+      // Priority 2: Use campaign end date if countdownType is 'campaign_end' (admin selected date)
+      else if (campaign.pageConfig?.countdownType === 'campaign_end' && campaign.endDate) {
+        // Use campaign end date (admin selected date)
+        targetDate = new Date(campaign.endDate);
+      } 
+      // Priority 3: Use daily reset if countdownType is 'daily_reset'
+      else if (campaign.pageConfig?.countdownType === 'daily_reset') {
+        // Use end of day (resets daily)
+        targetDate = new Date();
+        targetDate.setHours(23, 59, 59, 999);
+      } 
+      // Priority 4: Fallback to campaign end date if available (admin selected date)
+      else if (campaign.endDate) {
+        // Use campaign end date (admin selected date) - most common case
+        targetDate = new Date(campaign.endDate);
+      } 
+      // Priority 5: Final fallback - end of day
+      else {
+        targetDate = new Date();
+        targetDate.setHours(23, 59, 59, 999);
+      }
+
+      const difference = targetDate - now;
 
       if (difference > 0) {
-        const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
-        const minutes = Math.floor((difference / (1000 * 60)) % 60);
-        const seconds = Math.floor((difference / 1000) % 60);
+        // Calculate total time units correctly
+        const totalSeconds = Math.floor(difference / 1000);
+        const totalMinutes = Math.floor(totalSeconds / 60);
+        const totalHours = Math.floor(totalMinutes / 60);
+        
+        // Calculate days, hours, minutes, seconds
+        const days = Math.floor(totalHours / 24);
+        const hours = totalHours % 24; // Hours remaining after days
+        const minutes = totalMinutes % 60; // Minutes remaining after hours
+        const seconds = totalSeconds % 60; // Seconds remaining after minutes
 
-        setTimeLeft({ hours, minutes, seconds });
+        setTimeLeft({ days, hours, minutes, seconds });
       } else {
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
     };
 
@@ -36,13 +79,30 @@ const DailyDealsSection = ({ products = [] }) => {
     const interval = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [campaign]);
 
   const formatTime = (value) => {
     return value.toString().padStart(2, "0");
   };
 
-  if (dailyDeals.length === 0) {
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="relative my-4 rounded-2xl overflow-hidden shadow-xl border-2 border-green-200 bg-gradient-to-br from-emerald-500 via-green-500 to-lime-300">
+        <div className="relative px-3 py-5">
+          <div className="flex items-center justify-center py-8">
+            <div className="text-white text-sm">Loading daily deals...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show section if:
+  // 1. There's an active daily_deal campaign
+  // 2. Campaign has products
+  // Hide if no campaign OR no products
+  if (!isLoading && (!campaign || dailyDeals.length === 0)) {
     return null;
   }
 
@@ -93,6 +153,19 @@ const DailyDealsSection = ({ products = [] }) => {
                   Deal ends in
                 </p>
                 <div className="flex items-center gap-2">
+                  {/* Days - only show if > 0 */}
+                  {timeLeft.days > 0 && (
+                    <>
+                      <div className="bg-gradient-to-br from-emerald-500 to-green-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
+                        <div className="text-lg font-extrabold">
+                          {formatTime(timeLeft.days)}
+                        </div>
+                        <div className="text-[9px] opacity-90 font-medium">D</div>
+                      </div>
+                      <span className="text-green-600 font-bold text-lg">:</span>
+                    </>
+                  )}
+                  {/* Hours */}
                   <div className="bg-gradient-to-br from-emerald-500 to-green-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
                     <div className="text-lg font-extrabold">
                       {formatTime(timeLeft.hours)}
@@ -100,6 +173,7 @@ const DailyDealsSection = ({ products = [] }) => {
                     <div className="text-[9px] opacity-90 font-medium">H</div>
                   </div>
                   <span className="text-green-600 font-bold text-lg">:</span>
+                  {/* Minutes */}
                   <div className="bg-gradient-to-br from-emerald-500 to-green-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
                     <div className="text-lg font-extrabold">
                       {formatTime(timeLeft.minutes)}
@@ -107,6 +181,7 @@ const DailyDealsSection = ({ products = [] }) => {
                     <div className="text-[9px] opacity-90 font-medium">M</div>
                   </div>
                   <span className="text-green-600 font-bold text-lg">:</span>
+                  {/* Seconds */}
                   <div className="bg-gradient-to-br from-emerald-500 to-green-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg animate-pulse">
                     <div className="text-lg font-extrabold">
                       {formatTime(timeLeft.seconds)}
@@ -120,18 +195,25 @@ const DailyDealsSection = ({ products = [] }) => {
         </div>
 
         {/* Products Grid */}
-        <div className="flex flex-wrap md:flex-nowrap md:overflow-x-visible gap-3">
-          {dailyDeals.map((product, index) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="w-[calc(50%-0.75rem)] md:w-0 md:flex-1 md:min-w-0">
-              <ProductCard product={product} />
-            </motion.div>
-          ))}
-        </div>
+        {dailyDeals.length > 0 ? (
+          <div className="flex flex-wrap md:flex-nowrap md:overflow-x-visible gap-3">
+            {dailyDeals.map((product, index) => (
+              <motion.div
+                key={product.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="w-[calc(50%-0.75rem)] md:w-0 md:flex-1 md:min-w-0">
+                <ProductCard product={product} />
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <p className="text-white/80 text-sm font-medium">No deals available at the moment</p>
+            <p className="text-white/60 text-xs mt-1">Check back soon for new deals!</p>
+          </div>
+        )}
       </div>
     </div>
   );

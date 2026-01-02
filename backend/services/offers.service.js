@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Campaign from '../models/Campaign.model.js';
 import Banner from '../models/Banner.model.js';
 
@@ -62,7 +63,7 @@ const getDefaultPageConfig = () => ({
  */
 export const getAllCampaigns = async (filters = {}) => {
   try {
-    const { type, page = 1, limit = 10 } = filters;
+    const { type, page = 1, limit = 100 } = filters;
 
     const query = {};
     if (type) {
@@ -109,12 +110,41 @@ export const getAllCampaigns = async (filters = {}) => {
  */
 export const getCampaignById = async (campaignId) => {
   try {
-    const campaign = await Campaign.findById(campaignId)
-      .populate('productIds', 'name price image originalPrice stock stockQuantity categoryId brandId')
-      .lean();
+    // Validate campaignId format
+    if (!campaignId || !mongoose.Types.ObjectId.isValid(campaignId)) {
+      const error = new Error('Invalid campaign ID format');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const campaign = await Campaign.findById(campaignId).lean();
 
     if (!campaign) {
-      throw new Error('Campaign not found');
+      const error = new Error('Campaign not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Populate products separately with error handling
+    let populatedProducts = [];
+    if (campaign.productIds && campaign.productIds.length > 0) {
+      try {
+        const Product = (await import('../models/Product.model.js')).default;
+        const productDocs = await Product.find({
+          _id: { $in: campaign.productIds },
+          isActive: true,
+          isVisible: true
+        })
+          .select('name price image originalPrice stock stockQuantity categoryId brandId isVisible isActive')
+          .lean();
+
+        // Map to IDs only
+        populatedProducts = productDocs.map(p => p._id.toString());
+      } catch (populateError) {
+        console.error('Error populating products:', populateError);
+        // Continue with campaign data even if products fail to populate
+        populatedProducts = campaign.productIds.map(id => id.toString());
+      }
     }
 
     return {
@@ -123,18 +153,17 @@ export const getCampaignById = async (campaignId) => {
       _id: campaign._id,
       status: calculateCampaignStatus(campaign),
       discount: campaign.discountValue,
-      // Ensure productIds are properly formatted
-      productIds: campaign.productIds ? campaign.productIds.map(p => {
-        if (typeof p === 'object' && p !== null) {
-          return p._id || p.id || p;
-        }
-        return p;
-      }) : [],
+      // Return only valid product IDs
+      productIds: populatedProducts,
     };
   } catch (error) {
     if (error.name === 'CastError') {
-      throw new Error('Invalid campaign ID');
+      const castError = new Error('Invalid campaign ID');
+      castError.statusCode = 400;
+      throw castError;
     }
+    // Log error for debugging
+    console.error('Error in getCampaignById:', error);
     throw error;
   }
 };
@@ -144,6 +173,14 @@ export const getCampaignById = async (campaignId) => {
  */
 export const createCampaign = async (campaignData) => {
   try {
+    // Validate discountValue
+    const discountValue = parseFloat(campaignData.discountValue);
+    if (isNaN(discountValue) || discountValue < 0) {
+      const error = new Error('Invalid discount value. Must be a positive number.');
+      error.statusCode = 400;
+      throw error;
+    }
+
     const existingCampaigns = await Campaign.find().lean();
     const slug = campaignData.slug || generateSlug(campaignData.name, existingCampaigns);
 
@@ -159,7 +196,7 @@ export const createCampaign = async (campaignData) => {
       type: campaignData.type,
       description: campaignData.description || '',
       discountType: campaignData.discountType,
-      discountValue: campaignData.discountValue,
+      discountValue: discountValue,
       startDate: campaignData.startDate,
       endDate: campaignData.endDate,
       productIds: campaignData.productIds || [],
@@ -219,9 +256,37 @@ export const createCampaign = async (campaignData) => {
  */
 export const updateCampaign = async (campaignId, updateData) => {
   try {
+    // Validate campaignId format
+    if (!campaignId || !mongoose.Types.ObjectId.isValid(campaignId)) {
+      const error = new Error('Invalid campaign ID format');
+      error.statusCode = 400;
+      throw error;
+    }
+
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) {
-      throw new Error('Campaign not found');
+      const error = new Error('Campaign not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Validate and clean productIds
+    if (updateData.productIds) {
+      if (!Array.isArray(updateData.productIds)) {
+        const error = new Error('productIds must be an array');
+        error.statusCode = 400;
+        throw error;
+      }
+      
+      // Filter out invalid ObjectIds
+      updateData.productIds = updateData.productIds.filter(id => {
+        if (!id) return false;
+        const idStr = id.toString();
+        return mongoose.Types.ObjectId.isValid(idStr);
+      }).map(id => {
+        const idStr = id.toString();
+        return mongoose.Types.ObjectId.isValid(idStr) ? new mongoose.Types.ObjectId(idStr) : null;
+      }).filter(id => id !== null);
     }
 
     // Update slug if name changed
@@ -229,6 +294,47 @@ export const updateCampaign = async (campaignId, updateData) => {
       const existingCampaigns = await Campaign.find({ _id: { $ne: campaignId } }).lean();
       updateData.slug = generateSlug(updateData.name, existingCampaigns);
       updateData.route = `/sale/${updateData.slug}`;
+    }
+
+    // Validate discountValue
+    if (updateData.discountValue !== undefined) {
+      const discountValue = parseFloat(updateData.discountValue);
+      if (isNaN(discountValue) || discountValue < 0) {
+        const error = new Error('Invalid discount value. Must be a positive number.');
+        error.statusCode = 400;
+        throw error;
+      }
+      updateData.discountValue = discountValue;
+    }
+
+    // Validate dates
+    if (updateData.startDate) {
+      const startDate = new Date(updateData.startDate);
+      if (isNaN(startDate.getTime())) {
+        const error = new Error('Invalid start date');
+        error.statusCode = 400;
+        throw error;
+      }
+      updateData.startDate = startDate;
+    }
+
+    if (updateData.endDate) {
+      const endDate = new Date(updateData.endDate);
+      if (isNaN(endDate.getTime())) {
+        const error = new Error('Invalid end date');
+        error.statusCode = 400;
+        throw error;
+      }
+      updateData.endDate = endDate;
+    }
+
+    // Validate date range
+    if (updateData.startDate && updateData.endDate) {
+      if (new Date(updateData.startDate) >= new Date(updateData.endDate)) {
+        const error = new Error('End date must be after start date');
+        error.statusCode = 400;
+        throw error;
+      }
     }
 
     Object.assign(campaign, updateData);

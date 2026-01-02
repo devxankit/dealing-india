@@ -6,13 +6,15 @@ import MobileLayout from "../components/Layout/MobileLayout";
 import MobileFilterPanel from "../components/Mobile/MobileFilterPanel";
 import ProductCard from "../../../shared/components/ProductCard";
 import ProductListItem from "../components/Mobile/ProductListItem";
-import { getOffers } from '../../../data/products';
+import { useCampaignStore } from "../../../shared/store/campaignStore";
 import PageTransition from "../../../shared/components/PageTransition";
 import useInfiniteScroll from "../../../shared/hooks/useInfiniteScroll";
+import toast from "react-hot-toast";
 
 const MobileOffers = () => {
   const navigate = useNavigate();
-  const allOffers = getOffers();
+  const [allOffers, setAllOffers] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
   const [filters, setFilters] = useState({
@@ -22,11 +24,111 @@ const MobileOffers = () => {
     minRating: "",
   });
 
+  // Transform product to match frontend format
+  const transformProduct = (product) => {
+    const vendor = product.vendorId;
+    const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+      ? {
+          id: (vendor._id || vendor.id).toString(),
+          _id: vendor._id || vendor.id,
+          storeName: vendor.storeName || vendor.businessName || vendor.name,
+          businessName: vendor.businessName,
+          name: vendor.name,
+          storeLogo: vendor.storeLogo || vendor.logo,
+          isVerified: vendor.isVerified !== undefined 
+            ? vendor.isVerified 
+            : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+        }
+      : null;
+    
+    return {
+      id: product._id || product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice || product.price,
+      image: product.image,
+      images: product.images || [],
+      unit: product.unit || 'Piece',
+      rating: product.rating || 0,
+      reviewCount: product.reviewCount || 0,
+      stock: product.stock,
+      stockQuantity: product.stockQuantity,
+      vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+      vendor: vendorData,
+      flashSale: product.flashSale || false,
+    };
+  };
+
+  // Fetch special offers from campaigns
+  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        setIsLoadingProducts(true);
+        const campaignStore = useCampaignStore.getState();
+        
+        // Fetch both special_offer and festival campaigns
+        await campaignStore.initializePublic({ type: 'special_offer', limit: 100 });
+        await campaignStore.initializePublic({ type: 'festival', limit: 100 });
+        
+        const specialOfferCampaigns = campaignStore.getPublicCampaignsByType('special_offer');
+        const festivalCampaigns = campaignStore.getPublicCampaignsByType('festival');
+        
+        // Combine all campaigns
+        const allCampaigns = [...specialOfferCampaigns, ...festivalCampaigns];
+        
+        // Collect all products from all campaigns
+        let allProducts = [];
+        allCampaigns.forEach(campaign => {
+          if (campaign.products && campaign.products.length > 0) {
+            const campaignProducts = campaign.products.map(product => {
+              // Apply campaign discount
+              let discountedPrice = product.price;
+              let originalPrice = product.originalPrice || product.price;
+              
+              if (campaign.discountType === 'percentage' && campaign.discountValue) {
+                discountedPrice = product.price * (1 - campaign.discountValue / 100);
+                originalPrice = product.price;
+              } else if (campaign.discountType === 'fixed' && campaign.discountValue) {
+                discountedPrice = Math.max(0, product.price - campaign.discountValue);
+                originalPrice = product.price;
+              }
+              
+              return {
+                ...transformProduct(product),
+                price: discountedPrice,
+                originalPrice: originalPrice,
+              };
+            });
+            allProducts = [...allProducts, ...campaignProducts];
+          }
+        });
+        
+        // Remove duplicates based on product ID
+        const uniqueProducts = allProducts.reduce((acc, product) => {
+          if (!acc.find(p => p.id === product.id)) {
+            acc.push(product);
+          }
+          return acc;
+        }, []);
+        
+        setAllOffers(uniqueProducts);
+      } catch (error) {
+        console.error('Error fetching special offers from campaigns:', error);
+        toast.error('Failed to load special offers');
+        setAllOffers([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchOffers();
+  }, []);
+
   const offersWithDiscount = useMemo(() => {
     return allOffers.map((product) => {
-      const discount = Math.round(
-        ((product.originalPrice - product.price) / product.originalPrice) * 100
-      );
+      const discount = product.originalPrice && product.originalPrice > product.price
+        ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+        : 0;
       return { ...product, discount };
     });
   }, [allOffers]);
@@ -167,7 +269,13 @@ const MobileOffers = () => {
 
           {/* Products List */}
           <div className="px-4 py-4">
-            {filteredProducts.length === 0 ? (
+            {isLoadingProducts ? (
+              <div className="text-center py-12">
+                <div className="text-6xl text-gray-300 mx-auto mb-4 animate-pulse">🎁</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Loading special offers...</h3>
+                <p className="text-gray-600">Please wait</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl text-gray-300 mx-auto mb-4">🎁</div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">

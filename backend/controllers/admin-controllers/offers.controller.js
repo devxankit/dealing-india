@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import {
   getAllCampaigns,
   getCampaignById,
@@ -140,10 +141,32 @@ export const createOffer = async (req, res, next) => {
 export const updateOffer = async (req, res, next) => {
   try {
     const { id } = req.params;
+    
+    // Validate ID format first
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid campaign ID format',
+      });
+    }
+
     const updateData = { ...req.body };
 
-    // Get existing campaign to check for old image
-    const existingCampaign = await getCampaignById(id);
+    // Get existing campaign to check for old image (with error handling)
+    let existingCampaign;
+    try {
+      existingCampaign = await getCampaignById(id);
+    } catch (error) {
+      // If campaign not found, return 404
+      if (error.statusCode === 404 || error.message.includes('not found')) {
+        return res.status(404).json({
+          success: false,
+          message: 'Campaign not found',
+        });
+      }
+      // For other errors, continue but log
+      console.warn('Could not fetch existing campaign:', error.message);
+    }
 
     // Handle image upload if present
     if (req.file) {
@@ -182,21 +205,79 @@ export const updateOffer = async (req, res, next) => {
       }
     }
 
-    // Parse dates
+    // Parse and validate dates
     if (updateData.startDate) {
-      updateData.startDate = new Date(updateData.startDate);
+      const startDate = new Date(updateData.startDate);
+      if (isNaN(startDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid start date format',
+        });
+      }
+      updateData.startDate = startDate;
     }
+    
     if (updateData.endDate) {
-      updateData.endDate = new Date(updateData.endDate);
+      const endDate = new Date(updateData.endDate);
+      if (isNaN(endDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid end date format',
+        });
+      }
+      updateData.endDate = endDate;
+    }
+    
+    // Validate date range
+    if (updateData.startDate && updateData.endDate) {
+      if (new Date(updateData.startDate) >= new Date(updateData.endDate)) {
+        return res.status(400).json({
+          success: false,
+          message: 'End date must be after start date',
+        });
+      }
     }
 
-    // Parse productIds if string array
-    if (updateData.productIds && typeof updateData.productIds === 'string') {
-      try {
-        updateData.productIds = JSON.parse(updateData.productIds);
-      } catch (e) {
-        // Keep as is if not JSON
+    // Parse and validate productIds
+    if (updateData.productIds) {
+      if (typeof updateData.productIds === 'string') {
+        try {
+          updateData.productIds = JSON.parse(updateData.productIds);
+        } catch (e) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid productIds format - must be valid JSON array',
+          });
+        }
       }
+      
+      // Ensure productIds is an array
+      if (!Array.isArray(updateData.productIds)) {
+        return res.status(400).json({
+          success: false,
+          message: 'productIds must be an array',
+        });
+      }
+      
+      // Validate all productIds are valid ObjectIds
+      const invalidIds = updateData.productIds.filter(id => {
+        if (!id) return true;
+        const idStr = id.toString();
+        return !mongoose.Types.ObjectId.isValid(idStr);
+      });
+      
+      if (invalidIds.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid product IDs found. Please remove invalid products and try again.`,
+        });
+      }
+      
+      // Convert to ObjectIds (service will handle this, but validate here too)
+      updateData.productIds = updateData.productIds.map(id => {
+        const idStr = id.toString();
+        return new mongoose.Types.ObjectId(idStr);
+      });
     }
 
     // Parse pageConfig if string
