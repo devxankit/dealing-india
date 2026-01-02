@@ -72,6 +72,11 @@
     "children": []
   },
   {
+    "title": "Hero Banner Booking",
+    "route": "/vendor/hero-banner-booking",
+    "children": []
+  },
+  {
     "title": "Notifications",
     "route": "/vendor/notifications",
     "children": []

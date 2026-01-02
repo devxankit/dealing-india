@@ -1,229 +1,209 @@
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import LazyImage from "../../../../shared/components/LazyImage";
-import heroSlide1 from "../../../../../data/hero/slide1.png";
-import heroSlide2 from "../../../../../data/hero/slide2.png";
-import heroSlide3 from "../../../../../data/hero/slide3.png";
-import heroSlide4 from "../../../../../data/hero/slide4.png";
+import { motion, AnimatePresence } from "framer-motion";
+import { getActiveBanners } from "../../../Vendor/services/heroBannerService";
 
 const HeroBanner = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [banners, setBanners] = useState([]);
+  const [displayTime, setDisplayTime] = useState(2000);
+  const [loading, setLoading] = useState(true);
   const containerRef = useRef(null);
 
-  const slides = [
-    {
-      image: heroSlide1,
-    },
-    {
-      image: heroSlide2,
-    },
-    {
-      image: heroSlide3,
-    },
-    {
-      image: heroSlide4,
-    },
-  ];
+  useEffect(() => {
+    const loadBanners = async () => {
+      try {
+        const response = await getActiveBanners();
+        if (response.success) {
+          setBanners(response.data.banners || []);
+          setDisplayTime(response.data.settings?.universalDisplayTime || 2000);
+        }
+      } catch (error) {
+        console.error("Failed to load hero banners:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadBanners();
+  }, []);
+
+  const [isPaused, setIsPaused] = useState(false);
 
   // Auto-slide functionality
   useEffect(() => {
+    if (banners.length <= 1 || isPaused) return;
+
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000); // Change slide every 5 seconds
+      setCurrentSlide((prev) => (prev + 1) % banners.length);
+    }, displayTime);
 
     return () => clearInterval(interval);
-  }, [slides.length]);
+  }, [banners.length, displayTime, isPaused]);
+
+  const handleNext = () => {
+    setCurrentSlide((prev) => (prev + 1) % banners.length);
+  };
+
+  const handlePrev = () => {
+    setCurrentSlide((prev) => (prev === 0 ? banners.length - 1 : prev - 1));
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-4">
+        <div className="w-full bg-gray-100 animate-pulse rounded-2xl" style={{ aspectRatio: "211/35" }}></div>
+      </div>
+    );
+  }
+
+  if (banners.length === 0) return null;
 
   return (
-    <>
-      {/* Desktop Layout - White card wrapper with proper aspect ratio */}
+    <div 
+      className="w-full overflow-hidden"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Desktop Layout */}
       <div className="hidden md:block bg-white rounded-lg mb-4 p-4">
         <div
           ref={containerRef}
-          className="relative w-full overflow-hidden rounded-lg"
-          data-carousel
+          className="group relative w-full overflow-hidden rounded-lg shadow-sm"
           style={{
-            position: "relative",
-            width: "100%",
             aspectRatio: "211/35",
-            overflow: "hidden",
           }}>
-          {/* Slider Container - All slides in a row */}
           <motion.div
             className="flex h-full"
             style={{
-              width: `${slides.length * 100}%`,
+              width: `${banners.length * 100}%`,
               height: "100%",
             }}
             animate={{
-              x: `-${currentSlide * (100 / slides.length)}%`,
+              x: `-${currentSlide * (100 / banners.length)}%`,
             }}
             transition={{
               duration: 0.8,
-              ease: [0.25, 0.46, 0.45, 0.94], // Smooth easing
+              ease: [0.25, 0.46, 0.45, 0.94],
               type: "tween",
             }}>
-            {slides.map((slide, index) => (
-              <div
-                key={index}
+            {banners.map((banner, index) => (
+              <a
+                key={banner.id}
+                href={banner.link || "#"}
                 className="flex-shrink-0"
                 style={{
-                  width: `${100 / slides.length}%`,
+                  width: `${100 / banners.length}%`,
                   height: "100%",
                 }}>
-                {index === 0 ? (
-                  <img
-                    src={slide.image}
-                    alt={`Slide ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center",
-                    }}
-                    loading="eager"
-                    onError={(e) => {
-                      console.error(`Failed to load image: ${slide.image}`);
-                      e.target.src = `https://via.placeholder.com/1200x650?text=Slide+${
-                        index + 1
-                      }`;
-                    }}
-                  />
-                ) : (
-                  <LazyImage
-                    src={slide.image}
-                    alt={`Slide ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center",
-                    }}
-                    onError={(e) => {
-                      console.error(`Failed to load image: ${slide.image}`);
-                      e.target.src = `https://via.placeholder.com/1200x650?text=Slide+${
-                        index + 1
-                      }`;
-                    }}
-                  />
-                )}
-              </div>
+                <img
+                  src={banner.image}
+                  alt={banner.title || `Slide ${index + 1}`}
+                  className="w-full h-full object-cover"
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
+              </a>
             ))}
           </motion.div>
 
-          {/* Carousel Indicators */}
-          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-            {slides.map((_, index) => (
+          {/* Navigation Arrows */}
+          {banners.length > 1 && (
+            <>
               <button
-                key={index}
-                onClick={() => setCurrentSlide(index)}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  index === currentSlide
-                    ? "bg-white w-8 shadow-lg"
-                    : "bg-white/50 w-2 hover:bg-white/70"
-                }`}
-              />
-            ))}
-          </div>
+                onClick={handlePrev}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <button
+                onClick={handleNext}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </>
+          )}
+
+          {/* Indicators */}
+          {banners.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+              {banners.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentSlide(index)}
+                  aria-label={`Go to slide ${index + 1}`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    currentSlide === index ? "bg-white w-6 shadow-md" : "bg-white/40 w-1.5 hover:bg-white/60"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Mobile Layout - Unchanged */}
-      <div className="md:hidden container mx-auto px-2 sm:px-4 overflow-x-hidden w-full">
+      {/* Mobile Layout */}
+      <div className="md:hidden px-2 py-3">
         <div
-          ref={containerRef}
-          className="relative w-full max-w-[1366px] mx-auto h-[200px] sm:h-[300px] md:h-[400px] lg:h-[500px] xl:h-[550px] overflow-hidden rounded-2xl sm:rounded-3xl my-4 sm:my-6 lg:my-2 shadow-2xl"
-          data-carousel
+          className="relative w-full overflow-hidden rounded-xl shadow-md"
           style={{
-            position: "relative",
-            width: "100%",
-            maxWidth: "1366px",
-            overflow: "hidden",
+            aspectRatio: "16/9",
           }}>
-          {/* Slider Container - All slides in a row */}
           <motion.div
-            className="flex h-full"
+            className="flex h-full cursor-grab active:cursor-grabbing"
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, { offset, velocity }) => {
+              const swipe = offset.x;
+              if (swipe < -50) handleNext();
+              else if (swipe > 50) handlePrev();
+            }}
             style={{
-              width: `${slides.length * 100}%`,
+              width: `${banners.length * 100}%`,
               height: "100%",
             }}
             animate={{
-              x: `-${currentSlide * (100 / slides.length)}%`,
+              x: `-${currentSlide * (100 / banners.length)}%`,
             }}
             transition={{
-              duration: 0.8,
-              ease: [0.25, 0.46, 0.45, 0.94], // Smooth easing
-              type: "tween",
+              duration: 0.6,
+              ease: "easeInOut",
             }}>
-            {slides.map((slide, index) => (
-              <div
-                key={index}
-                className="flex-shrink-0"
+            {banners.map((banner, index) => (
+              <a
+                key={banner.id}
+                href={banner.link || "#"}
+                className="flex-shrink-0 block pointer-events-none active:pointer-events-auto"
                 style={{
-                  width: `${100 / slides.length}%`,
+                  width: `${100 / banners.length}%`,
                   height: "100%",
                 }}>
-                {index === 0 ? (
-                  <img
-                    src={slide.image}
-                    alt={`Slide ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center",
-                    }}
-                    loading="eager"
-                    onError={(e) => {
-                      console.error(`Failed to load image: ${slide.image}`);
-                      e.target.src = `https://via.placeholder.com/1200x650?text=Slide+${
-                        index + 1
-                      }`;
-                    }}
-                  />
-                ) : (
-                  <LazyImage
-                    src={slide.image}
-                    alt={`Slide ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center",
-                    }}
-                    onError={(e) => {
-                      console.error(`Failed to load image: ${slide.image}`);
-                      e.target.src = `https://via.placeholder.com/1200x650?text=Slide+${
-                        index + 1
-                      }`;
-                    }}
-                  />
-                )}
-              </div>
+                <img
+                  src={banner.image}
+                  alt={banner.title || `Slide ${index + 1}`}
+                  className="w-full h-full object-cover select-none"
+                  draggable="false"
+                />
+              </a>
             ))}
           </motion.div>
-
-          {/* Carousel Indicators */}
-          <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-            {slides.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentSlide(index)}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  index === currentSlide
-                    ? "bg-white w-8 shadow-lg"
-                    : "bg-white/50 w-2 hover:bg-white/70"
-                }`}
-              />
-            ))}
-          </div>
+          
+          {/* Mobile Dots */}
+          {banners.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {banners.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentSlide(index)}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    currentSlide === index ? "bg-white w-4" : "bg-white/50 w-1"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

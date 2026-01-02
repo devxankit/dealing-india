@@ -37,6 +37,9 @@ const settingsSchema = new mongoose.Schema(
       taxCalculationMethod: { type: String, default: 'exclusive', enum: ['exclusive', 'inclusive'] },
       priceDisplayFormat: { type: String, default: 'INR', enum: ['INR', 'USD', 'EUR', 'GBP'] },
     },
+    banners: {
+      universalDisplayTime: { type: Number, default: 2000, min: 500 }, // in milliseconds
+    },
   },
   {
     timestamps: true,

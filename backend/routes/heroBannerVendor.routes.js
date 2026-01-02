@@ -1,0 +1,23 @@
+import express from 'express';
+import {
+  getAvailableSlots,
+  createBannerBooking,
+  getMyBookings,
+  confirmPayment
+} from '../controllers/vendor-controllers/heroBanner.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
+import { authorize } from '../middleware/role.middleware.js';
+import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import { upload } from '../utils/upload.util.js';
+
+const router = express.Router();
+
+router.use(authenticate);
+router.use(authorize('vendor'));
+
+router.get('/slots', asyncHandler(getAvailableSlots));
+router.get('/my-bookings', asyncHandler(getMyBookings));
+router.post('/book', upload.single('image'), asyncHandler(createBannerBooking));
+router.post('/confirm-payment', asyncHandler(confirmPayment));
+
+export default router;
