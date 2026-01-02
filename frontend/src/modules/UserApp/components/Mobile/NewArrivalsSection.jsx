@@ -161,7 +161,7 @@ const NewArrivalsSection = () => {
           </div>
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Link
-              to="/app/search"
+              to="/app/search?isNew=true"
               className="bg-white/20 backdrop-blur-sm text-green-200 text-sm font-bold px-3 py-1.5 rounded-lg hover:bg-white/30 transition-all block">
               See All
             </Link>

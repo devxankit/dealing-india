@@ -19,6 +19,7 @@ export const getProducts = async (filters = {}) => {
     if (filters.minRating) params.append('minRating', filters.minRating);
     if (filters.minReviewCount !== undefined) params.append('minReviewCount', filters.minReviewCount);
     if (filters.isNew !== undefined) params.append('isNew', filters.isNew);
+    if (filters.isTrending !== undefined) params.append('isTrending', filters.isTrending);
     if (filters.flashSale !== undefined) params.append('flashSale', filters.flashSale);
     if (filters.page) params.append('page', filters.page);
     if (filters.limit) params.append('limit', filters.limit);
@@ -85,6 +86,40 @@ export const getProductById = async (productId) => {
   } catch (error) {
     console.error('Error fetching product:', error);
     throw error;
+  }
+};
+
+/**
+ * Get recommended products for user
+ * @param {Number} limit - Maximum number of products to return (default: 6)
+ * @returns {Promise<Array>} Array of recommended products
+ */
+export const getRecommendedProducts = async (limit = 6) => {
+  try {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit);
+
+    // API interceptor returns response.data, so response is already the data object
+    // Backend returns: { success, message, data: { products, total } }
+    const response = await api.get(`/products/recommended?${params.toString()}`);
+    
+    // Extract products array
+    if (response && response.data && Array.isArray(response.data.products)) {
+      return response.data.products;
+    } else if (response && Array.isArray(response.products)) {
+      return response.products;
+    }
+    
+    console.warn('Unexpected API response structure for recommended products:', response);
+    return [];
+  } catch (error) {
+    // If user is not authenticated, return empty array (recommendations are optional)
+    if (error.response?.status === 401) {
+      console.log('User not authenticated, returning empty recommendations');
+      return [];
+    }
+    console.error('Error fetching recommended products:', error);
+    return [];
   }
 };
 

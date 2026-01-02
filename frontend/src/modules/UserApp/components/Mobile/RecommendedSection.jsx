@@ -1,12 +1,34 @@
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { FiThumbsUp, FiArrowRight } from "react-icons/fi";
 import ProductCard from "../../../../shared/components/ProductCard";
-import { getRecommendedProducts } from '../../../../data/products';
+import { getRecommendedProducts } from '../../../../shared/services/productService';
 
 const RecommendedSection = () => {
-  const recommended = useMemo(() => getRecommendedProducts(6), []);
+  const [recommended, setRecommended] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRecommended = async () => {
+      try {
+        setIsLoading(true);
+        const products = await getRecommendedProducts(6);
+        setRecommended(products || []);
+      } catch (error) {
+        console.error('Error fetching recommended products:', error);
+        setRecommended([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecommended();
+  }, []);
+
+  if (isLoading) {
+    return null; // Don't show anything while loading
+  }
 
   if (recommended.length === 0) {
     return null;

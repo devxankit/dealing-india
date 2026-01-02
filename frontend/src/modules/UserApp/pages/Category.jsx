@@ -488,7 +488,6 @@ const MobileCategory = () => {
           vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
           vendor: vendorData,
           isNew: product.isNew,
-          isFeatured: product.isFeatured,
           flashSale: product.flashSale,
         };
       });

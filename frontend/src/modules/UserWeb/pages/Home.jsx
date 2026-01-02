@@ -24,8 +24,8 @@ import {
   getMostPopular,
   getTrending,
   getFlashSale,
-  getRecommendedProducts,
 } from "../../../data/products";
+import { getRecommendedProducts } from "../../../shared/services/productService";
 import { FiThumbsUp, FiArrowRight } from "react-icons/fi";
 import PageTransition from "../../../shared/components/PageTransition";
 import useResponsiveHeaderPadding from "../../../shared/hooks/useResponsiveHeaderPadding";
@@ -74,7 +74,21 @@ const Home = () => {
   const mostPopular = getMostPopular();
   const trending = getTrending();
   const flashSale = getFlashSale();
-  const recommended = getRecommendedProducts(12);
+  
+  // Fetch recommended products from API
+  const [recommended, setRecommended] = useState([]);
+  useEffect(() => {
+    const fetchRecommended = async () => {
+      try {
+        const products = await getRecommendedProducts(12);
+        setRecommended(products || []);
+      } catch (error) {
+        console.error('Error fetching recommended products:', error);
+        setRecommended([]);
+      }
+    };
+    fetchRecommended();
+  }, []);
 
   // Auto-slide functionality
   useEffect(() => {

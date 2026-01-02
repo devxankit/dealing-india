@@ -28,6 +28,8 @@ const MobileSearch = () => {
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
     minRating: searchParams.get('minRating') || '',
+    isNew: searchParams.get('isNew') === 'true' || false,
+    isTrending: searchParams.get('isTrending') === 'true' || false,
   });
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -71,6 +73,8 @@ const MobileSearch = () => {
         minPrice: filters.minPrice || undefined,
         maxPrice: filters.maxPrice || undefined,
         minRating: filters.minRating || undefined,
+        isNew: filters.isNew ? true : undefined, // Only pass if true
+        isTrending: filters.isTrending ? true : undefined, // Only pass if true
         page: 1,
         limit: 100, // Get more products for better UX
         sortBy: 'createdAt',
@@ -145,7 +149,7 @@ const MobileSearch = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, filters.category, filters.vendor, filters.minPrice, filters.maxPrice, filters.minRating]);
+  }, [searchQuery, filters.category, filters.vendor, filters.minPrice, filters.maxPrice, filters.minRating, filters.isNew, filters.isTrending]);
 
   // Fetch products when search query or filters change
   useEffect(() => {
@@ -175,7 +179,7 @@ const MobileSearch = () => {
 
   // Check if any filter is active
   const hasActiveFilters =
-    filters.minPrice || filters.maxPrice || filters.minRating || filters.category || filters.vendor;
+    filters.minPrice || filters.maxPrice || filters.minRating || filters.category || filters.vendor || filters.isNew || filters.isTrending;
 
   // Close filter dropdown when clicking outside
   useEffect(() => {
@@ -228,6 +232,8 @@ const MobileSearch = () => {
       minPrice: '',
       maxPrice: '',
       minRating: '',
+      isNew: false,
+      isTrending: false,
     });
     setSearchQuery('');
     setSearchParams({});
@@ -256,6 +262,47 @@ const MobileSearch = () => {
         <div className="w-full pb-24">
           {/* Search Header */}
           <div className="px-4 py-4 bg-white border-b border-gray-200 sticky top-1 z-30">
+            {/* Show filter badges if active */}
+            {(filters.isNew || filters.isTrending) && (
+              <div className="mb-3 space-y-2">
+                {filters.isNew && (
+                  <div className="px-3 py-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600 font-semibold text-sm">✨ New Arrivals</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        handleFilterChange('isNew', false);
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.delete('isNew');
+                        setSearchParams(newParams);
+                      }}
+                      className="text-green-600 hover:text-green-700 text-sm font-semibold"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+                {filters.isTrending && (
+                  <div className="px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-orange-600 font-semibold text-sm">🔥 Trending Now</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        handleFilterChange('isTrending', false);
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.delete('isTrending');
+                        setSearchParams(newParams);
+                      }}
+                      className="text-orange-600 hover:text-orange-700 text-sm font-semibold"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <form onSubmit={handleSearch} className="mb-3">
               <div className="relative">
                 <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl z-10" />

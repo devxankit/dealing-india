@@ -129,7 +129,7 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isFeatured: {
+    isTrending: {
       type: Boolean,
       default: false,
     },
@@ -298,8 +298,9 @@ productSchema.index({ stock: 1, stockQuantity: 1 });
 productSchema.index({ categoryId: 1, isVisible: 1 });
 productSchema.index({ subcategoryId: 1, isVisible: 1 });
 productSchema.index({ brandId: 1, isVisible: 1 });
-productSchema.index({ isFeatured: 1, isVisible: 1 });
 productSchema.index({ flashSale: 1, isVisible: 1 });
+productSchema.index({ isTrending: 1, isVisible: 1 });
+productSchema.index({ isNew: 1, isVisible: 1 });
 
 const Product = mongoose.model('Product', productSchema);
 

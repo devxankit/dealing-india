@@ -89,7 +89,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
     fetchProducts();
   }, [initCategories, initBrands]);
 
-  // Fetch products from API
+  // Fetch products from API - only visible and active products
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
     try {
@@ -103,16 +103,37 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
       
       if (response.success && response.data && response.data.products) {
         // Transform products to match expected format
-        const transformedProducts = response.data.products.map((product) => ({
-          id: product._id || product.id,
-          name: product.name,
-          price: product.price,
-          originalPrice: product.originalPrice,
-          image: product.images && product.images.length > 0 ? product.images[0] : product.image || "https://via.placeholder.com/200?text=Product",
-          categoryId: product.categoryId?._id || product.categoryId?.id || product.categoryId,
-          brandId: product.brandId?._id || product.brandId?.id || product.brandId,
-          stock: product.stock || "in_stock",
-        }));
+        // Backend already filters visible and active products, so use all returned products
+        const transformedProducts = response.data.products.map((product) => {
+          // Get main image - ALWAYS prioritize product.image (main image) over gallery images
+          // Backend model: image (String) = main image, images ([String]) = gallery images
+          // We should NEVER use gallery images if main image exists (same as home page)
+          let mainImage = product.image;
+          
+          // Only use gallery image if main image doesn't exist
+          if (!mainImage && product.images && product.images.length > 0) {
+            mainImage = product.images[0];
+          }
+          
+          // Fallback to placeholder if no image
+          if (!mainImage) {
+            mainImage = "https://via.placeholder.com/200?text=Product";
+          }
+
+          return {
+            id: product._id || product.id,
+            name: product.name,
+            price: product.price,
+            originalPrice: product.originalPrice,
+            image: mainImage, // Always use main image field, never gallery images unless main is missing
+            images: product.images || [],
+            categoryId: product.categoryId?._id || product.categoryId?.id || product.categoryId,
+            brandId: product.brandId?._id || product.brandId?.id || product.brandId,
+            stock: product.stock || "in_stock",
+            isVisible: product.isVisible !== false,
+            isActive: product.isActive !== false,
+          };
+        });
         setProducts(transformedProducts);
       }
     } catch (error) {
@@ -152,6 +173,19 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
 
   useEffect(() => {
     if (campaign) {
+      // Handle productIds - can be array of IDs or array of populated objects
+      let productIds = [];
+      if (campaign.productIds && campaign.productIds.length > 0) {
+        productIds = campaign.productIds.map((product) => {
+          // If product is populated object, extract ID
+          if (typeof product === 'object' && product !== null) {
+            return product._id || product.id || product;
+          }
+          // If it's already an ID string, use it
+          return product;
+        });
+      }
+
       setFormData({
         name: campaign.name || "",
         type: campaign.type || "flash_sale",
@@ -160,7 +194,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
         discountValue: campaign.discountValue || "",
         startDate: campaign.startDate ? campaign.startDate.split("T")[0] : "",
         endDate: campaign.endDate ? campaign.endDate.split("T")[0] : "",
-        productIds: campaign.productIds || [],
+        productIds: productIds,
         isActive: campaign.isActive !== undefined ? campaign.isActive : true,
         slug: campaign.slug || "",
         autoCreateBanner:

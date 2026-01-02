@@ -18,14 +18,22 @@ import ConfirmModal from "../../components/ConfirmModal";
 import toast from "react-hot-toast";
 
 const FestivalOffers = () => {
-  const { campaigns, initialize, getCampaignsByType, deleteCampaign } =
+  const { campaigns, initialize, getCampaignsByType, deleteCampaign, getCampaignById } =
     useCampaignStore();
 
   const [editingOffer, setEditingOffer] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
   useEffect(() => {
-    initialize({ type: "festival" });
+    const fetchFestivalCampaigns = async () => {
+      try {
+        await initialize({ type: "festival", limit: 100 });
+      } catch (error) {
+        console.error("Failed to fetch festival campaigns:", error);
+        toast.error("Failed to load festival offers");
+      }
+    };
+    fetchFestivalCampaigns();
   }, [initialize]);
 
   // Get festival campaigns - already filtered by backend, but keep for compatibility
@@ -152,7 +160,18 @@ const FestivalOffers = () => {
             </Link>
           )}
           <button
-            onClick={() => setEditingOffer(row.campaign)}
+            onClick={async () => {
+              try {
+                // Fetch full campaign data with populated products
+                const fullCampaign = await getCampaignById(row.id);
+                setEditingOffer(fullCampaign);
+              } catch (error) {
+                console.error("Failed to fetch campaign:", error);
+                toast.error("Failed to load campaign data");
+                // Fallback to row.campaign if API fails
+                setEditingOffer(row.campaign);
+              }
+            }}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
             <FiEdit />
           </button>

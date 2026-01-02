@@ -22,6 +22,7 @@ export const getPublicProducts = async (filters = {}) => {
       minReviewCount,
       vendorId,
       isNew,
+      isTrending,
       flashSale,
       page = 1,
       limit = 20,
@@ -207,6 +208,11 @@ export const getPublicProducts = async (filters = {}) => {
     // isNew filter - for New Arrivals section
     if (isNew !== undefined && isNew !== null) {
       query.isNew = isNew === true || isNew === 'true';
+    }
+
+    // isTrending filter - for Trending Now section
+    if (isTrending !== undefined && isTrending !== null) {
+      query.isTrending = isTrending === true || isTrending === 'true';
     }
 
     // flashSale filter - for Flash Sale products

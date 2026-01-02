@@ -47,7 +47,6 @@ export const initializeFashionHubProducts = () => {
       vendorName: "Fashion Hub",
       flashSale: true,
       isNew: false,
-      isFeatured: true,
       description:
         "Classic black blazer perfect for formal occasions. Tailored fit with premium fabric.",
       tags: ["formal", "blazer", "black", "professional"],

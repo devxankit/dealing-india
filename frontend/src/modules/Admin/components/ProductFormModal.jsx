@@ -39,7 +39,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     hsnCode: "",
     flashSale: false,
     isNew: false,
-    isFeatured: false,
     isVisible: true,
     codAllowed: true,
     returnable: true,
@@ -97,7 +96,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
               hsnCode: product.hsnCode || "",
               flashSale: product.flashSale || false,
               isNew: product.isNew || false,
-              isFeatured: product.isFeatured || false,
               isVisible: product.isVisible !== undefined ? product.isVisible : true,
               codAllowed:
                 product.codAllowed !== undefined ? product.codAllowed : true,
@@ -150,7 +148,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
           hsnCode: "",
           flashSale: false,
           isNew: false,
-          isFeatured: false,
           isVisible: true,
           codAllowed: true,
           returnable: true,
@@ -288,7 +285,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         hsnCode: formData.hsnCode || null,
         flashSale: formData.flashSale || false,
         isNew: formData.isNew || false,
-        isFeatured: formData.isFeatured || false,
         isVisible: formData.isVisible !== undefined ? formData.isVisible : true,
         codAllowed: formData.codAllowed !== undefined ? formData.codAllowed : true,
         returnable: formData.returnable !== undefined ? formData.returnable : true,
@@ -903,18 +899,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                         />
                         <span className="text-sm font-semibold text-gray-700">
                           New Arrival
-                        </span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          name="isFeatured"
-                          checked={formData.isFeatured}
-                          onChange={handleChange}
-                          className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                        />
-                        <span className="text-sm font-semibold text-gray-700">
-                          Featured Product
                         </span>
                       </label>
                       <label className="flex items-center gap-2">

@@ -45,7 +45,7 @@ const ProductForm = () => {
     hsnCode: "",
     flashSale: false,
     isNew: false,
-    isFeatured: false,
+    isTrending: false,
     isVisible: true,
     codAllowed: true,
     returnable: true,
@@ -360,7 +360,7 @@ const ProductForm = () => {
         hsnCode: product.hsnCode || "",
         flashSale: product.flashSale || false,
         isNew: product.isNew || false,
-        isFeatured: product.isFeatured || false,
+        isTrending: product.isTrending || false,
         isVisible: product.isVisible !== undefined ? product.isVisible : true,
         codAllowed: product.codAllowed !== undefined ? product.codAllowed : true,
         returnable: product.returnable !== undefined ? product.returnable : true,
@@ -1558,13 +1558,13 @@ const ProductForm = () => {
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                name="isFeatured"
-                checked={formData.isFeatured}
+                name="isTrending"
+                checked={formData.isTrending}
                 onChange={handleChange}
                 className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
               />
               <span className="text-xs font-semibold text-gray-700">
-                Featured Product
+                Trending Now
               </span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">

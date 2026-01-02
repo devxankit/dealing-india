@@ -35,7 +35,6 @@ const ProductForm = () => {
     stockQuantity: "",
     flashSale: false,
     isNew: false,
-    isFeatured: false,
     isVisible: true,
     description: "",
     tags: [],
@@ -89,7 +88,6 @@ const ProductForm = () => {
               hsnCode: product.hsnCode || "",
               flashSale: product.flashSale || false,
               isNew: product.isNew || false,
-              isFeatured: product.isFeatured || false,
               isVisible: product.isVisible !== undefined ? product.isVisible : true,
               codAllowed: product.codAllowed !== undefined ? product.codAllowed : true,
               returnable: product.returnable !== undefined ? product.returnable : true,
@@ -194,7 +192,6 @@ const ProductForm = () => {
         hsnCode: formData.hsnCode || null,
         flashSale: formData.flashSale || false,
         isNew: formData.isNew || false,
-        isFeatured: formData.isFeatured || false,
         isVisible: formData.isVisible !== undefined ? formData.isVisible : true,
         codAllowed: formData.codAllowed !== undefined ? formData.codAllowed : true,
         returnable: formData.returnable !== undefined ? formData.returnable : true,
@@ -589,18 +586,6 @@ const ProductForm = () => {
               />
               <span className="text-sm font-semibold text-gray-700">
                 New Arrival
-              </span>
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="isFeatured"
-                checked={formData.isFeatured}
-                onChange={handleChange}
-                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-              />
-              <span className="text-sm font-semibold text-gray-700">
-                Featured Product
               </span>
             </label>
             <label className="flex items-center gap-2">

@@ -108,7 +108,6 @@ const Category = () => {
         brandId: product.brandId?._id || product.brandId,
         vendorId: product.vendorId?._id || product.vendorId,
         isNew: product.isNew,
-        isFeatured: product.isFeatured,
         flashSale: product.flashSale,
       }));
 

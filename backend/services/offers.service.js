@@ -110,7 +110,7 @@ export const getAllCampaigns = async (filters = {}) => {
 export const getCampaignById = async (campaignId) => {
   try {
     const campaign = await Campaign.findById(campaignId)
-      .populate('productIds', 'name price image')
+      .populate('productIds', 'name price image originalPrice stock stockQuantity categoryId brandId')
       .lean();
 
     if (!campaign) {
@@ -120,8 +120,16 @@ export const getCampaignById = async (campaignId) => {
     return {
       ...campaign,
       id: campaign._id.toString(),
+      _id: campaign._id,
       status: calculateCampaignStatus(campaign),
       discount: campaign.discountValue,
+      // Ensure productIds are properly formatted
+      productIds: campaign.productIds ? campaign.productIds.map(p => {
+        if (typeof p === 'object' && p !== null) {
+          return p._id || p.id || p;
+        }
+        return p;
+      }) : [],
     };
   } catch (error) {
     if (error.name === 'CastError') {

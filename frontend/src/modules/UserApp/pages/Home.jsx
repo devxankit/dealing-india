@@ -73,11 +73,12 @@ const MobileHome = () => {
           minReviewCount: 1, // Only show products with at least 1 review
         });
         
-        // Fetch trending products (sorted by rating)
+        // Fetch trending products (only products where vendor checked isTrending checkbox)
         const trendingResponse = await getProducts({
           limit: 6,
           sortBy: 'rating',
           sortOrder: 'desc',
+          isTrending: true, // Only fetch products with isTrending: true
         });
         
         // Fetch flash sale products (only products where vendor checked flashSale checkbox)
@@ -425,7 +426,7 @@ const MobileHome = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-800">Trending Now</h2>
               <Link
-                to="/app/search"
+                to="/app/search?isTrending=true"
                 className="text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
                 See All
               </Link>

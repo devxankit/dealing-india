@@ -24,6 +24,10 @@ export const getAllProducts = async (filters = {}) => {
     const query = {};
     const andConditions = [];
 
+    // Only show visible and active products (same as home page)
+    query.isVisible = true;
+    query.isActive = true;
+
     // Search filter
     if (search) {
       andConditions.push({
@@ -147,7 +151,7 @@ export const createProduct = async (productData) => {
       hsnCode,
       flashSale,
       isNew,
-      isFeatured,
+      isTrending,
       isVisible,
       codAllowed,
       returnable,
@@ -224,7 +228,7 @@ export const createProduct = async (productData) => {
       hsnCode: hsnCode || null,
       flashSale: flashSale || false,
       isNew: isNew || false,
-      isFeatured: isFeatured || false,
+      isTrending: isTrending || false,
       isVisible: isVisible !== undefined ? isVisible : true,
       codAllowed: codAllowed !== undefined ? codAllowed : true,
       returnable: returnable !== undefined ? returnable : true,
@@ -292,7 +296,7 @@ export const updateProduct = async (productId, updateData) => {
       hsnCode,
       flashSale,
       isNew,
-      isFeatured,
+      isTrending,
       isVisible,
       codAllowed,
       returnable,
@@ -325,7 +329,7 @@ export const updateProduct = async (productId, updateData) => {
     if (hsnCode !== undefined) updateObj.hsnCode = hsnCode || null;
     if (flashSale !== undefined) updateObj.flashSale = flashSale;
     if (isNew !== undefined) updateObj.isNew = isNew;
-    if (isFeatured !== undefined) updateObj.isFeatured = isFeatured;
+    if (isTrending !== undefined) updateObj.isTrending = isTrending;
     if (isVisible !== undefined) updateObj.isVisible = isVisible;
     if (codAllowed !== undefined) updateObj.codAllowed = codAllowed;
     if (returnable !== undefined) updateObj.returnable = returnable;
