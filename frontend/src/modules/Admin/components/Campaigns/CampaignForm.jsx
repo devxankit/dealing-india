@@ -31,7 +31,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
 
   const [formData, setFormData] = useState({
     name: "",
-    type: "flash_sale",
+    type: "daily_deal",
     description: "",
     discountType: "percentage",
     discountValue: "",
@@ -186,7 +186,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
 
       setFormData({
         name: campaign.name || "",
-        type: campaign.type || "flash_sale",
+        type: "daily_deal", // Always set to daily_deal
         description: campaign.description || "",
         discountType: campaign.discountType || "percentage",
         discountValue: campaign.discountValue !== undefined && campaign.discountValue !== null 
@@ -585,17 +585,13 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Campaign Type <span className="text-red-500">*</span>
                     </label>
-                    <AnimatedSelect
+                    <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                      Daily Deal
+                    </div>
+                    <input
+                      type="hidden"
                       name="type"
-                      value={formData.type}
-                      onChange={handleChange}
-                      required
-                      options={[
-                        { value: "flash_sale", label: "Flash Sale" },
-                        { value: "daily_deal", label: "Daily Deal" },
-                        { value: "special_offer", label: "Special Offer" },
-                        { value: "festival", label: "Festival Offer" },
-                      ]}
+                      value="daily_deal"
                     />
                   </div>
 
