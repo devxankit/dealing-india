@@ -61,10 +61,19 @@ export const createAttribute = async (data, vendorId) => {
       throw err;
     }
 
+    // Ensure vendorId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+      const err = new Error('Invalid vendor ID format');
+      err.status = 400;
+      throw err;
+    }
+
+    const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
+
     // Check if attribute with same name exists for THIS vendor
     const existingAttribute = await Attribute.findOne({
       name: { $regex: new RegExp(`^${name}$`, 'i') },
-      vendorId
+      vendorId: vendorObjectId
     });
     if (existingAttribute) {
       const err = new Error('Attribute with this name already exists');
@@ -74,7 +83,7 @@ export const createAttribute = async (data, vendorId) => {
 
     const attribute = await Attribute.create({
       name: name.trim(),
-      vendorId,
+      vendorId: vendorObjectId,
       type,
       required: required === true || required === 'true',
       categoryIds,

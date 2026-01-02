@@ -99,9 +99,23 @@ export const createAttributeValue = async (data, vendorId) => {
       ? new mongoose.Types.ObjectId(attributeId) 
       : attributeId;
     
-    const vendorObjectId = mongoose.Types.ObjectId.isValid(vendorId) 
-      ? new mongoose.Types.ObjectId(vendorId) 
-      : vendorId;
+    // Ensure vendorId is converted to ObjectId for proper comparison
+    // MongoDB stores vendorId as ObjectId, so we need to match that format
+    let vendorObjectId;
+    if (mongoose.Types.ObjectId.isValid(vendorId)) {
+      vendorObjectId = new mongoose.Types.ObjectId(vendorId);
+    } else if (vendorId instanceof mongoose.Types.ObjectId) {
+      vendorObjectId = vendorId;
+    } else {
+      // If it's not a valid ObjectId, try to create one
+      try {
+        vendorObjectId = new mongoose.Types.ObjectId(vendorId);
+      } catch (e) {
+        const err = new Error('Invalid vendor ID format');
+        err.status = 400;
+        throw err;
+      }
+    }
 
     // Verify attribute exists and belongs to this vendor
     // Try multiple query formats to handle different data types
@@ -118,11 +132,38 @@ export const createAttributeValue = async (data, vendorId) => {
       });
     }
 
-    // If still not found, attribute doesn't exist or doesn't belong to this vendor
+    // If still not found, try with original vendorId (might be ObjectId already)
     if (!attribute) {
-      const err = new Error('Attribute not found or does not belong to you');
-      err.status = 404;
-      throw err;
+      attribute = await Attribute.findOne({ 
+        _id: attributeObjectId, 
+        vendorId: vendorId 
+      });
+    }
+
+    // If still not found, try finding by ID only to see if attribute exists at all
+    if (!attribute) {
+      const attributeExists = await Attribute.findById(attributeObjectId);
+      if (attributeExists) {
+        // Log for debugging
+        console.error('Attribute ownership mismatch:', {
+          attributeId: attributeId,
+          attributeVendorId: attributeExists.vendorId?.toString(),
+          requestVendorId: vendorId,
+          requestVendorIdType: typeof vendorId,
+          vendorObjectId: vendorObjectId?.toString(),
+          vendorIdString: vendorId.toString()
+        });
+        
+        // Attribute exists but doesn't belong to this vendor
+        const err = new Error('Attribute does not belong to you');
+        err.status = 403;
+        throw err;
+      } else {
+        // Attribute doesn't exist at all
+        const err = new Error('Attribute not found');
+        err.status = 404;
+        throw err;
+      }
     }
 
     // Check if value already exists for this attribute for THIS vendor

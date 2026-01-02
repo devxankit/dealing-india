@@ -15,15 +15,6 @@
     ]
   },
   {
-    "title": "Attribute Management",
-    "route": "/vendor/attributes",
-    "children": [
-      "Attributes",
-      "Attribute Values",
-      "Attribute Sets"
-    ]
-  },
-  {
     "title": "Order",
     "route": "/vendor/orders",
     "children": [

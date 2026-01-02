@@ -342,6 +342,22 @@ const ProductDetail = () => {
                 </div>
               </div>
 
+              {/* Sizes */}
+              {product.sizes && product.sizes.length > 0 && (
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-3">Available Sizes</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {product.sizes.map((size, index) => (
+                      <span
+                        key={index}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm border border-gray-200">
+                        {size}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Product Description */}
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-3">Description</h3>
