@@ -90,6 +90,11 @@
     ]
   },
   {
+    "title": "Hero Banner Management",
+    "route": "/admin/hero-banners",
+    "children": []
+  },
+  {
     "title": "Mega Reward",
     "route": "/admin/mega-reward",
     "children": [

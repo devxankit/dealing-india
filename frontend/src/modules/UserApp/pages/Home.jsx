@@ -402,7 +402,7 @@ const MobileHome = () => {
                 </div>
                 <Link
                   to="/app/flash-sale"
-                  className="text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
+                  className="text-sm text-primary-600 font-semibold hover:text-primary-700 transition-colors">
                   See All
                 </Link>
               </div>
