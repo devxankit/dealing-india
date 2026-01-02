@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import ConfirmModal from '../../components/ConfirmModal';
-import AnimatedSelect from '../../components/AnimatedSelect';
+import ConfirmModal from '../../../Admin/components/ConfirmModal';
+import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
 
@@ -23,7 +23,7 @@ const AttributeSets = () => {
 
   const fetchAllAttributes = async () => {
     try {
-      const response = await api.get('/admin/attributes');
+      const response = await api.get('/vendor/attributes');
       if (response.success && response.data?.attributes) {
         setAllAttributes(response.data.attributes);
       }
@@ -35,7 +35,7 @@ const AttributeSets = () => {
   const fetchAttributeSets = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/admin/attribute-sets');
+      const response = await api.get('/vendor/attribute-sets');
       if (response.success && response.data?.attributeSets) {
         const transformed = response.data.attributeSets.map((set) => ({
           id: set._id || set.id,
@@ -62,9 +62,9 @@ const AttributeSets = () => {
 
       let response;
       if (editingSet && editingSet.id) {
-        response = await api.put(`/admin/attribute-sets/${editingSet.id}`, payload);
+        response = await api.put(`/vendor/attribute-sets/${editingSet.id}`, payload);
       } else {
-        response = await api.post('/admin/attribute-sets', payload);
+        response = await api.post('/vendor/attribute-sets', payload);
       }
 
       if (response.success) {
@@ -79,7 +79,7 @@ const AttributeSets = () => {
 
   const handleDelete = async () => {
     try {
-      const response = await api.delete(`/admin/attribute-sets/${deleteModal.id}`);
+      const response = await api.delete(`/vendor/attribute-sets/${deleteModal.id}`);
       if (response.success) {
         toast.success('Attribute set deleted');
         setDeleteModal({ isOpen: false, id: null });

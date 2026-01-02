@@ -17,16 +17,19 @@ import {
   FiMoreVertical,
   FiCalendar,
   FiX,
+  FiTrendingUp,
 } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
+import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { formatCurrency, formatDateTime } from "../../utils/adminHelpers";
-import { mockOrders } from "../../../../data/adminMockData";
+import { mockOrders, getAnalyticsSummary } from "../../../../data/adminMockData";
 import toast from "react-hot-toast";
 
 // OrderItemsDropdown component
@@ -434,6 +437,59 @@ const AllOrders = () => {
     return stats;
   }, [orders]);
 
+  // Helper function to calculate final total
+  const calculateFinalTotal = (order) => {
+    if (order.finalTotal !== undefined) {
+      return order.finalTotal;
+    }
+    const total = order.total || 0;
+    const tax = order.tax || 0;
+    const discount = order.discount || 0;
+    return total + tax - discount;
+  };
+
+  // Calculate dashboard stats based on selected status
+  const dashboardStats = useMemo(() => {
+    const analyticsSummary = getAnalyticsSummary();
+    
+    // Filter orders by selected status
+    const statusFilteredOrders = selectedStatus === "all"
+      ? orders
+      : orders.filter((o) => o.status?.toLowerCase() === selectedStatus.toLowerCase());
+
+    const statusCount = statusFilteredOrders.length;
+    const statusRevenue = statusFilteredOrders.reduce((sum, o) => {
+      const finalTotal = calculateFinalTotal(o);
+      return sum + (finalTotal || 0);
+    }, 0);
+    
+    const statusItems = statusFilteredOrders.reduce((sum, o) => {
+      const items = Array.isArray(o.items) ? o.items.length : (typeof o.items === 'number' ? o.items : 0);
+      return sum + items;
+    }, 0);
+
+    const pendingOrders = orders.filter(
+      (o) => o.status?.toLowerCase() === "pending" || o.status?.toLowerCase() === "processing"
+    ).length;
+    const totalRevenue = orders
+      .filter((o) => o.status?.toLowerCase() === "delivered")
+      .reduce((sum, o) => {
+        const finalTotal = calculateFinalTotal(o);
+        return sum + (finalTotal || 0);
+      }, 0);
+
+    return {
+      totalProducts: analyticsSummary.totalProducts || 0,
+      totalOrders: orders.length,
+      pendingOrders: pendingOrders,
+      totalEarnings: totalRevenue || analyticsSummary.totalRevenue || 0,
+      // Status-specific stats
+      statusCount,
+      statusRevenue,
+      statusItems,
+    };
+  }, [orders, selectedStatus]);
+
   const filteredOrders = useMemo(() => {
     let filtered = orders;
 
@@ -494,17 +550,6 @@ const AllOrders = () => {
       methodMap[method.toLowerCase()] ||
       method.charAt(0).toUpperCase() + method.slice(1)
     );
-  };
-
-  // Helper function to calculate final total
-  const calculateFinalTotal = (order) => {
-    if (order.finalTotal !== undefined) {
-      return order.finalTotal;
-    }
-    const total = order.total || 0;
-    const tax = order.tax || 0;
-    const discount = order.discount || 0;
-    return total + tax - discount;
   };
 
   // Handler functions for order actions
@@ -622,6 +667,102 @@ const AllOrders = () => {
     },
   ];
 
+  // Get status-specific cards based on current filter
+  const getStatCards = () => {
+    const statusLabels = {
+      'all': 'All Orders',
+      'pending': 'Pending Orders',
+      'processing': 'Processing Orders',
+      'shipped': 'Shipped Orders',
+      'delivered': 'Delivered Orders',
+      'cancelled': 'Cancelled Orders',
+    };
+
+    const currentLabel = statusLabels[selectedStatus] || 'Orders';
+
+    if (selectedStatus === 'all') {
+      // All Orders page - show general stats
+      return [
+        {
+          icon: FiPackage,
+          label: "Total Products",
+          value: dashboardStats.totalProducts,
+          color: "bg-blue-500",
+          bgColor: "bg-blue-50",
+          textColor: "text-blue-700",
+          link: "/admin/products",
+        },
+        {
+          icon: FiShoppingBag,
+          label: "Total Orders",
+          value: dashboardStats.totalOrders,
+          color: "bg-green-500",
+          bgColor: "bg-green-50",
+          textColor: "text-green-700",
+          link: "/admin/orders",
+        },
+        {
+          icon: FiTrendingUp,
+          label: "Pending Orders",
+          value: dashboardStats.pendingOrders,
+          color: "bg-orange-500",
+          bgColor: "bg-orange-50",
+          textColor: "text-orange-700",
+          link: "/admin/orders",
+        },
+        {
+          icon: IndianRupee,
+          label: "Total Revenue",
+          value: formatPrice(dashboardStats.totalEarnings || 0),
+          color: "bg-purple-500",
+          bgColor: "bg-purple-50",
+          textColor: "text-purple-700",
+          link: "/admin/analytics",
+        },
+      ];
+    } else {
+      // Status-specific pages - show relevant stats for that status
+      return [
+        {
+          icon: FiShoppingBag,
+          label: currentLabel,
+          value: dashboardStats.statusCount,
+          color: "bg-blue-500",
+          bgColor: "bg-blue-50",
+          textColor: "text-blue-700",
+        },
+        {
+          icon: FiPackage,
+          label: "Total Items",
+          value: dashboardStats.statusItems,
+          color: "bg-green-500",
+          bgColor: "bg-green-50",
+          textColor: "text-green-700",
+        },
+        {
+          icon: IndianRupee,
+          label: "Total Revenue",
+          value: formatPrice(dashboardStats.statusRevenue || 0),
+          color: "bg-purple-500",
+          bgColor: "bg-purple-50",
+          textColor: "text-purple-700",
+        },
+        {
+          icon: FiTrendingUp,
+          label: "Average Order Value",
+          value: dashboardStats.statusCount > 0 
+            ? formatPrice(dashboardStats.statusRevenue / dashboardStats.statusCount)
+            : formatPrice(0),
+          color: "bg-orange-500",
+          bgColor: "bg-orange-50",
+          textColor: "text-orange-700",
+        },
+      ];
+    }
+  };
+
+  const statCards = getStatCards();
+
   // Order status cards configuration
   const statusCards = [
     {
@@ -696,6 +837,13 @@ const AllOrders = () => {
             View and manage all customer orders
           </p>
         </div>
+      </div>
+
+      {/* Dashboard Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statCards.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       {/* Order Status Cards */}

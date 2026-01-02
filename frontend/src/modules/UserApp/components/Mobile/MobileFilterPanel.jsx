@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiFilter, FiGrid, FiDollarSign, FiStar, FiCheck, FiTag, FiTrendingUp } from 'react-icons/fi';
+import { FiX, FiFilter, FiGrid, FiStar, FiCheck, FiTag, FiTrendingUp } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 // Dynamic categories from store
 import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import useSwipeGesture from '../../hooks/useSwipeGesture';
@@ -165,7 +166,7 @@ const MobileFilterPanel = ({
   // Filter sections configuration
   const filterSections = [
     { id: 'sort', label: 'Sort By', icon: FiTrendingUp },
-    { id: 'price', label: 'Price', icon: FiDollarSign },
+    { id: 'price', label: 'Price', icon: IndianRupee },
     { id: 'rating', label: 'Rating', icon: FiStar },
     { id: 'discount', label: 'Discount', icon: FiTag },
     { id: 'brand', label: 'Brand', icon: FiCheck },
@@ -211,7 +212,7 @@ const MobileFilterPanel = ({
         return (
           <div>
             <h3 className="font-semibold text-gray-700 mb-3 text-sm flex items-center gap-2">
-              <FiDollarSign className="text-primary-500" />
+              <IndianRupee className="text-primary-500" />
               Price Range
             </h3>
             <div className="space-y-4 p-1">

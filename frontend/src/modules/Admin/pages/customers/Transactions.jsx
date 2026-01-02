@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { FiSearch, FiDollarSign } from "react-icons/fi";
+import { FiSearch } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import Badge from "../../../../shared/components/Badge";
@@ -68,7 +69,7 @@ const Transactions = () => {
       sortable: true,
       render: (value, row) => (
         <div className="flex items-center gap-2">
-          <FiDollarSign
+          <IndianRupee
             className={`text-sm ${
               row.type === "refund" ? "text-red-600" : "text-green-600"
             }`}

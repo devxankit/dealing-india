@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import DataTable from '../../components/DataTable';
-import ConfirmModal from '../../components/ConfirmModal';
-import AnimatedSelect from '../../components/AnimatedSelect';
+import DataTable from '../../../Admin/components/DataTable';
+import ConfirmModal from '../../../Admin/components/ConfirmModal';
+import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
 
@@ -23,7 +23,7 @@ const Attributes = () => {
   const fetchAttributes = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/admin/attributes');
+      const response = await api.get('/vendor/attributes');
       if (response.success && response.data?.attributes) {
         const transformed = response.data.attributes.map((attr) => ({
           id: attr._id || attr.id,
@@ -52,9 +52,9 @@ const Attributes = () => {
 
       let response;
       if (editingAttribute && editingAttribute.id) {
-        response = await api.put(`/admin/attributes/${editingAttribute.id}`, payload);
+        response = await api.put(`/vendor/attributes/${editingAttribute.id}`, payload);
       } else {
-        response = await api.post('/admin/attributes', payload);
+        response = await api.post('/vendor/attributes', payload);
       }
 
       if (response.success) {
@@ -69,7 +69,7 @@ const Attributes = () => {
 
   const handleDelete = async () => {
     try {
-      const response = await api.delete(`/admin/attributes/${deleteModal.id}`);
+      const response = await api.delete(`/vendor/attributes/${deleteModal.id}`);
       if (response.success) {
         toast.success('Attribute deleted');
         setDeleteModal({ isOpen: false, id: null });

@@ -1,15 +1,20 @@
 import AttributeValue from '../models/AttributeValue.model.js';
 import Attribute from '../models/Attribute.model.js';
+import mongoose from 'mongoose';
 
 /**
  * Get all attribute values with optional filters
- * @param {Object} filters - Filter options (attributeId, search)
+ * @param {Object} filters - Filter options (attributeId, search, vendorId)
  * @returns {Promise<Array>} Array of attribute values
  */
 export const getAllAttributeValues = async (filters = {}) => {
   try {
-    const { attributeId, search } = filters;
+    const { attributeId, search, vendorId } = filters;
     const query = {};
+
+    if (vendorId) {
+      query.vendorId = vendorId;
+    }
 
     if (attributeId && attributeId !== 'all') {
       query.attributeId = attributeId;
@@ -32,11 +37,15 @@ export const getAllAttributeValues = async (filters = {}) => {
 /**
  * Get attribute value by ID
  * @param {String} id - Attribute value ID
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Attribute value object
  */
-export const getAttributeValueById = async (id) => {
+export const getAttributeValueById = async (id, vendorId) => {
   try {
-    const value = await AttributeValue.findById(id).populate('attributeId', 'name type');
+    const query = { _id: id };
+    if (vendorId) query.vendorId = vendorId;
+
+    const value = await AttributeValue.findOne(query).populate('attributeId', 'name type');
     if (!value) {
       const err = new Error('Attribute value not found');
       err.status = 404;
@@ -51,29 +60,52 @@ export const getAttributeValueById = async (id) => {
 /**
  * Create new attribute value
  * @param {Object} data - Attribute value data
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Created attribute value
  */
-export const createAttributeValue = async (data) => {
+export const createAttributeValue = async (data, vendorId) => {
   try {
     const { attributeId, value, displayOrder = 1, status = 'active' } = data;
 
-    if (!attributeId || !value) {
-      const err = new Error('Attribute ID and value are required');
+    // Validate attributeId
+    if (!attributeId || typeof attributeId !== 'string' || attributeId.trim() === '') {
+      const err = new Error('Valid attribute ID is required');
       err.status = 400;
       throw err;
     }
 
-    // Verify attribute exists
-    const attribute = await Attribute.findById(attributeId);
+    // Validate value
+    if (!value || typeof value !== 'string' || value.trim() === '') {
+      const err = new Error('Valid value is required');
+      err.status = 400;
+      throw err;
+    }
+
+    if (!vendorId) {
+      const err = new Error('Vendor ID is required');
+      err.status = 400;
+      throw err;
+    }
+
+    // Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(attributeId)) {
+      const err = new Error('Invalid attribute ID format');
+      err.status = 400;
+      throw err;
+    }
+
+    // Verify attribute exists and belongs to this vendor
+    const attribute = await Attribute.findOne({ _id: attributeId, vendorId });
     if (!attribute) {
-      const err = new Error('Attribute not found');
+      const err = new Error('Attribute not found or does not belong to you');
       err.status = 404;
       throw err;
     }
 
-    // Check if value already exists for this attribute
+    // Check if value already exists for this attribute for THIS vendor
     const existingValue = await AttributeValue.findOne({
       attributeId,
+      vendorId,
       value: { $regex: new RegExp(`^${value.trim()}$`, 'i') },
     });
     if (existingValue) {
@@ -84,6 +116,7 @@ export const createAttributeValue = async (data) => {
 
     const attributeValue = await AttributeValue.create({
       attributeId,
+      vendorId,
       value: value.trim(),
       displayOrder: parseInt(displayOrder) || 1,
       status,
@@ -104,21 +137,23 @@ export const createAttributeValue = async (data) => {
  * Update attribute value
  * @param {String} id - Attribute value ID
  * @param {Object} data - Update data
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Updated attribute value
  */
-export const updateAttributeValue = async (id, data) => {
+export const updateAttributeValue = async (id, data, vendorId) => {
   try {
-    const attributeValue = await AttributeValue.findById(id);
+    const attributeValue = await AttributeValue.findOne({ _id: id, vendorId });
     if (!attributeValue) {
       const err = new Error('Attribute value not found');
       err.status = 404;
       throw err;
     }
 
-    // If value is being updated, check for duplicates
+    // If value is being updated, check for duplicates for THIS vendor
     if (data.value && data.value.trim().toLowerCase() !== attributeValue.value.toLowerCase()) {
       const existingValue = await AttributeValue.findOne({
         attributeId: data.attributeId || attributeValue.attributeId,
+        vendorId,
         value: { $regex: new RegExp(`^${data.value.trim()}$`, 'i') },
         _id: { $ne: id },
       });
@@ -131,10 +166,10 @@ export const updateAttributeValue = async (id, data) => {
     }
 
     if (data.attributeId !== undefined) {
-      // Verify new attribute exists
-      const attribute = await Attribute.findById(data.attributeId);
+      // Verify new attribute exists and belongs to this vendor
+      const attribute = await Attribute.findOne({ _id: data.attributeId, vendorId });
       if (!attribute) {
-        const err = new Error('Attribute not found');
+        const err = new Error('Attribute not found or does not belong to you');
         err.status = 404;
         throw err;
       }
@@ -163,11 +198,12 @@ export const updateAttributeValue = async (id, data) => {
 /**
  * Delete attribute value
  * @param {String} id - Attribute value ID
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Deletion result
  */
-export const deleteAttributeValue = async (id) => {
+export const deleteAttributeValue = async (id, vendorId) => {
   try {
-    const attributeValue = await AttributeValue.findByIdAndDelete(id);
+    const attributeValue = await AttributeValue.findOneAndDelete({ _id: id, vendorId });
     if (!attributeValue) {
       const err = new Error('Attribute value not found');
       err.status = 404;

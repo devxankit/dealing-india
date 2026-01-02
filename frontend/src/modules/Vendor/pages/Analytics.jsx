@@ -4,8 +4,8 @@ import {
   FiTrendingUp,
   FiPackage,
   FiShoppingBag,
-  FiDollarSign,
 } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import RevenueLineChart from "../../Admin/components/Analytics/RevenueLineChart";
 import SalesBarChart from "../../Admin/components/Analytics/SalesBarChart";
@@ -224,7 +224,7 @@ const Analytics = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Earnings</p>
-            <FiDollarSign className="text-green-600" />
+            <IndianRupee className="text-green-600" />
           </div>
           <p className="text-2xl font-bold text-gray-800">
             {formatPrice(analyticsSummary.totalRevenue)}

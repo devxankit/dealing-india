@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit, FiTrash2, FiFilter } from "react-icons/fi";
+import { FiSearch, FiEdit, FiTrash2, FiFilter, FiPackage, FiTrendingDown, FiXCircle, FiLayers, FiTag, FiAlertCircle } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
@@ -8,6 +8,7 @@ import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 import ProductFormModal from "../../components/ProductFormModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
+import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from "../../../../shared/utils/helpers";
 
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
@@ -103,6 +104,27 @@ const ManageProducts = () => {
 
     return filtered;
   }, [products, searchQuery, selectedStatus, selectedCategory, selectedBrand]);
+
+  // Calculate product statistics
+  const productStats = useMemo(() => {
+    const totalProducts = products.length;
+    const inStockProducts = products.filter((p) => p.stock === "in_stock").length;
+    const lowStockProducts = products.filter((p) => p.stock === "low_stock").length;
+    const outOfStockProducts = products.filter((p) => p.stock === "out_of_stock").length;
+    const totalCategories = categories.filter((cat) => cat.isActive !== false).length;
+    const totalBrands = brands.length;
+    const totalValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stockQuantity || 0)), 0);
+
+    return {
+      totalProducts,
+      inStockProducts,
+      lowStockProducts,
+      outOfStockProducts,
+      totalCategories,
+      totalBrands,
+      totalValue,
+    };
+  }, [products, categories, brands]);
 
   const columns = [
     {
@@ -212,6 +234,70 @@ const ManageProducts = () => {
             View, edit, and manage your product catalog
           </p>
         </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={FiPackage}
+          label="Total Products"
+          value={productStats.totalProducts}
+          color="bg-blue-500"
+          bgColor="bg-blue-50"
+          textColor="text-blue-700"
+        />
+        <StatCard
+          icon={FiTrendingDown}
+          label="In Stock"
+          value={productStats.inStockProducts}
+          color="bg-green-500"
+          bgColor="bg-green-50"
+          textColor="text-green-700"
+        />
+        <StatCard
+          icon={FiAlertCircle}
+          label="Low Stock"
+          value={productStats.lowStockProducts}
+          color="bg-orange-500"
+          bgColor="bg-orange-50"
+          textColor="text-orange-700"
+        />
+        <StatCard
+          icon={FiXCircle}
+          label="Out of Stock"
+          value={productStats.outOfStockProducts}
+          color="bg-red-500"
+          bgColor="bg-red-50"
+          textColor="text-red-700"
+        />
+      </div>
+
+      {/* Additional Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          icon={FiLayers}
+          label="Total Categories"
+          value={productStats.totalCategories}
+          color="bg-purple-500"
+          bgColor="bg-purple-50"
+          textColor="text-purple-700"
+        />
+        <StatCard
+          icon={FiTag}
+          label="Total Brands"
+          value={productStats.totalBrands}
+          color="bg-indigo-500"
+          bgColor="bg-indigo-50"
+          textColor="text-indigo-700"
+        />
+        <StatCard
+          icon={FiPackage}
+          label="Inventory Value"
+          value={formatPrice(productStats.totalValue)}
+          color="bg-teal-500"
+          bgColor="bg-teal-50"
+          textColor="text-teal-700"
+        />
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">

@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { IndianRupee } from "lucide-react";
 import {
   FiPackage,
   FiPlus,
   FiUpload,
-  FiDollarSign,
   FiStar,
   FiHelpCircle,
 } from "react-icons/fi";
@@ -46,7 +46,7 @@ const Products = () => {
     {
       path: "/admin/products/tax-pricing",
       label: "Tax & Pricing",
-      icon: FiDollarSign,
+      icon: IndianRupee,
       gradient: "from-orange-500 via-orange-600 to-orange-700",
       lightGradient: "from-orange-50 via-orange-100/80 to-orange-50",
       shadowColor: "shadow-orange-500/20",

@@ -6,7 +6,6 @@ import {
   FiPhone,
   FiMapPin,
   FiShoppingBag,
-  FiDollarSign,
   FiClock,
   FiEdit,
   FiCreditCard,
@@ -23,6 +22,7 @@ import Badge from '../../../../shared/components/Badge';
 import DataTable from '../../components/DataTable';
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { formatDateTime } from '../../utils/adminHelpers';
+import { IndianRupee } from 'lucide-react';
 import api from '../../../../shared/utils/api';
 import toast from 'react-hot-toast';
 
@@ -447,7 +447,7 @@ const CustomerDetailPage = () => {
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
                   <div className="flex items-center gap-2 text-green-600 mb-2">
-                    <FiDollarSign />
+                    <IndianRupee />
                     <span className="text-sm font-semibold">Total Spent</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-800">{formatPrice(totalSpent)}</p>

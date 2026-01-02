@@ -6,8 +6,8 @@ import {
   FiEye,
   FiCheckCircle,
   FiXCircle,
-  FiDollarSign,
 } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
@@ -220,7 +220,7 @@ const ManageVendors = () => {
             }}
             className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
             title="Update Commission Rate">
-            <FiDollarSign />
+            <IndianRupee />
           </button>
         </div>
       ),

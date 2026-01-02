@@ -5,14 +5,16 @@ import {
   updateAttributeSet,
   deleteAttributeSet,
 } from '../../services/attributeSet.service.js';
+import logger from '../../utils/logger.js';
 
 /**
- * Get all attribute sets
- * GET /api/admin/attribute-sets
+ * Get all attribute sets for the logged-in vendor
+ * GET /api/vendor/attribute-sets
  */
 export const getAll = async (req, res, next) => {
   try {
-    const attributeSets = await getAllAttributeSets();
+    const vendorId = req.user.id;
+    const attributeSets = await getAllAttributeSets(vendorId);
     res.status(200).json({
       success: true,
       message: 'Attribute sets retrieved successfully',
@@ -24,13 +26,14 @@ export const getAll = async (req, res, next) => {
 };
 
 /**
- * Get attribute set by ID
- * GET /api/admin/attribute-sets/:id
+ * Get attribute set by ID for the logged-in vendor
+ * GET /api/vendor/attribute-sets/:id
  */
 export const getById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const attributeSet = await getAttributeSetById(id);
+    const vendorId = req.user.id;
+    const attributeSet = await getAttributeSetById(id, vendorId);
     res.status(200).json({
       success: true,
       message: 'Attribute set retrieved successfully',
@@ -42,12 +45,16 @@ export const getById = async (req, res, next) => {
 };
 
 /**
- * Create new attribute set
- * POST /api/admin/attribute-sets
+ * Create new attribute set for the logged-in vendor
+ * POST /api/vendor/attribute-sets
  */
 export const create = async (req, res, next) => {
   try {
-    const attributeSet = await createAttributeSet(req.body);
+    const vendorId = req.user.id;
+    const attributeSet = await createAttributeSet(req.body, vendorId);
+    
+    logger.info(`Vendor ${vendorId} created attribute set ${attributeSet._id}`);
+    
     res.status(201).json({
       success: true,
       message: 'Attribute set created successfully',
@@ -59,13 +66,17 @@ export const create = async (req, res, next) => {
 };
 
 /**
- * Update attribute set
- * PUT /api/admin/attribute-sets/:id
+ * Update attribute set for the logged-in vendor
+ * PUT /api/vendor/attribute-sets/:id
  */
 export const update = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const attributeSet = await updateAttributeSet(id, req.body);
+    const vendorId = req.user.id;
+    const attributeSet = await updateAttributeSet(id, req.body, vendorId);
+    
+    logger.info(`Vendor ${vendorId} updated attribute set ${id}`);
+    
     res.status(200).json({
       success: true,
       message: 'Attribute set updated successfully',
@@ -77,13 +88,17 @@ export const update = async (req, res, next) => {
 };
 
 /**
- * Delete attribute set
- * DELETE /api/admin/attribute-sets/:id
+ * Delete attribute set for the logged-in vendor
+ * DELETE /api/vendor/attribute-sets/:id
  */
 export const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
-    await deleteAttributeSet(id);
+    const vendorId = req.user.id;
+    await deleteAttributeSet(id, vendorId);
+    
+    logger.info(`Vendor ${vendorId} deleted attribute set ${id}`);
+    
     res.status(200).json({
       success: true,
       message: 'Attribute set deleted successfully',
@@ -92,4 +107,3 @@ export const remove = async (req, res, next) => {
     next(error);
   }
 };
-

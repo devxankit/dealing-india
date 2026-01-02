@@ -108,7 +108,7 @@ const MobileRegister = () => {
                           message: 'First name must be at least 2 characters',
                         },
                       })}
-                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${errors.firstName
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.firstName
                           ? 'border-red-300 focus:border-red-500'
                           : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
@@ -136,7 +136,7 @@ const MobileRegister = () => {
                           message: 'Last name must be at least 2 characters',
                         },
                       })}
-                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${errors.lastName
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.lastName
                           ? 'border-red-300 focus:border-red-500'
                           : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
@@ -162,7 +162,7 @@ const MobileRegister = () => {
                         validate: (value) =>
                           isValidEmail(value) || 'Please enter a valid email',
                       })}
-                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${errors.email
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.email
                           ? 'border-red-300 focus:border-red-500'
                           : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
@@ -186,7 +186,7 @@ const MobileRegister = () => {
                       {...register('birthDate', {
                         required: 'Birth date is required',
                       })}
-                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${errors.birthDate
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.birthDate
                           ? 'border-red-300 focus:border-red-500'
                           : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
@@ -205,7 +205,8 @@ const MobileRegister = () => {
                   <div className="flex gap-2">
                     <select
                       {...register('countryCode', { required: true })}
-                      className="w-24 px-3 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none text-sm"
+                      defaultValue="+91"
+                      className="w-24 px-3 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none text-sm bg-white text-gray-900"
                     >
                       <option value="+880">+880</option>
                       <option value="+1">+1</option>
@@ -220,8 +221,15 @@ const MobileRegister = () => {
                           required: 'Phone number is required',
                           validate: (value) =>
                             isValidPhone(value) || 'Please enter a valid phone number',
+                          maxLength: {
+                            value: 10,
+                            message: 'Phone number must be 10 digits',
+                          },
                         })}
-                        className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${errors.phone
+                        onInput={(e) => {
+                          e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                        }}
+                        className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.phone
                             ? 'border-red-300 focus:border-red-500'
                             : 'border-gray-200 focus:border-primary-500'
                           } focus:outline-none transition-colors text-base`}
@@ -250,7 +258,7 @@ const MobileRegister = () => {
                           message: 'Password must be at least 6 characters',
                         },
                       })}
-                      className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 ${errors.password
+                      className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.password
                           ? 'border-red-300 focus:border-red-500'
                           : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}

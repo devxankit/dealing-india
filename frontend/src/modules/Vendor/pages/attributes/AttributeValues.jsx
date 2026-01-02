@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import DataTable from '../../components/DataTable';
-import ConfirmModal from '../../components/ConfirmModal';
-import AnimatedSelect from '../../components/AnimatedSelect';
+import DataTable from '../../../Admin/components/DataTable';
+import ConfirmModal from '../../../Admin/components/ConfirmModal';
+import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
 
@@ -38,7 +38,7 @@ const AttributeValues = () => {
 
   const fetchAttributes = async () => {
     try {
-      const response = await api.get('/admin/attributes');
+      const response = await api.get('/vendor/attributes');
       if (response.success && response.data?.attributes) {
         setAttributes(response.data.attributes);
       }
@@ -58,7 +58,7 @@ const AttributeValues = () => {
         params.append('search', searchQuery);
       }
       const queryString = params.toString();
-      const url = `/admin/attribute-values${queryString ? `?${queryString}` : ''}`;
+      const url = `/vendor/attribute-values${queryString ? `?${queryString}` : ''}`;
       const response = await api.get(url);
       if (response.success && response.data?.attributeValues) {
         const transformed = response.data.attributeValues.map((val) => ({
@@ -89,9 +89,9 @@ const AttributeValues = () => {
 
       let response;
       if (editingValue && editingValue.id) {
-        response = await api.put(`/admin/attribute-values/${editingValue.id}`, payload);
+        response = await api.put(`/vendor/attribute-values/${editingValue.id}`, payload);
       } else {
-        response = await api.post('/admin/attribute-values', payload);
+        response = await api.post('/vendor/attribute-values', payload);
       }
 
       if (response.success) {
@@ -106,7 +106,7 @@ const AttributeValues = () => {
 
   const handleDelete = async () => {
     try {
-      const response = await api.delete(`/admin/attribute-values/${deleteModal.id}`);
+      const response = await api.delete(`/vendor/attribute-values/${deleteModal.id}`);
       if (response.success) {
         toast.success('Attribute value deleted');
         setDeleteModal({ isOpen: false, id: null });

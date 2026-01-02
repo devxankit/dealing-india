@@ -60,10 +60,6 @@ import ManageProducts from "./modules/Admin/pages/products/ManageProducts";
 import TaxPricing from "./modules/Admin/pages/products/TaxPricing";
 import ProductRatings from "./modules/Admin/pages/products/ProductRatings";
 import ProductFAQs from "./modules/Admin/pages/products/ProductFAQs";
-// Attribute Management child pages
-import AttributeSets from "./modules/Admin/pages/attributes/AttributeSets";
-import Attributes from "./modules/Admin/pages/attributes/Attributes";
-import AttributeValues from "./modules/Admin/pages/attributes/AttributeValues";
 // Categories child pages
 import ManageCategories from "./modules/Admin/pages/categories/ManageCategories";
 import CategoryOrder from "./modules/Admin/pages/categories/CategoryOrder";
@@ -205,6 +201,9 @@ import VendorCustomers from "./modules/Vendor/pages/Customers";
 import VendorCustomerDetail from "./modules/Vendor/pages/CustomerDetail";
 import VendorSupportTickets from "./modules/Vendor/pages/SupportTickets";
 import VendorProductAttributes from "./modules/Vendor/pages/ProductAttributes";
+import VendorAttributes from "./modules/Vendor/pages/attributes/Attributes";
+import VendorAttributeValues from "./modules/Vendor/pages/attributes/AttributeValues";
+import VendorAttributeSets from "./modules/Vendor/pages/attributes/AttributeSets";
 import VendorInventoryReports from "./modules/Vendor/pages/InventoryReports";
 import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics";
 
@@ -437,13 +436,6 @@ const AppRoutes = () => {
           <Route path="customers/addresses" element={<CustomerAddresses />} />
           <Route path="customers/transactions" element={<Transactions />} />
           <Route path="customers/:id" element={<CustomerDetailPage />} />
-          <Route path="attributes" element={<AttributeSets />} />
-          <Route path="attributes/attribute-sets" element={<AttributeSets />} />
-          <Route path="attributes/attributes" element={<Attributes />} />
-          <Route
-            path="attributes/attribute-values"
-            element={<AttributeValues />}
-          />
           <Route path="stock" element={<Inventory />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="vendors" element={<Vendors />} />
@@ -562,6 +554,13 @@ const AppRoutes = () => {
           <Route
             path="products/product-attributes"
             element={<VendorProductAttributes />}
+          />
+          <Route path="attributes" element={<VendorAttributeSets />} />
+          <Route path="attributes/attribute-sets" element={<VendorAttributeSets />} />
+          <Route path="attributes/attributes" element={<VendorAttributes />} />
+          <Route
+            path="attributes/attribute-values"
+            element={<VendorAttributeValues />}
           />
           <Route path="products/:id" element={<VendorProductForm />} />
           <Route path="orders" element={<VendorOrders />} />

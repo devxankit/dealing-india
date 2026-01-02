@@ -5,14 +5,16 @@ import {
   updateAttribute,
   deleteAttribute,
 } from '../../services/attribute.service.js';
+import logger from '../../utils/logger.js';
 
 /**
- * Get all attributes
- * GET /api/admin/attributes
+ * Get all attributes for the logged-in vendor
+ * GET /api/vendor/attributes
  */
 export const getAll = async (req, res, next) => {
   try {
-    const attributes = await getAllAttributes();
+    const vendorId = req.user ? req.user.id : req.query.vendorId;
+    const attributes = await getAllAttributes(vendorId);
     res.status(200).json({
       success: true,
       message: 'Attributes retrieved successfully',
@@ -24,13 +26,14 @@ export const getAll = async (req, res, next) => {
 };
 
 /**
- * Get attribute by ID
- * GET /api/admin/attributes/:id
+ * Get attribute by ID for the logged-in vendor
+ * GET /api/vendor/attributes/:id
  */
 export const getById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const attribute = await getAttributeById(id);
+    const vendorId = req.user ? req.user.id : null;
+    const attribute = await getAttributeById(id, vendorId);
     res.status(200).json({
       success: true,
       message: 'Attribute retrieved successfully',
@@ -42,12 +45,16 @@ export const getById = async (req, res, next) => {
 };
 
 /**
- * Create new attribute
- * POST /api/admin/attributes
+ * Create new attribute for the logged-in vendor
+ * POST /api/vendor/attributes
  */
 export const create = async (req, res, next) => {
   try {
-    const attribute = await createAttribute(req.body);
+    const vendorId = req.user.id;
+    const attribute = await createAttribute(req.body, vendorId);
+    
+    logger.info(`Vendor ${vendorId} created attribute ${attribute._id}`);
+    
     res.status(201).json({
       success: true,
       message: 'Attribute created successfully',
@@ -59,13 +66,17 @@ export const create = async (req, res, next) => {
 };
 
 /**
- * Update attribute
- * PUT /api/admin/attributes/:id
+ * Update attribute for the logged-in vendor
+ * PUT /api/vendor/attributes/:id
  */
 export const update = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const attribute = await updateAttribute(id, req.body);
+    const vendorId = req.user.id;
+    const attribute = await updateAttribute(id, req.body, vendorId);
+    
+    logger.info(`Vendor ${vendorId} updated attribute ${id}`);
+    
     res.status(200).json({
       success: true,
       message: 'Attribute updated successfully',
@@ -77,13 +88,17 @@ export const update = async (req, res, next) => {
 };
 
 /**
- * Delete attribute
- * DELETE /api/admin/attributes/:id
+ * Delete attribute for the logged-in vendor
+ * DELETE /api/vendor/attributes/:id
  */
 export const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
-    await deleteAttribute(id);
+    const vendorId = req.user.id;
+    await deleteAttribute(id, vendorId);
+    
+    logger.info(`Vendor ${vendorId} deleted attribute ${id}`);
+    
     res.status(200).json({
       success: true,
       message: 'Attribute deleted successfully',
@@ -92,4 +107,3 @@ export const remove = async (req, res, next) => {
     next(error);
   }
 };
-

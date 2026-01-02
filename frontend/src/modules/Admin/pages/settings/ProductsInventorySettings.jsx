@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FiSave, FiPackage, FiDollarSign } from 'react-icons/fi';
+import { FiSave, FiPackage } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSettingsStore } from '../../../../shared/store/settingsStore';
 import AnimatedSelect from '../../components/AnimatedSelect';
@@ -54,7 +55,7 @@ const ProductsInventorySettings = () => {
 
   const sections = [
     { id: 'products', label: 'Product Display', icon: FiPackage },
-    { id: 'tax', label: 'Tax & Pricing', icon: FiDollarSign },
+    { id: 'tax', label: 'Tax & Pricing', icon: IndianRupee },
   ];
 
   return (

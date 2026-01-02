@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiPackage, FiMapPin, FiUser, FiCalendar, FiClock, FiDollarSign } from 'react-icons/fi';
+import { FiArrowLeft, FiPackage, FiMapPin, FiUser, FiCalendar, FiClock } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';

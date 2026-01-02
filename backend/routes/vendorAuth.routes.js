@@ -10,7 +10,7 @@ import {
   forgotPassword,
   resetPassword,
 } from '../controllers/vendor-controllers/vendorAuth.controller.js';
-import { authenticate } from '../middleware/auth.middleware.js';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { vendorApproved } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
@@ -25,7 +25,8 @@ router.post('/forgot-password', asyncHandler(forgotPassword));
 router.post('/reset-password', asyncHandler(resetPassword));
 
 // Protected routes (require authentication)
-router.post('/logout', authenticate, asyncHandler(logout));
+// Logout uses optional authentication to allow logout even with expired tokens
+router.post('/logout', optionalAuthenticate, asyncHandler(logout));
 router.get('/me', authenticate, vendorApproved, asyncHandler(getMe));
 router.put('/profile', authenticate, vendorApproved, asyncHandler(updateProfile));
 

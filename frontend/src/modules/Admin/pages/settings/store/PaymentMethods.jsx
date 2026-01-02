@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FiCreditCard, FiDollarSign, FiSmartphone, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
+import { FiCreditCard, FiSmartphone, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -7,7 +8,7 @@ const PaymentMethods = () => {
   const [paymentMethods, setPaymentMethods] = useState([
     { id: 1, name: 'Credit Card', icon: FiCreditCard, enabled: true, fee: 2.5 },
     { id: 2, name: 'Debit Card', icon: FiCreditCard, enabled: true, fee: 2.0 },
-    { id: 3, name: 'Cash on Delivery', icon: FiDollarSign, enabled: true, fee: 0 },
+    { id: 3, name: 'Cash on Delivery', icon: IndianRupee, enabled: true, fee: 0 },
     { id: 4, name: 'Digital Wallet', icon: FiSmartphone, enabled: false, fee: 1.5 },
     { id: 5, name: 'UPI', icon: FiSmartphone, enabled: false, fee: 0.5 },
   ]);

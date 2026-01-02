@@ -4,6 +4,56 @@ import Vendor from '../models/Vendor.model.js';
 import Admin from '../models/Admin.model.js';
 
 /**
+ * Optional authentication middleware - verifies JWT token if present but doesn't fail if expired
+ * Useful for logout endpoints where we want to allow logout even with expired tokens
+ */
+export const optionalAuthenticate = async (req, res, next) => {
+  try {
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // No token provided, continue without authentication
+      req.user = null;
+      return next();
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    // Try to verify token, but don't fail if expired
+    try {
+      const decoded = verifyToken(token);
+      req.user = decoded;
+      
+      // Optionally fetch user document if token is valid
+      if (decoded.role === 'user' && decoded.userId) {
+        const user = await User.findById(decoded.userId);
+        if (user && user.isActive) {
+          req.userDoc = user;
+        }
+      } else if (decoded.role === 'vendor' && decoded.vendorId) {
+        const vendor = await Vendor.findById(decoded.vendorId);
+        if (vendor && vendor.isActive) {
+          req.userDoc = vendor;
+        }
+      } else if (decoded.role === 'admin' && decoded.adminId) {
+        const admin = await Admin.findById(decoded.adminId);
+        if (admin && admin.isActive) {
+          req.userDoc = admin;
+        }
+      }
+    } catch (error) {
+      // Token is invalid or expired, but we continue anyway for logout
+      req.user = null;
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Authentication middleware - verifies JWT token and attaches user to request
  */
 export const authenticate = async (req, res, next) => {

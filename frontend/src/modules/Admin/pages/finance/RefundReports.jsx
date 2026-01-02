@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { FiRefreshCw, FiDollarSign } from "react-icons/fi";
+import { FiRefreshCw } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import RefundTrendsChart from "../../components/Analytics/RefundTrendsChart";
 import DataTable from "../../components/DataTable";
@@ -168,7 +169,7 @@ const RefundReports = () => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Refunds</p>
-            <FiDollarSign className="text-red-600" />
+            <IndianRupee className="text-red-600" />
           </div>
           <p className="text-2xl font-bold text-red-600">
             {formatPrice(totalRefunds)}

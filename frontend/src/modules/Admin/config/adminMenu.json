@@ -29,15 +29,6 @@
     ]
   },
   {
-    "title": "Attribute Management",
-    "route": "/admin/attributes",
-    "children": [
-      "Attributes",
-      "Attribute Values",
-      "Attribute Sets"
-    ]
-  },
-  {
     "title": "Categories",
     "route": "/admin/categories",
     "children": [

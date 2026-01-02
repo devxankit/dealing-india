@@ -150,9 +150,6 @@ app.use('/api/admin/vendors', vendorManagementRoutes);
 app.use('/api/admin/brands', brandManagementRoutes);
 app.use('/api/admin/policies', policyRoutes);
 app.use('/api/admin/promocodes', promoCodeRoutes);
-app.use('/api/admin/attributes', attributeRoutes);
-app.use('/api/admin/attribute-values', attributeValueRoutes);
-app.use('/api/admin/attribute-sets', attributeSetRoutes);
 app.use('/api/admin/customers', customerManagementRoutes);
 app.use('/api/admin/reports', reportsRoutes);
 app.use('/api/admin/offers', offersRoutes);
@@ -179,6 +176,9 @@ app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 
 // Vendor management routes (require vendor authentication)
 app.use('/api/vendor/products', vendorProductsRoutes);
+app.use('/api/vendor/attributes', attributeRoutes);
+app.use('/api/vendor/attribute-values', attributeValueRoutes);
+app.use('/api/vendor/attribute-sets', attributeSetRoutes);
 app.use('/api/vendor/reels', vendorReelsRoutes);
 app.use('/api/vendor/reviews', vendorReviewsRoutes);
 app.use('/api/vendor/stock', vendorStockRoutes);

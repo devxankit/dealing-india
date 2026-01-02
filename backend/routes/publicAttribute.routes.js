@@ -2,7 +2,7 @@ import express from 'express';
 import {
     getAll,
     getById,
-} from '../controllers/admin-controllers/attribute.controller.js';
+} from '../controllers/vendor-controllers/attribute.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
 const router = express.Router();

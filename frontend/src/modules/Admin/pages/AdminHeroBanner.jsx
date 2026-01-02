@@ -6,13 +6,13 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiClock,
-  FiDollarSign,
   FiInfo,
   FiEdit3,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { formatPrice } from "../../../shared/utils/helpers";
+import { IndianRupee } from "lucide-react";
 import {
   getAdminBannerSlots,
   getAdminBannerBookings,
@@ -216,7 +216,7 @@ const AdminHeroBanner = () => {
           <div className="h-10 w-px bg-gray-100"></div>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-50 text-green-600 rounded-lg">
-              <FiDollarSign className="text-xl" />
+              <IndianRupee className="text-xl" />
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Active Bookings</p>

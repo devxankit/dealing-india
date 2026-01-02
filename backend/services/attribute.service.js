@@ -3,11 +3,13 @@ import AttributeValue from '../models/AttributeValue.model.js';
 
 /**
  * Get all attributes
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Array>} Array of attributes
  */
-export const getAllAttributes = async () => {
+export const getAllAttributes = async (vendorId) => {
   try {
-    const attributes = await Attribute.find().sort({ name: 1 });
+    const query = vendorId ? { vendorId } : {};
+    const attributes = await Attribute.find(query).sort({ name: 1 });
     return attributes;
   } catch (error) {
     throw error;
@@ -17,11 +19,15 @@ export const getAllAttributes = async () => {
 /**
  * Get attribute by ID
  * @param {String} id - Attribute ID
+ * @param {String} vendorId - Vendor ID (optional for verification)
  * @returns {Promise<Object>} Attribute object
  */
-export const getAttributeById = async (id) => {
+export const getAttributeById = async (id, vendorId) => {
   try {
-    const attribute = await Attribute.findById(id);
+    const query = { _id: id };
+    if (vendorId) query.vendorId = vendorId;
+    
+    const attribute = await Attribute.findOne(query);
     if (!attribute) {
       const err = new Error('Attribute not found');
       err.status = 404;
@@ -36,9 +42,10 @@ export const getAttributeById = async (id) => {
 /**
  * Create new attribute
  * @param {Object} data - Attribute data
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Created attribute
  */
-export const createAttribute = async (data) => {
+export const createAttribute = async (data, vendorId) => {
   try {
     const { name, type = 'select', required = false, categoryIds = [], status = 'active' } = data;
 
@@ -48,9 +55,16 @@ export const createAttribute = async (data) => {
       throw err;
     }
 
-    // Check if attribute with same name exists
+    if (!vendorId) {
+      const err = new Error('Vendor ID is required');
+      err.status = 400;
+      throw err;
+    }
+
+    // Check if attribute with same name exists for THIS vendor
     const existingAttribute = await Attribute.findOne({
       name: { $regex: new RegExp(`^${name}$`, 'i') },
+      vendorId
     });
     if (existingAttribute) {
       const err = new Error('Attribute with this name already exists');
@@ -60,6 +74,7 @@ export const createAttribute = async (data) => {
 
     const attribute = await Attribute.create({
       name: name.trim(),
+      vendorId,
       type,
       required: required === true || required === 'true',
       categoryIds,
@@ -81,21 +96,23 @@ export const createAttribute = async (data) => {
  * Update attribute
  * @param {String} id - Attribute ID
  * @param {Object} data - Update data
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Updated attribute
  */
-export const updateAttribute = async (id, data) => {
+export const updateAttribute = async (id, data, vendorId) => {
   try {
-    const attribute = await Attribute.findById(id);
+    const attribute = await Attribute.findOne({ _id: id, vendorId });
     if (!attribute) {
       const err = new Error('Attribute not found');
       err.status = 404;
       throw err;
     }
 
-    // If name is being updated, check for duplicates
+    // If name is being updated, check for duplicates for THIS vendor
     if (data.name && data.name.trim().toLowerCase() !== attribute.name.toLowerCase()) {
       const existingAttribute = await Attribute.findOne({
         name: { $regex: new RegExp(`^${data.name.trim()}$`, 'i') },
+        vendorId,
         _id: { $ne: id },
       });
       if (existingAttribute) {
@@ -130,11 +147,12 @@ export const updateAttribute = async (id, data) => {
 /**
  * Delete attribute
  * @param {String} id - Attribute ID
+ * @param {String} vendorId - Vendor ID
  * @returns {Promise<Object>} Deletion result
  */
-export const deleteAttribute = async (id) => {
+export const deleteAttribute = async (id, vendorId) => {
   try {
-    const attribute = await Attribute.findById(id);
+    const attribute = await Attribute.findOne({ _id: id, vendorId });
     if (!attribute) {
       const err = new Error('Attribute not found');
       err.status = 404;
@@ -142,14 +160,14 @@ export const deleteAttribute = async (id) => {
     }
 
     // Check if attribute has values
-    const valueCount = await AttributeValue.countDocuments({ attributeId: id });
+    const valueCount = await AttributeValue.countDocuments({ attributeId: id, vendorId });
     if (valueCount > 0) {
       const err = new Error('Cannot delete attribute with existing values. Please delete values first.');
       err.status = 400;
       throw err;
     }
 
-    await Attribute.findByIdAndDelete(id);
+    await Attribute.findOneAndDelete({ _id: id, vendorId });
     return { success: true };
   } catch (error) {
     throw error;

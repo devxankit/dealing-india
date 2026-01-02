@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { FiCreditCard, FiDollarSign, FiSmartphone } from "react-icons/fi";
+import { FiCreditCard, FiSmartphone } from "react-icons/fi";
+import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import PaymentBreakdownPieChart from "../../components/Analytics/PaymentBreakdownPieChart";
 import { mockOrders } from "../../../../data/adminMockData";
@@ -37,7 +38,7 @@ const PaymentBreakdown = () => {
     const icons = {
       creditCard: FiCreditCard,
       debitCard: FiCreditCard,
-      cash: FiDollarSign,
+      cash: IndianRupee,
       wallet: FiSmartphone,
       upi: FiSmartphone,
     };

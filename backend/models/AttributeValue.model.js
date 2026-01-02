@@ -7,6 +7,11 @@ const attributeValueSchema = new mongoose.Schema(
       ref: 'Attribute',
       required: [true, 'Attribute ID is required'],
     },
+    vendorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vendor',
+      required: [true, 'Vendor ID is required'],
+    },
     value: {
       type: String,
       required: [true, 'Attribute value is required'],
@@ -30,11 +35,12 @@ const attributeValueSchema = new mongoose.Schema(
 );
 
 // Indexes for faster queries (define once, not in schema fields)
-attributeValueSchema.index({ attributeId: 1, status: 1 });
+attributeValueSchema.index({ attributeId: 1, vendorId: 1, status: 1 });
+attributeValueSchema.index({ vendorId: 1 });
 attributeValueSchema.index({ displayOrder: 1 });
 
-// Compound index to prevent duplicate values for same attribute
-attributeValueSchema.index({ attributeId: 1, value: 1 }, { unique: true });
+// Compound index to prevent duplicate values for same attribute per vendor
+attributeValueSchema.index({ attributeId: 1, value: 1, vendorId: 1 }, { unique: true });
 
 const AttributeValue = mongoose.model('AttributeValue', attributeValueSchema);
 

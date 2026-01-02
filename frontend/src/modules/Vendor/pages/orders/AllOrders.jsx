@@ -9,15 +9,20 @@ import {
   FiTruck,
   FiXCircle,
   FiShoppingBag,
+  FiTrendingUp,
 } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DataTable from "../../../Admin/components/DataTable";
 import ExportButton from "../../../Admin/components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
+import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
+import { useVendorStore } from '../../store/vendorStore';
 import { useOrderStore } from '../../../../shared/store/orderStore';
+import { useCommissionStore } from '../../../../shared/store/commissionStore';
 import toast from 'react-hot-toast';
 
 const AllOrders = () => {
@@ -25,9 +30,20 @@ const AllOrders = () => {
   const location = useLocation();
   const { vendor } = useVendorAuthStore();
   const { orders } = useOrderStore();
+  const { getVendorStats } = useVendorStore();
+  const { getVendorEarningsSummary } = useCommissionStore();
   const [vendorOrders, setVendorOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    totalOrders: 0,
+    pendingOrders: 0,
+    totalEarnings: 0,
+    statusCount: 0,
+    statusRevenue: 0,
+    statusItems: 0,
+  });
 
   // Update selected status based on URL path
   useEffect(() => {
@@ -65,25 +81,6 @@ const AllOrders = () => {
     setVendorOrders(filtered);
   }, [vendorId, orders]);
 
-  const filteredOrders = useMemo(() => {
-    let filtered = vendorOrders;
-
-    if (searchQuery) {
-      filtered = filtered.filter((order) =>
-        order.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.trackingNumber?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter((order) =>
-        order.status?.toLowerCase() === selectedStatus.toLowerCase()
-      );
-    }
-
-    return filtered;
-  }, [vendorOrders, searchQuery, selectedStatus]);
-
   // Get vendor-specific order data
   const getVendorOrderData = (order) => {
     if (order.vendorItems && Array.isArray(order.vendorItems)) {
@@ -104,6 +101,64 @@ const AllOrders = () => {
       commission: 0,
     };
   };
+
+  // Calculate statistics based on current status
+  useEffect(() => {
+    if (vendorId) {
+      // Filter orders by current status
+      const statusFilteredOrders = selectedStatus === 'all' 
+        ? vendorOrders 
+        : vendorOrders.filter((o) => o.status?.toLowerCase() === selectedStatus.toLowerCase());
+
+      // Calculate status-specific stats
+      const statusCount = statusFilteredOrders.length;
+      const statusRevenue = statusFilteredOrders.reduce((sum, order) => {
+        const vendorData = getVendorOrderData(order);
+        return sum + (vendorData.subtotal || 0);
+      }, 0);
+      
+      const statusItems = statusFilteredOrders.reduce((sum, order) => {
+        const vendorData = getVendorOrderData(order);
+        return sum + (vendorData.itemCount || 0);
+      }, 0);
+
+      // Get vendor statistics for "all orders" page
+      const vendorStats = getVendorStats(vendorId);
+      const earningsSummary = getVendorEarningsSummary(vendorId);
+
+      setStats({
+        totalProducts: vendorStats?.totalProducts || 0,
+        totalOrders: vendorOrders.length,
+        pendingOrders: vendorOrders.filter(
+          (o) => o.status === "pending" || o.status === "processing" || o.status === "on_hold"
+        ).length,
+        totalEarnings: earningsSummary?.totalEarnings || 0,
+        // Status-specific stats
+        statusCount,
+        statusRevenue,
+        statusItems,
+      });
+    }
+  }, [vendorId, vendorOrders, selectedStatus, getVendorStats, getVendorEarningsSummary]);
+
+  const filteredOrders = useMemo(() => {
+    let filtered = vendorOrders;
+
+    if (searchQuery) {
+      filtered = filtered.filter((order) =>
+        order.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.trackingNumber?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    if (selectedStatus !== 'all') {
+      filtered = filtered.filter((order) =>
+        order.status?.toLowerCase() === selectedStatus.toLowerCase()
+      );
+    }
+
+    return filtered;
+  }, [vendorOrders, searchQuery, selectedStatus]);
 
   const columns = [
     {
@@ -191,6 +246,103 @@ const AllOrders = () => {
     );
   }
 
+  // Get status-specific cards based on current page
+  const getStatCards = () => {
+    const statusLabels = {
+      'all': 'All Orders',
+      'on_hold': 'Hold Orders',
+      'pending': 'Pending Orders',
+      'ready_to_ship': 'Ready to Ship',
+      'dispatched': 'Dispatched Orders',
+      'shipped_seller': 'Shipped Orders',
+      'cancelled': 'Canceled Orders',
+    };
+
+    const currentLabel = statusLabels[selectedStatus] || 'Orders';
+
+    if (selectedStatus === 'all') {
+      // All Orders page - show general stats
+      return [
+        {
+          icon: FiPackage,
+          label: "Total Products",
+          value: stats.totalProducts,
+          color: "bg-blue-500",
+          bgColor: "bg-blue-50",
+          textColor: "text-blue-700",
+          link: "/vendor/products",
+        },
+        {
+          icon: FiShoppingBag,
+          label: "Total Orders",
+          value: stats.totalOrders,
+          color: "bg-green-500",
+          bgColor: "bg-green-50",
+          textColor: "text-green-700",
+          link: "/vendor/orders",
+        },
+        {
+          icon: FiTrendingUp,
+          label: "Pending Orders",
+          value: stats.pendingOrders,
+          color: "bg-orange-500",
+          bgColor: "bg-orange-50",
+          textColor: "text-orange-700",
+          link: "/vendor/orders/pending-order",
+        },
+        {
+          icon: IndianRupee,
+          label: "Total Earnings",
+          value: formatPrice(stats.totalEarnings || 0),
+          color: "bg-purple-500",
+          bgColor: "bg-purple-50",
+          textColor: "text-purple-700",
+          link: "/vendor/earnings",
+        },
+      ];
+    } else {
+      // Status-specific pages - show relevant stats for that status
+      return [
+        {
+          icon: FiShoppingBag,
+          label: currentLabel,
+          value: stats.statusCount,
+          color: "bg-blue-500",
+          bgColor: "bg-blue-50",
+          textColor: "text-blue-700",
+        },
+        {
+          icon: FiPackage,
+          label: "Total Items",
+          value: stats.statusItems,
+          color: "bg-green-500",
+          bgColor: "bg-green-50",
+          textColor: "text-green-700",
+        },
+        {
+          icon: IndianRupee,
+          label: "Total Revenue",
+          value: formatPrice(stats.statusRevenue || 0),
+          color: "bg-purple-500",
+          bgColor: "bg-purple-50",
+          textColor: "text-purple-700",
+        },
+        {
+          icon: FiTrendingUp,
+          label: "Average Order Value",
+          value: stats.statusCount > 0 
+            ? formatPrice(stats.statusRevenue / stats.statusCount)
+            : formatPrice(0),
+          color: "bg-orange-500",
+          bgColor: "bg-orange-50",
+          textColor: "text-orange-700",
+        },
+      ];
+    }
+  };
+
+  const statCards = getStatCards();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -205,6 +357,13 @@ const AllOrders = () => {
             View and manage all your orders
           </p>
         </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statCards.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">

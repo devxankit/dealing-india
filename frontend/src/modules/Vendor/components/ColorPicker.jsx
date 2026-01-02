@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 
 const ColorPicker = ({ selectedColors = [], onChange, label, error }) => {
   const [inputValue, setInputValue] = useState(selectedColors.length > 0 ? selectedColors[0].name : "");
 
   const inputRef = useRef(null);
+  const debounceTimerRef = useRef(null);
 
   // Sync internal state with prop if prop changes externally
   useEffect(() => {
@@ -13,24 +14,53 @@ const ColorPicker = ({ selectedColors = [], onChange, label, error }) => {
     }
   }, [selectedColors]);
 
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    console.log('Color input change:', value);
-    setInputValue(value);
+  // Debounced onChange handler to prevent too many rapid updates
+  const debouncedOnChange = useCallback((value) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
     
-    // Notify parent of the change
-    if (value) {
-      const colorData = [{
-        name: value,
-        value: value.toLowerCase().replace(/\s+/g, '-') // Better value for colors
-      }];
-      console.log('Notifying parent with color data:', colorData);
-      onChange(colorData);
-    } else {
-      console.log('Notifying parent with empty color data');
-      onChange([]);
+    debounceTimerRef.current = setTimeout(() => {
+      try {
+        if (onChange && typeof onChange === 'function') {
+          if (value && value.trim()) {
+            const colorData = [{
+              name: value.trim(),
+              value: value.toLowerCase().replace(/\s+/g, '-') // Better value for colors
+            }];
+            onChange(colorData);
+          } else {
+            onChange([]);
+          }
+        }
+      } catch (error) {
+        console.error('Error in ColorPicker onChange:', error);
+        // Don't propagate error to prevent logout
+      }
+    }, 300); // 300ms debounce
+  }, [onChange]);
+
+  const handleInputChange = (e) => {
+    try {
+      const value = e.target.value;
+      setInputValue(value);
+      
+      // Use debounced onChange to prevent rapid updates
+      debouncedOnChange(value);
+    } catch (error) {
+      console.error('Error in ColorPicker handleInputChange:', error);
+      // Don't propagate error to prevent logout
     }
   };
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="space-y-1.5 color-input-wrapper">
