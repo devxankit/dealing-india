@@ -3,11 +3,14 @@ import { useForm } from 'react-hook-form';
 import { FiStar, FiUpload, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { submitReview } from '../../services/reviewService';
+import { useAuthStore } from '../../store/authStore';
 
-const ReviewForm = ({ productId, onSubmit }) => {
+const ReviewForm = ({ productId, onSubmit, onSuccess }) => {
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [images, setImages] = useState([]);
+  const { user } = useAuthStore();
 
   const {
     register,
@@ -30,26 +33,55 @@ const ReviewForm = ({ productId, onSubmit }) => {
     setImages(images.filter((_, i) => i !== index));
   };
 
-  const onFormSubmit = (data) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const onFormSubmit = async (data) => {
     if (rating === 0) {
       toast.error('Please select a rating');
       return;
     }
 
-    const reviewData = {
-      ...data,
-      rating,
-      images,
-      productId,
-      date: new Date().toISOString(),
-    };
+    try {
+      setIsSubmitting(true);
 
-    if (onSubmit) {
-      onSubmit(reviewData);
+      // Get user name from auth store or form data
+      // If user is logged in, use their name; otherwise use form input
+      const customerName = user?.name || data.customerName || 'Anonymous User';
+
+      // Submit review to API
+      await submitReview({
+        productId,
+        customerName,
+        rating,
+        review: data.comment || data.review || '',
+        userId: user?.id || null,
+      });
+
+      // Call onSubmit callback if provided (for backward compatibility)
+      if (onSubmit) {
+        onSubmit({
+          ...data,
+          rating,
+          images,
+          productId,
+          date: new Date().toISOString(),
+        });
+      }
+
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
+
       reset();
       setRating(0);
       setImages([]);
-      toast.success('Review submitted successfully!');
+      toast.success('Review submitted successfully! It will be visible after approval.');
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit review. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -92,31 +124,33 @@ const ReviewForm = ({ productId, onSubmit }) => {
           </div>
         </div>
 
-        {/* Review Title */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Review Title
-          </label>
-          <input
-            type="text"
-            {...register('title', {
-              required: 'Review title is required',
-              minLength: {
-                value: 3,
-                message: 'Title must be at least 3 characters',
-              },
-            })}
-            className={`w-full px-4 py-3 rounded-xl border-2 ${
-              errors.title
-                ? 'border-red-300 focus:border-red-500'
-                : 'border-gray-200 focus:border-green-500'
-            } focus:outline-none transition-colors`}
-            placeholder="Give your review a title"
-          />
-          {errors.title && (
-            <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
-          )}
-        </div>
+        {/* Customer Name - only show if user is not logged in */}
+        {!user && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Your Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              {...register('customerName', {
+                required: 'Your name is required',
+                minLength: {
+                  value: 2,
+                  message: 'Name must be at least 2 characters',
+                },
+              })}
+              className={`w-full px-4 py-3 rounded-xl border-2 ${
+                errors.customerName
+                  ? 'border-red-300 focus:border-red-500'
+                  : 'border-gray-200 focus:border-green-500'
+              } focus:outline-none transition-colors`}
+              placeholder="Enter your name"
+            />
+            {errors.customerName && (
+              <p className="mt-1 text-sm text-red-600">{errors.customerName.message}</p>
+            )}
+          </div>
+        )}
 
         {/* Review Text */}
         <div>
@@ -184,9 +218,10 @@ const ReviewForm = ({ productId, onSubmit }) => {
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full sm:w-auto px-8 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300 hover:scale-105"
+          disabled={isSubmitting}
+          className="w-full sm:w-auto px-8 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Submit Review
+          {isSubmitting ? 'Submitting...' : 'Submit Review'}
         </button>
       </form>
     </motion.div>

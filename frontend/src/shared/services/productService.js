@@ -17,6 +17,9 @@ export const getProducts = async (filters = {}) => {
     if (filters.minPrice) params.append('minPrice', filters.minPrice);
     if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
     if (filters.minRating) params.append('minRating', filters.minRating);
+    if (filters.minReviewCount !== undefined) params.append('minReviewCount', filters.minReviewCount);
+    if (filters.isNew !== undefined) params.append('isNew', filters.isNew);
+    if (filters.flashSale !== undefined) params.append('flashSale', filters.flashSale);
     if (filters.page) params.append('page', filters.page);
     if (filters.limit) params.append('limit', filters.limit);
     if (filters.sortBy) params.append('sortBy', filters.sortBy);

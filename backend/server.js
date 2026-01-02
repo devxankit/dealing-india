@@ -47,6 +47,7 @@ import publicBrandRoutes from './routes/publicBrand.routes.js';
 import publicProductRoutes from './routes/publicProduct.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
 import publicSliderRoutes from './routes/publicSlider.routes.js';
+import publicReviewRoutes from './routes/publicReview.routes.js';
 import userSupportRoutes from './routes/userSupport.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import cartRoutes from './routes/cart.routes.js';
@@ -138,6 +139,7 @@ app.use('/api/brands', publicBrandRoutes);
 app.use('/api/products', publicProductRoutes);
 app.use('/api/vendors', publicVendorRoutes);
 app.use('/api/sliders', publicSliderRoutes);
+app.use('/api/reviews', publicReviewRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);

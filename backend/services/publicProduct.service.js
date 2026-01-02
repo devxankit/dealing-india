@@ -19,7 +19,10 @@ export const getPublicProducts = async (filters = {}) => {
       minPrice,
       maxPrice,
       minRating,
+      minReviewCount,
       vendorId,
+      isNew,
+      flashSale,
       page = 1,
       limit = 20,
       sortBy = 'createdAt',
@@ -101,12 +104,12 @@ export const getPublicProducts = async (filters = {}) => {
       if (categoryDepth === 1) {
         // Main category - show all products in this category and its children
         categoryFilter = {
-          $or: [
-            { categoryId: categoryObjectId },
-            { subcategoryId: categoryObjectId },
-            { subSubCategoryId: categoryObjectId },
-          ],
-        };
+        $or: [
+          { categoryId: categoryObjectId },
+          { subcategoryId: categoryObjectId },
+          { subSubCategoryId: categoryObjectId },
+        ],
+      };
         checkingFields = ['categoryId', 'subcategoryId', 'subSubCategoryId'];
       } else if (categoryDepth === 2) {
         // Subcategory - show products in this subcategory and its sub-subcategories
@@ -194,6 +197,21 @@ export const getPublicProducts = async (filters = {}) => {
     // Rating filter
     if (minRating) {
       query.rating = { $gte: parseFloat(minRating) };
+    }
+
+    // Review count filter - only show products with at least this many reviews
+    if (minReviewCount !== undefined && minReviewCount !== null) {
+      query.reviewCount = { $gte: parseInt(minReviewCount) };
+    }
+
+    // isNew filter - for New Arrivals section
+    if (isNew !== undefined && isNew !== null) {
+      query.isNew = isNew === true || isNew === 'true';
+    }
+
+    // flashSale filter - for Flash Sale products
+    if (flashSale !== undefined && flashSale !== null) {
+      query.flashSale = flashSale === true || flashSale === 'true';
     }
 
     // Combine all AND conditions

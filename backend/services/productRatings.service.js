@@ -86,6 +86,66 @@ export const getAllReviews = async (filters = {}) => {
 };
 
 /**
+ * Get reviews for a specific product
+ * @param {Object} filters - { productId, status, page, limit }
+ * @returns {Promise<Object>} { reviews, total, page, totalPages }
+ */
+export const getProductReviews = async (filters = {}) => {
+  try {
+    const {
+      productId,
+      status = 'approved',
+      page = 1,
+      limit = 10,
+    } = filters;
+
+    if (!productId) {
+      throw new Error('Product ID is required');
+    }
+
+    const query = { productId };
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [reviews, total] = await Promise.all([
+      Review.find(query)
+        .populate('userId', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Review.countDocuments(query),
+    ]);
+
+    const transformedReviews = reviews.map((review) => ({
+      ...review,
+      id: review._id,
+      customerName: review.customerName,
+      rating: review.rating,
+      review: review.review || '',
+      date: review.createdAt,
+      status: review.status,
+    }));
+
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    return {
+      reviews: transformedReviews,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages,
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Get review by ID
  * @param {String} reviewId - Review ID
  * @returns {Promise<Object>} Review object

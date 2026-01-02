@@ -79,6 +79,36 @@ const ProductForm = () => {
     fetchAttributes();
   }, [fetchBrands]);
 
+  // Ensure brandId is properly formatted when brands are loaded (for edit mode)
+  useEffect(() => {
+    if (isEdit && formData.brandId && brands.length > 0) {
+      // Normalize brandId to string format to match options
+      const currentBrandId = String(formData.brandId);
+      const brandExists = brands.some(brand => {
+        const brandId = String(brand._id || brand.id || brand);
+        return brandId === currentBrandId;
+      });
+      
+      // If brand exists but format is different, normalize it
+      if (brandExists) {
+        const matchingBrand = brands.find(brand => {
+          const brandId = String(brand._id || brand.id || brand);
+          return brandId === currentBrandId;
+        });
+        
+        if (matchingBrand) {
+          const normalizedBrandId = String(matchingBrand._id || matchingBrand.id || matchingBrand);
+          if (normalizedBrandId !== currentBrandId) {
+            setFormData(prev => ({
+              ...prev,
+              brandId: normalizedBrandId
+            }));
+          }
+        }
+      }
+    }
+  }, [isEdit, brands, formData.brandId]);
+
   const [loading, setLoading] = useState(false);
 
   // Fetch all active attributes
@@ -228,11 +258,32 @@ const ProductForm = () => {
     if (availableAttributes.length > 0) {
       const requiredAttrs = availableAttributes.filter(attr => {
         const isRequired = attr.required;
+        
+        // Convert category IDs to strings for comparison
+        const getCategoryIdString = (categoryId) => {
+          if (!categoryId) return null;
+          if (typeof categoryId === 'object' && categoryId !== null) {
+            return (categoryId._id || categoryId.id || categoryId).toString();
+          }
+          return categoryId.toString();
+        };
+
+        const categoryIdStr = getCategoryIdString(formData.categoryId);
+        const subcategoryIdStr = getCategoryIdString(formData.subcategoryId);
+        const subSubCategoryIdStr = getCategoryIdString(formData.subSubCategoryId);
+
+        const attrCategoryIds = (attr.categoryIds || []).map(id => {
+          if (typeof id === 'object' && id !== null) {
+            return (id._id || id.id || id).toString();
+          }
+          return id.toString();
+        });
+        
         const isInCategory = !attr.categoryIds || 
                             attr.categoryIds.length === 0 || 
-                            (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
-                            (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
-                            (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
+                            (categoryIdStr && attrCategoryIds.includes(categoryIdStr)) ||
+                            (subcategoryIdStr && attrCategoryIds.includes(subcategoryIdStr)) ||
+                            (subSubCategoryIdStr && attrCategoryIds.includes(subSubCategoryIdStr));
         
         return isRequired && isInCategory;
       });
@@ -276,6 +327,18 @@ const ProductForm = () => {
       const categoryId = product.categoryId?._id || product.categoryId?.toString() || null;
       const subcategoryId = product.subcategoryId?._id || product.subcategoryId?.toString() || null;
       const subSubCategoryId = product.subSubCategoryId?._id || product.subSubCategoryId?.toString() || null;
+      
+      // Extract brandId - handle both populated object and direct ID
+      let brandIdValue = null;
+      if (product.brandId) {
+        if (typeof product.brandId === 'object' && product.brandId !== null) {
+          // Populated object - extract _id
+          brandIdValue = (product.brandId._id || product.brandId.id || product.brandId).toString();
+        } else {
+          // Direct ID (string or ObjectId)
+          brandIdValue = product.brandId.toString();
+        }
+      }
 
       setFormData({
         name: product.name || "",
@@ -287,7 +350,7 @@ const ProductForm = () => {
         categoryId: categoryId,
         subcategoryId: subcategoryId,
         subSubCategoryId: subSubCategoryId,
-        brandId: product.brandId?.toString() || null,
+        brandId: brandIdValue,
         stock: product.stock || "in_stock",
         stockQuantity: product.stockQuantity || "",
         totalAllowedQuantity: product.totalAllowedQuantity || "",
@@ -544,13 +607,35 @@ const ProductForm = () => {
     }
 
     // Validate category-specific required attributes
+    // Helper function to convert category ID to string for comparison
+    const getCategoryIdString = (categoryId) => {
+      if (!categoryId) return null;
+      if (typeof categoryId === 'object' && categoryId !== null) {
+        return (categoryId._id || categoryId.id || categoryId).toString();
+      }
+      return categoryId.toString();
+    };
+
+    const categoryIdStr = getCategoryIdString(formData.categoryId);
+    const subcategoryIdStr = getCategoryIdString(formData.subcategoryId);
+    const subSubCategoryIdStr = getCategoryIdString(formData.subSubCategoryId);
+
     const missingRequiredAttributes = availableAttributes.filter(attr => {
       const isRequired = attr.required;
+      
+      // Convert attribute categoryIds to strings for comparison
+      const attrCategoryIds = (attr.categoryIds || []).map(id => {
+        if (typeof id === 'object' && id !== null) {
+          return (id._id || id.id || id).toString();
+        }
+        return id.toString();
+      });
+      
       const isInCategory = !attr.categoryIds || 
                           attr.categoryIds.length === 0 || 
-                          (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
-                          (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
-                          (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
+                          (categoryIdStr && attrCategoryIds.includes(categoryIdStr)) ||
+                          (subcategoryIdStr && attrCategoryIds.includes(subcategoryIdStr)) ||
+                          (subSubCategoryIdStr && attrCategoryIds.includes(subSubCategoryIdStr));
       
       if (isRequired && isInCategory) {
         // Skip validation for Color and Size attributes if they are being handled by the Variations system
@@ -559,7 +644,11 @@ const ProductForm = () => {
         }
 
         const addedAttr = formData.attributes.find(
-          a => (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
+          a => {
+            const attrId = (a.attributeId || a.attributeId?.toString())?.toString();
+            const availableAttrId = (attr.id || attr._id)?.toString();
+            return attrId === availableAttrId;
+          }
         );
         return !addedAttr || !addedAttr.values || addedAttr.values.length === 0;
       }
@@ -608,33 +697,76 @@ const ProductForm = () => {
     }
 
     try {
+      // Validate required fields before submitting
+      if (!formData.name || !formData.name.trim()) {
+        toast.error('Product name is required');
+        return;
+      }
+
+      if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
+        toast.error('Valid price is required');
+        return;
+      }
+
+      if (formData.stockQuantity === '' || formData.stockQuantity === null || formData.stockQuantity === undefined) {
+        toast.error('Stock quantity is required');
+        return;
+      }
+
+      const parsedPrice = parseFloat(formData.price);
+      const parsedStockQuantity = parseInt(formData.stockQuantity);
+
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        toast.error('Price must be a valid positive number');
+        return;
+      }
+
+      if (isNaN(parsedStockQuantity) || parsedStockQuantity < 0) {
+        toast.error('Stock quantity must be a valid non-negative number');
+        return;
+      }
+
+      // Handle category/brand IDs - extract string ID if object
+      const getCategoryId = (id) => {
+        if (!id) return null;
+        if (typeof id === 'object' && id !== null) {
+          return id._id || id.id || id;
+        }
+        return id.toString();
+      };
+
       // Final product data
       const productData = {
         ...formData,
         vendorId,
         vendorName,
-        price: parseFloat(formData.price),
-        originalPrice: formData.originalPrice
-          ? parseFloat(formData.originalPrice)
+        name: formData.name.trim(),
+        price: parsedPrice,
+        originalPrice: formData.originalPrice && String(formData.originalPrice).trim()
+          ? (isNaN(parseFloat(formData.originalPrice)) ? null : parseFloat(formData.originalPrice))
           : null,
-        stockQuantity: parseInt(formData.stockQuantity) || 0,
-        totalAllowedQuantity: formData.totalAllowedQuantity
-          ? parseInt(formData.totalAllowedQuantity)
+        stockQuantity: parsedStockQuantity,
+        totalAllowedQuantity: formData.totalAllowedQuantity && String(formData.totalAllowedQuantity).trim()
+          ? (isNaN(parseInt(formData.totalAllowedQuantity)) ? null : parseInt(formData.totalAllowedQuantity))
           : null,
-        minimumOrderQuantity: formData.minimumOrderQuantity
-          ? parseInt(formData.minimumOrderQuantity)
+        minimumOrderQuantity: formData.minimumOrderQuantity && String(formData.minimumOrderQuantity).trim()
+          ? (isNaN(parseInt(formData.minimumOrderQuantity)) ? 1 : parseInt(formData.minimumOrderQuantity))
           : 1,
+        categoryId: getCategoryId(formData.categoryId),
+        subcategoryId: getCategoryId(formData.subcategoryId),
+        subSubCategoryId: getCategoryId(formData.subSubCategoryId),
+        brandId: getCategoryId(formData.brandId),
         variants: {
           ...formData.variants,
           colorVariants: colorVariants.map((cv) => ({
             ...cv,
             sizeVariants: cv.sizeVariants.map((sv) => ({
               ...sv,
-              price: sv.price ? parseFloat(sv.price) : null,
-              originalPrice: sv.originalPrice
+              price: sv.price && !isNaN(parseFloat(sv.price)) ? parseFloat(sv.price) : null,
+              originalPrice: sv.originalPrice && !isNaN(parseFloat(sv.originalPrice))
                 ? parseFloat(sv.originalPrice)
                 : null,
-              stockQuantity: parseInt(sv.stockQuantity) || 0,
+              stockQuantity: sv.stockQuantity && !isNaN(parseInt(sv.stockQuantity)) ? parseInt(sv.stockQuantity) : 0,
             })),
           })),
         },
@@ -760,14 +892,20 @@ const ProductForm = () => {
               </label>
               <AnimatedSelect
                 name="brandId"
-                value={formData.brandId || ""}
+                value={formData.brandId ? String(formData.brandId) : ""}
                 onChange={handleChange}
                 placeholder="Select Brand"
                 options={[
                   { value: "", label: "Select Brand" },
                   ...brands
                     .filter((brand) => brand.isActive !== false)
-                    .map((brand) => ({ value: String(brand.id), label: brand.name })),
+                    .map((brand) => {
+                      const brandId = String(brand._id || brand.id || brand);
+                      return { 
+                        value: brandId, 
+                        label: brand.name 
+                      };
+                    }),
                 ]}
               />
             </div>

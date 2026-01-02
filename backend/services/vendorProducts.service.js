@@ -176,8 +176,20 @@ export const createVendorProduct = async (productData, vendorId) => {
     } = productData;
 
     // Validate required fields
-    if (!name || !price || stockQuantity === undefined) {
-      const err = new Error('Name, price, and stock quantity are required');
+    if (!name || !name.trim()) {
+      const err = new Error('Product name is required');
+      err.status = 400;
+      throw err;
+    }
+
+    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+      const err = new Error('Valid price is required (must be a positive number)');
+      err.status = 400;
+      throw err;
+    }
+
+    if (stockQuantity === undefined || stockQuantity === null || isNaN(parseInt(stockQuantity)) || parseInt(stockQuantity) < 0) {
+      const err = new Error('Valid stock quantity is required (must be a non-negative number)');
       err.status = 400;
       throw err;
     }
@@ -196,9 +208,19 @@ export const createVendorProduct = async (productData, vendorId) => {
       }
     }
 
-    // Validate category exists
+    // Validate category exists - handle object format
     if (categoryId) {
-      const category = await Category.findById(categoryId);
+      let categoryIdToCheck = categoryId;
+      if (typeof categoryId === 'object' && categoryId !== null) {
+        categoryIdToCheck = categoryId._id || categoryId.id || categoryId;
+      }
+      const categoryIdStr = categoryIdToCheck?.toString() || String(categoryIdToCheck);
+      if (!mongoose.Types.ObjectId.isValid(categoryIdStr)) {
+        const err = new Error('Invalid category ID format');
+        err.status = 400;
+        throw err;
+      }
+      const category = await Category.findById(categoryIdStr);
       if (!category) {
         const err = new Error('Category not found');
         err.status = 404;
@@ -206,9 +228,19 @@ export const createVendorProduct = async (productData, vendorId) => {
       }
     }
 
-    // Validate subcategory if provided
+    // Validate subcategory if provided - handle object format
     if (subcategoryId) {
-      const subcategory = await Category.findById(subcategoryId);
+      let subcategoryIdToCheck = subcategoryId;
+      if (typeof subcategoryId === 'object' && subcategoryId !== null) {
+        subcategoryIdToCheck = subcategoryId._id || subcategoryId.id || subcategoryId;
+      }
+      const subcategoryIdStr = subcategoryIdToCheck?.toString() || String(subcategoryIdToCheck);
+      if (!mongoose.Types.ObjectId.isValid(subcategoryIdStr)) {
+        const err = new Error('Invalid subcategory ID format');
+        err.status = 400;
+        throw err;
+      }
+      const subcategory = await Category.findById(subcategoryIdStr);
       if (!subcategory) {
         const err = new Error('Subcategory not found');
         err.status = 404;
@@ -216,9 +248,39 @@ export const createVendorProduct = async (productData, vendorId) => {
       }
     }
 
-    // Validate brand if provided
+    // Validate sub-subcategory if provided - handle object format
+    if (subSubCategoryId) {
+      let subSubCategoryIdToCheck = subSubCategoryId;
+      if (typeof subSubCategoryId === 'object' && subSubCategoryId !== null) {
+        subSubCategoryIdToCheck = subSubCategoryId._id || subSubCategoryId.id || subSubCategoryId;
+      }
+      const subSubCategoryIdStr = subSubCategoryIdToCheck?.toString() || String(subSubCategoryIdToCheck);
+      if (!mongoose.Types.ObjectId.isValid(subSubCategoryIdStr)) {
+        const err = new Error('Invalid sub-subcategory ID format');
+        err.status = 400;
+        throw err;
+      }
+      const subSubCategory = await Category.findById(subSubCategoryIdStr);
+      if (!subSubCategory) {
+        const err = new Error('Sub-subcategory not found');
+        err.status = 404;
+        throw err;
+      }
+    }
+
+    // Validate brand if provided - handle object format
     if (brandId) {
-      const brand = await Brand.findById(brandId);
+      let brandIdToCheck = brandId;
+      if (typeof brandId === 'object' && brandId !== null) {
+        brandIdToCheck = brandId._id || brandId.id || brandId;
+      }
+      const brandIdStr = brandIdToCheck?.toString() || String(brandIdToCheck);
+      if (!mongoose.Types.ObjectId.isValid(brandIdStr)) {
+        const err = new Error('Invalid brand ID format');
+        err.status = 400;
+        throw err;
+      }
+      const brand = await Brand.findById(brandIdStr);
       if (!brand || !brand.isActive) {
         const err = new Error('Brand not found or inactive');
         err.status = 404;

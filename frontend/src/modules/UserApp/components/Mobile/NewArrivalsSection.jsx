@@ -1,15 +1,50 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import { FiTag } from "react-icons/fi";
 import LazyImage from "../../../../shared/components/LazyImage";
-import { getNewArrivals } from "../../../../data/products";
+import { getProducts } from "../../../../shared/services/productService";
 
 const NewArrivalsSection = () => {
   const location = useLocation();
   const isMobileApp = location.pathname.startsWith("/app");
-  const newArrivals = getNewArrivals(6);
+  const [newArrivals, setNewArrivals] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (newArrivals.length === 0) {
+  // Fetch new arrivals from API
+  useEffect(() => {
+    const fetchNewArrivals = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getProducts({
+          limit: 6,
+          isNew: true, // Filter for new products
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        });
+        
+        // Transform products to match frontend format
+        const transformedProducts = (response.products || []).map((product) => ({
+          id: product._id || product.id,
+          name: product.name,
+          image: product.image,
+          images: product.images || [],
+        }));
+        
+        setNewArrivals(transformedProducts);
+      } catch (error) {
+        console.error('Error fetching new arrivals:', error);
+        setNewArrivals([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNewArrivals();
+  }, []);
+
+  // Don't show section if no products or still loading
+  if (isLoading || newArrivals.length === 0) {
     return null;
   }
 

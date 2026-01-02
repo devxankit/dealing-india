@@ -65,11 +65,12 @@ const MobileHome = () => {
       try {
         setIsLoadingProducts(true);
         
-        // Fetch most popular products (sorted by rating/createdAt)
+        // Fetch most popular products (sorted by rating, only products with reviews)
         const popularResponse = await getProducts({
           limit: 6,
-          sortBy: 'createdAt',
+          sortBy: 'rating',
           sortOrder: 'desc',
+          minReviewCount: 1, // Only show products with at least 1 review
         });
         
         // Fetch trending products (sorted by rating)
@@ -79,11 +80,12 @@ const MobileHome = () => {
           sortOrder: 'desc',
         });
         
-        // Fetch flash sale products
+        // Fetch flash sale products (only products where vendor checked flashSale checkbox)
         const flashSaleResponse = await getProducts({
           limit: 10,
           sortBy: 'createdAt',
           sortOrder: 'desc',
+          flashSale: true, // Only fetch products with flashSale: true
         });
 
         // Transform products to match frontend format
@@ -125,7 +127,8 @@ const MobileHome = () => {
         // API interceptor returns response.data, so structure is: { success, message, data: { products, total, ... } }
         const popularProducts = (popularResponse.data?.products || popularResponse.products || []).map(transformProduct);
         const trendingProducts = (trendingResponse.data?.products || trendingResponse.products || []).map(transformProduct);
-        const flashSaleProducts = (flashSaleResponse.data?.products || flashSaleResponse.products || []).filter(p => p.flashSale || p.originalPrice).map(transformProduct);
+        // Backend already filters by flashSale: true, so no need for frontend filtering
+        const flashSaleProducts = (flashSaleResponse.data?.products || flashSaleResponse.products || []).map(transformProduct);
 
         setMostPopular(popularProducts);
         setTrending(trendingProducts);

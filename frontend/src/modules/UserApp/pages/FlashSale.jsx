@@ -6,14 +6,15 @@ import MobileLayout from "../components/Layout/MobileLayout";
 import MobileFilterPanel from "../components/Mobile/MobileFilterPanel";
 import ProductCard from '../../../shared/components/ProductCard';
 import ProductListItem from '../components/Mobile/ProductListItem';
-import { getFlashSale } from '../../../data/products';
+import { getProducts } from '../../../shared/services/productService';
 import PageTransition from '../../../shared/components/PageTransition';
 import useInfiniteScroll from '../../../shared/hooks/useInfiniteScroll';
+import toast from 'react-hot-toast';
 
 const MobileFlashSale = () => {
   const navigate = useNavigate();
-  // Memoize the items array to prevent infinite loops in useInfiniteScroll
-  const allFlashSale = useMemo(() => getFlashSale(), []);
+  const [flashSaleProducts, setFlashSaleProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [filters, setFilters] = useState({
@@ -23,8 +24,69 @@ const MobileFlashSale = () => {
     minRating: '',
   });
 
+  // Transform product to match frontend format
+  const transformProduct = (product) => {
+    const vendor = product.vendorId;
+    const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+      ? {
+          id: (vendor._id || vendor.id).toString(),
+          _id: vendor._id || vendor.id,
+          storeName: vendor.storeName || vendor.businessName || vendor.name,
+          businessName: vendor.businessName,
+          name: vendor.name,
+          storeLogo: vendor.storeLogo || vendor.logo,
+          isVerified: vendor.isVerified !== undefined 
+            ? vendor.isVerified 
+            : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+        }
+      : null;
+    
+    return {
+      id: product._id || product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      images: product.images || [],
+      unit: product.unit || 'Piece',
+      rating: product.rating || 0,
+      reviewCount: product.reviewCount || 0,
+      stock: product.stock,
+      stockQuantity: product.stockQuantity,
+      vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+      vendor: vendorData,
+      flashSale: product.flashSale || false,
+    };
+  };
+
+  // Fetch flash sale products from API
+  useEffect(() => {
+    const fetchFlashSale = async () => {
+      try {
+        setIsLoadingProducts(true);
+        const response = await getProducts({
+          flashSale: true, // Only fetch products where vendor checked flashSale checkbox
+          limit: 100, // Fetch more products for infinite scroll
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        });
+
+        const products = (response.data?.products || response.products || []).map(transformProduct);
+        setFlashSaleProducts(products);
+      } catch (error) {
+        console.error('Error fetching flash sale products:', error);
+        toast.error('Failed to load flash sale products');
+        setFlashSaleProducts([]);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchFlashSale();
+  }, []);
+
   const filteredProducts = useMemo(() => {
-    let result = allFlashSale;
+    let result = flashSaleProducts;
 
     if (filters.minPrice) {
       result = result.filter((product) => product.price >= parseFloat(filters.minPrice));
@@ -39,7 +101,7 @@ const MobileFlashSale = () => {
     }
 
     return result;
-  }, [allFlashSale, filters]);
+  }, [flashSaleProducts, filters]);
 
   const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } = useInfiniteScroll(
     filteredProducts,
@@ -156,7 +218,13 @@ const MobileFlashSale = () => {
 
           {/* Products List */}
           <div className="px-4 py-4">
-            {filteredProducts.length === 0 ? (
+            {isLoadingProducts ? (
+              <div className="text-center py-12">
+                <div className="text-6xl text-gray-300 mx-auto mb-4 animate-pulse">⚡</div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Loading flash sale...</h3>
+                <p className="text-gray-600">Please wait</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl text-gray-300 mx-auto mb-4">⚡</div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">No flash sale items</h3>
