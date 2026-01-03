@@ -81,6 +81,11 @@ const bannerBookingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    durationHours: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
   },
   {
     timestamps: true,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiPlus,
@@ -27,6 +27,13 @@ const HeroBannerBooking = () => {
   const navigate = useNavigate();
   const [slots, setSlots] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [settings, setSettings] = useState({
+    bookingWindowDays: 30,
+    minDurationHours: 1,
+    maxDurationHours: 720,
+    defaultPricePerHour: 1999,
+    pricingStructure: {}
+  });
   const [loading, setLoading] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -36,6 +43,8 @@ const HeroBannerBooking = () => {
     link: "",
     image: null,
     preview: null,
+    startDate: "",
+    durationHours: 1,
   });
 
   useEffect(() => {
@@ -49,7 +58,15 @@ const HeroBannerBooking = () => {
         getAvailableBannerSlots(),
         getMyBannerBookings()
       ]);
-      setSlots(slotsRes.data || []);
+      
+      // Handle both old and new response formats
+      if (slotsRes.data?.slots) {
+        setSlots(slotsRes.data.slots);
+        setSettings(slotsRes.data.settings || settings);
+      } else {
+        setSlots(slotsRes.data || []);
+      }
+      
       setBookings(bookingsRes.data || []);
     } catch (error) {
       console.error("Error loading banner data:", error);
@@ -59,22 +76,72 @@ const HeroBannerBooking = () => {
     }
   };
 
+  // Calculate price based on duration
+  const calculatedPrice = useMemo(() => {
+    if (!settings.pricingStructure || Object.keys(settings.pricingStructure).length === 0) {
+      // Fallback to default pricing
+      return (formData.durationHours || 1) * (settings.defaultPricePerHour || 1999);
+    }
+    
+    const durationKey = formData.durationHours.toString();
+    const pricingStructure = settings.pricingStructure;
+    
+    // If exact match exists
+    if (pricingStructure[durationKey] !== undefined) {
+      return pricingStructure[durationKey];
+    }
+    
+    // Find closest lower bound
+    const sortedDurations = Object.keys(pricingStructure)
+      .map(Number)
+      .sort((a, b) => a - b);
+    
+    let basePrice = settings.defaultPricePerHour || 1999;
+    let baseHours = 1;
+    
+    for (let i = sortedDurations.length - 1; i >= 0; i--) {
+      if (sortedDurations[i] <= formData.durationHours) {
+        baseHours = sortedDurations[i];
+        basePrice = pricingStructure[baseHours.toString()];
+        break;
+      }
+    }
+    
+    // Calculate proportional price
+    const pricePerHour = basePrice / baseHours;
+    return Math.round(pricePerHour * formData.durationHours);
+  }, [formData.durationHours, settings]);
+
+  // Get min and max dates for date picker
+  const { minDate, maxDate } = useMemo(() => {
+    const now = new Date();
+    const min = now.toISOString().split('T')[0];
+    const max = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
+    const maxStr = max.toISOString().split('T')[0];
+    return { minDate: min, maxDate: maxStr };
+  }, [settings.bookingWindowDays]);
+
+  // Format duration for display
+  const formatDuration = (hours) => {
+    if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+    if (hours < 168) return `${Math.round(hours / 24)} ${hours < 48 ? 'day' : 'days'}`;
+    if (hours < 720) return `${Math.round(hours / 168)} ${hours < 336 ? 'week' : 'weeks'}`;
+    return `${Math.round(hours / 720)} ${hours < 1440 ? 'month' : 'months'}`;
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Basic type validation
       if (!file.type.startsWith('image/')) {
         toast.error("Please upload an image file (PNG, JPG)");
         return;
       }
 
-      // Size validation (2MB)
       if (file.size > 2 * 1024 * 1024) {
         toast.error("Image size should be less than 2MB");
         return;
       }
 
-      // Dimension validation (optional but recommended)
       const img = new Image();
       img.src = URL.createObjectURL(file);
       img.onload = () => {
@@ -98,10 +165,48 @@ const HeroBannerBooking = () => {
     });
   };
 
+  const handleDateChange = (e) => {
+    setFormData({
+      ...formData,
+      startDate: e.target.value,
+    });
+  };
+
+  const handleDurationChange = (e) => {
+    const hours = parseInt(e.target.value) || 1;
+    const clampedHours = Math.max(settings.minDurationHours, Math.min(settings.maxDurationHours, hours));
+    setFormData({
+      ...formData,
+      durationHours: clampedHours,
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validation
     if (!formData.image) {
       toast.error("Please upload a banner image");
+      return;
+    }
+    
+    if (!formData.startDate) {
+      toast.error("Please select a start date");
+      return;
+    }
+
+    // Validate date is within booking window
+    const selectedDate = new Date(formData.startDate);
+    const now = new Date();
+    const maxDate = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
+    
+    if (selectedDate < now) {
+      toast.error("Start date cannot be in the past");
+      return;
+    }
+    
+    if (selectedDate > maxDate) {
+      toast.error(`Start date cannot be more than ${settings.bookingWindowDays} days in the future`);
       return;
     }
 
@@ -112,15 +217,8 @@ const HeroBannerBooking = () => {
       bookingFormData.append("title", formData.title);
       bookingFormData.append("link", formData.link);
       bookingFormData.append("image", formData.image);
-      bookingFormData.append("amount", selectedSlot.price);
-      
-      // Setting a default 30-day period for now as per requirements
-      const start = new Date();
-      const end = new Date();
-      end.setDate(end.getDate() + 30);
-      
-      bookingFormData.append("startDate", start.toISOString());
-      bookingFormData.append("endDate", end.toISOString());
+      bookingFormData.append("startDate", new Date(formData.startDate).toISOString());
+      bookingFormData.append("durationHours", formData.durationHours);
 
       const response = await createBannerBooking(bookingFormData);
       
@@ -129,7 +227,7 @@ const HeroBannerBooking = () => {
         await handleRazorpayPayment(
           response.data._id, 
           response.data.razorpayOrder, 
-          selectedSlot.price,
+          calculatedPrice,
           response.data.razorpayKeyId
         );
       } else if (response.success) {
@@ -148,7 +246,6 @@ const HeroBannerBooking = () => {
 
   const handleRazorpayPayment = async (bookingId, razorpayOrder, amount, razorpayKeyId = null) => {
     try {
-      // Get Razorpay key from response or environment
       const keyId = razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
       
       if (!keyId) {
@@ -156,7 +253,6 @@ const HeroBannerBooking = () => {
         return;
       }
 
-      // Initialize Razorpay checkout
       await initializeRazorpayCheckout({
         key: keyId,
         amount: amount,
@@ -165,16 +261,14 @@ const HeroBannerBooking = () => {
         description: `Hero Banner Booking - ${bookingId}`,
         orderId: razorpayOrder.id,
         prefill: {
-          name: '', // Vendor name can be added if available
-          email: '', // Vendor email can be added if available
-          contact: '', // Vendor phone can be added if available
+          name: '',
+          email: '',
+          contact: '',
         },
         handler: async (paymentResponse) => {
           try {
-            // Format payment response
             const paymentData = handlePaymentSuccess(paymentResponse);
             
-            // Confirm payment with backend
             await confirmBannerPayment({
               bookingId,
               razorpayPaymentId: paymentData.razorpayPaymentId,
@@ -210,8 +304,23 @@ const HeroBannerBooking = () => {
       link: "",
       image: null,
       preview: null,
+      startDate: "",
+      durationHours: 1,
     });
     setSelectedSlot(null);
+  };
+
+  const openBookingModal = (slot) => {
+    setSelectedSlot(slot);
+    setFormData({
+      title: "",
+      link: "",
+      image: null,
+      preview: null,
+      startDate: "",
+      durationHours: settings.minDurationHours || 1,
+    });
+    setShowBookingModal(true);
   };
 
   const columns = [
@@ -233,6 +342,11 @@ const HeroBannerBooking = () => {
       render: (val) => `Slot ${val?.slotNumber || "N/A"}`,
     },
     {
+      header: "Duration",
+      accessor: "durationHours",
+      render: (val) => <span className="text-sm text-gray-600">{formatDuration(val || 24)}</span>,
+    },
+    {
       header: "Price",
       accessor: "amount",
       render: (val) => formatPrice(val),
@@ -245,6 +359,11 @@ const HeroBannerBooking = () => {
           {val.toUpperCase()}
         </Badge>
       ),
+    },
+    {
+      header: "Start Date",
+      accessor: "startDate",
+      render: (val) => new Date(val).toLocaleDateString(),
     },
     {
       header: "Created At",
@@ -291,7 +410,7 @@ const HeroBannerBooking = () => {
                 ? "bg-gray-50 border-gray-200 opacity-75" 
                 : "bg-white border-blue-100 hover:border-blue-500 cursor-pointer shadow-sm hover:shadow-md"
               }`}
-              onClick={() => !isBooked && (setSelectedSlot(slot), setShowBookingModal(true))}
+              onClick={() => !isBooked && openBookingModal(slot)}
             >
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Slot {slot.slotNumber}</span>
@@ -302,7 +421,7 @@ const HeroBannerBooking = () => {
                 )}
               </div>
               <div className="text-xl font-bold text-gray-900 mb-1">{formatPrice(slot.price)}</div>
-              <p className="text-xs text-gray-500 mb-4">per 30 days display</p>
+              <p className="text-xs text-gray-500 mb-4">Starting from {formatPrice(settings.defaultPricePerHour || 1999)}/hour</p>
               
               {!isBooked && (
                 <button className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
@@ -334,12 +453,12 @@ const HeroBannerBooking = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-blue-50">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-blue-50 sticky top-0 z-10">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">Book Hero Banner Slot {selectedSlot?.slotNumber}</h3>
-                  <p className="text-sm text-blue-600 font-medium">Price: {formatPrice(selectedSlot?.price)}</p>
+                  <p className="text-sm text-blue-600 font-medium">Calculate your price based on duration</p>
                 </div>
                 <button 
                   onClick={() => (setShowBookingModal(false), resetForm())}
@@ -351,6 +470,85 @@ const HeroBannerBooking = () => {
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 <div className="space-y-4">
+                  {/* Start Date Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <FiCalendar className="text-blue-600" />
+                      Start Date
+                      <div className="group relative">
+                        <FiInfo className="text-gray-400 cursor-help" />
+                        <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg z-20">
+                          You can book dates up to {settings.bookingWindowDays} days in advance. Dates cannot be in the past.
+                        </div>
+                      </div>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      min={minDate}
+                      max={maxDate}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      value={formData.startDate}
+                      onChange={handleDateChange}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Available dates: {new Date(minDate).toLocaleDateString()} to {new Date(maxDate).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {/* Duration Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <FiClock className="text-blue-600" />
+                      Duration
+                      <div className="group relative">
+                        <FiInfo className="text-gray-400 cursor-help" />
+                        <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg z-20">
+                          Duration must be between {settings.minDurationHours} hour{settings.minDurationHours !== 1 ? 's' : ''} and {formatDuration(settings.maxDurationHours)}. Price is calculated based on your selected duration.
+                        </div>
+                      </div>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        required
+                        min={settings.minDurationHours}
+                        max={settings.maxDurationHours}
+                        step="1"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        value={formData.durationHours}
+                        onChange={handleDurationChange}
+                      />
+                      <span className="text-sm text-gray-600 whitespace-nowrap">
+                        hours ({formatDuration(formData.durationHours)})
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Range: {settings.minDurationHours} - {settings.maxDurationHours} hours ({formatDuration(settings.minDurationHours)} - {formatDuration(settings.maxDurationHours)})
+                    </p>
+                  </div>
+
+                  {/* Price Display */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Total Price</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          For {formatDuration(formData.durationHours)} starting {formData.startDate ? new Date(formData.startDate).toLocaleDateString() : 'selected date'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-blue-600">{formatPrice(calculatedPrice)}</p>
+                        {formData.durationHours > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatPrice(Math.round(calculatedPrice / formData.durationHours))}/hour
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Banner Title */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Banner Title
@@ -367,6 +565,7 @@ const HeroBannerBooking = () => {
                     />
                   </div>
 
+                  {/* Banner Image */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Banner Image
@@ -423,6 +622,7 @@ const HeroBannerBooking = () => {
                     </div>
                   </div>
 
+                  {/* Target URL */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Target URL (Optional)
@@ -454,10 +654,16 @@ const HeroBannerBooking = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                    disabled={loading || !formData.startDate || !formData.image}
+                    className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {loading ? "Processing..." : `Pay ${formatPrice(selectedSlot?.price)}`}
+                    {loading ? (
+                      "Processing..."
+                    ) : (
+                      <>
+                        <FiCreditCard /> Pay {formatPrice(calculatedPrice)}
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

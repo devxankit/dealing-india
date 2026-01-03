@@ -3,9 +3,10 @@ import * as heroBannerService from '../../services/heroBanner.service.js';
 export const getAvailableSlots = async (req, res, next) => {
   try {
     const slots = await heroBannerService.getBannerSlots();
+    const settings = await heroBannerService.getBannerSettings();
     res.status(200).json({
       success: true,
-      data: slots
+      data: { slots, settings }
     });
   } catch (error) {
     next(error);
@@ -34,13 +35,8 @@ export const createBannerBooking = async (req, res, next) => {
       error.status = 400;
       return next(error);
     }
-    if (!req.body.endDate) {
-      const error = new Error('End date is required');
-      error.status = 400;
-      return next(error);
-    }
-    if (!req.body.amount && req.body.amount !== 0) {
-      const error = new Error('Amount is required');
+    if (!req.body.durationHours) {
+      const error = new Error('Duration is required');
       error.status = 400;
       return next(error);
     }

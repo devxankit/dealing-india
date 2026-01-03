@@ -215,10 +215,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
             }
           `}
           onClick={() => {
+            handleMenuItemClick(item.route);
             if (hasChildren) {
               toggleExpand(item.title, true);
-            } else {
-              handleMenuItemClick(item.route);
             }
           }}>
           <Icon
