@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiEdit, FiTrash2 } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -35,6 +35,7 @@ const ManageProducts = () => {
   });
 
   const vendorId = vendor?.id;
+  const isResettingPageRef = useRef(false);
 
   const loadProducts = useCallback(async () => {
     if (!vendorId) return;
@@ -76,24 +77,48 @@ const ManageProducts = () => {
     }
   }, [vendorId, initCategories, initBrands]);
 
+  // Reset page to 1 when filters/search change (but not when page changes)
   useEffect(() => {
-    if (vendorId) {
-      loadProducts();
-    }
-  }, [vendorId, loadProducts]);
+    isResettingPageRef.current = true;
+    setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, selectedStatus, selectedCategory, selectedBrand]);
 
-  // Debounce search
+  // Debounce search query changes only
   useEffect(() => {
+    if (!vendorId) return;
+    
     const timer = setTimeout(() => {
-      if (currentPage === 1) {
-        loadProducts();
-      } else {
-        setCurrentPage(1);
-      }
+      loadProducts();
+      isResettingPageRef.current = false;
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, loadProducts, currentPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  // Load products immediately when non-search filters change (no debounce)
+  useEffect(() => {
+    if (!vendorId) return;
+    if (isResettingPageRef.current) {
+      loadProducts();
+      isResettingPageRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStatus, selectedCategory, selectedBrand, vendorId]);
+
+  // Load products immediately when page changes (no debounce)
+  // Skip if page is being reset due to filter changes
+  useEffect(() => {
+    if (!vendorId) return;
+    if (isResettingPageRef.current) {
+      // Page is being reset due to filter change, don't load here
+      // The filter effect or debounce effect will handle loading
+      return;
+    }
+    loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, vendorId]);
 
   // Products are already filtered by API, no need for client-side filtering
   const filteredProducts = products;

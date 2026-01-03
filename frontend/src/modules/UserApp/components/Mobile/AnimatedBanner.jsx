@@ -259,19 +259,9 @@ const AnimatedBanner = () => {
     }, 600);
   };
 
-  // Show nothing if loading or no banners
-  if (loading) {
-    return (
-      <div className="px-4 py-3">
-        <div className="relative w-full h-32 rounded-2xl overflow-hidden shadow-xl bg-gray-200 animate-pulse flex items-center justify-center">
-          <p className="text-gray-500 text-sm">Loading banners...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (banners.length === 0) {
-    return null; // Don't show anything if no active campaigns
+  // Show nothing if loading or no banners - return null immediately to avoid space flash
+  if (loading || banners.length === 0) {
+    return null; // Don't show anything if loading or no active campaigns
   }
 
   return (

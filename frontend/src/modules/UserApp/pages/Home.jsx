@@ -405,14 +405,6 @@ const MobileHome = () => {
             )}
           </div>
 
-          {/* Daily Deals */}
-          <DailyDealsSection 
-            products={dailyDeals} 
-            campaign={dailyDealCampaign} 
-            isLoading={isLoadingDailyDeals}
-          />
-
-
           {/* Flash Sale */}
           {isLoadingFlashSale ? (
             <div className="px-4 py-4 bg-gradient-to-br from-red-50 to-orange-50">
@@ -465,6 +457,13 @@ const MobileHome = () => {
               </div>
             </div>
           ) : null}
+
+          {/* Daily Deals */}
+          <DailyDealsSection 
+            products={dailyDeals} 
+            campaign={dailyDealCampaign} 
+            isLoading={isLoadingDailyDeals}
+          />
 
           {/* Trending Items */}
           <div className="px-4 py-4">
