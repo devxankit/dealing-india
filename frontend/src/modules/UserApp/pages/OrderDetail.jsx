@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiPackage, FiTruck, FiMapPin, FiCreditCard, FiRotateCw, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
-import { useOrderStore } from '../../../shared/store/orderStore';
+import { getOrderById, cancelOrder } from '../../../shared/services/orderService';
 import { useCartStore } from '../../../shared/store/useStore';
 import { formatPrice } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
@@ -15,15 +15,52 @@ import LazyImage from '../../../shared/components/LazyImage';
 const MobileOrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { getOrder, cancelOrder } = useOrderStore();
   const { addItem } = useCartStore();
-  const order = getOrder(orderId);
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!order) {
-      navigate('/app/orders');
-    }
-  }, [order, navigate]);
+    const fetchOrder = async () => {
+      if (!orderId) {
+        navigate('/app/orders');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await getOrderById(orderId);
+        if (response.success && response.data?.order) {
+          setOrder(response.data.order);
+        } else {
+          toast.error('Order not found');
+          navigate('/app/orders');
+        }
+      } catch (error) {
+        console.error('Error fetching order:', error);
+        toast.error('Failed to load order');
+        navigate('/app/orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [orderId, navigate]);
+
+  if (loading) {
+    return (
+      <PageTransition>
+        <MobileLayout showBottomNav={false} showCartBar={false}>
+          <div className="flex items-center justify-center min-h-[60vh] px-4">
+            <div className="text-center">
+              <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Loading order...</h2>
+            </div>
+          </div>
+        </MobileLayout>
+      </PageTransition>
+    );
+  }
 
   if (!order) {
     return (
@@ -55,25 +92,38 @@ const MobileOrderDetail = () => {
   };
 
   const handleReorder = () => {
-    order.items.forEach((item) => {
-      addItem({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        image: item.image,
-        quantity: item.quantity,
+    if (order.items && order.items.length > 0) {
+      order.items.forEach((item) => {
+        const productId = item.productId?._id || item.productId || item.id;
+        addItem({
+          id: productId,
+          productId: productId,
+          name: item.name,
+          price: item.price,
+          image: item.image || item.productId?.images?.[0] || '/placeholder.png',
+          quantity: item.quantity,
+        });
       });
-    });
-    toast.success('Items added to cart!');
-    navigate('/app/checkout');
+      toast.success('Items added to cart!');
+      navigate('/app/checkout');
+    }
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (window.confirm('Are you sure you want to cancel this order?')) {
       if (['pending', 'processing'].includes(order.status)) {
-        cancelOrder(order.id);
-        toast.success('Order cancelled successfully');
-        navigate('/app/orders');
+        try {
+          const response = await cancelOrder(order._id || order.id || order.orderCode);
+          if (response.success) {
+            toast.success('Order cancelled successfully');
+            navigate('/app/orders');
+          } else {
+            toast.error('Failed to cancel order');
+          }
+        } catch (error) {
+          console.error('Error cancelling order:', error);
+          toast.error(error.response?.data?.message || 'Failed to cancel order');
+        }
       } else {
         toast.error('This order cannot be cancelled');
       }
@@ -96,9 +146,9 @@ const MobileOrderDetail = () => {
                 </button>
                 <div className="flex-1">
                   <h1 className="text-xl font-bold text-gray-800">Order Details</h1>
-                  <p className="text-sm text-gray-600">Order #{order.id}</p>
+                  <p className="text-sm text-gray-600">Order #{order.orderCode || order.id}</p>
                 </div>
-                <Badge variant={order.status}>{order.status.toUpperCase()}</Badge>
+                <Badge status={order.status}>{order.status.toUpperCase()}</Badge>
               </div>
             </div>
 
@@ -106,70 +156,96 @@ const MobileOrderDetail = () => {
               {/* Order Items */}
               <div className="glass-card rounded-2xl p-4">
                 <h2 className="text-base font-bold text-gray-800 mb-4">Order Items</h2>
-                {order.vendorItems && order.vendorItems.length > 0 ? (
+                {order.vendorBreakdown && order.vendorBreakdown.length > 0 ? (
                   <div className="space-y-4">
-                    {order.vendorItems.map((vendorGroup) => (
-                      <div key={vendorGroup.vendorId} className="space-y-2">
-                        {/* Vendor Header */}
-                        <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200/50">
-                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
-                            <FiShoppingBag className="text-white text-[10px]" />
-                          </div>
-                          <span className="text-sm font-bold text-primary-700 flex-1">
-                            {vendorGroup.vendorName}
-                          </span>
-                          <span className="text-xs font-semibold text-primary-600 bg-white px-2 py-0.5 rounded-md">
-                            {formatPrice(vendorGroup.subtotal)}
-                          </span>
-                        </div>
-                        {/* Vendor Items */}
-                        <div className="space-y-2 pl-2">
-                          {vendorGroup.items.map((item) => (
-                            <div key={item.id} className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                                <LazyImage
-                                  src={item.image}
-                                  alt={item.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-gray-800 text-sm mb-1">{item.name}</h3>
-                                <p className="text-xs text-gray-600">
-                                  {formatPrice(item.price)} × {item.quantity}
-                                </p>
-                              </div>
-                              <p className="font-bold text-gray-800 text-sm">
-                                {formatPrice(item.price * item.quantity)}
-                              </p>
+                    {order.vendorBreakdown.map((vendorGroup, vendorIdx) => {
+                      // Get items for this vendor
+                      const vendorItems = order.items.filter((item) => {
+                        const productVendorId = item.productId?.vendorId?._id || item.productId?.vendorId || item.vendorId;
+                        return productVendorId && productVendorId.toString() === (vendorGroup.vendorId?._id || vendorGroup.vendorId)?.toString();
+                      });
+
+                      return (
+                        <div key={vendorGroup.vendorId?._id || vendorGroup.vendorId || vendorIdx} className="space-y-2">
+                          {/* Vendor Header */}
+                          <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg border border-primary-200/50">
+                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
+                              <FiShoppingBag className="text-white text-[10px]" />
                             </div>
-                          ))}
+                            <span className="text-sm font-bold text-primary-700 flex-1">
+                              {vendorGroup.vendorName || vendorGroup.vendorId?.name || 'Vendor'}
+                            </span>
+                            <span className="text-xs font-semibold text-primary-600 bg-white px-2 py-0.5 rounded-md">
+                              {formatPrice(vendorGroup.subtotal || 0)}
+                            </span>
+                          </div>
+                          {/* Vendor Items */}
+                          <div className="space-y-2 pl-2">
+                            {vendorItems.map((item, itemIdx) => {
+                              const itemImage = item.image || item.productId?.images?.[0] || '/placeholder.png';
+                              const itemName = item.name || item.productId?.name || 'Product';
+                              const itemPrice = item.price || 0;
+                              const itemQuantity = item.quantity || 1;
+                              const itemId = item._id || item.id || itemIdx;
+
+                              return (
+                                <div key={itemId} className="flex items-center gap-3">
+                                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                                    <LazyImage
+                                      src={itemImage}
+                                      alt={itemName}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-semibold text-gray-800 text-sm mb-1">{itemName}</h3>
+                                    <p className="text-xs text-gray-600">
+                                      {formatPrice(itemPrice)} × {itemQuantity}
+                                    </p>
+                                  </div>
+                                  <p className="font-bold text-gray-800 text-sm">
+                                    {formatPrice(itemPrice * itemQuantity)}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-3">
-                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                          <LazyImage
-                            src={item.image}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-800 text-sm mb-1">{item.name}</h3>
-                          <p className="text-xs text-gray-600">
-                            {formatPrice(item.price)} × {item.quantity}
+                    {order.items && order.items.length > 0 ? order.items.map((item, idx) => {
+                      const itemImage = item.image || item.productId?.images?.[0] || '/placeholder.png';
+                      const itemName = item.name || item.productId?.name || 'Product';
+                      const itemPrice = item.price || 0;
+                      const itemQuantity = item.quantity || 1;
+                      const itemId = item._id || item.id || idx;
+
+                      return (
+                        <div key={itemId} className="flex items-center gap-3">
+                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                            <LazyImage
+                              src={itemImage}
+                              alt={itemName}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-800 text-sm mb-1">{itemName}</h3>
+                            <p className="text-xs text-gray-600">
+                              {formatPrice(itemPrice)} × {itemQuantity}
+                            </p>
+                          </div>
+                          <p className="font-bold text-gray-800 text-sm">
+                            {formatPrice(itemPrice * itemQuantity)}
                           </p>
                         </div>
-                        <p className="font-bold text-gray-800 text-sm">
-                          {formatPrice(item.price * item.quantity)}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    }) : (
+                      <p className="text-gray-500 text-center py-4">No items found</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -180,16 +256,22 @@ const MobileOrderDetail = () => {
                   <FiMapPin className="text-primary-600" />
                   Shipping Address
                 </h2>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p className="font-semibold text-gray-800">{order.shippingAddress.name}</p>
-                  <p>{order.shippingAddress.address}</p>
-                  <p>
-                    {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
-                    {order.shippingAddress.zipCode}
-                  </p>
-                  <p>{order.shippingAddress.country}</p>
-                  <p className="mt-2">Phone: {order.shippingAddress.phone}</p>
-                </div>
+                {order.shippingAddress ? (
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p className="font-semibold text-gray-800">{order.shippingAddress.name}</p>
+                    <p>{order.shippingAddress.address}</p>
+                    <p>
+                      {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
+                      {order.shippingAddress.zipCode}
+                    </p>
+                    <p>{order.shippingAddress.country || 'India'}</p>
+                    {order.shippingAddress.phone && (
+                      <p className="mt-2">Phone: {order.shippingAddress.phone}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">Address not available</p>
+                )}
               </div>
 
               {/* Payment Info */}
@@ -205,15 +287,19 @@ const MobileOrderDetail = () => {
                       {order.paymentMethod}
                     </span>
                   </div>
-                  {order.trackingNumber && (
+                  {order.tracking?.trackingNumber && (
                     <div className="flex justify-between">
                       <span>Tracking Number:</span>
-                      <span className="font-semibold text-gray-800">{order.trackingNumber}</span>
+                      <span className="font-semibold text-gray-800">{order.tracking.trackingNumber}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span>Order Date:</span>
-                    <span className="font-semibold text-gray-800">{formatDate(order.date)}</span>
+                    <span className="font-semibold text-gray-800">{formatDate(order.orderDate || order.createdAt || order.date)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Payment Status:</span>
+                    <Badge status={order.paymentStatus || 'pending'}>{order.paymentStatus || 'Pending'}</Badge>
                   </div>
                 </div>
               </div>
@@ -224,25 +310,25 @@ const MobileOrderDetail = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-gray-600">
                     <span>Subtotal</span>
-                    <span>{formatPrice(order.subtotal)}</span>
+                    <span>{formatPrice(order.pricing?.subtotal || order.subtotal || 0)}</span>
                   </div>
-                  {order.discount > 0 && (
+                  {(order.pricing?.discount || order.discount || 0) > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount</span>
-                      <span>-{formatPrice(order.discount)}</span>
+                      <span>-{formatPrice(order.pricing?.discount || order.discount || 0)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-gray-600">
                     <span>Shipping</span>
-                    <span>{formatPrice(order.shipping)}</span>
+                    <span>{formatPrice(order.pricing?.shipping || order.shipping || 0)}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Tax</span>
-                    <span>{formatPrice(order.tax)}</span>
+                    <span>{formatPrice(order.pricing?.tax || order.tax || 0)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-bold text-gray-800 pt-2 border-t border-gray-200">
                     <span>Total</span>
-                    <span className="text-primary-600">{formatPrice(order.total)}</span>
+                    <span className="text-primary-600">{formatPrice(order.pricing?.total || order.total || 0)}</span>
                   </div>
                 </div>
               </div>
@@ -265,7 +351,7 @@ const MobileOrderDetail = () => {
                   Reorder
                 </button>
                 <button
-                  onClick={() => navigate(`/app/track-order/${order.id}`)}
+                  onClick={() => navigate(`/app/track-order/${order._id || order.id || order.orderCode}`)}
                   className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
                 >
                   <FiTruck className="text-lg" />

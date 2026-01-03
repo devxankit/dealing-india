@@ -89,10 +89,6 @@ import MegaRewardPromotionalReels from "./modules/Admin/pages/mega-reward/Promot
 // Notifications child pages
 import PushNotifications from "./modules/Admin/pages/notifications/PushNotifications";
 import CustomMessages from "./modules/Admin/pages/notifications/CustomMessages";
-// Support Desk child pages
-import LiveChat from "./modules/Admin/pages/support/LiveChat";
-import TicketTypes from "./modules/Admin/pages/support/TicketTypes";
-import Tickets from "./modules/Admin/pages/support/Tickets";
 // Reports child pages
 import SalesReport from "./modules/Admin/pages/reports/SalesReport";
 import InventoryReport from "./modules/Admin/pages/reports/InventoryReport";
@@ -140,6 +136,7 @@ const MobileVerification = lazy(() => import("./modules/UserApp/pages/Verificati
 const MobileOrders = lazy(() => import("./modules/UserApp/pages/Orders"));
 const MobileOrderDetail = lazy(() => import("./modules/UserApp/pages/OrderDetail"));
 const MobileAddresses = lazy(() => import("./modules/UserApp/pages/Addresses"));
+const MobileNotifications = lazy(() => import("./modules/UserApp/pages/Notifications"));
 const MobileWishlist = lazy(() => import("./modules/UserApp/pages/Wishlist"));
 const MobileOffers = lazy(() => import("./modules/UserApp/pages/Offers"));
 const MobileDailyDeals = lazy(() => import("./modules/UserApp/pages/DailyDeals"));
@@ -147,7 +144,6 @@ const MobileFlashSale = lazy(() => import("./modules/UserApp/pages/FlashSale"));
 const MobileTrackOrder = lazy(() => import("./modules/UserApp/pages/TrackOrder"));
 const MobileOrderConfirmation = lazy(() => import("./modules/UserApp/pages/OrderConfirmation"));
 const MobileMegaReward = lazy(() => import("./modules/UserApp/pages/MegaReward"));
-const MobileHelp = lazy(() => import("./modules/UserApp/pages/Help"));
 const MobileSettings = lazy(() => import("./modules/UserApp/pages/Settings"));
 const MobileChangePassword = lazy(() => import("./modules/UserApp/pages/ChangePassword"));
 const MobileContentPage = lazy(() => import("./modules/UserApp/pages/ContentPage"));
@@ -185,7 +181,6 @@ import VendorHeroBannerBooking from "./modules/Vendor/pages/HeroBannerBooking";
 import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
 
 import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
-import VendorChat from "./modules/Vendor/pages/Chat";
 import VendorReturnRequests from "./modules/Vendor/pages/ReturnRequests";
 import VendorReturnRequestDetail from "./modules/Vendor/pages/returns/ReturnRequestDetail";
 import VendorProductReviews from "./modules/Vendor/pages/ProductReviews";
@@ -199,7 +194,6 @@ import VendorTaxPricing from "./modules/Vendor/pages/TaxPricing";
 import VendorShippingManagement from "./modules/Vendor/pages/ShippingManagement";
 import VendorCustomers from "./modules/Vendor/pages/Customers";
 import VendorCustomerDetail from "./modules/Vendor/pages/CustomerDetail";
-import VendorSupportTickets from "./modules/Vendor/pages/SupportTickets";
 import VendorProductAttributes from "./modules/Vendor/pages/ProductAttributes";
 import VendorAttributes from "./modules/Vendor/pages/attributes/Attributes";
 import VendorAttributeValues from "./modules/Vendor/pages/attributes/AttributeValues";
@@ -473,10 +467,6 @@ const AppRoutes = () => {
             path="notifications/custom-messages"
             element={<CustomMessages />}
           />
-          <Route path="support" element={<Tickets />} />
-          <Route path="support/live-chat" element={<LiveChat />} />
-          <Route path="support/ticket-types" element={<TicketTypes />} />
-          <Route path="support/tickets" element={<Tickets />} />
           <Route path="reports" element={<SalesReport />} />
           <Route path="reports/sales-report" element={<SalesReport />} />
           <Route path="reports/inventory-report" element={<InventoryReport />} />
@@ -599,7 +589,6 @@ const AppRoutes = () => {
           <Route path="stock-management/out-of-stock" element={<VendorStockManagement />} />
 
           <Route path="pickup-locations" element={<VendorPickupLocations />} />
-          <Route path="chat" element={<VendorChat />} />
           <Route path="return-requests" element={<VendorReturnRequests />} />
           <Route
             path="return-requests/:id"
@@ -615,8 +604,6 @@ const AppRoutes = () => {
           />
           <Route path="customers/:id" element={<VendorCustomerDetail />} />
           <Route path="customers" element={<VendorCustomers />} />
-          <Route path="support-tickets" element={<VendorSupportTickets />} />
-          <Route path="support-tickets/:id" element={<VendorSupportTickets />} />
           <Route path="inventory-reports" element={<VendorInventoryReports />} />
           <Route
             path="performance-metrics"
@@ -815,21 +802,21 @@ const AppRoutes = () => {
           }
         />
         <Route
-          path="/app/mega-reward"
+          path="/app/notifications"
           element={
             <RouteWrapper>
               <ProtectedRoute>
-                <MobileMegaReward />
+                <MobileNotifications />
               </ProtectedRoute>
             </RouteWrapper>
           }
         />
         <Route
-          path="/app/help"
+          path="/app/mega-reward"
           element={
             <RouteWrapper>
               <ProtectedRoute>
-                <MobileHelp />
+                <MobileMegaReward />
               </ProtectedRoute>
             </RouteWrapper>
           }

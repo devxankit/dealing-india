@@ -31,6 +31,15 @@ export const initializeSocket = (token) => {
     console.log('Socket.io disconnected');
   });
 
+  socket.on('connect_error', (error) => {
+    // Don't show error if backend is not running - this is expected in development
+    if (error.message?.includes('ECONNREFUSED') || error.message?.includes('Failed to fetch')) {
+      console.warn('Socket.io connection failed (backend might not be running)');
+    } else {
+      console.error('Socket.io connection error:', error);
+    }
+  });
+
   socket.on('error', (error) => {
     console.error('Socket.io error:', error);
   });

@@ -1,34 +1,105 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FiPlus, FiEdit, FiTrash2, FiMessageSquare, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiMessageSquare, FiSearch, FiSend } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
+
+// Send Notification Form Component
+const SendNotificationForm = ({ message, onSend, onCancel, loading }) => {
+  const [target, setTarget] = useState('all');
+  const [recipientIds, setRecipientIds] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSend({
+      title: message.title,
+      content: message.content,
+      target,
+      recipientIds: recipientIds ? recipientIds.split(',').map(id => id.trim()).filter(id => id) : [],
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Target Audience
+        </label>
+        <AnimatedSelect
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          options={[
+            { value: 'all', label: 'All Users & Vendors' },
+            { value: 'users', label: 'All Users Only' },
+            { value: 'vendors', label: 'All Vendors Only' },
+            { value: 'specific', label: 'Specific Recipients' },
+          ]}
+          required
+        />
+      </div>
+      {target === 'specific' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Recipient IDs (comma-separated)
+          </label>
+          <input
+            type="text"
+            value={recipientIds}
+            onChange={(e) => setRecipientIds(e.target.value)}
+            placeholder="Enter user/vendor IDs separated by commas"
+            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Enter user or vendor IDs separated by commas
+          </p>
+        </div>
+      )}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <p className="text-sm font-medium text-gray-700 mb-2">Preview:</p>
+        <p className="text-sm font-semibold text-gray-800">{message.title}</p>
+        <p className="text-sm text-gray-600 mt-1">{message.content}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50"
+        >
+          {loading ? 'Sending...' : 'Send Notification'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={loading}
+          className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-semibold disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+};
 
 const CustomMessages = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      title: 'Welcome Message',
-      content: 'Welcome to our store! Enjoy shopping.',
-      type: 'welcome',
-      status: 'active',
-    },
-    {
-      id: 2,
-      title: 'Order Confirmation',
-      content: 'Your order has been confirmed. Thank you!',
-      type: 'order',
-      status: 'active',
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingMessage, setEditingMessage] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
+  const [sendModal, setSendModal] = useState({ isOpen: false, message: null });
+
+  // Fetch messages from API (if backend exists) or use empty array
+  useEffect(() => {
+    // For now, messages are managed locally
+    // In future, can fetch from API if message templates are stored in DB
+    setMessages([]);
+  }, []);
 
   const filteredMessages = messages.filter((msg) =>
     !searchQuery ||
@@ -36,22 +107,53 @@ const CustomMessages = () => {
     msg.content.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSave = (messageData) => {
-    if (editingMessage && editingMessage.id) {
-      setMessages(messages.map((m) => (m.id === editingMessage.id ? { ...messageData, id: editingMessage.id } : m)));
-      toast.success('Message updated');
-    } else {
-      const newId = messages.length > 0 ? Math.max(...messages.map(m => m.id)) + 1 : 1;
-      setMessages([...messages, { ...messageData, id: newId }]);
-      toast.success('Message added');
+  const handleSave = async (messageData) => {
+    try {
+      if (editingMessage && editingMessage.id) {
+        setMessages(messages.map((m) => (m.id === editingMessage.id ? { ...messageData, id: editingMessage.id } : m)));
+        toast.success('Message updated');
+      } else {
+        const newId = messages.length > 0 ? Math.max(...messages.map(m => m.id)) + 1 : 1;
+        setMessages([...messages, { ...messageData, id: newId }]);
+        toast.success('Message added');
+      }
+      setEditingMessage(null);
+    } catch (error) {
+      toast.error('Failed to save message');
     }
-    setEditingMessage(null);
   };
 
   const handleDelete = () => {
     setMessages(messages.filter((m) => m.id !== deleteModal.id));
     setDeleteModal({ isOpen: false, id: null });
     toast.success('Message deleted');
+  };
+
+  const handleSendNotification = async (messageData) => {
+    try {
+      setLoading(true);
+      const { title, content, target, recipientIds } = messageData;
+
+      const response = await api.post('/admin/notifications/send', {
+        title,
+        message: content,
+        target: target || 'all',
+        recipientIds: recipientIds || [],
+        type: 'custom',
+      });
+
+      if (response.success) {
+        toast.success(`Notification sent to ${response.data.count} recipients`);
+        setSendModal({ isOpen: false, message: null });
+      } else {
+        throw new Error(response.message || 'Failed to send notification');
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to send notification');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const columns = [
@@ -95,6 +197,13 @@ const CustomMessages = () => {
       render: (_, row) => (
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setSendModal({ isOpen: true, message: row })}
+            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            title="Send Notification"
+          >
+            <FiSend />
+          </button>
+          <button
             onClick={() => setEditingMessage(row)}
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
           >
@@ -120,7 +229,7 @@ const CustomMessages = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="lg:hidden">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Custom Messages</h1>
-          <p className="text-sm sm:text-base text-gray-600">Manage automated customer messages</p>
+          <p className="text-sm sm:text-base text-gray-600">Manage and send custom notifications to users</p>
         </div>
         <button
           onClick={() => setEditingMessage({ title: '', content: '', type: 'welcome', status: 'active' })}
@@ -145,14 +254,23 @@ const CustomMessages = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={filteredMessages}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {messages.length === 0 ? (
+          <div className="text-center py-12">
+            <FiMessageSquare className="mx-auto text-4xl text-gray-400 mb-4" />
+            <p className="text-gray-500 font-medium">No custom messages</p>
+            <p className="text-sm text-gray-400 mt-2">Create your first custom message template</p>
+          </div>
+        ) : (
+          <DataTable
+            data={filteredMessages}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
+      {/* Edit/Add Message Modal */}
       <AnimatePresence>
         {editingMessage !== null && (
           <>
@@ -166,7 +284,7 @@ const CustomMessages = () => {
               className="fixed inset-0 bg-black/50 z-[10000]"
             />
 
-            {/* Modal Content - Mobile: Slide up from bottom, Desktop: Center with scale */}
+            {/* Modal Content */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -285,6 +403,38 @@ const CustomMessages = () => {
         )}
       </AnimatePresence>
 
+      {/* Send Notification Modal */}
+      <AnimatePresence>
+        {sendModal.isOpen && sendModal.message && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSendModal({ isOpen: false, message: null })}
+              className="fixed inset-0 bg-black/50 z-[10000]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-[10001] flex items-center justify-center p-4 pointer-events-none"
+            >
+              <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full pointer-events-auto">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">Send Notification</h3>
+                <SendNotificationForm
+                  message={sendModal.message}
+                  onSend={handleSendNotification}
+                  onCancel={() => setSendModal({ isOpen: false, message: null })}
+                  loading={loading}
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <ConfirmModal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, id: null })}
@@ -300,4 +450,3 @@ const CustomMessages = () => {
 };
 
 export default CustomMessages;
-

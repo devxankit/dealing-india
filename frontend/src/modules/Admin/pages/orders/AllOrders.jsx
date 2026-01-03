@@ -29,7 +29,7 @@ import AnimatedSelect from "../../components/AnimatedSelect";
 import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { formatCurrency, formatDateTime } from "../../utils/adminHelpers";
-import { mockOrders, getAnalyticsSummary } from "../../../../data/adminMockData";
+import { getAdminOrders } from "../../../../shared/services/orderService";
 import toast from "react-hot-toast";
 
 // OrderItemsDropdown component
@@ -269,12 +269,14 @@ const OrderActionsDropdown = ({
     };
   }, [isOpen, onClose]);
 
+  const orderId = order._id || order.id || order.orderCode;
+
   const menuItems = [
     {
       label: "Order Details",
       icon: FiEye,
       onClick: () => {
-        onOrderDetails(order.id);
+        onOrderDetails(orderId);
         onClose();
       },
       color: "text-blue-600",
@@ -294,7 +296,7 @@ const OrderActionsDropdown = ({
       label: "Order Tracking",
       icon: FiTruck,
       onClick: () => {
-        onOrderTracking(order.id);
+        onOrderTracking(orderId);
         onClose();
       },
       color: "text-indigo-600",
@@ -304,7 +306,7 @@ const OrderActionsDropdown = ({
       label: "Delete Order",
       icon: FiTrash2,
       onClick: () => {
-        onDeleteOrder(order.id);
+        onDeleteOrder(orderId);
         onClose();
       },
       color: "text-red-600",
@@ -378,6 +380,7 @@ const OrderActionsDropdown = ({
 const AllOrders = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [dateRange, setDateRange] = useState({
@@ -389,16 +392,45 @@ const AllOrders = () => {
     isOpen: false,
     orderId: null,
   });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    totalPages: 1,
+    total: 0,
+  });
 
+  // Fetch orders from API
   useEffect(() => {
-    const savedOrders = localStorage.getItem("admin-orders");
-    if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
-    } else {
-      setOrders(mockOrders);
-      localStorage.setItem("admin-orders", JSON.stringify(mockOrders));
-    }
-  }, []);
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const filters = {
+          status: selectedStatus === "all" ? undefined : selectedStatus,
+          search: searchQuery || undefined,
+          startDate: dateRange.startDate || undefined,
+          endDate: dateRange.endDate || undefined,
+          page: pagination.page,
+          limit: 50,
+        };
+
+        const response = await getAdminOrders(filters);
+        if (response.success && response.data) {
+          setOrders(response.data.orders || []);
+          setPagination({
+            page: response.data.page || 1,
+            totalPages: response.data.totalPages || 1,
+            total: response.data.total || 0,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        toast.error("Failed to load orders");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [selectedStatus, searchQuery, dateRange.startDate, dateRange.endDate, pagination.page]);
 
   // Calculate order status counts
   const orderStats = useMemo(() => {
@@ -439,19 +471,22 @@ const AllOrders = () => {
 
   // Helper function to calculate final total
   const calculateFinalTotal = (order) => {
+    // Use pricing object if available (preferred)
+    if (order.pricing?.total !== undefined) {
+      return order.pricing.total;
+    }
+    // Fallback to old structure
     if (order.finalTotal !== undefined) {
       return order.finalTotal;
     }
     const total = order.total || 0;
-    const tax = order.tax || 0;
-    const discount = order.discount || 0;
+    const tax = (order.pricing?.tax || order.tax || 0);
+    const discount = (order.pricing?.discount || order.discount || 0);
     return total + tax - discount;
   };
 
   // Calculate dashboard stats based on selected status
   const dashboardStats = useMemo(() => {
-    const analyticsSummary = getAnalyticsSummary();
-    
     // Filter orders by selected status
     const statusFilteredOrders = selectedStatus === "all"
       ? orders
@@ -468,6 +503,20 @@ const AllOrders = () => {
       return sum + items;
     }, 0);
 
+    // Calculate total unique products from all orders
+    const productSet = new Set();
+    orders.forEach((order) => {
+      if (Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          const productId = item.productId?._id || item.productId || item.id;
+          if (productId) {
+            productSet.add(productId.toString());
+          }
+        });
+      }
+    });
+    const totalProducts = productSet.size;
+
     const pendingOrders = orders.filter(
       (o) => o.status?.toLowerCase() === "pending" || o.status?.toLowerCase() === "processing"
     ).length;
@@ -479,10 +528,10 @@ const AllOrders = () => {
       }, 0);
 
     return {
-      totalProducts: analyticsSummary.totalProducts || 0,
+      totalProducts: totalProducts,
       totalOrders: orders.length,
       pendingOrders: pendingOrders,
-      totalEarnings: totalRevenue || analyticsSummary.totalRevenue || 0,
+      totalEarnings: totalRevenue || 0,
       // Status-specific stats
       statusCount,
       statusRevenue,
@@ -493,25 +542,26 @@ const AllOrders = () => {
   const filteredOrders = useMemo(() => {
     let filtered = orders;
 
+    // Search is already handled by API, but keep client-side filter for local state
     if (searchQuery) {
-      filtered = filtered.filter(
-        (order) =>
-          order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          order.customer.name
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          order.customer.email.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const searchLower = searchQuery.toLowerCase();
+      filtered = filtered.filter((order) => {
+        const orderCode = (order.orderCode || order.id || '').toString().toLowerCase();
+        const customerName = (order.customerSnapshot?.name || order.customerId?.name || order.customer?.name || '').toLowerCase();
+        const customerEmail = (order.customerSnapshot?.email || order.customerId?.email || order.customer?.email || '').toLowerCase();
+        return orderCode.includes(searchLower) || customerName.includes(searchLower) || customerEmail.includes(searchLower);
+      });
     }
 
+    // Status filtering is already handled by API
     if (selectedStatus !== "all") {
       filtered = filtered.filter((order) => order.status === selectedStatus);
     }
 
-    // Filter by date range
+    // Filter by date range (also handled by API, but keep for local filtering)
     if (dateRange.startDate || dateRange.endDate) {
       filtered = filtered.filter((order) => {
-        const orderDate = new Date(order.date);
+        const orderDate = new Date(order.orderDate || order.createdAt || order.date);
         orderDate.setHours(0, 0, 0, 0);
 
         if (dateRange.startDate && dateRange.endDate) {
@@ -558,7 +608,8 @@ const AllOrders = () => {
   };
 
   const handleGenerateInvoice = (order) => {
-    navigate(`/admin/orders/${order.id}/invoice`);
+    const orderId = order._id || order.id || order.orderCode;
+    navigate(`/admin/orders/${orderId}/invoice`);
   };
 
   const handleOrderTracking = (orderId) => {
@@ -569,12 +620,16 @@ const AllOrders = () => {
     setDeleteModal({ isOpen: true, orderId });
   };
 
-  const confirmDeleteOrder = () => {
-    const updatedOrders = orders.filter((o) => o.id !== deleteModal.orderId);
+  const confirmDeleteOrder = async () => {
+    // Note: In production, you'd call an API to delete the order
+    // For now, we'll just remove it from local state
+    const updatedOrders = orders.filter((o) => {
+      const orderId = o._id || o.id;
+      return orderId !== deleteModal.orderId;
+    });
     setOrders(updatedOrders);
-    localStorage.setItem("admin-orders", JSON.stringify(updatedOrders));
     setDeleteModal({ isOpen: false, orderId: null });
-    toast.success("Order deleted successfully");
+    toast.success("Order removed from view");
   };
 
   const handleDropdownToggle = (orderId) => {
@@ -587,21 +642,26 @@ const AllOrders = () => {
 
   const columns = [
     {
-      key: "id",
+      key: "orderCode",
       label: "Order ID",
       sortable: true,
-      render: (value) => <span className="font-semibold">{value}</span>,
+      render: (value, row) => (
+        <span className="font-semibold">{value || row.id || row._id}</span>
+      ),
     },
     {
       key: "customer",
       label: "Customer",
       sortable: true,
-      render: (value) => (
-        <div>
-          <p className="font-medium text-gray-800">{value.name}</p>
-          <p className="text-xs text-gray-500">{value.email}</p>
-        </div>
-      ),
+      render: (value, row) => {
+        const customer = row.customerSnapshot || row.customerId || value || {};
+        return (
+          <div>
+            <p className="font-medium text-gray-800">{customer.name || 'Guest'}</p>
+            <p className="text-xs text-gray-500">{customer.email || ''}</p>
+          </div>
+        );
+      },
     },
     {
       key: "items",
@@ -615,16 +675,19 @@ const AllOrders = () => {
       key: "total",
       label: "Total ($)",
       sortable: true,
-      render: (value) => (
-        <span className="font-bold text-gray-800">{formatCurrency(value)}</span>
-      ),
+      render: (value, row) => {
+        const total = row.pricing?.total || value || row.total || 0;
+        return (
+          <span className="font-bold text-gray-800">{formatCurrency(total)}</span>
+        );
+      },
     },
     {
       key: "finalTotal",
       label: "Final Total ($)",
       sortable: true,
       render: (value, row) => {
-        const finalTotal = calculateFinalTotal(row);
+        const finalTotal = row.pricing?.total || row.total || calculateFinalTotal(row);
         return (
           <span className="font-bold text-gray-800">
             {formatCurrency(finalTotal)}
@@ -643,27 +706,30 @@ const AllOrders = () => {
       ),
     },
     {
-      key: "date",
+      key: "createdAt",
       label: "Order Date",
       sortable: true,
-      render: (value) => new Date(value).toLocaleString(),
+      render: (value, row) => new Date(value || row.orderDate || row.createdAt || row.date).toLocaleString(),
     },
     {
       key: "actions",
       label: "Actions",
       sortable: false,
-      render: (_, row) => (
-        <OrderActionsDropdown
-          order={row}
-          onOrderDetails={handleOrderDetails}
-          onGenerateInvoice={handleGenerateInvoice}
-          onOrderTracking={handleOrderTracking}
-          onDeleteOrder={handleDeleteOrder}
-          isOpen={openDropdownId === row.id}
-          onToggle={() => handleDropdownToggle(row.id)}
-          onClose={handleDropdownClose}
-        />
-      ),
+      render: (_, row) => {
+        const orderId = row._id || row.id || row.orderCode;
+        return (
+          <OrderActionsDropdown
+            order={row}
+            onOrderDetails={handleOrderDetails}
+            onGenerateInvoice={handleGenerateInvoice}
+            onOrderTracking={handleOrderTracking}
+            onDeleteOrder={handleDeleteOrder}
+            isOpen={openDropdownId === orderId}
+            onToggle={() => handleDropdownToggle(orderId)}
+            onClose={handleDropdownClose}
+          />
+        );
+      },
     },
   ];
 

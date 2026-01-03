@@ -12,76 +12,61 @@ import {
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useOrderStore } from '../../../shared/store/orderStore';
+import { getVendorOrderStats } from '../../../shared/services/orderService';
 
 const Orders = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const { orders } = useOrderStore();
-  const [vendorOrders, setVendorOrders] = useState([]);
+  const [orderStats, setOrderStats] = useState({
+    pending: 0,
+    processing: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0,
+    total: 0,
+    ready_to_ship: 0,
+    dispatched: 0,
+    shipped_seller: 0,
+    on_hold: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
   const vendorId = vendor?.id;
 
-  // Filter orders to only show those containing vendor's products
+  // Fetch vendor order statistics
   useEffect(() => {
-    if (!vendorId || !orders) {
-      setVendorOrders([]);
-      return;
-    }
-
-    const filtered = orders.filter((order) => {
-      // Check if order has vendorItems array
-      if (order.vendorItems && Array.isArray(order.vendorItems)) {
-        return order.vendorItems.some((vi) => vi.vendorId === vendorId);
+    const fetchStats = async () => {
+      if (!vendorId) {
+        setLoading(false);
+        return;
       }
-      // Fallback: check if items have vendorId
-      if (order.items && Array.isArray(order.items)) {
-        return order.items.some((item) => item.vendorId === vendorId);
+
+      try {
+        setLoading(true);
+        const response = await getVendorOrderStats();
+        if (response.success && response.data) {
+          setOrderStats({
+            pending: response.data.pending || 0,
+            processing: response.data.processing || 0,
+            shipped: response.data.shipped || 0,
+            delivered: response.data.delivered || 0,
+            cancelled: response.data.cancelled || 0,
+            total: response.data.total || 0,
+            ready_to_ship: response.data.ready_to_ship || 0,
+            dispatched: response.data.dispatched || 0,
+            shipped_seller: response.data.shipped_seller || 0,
+            on_hold: response.data.on_hold || 0,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching vendor order stats:', error);
+      } finally {
+        setLoading(false);
       }
-      return false;
-    });
-
-    setVendorOrders(filtered);
-  }, [vendorId, orders]);
-
-  // Calculate order statistics for vendor
-  const orderStats = useMemo(() => {
-    const stats = {
-      pending: 0,
-      processing: 0,
-      shipped: 0,
-      delivered: 0,
-      cancelled: 0,
-      total: vendorOrders.length,
-      totalRevenue: 0,
     };
 
-    vendorOrders.forEach((order) => {
-      const status = order.status?.toLowerCase() || '';
-
-      if (status === 'pending') {
-        stats.pending++;
-      } else if (status === 'processing') {
-        stats.processing++;
-      } else if (status === 'shipped') {
-        stats.shipped++;
-      } else if (status === 'delivered') {
-        stats.delivered++;
-      } else if (status === 'cancelled' || status === 'canceled') {
-        stats.cancelled++;
-      }
-
-      // Calculate vendor revenue from delivered orders
-      if (status === 'delivered' && order.vendorItems) {
-        const vendorItem = order.vendorItems.find((vi) => vi.vendorId === vendorId);
-        if (vendorItem) {
-          stats.totalRevenue += vendorItem.subtotal || 0;
-        }
-      }
-    });
-
-    return stats;
-  }, [vendorOrders, vendorId]);
+    fetchStats();
+  }, [vendorId]);
 
   // Analytics cards configuration
   const analyticsCards = [
@@ -202,7 +187,7 @@ const Orders = () => {
                   {card.title}
                 </h3>
                 <p className="text-gray-800 text-lg sm:text-xl font-bold">
-                  {card.value.toLocaleString()}
+                  {loading ? '...' : card.value.toLocaleString()}
                 </p>
               </div>
             </motion.div>

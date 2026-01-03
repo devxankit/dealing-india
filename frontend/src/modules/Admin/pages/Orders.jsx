@@ -12,58 +12,48 @@ import {
   FiBell,
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { mockOrders } from '../../../data/adminMockData';
+import { getAdminOrderStats } from '../../../shared/services/orderService';
 
 const Orders = () => {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
+  const [orderStats, setOrderStats] = useState({
+    pending: 0,
+    processing: 0,
+    shipped: 0,
+    delivered: 0,
+    cancelled: 0,
+    total: 0,
+    revenue: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Load orders from localStorage or use mock data
+  // Fetch order statistics from API
   useEffect(() => {
-    const savedOrders = localStorage.getItem('admin-orders');
-    if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
-    } else {
-      setOrders(mockOrders);
-      localStorage.setItem('admin-orders', JSON.stringify(mockOrders));
-    }
-  }, []);
-
-  // Calculate order statistics
-  const orderStats = useMemo(() => {
-    const stats = {
-      pending: 0,
-      processing: 0,
-      shipped: 0,
-      delivered: 0,
-      cancelled: 0,
-      total: orders.length,
-      totalRevenue: 0,
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const response = await getAdminOrderStats();
+        if (response.success && response.data) {
+          const statusData = response.data.status || {};
+          setOrderStats({
+            pending: statusData.pending || 0,
+            processing: statusData.processing || 0,
+            shipped: statusData.shipped || 0,
+            delivered: statusData.delivered || 0,
+            cancelled: statusData.cancelled || 0,
+            total: statusData.total || 0,
+            revenue: response.data.revenue?.total || 0,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching order stats:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    orders.forEach((order) => {
-      const status = order.status?.toLowerCase() || '';
-      
-      if (status === 'pending') {
-        stats.pending++;
-      } else if (status === 'processing') {
-        stats.processing++;
-      } else if (status === 'shipped') {
-        stats.shipped++;
-      } else if (status === 'delivered') {
-        stats.delivered++;
-      } else if (status === 'cancelled' || status === 'canceled') {
-        stats.cancelled++;
-      }
-
-      // Calculate total revenue from delivered orders
-      if (status === 'delivered') {
-        stats.totalRevenue += order.total || 0;
-      }
-    });
-
-    return stats;
-  }, [orders]);
+    fetchStats();
+  }, []);
 
   // Analytics cards configuration
   const analyticsCards = [
@@ -186,7 +176,7 @@ const Orders = () => {
                   {card.title}
                 </h3>
                 <p className="text-gray-800 text-lg sm:text-xl font-bold">
-                  {card.value.toLocaleString()}
+                  {loading ? '...' : card.value.toLocaleString()}
                 </p>
               </div>
             </motion.div>

@@ -26,17 +26,17 @@ const MobileOrderCard = ({ order }) => {
       animate={{ opacity: 1, y: 0 }}
       className="glass-card rounded-2xl p-4 mb-4"
     >
-      <Link to={`/app/orders/${order.id}`}>
+      <Link to={`/app/orders/${order._id || order.id || order.orderCode}`}>
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl gradient-green flex items-center justify-center flex-shrink-0">
               <FiPackage className="text-white text-xl" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-800 text-base">Order #{order.id}</h3>
+              <h3 className="font-bold text-gray-800 text-base">Order #{order.orderCode || order.id}</h3>
               <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                 <FiCalendar className="text-xs" />
-                {new Date(order.date || order.createdAt).toLocaleDateString()}
+                {new Date(order.orderDate || order.date || order.createdAt).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -45,14 +45,14 @@ const MobileOrderCard = ({ order }) => {
 
         <div className="space-y-2 mb-3">
           {/* Vendor Count */}
-          {order.vendorItems && order.vendorItems.length > 0 && (
+          {(order.vendorBreakdown && order.vendorBreakdown.length > 0) || (order.vendorItems && order.vendorItems.length > 0) ? (
             <div className="flex items-center gap-2 px-2 py-1 bg-primary-50 rounded-lg mb-2">
               <FiShoppingBag className="text-primary-600 text-xs" />
               <span className="text-xs font-semibold text-primary-700">
-                {order.vendorItems.length} {order.vendorItems.length === 1 ? 'Vendor' : 'Vendors'}
+                {(order.vendorBreakdown?.length || order.vendorItems?.length || 0)} {(order.vendorBreakdown?.length || order.vendorItems?.length || 0) === 1 ? 'Vendor' : 'Vendors'}
               </span>
             </div>
-          )}
+          ) : null}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">Items</span>
             <span className="text-sm font-semibold text-gray-800">
@@ -65,7 +65,7 @@ const MobileOrderCard = ({ order }) => {
               Total
             </span>
             <span className="text-base font-bold text-primary-600">
-              {formatPrice(order.total || order.amount || 0)}
+              {formatPrice(order.pricing?.total || order.total || order.amount || 0)}
             </span>
           </div>
         </div>

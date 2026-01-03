@@ -79,7 +79,7 @@ const VendorHeader = ({ onMenuClick }) => {
               className="text-gray-700"
               icon={FiBell}
             />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            {/* Unread count badge - will be updated by NotificationWindow */}
 
             {/* Notification Window - positioned relative to this container */}
             <NotificationWindow

@@ -39,8 +39,6 @@ import settingsRoutes from './routes/settings.routes.js';
 import vendorCustomersRoutes from './routes/vendorCustomers.routes.js';
 import vendorInventoryRoutes from './routes/vendorInventory.routes.js';
 import vendorPerformanceRoutes from './routes/vendorPerformance.routes.js';
-import vendorSupportRoutes from './routes/vendorSupport.routes.js';
-import supportDeskRoutes from './routes/supportDesk.routes.js';
 import publicCategoryRoutes from './routes/publicCategory.routes.js';
 import publicAttributeRoutes from './routes/publicAttribute.routes.js';
 import publicAttributeValueRoutes from './routes/publicAttributeValue.routes.js';
@@ -49,7 +47,6 @@ import publicProductRoutes from './routes/publicProduct.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
 import publicSliderRoutes from './routes/publicSlider.routes.js';
 import publicReviewRoutes from './routes/publicReview.routes.js';
-import userSupportRoutes from './routes/userSupport.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import cartRoutes from './routes/cart.routes.js';
 import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
@@ -61,6 +58,11 @@ import heroBannerAdminRoutes from './routes/heroBannerAdmin.routes.js';
 import heroBannerVendorRoutes from './routes/heroBannerVendor.routes.js';
 import publicHeroBannerRoutes from './routes/publicHeroBanner.routes.js';
 import publicCampaignsRoutes from './routes/publicCampaigns.routes.js';
+import vendorOrderRoutes from './routes/vendorOrder.routes.js';
+import adminOrderRoutes from './routes/adminOrder.routes.js';
+import userNotificationRoutes from './routes/userNotification.routes.js';
+import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
+import adminNotificationRoutes from './routes/adminNotification.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -165,15 +167,16 @@ app.use('/api/admin/settings', settingsRoutes);
 app.use('/api/admin/product-faqs', productFAQsRoutes);
 app.use('/api/admin/product-faqs', productFAQsRoutes);
 app.use('/api/admin/hero-banners', heroBannerAdminRoutes);
-app.use('/api/admin/support', supportDeskRoutes);
+app.use('/api/admin/orders', adminOrderRoutes);
+app.use('/api/admin/notifications', adminNotificationRoutes);
 
 // User management routes (require user authentication)
-app.use('/api/user/support', userSupportRoutes);
 app.use('/api/user/wishlist', wishlistRoutes);
 app.use('/api/user/cart', cartRoutes);
 app.use('/api/user/orders', orderRoutes);
 app.use('/api/user/addresses', addressRoutes);
 app.use('/api/user/wallet', walletRoutes);
+app.use('/api/user/notifications', userNotificationRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 
@@ -193,7 +196,8 @@ app.use('/api/vendor/customers', vendorCustomersRoutes);
 app.use('/api/vendor/inventory', vendorInventoryRoutes);
 app.use('/api/vendor/performance', vendorPerformanceRoutes);
 app.use('/api/vendor/hero-banners', heroBannerVendorRoutes);
-app.use('/api/vendor/support', vendorSupportRoutes);
+app.use('/api/vendor/orders', vendorOrderRoutes);
+app.use('/api/vendor/notifications', vendorNotificationRoutes);
 
 // Error handling middleware (must be after routes)
 app.use(errorHandler);
@@ -240,6 +244,8 @@ const startServer = async () => {
 
     // Setup Socket.io
     const io = setupSocketIO(httpServer);
+    // Make io instance available to routes/controllers
+    app.set('io', io);
     console.log('✅ Socket.io initialized');
 
     // Start server after database connection

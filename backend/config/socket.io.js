@@ -3,16 +3,6 @@ import { verifyToken } from '../utils/jwt.util.js';
 import Admin from '../models/Admin.model.js';
 import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
-import {
-  addMessageToTicket,
-  updateTicketStatus,
-  assignTicket,
-} from '../services/supportTicket.service.js';
-import {
-  addMessageToChat,
-  getOrCreateChatSession,
-  markChatMessagesAsRead,
-} from '../services/liveChat.service.js';
 
 /**
  * Setup Socket.io server
@@ -91,291 +81,37 @@ export const setupSocketIO = (httpServer) => {
     // Join user's personal room
     socket.join(`user_${userId}`);
 
+    // Join notification room for real-time notifications
+    const notificationRoom = `notifications_${userId}_${userRole}`;
+    socket.join(notificationRoom);
+
     // Admin-specific handlers
     if (userRole === 'admin') {
-      // Join ticket room
-      socket.on('join_ticket_room', async (data) => {
-        try {
-          const { ticketId } = data;
-          if (!ticketId) {
-            socket.emit('error', { message: 'Ticket ID is required' });
-            return;
-          }
-
-          const room = `ticket_${ticketId}`;
-          socket.join(room);
-          socket.emit('joined_ticket_room', { ticketId, room });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
-
-      // Join chat session room
-      socket.on('join_chat_session', async (data) => {
-        try {
-          const { sessionId } = data;
-          if (!sessionId) {
-            socket.emit('error', { message: 'Session ID is required' });
-            return;
-          }
-
-          // Join both chat room and ticket room (in case it's a ticket)
-          const chatRoom = `chat_${sessionId}`;
-          const ticketRoom = `ticket_${sessionId}`;
-          socket.join(chatRoom);
-          socket.join(ticketRoom);
-          socket.emit('joined_chat_session', { sessionId, room: chatRoom });
-
-          // Mark messages as read when admin joins (only for regular chat sessions)
-          try {
-            await markChatMessagesAsRead(sessionId, 'admin');
-          } catch (error) {
-            // Ignore error if it's a ticket (markChatMessagesAsRead only works for chat sessions)
-          }
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
-
-      // Send message in ticket
-      socket.on('send_message', async (data) => {
-        try {
-          const { ticketId, message } = data;
-
-          if (!ticketId || !message || !message.trim()) {
-            socket.emit('error', { message: 'Ticket ID and message are required' });
-            return;
-          }
-
-          const messageData = {
-            sender: userId,
-            senderType: 'admin',
-            message: message.trim(),
-          };
-
-          const newMessage = await addMessageToTicket(ticketId, messageData);
-
-          // Emit to all users in the ticket room
-          io.to(`ticket_${ticketId}`).emit('message_received', {
-            ticketId,
-            message: newMessage,
-          });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
-
-      // Send message in chat session (or support ticket)
-      socket.on('send_chat_message', async (data) => {
-        try {
-          const { sessionId, message } = data;
-
-          if (!sessionId || !message || !message.trim()) {
-            socket.emit('error', { message: 'Session ID and message are required' });
-            return;
-          }
-
-          const messageData = {
-            sender: userId,
-            senderType: 'admin',
-            message: message.trim(),
-          };
-
-          const newMessage = await addMessageToChat(sessionId, messageData);
-
-          // Mark messages as read (only for regular chat sessions, not tickets)
-          try {
-            await markChatMessagesAsRead(sessionId, 'admin');
-          } catch (error) {
-            // Ignore error if it's a ticket
-          }
-
-          // Emit to both chat session room and ticket room (addMessageToChat handles both)
-          io.to(`chat_${sessionId}`).emit('message_received', {
-            sessionId,
-            message: newMessage,
-          });
-          io.to(`ticket_${sessionId}`).emit('message_received', {
-            ticketId: sessionId,
-            message: newMessage,
-          });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
-
-      // Update ticket status
-      socket.on('update_ticket_status', async (data) => {
-        try {
-          const { ticketId, status } = data;
-
-          if (!ticketId || !status) {
-            socket.emit('error', { message: 'Ticket ID and status are required' });
-            return;
-          }
-
-          const ticket = await updateTicketStatus(ticketId, status);
-
-          // Emit to all users in the ticket room
-          io.to(`ticket_${ticketId}`).emit('ticket_updated', {
-            ticketId,
-            ticket,
-            updateType: 'status',
-          });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
-
-      // Assign ticket
-      socket.on('assign_ticket', async (data) => {
-        try {
-          const { ticketId, adminId } = data;
-
-          if (!ticketId || !adminId) {
-            socket.emit('error', { message: 'Ticket ID and admin ID are required' });
-            return;
-          }
-
-          const ticket = await assignTicket(ticketId, adminId);
-
-          // Emit to all users in the ticket room
-          io.to(`ticket_${ticketId}`).emit('ticket_updated', {
-            ticketId,
-            ticket,
-            updateType: 'assignment',
-          });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
+      // Add admin-specific handlers here if needed
     }
 
-    // User/Vendor handlers (for future use when they can create tickets/chats)
+    // User/Vendor handlers
     if (userRole === 'user' || userRole === 'vendor') {
-      // Join ticket room
-      socket.on('join_ticket_room', async (data) => {
-        try {
-          const { ticketId } = data;
-          if (!ticketId) {
-            socket.emit('error', { message: 'Ticket ID is required' });
-            return;
-          }
-
-          const room = `ticket_${ticketId}`;
-          socket.join(room);
-          socket.emit('joined_ticket_room', { ticketId, room });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
-
-      // Join chat session room
-      socket.on('join_chat_session', async (data) => {
-        try {
-          const { sessionId } = data;
-          if (!sessionId) {
-            socket.emit('error', { message: 'Session ID is required' });
-            return;
-          }
-
-          const room = `chat_${sessionId}`;
-          socket.join(room);
-          socket.emit('joined_chat_session', { sessionId, room });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
-
-      // Send message in ticket
-      socket.on('send_message', async (data) => {
-        try {
-          const { ticketId, message } = data;
-
-          if (!ticketId || !message || !message.trim()) {
-            socket.emit('error', { message: 'Ticket ID and message are required' });
-            return;
-          }
-
-          const messageData = {
-            sender: userId,
-            senderType: userRole,
-            message: message.trim(),
-          };
-
-          const newMessage = await addMessageToTicket(ticketId, messageData);
-
-          // Emit to all users in the ticket room
-          io.to(`ticket_${ticketId}`).emit('message_received', {
-            ticketId,
-            message: newMessage,
-          });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
-
-      // Send message in chat session
-      socket.on('send_chat_message', async (data) => {
-        try {
-          const { sessionId, message } = data;
-
-          if (!sessionId || !message || !message.trim()) {
-            socket.emit('error', { message: 'Session ID and message are required' });
-            return;
-          }
-
-          const messageData = {
-            sender: userId,
-            senderType: userRole,
-            message: message.trim(),
-          };
-
-          const newMessage = await addMessageToChat(sessionId, messageData);
-
-          // Emit to all users in the chat session room
-          io.to(`chat_${sessionId}`).emit('message_received', {
-            sessionId,
-            message: newMessage,
-          });
-        } catch (error) {
-          socket.emit('error', { message: error.message });
-        }
-      });
+      // Add user/vendor-specific handlers here if needed
     }
 
-    // Typing indicators (optional)
-    socket.on('typing_start', (data) => {
-      const { ticketId, sessionId } = data;
-      if (ticketId) {
-        socket.to(`ticket_${ticketId}`).emit('user_typing', {
-          ticketId,
-          userId,
-          userName: socket.userDoc?.name || 'User',
-        });
-      }
-      if (sessionId) {
-        socket.to(`chat_${sessionId}`).emit('user_typing', {
-          sessionId,
-          userId,
-          userName: socket.userDoc?.name || 'User',
-        });
+    // Notification event handlers
+    socket.on('mark_notification_read', async (data) => {
+      try {
+        const { notificationId } = data;
+        // This will be handled by the API endpoint, but we can emit confirmation
+        socket.emit('notification_read_confirmed', { notificationId });
+      } catch (error) {
+        socket.emit('error', { message: 'Failed to mark notification as read' });
       }
     });
 
-    socket.on('typing_stop', (data) => {
-      const { ticketId, sessionId } = data;
-      if (ticketId) {
-        socket.to(`ticket_${ticketId}`).emit('user_stopped_typing', {
-          ticketId,
-          userId,
-        });
-      }
-      if (sessionId) {
-        socket.to(`chat_${sessionId}`).emit('user_stopped_typing', {
-          sessionId,
-          userId,
-        });
+    socket.on('mark_all_read', async (data) => {
+      try {
+        // This will be handled by the API endpoint, but we can emit confirmation
+        socket.emit('all_read_confirmed');
+      } catch (error) {
+        socket.emit('error', { message: 'Failed to mark all as read' });
       }
     });
 

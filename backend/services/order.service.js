@@ -6,6 +6,8 @@ import Product from '../models/Product.model.js';
 import Vendor from '../models/Vendor.model.js';
 import mongoose from 'mongoose';
 import { createWalletTransaction } from './wallet.service.js';
+import { getVendorOrdersTransformed } from './vendorOrders.service.js';
+import notificationService from './notification.service.js';
 
 /**
  * Generate unique order code
@@ -40,9 +42,10 @@ const generateTransactionCode = () => {
  * @param {Number} orderData.tax - Tax amount
  * @param {Number} orderData.discount - Discount amount
  * @param {String} orderData.couponCode - Coupon code (optional)
+ * @param {Object} io - Socket.io instance (optional, for real-time notifications)
  * @returns {Promise<Object>} Created order
  */
-export const createOrder = async (orderData) => {
+export const createOrder = async (orderData, io = null) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -210,6 +213,52 @@ export const createOrder = async (orderData) => {
 
     const order = await Order.create([orderData], { session });
 
+    // Create notifications for user and vendors
+    try {
+      const orderDoc = order[0];
+      const notifications = [];
+
+      // Notification for user
+      notifications.push({
+        recipientId: customerId,
+        recipientType: 'user',
+        type: 'order_placed',
+        title: 'Order Placed Successfully',
+        message: `Your order #${orderCode} has been placed successfully. Total: ₹${total.toFixed(2)}`,
+        orderId: orderDoc._id,
+        actionUrl: `/app/orders/${orderDoc._id}`,
+      });
+
+      // Notifications for vendors (one per vendor in the order)
+      const vendorIds = new Set();
+      items.forEach((item) => {
+        const product = item.productId;
+        if (product && product.vendorId) {
+          const vendorId = product.vendorId._id || product.vendorId;
+          if (!vendorIds.has(vendorId.toString())) {
+            vendorIds.add(vendorId.toString());
+            notifications.push({
+              recipientId: vendorId,
+              recipientType: 'vendor',
+              type: 'new_order',
+              title: 'New Order Received',
+              message: `You have received a new order #${orderCode} from ${customerSnapshot.name || 'Customer'}`,
+              orderId: orderDoc._id,
+              actionUrl: `/vendor/orders/${orderDoc._id}`,
+            });
+          }
+        }
+      });
+
+      // Create notifications in bulk
+      if (notifications.length > 0) {
+        await notificationService.createBulkNotifications(notifications, io);
+      }
+    } catch (notifError) {
+      // Log error but don't fail order creation
+      console.error('Error creating notifications:', notifError);
+    }
+
     await session.commitTransaction();
     return order[0];
   } catch (error) {
@@ -228,9 +277,10 @@ export const createOrder = async (orderData) => {
  * @param {String} paymentData.razorpayPaymentId - Razorpay payment ID
  * @param {String} paymentData.razorpaySignature - Payment signature
  * @param {String} paymentData.status - Payment status ('completed' or 'failed')
+ * @param {Object} io - Socket.io instance (optional, for real-time notifications)
  * @returns {Promise<Object>} Updated order
  */
-export const updateOrderPayment = async (orderId, paymentData) => {
+export const updateOrderPayment = async (orderId, paymentData, io = null) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -321,12 +371,42 @@ export const getOrderById = async (orderId, userId = null) => {
     const order = await Order.findOne(query)
       .populate('customerId', 'name email phone')
       .populate('shippingAddress')
-      .populate('items.productId', 'name images slug')
+      .populate('items.productId', 'name images slug vendorId vendorName')
       .populate('vendorBreakdown.vendorId', 'name storeName')
       .lean();
 
     if (!order) {
       throw new Error('Order not found');
+    }
+
+    // Transform vendorBreakdown to vendorItems for frontend compatibility
+    if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+      order.vendorItems = order.vendorBreakdown.map((vb) => {
+        // Get items for this vendor
+        const vendorItems = order.items.filter((item) => {
+          const productVendorId = item.productId?.vendorId?._id || item.productId?.vendorId || item.productId?.vendorId;
+          const vendorIdStr = (vb.vendorId?._id || vb.vendorId)?.toString();
+          return vendorIdStr && productVendorId && productVendorId.toString() === vendorIdStr;
+        });
+
+        return {
+          vendorId: vb.vendorId?._id || vb.vendorId,
+          vendorName: vb.vendorName || vb.vendorId?.name || vb.vendorId?.storeName || 'Unknown Vendor',
+          items: vendorItems.map((item) => ({
+            id: item.productId?._id || item.productId || item._id,
+            productId: item.productId?._id || item.productId,
+            name: item.name || item.productId?.name,
+            quantity: item.quantity,
+            price: item.price,
+            image: item.image || item.productId?.images?.[0],
+          })),
+          subtotal: vb.subtotal || 0,
+          shipping: vb.shipping || 0,
+          tax: vb.tax || 0,
+          discount: vb.discount || 0,
+          commission: vb.commission || 0,
+        };
+      });
     }
 
     return order;
@@ -358,17 +438,54 @@ export const getUserOrders = async (userId, filters = {}) => {
 
     const orders = await Order.find(query)
       .populate('shippingAddress')
-      .populate('items.productId', 'name images slug')
+      .populate('items.productId', 'name images slug vendorId vendorName')
       .populate('vendorBreakdown.vendorId', 'name storeName')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
+    // Transform orders to include vendorItems from vendorBreakdown
+    const transformedOrders = orders.map((order) => {
+      const orderObj = { ...order };
+      
+      // Transform vendorBreakdown to vendorItems for frontend compatibility
+      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+        orderObj.vendorItems = order.vendorBreakdown.map((vb) => {
+          // Get items for this vendor
+          const vendorItems = order.items.filter((item) => {
+            const productVendorId = item.productId?.vendorId?._id || item.productId?.vendorId || item.productId?.vendorId;
+            const vendorIdStr = (vb.vendorId?._id || vb.vendorId)?.toString();
+            return vendorIdStr && productVendorId && productVendorId.toString() === vendorIdStr;
+          });
+
+          return {
+            vendorId: vb.vendorId?._id || vb.vendorId,
+            vendorName: vb.vendorName || vb.vendorId?.name || vb.vendorId?.storeName || 'Unknown Vendor',
+            items: vendorItems.map((item) => ({
+              id: item.productId?._id || item.productId || item._id,
+              productId: item.productId?._id || item.productId,
+              name: item.name || item.productId?.name,
+              quantity: item.quantity,
+              price: item.price,
+              image: item.image || item.productId?.images?.[0],
+            })),
+            subtotal: vb.subtotal || 0,
+            shipping: vb.shipping || 0,
+            tax: vb.tax || 0,
+            discount: vb.discount || 0,
+            commission: vb.commission || 0,
+          };
+        });
+      }
+
+      return orderObj;
+    });
+
     const total = await Order.countDocuments(query);
 
     return {
-      orders,
+      orders: transformedOrders,
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -479,6 +596,251 @@ export const cancelOrder = async (orderId, userId) => {
     throw error;
   } finally {
     session.endSession();
+  }
+};
+
+/**
+ * Validate status transition based on role
+ */
+export const validateStatusTransition = (currentStatus, newStatus, role) => {
+  const validTransitions = {
+    user: {
+      pending: ['cancelled'],
+      processing: ['cancelled'],
+    },
+    vendor: {
+      processing: ['ready_to_ship', 'on_hold', 'dispatched'],
+      ready_to_ship: ['dispatched', 'shipped_seller'],
+      dispatched: ['shipped_seller'],
+      on_hold: ['processing', 'ready_to_ship'],
+    },
+    admin: { '*': '*' },
+  };
+
+  if (role === 'admin') return true;
+  const roleTransitions = validTransitions[role];
+  if (!roleTransitions) return false;
+  const allowedStatuses = roleTransitions[currentStatus];
+  if (!allowedStatuses) return false;
+  return allowedStatuses.includes(newStatus);
+};
+
+/**
+ * Update order status with validation and history tracking
+ * @param {String} orderId - Order ID
+ * @param {String} newStatus - New status
+ * @param {String} changedBy - User/Vendor/Admin ID who changed the status
+ * @param {String} changedByRole - Role of who changed the status
+ * @param {String} note - Optional note
+ * @param {Object} io - Socket.io instance (optional, for real-time notifications)
+ * @returns {Promise<Object>} Updated order
+ */
+export const updateOrderStatus = async (orderId, newStatus, changedBy, changedByRole, note = '', io = null) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const query = mongoose.Types.ObjectId.isValid(orderId)
+      ? { _id: orderId }
+      : { orderCode: orderId };
+
+    const order = await Order.findOne(query).session(session);
+    if (!order) throw new Error('Order not found');
+
+    if (!validateStatusTransition(order.status, newStatus, changedByRole)) {
+      throw new Error(`Invalid status transition from ${order.status} to ${newStatus} for role ${changedByRole}`);
+    }
+
+    const updateData = {
+      status: newStatus,
+      $push: {
+        statusHistory: {
+          status: newStatus,
+          changedBy,
+          changedByRole,
+          timestamp: new Date(),
+          note: note || `Status changed to ${newStatus} by ${changedByRole}`,
+        },
+      },
+    };
+
+    if (newStatus === 'cancelled' && !order.cancellation) {
+      updateData.cancellation = {
+        cancelledAt: new Date(),
+        cancelledBy: changedBy,
+        cancelledByRole,
+        reason: note || 'Order cancelled',
+        refundStatus: order.paymentStatus === 'completed' ? 'pending' : undefined,
+        refundAmount: order.paymentStatus === 'completed' ? order.total : undefined,
+      };
+    }
+
+    if (newStatus === 'delivered' && !order.tracking?.deliveredAt) {
+      updateData.tracking = { ...order.tracking, deliveredAt: new Date() };
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(order._id, updateData, {
+      new: true,
+      session,
+    })
+      .populate('shippingAddress')
+      .populate('items.productId', 'name images slug')
+      .populate('vendorBreakdown.vendorId', 'name storeName');
+
+    // Create notifications for status change
+    try {
+      const notifications = [];
+      const statusMessages = {
+        processing: 'Your order is being processed',
+        ready_to_ship: 'Your order is ready to ship',
+        dispatched: 'Your order has been dispatched',
+        shipped_seller: 'Your order has been shipped',
+        shipped: 'Your order has been shipped',
+        delivered: 'Your order has been delivered',
+        cancelled: 'Your order has been cancelled',
+        on_hold: 'Your order is on hold',
+      };
+
+      const statusTitle = {
+        processing: 'Order Processing',
+        ready_to_ship: 'Order Ready to Ship',
+        dispatched: 'Order Dispatched',
+        shipped_seller: 'Order Shipped',
+        shipped: 'Order Shipped',
+        delivered: 'Order Delivered',
+        cancelled: 'Order Cancelled',
+        on_hold: 'Order On Hold',
+      };
+
+      const notificationType = {
+        processing: 'order_confirmed',
+        ready_to_ship: 'order_status_change',
+        dispatched: 'order_status_change',
+        shipped_seller: 'order_shipped',
+        shipped: 'order_shipped',
+        delivered: 'order_delivered',
+        cancelled: 'order_cancelled',
+        on_hold: 'order_status_change',
+      };
+
+      // Notification for user
+      notifications.push({
+        recipientId: order.customerId,
+        recipientType: 'user',
+        type: notificationType[newStatus] || 'order_status_change',
+        title: statusTitle[newStatus] || 'Order Status Updated',
+        message: `${statusMessages[newStatus] || `Order status changed to ${newStatus}`} - Order #${order.orderCode}`,
+        orderId: order._id,
+        actionUrl: `/app/orders/${order._id}`,
+      });
+
+      // Notifications for vendors
+      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+        order.vendorBreakdown.forEach((vb) => {
+          const vendorId = vb.vendorId?._id || vb.vendorId;
+          if (vendorId) {
+            notifications.push({
+              recipientId: vendorId,
+              recipientType: 'vendor',
+              type: 'order_status_change',
+              title: 'Order Status Updated',
+              message: `Order #${order.orderCode} status changed to ${newStatus}`,
+              orderId: order._id,
+              actionUrl: `/vendor/orders/${order._id}`,
+            });
+          }
+        });
+      }
+
+      // Notification for admin (optional - can be added if needed)
+      // You can add admin notifications here if you want to notify admins about all status changes
+
+      // Create notifications in bulk
+      if (notifications.length > 0) {
+        await notificationService.createBulkNotifications(notifications, io);
+      }
+    } catch (notifError) {
+      console.error('Error creating status change notifications:', notifError);
+    }
+
+    await session.commitTransaction();
+    return updatedOrder;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Get vendor orders with filtering
+ */
+export const getVendorOrders = async (vendorId, filters = {}) => {
+  try {
+    return await getVendorOrdersTransformed(vendorId, filters);
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Get all orders for admin with advanced filtering
+ */
+export const getAdminOrders = async (filters = {}) => {
+  try {
+    const { status, paymentStatus, customerId, vendorId, search, startDate, endDate, page = 1, limit = 50 } = filters;
+    const skip = (page - 1) * limit;
+    const query = {};
+
+    if (status) query.status = status;
+    if (paymentStatus) query.paymentStatus = paymentStatus;
+    if (customerId && mongoose.Types.ObjectId.isValid(customerId)) query.customerId = customerId;
+
+    if (vendorId) {
+      const vendorProducts = await Product.find({ vendorId, isActive: true }).select('_id').lean();
+      const vendorProductIds = vendorProducts.map((p) => p._id);
+      if (vendorProductIds.length > 0) {
+        query['items.productId'] = { $in: vendorProductIds };
+      } else {
+        return { orders: [], total: 0, page: parseInt(page), limit: parseInt(limit), totalPages: 0 };
+      }
+    }
+
+    if (search) {
+      const searchRegex = { $regex: search, $options: 'i' };
+      const orderCodeMatches = await Order.find({ orderCode: searchRegex }).select('_id').lean();
+      const customerMatches = await Order.find({
+        $or: [{ 'customerSnapshot.name': searchRegex }, { 'customerSnapshot.email': searchRegex }],
+      }).select('_id').lean();
+      const searchIds = [...new Set([...orderCodeMatches.map(o => o._id), ...customerMatches.map(o => o._id)])];
+      if (searchIds.length > 0) {
+        query._id = { $in: searchIds };
+      } else {
+        return { orders: [], total: 0, page: parseInt(page), limit: parseInt(limit), totalPages: 0 };
+      }
+    }
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    const orders = await Order.find(query)
+      .populate('customerId', 'name email phone')
+      .populate('shippingAddress')
+      .populate('items.productId', 'name images slug vendorId vendorName')
+      .populate('vendorBreakdown.vendorId', 'name storeName')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Order.countDocuments(query);
+    return { orders, total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) };
+  } catch (error) {
+    throw error;
   }
 };
 
