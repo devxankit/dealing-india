@@ -71,46 +71,94 @@ const Orders = () => {
   // Analytics cards configuration
   const analyticsCards = [
     {
-      title: 'Total Orders',
+      title: 'All Orders',
       value: orderStats.total,
       icon: FiShoppingBag,
-      bgColor: 'bg-gradient-to-br from-blue-500 to-indigo-600',
-      cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-50',
+      color: 'bg-blue-500',
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-700',
+      path: '/vendor/orders/all-orders',
     },
     {
-      title: 'Pending',
+      title: 'Hold Orders',
+      value: orderStats.on_hold,
+      icon: FiClock,
+      color: 'bg-orange-500',
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-700',
+      path: '/vendor/orders/hold-order',
+    },
+    {
+      title: 'Pending Orders',
       value: orderStats.pending,
       icon: FiClock,
-      bgColor: 'bg-gradient-to-br from-yellow-500 to-amber-600',
-      cardBg: 'bg-gradient-to-br from-yellow-50 to-amber-50',
+      color: 'bg-yellow-500',
+      bgColor: 'bg-yellow-50',
+      textColor: 'text-yellow-700',
+      path: '/vendor/orders/pending-order',
+    },
+    {
+      title: 'Ready to Ship',
+      value: orderStats.ready_to_ship,
+      icon: FiPackage,
+      color: 'bg-indigo-500',
+      bgColor: 'bg-indigo-50',
+      textColor: 'text-indigo-700',
+      path: '/vendor/orders/ready-to-ship',
     },
     {
       title: 'Processing',
       value: orderStats.processing,
       icon: FiPackage,
-      bgColor: 'bg-gradient-to-br from-indigo-500 to-purple-600',
-      cardBg: 'bg-gradient-to-br from-indigo-50 to-purple-50',
+      color: 'bg-teal-500',
+      bgColor: 'bg-teal-50',
+      textColor: 'text-teal-700',
+      path: '/vendor/orders/all-orders', // Fallback
+    },
+    {
+      title: 'Dispatch Order',
+      value: orderStats.dispatched,
+      icon: FiTruck,
+      color: 'bg-cyan-500',
+      bgColor: 'bg-cyan-50',
+      textColor: 'text-cyan-700',
+      path: '/vendor/orders/dispatch-order',
+    },
+    {
+      title: 'Shipped Seller',
+      value: orderStats.shipped_seller,
+      icon: FiTruck,
+      color: 'bg-purple-500',
+      bgColor: 'bg-purple-50',
+      textColor: 'text-purple-700',
+      path: '/vendor/orders/shipped-seller',
     },
     {
       title: 'Shipped',
       value: orderStats.shipped,
       icon: FiTruck,
-      bgColor: 'bg-gradient-to-br from-cyan-500 to-blue-600',
-      cardBg: 'bg-gradient-to-br from-cyan-50 to-blue-50',
+      color: 'bg-emerald-500',
+      bgColor: 'bg-emerald-50',
+      textColor: 'text-emerald-700',
+      path: '/vendor/orders/all-orders', // Fallback
     },
     {
       title: 'Delivered',
       value: orderStats.delivered,
       icon: FiCheckCircle,
-      bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
-      cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50',
+      color: 'bg-green-500',
+      bgColor: 'bg-green-50',
+      textColor: 'text-green-700',
+      path: '/vendor/orders/all-orders', // Fallback
     },
     {
-      title: 'Cancelled',
+      title: 'Canceled Order',
       value: orderStats.cancelled,
       icon: FiXCircle,
-      bgColor: 'bg-gradient-to-br from-red-500 to-rose-600',
-      cardBg: 'bg-gradient-to-br from-red-50 to-rose-50',
+      color: 'bg-red-500',
+      bgColor: 'bg-red-50',
+      textColor: 'text-red-700',
+      path: '/vendor/orders/canceled-order',
     },
   ];
 
@@ -163,7 +211,7 @@ const Orders = () => {
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {analyticsCards.map((card, index) => {
           const Icon = card.icon;
           return (
@@ -171,22 +219,23 @@ const Orders = () => {
               key={card.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-300 relative overflow-hidden`}
+              transition={{ delay: index * 0.1 }}
+              onClick={() => card.path && navigate(card.path)}
+              className={`${card.bgColor} rounded-xl p-4 cursor-pointer hover:shadow-lg transition-shadow border border-transparent hover:border-gray-200 relative overflow-hidden group`}
             >
-              {/* Decorative gradient overlay */}
-              <div className={`absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 ${card.bgColor} opacity-10 rounded-full -mr-12 -mt-12 sm:-mr-16 sm:-mt-16`}></div>
-
-              <div className="flex items-center justify-between mb-2 sm:mb-3 relative z-10">
-                <div className={`${card.bgColor} bg-white/20 p-2 sm:p-2.5 rounded-lg shadow-md`}>
-                  <Icon className="text-white text-base sm:text-lg" />
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <div className={`${card.color} p-3 rounded-lg shadow-sm group-hover:scale-110 transition-transform`}>
+                  <Icon className="text-white text-xl" />
+                </div>
+                <div className={`${card.textColor} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                  <FiList className="text-lg" />
                 </div>
               </div>
               <div className="relative z-10">
-                <h3 className="text-gray-600 text-xs sm:text-sm font-medium mb-1">
+                <h3 className={`${card.textColor} text-sm font-medium mb-1`}>
                   {card.title}
                 </h3>
-                <p className="text-gray-800 text-lg sm:text-xl font-bold">
+                <p className={`${card.textColor} text-2xl font-bold`}>
                   {loading ? '...' : card.value.toLocaleString()}
                 </p>
               </div>

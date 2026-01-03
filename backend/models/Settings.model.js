@@ -39,6 +39,25 @@ const settingsSchema = new mongoose.Schema(
     },
     banners: {
       universalDisplayTime: { type: Number, default: 2000, min: 500 }, // in milliseconds
+      bookingWindowDays: { type: Number, default: 30, min: 1, max: 365 }, // booking window in days
+      defaultPricePerHour: { type: Number, default: 1999, min: 0 }, // default price for 1 hour
+      minDurationHours: { type: Number, default: 1, min: 1 }, // minimum duration in hours
+      maxDurationHours: { type: Number, default: 720, min: 1 }, // maximum duration in hours (30 days = 720 hours)
+      pricingStructure: { 
+        type: mongoose.Schema.Types.Mixed,
+        default: {
+          '1': 1999,      // 1 hour
+          '24': 15000,    // 1 day (24 hours)
+          '168': 90000,   // 1 week (168 hours)
+          '720': 300000   // 1 month (720 hours)
+        }
+      },
+      auditLogs: [{
+        action: { type: String, required: true },
+        performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', required: true },
+        changes: { type: mongoose.Schema.Types.Mixed },
+        timestamp: { type: Date, default: Date.now }
+      }]
     },
   },
   {

@@ -35,7 +35,7 @@ import { IndianRupee } from "lucide-react";
 const iconMap = {
   Dashboard: FiHome,
   Products: FiPackage,
-  Order: FiShoppingBag,
+  Orders: FiShoppingBag,
   "All orders": FiShoppingBag,
   "Hold order": FiClock,
   "Pending order": FiClock,
@@ -215,10 +215,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
             }
           `}
           onClick={() => {
+            handleMenuItemClick(item.route);
             if (hasChildren) {
               toggleExpand(item.title, true);
-            } else {
-              handleMenuItemClick(item.route);
             }
           }}>
           <Icon

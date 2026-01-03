@@ -16,8 +16,15 @@ export const getSlots = async (req, res, next) => {
 
 export const updateSettings = async (req, res, next) => {
   try {
-    const { universalDisplayTime } = req.body;
-    const settings = await heroBannerService.updateBannerSettings(universalDisplayTime);
+    const adminId = req.user?.id || req.user?._id;
+    if (!adminId) {
+      const error = new Error('Admin ID not found in authentication token');
+      error.status = 401;
+      return next(error);
+    }
+    
+    const settingsData = req.body;
+    const settings = await heroBannerService.updateBannerSettings(settingsData, adminId);
     
     res.status(200).json({
       success: true,

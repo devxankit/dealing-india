@@ -16,21 +16,144 @@ export const getBannerSlots = async () => {
 };
 
 /**
- * Get banner settings (universal display time)
+ * Get banner settings (universal display time, pricing, duration, booking window)
  */
 export const getBannerSettings = async () => {
   const settings = await Settings.getSettings();
-  return settings.banners || { universalDisplayTime: 2000 };
+  const bannerSettings = settings.banners || {};
+  
+  // Ensure defaults are set
+  return {
+    universalDisplayTime: bannerSettings.universalDisplayTime || 2000,
+    bookingWindowDays: bannerSettings.bookingWindowDays || 30,
+    defaultPricePerHour: bannerSettings.defaultPricePerHour || 1999,
+    minDurationHours: bannerSettings.minDurationHours || 1,
+    maxDurationHours: bannerSettings.maxDurationHours || 720,
+    pricingStructure: bannerSettings.pricingStructure || {
+      '1': 1999,
+      '24': 15000,
+      '168': 90000,
+      '720': 300000
+    }
+  };
 };
 
 /**
- * Update banner settings
+ * Update banner settings with audit logging
  */
-export const updateBannerSettings = async (universalDisplayTime) => {
+export const updateBannerSettings = async (settingsData, adminId) => {
   const settings = await Settings.getSettings();
-  settings.banners = { universalDisplayTime };
+  const oldBannerSettings = JSON.parse(JSON.stringify(settings.banners || {}));
+  
+  // Update banner settings
+  if (!settings.banners) {
+    settings.banners = {};
+  }
+  
+  const changes = {};
+  
+  if (settingsData.universalDisplayTime !== undefined) {
+    settings.banners.universalDisplayTime = settingsData.universalDisplayTime;
+    changes.universalDisplayTime = { from: oldBannerSettings.universalDisplayTime, to: settingsData.universalDisplayTime };
+  }
+  
+  if (settingsData.bookingWindowDays !== undefined) {
+    if (settingsData.bookingWindowDays < 1 || settingsData.bookingWindowDays > 365) {
+      throw new Error('Booking window must be between 1 and 365 days');
+    }
+    settings.banners.bookingWindowDays = settingsData.bookingWindowDays;
+    changes.bookingWindowDays = { from: oldBannerSettings.bookingWindowDays, to: settingsData.bookingWindowDays };
+  }
+  
+  if (settingsData.defaultPricePerHour !== undefined) {
+    if (settingsData.defaultPricePerHour < 0) {
+      throw new Error('Default price per hour cannot be negative');
+    }
+    settings.banners.defaultPricePerHour = settingsData.defaultPricePerHour;
+    changes.defaultPricePerHour = { from: oldBannerSettings.defaultPricePerHour, to: settingsData.defaultPricePerHour };
+  }
+  
+  if (settingsData.minDurationHours !== undefined) {
+    if (settingsData.minDurationHours < 1) {
+      throw new Error('Minimum duration must be at least 1 hour');
+    }
+    settings.banners.minDurationHours = settingsData.minDurationHours;
+    changes.minDurationHours = { from: oldBannerSettings.minDurationHours, to: settingsData.minDurationHours };
+  }
+  
+  if (settingsData.maxDurationHours !== undefined) {
+    if (settingsData.maxDurationHours < 1) {
+      throw new Error('Maximum duration must be at least 1 hour');
+    }
+    if (settingsData.maxDurationHours < (settings.banners.minDurationHours || 1)) {
+      throw new Error('Maximum duration must be greater than or equal to minimum duration');
+    }
+    settings.banners.maxDurationHours = settingsData.maxDurationHours;
+    changes.maxDurationHours = { from: oldBannerSettings.maxDurationHours, to: settingsData.maxDurationHours };
+  }
+  
+  if (settingsData.pricingStructure !== undefined) {
+    settings.banners.pricingStructure = settingsData.pricingStructure;
+    changes.pricingStructure = { from: oldBannerSettings.pricingStructure, to: settingsData.pricingStructure };
+  }
+  
+  // Add audit log if there are changes and adminId is provided
+  if (Object.keys(changes).length > 0 && adminId) {
+    if (!settings.banners.auditLogs) {
+      settings.banners.auditLogs = [];
+    }
+    settings.banners.auditLogs.push({
+      action: 'UPDATE_BANNER_SETTINGS',
+      performedBy: adminId,
+      changes: changes,
+      timestamp: new Date()
+    });
+    
+    // Keep only last 100 audit logs
+    if (settings.banners.auditLogs.length > 100) {
+      settings.banners.auditLogs = settings.banners.auditLogs.slice(-100);
+    }
+  }
+  
   await settings.save();
   return settings.banners;
+};
+
+/**
+ * Calculate price based on duration in hours
+ */
+export const calculatePrice = async (durationHours) => {
+  const settings = await getBannerSettings();
+  const pricingStructure = settings.pricingStructure || {};
+  
+  // Convert durationHours to string key for lookup
+  const durationKey = durationHours.toString();
+  
+  // If exact match exists in pricing structure
+  if (pricingStructure[durationKey] !== undefined) {
+    return pricingStructure[durationKey];
+  }
+  
+  // Find the closest lower bound in pricing structure
+  const sortedDurations = Object.keys(pricingStructure)
+    .map(Number)
+    .sort((a, b) => a - b);
+  
+  let basePrice = settings.defaultPricePerHour || 1999;
+  let baseHours = 1;
+  
+  // Find the highest duration key that is <= durationHours
+  for (let i = sortedDurations.length - 1; i >= 0; i--) {
+    if (sortedDurations[i] <= durationHours) {
+      baseHours = sortedDurations[i];
+      basePrice = pricingStructure[baseHours.toString()];
+      break;
+    }
+  }
+  
+  // Calculate proportional price
+  const pricePerHour = basePrice / baseHours;
+  return Math.round(pricePerHour * durationHours);
 };
 
 /**
@@ -76,35 +199,44 @@ export const createBooking = async (vendorId, bookingData, file) => {
   if (!bookingData.startDate) {
     throw new Error('Start date is required');
   }
-  if (!bookingData.endDate) {
-    throw new Error('End date is required');
-  }
-  if (!bookingData.amount && bookingData.amount !== 0) {
-    throw new Error('Amount is required');
+  if (!bookingData.durationHours) {
+    throw new Error('Duration is required');
   }
 
-  const { slotId, title, link, startDate, endDate, amount } = bookingData;
+  const { slotId, title, link, startDate, durationHours } = bookingData;
   
-  // Convert dates to Date objects if they're strings
+  // Get banner settings
+  const settings = await getBannerSettings();
+  
+  // Validate duration
+  const durationHoursNum = parseFloat(durationHours);
+  if (isNaN(durationHoursNum) || durationHoursNum < settings.minDurationHours || durationHoursNum > settings.maxDurationHours) {
+    throw new Error(`Duration must be between ${settings.minDurationHours} and ${settings.maxDurationHours} hours`);
+  }
+  
+  // Convert start date to Date object
   const startDateObj = startDate instanceof Date ? startDate : new Date(startDate);
-  const endDateObj = endDate instanceof Date ? endDate : new Date(endDate);
-  
-  // Validate dates
   if (isNaN(startDateObj.getTime())) {
     throw new Error('Invalid start date format');
   }
-  if (isNaN(endDateObj.getTime())) {
-    throw new Error('Invalid end date format');
-  }
-  if (startDateObj >= endDateObj) {
-    throw new Error('End date must be after start date');
+  
+  // Calculate end date from duration
+  const endDateObj = new Date(startDateObj.getTime() + (durationHoursNum * 60 * 60 * 1000));
+  
+  // Validate booking window (30 days by default)
+  const now = new Date();
+  const maxBookingDate = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
+  
+  if (startDateObj < now) {
+    throw new Error('Start date cannot be in the past');
   }
   
-  // Convert amount to number
-  const amountNum = parseFloat(amount);
-  if (isNaN(amountNum) || amountNum < 0) {
-    throw new Error('Invalid amount');
+  if (startDateObj > maxBookingDate) {
+    throw new Error(`Start date cannot be more than ${settings.bookingWindowDays} days in the future`);
   }
+  
+  // Calculate price based on duration
+  const amountNum = await calculatePrice(durationHoursNum);
   
   const slot = await BannerSlot.findById(slotId);
   if (!slot) throw new Error('Slot not found');
@@ -133,6 +265,7 @@ export const createBooking = async (vendorId, bookingData, file) => {
     link: link || '/',
     startDate: startDateObj,
     endDate: endDateObj,
+    durationHours: durationHoursNum,
     amount: amountNum,
     status: 'pending',
     paymentStatus: 'unpaid'
