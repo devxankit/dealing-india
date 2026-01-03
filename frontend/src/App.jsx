@@ -43,6 +43,7 @@ import Customers from "./modules/Admin/pages/Customers";
 import Inventory from "./modules/Admin/pages/Inventory";
 import Campaigns from "./modules/Admin/pages/Campaigns";
 import AdminHeroBanner from "./modules/Admin/pages/AdminHeroBanner";
+import AdminWallet from "./modules/Admin/pages/AdminWallet";
 import Banners from "./modules/Admin/pages/Banners";
 import Reviews from "./modules/Admin/pages/Reviews";
 import Analytics from "./modules/Admin/pages/Analytics";
@@ -79,7 +80,6 @@ import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
 import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
 import Subscriptions from "./modules/Admin/pages/vendors/Subscriptions";
 // Offers & Sliders child pages
-import HomeSliders from "./modules/Admin/pages/offers/HomeSliders";
 import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
 // Mega Reward child pages
 import MegaRewardEntries from "./modules/Admin/pages/mega-reward/Entries";
@@ -448,8 +448,6 @@ const AppRoutes = () => {
             element={<Subscriptions />}
           />
           <Route path="vendors/:id" element={<VendorDetail />} />
-          <Route path="offers" element={<HomeSliders />} />
-          <Route path="offers/home-sliders" element={<HomeSliders />} />
           <Route path="offers/festival-offers" element={<FestivalOffers />} />
           {/* Mega Reward Routes */}
           <Route path="mega-reward" element={<MegaRewardEntries />} />
@@ -500,6 +498,7 @@ const AppRoutes = () => {
           <Route path="firebase/authentication" element={<Authentication />} />
           <Route path="campaigns" element={<Campaigns />} />
           <Route path="hero-banners" element={<AdminHeroBanner />} />
+          <Route path="wallet" element={<AdminWallet />} />
           <Route path="banners" element={<Banners />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="content" element={<Content />} />

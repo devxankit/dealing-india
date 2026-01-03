@@ -10,6 +10,7 @@ import DailyDealsSection from "../components/Mobile/DailyDealsSection";
 import RecommendedSection from "../components/Mobile/RecommendedSection";
 import FeaturedVendorsSection from "../components/Mobile/FeaturedVendorsSection";
 import BrandLogosScroll from "../../UserWeb/components/Home/BrandLogosScroll";
+import HeroBanner from "../../UserWeb/components/Home/HeroBanner";
 import LazyImage from "../../../shared/components/LazyImage";
 import { categories } from "../../../data/categories";
 import PageTransition from "../../../shared/components/PageTransition";
@@ -20,13 +21,6 @@ import { getProducts } from "../../../shared/services/productService";
 import { useCampaignStore } from "../../../shared/store/campaignStore";
 
 const MobileHome = () => {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [autoSlidePaused, setAutoSlidePaused] = useState(false);
-  const [sliders, setSliders] = useState([]);
-  const [isLoadingSliders, setIsLoadingSliders] = useState(true);
   const [mostPopular, setMostPopular] = useState([]);
   const [trending, setTrending] = useState([]);
   const [flashSale, setFlashSale] = useState([]);
@@ -38,33 +32,6 @@ const MobileHome = () => {
   const [isLoadingTrending, setIsLoadingTrending] = useState(true);
   const [isLoadingFlashSale, setIsLoadingFlashSale] = useState(true);
   const [isLoadingDailyDeals, setIsLoadingDailyDeals] = useState(true);
-
-  // Fetch sliders from API
-  useEffect(() => {
-    const fetchSliders = async () => {
-      try {
-        setIsLoadingSliders(true);
-        const response = await api.get("/sliders");
-        if (response.success && response.data?.sliders && response.data.sliders.length > 0) {
-          // Transform API sliders to match the expected format
-          const formattedSliders = response.data.sliders.map((slider) => ({
-            image: slider.imageUrl || slider.image,
-            link: slider.link || "/app/search",
-            id: slider.id || slider._id,
-            title: slider.title,
-          }));
-          setSliders(formattedSliders);
-        }
-      } catch (error) {
-        console.error("Failed to fetch sliders:", error);
-        toast.error("Failed to load sliders");
-      } finally {
-        setIsLoadingSliders(false);
-      }
-    };
-
-    fetchSliders();
-  }, []);
 
   // Transform products to match frontend format
   const transformProduct = (product) => {
@@ -349,78 +316,6 @@ const MobileHome = () => {
     fetchProducts();
   }, []);
 
-  // Use API sliders only
-  const slides = sliders;
-
-  // Auto-slide functionality (pauses when user is dragging)
-  useEffect(() => {
-    if (autoSlidePaused) return;
-
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [slides.length, autoSlidePaused]);
-
-  // Minimum swipe distance (in pixels) to trigger slide change
-  const minSwipeDistance = 50;
-
-  const onTouchStart = (e) => {
-    e.stopPropagation(); // Prevent pull-to-refresh from interfering
-    setTouchEnd(null);
-    const touch = e.targetTouches[0];
-    setTouchStart(touch.clientX);
-    setDragOffset(0);
-    setAutoSlidePaused(true);
-  };
-
-  const onTouchMove = (e) => {
-    if (touchStart === null) return;
-    e.stopPropagation(); // Prevent pull-to-refresh from interfering
-    const touch = e.targetTouches[0];
-    const currentX = touch.clientX;
-    // Calculate difference: positive when swiping left, negative when swiping right
-    const diff = touchStart - currentX;
-    // Constrain the drag offset to prevent over-dragging
-    // Use container width for better responsiveness
-    const containerWidth = e.currentTarget?.offsetWidth || 400;
-    const maxDrag = containerWidth * 0.5; // Maximum drag distance (50% of container)
-    // dragOffset: positive = swiping left (show next), negative = swiping right (show previous)
-    setDragOffset(Math.max(-maxDrag, Math.min(maxDrag, diff)));
-    setTouchEnd(currentX);
-  };
-
-  const onTouchEnd = (e) => {
-    if (e) e.stopPropagation(); // Prevent pull-to-refresh from interfering
-
-    if (touchStart === null) {
-      setAutoSlidePaused(false);
-      return;
-    }
-
-    // Calculate swipe distance: positive = left swipe, negative = right swipe
-    const distance = touchStart - (touchEnd || touchStart);
-    const isLeftSwipe = distance > minSwipeDistance; // Finger moved left = show next slide
-    const isRightSwipe = distance < -minSwipeDistance; // Finger moved right = show previous slide
-
-    if (isLeftSwipe) {
-      // Swipe left (finger moved left) - go to next slide (slide moves left)
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    } else if (isRightSwipe) {
-      // Swipe right (finger moved right) - go to previous slide (slide moves right)
-      setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-    }
-
-    // Reset touch state
-    setTouchStart(null);
-    setTouchEnd(null);
-    setDragOffset(0);
-
-    // Resume auto-slide after a short delay
-    setTimeout(() => {
-      setAutoSlidePaused(false);
-    }, 2000);
-  };
 
   // Pull to refresh handler
   const handleRefresh = async () => {
@@ -451,79 +346,7 @@ const MobileHome = () => {
           }}>
           {/* Hero Banner */}
           <div className="px-4 py-4">
-            <div
-              className="relative w-full h-48 rounded-2xl overflow-hidden shadow-lg shadow-gray-200/50"
-              data-carousel
-              onTouchStart={onTouchStart}
-              onTouchMove={onTouchMove}
-              onTouchEnd={onTouchEnd}
-              style={{ touchAction: "pan-y", userSelect: "none" }}>
-              {/* Slider Container - All slides in a row */}
-              <motion.div
-                className="flex h-full"
-                style={{
-                  width: `${slides.length * 100}%`,
-                  height: "100%",
-                }}
-                animate={{
-                  x:
-                    dragOffset !== 0
-                      ? `calc(-${currentSlide * (100 / slides.length)
-                      }% - ${dragOffset}px)`
-                      : `-${currentSlide * (100 / slides.length)}%`,
-                }}
-                transition={{
-                  duration: dragOffset !== 0 ? 0 : 0.6,
-                  ease: [0.25, 0.46, 0.45, 0.94], // Smooth easing
-                  type: "tween",
-                }}>
-                {slides.length > 0 ? (
-                  slides.map((slide, index) => (
-                    <Link
-                      to={slide.link || "/app/search"}
-                      key={slide.id || index}
-                      className="flex-shrink-0 block"
-                      style={{
-                        width: `${100 / slides.length}%`,
-                        height: "100%",
-                      }}>
-                      <LazyImage
-                        src={slide.image}
-                        alt={slide.title || `Slide ${index + 1}`}
-                        className="w-full h-full object-cover pointer-events-none select-none"
-                        draggable={false}
-                        onError={(e) => {
-                          e.target.src = `https://via.placeholder.com/400x200?text=Slide+${index + 1}`;
-                        }}
-                      />
-                    </Link>
-                  ))
-                ) : (
-                  // Show loading or placeholder while fetching
-                  <div className="flex-shrink-0 w-full h-full flex items-center justify-center bg-gray-200">
-                    <p className="text-gray-500">Loading sliders...</p>
-                  </div>
-                )}
-              </motion.div>
-              {slides.length > 0 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 pointer-events-none">
-                  {slides.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setCurrentSlide(index);
-                        setAutoSlidePaused(true);
-                        setTimeout(() => setAutoSlidePaused(false), 2000);
-                      }}
-                      className={`h-1.5 rounded-full transition-all pointer-events-auto shadow-sm ${index === currentSlide
-                        ? "bg-white w-6"
-                        : "bg-white/50 w-1.5 backdrop-blur-sm"
-                        }`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <HeroBanner />
           </div>
 
           {/* Brand Logos Scroll */}

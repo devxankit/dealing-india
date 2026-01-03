@@ -79,6 +79,42 @@ export const updateBannerSlot = async (slotId, slotData) => {
   return response;
 };
 
+/**
+ * Admin: Approve banner booking
+ * @param {string} bookingId - Booking ID to approve
+ */
+export const approveBannerBooking = async (bookingId) => {
+  const response = await api.put(`/admin/hero-banners/bookings/${bookingId}/approve`);
+  return response;
+};
+
+/**
+ * Admin: Reject banner booking
+ * @param {string} bookingId - Booking ID to reject
+ * @param {string} reason - Optional rejection reason
+ */
+export const rejectBannerBooking = async (bookingId, reason = '') => {
+  const response = await api.put(`/admin/hero-banners/bookings/${bookingId}/reject`, { reason });
+  return response;
+};
+
+/**
+ * Admin: Get banner revenue statistics
+ */
+export const getBannerRevenueStats = async () => {
+  const response = await api.get('/admin/hero-banners/revenue-stats');
+  return response;
+};
+
+/**
+ * Admin: Get banner transactions for wallet page
+ * @param {Object} params - { search, limit, skip }
+ */
+export const getBannerTransactions = async (params = {}) => {
+  const response = await api.get('/admin/hero-banners/transactions', { params });
+  return response;
+};
+
 // --- Mock Data for Testing ---
 export const MOCK_BANNERS = [
   {

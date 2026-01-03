@@ -94,7 +94,6 @@ const getChildRoute = (parentRoute, childName) => {
       Zipcodes: "/admin/locations/zipcodes",
     },
     "/admin/offers": {
-      "Home Sliders": "/admin/offers/home-sliders",
       "Festival Offers": "/admin/offers/festival-offers",
     },
     "/admin/mega-reward": {

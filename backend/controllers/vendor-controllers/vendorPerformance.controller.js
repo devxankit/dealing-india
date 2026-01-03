@@ -16,6 +16,9 @@ export const getPerformanceMetrics = async (req, res, next) => {
       data: {
         metrics: result.metrics,
         earnings: result.earnings,
+        revenueData: result.revenueData,
+        topProducts: result.topProducts,
+        recentOrders: result.recentOrders,
       },
     });
   } catch (error) {

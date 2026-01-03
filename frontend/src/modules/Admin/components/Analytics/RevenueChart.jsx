@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { formatCurrency, formatDate, filterByDateRange, getDateRange } from '../../utils/adminHelpers';
+import { motion } from 'framer-motion';
+import { formatCurrency, formatDate, getDateRange } from '../../utils/adminHelpers';
 
 const RevenueChart = ({ data = [], period = 'month' }) => {
   const filteredData = useMemo(() => {

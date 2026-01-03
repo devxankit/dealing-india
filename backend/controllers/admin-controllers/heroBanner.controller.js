@@ -40,3 +40,59 @@ export const getBookings = async (req, res, next) => {
     next(error);
   }
 };
+
+export const approveBooking = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const booking = await heroBannerService.approveBooking(id);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Banner booking approved successfully',
+      data: booking
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rejectBooking = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const booking = await heroBannerService.rejectBooking(id, reason);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Banner booking rejected successfully',
+      data: booking
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getRevenueStats = async (req, res, next) => {
+  try {
+    const stats = await heroBannerService.getBannerRevenueStats();
+    res.status(200).json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getTransactions = async (req, res, next) => {
+  try {
+    const { search, limit = 50, skip = 0 } = req.query;
+    const result = await heroBannerService.getBannerTransactions(search, parseInt(limit), parseInt(skip));
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};

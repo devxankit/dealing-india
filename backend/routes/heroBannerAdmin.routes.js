@@ -2,7 +2,11 @@ import express from 'express';
 import {
   getSlots,
   updateSettings,
-  getBookings
+  getBookings,
+  approveBooking,
+  rejectBooking,
+  getRevenueStats,
+  getTransactions
 } from '../controllers/admin-controllers/heroBanner.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
@@ -15,6 +19,10 @@ router.use(authorize('admin'));
 
 router.get('/slots', asyncHandler(getSlots));
 router.get('/bookings', asyncHandler(getBookings));
+router.get('/revenue-stats', asyncHandler(getRevenueStats));
+router.get('/transactions', asyncHandler(getTransactions));
 router.put('/settings', asyncHandler(updateSettings));
+router.put('/bookings/:id/approve', asyncHandler(approveBooking));
+router.put('/bookings/:id/reject', asyncHandler(rejectBooking));
 
 export default router;

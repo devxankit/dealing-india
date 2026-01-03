@@ -50,6 +50,32 @@ const bannerBookingSchema = new mongoose.Schema(
     paymentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Transaction',
+      default: null,
+    },
+    razorpayPaymentId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    razorpayOrderId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ['razorpay', 'upi', 'wallet', 'card'],
+      default: 'razorpay',
+    },
+    adminApprovalStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      default: '',
     },
     amount: {
       type: Number,

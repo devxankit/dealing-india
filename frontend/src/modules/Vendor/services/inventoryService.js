@@ -6,6 +6,6 @@ import api from '../../../shared/utils/api';
  */
 export const getVendorInventoryReport = async () => {
   const response = await api.get('/vendor/inventory/reports');
-  return response.data || response;
+  return response;
 };
 

@@ -38,14 +38,18 @@ const InventoryReports = () => {
         setLoading(true);
         const response = await getVendorInventoryReport();
 
-        if (response.success && response.data) {
+        if (response && response.success && response.data) {
           setInventoryData(response.data.inventory || []);
-          setStats(response.data.stats || {
-            totalProducts: 0,
-            totalStockValue: 0,
-            totalSold: 0,
-            lowStockItems: 0,
-          });
+          setStats(
+            response.data.stats || {
+              totalProducts: 0,
+              totalStockValue: 0,
+              totalSold: 0,
+              lowStockItems: 0,
+            }
+          );
+        } else {
+          setInventoryData([]);
         }
       } catch (error) {
         console.error("Error fetching inventory report:", error);
@@ -78,15 +82,22 @@ const InventoryReports = () => {
       key: "price",
       label: "Price",
       sortable: true,
-      render: (value) => formatPrice(value),
+      render: (value) => `₹${(value || 0).toLocaleString()}`,
     },
     {
       key: "stockValue",
       label: "Stock Value",
       sortable: true,
-      render: (value) => formatPrice(value),
+      render: (value) => `₹${(value || 0).toLocaleString()}`,
     },
-    { key: "sold", label: "Units Sold", sortable: true },
+    {
+      key: "sold",
+      label: "Units Sold",
+      sortable: true,
+      render: (value) => (
+        <span className="text-blue-600 font-medium">{value || 0}</span>
+      ),
+    },
   ];
 
   if (!vendorId) {

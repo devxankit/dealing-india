@@ -14,7 +14,42 @@ export const getAvailableSlots = async (req, res, next) => {
 
 export const createBannerBooking = async (req, res, next) => {
   try {
-    const vendorId = req.user.id;
+    // Use vendorId from JWT token (preferred) or fallback to id
+    const vendorId = req.user.vendorId || req.user.id;
+    
+    if (!vendorId) {
+      const error = new Error('Vendor ID not found in authentication token');
+      error.status = 401;
+      return next(error);
+    }
+    
+    // Validate required fields
+    if (!req.body.slotId) {
+      const error = new Error('Slot ID is required');
+      error.status = 400;
+      return next(error);
+    }
+    if (!req.body.startDate) {
+      const error = new Error('Start date is required');
+      error.status = 400;
+      return next(error);
+    }
+    if (!req.body.endDate) {
+      const error = new Error('End date is required');
+      error.status = 400;
+      return next(error);
+    }
+    if (!req.body.amount && req.body.amount !== 0) {
+      const error = new Error('Amount is required');
+      error.status = 400;
+      return next(error);
+    }
+    if (!req.file && !req.body.bannerImage) {
+      const error = new Error('Banner image is required');
+      error.status = 400;
+      return next(error);
+    }
+    
     const booking = await heroBannerService.createBooking(vendorId, req.body, req.file);
     
     res.status(201).json({
@@ -29,7 +64,15 @@ export const createBannerBooking = async (req, res, next) => {
 
 export const getMyBookings = async (req, res, next) => {
   try {
-    const vendorId = req.user.id;
+    // Use vendorId from JWT token (preferred) or fallback to id
+    const vendorId = req.user.vendorId || req.user.id;
+    
+    if (!vendorId) {
+      const error = new Error('Vendor ID not found in authentication token');
+      error.status = 401;
+      return next(error);
+    }
+    
     const bookings = await heroBannerService.getVendorBookings(vendorId);
     res.status(200).json({
       success: true,
@@ -42,12 +85,31 @@ export const getMyBookings = async (req, res, next) => {
 
 export const confirmPayment = async (req, res, next) => {
   try {
-    const { bookingId, transactionId } = req.body;
-    const booking = await heroBannerService.confirmBookingPayment(bookingId, transactionId);
+    const { bookingId, razorpayPaymentId, razorpayOrderId, razorpaySignature, paymentMethod } = req.body;
+    
+    if (!bookingId) {
+      const error = new Error('Booking ID is required');
+      error.status = 400;
+      return next(error);
+    }
+    
+    if (!razorpayPaymentId || !razorpayOrderId) {
+      const error = new Error('Razorpay payment ID and order ID are required');
+      error.status = 400;
+      return next(error);
+    }
+    
+    const paymentData = {
+      razorpayPaymentId,
+      razorpayOrderId,
+      razorpaySignature
+    };
+    
+    const booking = await heroBannerService.confirmBookingPayment(bookingId, paymentData, paymentMethod || 'razorpay');
     
     res.status(200).json({
       success: true,
-      message: 'Payment confirmed and banner activated',
+      message: 'Payment confirmed successfully. Waiting for admin approval.',
       data: booking
     });
   } catch (error) {

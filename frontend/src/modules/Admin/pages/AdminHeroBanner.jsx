@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FiSettings,
   FiCalendar,
@@ -8,6 +9,7 @@ import {
   FiClock,
   FiInfo,
   FiEdit3,
+  FiCreditCard,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -18,16 +20,22 @@ import {
   getAdminBannerBookings,
   updateBannerSettings,
   updateBannerSlot,
-  MOCK_BANNERS
+  approveBannerBooking,
+  rejectBannerBooking,
+  getBannerRevenueStats
 } from "../../Vendor/services/heroBannerService";
 import Badge from "../../../shared/components/Badge";
 import DataTable from "../components/DataTable";
 
 const AdminHeroBanner = () => {
+  const navigate = useNavigate();
   const [slots, setSlots] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [mockBanners] = useState(MOCK_BANNERS);
   const [settings, setSettings] = useState({ universalDisplayTime: 2000 });
+  const [revenueStats, setRevenueStats] = useState({
+    totalRevenue: 0,
+    percentageChange: 0
+  });
   const [loading, setLoading] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   const [tempDisplayTime, setTempDisplayTime] = useState(2000);
@@ -61,16 +69,48 @@ const AdminHeroBanner = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const response = await getAdminBannerSlots();
-      setSlots(response.data.slots || []);
-      setSettings(response.data.settings || { universalDisplayTime: 2000 });
-      setTempDisplayTime(response.data.settings?.universalDisplayTime || 2000);
+      const [slotsRes, bookingsRes, revenueRes] = await Promise.all([
+        getAdminBannerSlots(),
+        getAdminBannerBookings(),
+        getBannerRevenueStats()
+      ]);
       
-      const bookingsRes = await getAdminBannerBookings();
+      setSlots(slotsRes.data.slots || []);
+      setSettings(slotsRes.data.settings || { universalDisplayTime: 2000 });
+      setTempDisplayTime(slotsRes.data.settings?.universalDisplayTime || 2000);
       setBookings(bookingsRes.data || []);
+      setRevenueStats(revenueRes.data || { totalRevenue: 0, percentageChange: 0 });
     } catch (error) {
       console.error("Error loading admin banner data:", error);
       toast.error("Failed to load banner management data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveBanner = async (bookingId) => {
+    setLoading(true);
+    try {
+      await approveBannerBooking(bookingId);
+      toast.success("Banner approved and is now live!");
+      await loadData(); // Reload data to reflect changes
+    } catch (error) {
+      console.error("Error approving banner:", error);
+      toast.error(error.response?.data?.message || "Failed to approve banner");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectBanner = async (bookingId, reason = '') => {
+    setLoading(true);
+    try {
+      await rejectBannerBooking(bookingId, reason);
+      toast.success("Banner rejected successfully");
+      await loadData(); // Reload data to reflect changes
+    } catch (error) {
+      console.error("Error rejecting banner:", error);
+      toast.error(error.response?.data?.message || "Failed to reject banner");
     } finally {
       setLoading(false);
     }
@@ -157,9 +197,58 @@ const AdminHeroBanner = () => {
       ),
     },
     {
+      header: "Approval",
+      accessor: "adminApprovalStatus",
+      render: (val) => (
+        <Badge variant={val === "approved" ? "success" : val === "pending" ? "warning" : "error"}>
+          {val ? val.toUpperCase() : "PENDING"}
+        </Badge>
+      ),
+    },
+    {
       header: "Booking Date",
       accessor: "createdAt",
       render: (val) => new Date(val).toLocaleDateString(),
+    },
+    {
+      header: "Actions",
+      accessor: "_id",
+      render: (val, row) => (
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => navigate(`/admin/hero-banners/details/${row._id}`)}
+            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+            title="View Details"
+          >
+            <FiEye className="text-lg" />
+          </button>
+          {row.paymentStatus === "paid" && row.adminApprovalStatus === "pending" && (
+            <>
+              <button 
+                onClick={() => handleApproveBanner(row._id)}
+                className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
+                title="Approve Banner"
+                disabled={loading}
+              >
+                <FiCheckCircle className="text-lg" />
+              </button>
+              <button 
+                onClick={() => {
+                  const reason = prompt("Enter rejection reason (optional):");
+                  if (reason !== null) {
+                    handleRejectBanner(row._id, reason);
+                  }
+                }}
+                className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                title="Reject Banner"
+                disabled={loading}
+              >
+                <FiXCircle className="text-lg" />
+              </button>
+            </>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -223,6 +312,27 @@ const AdminHeroBanner = () => {
               <p className="text-lg font-bold text-gray-900">{bookings.filter(b => b.status === 'active').length}</p>
             </div>
           </div>
+          <div className="h-10 w-px bg-gray-100"></div>
+          
+          {/* Professional Unified Wallet Section */}
+          <button 
+            onClick={() => navigate('/admin/wallet')}
+            className="flex items-center gap-4 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-all group border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md"
+          >
+            <div className="p-2.5 bg-gray-900 text-white rounded-xl shadow-lg group-hover:scale-105 transition-transform duration-300">
+              <FiCreditCard className="text-xl" />
+            </div>
+            <div className="text-left">
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Banner Revenue</p>
+              <p className="text-xl font-black text-gray-900 leading-none mt-1">
+                {loading ? (
+                  <span className="text-gray-400">Loading...</span>
+                ) : (
+                  formatPrice(revenueStats.totalRevenue || 0)
+                )}
+              </p>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -301,91 +411,6 @@ const AdminHeroBanner = () => {
         })}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-10">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Banner Configurations (Mock)</h2>
-            <p className="text-sm text-gray-500">Full metadata and backend settings for active banners</p>
-          </div>
-          <Badge variant="info">SYSTEM VIEW</Badge>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-              <tr>
-                <th className="px-6 py-3">Banner / Slot</th>
-                <th className="px-6 py-3">Vendor Info</th>
-                <th className="px-6 py-3">Performance</th>
-                <th className="px-6 py-3">Configurations</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {mockBanners.map((banner) => (
-                <tr key={banner.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <img src={banner.image} className="h-12 w-20 object-cover rounded border shadow-sm" alt="" />
-                      <div>
-                        <p className="font-bold text-gray-900">{banner.title}</p>
-                        <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tighter">Slot {banner.slot}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-gray-900">{banner.vendor}</p>
-                    <p className="text-xs text-gray-500">{new Date(banner.startDate).toLocaleDateString()} - {new Date(banner.endDate).toLocaleDateString()}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-[10px]">
-                        <span className="text-gray-500">Clicks:</span>
-                        <span className="font-bold">{banner.clicks}</span>
-                      </div>
-                      <div className="flex justify-between text-[10px]">
-                        <span className="text-gray-500">Impressions:</span>
-                        <span className="font-bold">{banner.impressions}</span>
-                      </div>
-                      <div className="w-20 bg-gray-100 h-1 rounded-full mt-1">
-                        <div 
-                          className="bg-blue-500 h-1 rounded-full" 
-                          style={{ width: `${Math.min(100, (banner.clicks / banner.impressions) * 1000)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-wrap gap-1 max-w-[200px]">
-                      {Object.entries(banner.metadata).map(([k, v]) => (
-                        <span key={k} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[9px] font-bold border border-blue-100">
-                          {k.toUpperCase()}: {v}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant={banner.status === 'active' ? 'success' : 'warning'}>
-                      {banner.status.toUpperCase()}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <button className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors" title="Edit Metadata">
-                        <FiEdit3 size={16} />
-                      </button>
-                      <button className="p-1.5 hover:bg-gray-100 text-gray-600 rounded-lg transition-colors" title="View Full Details">
-                        <FiEye size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
           <h2 className="text-lg font-bold text-gray-900">All Bookings</h2>
@@ -407,6 +432,7 @@ const AdminHeroBanner = () => {
           pagination={false}
         />
       </div>
+
     </div>
   );
 };

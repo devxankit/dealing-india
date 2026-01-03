@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import StatsCards from '../components/Analytics/StatsCards';
 import RevenueLineChart from '../components/Analytics/RevenueLineChart';
@@ -10,25 +10,53 @@ import TopProducts from '../components/Analytics/TopProducts';
 import RecentOrders from '../components/Analytics/RecentOrders';
 import TimePeriodFilter from '../components/Analytics/TimePeriodFilter';
 import ExportButton from '../components/ExportButton';
-import { generateRevenueData, mockOrders, topProducts, getAnalyticsSummary } from '../../../data/adminMockData';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/adminHelpers';
+import { getDashboardSummary } from '../services/reportService';
+import { toast } from 'react-hot-toast';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [period, setPeriod] = useState('month');
-  
-  const revenueData = useMemo(() => generateRevenueData(30), []);
-  const analyticsSummary = useMemo(() => getAnalyticsSummary(), []);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({
+    summary: [],
+    revenueData: [],
+    topProducts: [],
+    orderStatus: [],
+    recentOrders: [],
+  });
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        const response = await getDashboardSummary(period);
+        if (response) {
+          setData(response);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [period]);
 
   const handleExport = () => {
-    const headers = [
-      { label: 'Date', accessor: (row) => row.date },
-      { label: 'Revenue', accessor: (row) => formatCurrency(row.revenue) },
-      { label: 'Orders', accessor: (row) => row.orders },
-    ];
     // Export functionality will be handled by ExportButton component
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -45,7 +73,7 @@ const Dashboard = () => {
         <div className="flex items-center gap-2 w-full">
           <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} />
           <ExportButton
-            data={revenueData}
+            data={data.revenueData}
             headers={[
               { label: 'Date', accessor: (row) => row.date },
               { label: 'Revenue', accessor: (row) => formatCurrency(row.revenue) },
@@ -57,30 +85,30 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <StatsCards stats={analyticsSummary} />
+      <StatsCards stats={data.summary} />
 
       {/* Main Charts Row - Revenue and Sales */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueLineChart data={revenueData} period={period} />
-        <SalesBarChart data={revenueData} period={period} />
+        <RevenueLineChart data={data.revenueData} period={period} />
+        <SalesBarChart data={data.revenueData} period={period} />
       </div>
 
       {/* Secondary Charts Row - Combined and Order Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueVsOrdersChart data={revenueData} period={period} />
-        <OrderStatusPieChart />
+        <RevenueVsOrdersChart data={data.revenueData} period={period} />
+        <OrderStatusPieChart data={data.orderStatus} />
       </div>
 
       {/* Customer Growth Chart - Full Width */}
       <div className="grid grid-cols-1 gap-6">
-        <CustomerGrowthAreaChart data={revenueData} period={period} />
+        <CustomerGrowthAreaChart data={data.revenueData} period={period} />
       </div>
 
       {/* Products and Orders Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TopProducts products={topProducts} />
+        <TopProducts products={data.topProducts} />
         <RecentOrders
-          orders={mockOrders}
+          orders={data.recentOrders}
           onViewOrder={(order) => navigate(`/admin/orders/${order.id}`)}
         />
       </div>

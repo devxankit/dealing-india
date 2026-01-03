@@ -97,7 +97,7 @@ const DataTable = ({
           <div className="divide-y divide-gray-100">
             {paginatedData.map((row, index) => (
               <div
-                key={`mobile-row-${row.id || index}`}
+                key={`mobile-row-${row.id || row._id || index}`}
                 onClick={() => onRowClick && onRowClick(row)}
                 className={`p-5 ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''
                   } transition-colors active:bg-gray-100`}
@@ -122,7 +122,7 @@ const DataTable = ({
                     }
 
                     return (
-                      <div key={`mobile-col-${colKey || column.label || column.header}-${row.id || index}`} className="flex flex-col gap-1">
+                      <div key={`mobile-col-${colKey || column.label || column.header}-${row.id || row._id || index}`} className="flex flex-col gap-1">
                         <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
                           {column.label || column.header}
                         </span>
@@ -196,7 +196,7 @@ const DataTable = ({
             ) : (
               paginatedData.map((row, index) => (
                 <tr
-                  key={`row-${row.id || index}`}
+                  key={`row-${row.id || row._id || index}`}
                   onClick={() => onRowClick && onRowClick(row)}
                   className={`${onRowClick ? 'cursor-pointer hover:bg-gray-50/80' : ''
                     } transition-colors group`}
@@ -216,9 +216,10 @@ const DataTable = ({
                       }
                     }
 
+                    const cellKey = column.key || column.accessor || `col-${index}`;
                     return (
                       <td
-                        key={`cell-${row.id || index}-${column.key}`}
+                        key={`cell-${row.id || row._id || index}-${cellKey}`}
                         className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700"
                       >
                         {displayValue}

@@ -9,9 +9,12 @@ import mongoose from 'mongoose';
  */
 export const getVendorInventoryReport = async (vendorId) => {
   try {
-    // Get all vendor products
-    const products = await Product.find({ vendorId, isActive: true })
-      .select('_id name price stockQuantity')
+    // Ensure vendorId is an ObjectId
+    const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
+
+    // Get all vendor products (including inactive ones for full inventory history)
+    const products = await Product.find({ vendorId: vendorObjectId })
+      .select('_id name price stockQuantity isActive')
       .lean();
 
     if (products.length === 0) {
@@ -28,9 +31,10 @@ export const getVendorInventoryReport = async (vendorId) => {
 
     const productIds = products.map((p) => p._id);
 
-    // Get all orders containing vendor's products
+    // Get all orders containing vendor's products (excluding cancelled and refunded)
     const orders = await Order.find({
       'items.productId': { $in: productIds },
+      status: { $nin: ['cancelled', 'refunded'] },
     })
       .select('items status')
       .lean();

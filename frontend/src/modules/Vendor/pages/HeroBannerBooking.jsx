@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FiPlus,
   FiCalendar,
@@ -7,6 +8,7 @@ import {
   FiClock,
   FiCheckCircle,
   FiInfo,
+  FiCreditCard,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -15,16 +17,16 @@ import {
   getAvailableBannerSlots,
   createBannerBooking,
   getMyBannerBookings,
-  confirmBannerPayment,
-  MOCK_BANNERS
+  confirmBannerPayment
 } from "../services/heroBannerService";
+import { initializeRazorpayCheckout, handlePaymentSuccess } from "../../../shared/services/paymentService";
 import Badge from "../../../shared/components/Badge";
 import DataTable from "../../Admin/components/DataTable";
 
 const HeroBannerBooking = () => {
+  const navigate = useNavigate();
   const [slots, setSlots] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [mockBanners] = useState(MOCK_BANNERS);
   const [loading, setLoading] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
@@ -122,11 +124,19 @@ const HeroBannerBooking = () => {
 
       const response = await createBannerBooking(bookingFormData);
       
-      if (response.success) {
-        toast.success("Booking initiated! Redirecting to payment...");
-        // In a real app, integrate Razorpay here. 
-        // For now, we'll simulate a successful payment for demo purposes
-        await handlePaymentSimulation(response.data._id);
+      if (response.success && response.data.razorpayOrder) {
+        toast.success("Booking initiated! Opening payment gateway...");
+        await handleRazorpayPayment(
+          response.data._id, 
+          response.data.razorpayOrder, 
+          selectedSlot.price,
+          response.data.razorpayKeyId
+        );
+      } else if (response.success) {
+        toast.error("Booking created but payment gateway failed. Please contact support.");
+        setShowBookingModal(false);
+        resetForm();
+        loadData();
       }
     } catch (error) {
       console.error("Error creating booking:", error);
@@ -136,16 +146,61 @@ const HeroBannerBooking = () => {
     }
   };
 
-  const handlePaymentSimulation = async (bookingId) => {
+  const handleRazorpayPayment = async (bookingId, razorpayOrder, amount, razorpayKeyId = null) => {
     try {
-      const transactionId = "TXN-" + Math.random().toString(36).substr(2, 9).toUpperCase();
-      await confirmBannerPayment({ bookingId, transactionId });
-      toast.success("Payment successful! Your banner is now active.");
-      setShowBookingModal(false);
-      resetForm();
-      loadData();
+      // Get Razorpay key from response or environment
+      const keyId = razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+      
+      if (!keyId) {
+        toast.error("Payment gateway not configured. Please contact support.");
+        return;
+      }
+
+      // Initialize Razorpay checkout
+      await initializeRazorpayCheckout({
+        key: keyId,
+        amount: amount,
+        currency: 'INR',
+        name: 'Appzeto',
+        description: `Hero Banner Booking - ${bookingId}`,
+        orderId: razorpayOrder.id,
+        prefill: {
+          name: '', // Vendor name can be added if available
+          email: '', // Vendor email can be added if available
+          contact: '', // Vendor phone can be added if available
+        },
+        handler: async (paymentResponse) => {
+          try {
+            // Format payment response
+            const paymentData = handlePaymentSuccess(paymentResponse);
+            
+            // Confirm payment with backend
+            await confirmBannerPayment({
+              bookingId,
+              razorpayPaymentId: paymentData.razorpayPaymentId,
+              razorpayOrderId: paymentData.razorpayOrderId,
+              razorpaySignature: paymentData.razorpaySignature,
+              paymentMethod: 'razorpay'
+            });
+            
+            toast.success("Payment successful! Your banner booking is pending admin approval.");
+            setShowBookingModal(false);
+            resetForm();
+            loadData();
+          } catch (error) {
+            console.error("Payment confirmation error:", error);
+            toast.error(error.response?.data?.message || "Payment verification failed. Please contact support.");
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            toast.error("Payment cancelled");
+          },
+        },
+      });
     } catch (error) {
-      toast.error("Payment confirmation failed");
+      console.error("Razorpay payment error:", error);
+      toast.error(error.message || "Failed to open payment gateway. Please try again.");
     }
   };
 
@@ -196,98 +251,30 @@ const HeroBannerBooking = () => {
       accessor: "createdAt",
       render: (val) => new Date(val).toLocaleDateString(),
     },
+    {
+      header: "Actions",
+      accessor: "_id",
+      render: (val, row) => (
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => navigate(`/vendor/hero-banner-booking/details/${row._id}`)}
+            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+            title="View Details"
+          >
+            <FiInfo className="text-lg" />
+          </button>
+        </div>
+      ),
+    },
   ];
 
   return (
     <div className="p-6">
-      {/* Mock Banners Display Section */}
-      <div className="mb-10">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Existing Banners</h2>
-            <p className="text-sm text-gray-500">Review your current and upcoming banner placements</p>
-          </div>
-          <Badge variant="info">MOCK DATA</Badge>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Hero Banner Booking</h1>
+          <p className="text-gray-500 text-sm">Book slots and manage your banner advertisements</p>
         </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {mockBanners.map((banner) => (
-            <motion.div
-              key={banner.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group"
-            >
-              <div className="relative aspect-[211/35] overflow-hidden">
-                <img 
-                  src={banner.image} 
-                  alt={banner.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute top-4 left-4 flex gap-2">
-                  <Badge variant={banner.status === 'active' ? 'success' : 'warning'}>
-                    {banner.status.toUpperCase()}
-                  </Badge>
-                  <Badge variant="secondary">Slot {banner.slot}</Badge>
-                </div>
-                <a 
-                  href={banner.link} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg text-gray-800 hover:bg-white transition-colors"
-                >
-                  <FiExternalLink />
-                </a>
-              </div>
-              
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{banner.title}</h3>
-                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                      <FiCalendar className="text-xs" /> {new Date(banner.startDate).toLocaleDateString()} - {new Date(banner.endDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-blue-600">{formatPrice(banner.amount)}</p>
-                    <p className="text-[10px] text-gray-400 font-medium uppercase">Total Paid</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 py-4 border-t border-gray-50">
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 mb-1">Impressions</p>
-                    <p className="font-bold text-gray-900">{banner.impressions.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center border-x border-gray-50">
-                    <p className="text-xs text-gray-500 mb-1">Clicks</p>
-                    <p className="font-bold text-gray-900">{banner.clicks.toLocaleString()}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 mb-1">CTR</p>
-                    <p className="font-bold text-gray-900">
-                      {banner.impressions > 0 ? ((banner.clicks / banner.impressions) * 100).toFixed(1) : 0}%
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-50 flex flex-wrap gap-2">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2 self-center">Metadata:</span>
-                  {Object.entries(banner.metadata).map(([key, value]) => (
-                    <span key={key} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[10px] font-medium">
-                      {key.replace(/([A-Z])/g, ' $1').trim()}: {value}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Hero Banner Booking</h1>
-        <p className="text-gray-500">Promote your brand on the home page hero slider</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-10">

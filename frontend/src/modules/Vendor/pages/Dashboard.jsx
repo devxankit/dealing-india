@@ -8,84 +8,60 @@ import {
   FiArrowRight,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useVendorStore } from "../store/vendorStore";
-import { useOrderStore } from "../../../shared/store/orderStore";
-import { useCommissionStore } from "../../../shared/store/commissionStore";
 import { formatPrice } from "../../../shared/utils/helpers";
-import { initializeFashionHubData } from "../../../shared/utils/initializeFashionHubData";
 import { IndianRupee } from "lucide-react";
+import { getVendorPerformanceMetrics } from "../services/performanceService";
+import { toast } from "react-hot-toast";
 
 const VendorDashboard = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const { getVendorProducts, getVendorStats } = useVendorStore();
-  const { getVendorOrders } = useOrderStore();
-  const { getVendorEarningsSummary } = useCommissionStore();
-
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    inStockProducts: 0,
-    totalOrders: 0,
-    pendingOrders: 0,
-    totalEarnings: 0,
-    pendingEarnings: 0,
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({
+    metrics: {
+      totalRevenue: 0,
+      totalOrders: 0,
+      totalProducts: 0,
+      avgOrderValue: 0,
+      customerCount: 0,
+    },
+    earnings: {
+      totalEarnings: 0,
+      pendingEarnings: 0,
+      paidEarnings: 0,
+    },
+    revenueData: [],
+    topProducts: [],
+    recentOrders: [],
   });
 
   const vendorId = vendor?.id;
 
-  // Initialize dummy data for Fashion Hub vendor (id: 1) on first load
   useEffect(() => {
-    if (vendorId === 1) {
-      // Check if data has already been initialized
-      const hasInitialized = localStorage.getItem(
-        "fashionhub-data-initialized"
-      );
-      if (!hasInitialized) {
-        initializeFashionHubData();
-        localStorage.setItem("fashionhub-data-initialized", "true");
+    const fetchDashboardData = async () => {
+      if (!vendorId) return;
+      setLoading(true);
+      try {
+        const response = await getVendorPerformanceMetrics();
+        if (response && response.success) {
+          setData(response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching vendor dashboard data:", error);
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+
+    fetchDashboardData();
   }, [vendorId]);
-
-  useEffect(() => {
-    if (vendorId) {
-      // Get vendor statistics
-      const vendorStats = getVendorStats(vendorId);
-      if (vendorStats) {
-        setStats((prev) => ({
-          ...prev,
-          totalProducts: vendorStats.totalProducts,
-          inStockProducts: vendorStats.inStockProducts,
-        }));
-      }
-
-      // Get vendor orders
-      const orders = getVendorOrders(vendorId);
-      setStats((prev) => ({
-        ...prev,
-        totalOrders: orders.length,
-        pendingOrders: orders.filter(
-          (o) => o.status === "pending" || o.status === "processing"
-        ).length,
-      }));
-
-      // Get earnings summary
-      const earningsSummary = getVendorEarningsSummary(vendorId);
-      if (earningsSummary) {
-        setStats((prev) => ({
-          ...prev,
-          totalEarnings: earningsSummary.totalEarnings,
-          pendingEarnings: earningsSummary.pendingEarnings,
-        }));
-      }
-    }
-  }, [vendorId, getVendorStats, getVendorOrders, getVendorEarningsSummary]);
 
   const statCards = [
     {
       icon: FiPackage,
       label: "Total Products",
-      value: stats.totalProducts,
+      value: data.metrics.totalProducts,
       color: "bg-blue-500",
       bgColor: "bg-blue-50",
       textColor: "text-blue-700",
@@ -94,7 +70,7 @@ const VendorDashboard = () => {
     {
       icon: FiShoppingBag,
       label: "Total Orders",
-      value: stats.totalOrders,
+      value: data.metrics.totalOrders,
       color: "bg-green-500",
       bgColor: "bg-green-50",
       textColor: "text-green-700",
@@ -102,8 +78,8 @@ const VendorDashboard = () => {
     },
     {
       icon: FiTrendingUp,
-      label: "Pending Orders",
-      value: stats.pendingOrders,
+      label: "Avg Order Value",
+      value: formatPrice(data.metrics.avgOrderValue || 0),
       color: "bg-orange-500",
       bgColor: "bg-orange-50",
       textColor: "text-orange-700",
@@ -112,7 +88,7 @@ const VendorDashboard = () => {
     {
       icon: IndianRupee,
       label: "Total Earnings",
-      value: formatPrice(stats.totalEarnings || 0),
+      value: formatPrice(data.earnings.totalEarnings || 0),
       color: "bg-purple-500",
       bgColor: "bg-purple-50",
       textColor: "text-purple-700",
@@ -120,16 +96,13 @@ const VendorDashboard = () => {
     },
   ];
 
-  const recentOrders = useMemo(() => {
-    if (!vendorId) return [];
-    const orders = getVendorOrders(vendorId);
-    return orders.slice(0, 5);
-  }, [vendorId, getVendorOrders]);
-
-  const vendorProducts = useMemo(() => {
-    if (!vendorId) return [];
-    return getVendorProducts(vendorId).slice(0, 5);
-  }, [vendorId, getVendorProducts]);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -231,9 +204,9 @@ const VendorDashboard = () => {
               View All
             </button>
           </div>
-          {recentOrders.length > 0 ? (
+          {data.recentOrders.length > 0 ? (
             <div className="space-y-3">
-              {recentOrders.map((order) => (
+              {data.recentOrders.map((order) => (
                 <div
                   key={order.id}
                   onClick={() => navigate(`/vendor/orders/${order.id}`)}
@@ -270,16 +243,16 @@ const VendorDashboard = () => {
         {/* Top Products */}
         <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-800">Your Products</h2>
+            <h2 className="text-lg font-bold text-gray-800">Top Products</h2>
             <button
               onClick={() => navigate("/vendor/products")}
               className="text-sm text-primary-600 hover:text-primary-700 font-medium">
               View All
             </button>
           </div>
-          {vendorProducts.length > 0 ? (
+          {data.topProducts.length > 0 ? (
             <div className="space-y-3">
-              {vendorProducts.map((product) => (
+              {data.topProducts.map((product) => (
                 <div
                   key={product.id}
                   onClick={() => navigate(`/vendor/products/${product.id}`)}
@@ -294,23 +267,9 @@ const VendorDashboard = () => {
                       {product.name}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {formatPrice(product.price || 0)}
+                      Revenue: {formatPrice(product.revenue || 0)} • Sales: {product.sales}
                     </p>
                   </div>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      product.stock === "in_stock"
-                        ? "bg-green-100 text-green-700"
-                        : product.stock === "low_stock"
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-red-100 text-red-700"
-                    }`}>
-                    {product.stock === "in_stock"
-                      ? "In Stock"
-                      : product.stock === "low_stock"
-                      ? "Low Stock"
-                      : "Out of Stock"}
-                  </span>
                 </div>
               ))}
             </div>
