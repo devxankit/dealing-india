@@ -7,6 +7,31 @@ import AttributeValue from '../models/AttributeValue.model.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.util.js';
 
 /**
+ * Automated SKU Generation
+ * Logic: [FIRST-3-OF-NAME]-[VENDOR-ID-LAST-4]-[TIMESTAMP-SHORT]
+ */
+const generateSKU = async (name, vendorId) => {
+  const prefix = name.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, 'X');
+  const vendorSuffix = vendorId.toString().slice(-4).toUpperCase();
+  const timestamp = Date.now().toString().slice(-6);
+  let generatedSku = `${prefix}-${vendorSuffix}-${timestamp}`;
+  
+  // Ensure uniqueness
+  let isUnique = false;
+  let counter = 0;
+  while (!isUnique) {
+    const existing = await Product.findOne({ sku: generatedSku });
+    if (!existing) {
+      isUnique = true;
+    } else {
+      counter++;
+      generatedSku = `${prefix}-${vendorSuffix}-${timestamp}-${counter}`;
+    }
+  }
+  return generatedSku;
+};
+
+/**
  * Get all products for a vendor with optional filters
  * @param {String} vendorId - Vendor ID
  * @param {Object} filters - { search, stock, categoryId, brandId, page, limit, sortBy, sortOrder }
@@ -295,43 +320,52 @@ export const createVendorProduct = async (productData, vendorId) => {
     const processedAttributes = [];
     if (attributes && attributes.length > 0) {
       for (const attr of attributes) {
-        if (!attr.attributeId) continue;
-
-        // Verify attribute exists and is active
-        const attribute = await Attribute.findById(attr.attributeId);
-        if (!attribute || attribute.status !== 'active') {
-          const err = new Error(`Attribute ${attr.attributeId} not found or inactive`);
-          err.status = 400;
-          throw err;
-        }
-
-        // Validate attribute values
-        let validValues = [];
-        if (attr.values && attr.values.length > 0) {
-          validValues = await AttributeValue.find({
-            _id: { $in: attr.values },
-            attributeId: attr.attributeId,
-            status: 'active',
-          });
-
-          if (validValues.length !== attr.values.length) {
-            const err = new Error('Some attribute values are invalid or inactive');
+        // Option 1: Predefined attribute (with attributeId)
+        if (attr.attributeId) {
+          // Verify attribute exists and is active
+          const attribute = await Attribute.findById(attr.attributeId);
+          if (!attribute || attribute.status !== 'active') {
+            const err = new Error(`Attribute ${attr.attributeId} not found or inactive`);
             err.status = 400;
             throw err;
           }
-        }
 
-        processedAttributes.push({
-          attributeId: attribute._id, // Use the validated attribute's _id
-          attributeName: attr.attributeName || attribute.name,
-          values: (attr.values || []).map(val => {
-            // Find the matching value object to get its _id
-            const valueObj = validValues?.find(v => 
-              v._id.toString() === val.toString() || v._id.toString() === val
-            );
-            return valueObj ? valueObj._id : val;
-          }),
-        });
+          // Validate attribute values
+          let validValues = [];
+          if (attr.values && attr.values.length > 0) {
+            validValues = await AttributeValue.find({
+              _id: { $in: attr.values },
+              attributeId: attr.attributeId,
+              status: 'active',
+            });
+
+            if (validValues.length !== attr.values.length) {
+              const err = new Error('Some attribute values are invalid or inactive');
+              err.status = 400;
+              throw err;
+            }
+          }
+
+          processedAttributes.push({
+            attributeId: attribute._id,
+            attributeName: attr.attributeName || attribute.name,
+            values: (attr.values || []).map(val => {
+              const valueObj = validValues?.find(v => 
+                v._id.toString() === val.toString() || v._id.toString() === val
+              );
+              return valueObj ? valueObj._id : val;
+            }),
+          });
+        } 
+        // Option 2: Custom attribute (with name and value)
+        else if (attr.name && attr.value) {
+          processedAttributes.push({
+            name: attr.name,
+            value: attr.value,
+            group: attr.group || '',
+            isRequired: attr.isRequired || false
+          });
+        }
       }
     }
 
@@ -504,6 +538,11 @@ export const createVendorProduct = async (productData, vendorId) => {
         ? 'low_stock' 
         : 'in_stock';
 
+    // Automated SKU Selection
+    const finalSku = (sku && sku.trim()) 
+      ? sku.trim().toUpperCase() 
+      : await generateSKU(name, vendorId);
+
     // Get vendor name
     const Vendor = (await import('../models/Vendor.model.js')).default;
     const vendor = await Vendor.findById(vendorId);
@@ -514,12 +553,13 @@ export const createVendorProduct = async (productData, vendorId) => {
       categoryId: categoryId || null,
       subcategoryId: subcategoryId || null,
       subSubCategoryId: subSubCategoryId || null,
+      generatedSku: finalSku
     });
 
     // Create product
     const product = await Product.create({
       name: name.trim(),
-      sku: sku && sku.trim() ? sku.trim().toUpperCase() : null,
+      sku: finalSku,
       unit: unit || '',
       price: parseFloat(price),
       originalPrice: originalPrice ? parseFloat(originalPrice) : null,
@@ -751,41 +791,50 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       processedAttributes = [];
       if (attributes.length > 0) {
         for (const attr of attributes) {
-          if (!attr.attributeId) continue;
-
-          const attribute = await Attribute.findById(attr.attributeId);
-          if (!attribute || attribute.status !== 'active') {
-            const err = new Error(`Attribute ${attr.attributeId} not found or inactive`);
-            err.status = 400;
-            throw err;
-          }
-
-          let validValues = [];
-          if (attr.values && attr.values.length > 0) {
-            validValues = await AttributeValue.find({
-              _id: { $in: attr.values },
-              attributeId: attr.attributeId,
-              status: 'active',
-            });
-
-            if (validValues.length !== attr.values.length) {
-              const err = new Error('Some attribute values are invalid or inactive');
+          // Option 1: Predefined attribute (with attributeId)
+          if (attr.attributeId) {
+            const attribute = await Attribute.findById(attr.attributeId);
+            if (!attribute || attribute.status !== 'active') {
+              const err = new Error(`Attribute ${attr.attributeId} not found or inactive`);
               err.status = 400;
               throw err;
             }
-          }
 
-          processedAttributes.push({
-            attributeId: attribute._id, // Use the validated attribute's _id
-            attributeName: attr.attributeName || attribute.name,
-            values: (attr.values || []).map(val => {
-              // Find the matching value object to get its _id
-              const valueObj = validValues.find(v => 
-                v._id.toString() === val.toString() || v._id.toString() === val
-              );
-              return valueObj ? valueObj._id : val;
-            }),
-          });
+            let validValues = [];
+            if (attr.values && attr.values.length > 0) {
+              validValues = await AttributeValue.find({
+                _id: { $in: attr.values },
+                attributeId: attr.attributeId,
+                status: 'active',
+              });
+
+              if (validValues.length !== attr.values.length) {
+                const err = new Error('Some attribute values are invalid or inactive');
+                err.status = 400;
+                throw err;
+              }
+            }
+
+            processedAttributes.push({
+              attributeId: attribute._id,
+              attributeName: attr.attributeName || attribute.name,
+              values: (attr.values || []).map(val => {
+                const valueObj = validValues.find(v => 
+                  v._id.toString() === val.toString() || v._id.toString() === val
+                );
+                return valueObj ? valueObj._id : val;
+              }),
+            });
+          }
+          // Option 2: Custom attribute (with name and value)
+          else if (attr.name && attr.value) {
+            processedAttributes.push({
+              name: attr.name,
+              value: attr.value,
+              group: attr.group || '',
+              isRequired: attr.isRequired || false
+            });
+          }
         }
       }
     }
@@ -990,12 +1039,25 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ? 'low_stock' 
         : 'in_stock';
 
+    // Automated SKU Handling for Updates
+    let finalSku = existingProduct.sku;
+    if (sku && sku.trim()) {
+      // If a new SKU is explicitly provided (e.g., from admin), use it
+      finalSku = sku.trim().toUpperCase();
+    } else if (name && name.trim() && name.trim() !== existingProduct.name) {
+      // If name changed, regenerate SKU to maintain consistency with the new name
+      finalSku = await generateSKU(name.trim(), vendorId);
+    } else if (!finalSku) {
+      // If no SKU exists (legacy product), generate one
+      finalSku = await generateSKU(name || existingProduct.name, vendorId);
+    }
+
     // Update product
     const updatedProduct = await Product.findByIdAndUpdate(
       productId,
       {
         ...(name !== undefined && { name: name.trim() }),
-        ...(sku !== undefined && { sku: sku && sku.trim() ? sku.trim().toUpperCase() : null }),
+        sku: finalSku,
         ...(unit !== undefined && { unit: unit || '' }),
         ...(price !== undefined && { price: parseFloat(price) }),
         ...(originalPrice !== undefined && { originalPrice: originalPrice ? parseFloat(originalPrice) : null }),

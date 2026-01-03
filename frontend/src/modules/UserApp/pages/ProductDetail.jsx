@@ -71,6 +71,8 @@ const MobileProductDetail = () => {
             variants: productData.variants,
             description: productData.description,
             sizes: productData.sizes || [],
+            attributes: productData.attributes || [],
+            faqs: productData.faqs || [],
           };
           
           setProduct(transformedProduct);
@@ -537,6 +539,38 @@ const MobileProductDetail = () => {
               </div>
             )}
 
+            {/* Attributes */}
+            {product.attributes &&
+              product.attributes.filter((attr) => (attr.name && attr.value) || (attr.attributeId && attr.values && attr.values.length > 0)).length >
+                0 && (
+                <div className="mb-6 pb-6 border-b border-gray-200">
+                  <h3 className="text-lg font-bold text-gray-800 mb-3">
+                    Product Details
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {product.attributes
+                      .filter((attr) => (attr.name && attr.value) || (attr.attributeId && attr.values && attr.values.length > 0))
+                      .map((attr, index) => {
+                        const name = attr.name || attr.attributeName || (attr.attributeId && attr.attributeId.name);
+                        const value = attr.value || (attr.values && attr.values.map(v => v.value || v).join(', '));
+                        
+                        if (!name || !value) return null;
+
+                        return (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                            <span className="text-gray-500 text-sm">{name}</span>
+                            <span className="text-gray-900 text-sm font-semibold text-right">
+                              {value}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
             {/* Description */}
             <div className="mb-6">
               <h3 className="text-lg font-bold text-gray-800 mb-3">
@@ -592,6 +626,29 @@ const MobileProductDetail = () => {
                 </div>
               </div>
             </div>
+
+            {/* FAQs Section */}
+            {product.faqs && product.faqs.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-3">
+                  Frequently Asked Questions
+                </h3>
+                <div className="space-y-3">
+                  {product.faqs.map((faq, index) => (
+                    <div key={index} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <h4 className="font-bold text-gray-800 text-sm mb-2 flex items-start gap-2">
+                        <span className="text-primary-600 font-bold">Q:</span>
+                        {faq.question}
+                      </h4>
+                      <p className="text-gray-600 text-sm flex items-start gap-2">
+                        <span className="text-accent-600 font-bold">A:</span>
+                        {faq.answer}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Reviews Summary */}
             {productReviews.length > 0 && (

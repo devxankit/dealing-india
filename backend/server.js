@@ -72,7 +72,16 @@ const app = express();
 const httpServer = http.createServer(app);
 
 // Middleware
-app.use(cors());
+const corsOrigins = process.env.SOCKET_CORS_ORIGIN
+  ? process.env.SOCKET_CORS_ORIGIN.split(',')
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
+app.use(cors({
+  origin: corsOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -160,7 +169,6 @@ app.use('/api/admin/products', productManagementRoutes);
 app.use('/api/admin', taxPricingRoutes);
 app.use('/api/admin/product-ratings', productRatingsRoutes);
 app.use('/api/admin/settings', settingsRoutes);
-app.use('/api/admin/product-faqs', productFAQsRoutes);
 app.use('/api/admin/product-faqs', productFAQsRoutes);
 app.use('/api/admin/hero-banners', heroBannerAdminRoutes);
 app.use('/api/admin/orders', adminOrderRoutes);

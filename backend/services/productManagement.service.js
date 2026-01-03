@@ -110,6 +110,8 @@ export const getProductById = async (productId) => {
       .populate('subcategoryId', 'name')
       .populate('brandId', 'name')
       .populate('vendorId', 'businessName')
+      .populate('attributes.attributeId', 'name type')
+      .populate('attributes.values', 'value')
       .lean();
     if (!product) {
       throw new Error('Product not found');
@@ -390,6 +392,8 @@ export const updateProduct = async (productId, updateData) => {
       .populate('subcategoryId', 'name')
       .populate('brandId', 'name')
       .populate('vendorId', 'businessName')
+      .populate('attributes.attributeId', 'name type')
+      .populate('attributes.values', 'value')
       .lean();
 
     if (!updatedProduct) {

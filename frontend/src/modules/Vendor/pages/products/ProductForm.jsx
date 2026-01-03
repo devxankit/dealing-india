@@ -10,7 +10,6 @@ import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import TagInput from "../../components/TagInput";
 import ColorPicker from "../../components/ColorPicker";
 import { getVendorProductById, updateVendorProduct, createVendorProduct } from "../../services/productService";
-import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
 
 const ProductForm = () => {
@@ -53,7 +52,10 @@ const ProductForm = () => {
     taxIncluded: false,
     description: "",
     tags: [],
-    attributes: [], // Array of { attributeId, attributeName, values: [valueId, ...] }
+    hasSizes: true,
+    productType: "standard",
+    attributes: [], // [{ name: "", value: "", group: "", isRequired: false }]
+    sizes: [], // Simple array of size strings
     variants: {
       sizes: [],
       colors: [],
@@ -66,17 +68,11 @@ const ProductForm = () => {
     relatedProducts: [],
   });
 
-  const [availableAttributes, setAvailableAttributes] = useState([]);
-  const [attributeValuesMap, setAttributeValuesMap] = useState({});
-  const [loadingAttributes, setLoadingAttributes] = useState(false);
-  const [showAttributeSelector, setShowAttributeSelector] = useState(false);
-  const [selectedAttributeToAdd, setSelectedAttributeToAdd] = useState('');
   const [colorVariants, setColorVariants] = useState([]);
 
   useEffect(() => {
     initCategories();
     fetchBrands(); // Fetch brands from API
-    fetchAttributes();
   }, [fetchBrands]);
 
   // Ensure brandId is properly formatted when brands are loaded (for edit mode)
@@ -111,134 +107,29 @@ const ProductForm = () => {
 
   const [loading, setLoading] = useState(false);
 
-  // Fetch all active attributes
-  const fetchAttributes = async () => {
-    try {
-      setLoadingAttributes(true);
-      // Use vendor endpoint instead of admin endpoint
-      const response = await api.get('/attributes');
-      if (response.success && response.data?.attributes) {
-        const activeAttributes = response.data.attributes
-          .filter(attr => attr.status === 'active')
-          .map(attr => ({
-            id: attr._id || attr.id,
-            name: attr.name,
-            type: attr.type,
-            required: attr.required,
-            categoryIds: attr.categoryIds || [],
-          }));
-        setAvailableAttributes(activeAttributes);
-        
-        // Fetch values for all attributes
-        await Promise.all(
-          activeAttributes.map(async (attr) => {
-            try {
-              // Use vendor endpoint instead of admin endpoint
-              const valuesResponse = await api.get(`/attribute-values?attributeId=${attr.id}`);
-              if (valuesResponse.success && valuesResponse.data?.attributeValues) {
-                const activeValues = valuesResponse.data.attributeValues
-                  .filter(val => val.status === 'active')
-                  .map(val => ({
-                    id: val._id || val.id,
-                    value: val.value,
-                    displayOrder: val.displayOrder || 0,
-                  }))
-                  .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-                setAttributeValuesMap(prev => ({
-                  ...prev,
-                  [attr.id]: activeValues,
-                }));
-              }
-            } catch (error) {
-              console.error(`Error fetching values for attribute ${attr.id}:`, error);
-            }
-          })
-        );
-      }
-    } catch (error) {
-      console.error('Error fetching attributes:', error);
-    } finally {
-      setLoadingAttributes(false);
-    }
-  };
-
-  // Get available attributes that haven't been added yet
-  const getAvailableAttributesForSelection = () => {
-    return availableAttributes.filter(
-      attr => {
-        // Filter by category if selected
-        const isInCategory = !attr.categoryIds || 
-                            attr.categoryIds.length === 0 || 
-                            (formData.categoryId && attr.categoryIds.includes(formData.categoryId)) ||
-                            (formData.subcategoryId && attr.categoryIds.includes(formData.subcategoryId)) ||
-                            (formData.subSubCategoryId && attr.categoryIds.includes(formData.subSubCategoryId));
-        
-        if (!isInCategory) return false;
-
-        return !formData.attributes.some(a => 
-          (a.attributeId || a.attributeId?.toString()) === (attr.id || attr._id)?.toString()
-        );
-      }
-    );
-  };
-
-  // Add attribute to product
-  const handleAddAttribute = () => {
-    const availableAttrs = getAvailableAttributesForSelection();
-    if (availableAttrs.length === 0) {
-      toast.error('All available attributes have been added');
-      return;
-    }
-    setShowAttributeSelector(true);
-  };
-
-  // Confirm adding selected attribute
-  const handleConfirmAddAttribute = () => {
-    if (!selectedAttributeToAdd) {
-      toast.error('Please select an attribute');
-      return;
-    }
-
-    const selectedAttr = availableAttributes.find(
-      attr => (attr.id || attr._id).toString() === selectedAttributeToAdd
-    );
-
-    if (!selectedAttr) {
-      toast.error('Selected attribute not found');
-      return;
-    }
-
-    setFormData({
-      ...formData,
+  // Custom attribute management
+  const addAttribute = () => {
+    setFormData((prev) => ({
+      ...prev,
       attributes: [
-        ...formData.attributes,
-        {
-          attributeId: selectedAttr.id || selectedAttr._id,
-          attributeName: selectedAttr.name,
-          values: [],
-        },
+        ...prev.attributes,
+        { name: "", value: "", group: "", isRequired: false },
       ],
-    });
-
-    setSelectedAttributeToAdd('');
-    setShowAttributeSelector(false);
+    }));
   };
 
-  // Remove attribute from product
-  const handleRemoveAttribute = (index) => {
-    setFormData({
-      ...formData,
-      attributes: formData.attributes.filter((_, i) => i !== index),
-    });
+  const removeAttribute = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      attributes: prev.attributes.filter((_, i) => i !== index),
+    }));
   };
 
-  // Update attribute values
-  const handleAttributeValueChange = (attributeIndex, selectedValues) => {
-    const updatedAttributes = [...formData.attributes];
-    updatedAttributes[attributeIndex].values = selectedValues;
-    setFormData({
-      ...formData,
-      attributes: updatedAttributes,
+  const updateAttribute = (index, field, value) => {
+    setFormData((prev) => {
+      const updated = [...prev.attributes];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, attributes: updated };
     });
   };
 
@@ -253,68 +144,6 @@ const ProductForm = () => {
       loadProduct();
     }
   }, [isEdit, id, vendorId, navigate]);
-
-  useEffect(() => {
-    if (availableAttributes.length > 0) {
-      const requiredAttrs = availableAttributes.filter(attr => {
-        const isRequired = attr.required;
-        
-        // Convert category IDs to strings for comparison
-        const getCategoryIdString = (categoryId) => {
-          if (!categoryId) return null;
-          if (typeof categoryId === 'object' && categoryId !== null) {
-            return (categoryId._id || categoryId.id || categoryId).toString();
-          }
-          return categoryId.toString();
-        };
-
-        const categoryIdStr = getCategoryIdString(formData.categoryId);
-        const subcategoryIdStr = getCategoryIdString(formData.subcategoryId);
-        const subSubCategoryIdStr = getCategoryIdString(formData.subSubCategoryId);
-
-        const attrCategoryIds = (attr.categoryIds || []).map(id => {
-          if (typeof id === 'object' && id !== null) {
-            return (id._id || id.id || id).toString();
-          }
-          return id.toString();
-        });
-        
-        const isInCategory = !attr.categoryIds || 
-                            attr.categoryIds.length === 0 || 
-                            (categoryIdStr && attrCategoryIds.includes(categoryIdStr)) ||
-                            (subcategoryIdStr && attrCategoryIds.includes(subcategoryIdStr)) ||
-                            (subSubCategoryIdStr && attrCategoryIds.includes(subSubCategoryIdStr));
-        
-        return isRequired && isInCategory;
-      });
-
-      // Add required attributes if they aren't already there
-      const newAttributes = [...formData.attributes];
-      let updated = false;
-
-      requiredAttrs.forEach(reqAttr => {
-        const alreadyExists = newAttributes.some(
-          a => (a.attributeId || a.attributeId?.toString()) === (reqAttr.id || reqAttr._id)?.toString()
-        );
-
-        if (!alreadyExists) {
-          newAttributes.push({
-            attributeId: reqAttr.id || reqAttr._id,
-            attributeName: reqAttr.name,
-            values: [],
-          });
-          updated = true;
-        }
-      });
-
-      if (updated) {
-        setFormData(prev => ({
-          ...prev,
-          attributes: newAttributes
-        }));
-      }
-    }
-  }, [formData.categoryId, formData.subcategoryId, formData.subSubCategoryId, availableAttributes]);
 
   const loadProduct = async () => {
     if (!id || !vendorId) return;
@@ -368,11 +197,15 @@ const ProductForm = () => {
         taxIncluded: product.taxIncluded || false,
         description: product.description || "",
         tags: product.tags || [],
+        hasSizes: product.hasSizes !== undefined ? product.hasSizes : true,
+        productType: product.productType || "standard",
         attributes: (product.attributes || []).map(attr => ({
-          attributeId: attr.attributeId?._id || attr.attributeId || attr.attributeId,
-          attributeName: attr.attributeName || attr.attributeId?.name || '',
-          values: (attr.values || []).map(val => val._id?.toString() || val.toString() || val),
+          name: attr.name || "",
+          value: attr.value || "",
+          group: attr.group || "",
+          isRequired: attr.isRequired || false,
         })),
+        sizes: product.sizes || [],
         variants: {
           sizes: product.variants?.sizes || [],
           colors: product.variants?.colors || [],
@@ -606,69 +439,12 @@ const ProductForm = () => {
       return;
     }
 
-    // Validate category-specific required attributes
-    // Helper function to convert category ID to string for comparison
-    const getCategoryIdString = (categoryId) => {
-      if (!categoryId) return null;
-      if (typeof categoryId === 'object' && categoryId !== null) {
-        return (categoryId._id || categoryId.id || categoryId).toString();
-      }
-      return categoryId.toString();
-    };
-
-    const categoryIdStr = getCategoryIdString(formData.categoryId);
-    const subcategoryIdStr = getCategoryIdString(formData.subcategoryId);
-    const subSubCategoryIdStr = getCategoryIdString(formData.subSubCategoryId);
-
-    const missingRequiredAttributes = availableAttributes.filter(attr => {
-      const isRequired = attr.required;
-      
-      // Convert attribute categoryIds to strings for comparison
-      const attrCategoryIds = (attr.categoryIds || []).map(id => {
-        if (typeof id === 'object' && id !== null) {
-          return (id._id || id.id || id).toString();
-        }
-        return id.toString();
-      });
-      
-      const isInCategory = !attr.categoryIds || 
-                          attr.categoryIds.length === 0 || 
-                          (categoryIdStr && attrCategoryIds.includes(categoryIdStr)) ||
-                          (subcategoryIdStr && attrCategoryIds.includes(subcategoryIdStr)) ||
-                          (subSubCategoryIdStr && attrCategoryIds.includes(subSubCategoryIdStr));
-      
-      if (isRequired && isInCategory) {
-        // Skip validation for Color and Size attributes if they are being handled by the Variations system
-        if (colorVariants.length > 0 && (attr.name === 'Color' || attr.name === 'Size')) {
-          return false;
-        }
-
-        const addedAttr = formData.attributes.find(
-          a => {
-            const attrId = (a.attributeId || a.attributeId?.toString())?.toString();
-            const availableAttrId = (attr.id || attr._id)?.toString();
-            return attrId === availableAttrId;
-          }
-        );
-        return !addedAttr || !addedAttr.values || addedAttr.values.length === 0;
-      }
-      return false;
-    });
-
-    if (missingRequiredAttributes.length > 0) {
-      const missingNames = missingRequiredAttributes.map(attr => attr.name).join(', ');
-      toast.error(`Please provide values for required attributes: ${missingNames}`);
-      
-      // Error logging for missing field configurations
-      console.error('Missing required category-specific fields:', {
-        categoryId: formData.categoryId,
-        subcategoryId: formData.subcategoryId,
-        subSubCategoryId: formData.subSubCategoryId,
-        missingAttributes: missingRequiredAttributes.map(attr => ({
-          id: attr.id,
-          name: attr.name
-        }))
-      });
+    // Validate required custom attributes
+    const missingRequired = formData.attributes.filter(
+      (attr) => attr.isRequired && (!attr.name || !attr.value)
+    );
+    if (missingRequired.length > 0) {
+      toast.error(`Please fill in required attribute: ${missingRequired[0].name || "Unnamed attribute"}`);
       return;
     }
 
@@ -1120,157 +896,106 @@ const ProductForm = () => {
           </div>
         </div>
 
-        {/* Product Attributes */}
+        {/* Flexible Attribute System */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-base font-bold text-gray-800">
-              Product Attributes
-            </h2>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-base font-bold text-gray-800">Custom Attributes</h2>
+              <p className="text-xs text-gray-500">Add specific details like fragrance notes, lens type, or material</p>
+            </div>
             <button
               type="button"
-              onClick={handleAddAttribute}
-              disabled={loadingAttributes || getAvailableAttributesForSelection().length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-              <FiPlus className="text-sm" />
+              onClick={addAttribute}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-600 rounded-lg text-xs font-bold hover:bg-primary-100 transition-colors"
+            >
+              <FiPlus className="w-3.5 h-3.5" />
               Add Attribute
             </button>
           </div>
-          
-          {loadingAttributes ? (
-            <div className="text-center py-4 text-sm text-gray-500">
-              Loading attributes...
-            </div>
-          ) : (
-            <>
-              {/* Attribute Selector Modal */}
-              {showAttributeSelector && (
-                <div className="mb-3 p-3 border border-primary-300 rounded-lg bg-primary-50">
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-gray-700">
-                      Select Attribute to Add
-                    </label>
-                    <AnimatedSelect
-                      value={selectedAttributeToAdd}
-                      onChange={(e) => setSelectedAttributeToAdd(e.target.value)}
-                      placeholder="Choose an attribute"
-                      searchable={true}
-                      options={[
-                        { value: '', label: 'Choose an attribute' },
-                        ...getAvailableAttributesForSelection().map(attr => ({
-                          value: (attr.id || attr._id).toString(),
-                          label: attr.name,
-                        })),
-                      ]}
+
+          {formData.attributes.length > 0 ? (
+            <div className="space-y-3">
+              {formData.attributes.map((attr, index) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200 relative group">
+                  <button
+                    type="button"
+                    onClick={() => removeAttribute(index)}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-white text-red-500 rounded-full border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10"
+                  >
+                    <FiTrash2 className="w-3 h-3" />
+                  </button>
+                  
+                  <div className="md:col-span-1">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={attr.name || ""}
+                      onChange={(e) => updateAttribute(index, "name", e.target.value)}
+                      placeholder="e.g. Fragrance Notes"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                     />
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleConfirmAddAttribute}
-                        disabled={!selectedAttributeToAdd}
-                        className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-                        Add
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAttributeSelector(false);
-                          setSelectedAttributeToAdd('');
-                        }}
-                        className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-xs font-semibold">
-                        Cancel
-                      </button>
-                    </div>
+                  </div>
+
+                  <div className="md:col-span-1">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Value</label>
+                    <input
+                      type="text"
+                      value={attr.value || ""}
+                      onChange={(e) => updateAttribute(index, "value", e.target.value)}
+                      placeholder="e.g. Floral, Citrus"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    />
+                  </div>
+
+                  <div className="md:col-span-1">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Group</label>
+                    <input
+                      type="text"
+                      value={attr.group || ""}
+                      onChange={(e) => updateAttribute(index, "group", e.target.value)}
+                      placeholder="e.g. Specifications"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    />
+                  </div>
+
+                  <div className="md:col-span-1 flex items-center mt-5">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={attr.isRequired || false}
+                        onChange={(e) => updateAttribute(index, "isRequired", e.target.checked)}
+                        className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                      />
+                      <span className="ml-2 text-xs font-semibold text-gray-700">Required</span>
+                    </label>
                   </div>
                 </div>
-              )}
-
-              {formData.attributes.length === 0 ? (
-                <div className="text-center py-4 text-sm text-gray-500 border border-gray-200 rounded-lg bg-gray-50">
-                  No attributes added. Click "Add Attribute" to select attributes.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {formData.attributes.map((attr, index) => {
-                    const attribute = availableAttributes.find(a => 
-                      (a.id || a._id).toString() === (attr.attributeId || attr.attributeId?.toString())
-                    );
-                    const values = attributeValuesMap[attr.attributeId] || [];
-                    
-                    return (
-                      <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="text-xs font-semibold text-gray-700">
-                            {attr.attributeName}
-                            {attribute?.required && <span className="text-red-500 ml-1">*</span>}
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAttribute(index)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors">
-                            <FiTrash2 className="text-sm" />
-                          </button>
-                        </div>
-                        
-                        {values.length === 0 ? (
-                          <p className="text-xs text-gray-500">No values available for this attribute</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {attribute?.type === 'select' ? (
-                              <AnimatedSelect
-                                value={attr.values[0] || ''}
-                                onChange={(e) => {
-                                  handleAttributeValueChange(index, e.target.value ? [e.target.value] : []);
-                                }}
-                                placeholder={`Select ${attr.attributeName}`}
-                                options={[
-                                  { value: '', label: `Select ${attr.attributeName}` },
-                                  ...values.map(val => ({
-                                    value: val.id.toString(),
-                                    label: val.value,
-                                  })),
-                                ]}
-                                required={attribute?.required}
-                              />
-                            ) : (
-                              <div className="flex flex-wrap gap-2">
-                                {values.map((val) => {
-                                  const isSelected = attr.values.includes(val.id.toString());
-                                  return (
-                                    <button
-                                      key={val.id}
-                                      type="button"
-                                      onClick={() => {
-                                        const newValues = isSelected
-                                          ? attr.values.filter(v => v !== val.id.toString())
-                                          : [...attr.values, val.id.toString()];
-                                        handleAttributeValueChange(index, newValues);
-                                      }}
-                                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                        isSelected
-                                          ? 'bg-primary-600 text-white hover:bg-primary-700'
-                                          : 'bg-white text-gray-700 border border-gray-300 hover:border-primary-500 hover:bg-primary-50'
-                                      }`}>
-                                      {val.value}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                            {attr.values.length > 0 && (
-                              <p className="text-xs text-gray-500">
-                                Selected: {attr.values.length} value(s)
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+              <p className="text-xs text-gray-500">No custom attributes added yet.</p>
+            </div>
           )}
         </div>
+
+        {/* Product Sizes */}
+        {formData.hasSizes && (
+          <div>
+            <h2 className="text-base font-bold text-gray-800 mb-2">
+              Product Sizes
+            </h2>
+            <p className="text-sm text-gray-600 mb-3">
+              Add available sizes for this product (e.g., S, M, L, XL). Type and press Enter to add each size.
+            </p>
+            <TagInput
+              tags={formData.sizes || []}
+              onChange={(sizes) => setFormData({ ...formData, sizes })}
+              placeholder="Add sizes (e.g. S, M, L, XL)"
+              label="Available Sizes"
+            />
+          </div>
+        )}
 
         {/* Product Variants (Advanced) */}
         <div className="bg-gradient-to-br from-primary-50 to-white rounded-xl p-4 border-2 border-primary-100 shadow-md">
