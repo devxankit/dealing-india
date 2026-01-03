@@ -35,7 +35,7 @@ import { IndianRupee } from "lucide-react";
 const iconMap = {
   Dashboard: FiHome,
   Products: FiPackage,
-  Order: FiShoppingBag,
+  Orders: FiShoppingBag,
   "All orders": FiShoppingBag,
   "Hold order": FiClock,
   "Pending order": FiClock,
