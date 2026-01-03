@@ -12,8 +12,6 @@ import toast from 'react-hot-toast';
 import Badge from '../../../shared/components/Badge';
 import ProductCard from '../../../shared/components/ProductCard';
 import VendorBadge from '../../Vendor/components/VendorBadge';
-import Header from '../components/Layout/Header';
-import Navbar from '../components/Layout/Navbar';
 import Footer from '../components/Layout/Footer';
 import PageTransition from '../../../shared/components/PageTransition';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
@@ -28,7 +26,6 @@ const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const product = getProductById(id);
-  const { responsivePadding } = useResponsiveHeaderPadding();
   const vendor = product ? getVendorById(product.vendorId) : null;
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(null);
@@ -53,8 +50,6 @@ const ProductDetail = () => {
     return (
       <PageTransition>
         <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 w-full overflow-x-hidden">
-          <Header />
-          <Navbar />
           <main className="w-full overflow-x-hidden flex items-center justify-center min-h-[60vh]">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-800 mb-4">Product Not Found</h2>
@@ -159,9 +154,7 @@ const ProductDetail = () => {
   return (
     <PageTransition>
       <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 w-full overflow-x-hidden">
-        <Header />
-        <Navbar />
-        <main className="w-full overflow-x-hidden" style={{ paddingTop: `${responsivePadding}px` }}>
+        <main className="w-full overflow-x-hidden">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-1">
             <div className="max-w-6xl mx-auto">
               {/* Breadcrumbs */}

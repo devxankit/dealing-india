@@ -133,6 +133,10 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
     isVisible: {
       type: Boolean,
       default: true,
@@ -158,6 +162,52 @@ const productSchema = new mongoose.Schema(
       min: 0,
       max: 100,
       default: 0,
+    },
+    hasSizes: {
+      type: Boolean,
+      default: true,
+    },
+    attributes: {
+      type: [
+        {
+          attributeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Attribute',
+            default: null,
+          },
+          attributeName: {
+            type: String,
+            trim: true,
+          },
+          values: [
+            {
+              type: mongoose.Schema.Types.ObjectId,
+              ref: 'AttributeValue',
+            },
+          ],
+          name: {
+            type: String,
+            trim: true,
+          },
+          value: {
+            type: mongoose.Schema.Types.Mixed,
+          },
+          group: {
+            type: String,
+            trim: true,
+          },
+          isRequired: {
+            type: Boolean,
+            default: false,
+          },
+        },
+      ],
+      default: [],
+    },
+    productType: {
+      type: String,
+      enum: ['standard', 'digital', 'service'],
+      default: 'standard',
     },
     variants: {
       // Legacy support - keep for backward compatibility

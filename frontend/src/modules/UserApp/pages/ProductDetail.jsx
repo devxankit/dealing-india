@@ -538,13 +538,59 @@ const MobileProductDetail = () => {
             )}
 
             {/* Description */}
-            <div className="mb-6 pb-6 border-b border-gray-200">
+            <div className="mb-6">
               <h3 className="text-lg font-bold text-gray-800 mb-3">
                 Description
               </h3>
-              <p className="text-gray-600 leading-relaxed text-sm">
+              <p className="text-gray-600 leading-relaxed text-sm mb-6">
                 {product.description || `High-quality ${product.name.toLowerCase()} available in ${product.unit.toLowerCase()}. This product is carefully selected to ensure the best quality and freshness. Perfect for your daily needs with excellent value for money.`}
               </p>
+
+              {/* Action Buttons (Moved from floating) */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={product.stock === "out_of_stock"}
+                  className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${product.stock === "out_of_stock"
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50"
+                    }`}>
+                  <FiShoppingBag className="text-base" />
+                  <span>
+                    {product.stock === "out_of_stock"
+                      ? "OUT OF STOCK"
+                      : "ADD TO CART"}
+                  </span>
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleFavorite}
+                    className={`w-12 h-12 rounded-xl transition-all duration-300 flex items-center justify-center flex-shrink-0 border ${isFavorite
+                      ? "bg-red-50 text-red-600 border-red-100 shadow-sm"
+                      : "bg-gray-50 text-gray-400 border-gray-100"
+                      } active:scale-90`}>
+                    <FiHeart
+                      className={`text-lg ${isFavorite ? "fill-red-600" : ""}`}
+                    />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (navigator.share) {
+                        navigator.share({
+                          title: product.name,
+                          text: `Check out ${product.name}`,
+                          url: window.location.href,
+                        });
+                      } else {
+                        navigator.clipboard.writeText(window.location.href);
+                        toast.success("Link copied to clipboard");
+                      }
+                    }}
+                    className="w-12 h-12 bg-gray-50 text-gray-400 border border-gray-100 rounded-xl transition-all duration-300 flex items-center justify-center flex-shrink-0 active:scale-90">
+                    <FiShare2 className="text-lg" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Reviews Summary */}
@@ -598,51 +644,7 @@ const MobileProductDetail = () => {
           </div>
         </div>
 
-        {/* Sticky Bottom Action Bar */}
-        <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40 safe-area-bottom">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleFavorite}
-              className={`p-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center ${isFavorite
-                ? "bg-red-50 text-red-600 border-2 border-red-200"
-                : "bg-gray-100 text-gray-700"
-                }`}>
-              <FiHeart
-                className={`text-xl ${isFavorite ? "fill-red-600" : ""}`}
-              />
-            </button>
-            <button
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({
-                    title: product.name,
-                    text: `Check out ${product.name}`,
-                    url: window.location.href,
-                  });
-                } else {
-                  navigator.clipboard.writeText(window.location.href);
-                  toast.success("Link copied to clipboard");
-                }
-              }}
-              className="p-3 bg-gray-100 text-gray-700 rounded-xl font-semibold transition-all duration-300">
-              <FiShare2 className="text-xl" />
-            </button>
-            <button
-              onClick={handleAddToCart}
-              disabled={product.stock === "out_of_stock"}
-              className={`flex-1 py-4 rounded-xl font-semibold text-base transition-all duration-300 flex items-center justify-center gap-2 ${product.stock === "out_of_stock"
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "gradient-green text-white hover:shadow-glow-green"
-                }`}>
-              <FiShoppingBag className="text-xl" />
-              <span>
-                {product.stock === "out_of_stock"
-                  ? "Out of Stock"
-                  : "Add to Cart"}
-              </span>
-            </button>
-          </div>
-        </div>
+
       </MobileLayout>
     </PageTransition>
   );

@@ -158,6 +158,9 @@ export const createProduct = async (productData) => {
       cancelable,
       taxIncluded,
       variants,
+      hasSizes,
+      attributes,
+      productType,
       tags,
       seoTitle,
       seoDescription,
@@ -234,6 +237,9 @@ export const createProduct = async (productData) => {
       returnable: returnable !== undefined ? returnable : true,
       cancelable: cancelable !== undefined ? cancelable : true,
       taxIncluded: taxIncluded || false,
+      hasSizes: hasSizes !== undefined ? hasSizes : true,
+      attributes: attributes || [],
+      productType: productType || 'standard',
       variants: variants || {
         sizes: [],
         colors: [],
@@ -303,6 +309,9 @@ export const updateProduct = async (productId, updateData) => {
       cancelable,
       taxIncluded,
       variants,
+      hasSizes,
+      attributes,
+      productType,
       tags,
       seoTitle,
       seoDescription,
@@ -335,6 +344,9 @@ export const updateProduct = async (productId, updateData) => {
     if (returnable !== undefined) updateObj.returnable = returnable;
     if (cancelable !== undefined) updateObj.cancelable = cancelable;
     if (taxIncluded !== undefined) updateObj.taxIncluded = taxIncluded;
+    if (hasSizes !== undefined) updateObj.hasSizes = hasSizes;
+    if (attributes !== undefined) updateObj.attributes = attributes;
+    if (productType !== undefined) updateObj.productType = productType;
     if (variants !== undefined) updateObj.variants = variants;
     if (tags !== undefined) updateObj.tags = tags || [];
     if (seoTitle !== undefined) updateObj.seoTitle = seoTitle || '';
