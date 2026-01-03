@@ -165,6 +165,8 @@ export const createVendorProduct = async (productData, vendorId) => {
       hsnCode,
       flashSale,
       isNew,
+      isTrending,
+      isFeatured,
       isVisible,
       codAllowed,
       returnable,
@@ -172,6 +174,8 @@ export const createVendorProduct = async (productData, vendorId) => {
       taxIncluded,
       totalAllowedQuantity,
       minimumOrderQuantity,
+      hasSizes,
+      productType,
     } = productData;
 
     // Validate required fields
@@ -621,6 +625,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       flashSale,
       isNew,
       isTrending,
+      isFeatured,
       isVisible,
       codAllowed,
       returnable,
@@ -628,6 +633,8 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       taxIncluded,
       totalAllowedQuantity,
       minimumOrderQuantity,
+      hasSizes,
+      productType,
     } = productData;
 
     // Validate category if provided
@@ -1010,11 +1017,14 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ...(flashSale !== undefined && { flashSale }),
         ...(isNew !== undefined && { isNew }),
         ...(isTrending !== undefined && { isTrending }),
+        ...(isFeatured !== undefined && { isFeatured }),
         ...(isVisible !== undefined && { isVisible }),
         ...(codAllowed !== undefined && { codAllowed }),
         ...(returnable !== undefined && { returnable }),
         ...(cancelable !== undefined && { cancelable }),
         ...(taxIncluded !== undefined && { taxIncluded }),
+        ...(hasSizes !== undefined && { hasSizes }),
+        ...(productType !== undefined && { productType }),
         ...(variants !== undefined && {
           variants: {
             ...(variants.sizes !== undefined && { sizes: variants.sizes }),

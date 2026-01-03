@@ -21,6 +21,7 @@ import { initializeRazorpayCheckout, handlePaymentSuccess, handlePaymentError } 
 import MobileLayout from "../components/Layout/MobileLayout";
 import MobileCheckoutSteps from "../components/Mobile/MobileCheckoutSteps";
 import PageTransition from "../../../shared/components/PageTransition";
+import "../../../shared/styles/orderAnimation.css";
 // import successSound from '../../../data/sounds/success.mp3'; // File not found
 
 const MobileCheckout = () => {
@@ -30,6 +31,7 @@ const MobileCheckout = () => {
   const { addresses, getDefaultAddress, addAddress } = useAddressStore();
   const { createOrder, createOrderAPI, verifyPaymentAPI } = useOrderStore();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Group items by vendor
   const itemsByVendor = useMemo(
@@ -182,17 +184,33 @@ const MobileCheckout = () => {
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
+      if (isAnimating || isProcessingPayment) return;
+
+      // Start animation
+      setIsAnimating(true);
+
       // Check if payment method requires Razorpay
       const onlinePaymentMethods = ['card', 'creditCard', 'debitCard', 'upi', 'wallet'];
       const requiresRazorpay = onlinePaymentMethods.includes(formData.paymentMethod);
 
       if (requiresRazorpay && isAuthenticated) {
-        // Online payment flow with Razorpay
-        await handleOnlinePayment();
+        // For online payment, we start Razorpay after a short delay
+        setTimeout(async () => {
+          try {
+            await handleOnlinePayment();
+          } catch (error) {
+            setIsAnimating(false);
+          }
+        }, 1500);
       } else {
-        // COD or guest order flow
-        handleCODOrder();
+        // For COD, we place order after animation has run for a bit
+        setTimeout(() => {
+          handleCODOrder();
+        }, 1500);
       }
+
+      // Reset animation after 10s as per user request (regardless of success/fail)
+      setTimeout(() => setIsAnimating(false), 10000);
     }
   };
 
@@ -749,33 +767,52 @@ const MobileCheckout = () => {
                       </span>
                     </div>
                   </div>
+
+                  {/* Inline Navigation Buttons (Moved from floating) */}
+                  <div className="mt-8 flex gap-3">
+                    {step > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setStep(step - 1)}
+                        className="h-12 px-6 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm tracking-wide transition-all duration-300 active:scale-95">
+                        BACK
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={isProcessingPayment || (step === 2 && isAnimating)}
+                      className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wide transition-all duration-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${step === 2 ? 'order' : 'bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50'} ${isAnimating ? 'animate' : ''}`}>
+                      {step === 2 ? (
+                        <>
+                          <span className="default">
+                            {isProcessingPayment ? "PROCESSING..." : "PLACE ORDER"}
+                          </span>
+                          <span className="success">
+                            <svg viewBox="0 0 12 10">
+                              <polyline points="1.5 6 4.5 9 10.5 1"></polyline>
+                            </svg>
+                            ORDER PLACED
+                          </span>
+                          <div className="truck">
+                            <div className="back"></div>
+                            <div className="front">
+                              <div className="window"></div>
+                            </div>
+                            <div className="light"></div>
+                          </div>
+                          <div className="box"></div>
+                          <div className="lines"></div>
+                        </>
+                      ) : (
+                        "CONTINUE"
+                      )}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}
 
-            {/* Navigation Buttons */}
-            <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40 safe-area-bottom">
-              <div className="flex gap-3">
-                {step > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setStep(step - 1)}
-                    className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold text-base hover:bg-gray-300 transition-colors">
-                    Back
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={isProcessingPayment}
-                  className="flex-1 gradient-green text-white py-3.5 rounded-xl font-bold text-base hover:shadow-glow-green transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {isProcessingPayment
-                    ? "Processing..."
-                    : step === 2
-                    ? "Place Order"
-                    : "Continue"}
-                </button>
-              </div>
-            </div>
+
           </form>
         </div>
 
