@@ -13,7 +13,8 @@ import logger from '../../utils/logger.js';
  */
 export const getAll = async (req, res, next) => {
   try {
-    const vendorId = req.user ? req.user.id : req.query.vendorId;
+    // Use vendorId from JWT token (preferred) or fallback to id or query param
+    const vendorId = req.user ? (req.user.vendorId || req.user.id) : req.query.vendorId;
     const attributes = await getAllAttributes(vendorId);
     res.status(200).json({
       success: true,
@@ -32,7 +33,8 @@ export const getAll = async (req, res, next) => {
 export const getById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const vendorId = req.user ? req.user.id : null;
+    // Use vendorId from JWT token (preferred) or fallback to id
+    const vendorId = req.user ? (req.user.vendorId || req.user.id) : null;
     const attribute = await getAttributeById(id, vendorId);
     res.status(200).json({
       success: true,
@@ -50,8 +52,20 @@ export const getById = async (req, res, next) => {
  */
 export const create = async (req, res, next) => {
   try {
-    const vendorId = req.user.id;
-    const attribute = await createAttribute(req.body, vendorId);
+    // Use vendorId from JWT token (preferred) or fallback to id
+    // JWT token stores vendorId, not id
+    const vendorId = req.user.vendorId || req.user.id;
+    
+    if (!vendorId) {
+      const err = new Error('Vendor ID not found in token');
+      err.status = 401;
+      return next(err);
+    }
+    
+    // Ensure vendorId is a string for consistency
+    const vendorIdString = vendorId.toString();
+    
+    const attribute = await createAttribute(req.body, vendorIdString);
     
     logger.info(`Vendor ${vendorId} created attribute ${attribute._id}`);
     
@@ -72,7 +86,8 @@ export const create = async (req, res, next) => {
 export const update = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const vendorId = req.user.id;
+    // Use vendorId from JWT token (preferred) or fallback to id
+    const vendorId = req.user.vendorId || req.user.id;
     const attribute = await updateAttribute(id, req.body, vendorId);
     
     logger.info(`Vendor ${vendorId} updated attribute ${id}`);
@@ -94,7 +109,8 @@ export const update = async (req, res, next) => {
 export const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const vendorId = req.user.id;
+    // Use vendorId from JWT token (preferred) or fallback to id
+    const vendorId = req.user.vendorId || req.user.id;
     await deleteAttribute(id, vendorId);
     
     logger.info(`Vendor ${vendorId} deleted attribute ${id}`);

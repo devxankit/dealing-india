@@ -262,27 +262,10 @@ const productSchema = new mongoose.Schema(
       ref: 'Product',
       default: [],
     },
-    attributes: {
-      type: [
-        {
-          attributeId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Attribute',
-            required: true,
-          },
-          attributeName: {
-            type: String,
-            required: true,
-            trim: true,
-          },
-          values: {
-            type: [mongoose.Schema.Types.ObjectId],
-            ref: 'AttributeValue',
-            default: [],
-          },
-        },
-      ],
+    sizes: {
+      type: [String],
       default: [],
+      trim: true,
     },
   },
   {

@@ -1,6 +1,9 @@
 import Order from '../models/Order.model.js';
 import Transaction from '../models/Transaction.model.js';
 import Address from '../models/Address.model.js';
+import User from '../models/User.model.js';
+import Product from '../models/Product.model.js';
+import Vendor from '../models/Vendor.model.js';
 import mongoose from 'mongoose';
 import { createWalletTransaction } from './wallet.service.js';
 
@@ -72,6 +75,14 @@ export const createOrder = async (orderData) => {
       attempts++;
     }
 
+    // Get customer info for snapshot
+    const customer = await User.findById(customerId).select('name email phone').lean();
+    const customerSnapshot = customer ? {
+      name: customer.name || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+    } : {};
+
     // Handle shipping address
     let addressId = null;
     if (shippingAddress) {
@@ -101,28 +112,103 @@ export const createOrder = async (orderData) => {
       }
     }
 
-    // Create order
-    const order = await Order.create(
-      [
+    // Calculate pricing breakdown
+    const calculatedSubtotal = subtotal || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const calculatedShipping = shipping || 0;
+    const calculatedTax = tax || 0;
+    const calculatedDiscount = discount || 0;
+    const calculatedTotal = total || (calculatedSubtotal + calculatedTax + calculatedShipping - calculatedDiscount);
+
+    // Calculate vendor breakdown
+    const vendorBreakdownMap = {};
+    const productIds = items.map(item => item.productId || item.id);
+    const products = await Product.find({ _id: { $in: productIds } })
+      .populate('vendorId', 'name storeName commissionRate')
+      .select('vendorId vendorName')
+      .lean();
+
+    // Group items by vendor and calculate vendor totals
+    items.forEach((item) => {
+      const productId = item.productId || item.id;
+      const product = products.find(p => p._id.toString() === productId.toString());
+      if (!product || !product.vendorId) return;
+
+      const vendorId = product.vendorId._id || product.vendorId;
+      const vendorIdStr = vendorId.toString();
+      
+      if (!vendorBreakdownMap[vendorIdStr]) {
+        const vendor = product.vendorId;
+        vendorBreakdownMap[vendorIdStr] = {
+          vendorId: vendorId,
+          vendorName: product.vendorName || vendor.name || vendor.storeName || 'Unknown Vendor',
+          subtotal: 0,
+          shipping: 0,
+          tax: 0,
+          discount: 0,
+          commission: 0,
+        };
+      }
+
+      const itemTotal = item.price * item.quantity;
+      vendorBreakdownMap[vendorIdStr].subtotal += itemTotal;
+    });
+
+    // Calculate shipping, tax, discount per vendor (proportional to subtotal)
+    const totalSubtotal = Object.values(vendorBreakdownMap).reduce((sum, vb) => sum + vb.subtotal, 0);
+    const vendorBreakdown = Object.values(vendorBreakdownMap).map((vb) => {
+      const ratio = totalSubtotal > 0 ? vb.subtotal / totalSubtotal : 0;
+      vb.shipping = calculatedShipping * ratio;
+      vb.tax = calculatedTax * ratio;
+      vb.discount = calculatedDiscount * ratio;
+      
+      // Calculate commission (default 10% if not set)
+      const vendor = products.find(p => {
+        const pid = p.vendorId?._id || p.vendorId;
+        return pid && pid.toString() === vb.vendorId.toString();
+      });
+      const commissionRate = vendor?.vendorId?.commissionRate || 0.1;
+      vb.commission = vb.subtotal * commissionRate;
+      
+      return vb;
+    });
+
+    // Create order with enhanced fields
+    const orderData = {
+      orderCode,
+      customerId,
+      items: items.map((item) => ({
+        productId: item.productId || item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image,
+      })),
+      total: calculatedTotal,
+      paymentMethod,
+      paymentStatus: paymentMethod === 'cod' || paymentMethod === 'cash' ? 'pending' : 'pending',
+      status: 'pending',
+      shippingAddress: addressId,
+      pricing: {
+        subtotal: calculatedSubtotal,
+        tax: calculatedTax,
+        discount: calculatedDiscount,
+        shipping: calculatedShipping,
+        total: calculatedTotal,
+        couponCode: couponCode || null,
+      },
+      customerSnapshot,
+      vendorBreakdown,
+      statusHistory: [
         {
-          orderCode,
-          customerId,
-          items: items.map((item) => ({
-            productId: item.productId || item.id,
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            image: item.image,
-          })),
-          total,
-          paymentMethod,
-          paymentStatus: paymentMethod === 'cod' || paymentMethod === 'cash' ? 'pending' : 'pending',
           status: 'pending',
-          shippingAddress: addressId,
+          changedByRole: 'user',
+          timestamp: new Date(),
+          note: 'Order placed',
         },
       ],
-      { session }
-    );
+    };
+
+    const order = await Order.create([orderData], { session });
 
     await session.commitTransaction();
     return order[0];
@@ -163,6 +249,14 @@ export const updateOrderPayment = async (orderId, paymentData) => {
       razorpayPaymentId,
       razorpaySignature,
       paymentStatus: status === 'completed' ? 'completed' : 'failed',
+      $push: {
+        statusHistory: {
+          status: status === 'completed' ? 'processing' : order.status,
+          changedByRole: 'system',
+          timestamp: new Date(),
+          note: status === 'completed' ? 'Payment completed, order processing' : 'Payment failed',
+        },
+      },
     };
 
     // If payment completed, update order status
@@ -228,6 +322,7 @@ export const getOrderById = async (orderId, userId = null) => {
       .populate('customerId', 'name email phone')
       .populate('shippingAddress')
       .populate('items.productId', 'name images slug')
+      .populate('vendorBreakdown.vendorId', 'name storeName')
       .lean();
 
     if (!order) {
@@ -264,7 +359,8 @@ export const getUserOrders = async (userId, filters = {}) => {
     const orders = await Order.find(query)
       .populate('shippingAddress')
       .populate('items.productId', 'name images slug')
-      .sort({ orderDate: -1 })
+      .populate('vendorBreakdown.vendorId', 'name storeName')
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
@@ -309,10 +405,31 @@ export const cancelOrder = async (orderId, userId) => {
       throw new Error('Order cannot be cancelled at this stage');
     }
 
-    // Update order status
+    // Prepare cancellation data
+    const cancellationData = {
+      cancelledAt: new Date(),
+      cancelledBy: userId,
+      cancelledByRole: 'user',
+      refundStatus: order.paymentStatus === 'completed' ? 'pending' : undefined,
+      refundAmount: order.paymentStatus === 'completed' ? order.total : undefined,
+    };
+
+    // Update order status with cancellation info and status history
     const updatedOrder = await Order.findByIdAndUpdate(
       order._id,
-      { status: 'cancelled' },
+      {
+        status: 'cancelled',
+        cancellation: cancellationData,
+        $push: {
+          statusHistory: {
+            status: 'cancelled',
+            changedBy: userId,
+            changedByRole: 'user',
+            timestamp: new Date(),
+            note: 'Order cancelled by user',
+          },
+        },
+      },
       { new: true, session }
     );
 

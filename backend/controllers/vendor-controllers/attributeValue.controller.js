@@ -65,10 +65,18 @@ export const create = async (req, res, next) => {
     
     // Log the incoming request for debugging
     logger.info(`Vendor ${vendorId} creating attribute value`, { 
-      payload: req.body 
+      payload: req.body,
+      user: {
+        vendorId: req.user.vendorId,
+        id: req.user.id,
+        role: req.user.role
+      }
     });
     
-    const value = await createAttributeValue(req.body, vendorId);
+    // Ensure vendorId is a string for consistency
+    const vendorIdString = vendorId?.toString();
+    
+    const value = await createAttributeValue(req.body, vendorIdString);
     
     logger.info(`Vendor ${vendorId} created attribute value ${value._id}`);
     
