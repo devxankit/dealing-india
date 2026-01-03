@@ -72,9 +72,20 @@ const app = express();
 const httpServer = http.createServer(app);
 
 // Middleware
-const corsOrigins = process.env.SOCKET_CORS_ORIGIN
-  ? process.env.SOCKET_CORS_ORIGIN.split(',')
-  : ['http://localhost:5173', 'http://localhost:3000', 'https://dealing-india.vercel.app'];
+// Default allowed origins (always included)
+const defaultOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://dealing-india.vercel.app'
+];
+
+// Get origins from environment variable if set
+const envOrigins = process.env.SOCKET_CORS_ORIGIN
+  ? process.env.SOCKET_CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : [];
+
+// Merge and deduplicate origins (environment origins + defaults)
+const corsOrigins = [...new Set([...envOrigins, ...defaultOrigins])];
 
 app.use(cors({
   origin: corsOrigins,
