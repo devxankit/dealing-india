@@ -5,13 +5,11 @@ import { motion } from 'framer-motion';
 import { useCartStore } from '../../../shared/store/useStore';
 import { useWishlistStore } from '../../../shared/store/wishlistStore';
 import { useReviewsStore } from '../../../shared/store/reviewsStore';
-import { getProductById, getSimilarProducts } from '../../../data/products';
-import { getVendorById } from '../../../data/vendors';
+import { getProductById as getProductByIdAPI, getProducts } from '../../../shared/services/productService';
 import { formatPrice } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
 import Badge from '../../../shared/components/Badge';
 import ProductCard from '../../../shared/components/ProductCard';
-import VendorBadge from '../../Vendor/components/VendorBadge';
 import Footer from '../components/Layout/Footer';
 import PageTransition from '../../../shared/components/PageTransition';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
@@ -25,8 +23,10 @@ import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeade
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = getProductById(id);
-  const vendor = product ? getVendorById(product.vendorId) : null;
+  const [product, setProduct] = useState(null);
+  const [vendor, setVendor] = useState(null);
+  const [similarProducts, setSimilarProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [reviewSortBy, setReviewSortBy] = useState('newest');
@@ -38,13 +38,120 @@ const ProductDetail = () => {
   
   const isFavorite = product ? isInWishlist(product.id) : false;
   const productReviews = product ? sortReviews(product.id, reviewSortBy) : [];
-  
+
+  // Fetch product from API
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true);
+        const productData = await getProductByIdAPI(id);
+        
+        if (productData) {
+          // Transform product data to match frontend format
+          const transformedProduct = {
+            id: productData._id || productData.id,
+            name: productData.name,
+            price: productData.price,
+            originalPrice: productData.originalPrice,
+            image: productData.image,
+            images: productData.images || [],
+            unit: productData.unit || 'Piece',
+            rating: productData.rating || 0,
+            reviewCount: productData.reviewCount || 0,
+            stock: productData.stock,
+            stockQuantity: productData.stockQuantity,
+            vendorId: productData.vendorId?._id || productData.vendorId,
+            flashSale: productData.flashSale || false,
+            variants: productData.variants,
+            description: productData.description,
+            sizes: productData.sizes || [],
+            attributes: productData.attributes || [],
+            faqs: productData.faqs || [],
+          };
+          
+          setProduct(transformedProduct);
+          
+          // Handle vendor data
+          const vendorData = productData.vendorId;
+          if (vendorData && typeof vendorData === 'object' && (vendorData._id || vendorData.id)) {
+            setVendor({
+              id: (vendorData._id || vendorData.id).toString(),
+              _id: vendorData._id || vendorData.id,
+              storeName: vendorData.storeName || vendorData.businessName || vendorData.name,
+              businessName: vendorData.businessName,
+              name: vendorData.name,
+              storeLogo: vendorData.storeLogo || vendorData.logo,
+              isVerified: vendorData.isVerified !== undefined 
+                ? vendorData.isVerified 
+                : (vendorData.status === 'approved' || vendorData.isEmailVerified || false),
+              rating: vendorData.rating || 0,
+              reviewCount: vendorData.reviewCount || 0,
+            });
+          }
+          
+          // Fetch similar products (same category)
+          if (productData.categoryId) {
+            try {
+              const similarResponse = await getProducts({
+                categoryId: productData.categoryId._id || productData.categoryId,
+                limit: 6,
+              });
+              
+              const transformProduct = (p) => ({
+                id: p._id || p.id,
+                name: p.name,
+                price: p.price,
+                originalPrice: p.originalPrice,
+                image: p.image,
+                images: p.images || [],
+                unit: p.unit || 'Piece',
+                rating: p.rating || 0,
+                reviewCount: p.reviewCount || 0,
+                stock: p.stock,
+                stockQuantity: p.stockQuantity,
+                vendorId: p.vendorId?._id || p.vendorId,
+                flashSale: p.flashSale || false,
+              });
+              
+              const similar = (similarResponse.data?.products || similarResponse.products || [])
+                .filter(p => (p._id || p.id) !== transformedProduct.id)
+                .slice(0, 6)
+                .map(transformProduct);
+              setSimilarProducts(similar);
+            } catch (error) {
+              console.error('Error fetching similar products:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        toast.error('Failed to load product');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProduct();
+    }
+  }, [id]);
+
   // Initialize variant if product has variants
   useEffect(() => {
     if (product?.variants?.defaultVariant) {
       setSelectedVariant(product.variants.defaultVariant);
     }
   }, [product]);
+
+  if (isLoading) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      </PageTransition>
+    );
+  }
 
   if (!product) {
     return (
@@ -124,12 +231,6 @@ const ProductDetail = () => {
       setQuantity(newQuantity);
     }
   };
-
-  // Get similar/recommended products
-  const similarProducts = useMemo(() => {
-    if (!product) return [];
-    return getSimilarProducts(product.id, 6);
-  }, [product?.id]);
 
   // Get product images for ImageGallery
   const productImages = useMemo(() => {
@@ -351,15 +452,64 @@ const ProductDetail = () => {
                 </div>
               )}
 
+              {/* Attributes Section */}
+              {product.attributes &&
+                product.attributes.filter((attr) => (attr.name && attr.value) || (attr.attributeId && attr.values && attr.values.length > 0)).length >
+                  0 && (
+                  <div className="border-t border-gray-200 pt-6 mt-6">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">
+                      Product Specifications
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {product.attributes
+                        .filter((attr) => (attr.name && attr.value) || (attr.attributeId && attr.values && attr.values.length > 0))
+                        .map((attr, index) => {
+                          const name = attr.name || attr.attributeName || (attr.attributeId && attr.attributeId.name);
+                          const value = attr.value || (attr.values && attr.values.map(v => v.value || v).join(', '));
+                          
+                          if (!name || !value) return null;
+
+                          return (
+                            <div key={index} className="flex flex-col py-2 border-b border-gray-50">
+                              <span className="text-gray-500 text-sm mb-1">{name}</span>
+                              <span className="text-gray-900 font-medium">{value}</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
               {/* Product Description */}
-              <div className="border-t border-gray-200 pt-6">
+              <div className="border-t border-gray-200 pt-6 mt-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-3">Description</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  High-quality {product.name.toLowerCase()} available in {product.unit.toLowerCase()}. 
-                  This product is carefully selected to ensure the best quality and freshness. 
-                  Perfect for your daily needs with excellent value for money.
+                  {product.description || `High-quality ${product.name.toLowerCase()} available in ${product.unit.toLowerCase()}. This product is carefully selected to ensure the best quality and freshness. Perfect for your daily needs with excellent value for money.`}
                 </p>
               </div>
+
+              {/* FAQs Section */}
+              {product.faqs && product.faqs.length > 0 && (
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">
+                    Frequently Asked Questions
+                  </h3>
+                  <div className="space-y-4">
+                    {product.faqs.map((faq, index) => (
+                      <div key={index} className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="font-bold text-gray-800 mb-2 flex items-start gap-2">
+                          <span className="text-primary-600 font-bold">Q:</span>
+                          {faq.question}
+                        </h4>
+                        <p className="text-gray-600 flex items-start gap-2">
+                          <span className="text-accent-600 font-bold">A:</span>
+                          {faq.answer}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

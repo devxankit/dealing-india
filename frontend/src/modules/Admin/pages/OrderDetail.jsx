@@ -19,46 +19,60 @@ import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
-import { mockOrders } from '../../../data/adminMockData';
-import { products, getProductById } from '../../../data/products';
+import { getAdminOrderById, updateAdminOrderStatus } from '../../../shared/services/orderService';
 import toast from 'react-hot-toast';
 
 const OrderDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    const savedOrders = localStorage.getItem('admin-orders');
-    const orders = savedOrders ? JSON.parse(savedOrders) : mockOrders;
-    const foundOrder = orders.find((o) => o.id === id);
-    
-    if (foundOrder) {
-      setOrder(foundOrder);
-      setStatus(foundOrder.status);
-    } else {
-      toast.error('Order not found');
-      navigate('/admin/orders');
-    }
+    const fetchOrder = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const response = await getAdminOrderById(id);
+        if (response.success && response.data?.order) {
+          setOrder(response.data.order);
+          setStatus(response.data.order.status);
+        } else {
+          toast.error('Order not found');
+          navigate('/admin/orders');
+        }
+      } catch (error) {
+        console.error('Error fetching order:', error);
+        toast.error('Failed to load order');
+        navigate('/admin/orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
   }, [id, navigate]);
 
-  const handleStatusUpdate = () => {
-    const savedOrders = localStorage.getItem('admin-orders');
-    const orders = savedOrders ? JSON.parse(savedOrders) : mockOrders;
-    
-    const updatedOrders = orders.map((o) =>
-      o.id === id ? { ...o, status } : o
-    );
-    
-    localStorage.setItem('admin-orders', JSON.stringify(updatedOrders));
-    setOrder({ ...order, status });
-    setIsEditing(false);
-    toast.success('Order status updated successfully');
+  const handleStatusUpdate = async () => {
+    try {
+      const response = await updateAdminOrderStatus(id, status);
+      if (response.success) {
+        setOrder(prev => prev ? { ...prev, status } : null);
+        setIsEditing(false);
+        toast.success('Order status updated successfully');
+      } else {
+        toast.error('Failed to update order status');
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error(error.response?.data?.message || 'Failed to update order status');
+    }
   };
 
-  if (!order) {
+  if (loading || !order) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Loading...</p>
@@ -66,17 +80,29 @@ const OrderDetail = () => {
     );
   }
 
-  const statusOptions = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+  const statusOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'processing', label: 'Processing' },
+    { value: 'ready_to_ship', label: 'Ready to Ship' },
+    { value: 'dispatched', label: 'Dispatched' },
+    { value: 'shipped', label: 'Shipped' },
+    { value: 'shipped_seller', label: 'Shipped (Seller)' },
+    { value: 'delivered', label: 'Delivered' },
+    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'on_hold', label: 'On Hold' },
+  ];
 
-  // Handle items - could be a number or an array
-  const itemsCount = Array.isArray(order.items) ? order.items.length : (typeof order.items === 'number' ? order.items : 0);
+  // Handle items - should be an array from API
   const itemsArray = Array.isArray(order.items) ? order.items : [];
+  const itemsCount = itemsArray.length;
 
-  // Calculate order breakdown
-  const subtotal = order.subtotal || (order.total * 0.95);
-  const shipping = order.shipping || (order.total * 0.05);
-  const tax = order.tax || 0;
-  const discount = order.discount || 0;
+  // Calculate order breakdown from pricing object or calculate
+  const pricing = order.pricing || {};
+  const orderTotal = pricing.total || order.total || 0;
+  const subtotal = pricing.subtotal || (orderTotal > 0 ? orderTotal * 0.95 : 0);
+  const shipping = pricing.shipping || (orderTotal > 0 ? orderTotal * 0.05 : 0);
+  const tax = pricing.tax || 0;
+  const discount = pricing.discount || 0;
 
   // Get payment method display name
   const getPaymentMethodName = (method) => {
@@ -91,28 +117,15 @@ const OrderDetail = () => {
     return methods[method.toLowerCase()] || method;
   };
 
-  // Get product image - try item.image, then product by ID, then product by name, then placeholder
+  // Get product image - try item.image, then productId populated image, then placeholder
   const getProductImage = (item) => {
     if (item.image) {
       return item.image;
     }
     
-    // Try to find product by ID
-    if (item.productId || item.id) {
-      const product = getProductById(item.productId || item.id);
-      if (product?.image) {
-        return product.image;
-      }
-    }
-    
-    // Try to find product by name
-    if (item.name) {
-      const product = products.find(p => 
-        p.name.toLowerCase() === item.name.toLowerCase()
-      );
-      if (product?.image) {
-        return product.image;
-      }
+    // Try populated productId images
+    if (item.productId?.images && Array.isArray(item.productId.images) && item.productId.images.length > 0) {
+      return item.productId.images[0];
     }
     
     // Return placeholder
@@ -135,8 +148,8 @@ const OrderDetail = () => {
             <FiArrowLeft className="text-lg text-gray-600" />
           </button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{order.id}</h1>
-            <p className="text-xs text-gray-500">{formatDateTime(order.date)}</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Order #{order.orderCode || order.id || order._id}</h1>
+            <p className="text-xs text-gray-500">{formatDateTime(order.orderDate || order.createdAt || order.date)}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -198,7 +211,7 @@ const OrderDetail = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <p className="text-xs text-gray-500 mb-0.5">Total</p>
-                  <p className="font-bold text-gray-800 text-lg">{formatCurrency(order.total)}</p>
+                  <p className="font-bold text-gray-800 text-lg">{formatCurrency(order.pricing?.total || order.total || 0)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 mb-0.5">Items</p>
@@ -228,27 +241,35 @@ const OrderDetail = () => {
                 Order Items ({itemsCount})
               </h2>
               <div className="space-y-2">
-                {itemsArray.map((item) => (
-                  <div key={item.id || item.name} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
-                    <img
-                      src={getProductImage(item)}
-                      alt={item.name || 'Product'}
-                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                      onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/100x100?text=Product';
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-gray-800 truncate">{item.name || 'Unknown Product'}</p>
-                      <p className="text-xs text-gray-600">
-                        {formatCurrency(item.price || 0)} × {item.quantity || 1}
+                {itemsArray.map((item, idx) => {
+                  const itemId = item._id || item.id || item.productId?._id || idx;
+                  const itemImage = getProductImage(item);
+                  const itemName = item.name || item.productId?.name || 'Unknown Product';
+                  const itemPrice = item.price || 0;
+                  const itemQuantity = item.quantity || 1;
+                  
+                  return (
+                    <div key={itemId} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                      <img
+                        src={itemImage}
+                        alt={itemName}
+                        className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                        onError={(e) => {
+                          e.target.src = 'https://via.placeholder.com/100x100?text=Product';
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-gray-800 truncate">{itemName}</p>
+                        <p className="text-xs text-gray-600">
+                          {formatCurrency(itemPrice)} × {itemQuantity}
+                        </p>
+                      </div>
+                      <p className="font-bold text-sm text-gray-800">
+                        {formatCurrency(itemPrice * itemQuantity)}
                       </p>
                     </div>
-                    <p className="font-bold text-sm text-gray-800">
-                      {formatCurrency((item.price || 0) * (item.quantity || 1))}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -265,19 +286,19 @@ const OrderDetail = () => {
                 <div className="space-y-2">
                   <div>
                     <p className="text-xs text-gray-500">Name</p>
-                    <p className="font-semibold text-sm text-gray-800">{order.customer?.name || order.shippingAddress?.name || 'N/A'}</p>
+                    <p className="font-semibold text-sm text-gray-800">{order.customerSnapshot?.name || order.customerId?.name || order.customer?.name || order.shippingAddress?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Email</p>
-                    <p className="font-semibold text-xs text-gray-800 break-all">{order.customer?.email || order.shippingAddress?.email || 'N/A'}</p>
+                    <p className="font-semibold text-xs text-gray-800 break-all">{order.customerSnapshot?.email || order.customerId?.email || order.customer?.email || order.shippingAddress?.email || 'N/A'}</p>
                   </div>
-                  {(order.customer?.phone || order.shippingAddress?.phone) && (
+                  {(order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone) && (
                     <div>
                       <p className="text-xs text-gray-500 flex items-center gap-1">
                         <FiPhone className="text-xs" />
                         Phone
                       </p>
-                      <p className="font-semibold text-sm text-gray-800">{order.customer?.phone || order.shippingAddress?.phone}</p>
+                      <p className="font-semibold text-sm text-gray-800">{order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone}</p>
                     </div>
                   )}
                 </div>
@@ -314,35 +335,38 @@ const OrderDetail = () => {
           </div>
 
           {/* Tracking & Delivery Compact */}
-          {(order.trackingNumber || order.estimatedDelivery || order.deliveredDate) && (
+          {(order.tracking?.trackingNumber || order.trackingNumber || order.tracking?.estimatedDelivery || order.estimatedDelivery || order.tracking?.deliveredAt || order.deliveredDate) && (
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
                 <FiTruck className="text-primary-600 text-base" />
                 Tracking & Delivery
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {order.trackingNumber && (
+                {(order.tracking?.trackingNumber || order.trackingNumber) && (
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5">Tracking Number</p>
-                    <p className="font-semibold text-xs text-gray-800 font-mono">{order.trackingNumber}</p>
+                    <p className="font-semibold text-xs text-gray-800 font-mono">{order.tracking?.trackingNumber || order.trackingNumber}</p>
+                    {order.tracking?.carrier && (
+                      <p className="text-xs text-gray-400 mt-0.5">Carrier: {order.tracking.carrier}</p>
+                    )}
                   </div>
                 )}
-                {order.estimatedDelivery && (
+                {(order.tracking?.estimatedDelivery || order.estimatedDelivery) && (
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
                       <FiClock className="text-xs" />
                       Est. Delivery
                     </p>
-                    <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.estimatedDelivery)}</p>
+                    <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.tracking?.estimatedDelivery || order.estimatedDelivery)}</p>
                   </div>
                 )}
-                {order.deliveredDate && (
+                {(order.tracking?.deliveredAt || order.deliveredDate) && (
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
                       <FiPackage className="text-xs" />
                       Delivered
                     </p>
-                    <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.deliveredDate)}</p>
+                    <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.tracking?.deliveredAt || order.deliveredDate)}</p>
                   </div>
                 )}
               </div>
@@ -384,7 +408,7 @@ const OrderDetail = () => {
               </div>
               <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between">
                 <span className="font-bold text-gray-800">Total</span>
-                <span className="font-bold text-lg text-gray-800">{formatCurrency(order.total)}</span>
+                <span className="font-bold text-lg text-gray-800">{formatCurrency(order.pricing?.total || order.total || 0)}</span>
               </div>
             </div>
           </div>
@@ -400,7 +424,13 @@ const OrderDetail = () => {
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-gray-800">Order Placed</p>
-                  <p className="text-xs text-gray-500">{formatDateTime(order.date)}</p>
+                  <p className="text-xs text-gray-500">{formatDateTime(order.orderDate || order.createdAt || order.date)}</p>
+                  {order.statusHistory && order.statusHistory.length > 0 && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {order.statusHistory.find(h => h.status === 'pending')?.timestamp && 
+                        `Updated: ${formatDateTime(order.statusHistory.find(h => h.status === 'pending').timestamp)}`}
+                    </p>
+                  )}
                 </div>
               </div>
               {order.status === 'processing' && (
@@ -412,13 +442,15 @@ const OrderDetail = () => {
                   </div>
                 </div>
               )}
-              {order.status === 'shipped' && (
+              {(order.status === 'shipped' || order.status === 'shipped_seller' || order.status === 'dispatched') && (
                 <div className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800">Shipped</p>
-                    {order.shippedDate && (
-                      <p className="text-xs text-gray-500">{formatDateTime(order.shippedDate)}</p>
+                    {(order.statusHistory?.find(h => ['shipped', 'shipped_seller', 'dispatched'].includes(h.status))?.timestamp || order.tracking?.estimatedDelivery) && (
+                      <p className="text-xs text-gray-500">
+                        {formatDateTime(order.statusHistory?.find(h => ['shipped', 'shipped_seller', 'dispatched'].includes(h.status))?.timestamp || order.tracking?.estimatedDelivery)}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -428,8 +460,10 @@ const OrderDetail = () => {
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800">Delivered</p>
-                    {order.deliveredDate && (
-                      <p className="text-xs text-gray-500">{formatDateTime(order.deliveredDate)}</p>
+                    {(order.statusHistory?.find(h => h.status === 'delivered')?.timestamp || order.tracking?.deliveredAt || order.deliveredDate) && (
+                      <p className="text-xs text-gray-500">
+                        {formatDateTime(order.statusHistory?.find(h => h.status === 'delivered')?.timestamp || order.tracking?.deliveredAt || order.deliveredDate)}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -439,8 +473,13 @@ const OrderDetail = () => {
                   <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800">Cancelled</p>
-                    {order.cancelledDate && (
-                      <p className="text-xs text-gray-500">{formatDateTime(order.cancelledDate)}</p>
+                    {(order.statusHistory?.find(h => h.status === 'cancelled')?.timestamp || order.cancellation?.cancelledAt || order.cancelledDate) && (
+                      <p className="text-xs text-gray-500">
+                        {formatDateTime(order.statusHistory?.find(h => h.status === 'cancelled')?.timestamp || order.cancellation?.cancelledAt || order.cancelledDate)}
+                      </p>
+                    )}
+                    {order.cancellation?.reason && (
+                      <p className="text-xs text-gray-400 mt-0.5">Reason: {order.cancellation.reason}</p>
                     )}
                   </div>
                 </div>
@@ -452,27 +491,27 @@ const OrderDetail = () => {
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
             <h2 className="text-sm font-bold text-gray-800 mb-3">Quick Actions</h2>
             <div className="space-y-1.5">
-              {order.trackingNumber && (
+              {(order.tracking?.trackingNumber || order.trackingNumber) && (
                 <button
-                  onClick={() => window.open(`/track-order/${order.id}`, '_blank')}
+                  onClick={() => window.open(`/track-order/${order._id || order.id || order.orderCode}`, '_blank')}
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-semibold"
                 >
                   <FiTruck className="text-sm" />
                   Track Order
                 </button>
               )}
-              {order.customer?.email && (
+              {(order.customerSnapshot?.email || order.customerId?.email || order.customer?.email) && (
                 <button
-                  onClick={() => window.location.href = `mailto:${order.customer.email}`}
+                  onClick={() => window.location.href = `mailto:${order.customerSnapshot?.email || order.customerId?.email || order.customer?.email}`}
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-semibold"
                 >
                   <FiMail className="text-sm" />
                   Email Customer
                 </button>
               )}
-              {(order.customer?.phone || order.shippingAddress?.phone) && (
+              {(order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone) && (
                 <button
-                  onClick={() => window.location.href = `tel:${order.customer?.phone || order.shippingAddress?.phone}`}
+                  onClick={() => window.location.href = `tel:${order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone}`}
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-semibold"
                 >
                   <FiPhone className="text-sm" />

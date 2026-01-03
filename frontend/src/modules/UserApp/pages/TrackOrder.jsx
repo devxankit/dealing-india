@@ -1,26 +1,64 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiCheckCircle, FiClock, FiPackage, FiTruck, FiMapPin, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
-import { useOrderStore } from '../../../shared/store/orderStore';
+import { getOrderById } from '../../../shared/services/orderService';
 import { formatPrice } from '../../../shared/utils/helpers';
 import PageTransition from '../../../shared/components/PageTransition';
 import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
 import Badge from '../../../shared/components/Badge';
 import LazyImage from '../../../shared/components/LazyImage';
+import toast from 'react-hot-toast';
 
 const MobileTrackOrder = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { getOrder } = useOrderStore();
-  const order = getOrder(orderId);
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!order) {
-      navigate('/app/orders');
-    }
-  }, [order, navigate]);
+    const fetchOrder = async () => {
+      if (!orderId) {
+        navigate('/app/orders');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await getOrderById(orderId);
+        if (response.success && response.data?.order) {
+          setOrder(response.data.order);
+        } else {
+          toast.error('Order not found');
+          navigate('/app/orders');
+        }
+      } catch (error) {
+        console.error('Error fetching order:', error);
+        toast.error('Failed to load order');
+        navigate('/app/orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
+  }, [orderId, navigate]);
+
+  if (loading) {
+    return (
+      <PageTransition>
+        <MobileLayout showBottomNav={false} showCartBar={false}>
+          <div className="flex items-center justify-center min-h-[60vh] px-4">
+            <div className="text-center">
+              <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Loading order...</h2>
+            </div>
+          </div>
+        </MobileLayout>
+      </PageTransition>
+    );
+  }
 
   if (!order) {
     return (
@@ -53,31 +91,39 @@ const MobileTrackOrder = () => {
   };
 
   const getTrackingSteps = () => {
+    const statusHistory = order.statusHistory || [];
+    const orderDate = order.orderDate || order.createdAt || order.date;
+    
+    // Find timestamps from status history
+    const pendingEntry = statusHistory.find(h => h.status === 'pending') || { timestamp: orderDate };
+    const processingEntry = statusHistory.find(h => h.status === 'processing');
+    const shippedEntry = statusHistory.find(h => ['shipped', 'shipped_seller', 'dispatched'].includes(h.status));
+    const deliveredEntry = statusHistory.find(h => h.status === 'delivered') || 
+      (order.tracking?.deliveredAt ? { timestamp: order.tracking.deliveredAt } : null);
+
     const steps = [
       {
         label: 'Order Placed',
         completed: true,
-        date: order.date,
+        date: pendingEntry?.timestamp || orderDate,
         icon: FiCheckCircle,
       },
       {
         label: 'Processing',
-        completed: ['processing', 'shipped', 'delivered'].includes(order.status),
-        date: order.status !== 'pending' ? new Date(new Date(order.date).getTime() + 24 * 60 * 60 * 1000).toISOString() : null,
+        completed: ['processing', 'ready_to_ship', 'dispatched', 'shipped', 'shipped_seller', 'delivered'].includes(order.status),
+        date: processingEntry?.timestamp || (order.status !== 'pending' && order.status !== 'cancelled' ? new Date(new Date(orderDate).getTime() + 24 * 60 * 60 * 1000).toISOString() : null),
         icon: FiPackage,
       },
       {
         label: 'Shipped',
-        completed: ['shipped', 'delivered'].includes(order.status),
-        date: order.status === 'shipped' || order.status === 'delivered'
-          ? new Date(new Date(order.date).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString()
-          : null,
+        completed: ['shipped', 'shipped_seller', 'dispatched', 'delivered'].includes(order.status),
+        date: shippedEntry?.timestamp || (['shipped', 'shipped_seller', 'dispatched', 'delivered'].includes(order.status) ? new Date(new Date(orderDate).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString() : null),
         icon: FiTruck,
       },
       {
         label: 'Delivered',
         completed: order.status === 'delivered',
-        date: order.status === 'delivered' ? order.estimatedDelivery : null,
+        date: deliveredEntry?.timestamp || (order.status === 'delivered' ? order.tracking?.deliveredAt : null) || (order.tracking?.estimatedDelivery && order.status === 'delivered' ? order.tracking.estimatedDelivery : null),
         icon: FiCheckCircle,
       },
     ];
@@ -102,9 +148,9 @@ const MobileTrackOrder = () => {
                 </button>
                 <div className="flex-1">
                   <h1 className="text-xl font-bold text-gray-800">Track Order</h1>
-                  <p className="text-sm text-gray-600">Order #{order.id}</p>
+                  <p className="text-sm text-gray-600">Order #{order.orderCode || order.id || order._id}</p>
                 </div>
-                <Badge variant={order.status}>{order.status.toUpperCase()}</Badge>
+                <Badge status={order.status}>{order.status?.toUpperCase() || 'PENDING'}</Badge>
               </div>
             </div>
 
@@ -137,69 +183,91 @@ const MobileTrackOrder = () => {
               </div>
 
               {/* Tracking Number */}
-              {order.trackingNumber && (
+              {(order.tracking?.trackingNumber || order.trackingNumber) && (
                 <div className="glass-card rounded-2xl p-4">
                   <h2 className="text-base font-bold text-gray-800 mb-2">Tracking Number</h2>
-                  <p className="text-lg font-bold text-primary-600">{order.trackingNumber}</p>
+                  <p className="text-lg font-bold text-primary-600">{order.tracking?.trackingNumber || order.trackingNumber}</p>
+                  {order.tracking?.carrier && (
+                    <p className="text-sm text-gray-600 mt-1">Carrier: {order.tracking.carrier}</p>
+                  )}
+                  {order.tracking?.estimatedDelivery && (
+                    <p className="text-xs text-gray-500 mt-1">Estimated Delivery: {formatDate(order.tracking.estimatedDelivery)}</p>
+                  )}
                 </div>
               )}
 
               {/* Shipping Address */}
-              <div className="glass-card rounded-2xl p-4">
-                <h2 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <FiMapPin className="text-primary-600" />
-                  Shipping Address
-                </h2>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p className="font-semibold text-gray-800">{order.shippingAddress.name}</p>
-                  <p>{order.shippingAddress.address}</p>
-                  <p>
-                    {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
-                    {order.shippingAddress.zipCode}
-                  </p>
+              {order.shippingAddress && (
+                <div className="glass-card rounded-2xl p-4">
+                  <h2 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <FiMapPin className="text-primary-600" />
+                    Shipping Address
+                  </h2>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p className="font-semibold text-gray-800">{order.shippingAddress.name || order.shippingAddress.fullName || 'N/A'}</p>
+                    {order.shippingAddress.address && <p>{order.shippingAddress.address}</p>}
+                    {(order.shippingAddress.city || order.shippingAddress.state || order.shippingAddress.zipCode) && (
+                      <p>
+                        {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
+                        {order.shippingAddress.zipCode}
+                      </p>
+                    )}
+                    {order.shippingAddress.country && <p>{order.shippingAddress.country}</p>}
+                    {order.shippingAddress.phone && <p className="mt-2">Phone: {order.shippingAddress.phone}</p>}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Order Items */}
-              <div className="glass-card rounded-2xl p-4">
-                <h2 className="text-base font-bold text-gray-800 mb-3">Order Items</h2>
-                <div className="space-y-3">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                        <LazyImage
-                          src={item.image}
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-800 text-sm mb-1">{item.name}</h3>
-                        <p className="text-xs text-gray-600">
-                          {formatPrice(item.price)} × {item.quantity}
-                        </p>
-                      </div>
-                      <p className="font-bold text-gray-800 text-sm">
-                        {formatPrice(item.price * item.quantity)}
-                      </p>
-                    </div>
-                  ))}
+              {order.items && order.items.length > 0 && (
+                <div className="glass-card rounded-2xl p-4">
+                  <h2 className="text-base font-bold text-gray-800 mb-3">Order Items</h2>
+                  <div className="space-y-3">
+                    {order.items.map((item, idx) => {
+                      const itemId = item._id || item.id || item.productId?._id || idx;
+                      const itemImage = item.image || item.productId?.images?.[0] || '/placeholder.png';
+                      const itemName = item.name || item.productId?.name || 'Product';
+                      const itemPrice = item.price || 0;
+                      const itemQuantity = item.quantity || 1;
+                      
+                      return (
+                        <div key={itemId} className="flex items-center gap-3">
+                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                            <LazyImage
+                              src={itemImage}
+                              alt={itemName}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-800 text-sm mb-1">{itemName}</h3>
+                            <p className="text-xs text-gray-600">
+                              {formatPrice(itemPrice)} × {itemQuantity}
+                            </p>
+                          </div>
+                          <p className="font-bold text-gray-800 text-sm">
+                            {formatPrice(itemPrice * itemQuantity)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Estimated Delivery */}
-              {order.estimatedDelivery && (
+              {(order.tracking?.estimatedDelivery || order.estimatedDelivery) && (
                 <div className="glass-card rounded-2xl p-4">
                   <h2 className="text-base font-bold text-gray-800 mb-2">Estimated Delivery</h2>
                   <p className="text-lg font-semibold text-primary-600">
-                    {formatDate(order.estimatedDelivery)}
+                    {formatDate(order.tracking?.estimatedDelivery || order.estimatedDelivery)}
                   </p>
                 </div>
               )}
 
               {/* Actions */}
               <button
-                onClick={() => navigate(`/app/orders/${order.id}`)}
+                onClick={() => navigate(`/app/orders/${order._id || order.id || order.orderCode}`)}
                 className="w-full py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all"
               >
                 View Order Details

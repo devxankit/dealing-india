@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiDownload, FiPrinter } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { formatPrice } from "../../../../shared/utils/helpers";
-import { mockOrders } from "../../../../data/adminMockData";
+import { getAdminOrderById } from "../../../../shared/services/orderService";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import toast from "react-hot-toast";
 import logoImage from "../../../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
@@ -12,24 +12,40 @@ const Invoice = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
   const { settings } = useSettingsStore();
   const storeLogo = settings?.general?.storeLogo || logoImage;
   const storeName = settings?.general?.storeName || "Appzeto E-commerce";
 
   useEffect(() => {
-    const savedOrders = localStorage.getItem("admin-orders");
-    const orders = savedOrders ? JSON.parse(savedOrders) : mockOrders;
-    const foundOrder = orders.find((o) => o.id === id);
+    const fetchOrder = async () => {
+      if (!id) {
+        navigate("/admin/orders/all-orders");
+        return;
+      }
 
-    if (foundOrder) {
-      setOrder(foundOrder);
-    } else {
-      toast.error("Order not found");
-      navigate("/admin/orders/all-orders");
-    }
+      try {
+        setLoading(true);
+        const response = await getAdminOrderById(id);
+        if (response.success && response.data?.order) {
+          setOrder(response.data.order);
+        } else {
+          toast.error("Order not found");
+          navigate("/admin/orders/all-orders");
+        }
+      } catch (error) {
+        console.error("Error fetching order:", error);
+        toast.error("Failed to load order");
+        navigate("/admin/orders/all-orders");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrder();
   }, [id, navigate]);
 
-  if (!order) {
+  if (loading || !order) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Loading...</p>
@@ -37,25 +53,16 @@ const Invoice = () => {
     );
   }
 
-  // Get order items - handle both array and number formats
-  const items = Array.isArray(order.items)
-    ? order.items
-    : Array.from({ length: order.items || 1 }, (_, i) => ({
-        id: i + 1,
-        name: `Item ${i + 1}`,
-        quantity: 1,
-        price: (order.total || 0) / (order.items || 1),
-      }));
+  // Get order items
+  const items = Array.isArray(order.items) ? order.items : [];
 
-  // Calculate totals
-  const subtotal = order.subtotal || order.total || 0;
-  const tax = order.tax || 0;
-  const discount = order.discount || 0;
-  const shipping = order.shipping || 0;
-  const finalTotal =
-    order.finalTotal !== undefined
-      ? order.finalTotal
-      : subtotal + tax + shipping - discount;
+  // Calculate totals from pricing object or fallback
+  const pricing = order.pricing || {};
+  const subtotal = pricing.subtotal || order.subtotal || order.total * 0.95 || 0;
+  const tax = pricing.tax || order.tax || 0;
+  const discount = pricing.discount || order.discount || 0;
+  const shipping = pricing.shipping || order.shipping || 0;
+  const finalTotal = pricing.total || order.total || (subtotal + tax + shipping - discount);
 
   // Format payment method
   const formatPaymentMethod = (method) => {
@@ -76,16 +83,16 @@ const Invoice = () => {
   const handleDownload = () => {
     const invoiceText = `
 INVOICE
-Order #${order.id}
-Date: ${new Date(order.date).toLocaleString()}
+Order #${order.orderCode || order.id}
+Date: ${new Date(order.orderDate || order.createdAt || order.date).toLocaleString()}
 
 Customer Information:
-${order.customer?.name || "N/A"}
-${order.customer?.email || "N/A"}
-${order.customer?.phone || order.shippingAddress?.phone || ""}
+${order.customerSnapshot?.name || order.customerId?.name || order.customer?.name || "N/A"}
+${order.customerSnapshot?.email || order.customerId?.email || order.customer?.email || "N/A"}
+${order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone || ""}
 
 Shipping Address:
-${order.shippingAddress?.name || order.customer?.name || "N/A"}
+${order.shippingAddress?.name || order.customerSnapshot?.name || order.customerId?.name || "N/A"}
 ${order.shippingAddress?.address || "N/A"}
 ${order.shippingAddress?.city || ""}, ${order.shippingAddress?.state || ""} ${
       order.shippingAddress?.zipCode || ""
@@ -93,14 +100,14 @@ ${order.shippingAddress?.city || ""}, ${order.shippingAddress?.state || ""} ${
 ${order.shippingAddress?.country || ""}
 
 Items:
-${items
+${items.length > 0 ? items
   .map(
     (item) =>
-      `- ${item.name || "Item"} x${item.quantity || 1} - ${formatPrice(
+      `- ${item.name || item.productId?.name || "Item"} x${item.quantity || 1} - ${formatPrice(
         (item.price || 0) * (item.quantity || 1)
       )}`
   )
-  .join("\n")}
+  .join("\n") : "No items"}
 
 Subtotal: ${formatPrice(subtotal)}
 ${discount > 0 ? `Discount: -${formatPrice(discount)}\n` : ""}
@@ -110,14 +117,14 @@ Total: ${formatPrice(finalTotal)}
 
 Payment Method: ${formatPaymentMethod(order.paymentMethod)}
 Status: ${order.status}
-${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
+${order.tracking?.trackingNumber || order.trackingNumber ? `Tracking Number: ${order.tracking?.trackingNumber || order.trackingNumber}` : ""}
     `.trim();
 
     const blob = new Blob([invoiceText], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `invoice-${order.id}.txt`;
+    a.download = `invoice-${order.orderCode || order.id}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -148,7 +155,7 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
                   Invoice
                 </h1>
-                <p className="text-xs text-gray-500">Order #{order.id}</p>
+                <p className="text-xs text-gray-500">Order #{order.orderCode || order.id}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -197,10 +204,10 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
           <div className="mt-6">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">INVOICE</h2>
             <p className="text-gray-600">
-              Order #<span className="font-semibold">{order.id}</span>
+              Order #<span className="font-semibold">{order.orderCode || order.id}</span>
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              Date: {new Date(order.date).toLocaleString()}
+              Date: {new Date(order.orderDate || order.createdAt || order.date).toLocaleString()}
             </p>
           </div>
         </div>
@@ -212,9 +219,11 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
               Bill To
             </h3>
             <div className="text-sm text-gray-700 space-y-1">
-              <p className="font-semibold">{order.customer?.name || "N/A"}</p>
-              <p>{order.customer?.email || "N/A"}</p>
-              {order.customer?.phone && <p>{order.customer.phone}</p>}
+              <p className="font-semibold">{order.customerSnapshot?.name || order.customerId?.name || order.customer?.name || "N/A"}</p>
+              <p>{order.customerSnapshot?.email || order.customerId?.email || order.customer?.email || "N/A"}</p>
+              {(order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone) && (
+                <p>{order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone}</p>
+              )}
             </div>
           </div>
           {order.shippingAddress && (
@@ -224,7 +233,7 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
               </h3>
               <div className="text-sm text-gray-700 space-y-1">
                 <p className="font-semibold">
-                  {order.shippingAddress.name || order.customer?.name || "N/A"}
+                  {order.shippingAddress.name || order.customerSnapshot?.name || order.customerId?.name || "N/A"}
                 </p>
                 {order.shippingAddress.address && (
                   <p>{order.shippingAddress.address}</p>
@@ -244,6 +253,9 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
                 )}
                 {order.shippingAddress.country && (
                   <p>{order.shippingAddress.country}</p>
+                )}
+                {order.shippingAddress.phone && (
+                  <p>Phone: {order.shippingAddress.phone}</p>
                 )}
               </div>
             </div>
@@ -270,25 +282,36 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {items.map((item, index) => {
-                const itemTotal = (item.price || 0) * (item.quantity || 1);
+              {items.length > 0 ? items.map((item, index) => {
+                const itemName = item.name || item.productId?.name || `Item ${index + 1}`;
+                const itemPrice = item.price || 0;
+                const itemQuantity = item.quantity || 1;
+                const itemTotal = itemPrice * itemQuantity;
+                const itemId = item._id || item.id || item.productId?._id || index;
+                
                 return (
-                  <tr key={item.id || index} className="hover:bg-gray-50">
+                  <tr key={itemId} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-800">
-                      {item.name || `Item ${index + 1}`}
+                      {itemName}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 text-center">
-                      {item.quantity || 1}
+                      {itemQuantity}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 text-right">
-                      {formatPrice(item.price || 0)}
+                      {formatPrice(itemPrice)}
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-gray-800 text-right">
                       {formatPrice(itemTotal)}
                     </td>
                   </tr>
                 );
-              })}
+              }) : (
+                <tr>
+                  <td colSpan={4} className="px-4 py-3 text-center text-gray-500">
+                    No items found
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -333,12 +356,12 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
               {formatPaymentMethod(order.paymentMethod)}
             </p>
           </div>
-          {order.trackingNumber && (
+          {(order.tracking?.trackingNumber || order.trackingNumber) && (
             <div>
               <p className="font-semibold text-gray-800 mb-1">
                 Tracking Number:
               </p>
-              <p className="text-gray-600 font-mono">{order.trackingNumber}</p>
+              <p className="text-gray-600 font-mono">{order.tracking?.trackingNumber || order.trackingNumber}</p>
             </div>
           )}
         </div>

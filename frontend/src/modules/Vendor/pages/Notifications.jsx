@@ -1,60 +1,32 @@
-import { useState, useEffect, useMemo } from "react";
-import { FiBell, FiSearch, FiCheck, FiX, FiFilter } from "react-icons/fi";
+import { useState, useMemo } from "react";
+import { FiBell, FiSearch, FiCheck, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import Badge from "../../../shared/components/Badge";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { useNotifications } from "../../../shared/hooks/useNotifications";
 import toast from "react-hot-toast";
 
 const Notifications = () => {
   const { vendor } = useVendorAuthStore();
-  const [notifications, setNotifications] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [readFilter, setReadFilter] = useState("all");
 
   const vendorId = vendor?.id;
 
-  useEffect(() => {
-    if (!vendorId) return;
-
-    const savedNotifications = localStorage.getItem(
-      `vendor-${vendorId}-notifications`
-    );
-    if (savedNotifications) {
-      setNotifications(JSON.parse(savedNotifications));
-    } else {
-      // Initialize with some dummy notifications
-      const dummyNotifications = [
-        {
-          id: 1,
-          type: "new_order",
-          title: "New Order Received",
-          message: "You have received a new order #ORD-FH-001",
-          orderId: "ORD-FH-001",
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          actionUrl: "/vendor/orders/ORD-FH-001",
-        },
-        {
-          id: 2,
-          type: "order_status_change",
-          title: "Order Status Updated",
-          message: "Order #ORD-FH-002 status changed to processing",
-          orderId: "ORD-FH-002",
-          isRead: false,
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          actionUrl: "/vendor/orders/ORD-FH-002",
-        },
-      ];
-      setNotifications(dummyNotifications);
-      localStorage.setItem(
-        `vendor-${vendorId}-notifications`,
-        JSON.stringify(dummyNotifications)
-      );
-    }
-  }, [vendorId]);
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+  } = useNotifications({
+    autoFetch: !!vendorId,
+    enableSocket: !!vendorId,
+  });
 
   const filteredNotifications = useMemo(() => {
     let filtered = notifications;
@@ -82,39 +54,32 @@ const Notifications = () => {
     );
   }, [notifications, searchQuery, typeFilter, readFilter]);
 
-  const handleMarkRead = (id) => {
-    const updated = notifications.map((n) =>
-      n.id === id ? { ...n, isRead: true } : n
-    );
-    setNotifications(updated);
-    localStorage.setItem(
-      `vendor-${vendorId}-notifications`,
-      JSON.stringify(updated)
-    );
-    toast.success("Notification marked as read");
+  const handleMarkRead = async (id) => {
+    try {
+      await markAsRead(id);
+      toast.success("Notification marked as read");
+    } catch (error) {
+      toast.error("Failed to mark notification as read");
+    }
   };
 
-  const handleMarkAllRead = () => {
-    const updated = notifications.map((n) => ({ ...n, isRead: true }));
-    setNotifications(updated);
-    localStorage.setItem(
-      `vendor-${vendorId}-notifications`,
-      JSON.stringify(updated)
-    );
-    toast.success("All notifications marked as read");
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllAsRead();
+      toast.success("All notifications marked as read");
+    } catch (error) {
+      toast.error("Failed to mark all notifications as read");
+    }
   };
 
-  const handleDelete = (id) => {
-    const updated = notifications.filter((n) => n.id !== id);
-    setNotifications(updated);
-    localStorage.setItem(
-      `vendor-${vendorId}-notifications`,
-      JSON.stringify(updated)
-    );
-    toast.success("Notification deleted");
+  const handleDelete = async (id) => {
+    try {
+      await deleteNotification(id);
+      toast.success("Notification deleted");
+    } catch (error) {
+      toast.error("Failed to delete notification");
+    }
   };
-
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const getTypeLabel = (type) => {
     const typeMap = {
@@ -123,6 +88,11 @@ const Notifications = () => {
       return_request: "Return Request",
       review: "Review",
       system: "System",
+      order_placed: "Order Placed",
+      order_confirmed: "Order Confirmed",
+      order_shipped: "Order Shipped",
+      order_delivered: "Order Delivered",
+      order_cancelled: "Order Cancelled",
     };
     return typeMap[type] || type;
   };
@@ -173,14 +143,14 @@ const Notifications = () => {
         <div className="flex items-center gap-2">
           {!row.isRead && (
             <button
-              onClick={() => handleMarkRead(row.id)}
+              onClick={() => handleMarkRead(row._id)}
               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
               title="Mark as Read">
               <FiCheck />
             </button>
           )}
           <button
-            onClick={() => handleDelete(row.id)}
+            onClick={() => handleDelete(row._id)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Delete">
             <FiX />
@@ -221,7 +191,8 @@ const Notifications = () => {
         {unreadCount > 0 && (
           <button
             onClick={handleMarkAllRead}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold">
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50">
             <FiCheck />
             Mark All Read
           </button>
@@ -254,7 +225,7 @@ const Notifications = () => {
             {
               notifications.filter(
                 (n) =>
-                  n.type === "new_order" || n.type === "order_status_change"
+                  n.type === "new_order" || n.type === "order_status_change" || n.type?.includes("order")
               ).length
             }
           </p>
@@ -303,7 +274,11 @@ const Notifications = () => {
       </div>
 
       {/* Notifications Table */}
-      {filteredNotifications.length > 0 ? (
+      {loading && notifications.length === 0 ? (
+        <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
+          <p className="text-gray-500">Loading notifications...</p>
+        </div>
+      ) : filteredNotifications.length > 0 ? (
         <DataTable
           data={filteredNotifications}
           columns={columns}
@@ -312,9 +287,12 @@ const Notifications = () => {
           onRowClick={(row) => {
             if (row.actionUrl) {
               window.location.href = row.actionUrl;
+            } else if (row.orderId) {
+              const orderId = row.orderId._id || row.orderId;
+              window.location.href = `/vendor/orders/${orderId}`;
             }
             if (!row.isRead) {
-              handleMarkRead(row.id);
+              handleMarkRead(row._id);
             }
           }}
         />

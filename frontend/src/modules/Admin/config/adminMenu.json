@@ -109,15 +109,6 @@
     ]
   },
   {
-    "title": "Support Desk",
-    "route": "/admin/support",
-    "children": [
-      "Live Chat",
-      "Ticket Types",
-      "Tickets"
-    ]
-  },
-  {
     "title": "Reports",
     "route": "/admin/reports",
     "children": [

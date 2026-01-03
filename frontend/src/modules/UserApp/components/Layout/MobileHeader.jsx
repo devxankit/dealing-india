@@ -7,13 +7,14 @@ import {
   FiPackage,
   FiMapPin,
   FiHeart,
+  FiBell,
 } from "react-icons/fi";
-import { HiOutlineUserCircle } from "react-icons/hi";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
+import { useNotifications } from "../../../../shared/hooks/useNotifications";
 import { appLogo } from "../../../../data/logos";
 import { motion } from "framer-motion";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
@@ -32,7 +33,6 @@ const categoryGradients = {
 
 const MobileHeader = () => {
   const { getCategoryById, initialize } = useCategoryStore();
-  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Initialize categories on mount
   useEffect(() => {
@@ -51,7 +51,6 @@ const MobileHeader = () => {
   const [topRowHeight, setTopRowHeight] = useState(70);
   const lastScrollYRef = useRef(0);
   const topRowRef = useRef(null);
-  const userMenuRef = useRef(null);
   const logoRef = useRef(null);
   const cartRef = useRef(null);
   const navigate = useNavigate();
@@ -64,6 +63,12 @@ const MobileHeader = () => {
   );
   const wishlistCount = useWishlistStore((state) => state.getItemCount());
   const { user, isAuthenticated, logout } = useAuthStore();
+
+  // Use notifications hook for real-time updates
+  const { unreadCount: unreadNotificationCount } = useNotifications({
+    autoFetch: isAuthenticated,
+    enableSocket: isAuthenticated,
+  });
 
   // Get current category from URL (supports both /category/:id and /app/category/:id)
   const getCurrentCategoryId = () => {
@@ -89,6 +94,7 @@ const MobileHeader = () => {
     if (path === "/app/offers") return "offers";
     if (path === "/app/daily-deals") return "dailyDeals";
     if (path === "/app/flash-sale") return "flashSale";
+    if (path === "/app/notifications") return "notifications";
     if (path.startsWith("/app/vendor/")) return "vendor";
     return "default";
   };
@@ -167,6 +173,8 @@ const MobileHeader = () => {
         "linear-gradient(to bottom, rgb(234, 179, 8) 0%, rgb(250, 204, 21) 30%, rgb(254, 243, 199) 60%, rgb(255, 255, 255) 100%)", // Yellow gradient
       flashSale:
         "linear-gradient(to bottom, rgb(239, 68, 68) 0%, rgb(248, 113, 113) 30%, rgb(254, 226, 226) 60%, rgb(255, 255, 255) 100%)", // Red gradient
+      notifications:
+        "linear-gradient(to bottom, rgb(249, 115, 22) 0%, rgb(251, 146, 60) 30%, rgb(255, 237, 213) 60%, rgb(255, 255, 255) 100%)", // Orange gradient
       vendor:
         "linear-gradient(to bottom, rgb(209, 250, 229) 0%, rgb(236, 253, 245) 30%, rgb(245, 255, 250) 60%, rgb(255, 255, 255) 100%)", // Light green gradient
       default:
@@ -176,17 +184,6 @@ const MobileHeader = () => {
     return pageGradients[currentPage] || pageGradients.default;
   }, [currentCategoryId, currentPage, location.pathname, getCategoryById]);
 
-  // Close menus when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-        setShowUserMenu(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   // Measure top row height
   useEffect(() => {
@@ -285,11 +282,6 @@ const MobileHeader = () => {
     };
   }, [hasPlayed]);
 
-  const handleLogout = () => {
-    logout();
-    setShowUserMenu(false);
-    navigate("/app");
-  };
 
   // Animation content - straight line movement only, starting from behind logo
   const shouldShowAnimation =
@@ -462,68 +454,24 @@ const MobileHeader = () => {
               )}
             </Link>
 
-            {/* User Menu - Only when authenticated */}
+            {/* Notifications Bell Icon - Only when authenticated */}
             {isAuthenticated && (
-              <div ref={userMenuRef} className="relative">
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="p-1.5 hover:bg-white/50 rounded-full transition-all duration-300">
-                  {user?.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={user.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <HiOutlineUserCircle className="text-gray-700 text-2xl" />
-                  )}
-                </button>
-                {showUserMenu && (
-                  <div className="absolute right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-2 z-[60] min-w-[180px]">
-                    <div className="px-3 py-2 border-b border-gray-200">
-                      <p className="font-semibold text-gray-800 text-sm">
-                        {user?.name || "User"}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {user?.email || ""}
-                      </p>
-                    </div>
-                    <Link
-                      to="/app/profile"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors text-left w-full">
-                      <FiUser className="text-gray-600 text-base" />
-                      <span className="font-medium text-gray-700 text-sm">
-                        Profile
-                      </span>
-                    </Link>
-                    <Link
-                      to="/app/orders"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors text-left w-full">
-                      <FiPackage className="text-gray-600 text-base" />
-                      <span className="font-medium text-gray-700 text-sm">
-                        Orders
-                      </span>
-                    </Link>
-                    <Link
-                      to="/app/addresses"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors text-left w-full">
-                      <FiMapPin className="text-gray-600 text-base" />
-                      <span className="font-medium text-gray-700 text-sm">
-                        Addresses
-                      </span>
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 px-3 py-2.5 hover:bg-red-50 rounded-lg transition-colors text-left w-full text-red-600">
-                      <FiLogOut className="text-red-600 text-base" />
-                      <span className="font-medium text-sm">Logout</span>
-                    </button>
-                  </div>
+              <Link
+                to="/app/notifications"
+                className="relative p-2.5 hover:bg-white/50 rounded-full transition-all duration-300"
+                aria-label="Notifications">
+                <FiBell className="text-xl text-gray-700" />
+                {unreadNotificationCount > 0 && (
+                  <motion.span
+                    key={unreadNotificationCount}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                    style={{ backgroundColor: "#ef4444" }}>
+                    {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                  </motion.span>
                 )}
-              </div>
+              </Link>
             )}
           </div>
         </motion.div>

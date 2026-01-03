@@ -21,7 +21,7 @@ import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { useVendorStore } from '../../store/vendorStore';
-import { useOrderStore } from '../../../../shared/store/orderStore';
+import { getVendorOrders, getVendorOrderStats } from '../../../../shared/services/orderService';
 import { useCommissionStore } from '../../../../shared/store/commissionStore';
 import toast from 'react-hot-toast';
 
@@ -29,10 +29,10 @@ const AllOrders = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { vendor } = useVendorAuthStore();
-  const { orders } = useOrderStore();
   const { getVendorStats } = useVendorStore();
   const { getVendorEarningsSummary } = useCommissionStore();
   const [vendorOrders, setVendorOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [stats, setStats] = useState({
@@ -59,98 +59,117 @@ const AllOrders = () => {
 
   const vendorId = vendor?.id;
 
-  // Filter orders to only show those containing vendor's products
+  // Fetch vendor orders from API
   useEffect(() => {
-    if (!vendorId || !orders) {
-      setVendorOrders([]);
-      return;
-    }
-
-    const filtered = orders.filter((order) => {
-      // Check if order has vendorItems array
-      if (order.vendorItems && Array.isArray(order.vendorItems)) {
-        return order.vendorItems.some((vi) => vi.vendorId === vendorId);
+    const fetchOrders = async () => {
+      if (!vendorId) {
+        setVendorOrders([]);
+        setLoading(false);
+        return;
       }
-      // Fallback: check if items have vendorId
-      if (order.items && Array.isArray(order.items)) {
-        return order.items.some((item) => item.vendorId === vendorId);
-      }
-      return false;
-    });
 
-    setVendorOrders(filtered);
-  }, [vendorId, orders]);
+      try {
+        setLoading(true);
+        const filters = {
+          status: selectedStatus === 'all' ? undefined : selectedStatus,
+          page: 1,
+          limit: 1000, // Get all orders for vendor
+        };
+        const response = await getVendorOrders(filters);
+        if (response.success && response.data) {
+          setVendorOrders(response.data.orders || []);
+        }
+      } catch (error) {
+        console.error('Error fetching vendor orders:', error);
+        toast.error('Failed to load orders');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [vendorId, selectedStatus]);
 
   // Get vendor-specific order data
   const getVendorOrderData = (order) => {
-    if (order.vendorItems && Array.isArray(order.vendorItems)) {
-      const vendorItem = order.vendorItems.find((vi) => vi.vendorId === vendorId);
-      if (vendorItem) {
-        return {
-          itemCount: vendorItem.items?.length || 0,
-          subtotal: vendorItem.subtotal || 0,
-          commission: vendorItem.commission || 0,
-        };
-      }
+    if (order.vendorItems && Array.isArray(order.vendorItems) && order.vendorItems.length > 0) {
+      const vendorItem = order.vendorItems[0]; // Vendor orders already filtered, use first vendorItem
+      return {
+        itemCount: vendorItem.items?.length || 0,
+        subtotal: vendorItem.subtotal || 0,
+        commission: vendorItem.commission || 0,
+      };
     }
     // Fallback
-    const vendorItems = order.items?.filter((item) => item.vendorId === vendorId) || [];
     return {
-      itemCount: vendorItems.length,
-      subtotal: vendorItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+      itemCount: order.items?.length || 0,
+      subtotal: order.total || 0,
       commission: 0,
     };
   };
 
   // Calculate statistics based on current status
   useEffect(() => {
-    if (vendorId) {
-      // Filter orders by current status
-      const statusFilteredOrders = selectedStatus === 'all' 
-        ? vendorOrders 
-        : vendorOrders.filter((o) => o.status?.toLowerCase() === selectedStatus.toLowerCase());
+    const calculateStats = async () => {
+      if (!vendorId) return;
 
-      // Calculate status-specific stats
-      const statusCount = statusFilteredOrders.length;
-      const statusRevenue = statusFilteredOrders.reduce((sum, order) => {
-        const vendorData = getVendorOrderData(order);
-        return sum + (vendorData.subtotal || 0);
-      }, 0);
-      
-      const statusItems = statusFilteredOrders.reduce((sum, order) => {
-        const vendorData = getVendorOrderData(order);
-        return sum + (vendorData.itemCount || 0);
-      }, 0);
+      try {
+        // Fetch order stats from API
+        const statsResponse = await getVendorOrderStats();
+        const orderStats = statsResponse.success ? statsResponse.data : {};
 
-      // Get vendor statistics for "all orders" page
-      const vendorStats = getVendorStats(vendorId);
-      const earningsSummary = getVendorEarningsSummary(vendorId);
+        // Filter orders by current status
+        const statusFilteredOrders = selectedStatus === 'all' 
+          ? vendorOrders 
+          : vendorOrders.filter((o) => o.status?.toLowerCase() === selectedStatus.toLowerCase());
 
-      setStats({
-        totalProducts: vendorStats?.totalProducts || 0,
-        totalOrders: vendorOrders.length,
-        pendingOrders: vendorOrders.filter(
-          (o) => o.status === "pending" || o.status === "processing" || o.status === "on_hold"
-        ).length,
-        totalEarnings: earningsSummary?.totalEarnings || 0,
-        // Status-specific stats
-        statusCount,
-        statusRevenue,
-        statusItems,
-      });
-    }
+        // Calculate status-specific stats
+        const statusCount = statusFilteredOrders.length;
+        const statusRevenue = statusFilteredOrders.reduce((sum, order) => {
+          const vendorData = getVendorOrderData(order);
+          return sum + (vendorData.subtotal || 0);
+        }, 0);
+        
+        const statusItems = statusFilteredOrders.reduce((sum, order) => {
+          const vendorData = getVendorOrderData(order);
+          return sum + (vendorData.itemCount || 0);
+        }, 0);
+
+        // Get vendor statistics for "all orders" page
+        const vendorStats = getVendorStats(vendorId);
+        const earningsSummary = getVendorEarningsSummary(vendorId);
+
+        setStats({
+          totalProducts: vendorStats?.totalProducts || 0,
+          totalOrders: orderStats.total || vendorOrders.length,
+          pendingOrders: (orderStats.pending || 0) + (orderStats.processing || 0) + (orderStats.on_hold || 0),
+          totalEarnings: earningsSummary?.totalEarnings || 0,
+          // Status-specific stats
+          statusCount,
+          statusRevenue,
+          statusItems,
+        });
+      } catch (error) {
+        console.error('Error calculating stats:', error);
+      }
+    };
+
+    calculateStats();
   }, [vendorId, vendorOrders, selectedStatus, getVendorStats, getVendorEarningsSummary]);
 
   const filteredOrders = useMemo(() => {
     let filtered = vendorOrders;
 
     if (searchQuery) {
-      filtered = filtered.filter((order) =>
-        order.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.trackingNumber?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const searchLower = searchQuery.toLowerCase();
+      filtered = filtered.filter((order) => {
+        const orderCode = (order.orderCode || order.id || order._id || '').toString().toLowerCase();
+        const trackingNumber = (order.tracking?.trackingNumber || order.trackingNumber || '').toLowerCase();
+        return orderCode.includes(searchLower) || trackingNumber.includes(searchLower);
+      });
     }
 
+    // Status filtering is already done in API call, but keep this for client-side search
     if (selectedStatus !== 'all') {
       filtered = filtered.filter((order) =>
         order.status?.toLowerCase() === selectedStatus.toLowerCase()
@@ -162,20 +181,20 @@ const AllOrders = () => {
 
   const columns = [
     {
-      key: 'id',
+      key: 'orderCode',
       label: 'Order ID',
       sortable: true,
-      render: (value) => (
-        <span className="font-semibold text-gray-800">{value}</span>
+      render: (value, row) => (
+        <span className="font-semibold text-gray-800">{value || row.id || row._id || row.orderCode}</span>
       ),
     },
     {
-      key: 'date',
+      key: 'createdAt',
       label: 'Date',
       sortable: true,
-      render: (value) => (
+      render: (value, row) => (
         <span className="text-sm text-gray-600">
-          {new Date(value).toLocaleDateString()}
+          {new Date(value || row.orderDate || row.createdAt || row.date).toLocaleDateString()}
         </span>
       ),
     },
@@ -228,13 +247,16 @@ const AllOrders = () => {
       key: 'actions',
       label: 'Actions',
       sortable: false,
-      render: (_, row) => (
-        <button
-          onClick={() => navigate(`/vendor/orders/${row.id}`)}
-          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-          <FiEye />
-        </button>
-      ),
+      render: (_, row) => {
+        const orderId = row._id || row.id || row.orderCode;
+        return (
+          <button
+            onClick={() => navigate(`/vendor/orders/${orderId}`)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+            <FiEye />
+          </button>
+        );
+      },
     },
   ];
 
@@ -403,8 +425,8 @@ const AllOrders = () => {
               <ExportButton
                 data={filteredOrders}
                 headers={[
-                  { label: 'Order ID', accessor: (row) => row.id },
-                  { label: 'Date', accessor: (row) => new Date(row.date).toLocaleDateString() },
+                  { label: 'Order ID', accessor: (row) => row.orderCode || row.id || row._id },
+                  { label: 'Date', accessor: (row) => new Date(row.orderDate || row.createdAt || row.date).toLocaleDateString() },
                   { label: 'Items', accessor: (row) => getVendorOrderData(row).itemCount },
                   { label: 'Amount', accessor: (row) => formatPrice(getVendorOrderData(row).subtotal) },
                   { label: 'Status', accessor: (row) => row.status },
@@ -422,7 +444,10 @@ const AllOrders = () => {
             columns={columns}
             pagination={true}
             itemsPerPage={10}
-            onRowClick={(row) => navigate(`/vendor/orders/${row.id}`)}
+            onRowClick={(row) => {
+              const orderId = row._id || row.id || row.orderCode;
+              navigate(`/vendor/orders/${orderId}`);
+            }}
           />
         ) : (
           <div className="text-center py-12">

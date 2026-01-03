@@ -3,6 +3,7 @@ import { FiSend, FiBell, FiUsers, FiTarget } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
 
 const PushNotifications = () => {
   const [formData, setFormData] = useState({
@@ -11,15 +12,68 @@ const PushNotifications = () => {
     target: 'all',
     schedule: 'now',
     scheduledDate: '',
+    recipientIds: '',
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSend = () => {
+  const handleSend = async (e) => {
+    e.preventDefault();
+    
     if (!formData.title || !formData.message) {
       toast.error('Please fill in all required fields');
       return;
     }
-    toast.success('Push notification sent successfully');
-    setFormData({ title: '', message: '', target: 'all', schedule: 'now', scheduledDate: '' });
+
+    // For scheduled notifications, we'll just send now for now
+    // In future, can implement a job queue for scheduled notifications
+    if (formData.schedule === 'scheduled' && !formData.scheduledDate) {
+      toast.error('Please select a scheduled date and time');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Map target values to backend format
+      let target = formData.target;
+      if (formData.target === 'customers') {
+        target = 'users';
+      } else if (formData.target === 'vip' || formData.target === 'segment' || formData.target === 'delivery-boy') {
+        // For now, treat these as 'users' - can be enhanced later
+        target = 'users';
+      }
+
+      const recipientIds = formData.recipientIds
+        ? formData.recipientIds.split(',').map(id => id.trim()).filter(id => id)
+        : [];
+
+      const response = await api.post('/admin/notifications/send', {
+        title: formData.title,
+        message: formData.message,
+        target: target === 'all' ? 'all' : target,
+        recipientIds: recipientIds.length > 0 ? recipientIds : [],
+        type: 'custom',
+      });
+
+      if (response.success) {
+        toast.success(`Notification sent to ${response.data.count} recipients`);
+        setFormData({
+          title: '',
+          message: '',
+          target: 'all',
+          schedule: 'now',
+          scheduledDate: '',
+          recipientIds: '',
+        });
+      } else {
+        throw new Error(response.message || 'Failed to send notification');
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to send notification');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -34,7 +88,7 @@ const PushNotifications = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="space-y-6">
+        <form onSubmit={handleSend} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <FiBell className="inline mr-2" />
@@ -73,14 +127,32 @@ const PushNotifications = () => {
               value={formData.target}
               onChange={(e) => setFormData({ ...formData, target: e.target.value })}
               options={[
-                { value: 'all', label: 'All Users' },
+                { value: 'all', label: 'All Users & Vendors' },
+                { value: 'users', label: 'All Users Only' },
+                { value: 'vendors', label: 'All Vendors Only' },
                 { value: 'customers', label: 'Customers Only' },
-                { value: 'vip', label: 'VIP Customers' },
-                { value: 'segment', label: 'Custom Segment' },
-                { value: 'delivery-boy', label: 'Delivery boy' },
+                { value: 'specific', label: 'Specific Recipients' },
               ]}
             />
           </div>
+
+          {formData.target === 'specific' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Recipient IDs (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={formData.recipientIds}
+                onChange={(e) => setFormData({ ...formData, recipientIds: e.target.value })}
+                placeholder="Enter user/vendor IDs separated by commas"
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter user or vendor IDs separated by commas (e.g., 507f1f77bcf86cd799439011, 507f191e810c19729de860ea)
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -91,9 +163,14 @@ const PushNotifications = () => {
               onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
               options={[
                 { value: 'now', label: 'Send Now' },
-                { value: 'scheduled', label: 'Schedule Later' },
+                { value: 'scheduled', label: 'Schedule Later (Coming Soon)' },
               ]}
             />
+            {formData.schedule === 'scheduled' && (
+              <p className="text-xs text-yellow-600 mt-1">
+                Scheduled notifications feature coming soon. For now, notifications will be sent immediately.
+              </p>
+            )}
           </div>
 
           {formData.schedule === 'scheduled' && (
@@ -105,7 +182,6 @@ const PushNotifications = () => {
                 type="datetime-local"
                 value={formData.scheduledDate}
                 onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
-                required={formData.schedule === 'scheduled'}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -113,10 +189,11 @@ const PushNotifications = () => {
 
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold disabled:opacity-50"
           >
             <FiSend />
-            <span>Send Notification</span>
+            <span>{loading ? 'Sending...' : 'Send Notification'}</span>
           </button>
         </form>
       </div>
@@ -125,4 +202,3 @@ const PushNotifications = () => {
 };
 
 export default PushNotifications;
-

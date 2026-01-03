@@ -52,6 +52,9 @@ export const createOrder = async (req, res, next) => {
     const onlinePaymentMethods = ['creditCard', 'debitCard', 'upi', 'wallet'];
     const requiresRazorpay = onlinePaymentMethods.includes(paymentMethod);
 
+    // Get socket.io instance
+    const io = req.app.get('io');
+
     // Create order in database
     const order = await createOrderService({
       customerId: userId,
@@ -64,7 +67,7 @@ export const createOrder = async (req, res, next) => {
       tax,
       discount,
       couponCode,
-    });
+    }, io);
 
     let razorpayOrder = null;
     let razorpayKeyId = null;
@@ -195,13 +198,16 @@ export const verifyPayment = async (req, res, next) => {
       });
     }
 
+    // Get socket.io instance
+    const io = req.app.get('io');
+
     // Update order with payment details
     const updatedOrder = await updateOrderPayment(orderId, {
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
       status: 'completed',
-    });
+    }, io);
 
     res.status(200).json({
       success: true,

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiUser, FiPackage, FiMapPin, FiCreditCard, FiGift,
   FiLogOut, FiChevronRight, FiEdit2, FiSettings, FiCamera,
-  FiShield, FiHelpCircle, FiArrowLeft
+  FiShield, FiArrowLeft
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -42,7 +42,6 @@ const MobileProfile = () => {
     { icon: FiMapPin, label: 'Addresses', subtitle: 'Manage delivery addresses', path: '/app/addresses', color: 'text-orange-600', bg: 'bg-orange-50' },
     { icon: FiCreditCard, label: 'Wallet & Payments', subtitle: 'Methods, history, and credits', path: '/app/wallet', color: 'text-purple-600', bg: 'bg-purple-50' },
     { icon: FiShield, label: 'Privacy & Security', subtitle: 'Change password, security', path: '/app/settings', color: 'text-green-600', bg: 'bg-green-50' },
-    { icon: FiHelpCircle, label: 'Help Center', subtitle: 'FAQs and support', path: '/app/help', color: 'text-gray-600', bg: 'bg-gray-50' },
   ];
 
   return (

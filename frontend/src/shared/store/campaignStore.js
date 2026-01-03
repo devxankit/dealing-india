@@ -31,6 +31,7 @@ export const useCampaignStore = create(
       isLoading: false,
       isPublicLoading: false,
       lastPublicFetch: null, // Track when campaigns were last fetched
+      publicFetchPromise: null, // Track ongoing fetch to avoid duplicate simultaneous requests
 
   // Initialize campaigns from API (admin endpoint)
   initialize: async (filters = {}) => {
@@ -58,10 +59,15 @@ export const useCampaignStore = create(
   initializePublic: async (filters = {}, forceRefresh = false) => {
     const state = get();
     const now = Date.now();
-    const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache (reduced from 5 minutes for better freshness)
+    const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes cache
     
+    // If there's an ongoing request, return that promise to avoid duplicate simultaneous requests
+    if (state.publicFetchPromise) {
+      console.log('campaignStore - Joining existing public fetch request');
+      return state.publicFetchPromise;
+    }
+
     // Use cached data if available and not forcing refresh
-    // IMPORTANT: Only use cache if it's valid and not empty
     if (!forceRefresh && state.publicCampaigns && state.publicCampaigns.length > 0 && state.lastPublicFetch) {
       const timeSinceLastFetch = now - state.lastPublicFetch;
       if (timeSinceLastFetch < CACHE_DURATION) {
@@ -70,39 +76,45 @@ export const useCampaignStore = create(
       }
     }
 
-    set({ isPublicLoading: true });
-    try {
-      const { type, page = 1, limit = filters.limit || 100 } = filters;
-      const response = await api.get('/campaigns', {
-        params: { type, page, limit },
-      });
-
-      // API interceptor returns response.data, so response is already { success, data: { campaigns }, pagination }
-      if (response.success && response.data) {
-        const campaigns = response.data.campaigns || [];
-        console.log('campaignStore - Setting publicCampaigns:', campaigns.length, 'campaigns');
-        set({ 
-          publicCampaigns: campaigns, 
-          isPublicLoading: false,
-          lastPublicFetch: now 
+    const fetchPromise = (async () => {
+      set({ isPublicLoading: true });
+      try {
+        const { type, page = 1, limit = filters.limit || 100 } = filters;
+        console.log(`campaignStore - Fetching public campaigns: type=${type}, page=${page}, limit=${limit}`);
+        
+        const response = await api.get('/campaigns', {
+          params: { type, page, limit },
         });
-        return response.data;
+
+        console.log('campaignStore - Received response:', response);
+
+        if (response.success && response.data) {
+          const campaigns = response.data.campaigns || [];
+          set({ 
+            publicCampaigns: campaigns, 
+            isPublicLoading: false,
+            lastPublicFetch: Date.now(),
+            publicFetchPromise: null 
+          });
+          return response.data;
+        }
+        throw new Error(response.message || 'Failed to fetch campaigns');
+      } catch (error) {
+        set({ isPublicLoading: false, publicFetchPromise: null });
+        console.error('Failed to initialize public campaigns:', error);
+        const cachedCampaigns = get().publicCampaigns;
+        return { 
+          campaigns: cachedCampaigns || [], 
+          total: cachedCampaigns?.length || 0, 
+          page: 1, 
+          limit: 100, 
+          totalPages: 0 
+        };
       }
-      throw new Error(response.message || 'Failed to fetch campaigns');
-    } catch (error) {
-      // Don't clear campaigns on error, keep existing ones
-      set({ isPublicLoading: false });
-      console.error('Failed to initialize public campaigns:', error);
-      // Return cached campaigns if available, otherwise empty
-      const cachedCampaigns = get().publicCampaigns;
-      return { 
-        campaigns: cachedCampaigns || [], 
-        total: cachedCampaigns?.length || 0, 
-        page: 1, 
-        limit: 100, 
-        totalPages: 0 
-      };
-    }
+    })();
+
+    set({ publicFetchPromise: fetchPromise });
+    return fetchPromise;
   },
 
   // Get all campaigns

@@ -10,56 +10,83 @@ import {
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import Badge from "../../../../shared/components/Badge";
-// import { formatDateTime } from '../../utils/adminHelpers';
-import { mockOrders } from "../../../../data/adminMockData";
+import { getAdminOrders } from "../../../../shared/services/orderService";
+import toast from "react-hot-toast";
 
 const OrderTracking = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   useEffect(() => {
-    const savedOrders = localStorage.getItem("admin-orders");
-    if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
-    } else {
-      setOrders(mockOrders);
-      localStorage.setItem("admin-orders", JSON.stringify(mockOrders));
-    }
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const response = await getAdminOrders({ 
+          page: 1, 
+          limit: 1000 // Get all orders for tracking
+        });
+        if (response.success && response.data) {
+          setOrders(response.data.orders || []);
+        }
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        toast.error("Failed to load orders");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
   }, []);
 
-  const filteredOrders = orders.filter(
-    (order) =>
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredOrders = orders.filter((order) => {
+    const searchLower = searchQuery.toLowerCase();
+    const orderCode = order.orderCode || order.id || '';
+    const customerName = order.customerSnapshot?.name || order.customerId?.name || '';
+    const customerEmail = order.customerSnapshot?.email || order.customerId?.email || '';
+    
+    return (
+      orderCode.toString().toLowerCase().includes(searchLower) ||
+      customerName.toLowerCase().includes(searchLower) ||
+      customerEmail.toLowerCase().includes(searchLower)
+    );
+  });
 
-  const getTrackingSteps = (status) => {
+  const getTrackingSteps = (order) => {
+    const status = order?.status?.toLowerCase() || 'pending';
+    const statusHistory = order?.statusHistory || [];
+    
     const steps = [
-      { label: "Order Placed", status: "completed", icon: FiCheckCircle },
+      { 
+        label: "Order Placed", 
+        status: "completed", 
+        icon: FiCheckCircle,
+        timestamp: statusHistory.find(h => h.status === 'pending')?.timestamp || order?.createdAt
+      },
       {
         label: "Processing",
-        status:
-          status === "processing" ||
-          status === "shipped" ||
-          status === "delivered"
-            ? "completed"
-            : "pending",
+        status: ['processing', 'ready_to_ship', 'dispatched', 'shipped', 'shipped_seller', 'delivered'].includes(status)
+          ? "completed"
+          : "pending",
         icon: FiPackage,
+        timestamp: statusHistory.find(h => h.status === 'processing')?.timestamp
       },
       {
         label: "Shipped",
-        status:
-          status === "shipped" || status === "delivered"
-            ? "completed"
-            : "pending",
+        status: ['shipped', 'shipped_seller', 'delivered'].includes(status)
+          ? "completed"
+          : "pending",
         icon: FiTruck,
+        timestamp: statusHistory.find(h => ['shipped', 'shipped_seller', 'dispatched'].includes(h.status))?.timestamp
       },
       {
         label: "Delivered",
         status: status === "delivered" ? "completed" : "pending",
         icon: FiMapPin,
+        timestamp: statusHistory.find(h => h.status === 'delivered')?.timestamp || order?.tracking?.deliveredAt
       },
     ];
     return steps;
@@ -67,33 +94,52 @@ const OrderTracking = () => {
 
   const columns = [
     {
-      key: "id",
+      key: "orderCode",
       label: "Order ID",
       sortable: true,
-      render: (value) => <span className="font-semibold">{value}</span>,
+      render: (value, row) => (
+        <span className="font-semibold">{value || row.id || row._id}</span>
+      ),
     },
     {
       key: "customer",
       label: "Customer",
       sortable: true,
-      render: (value) => (
-        <div>
-          <p className="font-medium text-gray-800">{value.name}</p>
-          <p className="text-xs text-gray-500">{value.email}</p>
-        </div>
-      ),
+      render: (value, row) => {
+        const customer = row.customerSnapshot || row.customerId || value || {};
+        return (
+          <div>
+            <p className="font-medium text-gray-800">{customer.name || 'Guest'}</p>
+            <p className="text-xs text-gray-500">{customer.email || ''}</p>
+          </div>
+        );
+      },
     },
     {
       key: "status",
       label: "Status",
       sortable: true,
-      render: (value) => <Badge variant={value}>{value}</Badge>,
+      render: (value) => <Badge status={value}>{value}</Badge>,
     },
     {
-      key: "date",
+      key: "createdAt",
       label: "Order Date",
       sortable: true,
-      render: (value) => new Date(value).toLocaleString(),
+      render: (value, row) => new Date(value || row.orderDate || row.createdAt).toLocaleString(),
+    },
+    {
+      key: "tracking",
+      label: "Tracking",
+      sortable: false,
+      render: (value, row) => (
+        <div className="text-xs">
+          {row.tracking?.trackingNumber ? (
+            <span className="text-primary-600 font-semibold">{row.tracking.trackingNumber}</span>
+          ) : (
+            <span className="text-gray-400">No tracking</span>
+          )}
+        </div>
+      ),
     },
     {
       key: "actions",
@@ -141,12 +187,18 @@ const OrderTracking = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <DataTable
-              data={filteredOrders}
-              columns={columns}
-              pagination={true}
-              itemsPerPage={10}
-            />
+            {loading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">Loading orders...</p>
+              </div>
+            ) : (
+              <DataTable
+                data={filteredOrders}
+                columns={columns}
+                pagination={true}
+                itemsPerPage={10}
+              />
+            )}
           </div>
         </div>
 
@@ -159,17 +211,25 @@ const OrderTracking = () => {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Order ID</p>
                 <p className="font-semibold text-gray-800">
-                  {selectedOrder.id}
+                  {selectedOrder.orderCode || selectedOrder.id}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Customer</p>
                 <p className="font-semibold text-gray-800">
-                  {selectedOrder.customer.name}
+                  {selectedOrder.customerSnapshot?.name || selectedOrder.customerId?.name || 'Guest'}
                 </p>
+                {selectedOrder.tracking?.trackingNumber && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600 mb-1">Tracking Number</p>
+                    <p className="font-semibold text-primary-600">
+                      {selectedOrder.tracking.trackingNumber}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="space-y-3 pt-4 border-t border-gray-200">
-                {getTrackingSteps(selectedOrder.status).map((step, index) => {
+                {getTrackingSteps(selectedOrder).map((step, index) => {
                   const Icon = step.icon;
                   return (
                     <div key={index} className="flex items-start gap-3">
@@ -190,9 +250,14 @@ const OrderTracking = () => {
                           }`}>
                           {step.label}
                         </p>
-                        {step.status === "completed" && (
+                        {step.status === "completed" && step.timestamp && (
                           <p className="text-xs text-gray-500 mt-1">
-                            Completed
+                            {new Date(step.timestamp).toLocaleString()}
+                          </p>
+                        )}
+                        {step.status === "pending" && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Pending
                           </p>
                         )}
                       </div>
@@ -201,7 +266,7 @@ const OrderTracking = () => {
                 })}
               </div>
               <button
-                onClick={() => navigate(`/admin/orders/${selectedOrder.id}`)}
+                onClick={() => navigate(`/admin/orders/${selectedOrder._id || selectedOrder.id || selectedOrder.orderCode}`)}
                 className="w-full mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold">
                 View Full Details
               </button>

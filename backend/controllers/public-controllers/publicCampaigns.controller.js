@@ -10,12 +10,15 @@ import {
 export const getCampaigns = async (req, res, next) => {
   try {
     const { type, page = 1, limit = 100 } = req.query;
+    console.log(`GET /api/campaigns - Query: type=${type}, page=${page}, limit=${limit}`);
 
     const result = await getPublicCampaigns({
       type,
       page,
       limit,
     });
+
+    console.log(`GET /api/campaigns - Found ${result.campaigns.length} campaigns`);
 
     res.status(200).json({
       success: true,

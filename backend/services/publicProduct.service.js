@@ -3,6 +3,7 @@ import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
 import { getCategoryDepth } from './categoryManagement.service.js';
+import { getAllFAQs } from './productFAQs.service.js';
 
 /**
  * Get all public products with optional filters (only visible products)
@@ -312,10 +313,25 @@ export const getPublicProductById = async (productId) => {
       .populate('subcategoryId', 'name image icon')
       .populate('brandId', 'name')
       .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status')
+      .populate('attributes.attributeId', 'name type')
+      .populate('attributes.values', 'value')
       .lean();
 
     if (!product) {
       throw new Error('Product not found or not available');
+    }
+
+    // Fetch FAQs for this product
+    try {
+      const faqResult = await getAllFAQs({
+        productId: product._id.toString(),
+        status: 'active',
+        limit: 50,
+      });
+      product.faqs = faqResult.faqs || [];
+    } catch (faqError) {
+      console.error('Error fetching FAQs for product:', faqError);
+      product.faqs = []; // Default to empty if FAQ fetch fails
     }
 
     return product;

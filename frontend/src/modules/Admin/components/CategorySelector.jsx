@@ -70,15 +70,10 @@ const CategorySelector = ({
     getCategoryById,
   } = useCategoryStore();
   const [isOpen, setIsOpen] = useState(false);
-  const [hoveredCategoryId, setHoveredCategoryId] = useState(null);
-  const [hoveredSubCategoryId, setHoveredSubCategoryId] = useState(null);
+  const [activeCategoryId, setActiveCategoryId] = useState(null);
+  const [activeSubCategoryId, setActiveSubCategoryId] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef(null);
-  const parentDropdownRef = useRef(null);
-  const subcategoryDropdownRef = useRef(null);
-  const subSubCategoryDropdownRef = useRef(null);
-  const closeTimeoutRef = useRef(null);
-  const hoverTimeoutRef = useRef(null);
 
   // Detect mobile
   useEffect(() => {
@@ -108,27 +103,26 @@ const CategorySelector = ({
     ? getCategoryById(selectedSubcategory.parentId)
     : selectedCategory;
 
-  // Get subcategories for hovered category
-  const hoveredSubcategories = useMemo(() => {
-    if (!hoveredCategoryId) return [];
-    return getCategoriesByParent(hoveredCategoryId).filter(
+  // Get subcategories for active category
+  const activeSubcategories = useMemo(() => {
+    if (!activeCategoryId) return [];
+    return getCategoriesByParent(activeCategoryId).filter(
       (cat) => cat.isActive !== false
     );
-  }, [hoveredCategoryId, categories, getCategoriesByParent]);
+  }, [activeCategoryId, categories, getCategoriesByParent]);
 
-  // Get sub-subcategories for hovered subcategory
-  const hoveredSubSubCategories = useMemo(() => {
-    if (!hoveredSubCategoryId) return [];
-    return getCategoriesByParent(hoveredSubCategoryId).filter(
+  // Get sub-subcategories for active subcategory
+  const activeSubSubCategories = useMemo(() => {
+    if (!activeSubCategoryId) return [];
+    return getCategoriesByParent(activeSubCategoryId).filter(
       (cat) => cat.isActive !== false
     );
-  }, [hoveredSubCategoryId, categories, getCategoriesByParent]);
+  }, [activeSubCategoryId, categories, getCategoriesByParent]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       // On mobile, the portal handles closing via the overlay
-      // We also check if the click is on the portal content to be safe
       if (isMobile) return;
 
       if (
@@ -136,12 +130,8 @@ const CategorySelector = ({
         !containerRef.current.contains(event.target)
       ) {
         setIsOpen(false);
-        setHoveredCategoryId(null);
-        setHoveredSubCategoryId(null);
-        if (closeTimeoutRef.current) {
-          clearTimeout(closeTimeoutRef.current);
-          closeTimeoutRef.current = null;
-        }
+        setActiveCategoryId(null);
+        setActiveSubCategoryId(null);
       }
     };
 
@@ -149,70 +139,9 @@ const CategorySelector = ({
       document.addEventListener("mousedown", handleClickOutside);
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
-        if (closeTimeoutRef.current) {
-          clearTimeout(closeTimeoutRef.current);
-          closeTimeoutRef.current = null;
-        }
       };
     }
   }, [isOpen, isMobile]);
-
-  // Position subcategory and sub-subcategory dropdowns
-  useEffect(() => {
-    if (hoveredCategoryId && subcategoryDropdownRef.current && parentDropdownRef.current && containerRef.current) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const parentDropdownRect = parentDropdownRef.current.getBoundingClientRect();
-      const hoveredElement = parentDropdownRef.current.querySelector(`[data-category-id="${hoveredCategoryId}"]`);
-
-      if (hoveredElement) {
-        const elementRect = hoveredElement.getBoundingClientRect();
-        const dropdown = subcategoryDropdownRef.current;
-        const viewportWidth = window.innerWidth;
-        const dropdownWidth = 200;
-
-        let left = parentDropdownRect.right - containerRect.left;
-        let top = elementRect.top - containerRect.top;
-
-        if (parentDropdownRect.right + dropdownWidth > viewportWidth - 20) {
-          left = parentDropdownRect.left - containerRect.left - dropdownWidth;
-        }
-
-        if (top < 0) top = 0;
-        const maxTop = parentDropdownRect.height - 40;
-        if (top > maxTop) top = maxTop;
-
-        dropdown.style.top = `${top}px`;
-        dropdown.style.left = `${left}px`;
-      }
-    }
-
-    if (hoveredSubCategoryId && subSubCategoryDropdownRef.current && subcategoryDropdownRef.current && containerRef.current) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const subDropdownRect = subcategoryDropdownRef.current.getBoundingClientRect();
-      const hoveredElement = subcategoryDropdownRef.current.querySelector(`[data-subcategory-id="${hoveredSubCategoryId}"]`);
-
-      if (hoveredElement) {
-        const elementRect = hoveredElement.getBoundingClientRect();
-        const dropdown = subSubCategoryDropdownRef.current;
-        const viewportWidth = window.innerWidth;
-        const dropdownWidth = 200;
-
-        let left = subDropdownRect.right - containerRect.left;
-        let top = elementRect.top - containerRect.top;
-
-        if (subDropdownRect.right + dropdownWidth > viewportWidth - 20) {
-          left = subDropdownRect.left - containerRect.left - dropdownWidth;
-        }
-
-        if (top < 0) top = 0;
-        const maxTop = subDropdownRect.height - 40;
-        if (top > maxTop) top = maxTop;
-
-        dropdown.style.top = `${top}px`;
-        dropdown.style.left = `${left}px`;
-      }
-    }
-  }, [hoveredCategoryId, hoveredSubCategoryId, isOpen]);
 
   const handleCategorySelect = (categoryId) => {
     const categoryIdStr = categoryId?.toString() || categoryId;
@@ -220,8 +149,8 @@ const CategorySelector = ({
     onChange({ target: { name: "subcategoryId", value: "" } });
     onChange({ target: { name: "subSubCategoryId", value: "" } });
     setIsOpen(false);
-    setHoveredCategoryId(null);
-    setHoveredSubCategoryId(null);
+    setActiveCategoryId(null);
+    setActiveSubCategoryId(null);
   };
 
   const handleSubcategorySelect = (subId, parentId) => {
@@ -231,8 +160,8 @@ const CategorySelector = ({
     onChange({ target: { name: "subcategoryId", value: subIdStr } });
     onChange({ target: { name: "subSubCategoryId", value: "" } });
     setIsOpen(false);
-    setHoveredCategoryId(null);
-    setHoveredSubCategoryId(null);
+    setActiveCategoryId(null);
+    setActiveSubCategoryId(null);
   };
 
   const handleSubSubCategorySelect = (subSubId, subId, rootId) => {
@@ -243,8 +172,8 @@ const CategorySelector = ({
     onChange({ target: { name: "subcategoryId", value: subIdStr } });
     onChange({ target: { name: "subSubCategoryId", value: subSubIdStr } });
     setIsOpen(false);
-    setHoveredCategoryId(null);
-    setHoveredSubCategoryId(null);
+    setActiveCategoryId(null);
+    setActiveSubCategoryId(null);
   };
 
   // Display text
@@ -274,13 +203,9 @@ const CategorySelector = ({
         type="button"
         onClick={() => {
           setIsOpen(!isOpen);
-          if (closeTimeoutRef.current) {
-            clearTimeout(closeTimeoutRef.current);
-            closeTimeoutRef.current = null;
-          }
           if (!isOpen) {
-            setHoveredCategoryId(null);
-            setHoveredSubCategoryId(null);
+            setActiveCategoryId(null);
+            setActiveSubCategoryId(null);
           }
         }}
         className={`w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white flex items-center justify-between transition-all duration-200 hover:border-primary-400 ${!value ? "text-gray-500" : "text-gray-900"}`}>
@@ -305,8 +230,8 @@ const CategorySelector = ({
                     exit={{ opacity: 0 }}
                     onClick={() => {
                       setIsOpen(false);
-                      setHoveredCategoryId(null);
-                      setHoveredSubCategoryId(null);
+                      setActiveCategoryId(null);
+                      setActiveSubCategoryId(null);
                     }}
                     className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[10000]"
                   />
@@ -320,29 +245,29 @@ const CategorySelector = ({
                   >
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
                       <div className="flex items-center gap-3">
-                        {(hoveredCategoryId || hoveredSubCategoryId) && (
+                        {(activeCategoryId || activeSubCategoryId) && (
                           <button
                             type="button"
                             onClick={() => {
-                              if (hoveredSubCategoryId) setHoveredSubCategoryId(null);
-                              else setHoveredCategoryId(null);
+                              if (activeSubCategoryId) setActiveSubCategoryId(null);
+                              else setActiveCategoryId(null);
                             }}
                             className="p-2 -ml-2 bg-gray-50 rounded-full text-gray-600">
                             <FiChevronRight className="rotate-180" />
                           </button>
                         )}
                         <h3 className="font-bold text-gray-800">
-                          {!hoveredCategoryId ? "Select Category" :
-                            !hoveredSubCategoryId ? rootCategories.find(c => c.id === hoveredCategoryId)?.name :
-                              hoveredSubcategories.find(c => c.id === hoveredSubCategoryId)?.name}
+                          {!activeCategoryId ? "Select Category" :
+                            !activeSubCategoryId ? rootCategories.find(c => c.id === activeCategoryId)?.name :
+                              activeSubcategories.find(c => c.id === activeSubCategoryId)?.name}
                         </h3>
                       </div>
                       <button
                         type="button"
                         onClick={() => {
                           setIsOpen(false);
-                          setHoveredCategoryId(null);
-                          setHoveredSubCategoryId(null);
+                          setActiveCategoryId(null);
+                          setActiveSubCategoryId(null);
                         }}
                         className="p-2 bg-gray-50 rounded-full text-gray-400">
                         <FiChevronDown />
@@ -352,7 +277,7 @@ const CategorySelector = ({
                     <div className="overflow-y-auto pb-8">
                       <div className="py-2">
                         {/* Parent Categories View */}
-                        {!hoveredCategoryId && (
+                        {!activeCategoryId && (
                           <div className="divide-y divide-gray-50">
                             {rootCategories.length === 0 ? (
                               <div className="px-6 py-8 text-sm text-gray-500 text-center">
@@ -372,7 +297,7 @@ const CategorySelector = ({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       if (hasSub) {
-                                        setHoveredCategoryId(category.id);
+                                        setActiveCategoryId(category.id);
                                       } else {
                                         handleCategorySelect(category.id);
                                       }
@@ -394,19 +319,19 @@ const CategorySelector = ({
                         )}
 
                         {/* Subcategories View */}
-                        {hoveredCategoryId && !hoveredSubCategoryId && (
+                        {activeCategoryId && !activeSubCategoryId && (
                           <div className="divide-y divide-gray-50">
                             <button
                               type="button"
                               className="w-full px-6 py-4 cursor-pointer flex items-center gap-3 bg-primary-50/50 text-primary-600 font-bold border-b border-primary-100"
-                              onClick={(e) => { e.stopPropagation(); handleCategorySelect(hoveredCategoryId); }}>
+                              onClick={(e) => { e.stopPropagation(); handleCategorySelect(activeCategoryId); }}>
                               <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
                                 <FiGrid className="text-xl" />
                               </div>
-                              <span>Select All in {rootCategories.find(c => c.id === hoveredCategoryId)?.name}</span>
+                              <span>Select All in {rootCategories.find(c => c.id === activeCategoryId)?.name}</span>
                             </button>
 
-                            {hoveredSubcategories.map((subcategory) => {
+                            {activeSubcategories.map((subcategory) => {
                               const subSubCats = getCategoriesByParent(subcategory.id).filter((cat) => cat.isActive !== false);
                               const hasSubSub = subSubCats.length > 0;
                               const SubIcon = getCategoryIcon(subcategory);
@@ -419,9 +344,9 @@ const CategorySelector = ({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (hasSubSub) {
-                                      setHoveredSubCategoryId(subcategory.id);
+                                      setActiveSubCategoryId(subcategory.id);
                                     } else {
-                                      handleSubcategorySelect(subcategory.id, hoveredCategoryId);
+                                      handleSubcategorySelect(subcategory.id, activeCategoryId);
                                     }
                                   }}
                                   className={`w-full px-6 py-4 cursor-pointer flex items-center justify-between active:bg-gray-50 transition-colors ${isSelected ? "bg-primary-50 text-primary-600" : "text-gray-900"
@@ -440,19 +365,19 @@ const CategorySelector = ({
                         )}
 
                         {/* Sub-subcategories View */}
-                        {hoveredSubCategoryId && (
+                        {activeSubCategoryId && (
                           <div className="divide-y divide-gray-50">
                             <button
                               type="button"
                               className="w-full px-6 py-4 cursor-pointer flex items-center gap-3 bg-primary-50/50 text-primary-600 font-bold border-b border-primary-100"
-                              onClick={(e) => { e.stopPropagation(); handleSubcategorySelect(hoveredSubCategoryId, hoveredCategoryId); }}>
+                              onClick={(e) => { e.stopPropagation(); handleSubcategorySelect(activeSubCategoryId, activeCategoryId); }}>
                               <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
                                 <FiLayers className="text-xl" />
                               </div>
-                              <span>Select All in {hoveredSubcategories.find(c => c.id === hoveredSubCategoryId)?.name}</span>
+                              <span>Select All in {activeSubcategories.find(c => c.id === activeSubCategoryId)?.name}</span>
                             </button>
 
-                            {hoveredSubSubCategories.map((subSubCategory) => {
+                            {activeSubSubCategories.map((subSubCategory) => {
                               const SubSubIcon = getCategoryIcon(subSubCategory);
                               const isSelected = subSubCategoryValue === subSubCategory.id.toString();
 
@@ -462,7 +387,7 @@ const CategorySelector = ({
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleSubSubCategorySelect(subSubCategory.id, hoveredSubCategoryId, hoveredCategoryId);
+                                    handleSubSubCategorySelect(subSubCategory.id, activeSubCategoryId, activeCategoryId);
                                   }}
                                   className={`w-full px-6 py-4 cursor-pointer flex items-center gap-3 active:bg-gray-50 transition-colors ${isSelected ? "bg-primary-50 text-primary-600" : "text-gray-900"
                                     }`}>
@@ -482,114 +407,144 @@ const CategorySelector = ({
                 document.body
               )
             ) : (
-              <>
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[280px] z-[10001] overflow-hidden">
-                  <div className="py-1 max-h-60 overflow-y-auto">
-                    {rootCategories.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-gray-500">No categories available</div>
-                    ) : (
-                      rootCategories.map((category) => {
-                        const subcats = getCategoriesByParent(category.id).filter((cat) => cat.isActive !== false);
-                        const hasSub = subcats.length > 0;
-                        const CategoryIcon = getCategoryIcon(category);
-                        const isSelected = categoryValue === category.id.toString();
-
-                        return (
-                          <div
-                            key={category.id}
-                            onMouseEnter={() => setHoveredCategoryId(category.id)}
-                            onClick={() => !hasSub && handleCategorySelect(category.id)}
-                            className={`px-4 py-2 cursor-pointer flex items-center justify-between hover:bg-gray-50 ${isSelected ? "bg-primary-50 text-primary-600" : "text-gray-900"
-                              }`}>
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              {CategoryIcon && <CategoryIcon className={`text-lg flex-shrink-0 ${isSelected ? "text-primary-600" : "text-gray-400"}`} />}
-                              <span className="truncate">{category.name}</span>
-                            </div>
-                            {hasSub && <FiChevronRight className={`ml-2 ${isSelected ? "text-primary-400" : "text-gray-300"}`} />}
-                          </div>
-                        );
-                      })
-                    )}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[280px] z-[10001] overflow-hidden flex flex-col max-h-[400px]">
+                {/* Desktop Header with Back Button */}
+                {(activeCategoryId || activeSubCategoryId) && (
+                  <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (activeSubCategoryId) setActiveSubCategoryId(null);
+                        else setActiveCategoryId(null);
+                      }}
+                      className="p-1.5 hover:bg-white rounded-md text-gray-500 transition-colors">
+                      <FiChevronRight className="rotate-180" />
+                    </button>
+                    <span className="text-xs font-bold text-gray-600 truncate">
+                      {!activeSubCategoryId
+                        ? rootCategories.find(c => c.id === activeCategoryId)?.name
+                        : activeSubcategories.find(c => c.id === activeSubCategoryId)?.name}
+                    </span>
                   </div>
-                </motion.div>
+                )}
 
-                {/* Subcategories Flyout */}
-                {hoveredCategoryId && hoveredSubcategories.length > 0 && (
-                  <motion.div
-                    ref={subcategoryDropdownRef}
-                    initial={{ opacity: 0, x: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -10, scale: 0.95 }}
-                    className="absolute bg-white border border-gray-200 rounded-xl shadow-xl min-w-[220px] z-[10002] overflow-hidden">
-                    <div className="py-1 max-h-60 overflow-y-auto">
-                      <div
-                        className="px-4 py-2 cursor-pointer flex items-center gap-2 hover:bg-primary-50 text-primary-600 font-medium border-b border-gray-100 mb-1"
-                        onClick={(e) => { e.stopPropagation(); handleCategorySelect(hoveredCategoryId); }}>
-                        <FiGrid className="text-lg flex-shrink-0" />
-                        <span className="truncate text-xs">Select All</span>
-                      </div>
-                      {hoveredSubcategories.map((subcategory) => {
-                        const subSubCats = getCategoriesByParent(subcategory.id).filter((cat) => cat.isActive !== false);
-                        const hasSubSub = subSubCats.length > 0;
-                        const SubIcon = getCategoryIcon(subcategory);
-                        return (
-                          <div key={subcategory.id} data-subcategory-id={subcategory.id}>
-                            <div
-                              className={`px-4 py-2 cursor-pointer flex items-center justify-between hover:bg-gray-50 ${subcategoryValue === subcategory.id.toString() ? "bg-primary-50 text-primary-600" : "text-gray-900"}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (hasSubSub) setHoveredSubCategoryId(subcategory.id);
-                                else handleSubcategorySelect(subcategory.id, hoveredCategoryId);
-                              }}
-                              onMouseEnter={() => setHoveredSubCategoryId(subcategory.id)}>
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                {SubIcon && <SubIcon className="text-lg flex-shrink-0 text-gray-400" />}
-                                <span className="truncate">{subcategory.name}</span>
+                <div className="py-1 overflow-y-auto">
+                  <AnimatePresence mode="wait">
+                    {/* Root Categories */}
+                    {!activeCategoryId && (
+                      <motion.div
+                        key="root"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {rootCategories.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-500 text-center">No categories available</div>
+                        ) : (
+                          rootCategories.map((category) => {
+                            const subcats = getCategoriesByParent(category.id).filter((cat) => cat.isActive !== false);
+                            const hasSub = subcats.length > 0;
+                            const CategoryIcon = getCategoryIcon(category);
+                            const isSelected = categoryValue === category.id.toString();
+
+                            return (
+                              <button
+                                key={category.id}
+                                type="button"
+                                onClick={() => hasSub ? setActiveCategoryId(category.id) : handleCategorySelect(category.id)}
+                                className={`w-full px-4 py-2.5 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors ${isSelected ? "bg-primary-50 text-primary-600" : "text-gray-900"}`}>
+                                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                  {CategoryIcon && <CategoryIcon className={`text-lg flex-shrink-0 ${isSelected ? "text-primary-600" : "text-gray-400"}`} />}
+                                  <span className="truncate text-sm font-medium">{category.name}</span>
+                                </div>
+                                {hasSub && <FiChevronRight className={`ml-2 text-gray-400 transition-transform`} />}
+                              </button>
+                            );
+                          })
+                        )}
+                      </motion.div>
+                    )}
+
+                    {/* Subcategories */}
+                    {activeCategoryId && !activeSubCategoryId && (
+                      <motion.div
+                        key="sub"
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleCategorySelect(activeCategoryId)}
+                          className="w-full px-4 py-2 text-left text-xs font-bold text-primary-600 bg-primary-50/50 hover:bg-primary-50 border-b border-primary-100 mb-1 flex items-center gap-2">
+                          <FiGrid className="text-sm" />
+                          <span>Select All in {rootCategories.find(c => c.id === activeCategoryId)?.name}</span>
+                        </button>
+                        {activeSubcategories.map((subcategory) => {
+                          const subSubCats = getCategoriesByParent(subcategory.id).filter((cat) => cat.isActive !== false);
+                          const hasSubSub = subSubCats.length > 0;
+                          const SubIcon = getCategoryIcon(subcategory);
+                          const isSelected = subcategoryValue === subcategory.id.toString();
+
+                          return (
+                            <button
+                              key={subcategory.id}
+                              type="button"
+                              onClick={() => hasSubSub ? setActiveSubCategoryId(subcategory.id) : handleSubcategorySelect(subcategory.id, activeCategoryId)}
+                              className={`w-full px-4 py-2.5 cursor-pointer flex items-center justify-between hover:bg-gray-50 transition-colors ${isSelected ? "bg-primary-50 text-primary-600" : "text-gray-900"}`}>
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                {SubIcon && <SubIcon className={`text-lg flex-shrink-0 ${isSelected ? "text-primary-600" : "text-gray-400"}`} />}
+                                <span className="truncate text-sm font-medium">{subcategory.name}</span>
                               </div>
                               {hasSubSub && <FiChevronRight className="ml-2 text-gray-400" />}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
 
-                {/* Sub-subcategories Flyout */}
-                {hoveredSubCategoryId && hoveredSubSubCategories.length > 0 && (
-                  <motion.div
-                    ref={subSubCategoryDropdownRef}
-                    initial={{ opacity: 0, x: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -10, scale: 0.95 }}
-                    className="absolute bg-white border border-gray-200 rounded-xl shadow-xl min-w-[220px] z-[10003] overflow-hidden">
-                    <div className="py-1 max-h-60 overflow-y-auto">
-                      <div
-                        className="px-4 py-2 cursor-pointer flex items-center gap-2 hover:bg-primary-50 text-primary-600 font-medium border-b border-gray-100 mb-1"
-                        onClick={(e) => { e.stopPropagation(); handleSubcategorySelect(hoveredSubCategoryId, hoveredCategoryId); }}>
-                        <FiLayers className="text-lg flex-shrink-0" />
-                        <span className="truncate text-xs">Select All</span>
-                      </div>
-                      {hoveredSubSubCategories.map((subSubCategory) => {
-                        const SubSubIcon = getCategoryIcon(subSubCategory);
-                        return (
-                          <div
-                            key={subSubCategory.id}
-                            onClick={(e) => { e.stopPropagation(); handleSubSubCategorySelect(subSubCategory.id, hoveredSubCategoryId, hoveredCategoryId); }}
-                            className={`px-4 py-2 cursor-pointer flex items-center gap-2 hover:bg-gray-50 ${subSubCategoryValue === subSubCategory.id.toString() ? "bg-primary-50 text-primary-600" : "text-gray-900"}`}>
-                            {SubSubIcon && <SubSubIcon className="text-lg flex-shrink-0 text-gray-400" />}
-                            <span className="truncate">{subSubCategory.name}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </>
+                    {/* Sub-subcategories */}
+                    {activeSubCategoryId && (
+                      <motion.div
+                        key="subsub"
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleSubcategorySelect(activeSubCategoryId, activeCategoryId)}
+                          className="w-full px-4 py-2 text-left text-xs font-bold text-primary-600 bg-primary-50/50 hover:bg-primary-50 border-b border-primary-100 mb-1 flex items-center gap-2">
+                          <FiLayers className="text-sm" />
+                          <span>Select All in {activeSubcategories.find(c => c.id === activeSubCategoryId)?.name}</span>
+                        </button>
+                        {activeSubSubCategories.map((subSubCategory) => {
+                          const SubSubIcon = getCategoryIcon(subSubCategory);
+                          const isSelected = subSubCategoryValue === subSubCategory.id.toString();
+
+                          return (
+                            <button
+                              key={subSubCategory.id}
+                              type="button"
+                              onClick={() => handleSubSubCategorySelect(subSubCategory.id, activeSubCategoryId, activeCategoryId)}
+                              className={`w-full px-4 py-2.5 cursor-pointer flex items-center gap-2.5 hover:bg-gray-50 transition-colors ${isSelected ? "bg-primary-50 text-primary-600" : "text-gray-900"}`}>
+                              {SubSubIcon && <SubSubIcon className={`text-lg flex-shrink-0 ${isSelected ? "text-primary-600" : "text-gray-400"}`} />}
+                              <span className="truncate text-sm font-medium">{subSubCategory.name}</span>
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
             )}
           </>
         )}

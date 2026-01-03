@@ -29,7 +29,7 @@ const MobileCheckout = () => {
   const { items, getTotal, clearCart, getItemsByVendor } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
   const { addresses, getDefaultAddress, addAddress } = useAddressStore();
-  const { createOrder, createOrderAPI, verifyPaymentAPI } = useOrderStore();
+  const { createOrderAPI, verifyPaymentAPI } = useOrderStore();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -299,33 +299,58 @@ const MobileCheckout = () => {
     }
   };
 
-  const handleCODOrder = () => {
-    // For COD or guest orders, use local storage (backward compatibility)
-    const order = createOrder({
-      userId: isAuthenticated ? user?.id : null,
-      items: items,
-      shippingAddress: {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        zipCode: formData.zipCode,
-        state: formData.state,
-        country: formData.country,
-      },
-      paymentMethod: formData.paymentMethod,
-      subtotal: total,
-      shipping: shipping,
-      tax: tax,
-      discount: discount,
-      total: finalTotal,
-      couponCode: appliedCoupon ? couponCode : null,
-    });
+  const handleCODOrder = async () => {
+    if (isProcessingPayment) return;
+    
+    setIsProcessingPayment(true);
+    try {
+      // Create order via API for COD
+      const orderData = {
+        userId: isAuthenticated ? user?.id : null,
+        items: items.map(item => ({
+          id: item.id,
+          productId: item.productId || item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.image,
+        })),
+        shippingAddress: {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          zipCode: formData.zipCode,
+          state: formData.state,
+          country: formData.country,
+        },
+        paymentMethod: formData.paymentMethod === 'cash' ? 'cod' : formData.paymentMethod,
+        subtotal: total,
+        shipping: shipping,
+        tax: tax,
+        discount: discount,
+        total: finalTotal,
+        couponCode: appliedCoupon ? couponCode : null,
+      };
 
-    clearCart();
-    toast.success("Order placed successfully!");
-    navigate(`/app/order-confirmation/${order.id}`);
+      const result = await createOrderAPI(orderData);
+      const order = result.order || result.data?.order || result;
+      const orderId = order?.id || order?.orderCode || order?._id || result?.order?.id || result?.order?.orderCode;
+
+      if (!orderId) {
+        throw new Error('Failed to get order ID from response');
+      }
+
+      clearCart();
+      toast.success("Order placed successfully!");
+      navigate(`/app/order-confirmation/${orderId}`);
+    } catch (error) {
+      console.error('COD order error:', error);
+      toast.error(error.response?.data?.message || "Failed to place order. Please try again.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   return (

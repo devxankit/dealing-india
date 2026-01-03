@@ -4,7 +4,7 @@ import { FiArrowLeft, FiFilter } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
 import MobileOrderCard from '../components/Mobile/MobileOrderCard';
-import { useOrderStore } from '../../../shared/store/orderStore';
+import { getUserOrders } from '../../../shared/services/orderService';
 import { useAuthStore } from '../../../shared/store/authStore';
 import PageTransition from '../../../shared/components/PageTransition';
 import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
@@ -13,8 +13,8 @@ import toast from 'react-hot-toast';
 
 const MobileOrders = () => {
   const navigate = useNavigate();
-  const { getAllOrders, fetchUserOrders } = useOrderStore();
   const { user, isAuthenticated } = useAuthStore();
+  const [orders, setOrders] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showFilter, setShowFilter] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -28,19 +28,26 @@ const MobileOrders = () => {
     { value: 'cancelled', label: 'Cancelled' },
   ];
 
-  // Fetch orders from backend on mount and when user changes
+  // Fetch orders from backend on mount and when user/status changes
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       loadOrders();
     } else {
       setLoading(false);
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, selectedStatus]);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
-      await fetchUserOrders({ status: selectedStatus === 'all' ? undefined : selectedStatus });
+      const response = await getUserOrders({ 
+        status: selectedStatus === 'all' ? undefined : selectedStatus,
+        page: 1,
+        limit: 1000, // Get all orders for user
+      });
+      if (response.success && response.data) {
+        setOrders(response.data.orders || []);
+      }
     } catch (error) {
       console.error('Error loading orders:', error);
       toast.error('Failed to load orders');
@@ -49,18 +56,22 @@ const MobileOrders = () => {
     }
   };
 
-  const allOrders = getAllOrders(user?.id || null);
-
   const filteredOrders = useMemo(() => {
-    if (selectedStatus === 'all') return allOrders;
-    return allOrders.filter((order) => order.status === selectedStatus);
-  }, [selectedStatus, allOrders]);
+    return orders; // Already filtered by API
+  }, [orders]);
 
   // Pull to refresh handler
   const handleRefresh = async () => {
     if (isAuthenticated && user?.id) {
       try {
-        await fetchUserOrders({ status: selectedStatus === 'all' ? undefined : selectedStatus });
+        const response = await getUserOrders({ 
+          status: selectedStatus === 'all' ? undefined : selectedStatus,
+          page: 1,
+          limit: 1000,
+        });
+        if (response.success && response.data) {
+          setOrders(response.data.orders || []);
+        }
         toast.success('Orders refreshed');
       } catch (error) {
         toast.error('Failed to refresh orders');
