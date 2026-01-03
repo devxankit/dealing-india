@@ -10,7 +10,8 @@
     "seed:admin": "node scripts/seedAdmin.js",
     "seed:brands": "node scripts/seedBrands.js",
     "seed:attributes": "node scripts/seedAttributes.js",
-    "add-sliders": "node scripts/add-sliders.js"
+    "add-sliders": "node scripts/add-sliders.js",
+    "add:vendor-products": "node scripts/addVendorProducts.js"
   },
   "keywords": [
     "ecommerce",

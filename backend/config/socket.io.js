@@ -21,7 +21,7 @@ import Vendor from '../models/Vendor.model.js';
 export const setupSocketIO = (httpServer) => {
   const corsOrigins = process.env.SOCKET_CORS_ORIGIN
     ? process.env.SOCKET_CORS_ORIGIN.split(',')
-    : ['http://localhost:5173', 'http://localhost:3000'];
+    : ['http://localhost:5173', 'http://localhost:3000', 'https://dealing-india.vercel.app'];
 
   const io = new Server(httpServer, {
     cors: {

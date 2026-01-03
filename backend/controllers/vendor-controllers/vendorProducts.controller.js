@@ -119,7 +119,7 @@ export const update = async (req, res, next) => {
 };
 
 /**
- * Delete product (soft delete)
+ * Delete product (hard delete - permanently remove from database)
  * DELETE /api/vendor/products/:id
  */
 export const remove = async (req, res, next) => {
@@ -127,11 +127,23 @@ export const remove = async (req, res, next) => {
     const { id } = req.params;
     const vendorId = req.user.vendorId;
 
-    await deleteVendorProduct(id, vendorId);
+    // Delete product and get image public IDs
+    const result = await deleteVendorProduct(id, vendorId);
+
+    // Delete images from Cloudinary if they exist
+    if (result.imagePublicIds && result.imagePublicIds.length > 0) {
+      try {
+        const { deleteMultipleFromCloudinary } = await import('../../utils/cloudinary.util.js');
+        await deleteMultipleFromCloudinary(result.imagePublicIds);
+      } catch (cloudinaryError) {
+        // Log error but don't fail the request - product is already deleted
+        console.error('Failed to delete images from Cloudinary:', cloudinaryError.message);
+      }
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Product deleted successfully',
+      message: 'Product deleted successfully from database',
     });
   } catch (error) {
     next(error);

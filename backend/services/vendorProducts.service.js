@@ -1118,30 +1118,53 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
 };
 
 /**
- * Delete product (soft delete - set isActive=false)
+ * Delete product (hard delete - permanently remove from database)
  * @param {String} productId - Product ID
  * @param {String} vendorId - Vendor ID
- * @returns {Promise<Boolean>} Success status
+ * @returns {Promise<Object>} Deleted product with image public IDs
  */
 export const deleteVendorProduct = async (productId, vendorId) => {
   try {
+    // Find product and verify ownership
     const product = await Product.findOne({
       _id: productId,
       vendorId,
-      isActive: true,
     });
 
     if (!product) {
-      const err = new Error('Product not found');
+      const err = new Error('Product not found or you do not have permission to delete it');
       err.status = 404;
       throw err;
     }
 
-    // Soft delete
-    await Product.findByIdAndUpdate(productId, { isActive: false });
+    // Collect image public IDs for Cloudinary deletion
+    const imagePublicIds = [];
+    
+    // Add main image public_id
+    if (product.imagePublicId) {
+      imagePublicIds.push(product.imagePublicId);
+    }
 
-    return true;
+    // Add gallery image public_ids
+    if (product.imagesPublicIds && Array.isArray(product.imagesPublicIds)) {
+      imagePublicIds.push(...product.imagesPublicIds.filter(id => id));
+    }
+
+    // Hard delete - permanently remove from database
+    await Product.findByIdAndDelete(productId);
+
+    // Return product data with image public IDs for controller to delete from Cloudinary
+    return {
+      deleted: true,
+      imagePublicIds,
+      product: product.toObject()
+    };
   } catch (error) {
+    if (error.name === 'CastError') {
+      const err = new Error('Invalid product ID');
+      err.status = 400;
+      throw err;
+    }
     throw error;
   }
 };

@@ -1,6 +1,32 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+// Auto-detect if running on Vercel
+const isVercel = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('vercel.app') || 
+   window.location.hostname === 'dealing-india.vercel.app');
+
+// Get backend URL - prioritize environment variable, then check for Vercel, then localhost
+const getBackendURL = () => {
+  // Highest priority: environment variable (set in Vercel dashboard)
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  // If on Vercel but no env var, user must set VITE_API_BASE_URL in Vercel environment variables
+  // For development, use localhost
+  return 'http://localhost:5000/api';
+};
+
+const getSocketURL = () => {
+  // Highest priority: environment variable (set in Vercel dashboard)
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+  // If on Vercel but no env var, user must set VITE_SOCKET_URL in Vercel environment variables
+  // For development, use localhost
+  return 'http://localhost:5000';
+};
+
+export const API_BASE_URL = getBackendURL();
+export const SOCKET_URL = getSocketURL();
 
 // App Constants
 export const APP_NAME = 'Appzeto multi vendor E-commerce';

@@ -74,7 +74,7 @@ const httpServer = http.createServer(app);
 // Middleware
 const corsOrigins = process.env.SOCKET_CORS_ORIGIN
   ? process.env.SOCKET_CORS_ORIGIN.split(',')
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://localhost:3000', 'https://dealing-india.vercel.app'];
 
 app.use(cors({
   origin: corsOrigins,
