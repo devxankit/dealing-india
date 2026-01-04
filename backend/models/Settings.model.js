@@ -32,11 +32,6 @@ const settingsSchema = new mongoose.Schema(
       outOfStockBehavior: { type: String, default: 'show', enum: ['show', 'hide'] },
       stockAlertsEnabled: { type: Boolean, default: true },
     },
-    tax: {
-      defaultTaxRate: { type: Number, default: 18, min: 0, max: 100 },
-      taxCalculationMethod: { type: String, default: 'exclusive', enum: ['exclusive', 'inclusive'] },
-      priceDisplayFormat: { type: String, default: 'INR', enum: ['INR', 'USD', 'EUR', 'GBP'] },
-    },
     banners: {
       universalDisplayTime: { type: Number, default: 2000, min: 500 }, // in milliseconds
       bookingWindowDays: { type: Number, default: 30, min: 1, max: 365 }, // booking window in days

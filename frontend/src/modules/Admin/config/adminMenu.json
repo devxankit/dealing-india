@@ -23,7 +23,6 @@
     "route": "/admin/products",
     "children": [
       "Manage Products",
-      "Tax & Pricing",
       "Product Ratings",
       "Product FAQs"
     ]

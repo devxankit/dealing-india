@@ -58,7 +58,6 @@ import OrderNotifications from "./modules/Admin/pages/orders/OrderNotifications"
 import Invoice from "./modules/Admin/pages/orders/Invoice";
 // Products child pages
 import ManageProducts from "./modules/Admin/pages/products/ManageProducts";
-import TaxPricing from "./modules/Admin/pages/products/TaxPricing";
 import ProductRatings from "./modules/Admin/pages/products/ProductRatings";
 import ProductFAQs from "./modules/Admin/pages/products/ProductFAQs";
 // Categories child pages
@@ -190,7 +189,6 @@ import VendorAllReels from "./modules/Vendor/pages/reels/AllReels";
 import VendorAddReel from "./modules/Vendor/pages/reels/AddReel";
 import VendorEditReel from "./modules/Vendor/pages/reels/EditReel";
 import VendorProductFAQs from "./modules/Vendor/pages/ProductFAQs";
-import VendorTaxPricing from "./modules/Vendor/pages/TaxPricing";
 import VendorShippingManagement from "./modules/Vendor/pages/ShippingManagement";
 import VendorCustomers from "./modules/Vendor/pages/Customers";
 import VendorCustomerDetail from "./modules/Vendor/pages/CustomerDetail";
@@ -402,7 +400,6 @@ const AppRoutes = () => {
           <Route path="products" element={<Products />} />
           <Route path="products/:id" element={<ProductForm />} />
           <Route path="products/manage-products" element={<ManageProducts />} />
-          <Route path="products/tax-pricing" element={<TaxPricing />} />
           <Route path="products/product-ratings" element={<ProductRatings />} />
           <Route path="products/product-faqs" element={<ProductFAQs />} />
           <Route path="more" element={<More />} />
@@ -539,7 +536,6 @@ const AppRoutes = () => {
           />
           <Route path="products/add-product" element={<VendorAddProduct />} />
           <Route path="products/product-faqs" element={<VendorProductFAQs />} />
-          <Route path="products/tax-pricing" element={<VendorTaxPricing />} />
           <Route
             path="products/product-attributes"
             element={<VendorProductAttributes />}

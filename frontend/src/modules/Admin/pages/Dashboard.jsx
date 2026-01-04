@@ -27,9 +27,12 @@ const Dashboard = () => {
     recentOrders: [],
   });
 
+  const [error, setError] = useState(null);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
+      setError(null);
       try {
         const response = await getDashboardSummary(period);
         if (response) {
@@ -37,7 +40,8 @@ const Dashboard = () => {
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        toast.error('Failed to load dashboard data');
+        setError('डैशबोर्ड डेटा लोड करने में विफल। कृपया पुन: प्रयास करें।');
+        toast.error('डैशबोर्ड डेटा लोड करने में विफल');
       } finally {
         setLoading(false);
       }
@@ -54,6 +58,20 @@ const Dashboard = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <div className="text-red-500 text-xl font-semibold">{error}</div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          पुन: प्रयास करें
+        </button>
       </div>
     );
   }

@@ -118,17 +118,35 @@ export const createOrder = async (orderData, io = null) => {
     // Calculate pricing breakdown
     const calculatedSubtotal = subtotal || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const calculatedShipping = shipping || 0;
-    const calculatedTax = tax || 0;
+    
+    // Fetch products for tax calculation and vendor breakdown
+    const productIds = items.map(item => item.productId || item.id);
+    const products = await Product.find({ _id: { $in: productIds } })
+      .populate('vendorId', 'name storeName commissionRate')
+      .select('_id vendorId vendorName taxRate taxIncluded price')
+      .lean();
+    
+    // Calculate tax from products if not provided or validate provided tax
+    let calculatedTax = tax || 0;
+    if (!tax || tax === 0) {
+      // Calculate tax based on product taxRate
+      calculatedTax = items.reduce((sum, item) => {
+        const productId = item.productId || item.id;
+        const product = products.find(p => p._id.toString() === productId.toString());
+        if (!product) return sum;
+        
+        const itemSubtotal = (item.price || 0) * (item.quantity || 1);
+        const itemTaxRate = product.taxRate || 0;
+        const itemTax = product.taxIncluded ? 0 : (itemSubtotal * itemTaxRate) / 100;
+        return sum + itemTax;
+      }, 0);
+    }
+    
     const calculatedDiscount = discount || 0;
     const calculatedTotal = total || (calculatedSubtotal + calculatedTax + calculatedShipping - calculatedDiscount);
 
     // Calculate vendor breakdown
     const vendorBreakdownMap = {};
-    const productIds = items.map(item => item.productId || item.id);
-    const products = await Product.find({ _id: { $in: productIds } })
-      .populate('vendorId', 'name storeName commissionRate')
-      .select('vendorId vendorName')
-      .lean();
 
     // Group items by vendor and calculate vendor totals
     items.forEach((item) => {

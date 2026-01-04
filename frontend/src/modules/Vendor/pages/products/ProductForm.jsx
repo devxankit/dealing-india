@@ -244,6 +244,15 @@ const ProductForm = () => {
     });
   };
 
+  const handleCategoryChange = ({ categoryId, subcategoryId, subSubCategoryId }) => {
+    setFormData((prev) => ({
+      ...prev,
+      categoryId,
+      subcategoryId,
+      subSubCategoryId,
+    }));
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -658,6 +667,7 @@ const ProductForm = () => {
                 subcategoryId={formData.subcategoryId}
                 subSubCategoryId={formData.subSubCategoryId}
                 onChange={handleChange}
+                onCategoryChange={handleCategoryChange}
                 required
               />
             </div>

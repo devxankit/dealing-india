@@ -70,6 +70,8 @@ export const getCart = async (userId) => {
           vendorName: vendorData?.storeName || vendorData?.businessName || 'Unknown Vendor',
           quantity: item.quantity || 1,
           isActive: product.isActive !== false,
+          taxRate: product.taxRate || 0,
+          taxIncluded: product.taxIncluded || false,
           addedAt: item.addedAt || item.createdAt || new Date(),
         };
       })

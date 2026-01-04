@@ -113,7 +113,17 @@ const Checkout = () => {
 
   const total = getTotal();
   const shipping = calculateShipping();
-  const tax = total * 0.1;
+  
+  // Calculate tax based on product.taxRate for each item
+  const tax = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const itemSubtotal = (item.price || 0) * (item.quantity || 1);
+      const itemTaxRate = item.taxRate || 0;
+      const itemTax = item.taxIncluded ? 0 : (itemSubtotal * itemTaxRate) / 100;
+      return sum + itemTax;
+    }, 0);
+  }, [items]);
+  
   const discount = appliedCoupon
     ? appliedCoupon.type === "percentage"
       ? total * (appliedCoupon.value / 100)

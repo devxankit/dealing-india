@@ -60,6 +60,7 @@ const CategorySelector = ({
   subcategoryId,
   subSubCategoryId,
   onChange,
+  onCategoryChange,
   required = false,
   className = "",
 }) => {
@@ -145,9 +146,17 @@ const CategorySelector = ({
 
   const handleCategorySelect = (categoryId) => {
     const categoryIdStr = categoryId?.toString() || categoryId;
-    onChange({ target: { name: "categoryId", value: categoryIdStr } });
-    onChange({ target: { name: "subcategoryId", value: "" } });
-    onChange({ target: { name: "subSubCategoryId", value: "" } });
+    if (onCategoryChange) {
+      onCategoryChange({
+        categoryId: categoryIdStr,
+        subcategoryId: "",
+        subSubCategoryId: ""
+      });
+    } else {
+      onChange({ target: { name: "categoryId", value: categoryIdStr } });
+      onChange({ target: { name: "subcategoryId", value: "" } });
+      onChange({ target: { name: "subSubCategoryId", value: "" } });
+    }
     setIsOpen(false);
     setActiveCategoryId(null);
     setActiveSubCategoryId(null);
@@ -156,9 +165,17 @@ const CategorySelector = ({
   const handleSubcategorySelect = (subId, parentId) => {
     const parentIdStr = parentId?.toString() || parentId;
     const subIdStr = subId?.toString() || subId;
-    onChange({ target: { name: "categoryId", value: parentIdStr } });
-    onChange({ target: { name: "subcategoryId", value: subIdStr } });
-    onChange({ target: { name: "subSubCategoryId", value: "" } });
+    if (onCategoryChange) {
+      onCategoryChange({
+        categoryId: parentIdStr,
+        subcategoryId: subIdStr,
+        subSubCategoryId: ""
+      });
+    } else {
+      onChange({ target: { name: "categoryId", value: parentIdStr } });
+      onChange({ target: { name: "subcategoryId", value: subIdStr } });
+      onChange({ target: { name: "subSubCategoryId", value: "" } });
+    }
     setIsOpen(false);
     setActiveCategoryId(null);
     setActiveSubCategoryId(null);
@@ -168,9 +185,17 @@ const CategorySelector = ({
     const rootIdStr = rootId?.toString() || rootId;
     const subIdStr = subId?.toString() || subId;
     const subSubIdStr = subSubId?.toString() || subSubId;
-    onChange({ target: { name: "categoryId", value: rootIdStr } });
-    onChange({ target: { name: "subcategoryId", value: subIdStr } });
-    onChange({ target: { name: "subSubCategoryId", value: subSubIdStr } });
+    if (onCategoryChange) {
+      onCategoryChange({
+        categoryId: rootIdStr,
+        subcategoryId: subIdStr,
+        subSubCategoryId: subSubIdStr
+      });
+    } else {
+      onChange({ target: { name: "categoryId", value: rootIdStr } });
+      onChange({ target: { name: "subcategoryId", value: subIdStr } });
+      onChange({ target: { name: "subSubCategoryId", value: subSubIdStr } });
+    }
     setIsOpen(false);
     setActiveCategoryId(null);
     setActiveSubCategoryId(null);

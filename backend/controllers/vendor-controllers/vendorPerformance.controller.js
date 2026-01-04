@@ -7,8 +7,9 @@ import { getVendorPerformanceMetrics } from '../../services/vendorPerformance.se
 export const getPerformanceMetrics = async (req, res, next) => {
   try {
     const vendorId = req.user.vendorId;
+    const { period } = req.query;
 
-    const result = await getVendorPerformanceMetrics(vendorId);
+    const result = await getVendorPerformanceMetrics(vendorId, period);
 
     res.status(200).json({
       success: true,

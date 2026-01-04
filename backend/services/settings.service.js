@@ -15,7 +15,7 @@ export const getSettings = async () => {
 
 /**
  * Update settings
- * @param {Object} updateData - Settings data to update { general, products, tax }
+ * @param {Object} updateData - Settings data to update { general, products }
  * @returns {Promise<Object>} Updated settings object
  */
 export const updateSettings = async (updateData) => {
@@ -42,12 +42,6 @@ export const updateSettings = async (updateData) => {
       };
     }
 
-    if (updateData.tax !== undefined) {
-      settings.tax = {
-        ...settings.tax,
-        ...updateData.tax,
-      };
-    }
 
     await settings.save();
     return settings;
@@ -58,7 +52,7 @@ export const updateSettings = async (updateData) => {
 
 /**
  * Update specific category of settings
- * @param {String} category - Category name (general, products, tax)
+ * @param {String} category - Category name (general, products)
  * @param {Object} categoryData - Category data to update
  * @returns {Promise<Object>} Updated settings object
  */
@@ -79,11 +73,6 @@ export const updateCategorySettings = async (category, categoryData) => {
     } else if (category === 'products' && settings.products) {
       settings.products = {
         ...settings.products,
-        ...categoryData,
-      };
-    } else if (category === 'tax' && settings.tax) {
-      settings.tax = {
-        ...settings.tax,
         ...categoryData,
       };
     } else {

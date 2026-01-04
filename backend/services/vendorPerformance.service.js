@@ -6,12 +6,33 @@ import { getAllVendorOrdersTransformed } from './vendorOrders.service.js';
 /**
  * Get vendor performance metrics
  * @param {String} vendorId - Vendor ID
- * @returns {Promise<Object>} { metrics, earnings }
+ * @param {String} period - Time period (week, month, year)
+ * @returns {Promise<Object>} { metrics, earnings, revenueData, topProducts, recentOrders }
  */
-export const getVendorPerformanceMetrics = async (vendorId) => {
+export const getVendorPerformanceMetrics = async (vendorId, period = 'month') => {
   try {
-    // Get all vendor orders
-    const orders = await getAllVendorOrdersTransformed(vendorId);
+    const now = new Date();
+    let startDate;
+
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    }
+
+    // Get all vendor orders in the period
+    const orders = await Order.find({
+      'vendorBreakdown.vendorId': new mongoose.Types.ObjectId(vendorId),
+      orderDate: { $gte: startDate },
+    }).sort({ orderDate: -1 }).lean();
 
     // Get total products count
     const totalProducts = await Product.countDocuments({
@@ -27,7 +48,7 @@ export const getVendorPerformanceMetrics = async (vendorId) => {
     const customerIds = new Set();
 
     orders.forEach((order) => {
-      const vendorItem = order.vendorItems?.find(
+      const vendorItem = order.vendorBreakdown?.find(
         (vi) => vi.vendorId?.toString() === vendorId.toString()
       );
 
@@ -55,7 +76,7 @@ export const getVendorPerformanceMetrics = async (vendorId) => {
     const totalOrders = orders.length;
     const customerCount = customerIds.size;
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-    const conversionRate = 0; // Requires visitor data not available
+    const conversionRate = 0; // Requires visitor data
 
     const metrics = {
       totalRevenue,
@@ -72,21 +93,23 @@ export const getVendorPerformanceMetrics = async (vendorId) => {
       paidEarnings,
     };
 
-    // Generate daily revenue trends for the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
+    // Generate revenue trends
     const trends = await Order.aggregate([
       {
         $match: {
           'vendorBreakdown.vendorId': new mongoose.Types.ObjectId(vendorId),
-          orderDate: { $gte: thirtyDaysAgo },
+          orderDate: { $gte: startDate },
           status: { $nin: ['cancelled', 'refunded'] },
         },
       },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$orderDate' } },
+          _id: {
+            $dateToString: {
+              format: period === 'year' ? '%Y-%m' : '%Y-%m-%d',
+              date: '$orderDate',
+            },
+          },
           revenue: {
             $sum: {
               $reduce: {
@@ -108,27 +131,19 @@ export const getVendorPerformanceMetrics = async (vendorId) => {
       { $sort: { _id: 1 } },
     ]);
 
-    // Top selling products for this vendor
+    // Get top products for this vendor
     const topProducts = await Order.aggregate([
       {
         $match: {
           'vendorBreakdown.vendorId': new mongoose.Types.ObjectId(vendorId),
+          orderDate: { $gte: startDate },
           status: { $nin: ['cancelled', 'refunded'] },
         },
       },
       { $unwind: '$items' },
       {
-        $lookup: {
-          from: 'products',
-          localField: 'items.productId',
-          foreignField: '_id',
-          as: 'productInfo',
-        },
-      },
-      { $unwind: '$productInfo' },
-      {
         $match: {
-          'productInfo.vendorId': new mongoose.Types.ObjectId(vendorId),
+          'items.vendorId': new mongoose.Types.ObjectId(vendorId),
         },
       },
       {
@@ -140,38 +155,45 @@ export const getVendorPerformanceMetrics = async (vendorId) => {
           revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
         },
       },
-      { $sort: { sales: -1 } },
+      { $sort: { revenue: -1 } },
       { $limit: 5 },
     ]);
+
+    // Format top products
+    const formattedTopProducts = topProducts.map(p => ({
+      id: p._id,
+      name: p.name,
+      image: p.image,
+      sales: p.sales,
+      revenue: p.revenue,
+      stock: 'in_stock' // Mocking stock for now
+    }));
+
+    // Format revenue data
+    const revenueData = trends.map((t) => ({
+      date: t._id,
+      revenue: t.revenue,
+      orders: t.orders,
+    }));
+
+    // Recent orders (already sorted by date desc)
+    const recentOrders = orders.slice(0, 5).map(order => ({
+      id: order.orderCode || order._id,
+      customerName: order.shippingAddress?.name || 'Guest',
+      date: order.orderDate,
+      total: order.vendorBreakdown?.find(v => v.vendorId.toString() === vendorId.toString())?.subtotal || 0,
+      status: order.status
+    }));
 
     return {
       metrics,
       earnings,
-      revenueData: trends.map((t) => ({
-        date: t._id,
-        revenue: t.revenue,
-        orders: t.orders,
-      })),
-      topProducts: topProducts.map((p) => ({
-        id: p._id,
-        name: p.name,
-        image: p.image,
-        sales: p.sales,
-        revenue: p.revenue,
-      })),
-      recentOrders: orders.slice(0, 10).map((o) => ({
-        id: o.orderCode || o._id,
-        customer: {
-          name: o.customerId?.name || o.customerSnapshot?.name || 'Guest',
-          email: o.customerId?.email || o.customerSnapshot?.email || '',
-        },
-        date: o.orderDate,
-        status: o.status,
-        total: o.total,
-        items: o.items,
-      })),
+      revenueData,
+      topProducts: formattedTopProducts,
+      recentOrders
     };
   } catch (error) {
+    console.error('Error in getVendorPerformanceMetrics:', error);
     throw error;
   }
 };

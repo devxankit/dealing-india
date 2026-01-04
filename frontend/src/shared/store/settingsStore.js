@@ -78,11 +78,6 @@ const defaultSettings = {
     outOfStockBehavior: "show", // 'hide' or 'show'
     stockAlertsEnabled: true,
   },
-  tax: {
-    defaultTaxRate: 18,
-    taxCalculationMethod: "exclusive", // 'inclusive' or 'exclusive'
-    priceDisplayFormat: "INR", // Currency format
-  },
   content: {
     privacyPolicy: "",
     termsConditions: "",
@@ -169,7 +164,6 @@ export const useSettingsStore = create(
               ...defaultSettings,
               general: { ...defaultSettings.general, ...(apiSettings.general || {}) },
               products: { ...defaultSettings.products, ...(apiSettings.products || {}) },
-              tax: { ...defaultSettings.tax, ...(apiSettings.tax || {}) },
             };
             set({ settings: mergedSettings, isLoading: false });
             // Also save to localStorage as backup
@@ -220,7 +214,6 @@ export const useSettingsStore = create(
               ...currentSettings,
               general: apiSettings.general || currentSettings.general,
               products: apiSettings.products || currentSettings.products,
-              tax: apiSettings.tax || currentSettings.tax,
             };
             set({ settings: updatedSettings, isLoading: false });
             // Also save to localStorage as backup

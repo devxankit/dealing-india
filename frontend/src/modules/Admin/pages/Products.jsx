@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { IndianRupee } from "lucide-react";
 import {
   FiPackage,
   FiPlus,
@@ -42,16 +41,6 @@ const Products = () => {
       shadowColor: "shadow-purple-500/20",
       hoverShadow: "hover:shadow-purple-500/30",
       description: "Upload products in bulk",
-    },
-    {
-      path: "/admin/products/tax-pricing",
-      label: "Tax & Pricing",
-      icon: IndianRupee,
-      gradient: "from-orange-500 via-orange-600 to-orange-700",
-      lightGradient: "from-orange-50 via-orange-100/80 to-orange-50",
-      shadowColor: "shadow-orange-500/20",
-      hoverShadow: "hover:shadow-orange-500/30",
-      description: "Manage tax and pricing rules",
     },
     {
       path: "/admin/products/product-ratings",

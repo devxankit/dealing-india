@@ -6,16 +6,20 @@ import {
   FiShoppingBag,
   FiTrendingUp,
   FiArrowRight,
+  FiDollarSign,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { IndianRupee } from "lucide-react";
 import { getVendorPerformanceMetrics } from "../services/performanceService";
 import { toast } from "react-hot-toast";
+import TimePeriodFilter from "../../Admin/components/Analytics/TimePeriodFilter";
+import RevenueLineChart from "../../Admin/components/Analytics/RevenueLineChart";
 
 const VendorDashboard = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
+  const [period, setPeriod] = useState('month');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
     metrics: {
@@ -35,27 +39,31 @@ const VendorDashboard = () => {
     recentOrders: [],
   });
 
+  const [error, setError] = useState(null);
+
   const vendorId = vendor?.id;
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!vendorId) return;
       setLoading(true);
+      setError(null);
       try {
-        const response = await getVendorPerformanceMetrics();
+        const response = await getVendorPerformanceMetrics(period);
         if (response && response.success) {
           setData(response.data);
         }
       } catch (error) {
         console.error("Error fetching vendor dashboard data:", error);
-        toast.error("Failed to load dashboard data");
+        setError("डैशबोर्ड डेटा लोड करने में विफल। कृपया पुन: प्रयास करें।");
+        toast.error("डैशबोर्ड डेटा लोड करने में विफल");
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [vendorId]);
+  }, [vendorId, period]);
 
   const statCards = [
     {
@@ -104,15 +112,29 @@ const VendorDashboard = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <div className="text-red-500 text-xl font-semibold">{error}</div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          पुन: प्रयास करें
+        </button>
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="lg:hidden">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">
             Dashboard
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
@@ -120,6 +142,7 @@ const VendorDashboard = () => {
             overview.
           </p>
         </div>
+        <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} />
       </div>
 
       {/* Stats Cards */}
@@ -146,6 +169,11 @@ const VendorDashboard = () => {
             </p>
           </motion.div>
         ))}
+      </div>
+
+      {/* Revenue Trend Chart */}
+      <div className="grid grid-cols-1 gap-6">
+        <RevenueLineChart data={data.revenueData} period={period} />
       </div>
 
       {/* Quick Actions */}
