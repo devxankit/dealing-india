@@ -413,13 +413,18 @@ const AllOrders = () => {
         };
 
         const response = await getAdminOrders(filters);
-        if (response.success && response.data) {
-          setOrders(response.data.orders || []);
+        
+        // API interceptor returns response.data, so response = { success: true, data: { orders: [...] } }
+        if (response?.success && response?.data?.orders) {
+          const orders = Array.isArray(response.data.orders) ? response.data.orders : [];
+          setOrders(orders);
           setPagination({
             page: response.data.page || 1,
             totalPages: response.data.totalPages || 1,
             total: response.data.total || 0,
           });
+        } else {
+          setOrders([]);
         }
       } catch (error) {
         console.error("Error fetching orders:", error);

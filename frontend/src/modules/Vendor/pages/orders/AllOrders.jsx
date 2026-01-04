@@ -76,8 +76,12 @@ const AllOrders = () => {
           limit: 1000, // Get all orders for vendor
         };
         const response = await getVendorOrders(filters);
-        if (response.success && response.data) {
-          setVendorOrders(response.data.orders || []);
+        
+        // API interceptor returns response.data, so response = { success: true, data: { orders: [...] } }
+        if (response?.success && response?.data?.orders) {
+          setVendorOrders(Array.isArray(response.data.orders) ? response.data.orders : []);
+        } else {
+          setVendorOrders([]);
         }
       } catch (error) {
         console.error('Error fetching vendor orders:', error);

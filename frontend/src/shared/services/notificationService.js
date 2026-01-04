@@ -64,7 +64,15 @@ export const getUnreadCount = async (role = null) => {
     const response = await api.get(endpoint);
     return response.data?.unreadCount || 0;
   } catch (error) {
-    console.error('Error fetching unread count:', error);
+    // Suppress network errors (backend might not be running)
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error') || error.message?.includes('ERR_CONNECTION_REFUSED')) {
+      // Silently return 0 - backend not available
+      return 0;
+    }
+    // Only log unexpected errors in development
+    if (import.meta.env.DEV) {
+      console.warn('Error fetching unread count:', error.message || error);
+    }
     return 0; // Return 0 on error to prevent UI issues
   }
 };

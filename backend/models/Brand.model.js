@@ -43,8 +43,7 @@ const brandSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-brandSchema.index({ name: 1 }, { unique: true });
+// Indexes (name already has unique: true in field definition)
 brandSchema.index({ isActive: 1 });
 brandSchema.index({ createdAt: -1 });
 

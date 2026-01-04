@@ -43,14 +43,19 @@ const MobileOrders = () => {
       const response = await getUserOrders({ 
         status: selectedStatus === 'all' ? undefined : selectedStatus,
         page: 1,
-        limit: 1000, // Get all orders for user
+        limit: 1000,
       });
-      if (response.success && response.data) {
-        setOrders(response.data.orders || []);
+      
+      // API interceptor returns response.data, so response = { success: true, data: { orders: [...] } }
+      if (response?.success && response?.data?.orders) {
+        setOrders(Array.isArray(response.data.orders) ? response.data.orders : []);
+      } else {
+        setOrders([]);
       }
     } catch (error) {
       console.error('Error loading orders:', error);
       toast.error('Failed to load orders');
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -176,7 +181,7 @@ const MobileOrders = () => {
                 <div className="space-y-0">
                   {filteredOrders.map((order, index) => (
                     <motion.div
-                      key={order.id}
+                      key={order._id || order.id || order.orderCode || index}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}

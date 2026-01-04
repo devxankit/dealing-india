@@ -120,11 +120,30 @@ export const createOrder = async (orderData, io = null) => {
     const calculatedShipping = shipping || 0;
     
     // Fetch products for tax calculation and vendor breakdown
-    const productIds = items.map(item => item.productId || item.id);
-    const products = await Product.find({ _id: { $in: productIds } })
-      .populate('vendorId', 'name storeName commissionRate')
-      .select('_id vendorId vendorName taxRate taxIncluded price')
-      .lean();
+    const productIds = items
+      .map(item => item.productId || item.id)
+      .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+    
+    let products = [];
+    if (productIds.length > 0) {
+      try {
+        products = await Product.find({ _id: { $in: productIds } })
+          .populate('vendorId', 'name storeName commissionRate')
+          .select('_id vendorId vendorName taxRate taxIncluded price')
+          .lean();
+        
+        if (products.length === 0) {
+          console.warn('No products found for order items:', productIds);
+        }
+      } catch (productError) {
+        console.error('Error fetching products for order:', productError);
+        // Continue with empty products array - tax calculation will use 0
+        products = [];
+      }
+    } else {
+      console.warn('No valid product IDs found in order items');
+    }
     
     // Calculate tax from products if not provided or validate provided tax
     let calculatedTax = tax || 0;
@@ -132,7 +151,13 @@ export const createOrder = async (orderData, io = null) => {
       // Calculate tax based on product taxRate
       calculatedTax = items.reduce((sum, item) => {
         const productId = item.productId || item.id;
-        const product = products.find(p => p._id.toString() === productId.toString());
+        if (!productId) return sum;
+        
+        const product = products.find(p => {
+          const pId = p._id?.toString() || p._id;
+          const itemId = productId?.toString() || productId;
+          return pId === itemId;
+        });
         if (!product) return sum;
         
         const itemSubtotal = (item.price || 0) * (item.quantity || 1);
@@ -151,7 +176,13 @@ export const createOrder = async (orderData, io = null) => {
     // Group items by vendor and calculate vendor totals
     items.forEach((item) => {
       const productId = item.productId || item.id;
-      const product = products.find(p => p._id.toString() === productId.toString());
+      if (!productId) return;
+      
+      const product = products.find(p => {
+        const pId = p._id?.toString() || p._id;
+        const itemId = productId?.toString() || productId;
+        return pId === itemId;
+      });
       if (!product || !product.vendorId) return;
 
       const vendorId = product.vendorId._id || product.vendorId;
@@ -184,6 +215,7 @@ export const createOrder = async (orderData, io = null) => {
       
       // Calculate commission (default 10% if not set)
       const vendor = products.find(p => {
+        if (!p || !p.vendorId) return false;
         const pid = p.vendorId?._id || p.vendorId;
         return pid && pid.toString() === vb.vendorId.toString();
       });
@@ -194,7 +226,7 @@ export const createOrder = async (orderData, io = null) => {
     });
 
     // Create order with enhanced fields
-    const orderData = {
+    const newOrderData = {
       orderCode,
       customerId,
       items: items.map((item) => ({
@@ -229,7 +261,7 @@ export const createOrder = async (orderData, io = null) => {
       ],
     };
 
-    const order = await Order.create([orderData], { session });
+    const order = await Order.create([newOrderData], { session });
 
     // Create notifications for user and vendors
     try {
@@ -444,7 +476,18 @@ export const getUserOrders = async (userId, filters = {}) => {
     const { status, paymentStatus, page = 1, limit = 10 } = filters;
     const skip = (page - 1) * limit;
 
-    const query = { customerId: userId };
+    // Convert userId to ObjectId if it's a string
+    // Handle both string and ObjectId formats
+    let customerIdQuery;
+    if (typeof userId === 'string' && mongoose.Types.ObjectId.isValid(userId)) {
+      customerIdQuery = new mongoose.Types.ObjectId(userId);
+    } else if (userId instanceof mongoose.Types.ObjectId) {
+      customerIdQuery = userId;
+    } else {
+      customerIdQuery = userId;
+    }
+
+    const query = { customerId: customerIdQuery };
 
     if (status) {
       query.status = status;
@@ -816,8 +859,21 @@ export const getAdminOrders = async (filters = {}) => {
     if (customerId && mongoose.Types.ObjectId.isValid(customerId)) query.customerId = customerId;
 
     if (vendorId) {
-      const vendorProducts = await Product.find({ vendorId, isActive: true }).select('_id').lean();
-      const vendorProductIds = vendorProducts.map((p) => p._id);
+      // Convert vendorId to ObjectId if needed
+      let vendorIdQuery = vendorId;
+      if (mongoose.Types.ObjectId.isValid(vendorId)) {
+        vendorIdQuery = new mongoose.Types.ObjectId(vendorId);
+      }
+      // Remove isActive check to show orders for all products
+      const vendorProducts = await Product.find({ vendorId: vendorIdQuery }).select('_id').lean();
+      // Convert product IDs to ObjectIds for proper query matching
+      const vendorProductIds = vendorProducts.map((p) => {
+        const productId = p._id;
+        if (typeof productId === 'string' && mongoose.Types.ObjectId.isValid(productId)) {
+          return new mongoose.Types.ObjectId(productId);
+        }
+        return productId;
+      });
       if (vendorProductIds.length > 0) {
         query['items.productId'] = { $in: vendorProductIds };
       } else {

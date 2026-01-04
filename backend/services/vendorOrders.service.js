@@ -140,13 +140,32 @@ export const getVendorOrdersTransformed = async (vendorId, filters = {}) => {
   try {
     const { page = 1, limit = 1000, status } = filters;
 
+    // Convert vendorId to ObjectId if needed
+    // Handle both string and ObjectId formats
+    let vendorIdQuery;
+    if (typeof vendorId === 'string' && mongoose.Types.ObjectId.isValid(vendorId)) {
+      vendorIdQuery = new mongoose.Types.ObjectId(vendorId);
+    } else if (vendorId instanceof mongoose.Types.ObjectId) {
+      vendorIdQuery = vendorId;
+    } else {
+      vendorIdQuery = vendorId;
+    }
+
     // First, get all product IDs for this vendor
     const Product = (await import('../models/Product.model.js')).default;
-    const vendorProducts = await Product.find({ vendorId, isActive: true })
+    // Remove isActive check to show orders for all products (including inactive ones)
+    const vendorProducts = await Product.find({ vendorId: vendorIdQuery })
       .select('_id')
       .lean();
 
-    const vendorProductIds = vendorProducts.map((p) => p._id);
+    // Convert product IDs to ObjectIds for proper query matching
+    const vendorProductIds = vendorProducts.map((p) => {
+      const productId = p._id;
+      if (typeof productId === 'string' && mongoose.Types.ObjectId.isValid(productId)) {
+        return new mongoose.Types.ObjectId(productId);
+      }
+      return productId;
+    });
 
     if (vendorProductIds.length === 0) {
       return {

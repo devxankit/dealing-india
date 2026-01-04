@@ -64,9 +64,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+// Indexes (email and phone already have unique: true in field definition)
 userSchema.index({ isActive: 1 });
 userSchema.index({ role: 1 });
 

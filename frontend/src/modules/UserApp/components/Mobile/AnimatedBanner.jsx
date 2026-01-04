@@ -49,12 +49,13 @@ const AnimatedBanner = () => {
   const [hasFetched, setHasFetched] = useState(false);
 
   // Fetch campaigns function
-  const fetchCampaigns = async (showLoading = true) => {
+  const fetchCampaigns = async (showLoading = true, forceRefresh = false) => {
     try {
       if (showLoading) setLoading(true);
       // Fetch all campaign types that should show in banners
-      // Use forceRefresh to ensure we get fresh data
-      await initializePublic({ limit: 100 }, true);
+      // Don't pass type parameter - fetch all campaigns
+      // Use forceRefresh only when explicitly needed
+      await initializePublic({ limit: 100 }, forceRefresh);
       setHasFetched(true);
     } catch (error) {
       console.error("Failed to fetch campaigns for banners:", error);
@@ -66,37 +67,37 @@ const AnimatedBanner = () => {
     }
   };
 
-  // Fetch campaigns on mount
+  // Fetch campaigns on mount - only once
   useEffect(() => {
     if (!hasFetched) {
-      fetchCampaigns();
+      fetchCampaigns(true, false); // Use cache if available
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Periodic refresh: Check for new campaigns every 2 minutes
+  // Periodic refresh: Check for new campaigns every 5 minutes (increased from 2 to reduce calls)
   useEffect(() => {
     if (!hasFetched) return;
 
-    const REFRESH_INTERVAL = 2 * 60 * 1000; // 2 minutes
+    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
     const intervalId = setInterval(() => {
-      // Silently refresh campaigns in background (don't show loading)
-      fetchCampaigns(false);
+      // Silently refresh campaigns in background (don't show loading, use cache if available)
+      fetchCampaigns(false, false);
     }, REFRESH_INTERVAL);
 
     return () => clearInterval(intervalId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasFetched]);
 
-  // Refresh when page becomes visible (user switches back to tab)
+  // Refresh when page becomes visible (user switches back to tab) - only if cache expired
   useEffect(() => {
     if (!hasFetched) return;
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Page became visible, refresh campaigns silently
-        fetchCampaigns(false);
+        // Page became visible, refresh campaigns silently (use cache if available)
+        fetchCampaigns(false, false);
       }
     };
 
@@ -108,16 +109,17 @@ const AnimatedBanner = () => {
   }, [hasFetched]);
 
   // Re-fetch if campaigns become empty after initial fetch (e.g., after cache clear)
+  // Only re-fetch once if campaigns are empty, not repeatedly
   useEffect(() => {
     if (hasFetched && !loading && publicCampaigns && publicCampaigns.length === 0) {
-      // Campaigns were cleared, re-fetch fresh data
+      // Campaigns were cleared, re-fetch fresh data after a delay
       const timeoutId = setTimeout(() => {
-        fetchCampaigns();
-      }, 500);
+        fetchCampaigns(false, true); // Force refresh if campaigns are empty
+      }, 1000); // Increased delay to prevent rapid re-fetching
       return () => clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicCampaigns, hasFetched, loading]);
+  }, [publicCampaigns?.length, hasFetched, loading]);
 
   // Get banners from campaigns
   const banners = useMemo(() => {

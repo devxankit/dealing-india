@@ -57,6 +57,10 @@ export const useNotifications = (options = {}) => {
 
     if (!socketInitialized.current) {
       const socket = initializeSocket(token);
+      if (!socket) {
+        // No token or socket initialization failed, skip socket setup
+        return;
+      }
       socketInitialized.current = true;
 
       // Listen for new notifications

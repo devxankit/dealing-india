@@ -567,6 +567,15 @@ const MobileCheckout = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Step 1 Actions */}
+                <div className="mt-8">
+                  <button
+                    type="submit"
+                    className="w-full h-12 gradient-green text-white rounded-xl font-bold text-sm tracking-wide transition-all duration-300 active:scale-[0.98] shadow-lg shadow-green-500/30">
+                    CONTINUE TO PAYMENT
+                  </button>
+                </div>
               </motion.div>
             )}
 

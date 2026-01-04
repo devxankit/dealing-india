@@ -320,12 +320,12 @@ const productSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    suppressReservedKeysWarning: true, // Suppress warning for isNew field
   }
 );
 
-// Indexes
+// Indexes (sku already has unique: true in field definition)
 productSchema.index({ name: 1 });
-productSchema.index({ sku: 1 });
 productSchema.index({ vendorId: 1, isActive: 1 });
 productSchema.index({ stock: 1, stockQuantity: 1 });
 productSchema.index({ categoryId: 1, isVisible: 1 });

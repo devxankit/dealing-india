@@ -9,8 +9,20 @@ let socket = null;
  * @returns {Socket} Socket.io instance
  */
 export const initializeSocket = (token) => {
+  // Don't initialize if no token
+  if (!token) {
+    return null;
+  }
+
+  // If socket exists and is connected, return it
   if (socket && socket.connected) {
     return socket;
+  }
+
+  // If socket exists but disconnected, disconnect it first
+  if (socket) {
+    socket.disconnect();
+    socket = null;
   }
 
   socket = io(SOCKET_URL, {
@@ -19,29 +31,46 @@ export const initializeSocket = (token) => {
     },
     transports: ['websocket', 'polling'],
     reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+    reconnectionAttempts: 3,
+    timeout: 10000,
+    autoConnect: true,
   });
 
   socket.on('connect', () => {
-    console.log('Socket.io connected');
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Socket.io disconnected');
-  });
-
-  socket.on('connect_error', (error) => {
-    // Don't show error if backend is not running - this is expected in development
-    if (error.message?.includes('ECONNREFUSED') || error.message?.includes('Failed to fetch')) {
-      console.warn('Socket.io connection failed (backend might not be running)');
-    } else {
-      console.error('Socket.io connection error:', error);
+    // Only log in development
+    if (import.meta.env.DEV) {
+      console.log('✅ Socket.io connected');
     }
   });
 
+  socket.on('disconnect', (reason) => {
+    // Only log in development and for unexpected disconnects
+    if (import.meta.env.DEV && reason !== 'io client disconnect') {
+      console.log('⚠️ Socket.io disconnected:', reason);
+    }
+  });
+
+  socket.on('connect_error', (error) => {
+    // Suppress expected errors (backend not running, network issues)
+    const isExpectedError = 
+      error.message?.includes('ECONNREFUSED') ||
+      error.message?.includes('Failed to fetch') ||
+      error.message?.includes('xhr poll error') ||
+      error.message?.includes('websocket error') ||
+      error.type === 'TransportError';
+    
+    if (!isExpectedError && import.meta.env.DEV) {
+      console.warn('Socket.io connection error:', error.message);
+    }
+    // Silently handle expected errors
+  });
+
   socket.on('error', (error) => {
-    console.error('Socket.io error:', error);
+    // Only log unexpected errors
+    if (import.meta.env.DEV && !error.message?.includes('ECONNREFUSED')) {
+      console.warn('Socket.io error:', error.message || error);
+    }
   });
 
   return socket;

@@ -24,8 +24,7 @@ const policySchema = new mongoose.Schema(
   }
 );
 
-// Index for faster lookups (only define once, not in schema field)
-policySchema.index({ key: 1 });
+// Index (key already has unique: true in field definition)
 
 const Policy = mongoose.model('Policy', policySchema);
 

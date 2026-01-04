@@ -20,8 +20,7 @@ const walletSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-walletSchema.index({ userId: 1 });
+// Indexes (userId already has unique: true in field definition)
 
 const Wallet = mongoose.model('Wallet', walletSchema);
 

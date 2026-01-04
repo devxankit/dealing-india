@@ -36,13 +36,6 @@ export const getPublicProducts = async (filters = {}) => {
       isVisible: true, // Only show visible products
     };
     const andConditions = [];
-    
-    console.log('🔍 Fetching products with filters:', {
-      categoryId,
-      subcategoryId,
-      search,
-      vendorId,
-    });
 
     // Vendor filter
     if (vendorId) {
@@ -141,12 +134,6 @@ export const getPublicProducts = async (filters = {}) => {
       }
       
       andConditions.push(categoryFilter);
-      console.log('📦 Category filter applied:', {
-        categoryId: categoryId,
-        depth: categoryDepth,
-        checkingFields: checkingFields,
-        filterQuery: JSON.stringify(categoryFilter),
-      });
     }
 
     // Subcategory filter (if provided separately)
@@ -225,8 +212,6 @@ export const getPublicProducts = async (filters = {}) => {
     if (andConditions.length > 0) {
       query.$and = andConditions;
     }
-    
-    console.log('🔎 Final MongoDB query:', JSON.stringify(query, null, 2));
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -249,40 +234,6 @@ export const getPublicProducts = async (filters = {}) => {
         .lean(),
       Product.countDocuments(query),
     ]);
-
-    console.log(`✅ Found ${products.length} products (total: ${total}) for category: ${categoryId || 'all'}`);
-    
-    // Debug: Check all products with subSubCategoryId to understand data structure
-    if (categoryId && categoryId !== 'all') {
-      try {
-        const debugProducts = await Product.find({ isVisible: true })
-          .select('name categoryId subcategoryId subSubCategoryId')
-          .populate('categoryId', 'name')
-          .populate('subcategoryId', 'name')
-          .populate('subSubCategoryId', 'name')
-          .limit(10)
-          .lean();
-        console.log('🔍 Debug - Sample products in database:', debugProducts.map(p => ({
-          name: p.name,
-          categoryId: p.categoryId?._id?.toString() || p.categoryId?.toString() || null,
-          subcategoryId: p.subcategoryId?._id?.toString() || p.subcategoryId?.toString() || null,
-          subSubCategoryId: p.subSubCategoryId?._id?.toString() || p.subSubCategoryId?.toString() || null,
-        })));
-      } catch (error) {
-        console.warn('⚠️ Debug query failed:', error.message);
-      }
-    }
-    
-    if (products.length > 0) {
-      console.log('📦 Sample product categories:', products.slice(0, 3).map(p => ({
-        name: p.name,
-        categoryId: p.categoryId?._id || p.categoryId,
-        subcategoryId: p.subcategoryId?._id || p.subcategoryId,
-        subSubCategoryId: p.subSubCategoryId?._id || p.subSubCategoryId,
-      })));
-    }
-
-    console.log(`✅ Found ${products.length} products (total: ${total}) for category: ${categoryId || 'all'}`);
 
     const totalPages = Math.ceil(total / parseInt(limit));
 

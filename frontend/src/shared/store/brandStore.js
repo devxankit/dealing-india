@@ -45,7 +45,15 @@ export const useBrandStore = create(
             throw new Error(response.message || 'Failed to fetch brands');
           }
         } catch (error) {
-          console.error('Error fetching brands:', error);
+          // Suppress network errors (backend might not be running)
+          if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error') || error.message?.includes('ERR_CONNECTION_REFUSED')) {
+            // Silently handle - backend not available
+            if (import.meta.env.DEV) {
+              console.warn('Backend not available. Brands will be empty.');
+            }
+          } else if (import.meta.env.DEV) {
+            console.error('Error fetching brands:', error);
+          }
           set({ isLoading: false });
           // Return empty array on error, don't throw
           return [];

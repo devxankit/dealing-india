@@ -10,15 +10,21 @@ import {
 export const getCampaigns = async (req, res, next) => {
   try {
     const { type, page = 1, limit = 100 } = req.query;
-    console.log(`GET /api/campaigns - Query: type=${type}, page=${page}, limit=${limit}`);
+    // Only log if type is provided to reduce console noise
+    if (type) {
+      console.log(`GET /api/campaigns - Query: type=${type}, page=${page}, limit=${limit}`);
+    }
 
     const result = await getPublicCampaigns({
-      type,
+      type: type || undefined, // Pass undefined instead of string "undefined"
       page,
       limit,
     });
 
-    console.log(`GET /api/campaigns - Found ${result.campaigns.length} campaigns`);
+    // Only log if campaigns found to reduce console noise
+    if (result.campaigns.length > 0) {
+      console.log(`GET /api/campaigns - Found ${result.campaigns.length} campaigns`);
+    }
 
     res.status(200).json({
       success: true,

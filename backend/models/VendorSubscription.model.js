@@ -6,7 +6,6 @@ const vendorSubscriptionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',
       required: true,
-      index: true,
     },
     tierId: {
       type: mongoose.Schema.Types.ObjectId,

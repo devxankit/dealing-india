@@ -64,11 +64,22 @@ class RazorpayService {
     }
 
     try {
+      // Validate amount
+      if (!amount || amount <= 0) {
+        throw new Error('Invalid amount. Amount must be greater than 0');
+      }
+
+      // Minimum amount for Razorpay is 100 paise (₹1)
+      const amountInPaise = Math.round(amount * 100);
+      if (amountInPaise < 100) {
+        throw new Error('Amount must be at least ₹1 (100 paise)');
+      }
+
       const options = {
-        amount: Math.round(amount * 100), // Convert to paise
+        amount: amountInPaise,
         currency: currency.toUpperCase(),
         receipt: receipt || `receipt_${Date.now()}`,
-        notes: notes,
+        notes: notes || {},
       };
 
       console.log('Creating Razorpay order with options:', {

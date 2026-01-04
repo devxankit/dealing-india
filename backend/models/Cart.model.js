@@ -32,8 +32,7 @@ const cartSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-cartSchema.index({ userId: 1 });
+// Indexes (userId already has unique: true in field definition)
 cartSchema.index({ 'items.productId': 1 });
 
 // Prevent duplicate products in cart

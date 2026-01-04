@@ -131,10 +131,9 @@ const campaignSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
+// Indexes (slug already has unique: true in field definition)
 campaignSchema.index({ type: 1, isActive: 1 });
 campaignSchema.index({ startDate: 1, endDate: 1 });
-campaignSchema.index({ slug: 1 }, { unique: true });
 
 const Campaign = mongoose.model('Campaign', campaignSchema);
 

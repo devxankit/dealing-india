@@ -16,6 +16,151 @@ import { Link, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import useSwipeGesture from "../../../modules/UserApp/hooks/useSwipeGesture";
 
+// Swipeable Cart Item Component
+const SwipeableCartItem = ({ item, onUpdateQuantity, onRemove, onSaveForLater }) => {
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isDeleted, setIsDeleted] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const deletedItemRef = useRef(null);
+
+  // Only animate on mount
+  useEffect(() => {
+    setHasAnimated(true);
+  }, []);
+
+  const handleSwipeRight = () => {
+    setIsDeleted(true);
+    deletedItemRef.current = { ...item };
+    onRemove(item.id);
+    toast.success("Item removed", {
+      duration: 3000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          if (deletedItemRef.current) {
+            const { addItem: addToCart } = useCartStore.getState();
+            addToCart(deletedItemRef.current);
+            setIsDeleted(false);
+            deletedItemRef.current = null;
+          }
+        },
+      },
+    });
+  };
+
+  const swipeHandlers = useSwipeGesture({
+    onSwipeRight: handleSwipeRight,
+    threshold: 100,
+  });
+
+  // Update offset based on swipe state
+  useEffect(() => {
+    if (swipeHandlers.swipeState.isSwiping) {
+      setSwipeOffset(Math.max(0, swipeHandlers.swipeState.offset));
+    } else if (!swipeHandlers.swipeState.isSwiping && swipeOffset < 100) {
+      setSwipeOffset(0);
+    }
+  }, [swipeHandlers.swipeState.isSwiping, swipeHandlers.swipeState.offset]);
+
+  const isLowStock = item.stock === "low_stock";
+  const stockQuantity = item.stockQuantity || 0;
+  const isMaxQuantity = item.quantity >= stockQuantity;
+
+  if (isDeleted) return null;
+
+  return (
+    <motion.div
+      initial={hasAnimated ? false : { opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0, x: Number.isFinite(swipeOffset) ? swipeOffset : 0 }}
+      exit={{ opacity: 0, x: "100%" }}
+      transition={{
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+      }}
+      style={{ willChange: "transform, opacity", transform: "translateZ(0)" }}
+      className="relative"
+      onTouchStart={swipeHandlers.onTouchStart}
+      onTouchMove={swipeHandlers.onTouchMove}
+      onTouchEnd={swipeHandlers.onTouchEnd}>
+      <div className="flex gap-4 p-4 bg-gray-50 rounded-xl relative">
+        {/* Delete Background */}
+        {swipeOffset > 0 && (
+          <div className="absolute inset-0 bg-red-500 rounded-xl flex items-center justify-end pr-4">
+            <FiTrash2 className="text-white text-xl" />
+          </div>
+        )}
+
+        {/* Product Image */}
+        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 relative z-10">
+          <img
+            src={item.image}
+            alt={item.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* Product Info */}
+        <div className="flex-1 min-w-0 relative z-10">
+          <h3 className="font-semibold text-gray-800 text-sm mb-1 line-clamp-2">
+            {item.name}
+          </h3>
+          <p className="text-sm font-bold text-primary-600 mb-2">
+            {formatPrice(item.price)}
+          </p>
+
+          {/* Stock Warning */}
+          {isLowStock && (
+            <div className="flex items-center gap-1 text-xs text-orange-600 mb-2">
+              <FiAlertCircle className="text-xs" />
+              <span>Only {stockQuantity} left!</span>
+            </div>
+          )}
+
+          {/* Quantity Controls */}
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              onClick={() => onUpdateQuantity(item.id, item.quantity, -1)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors">
+              <FiMinus className="text-xs text-gray-600" />
+            </button>
+            <motion.span
+              key={item.quantity}
+              initial={{ scale: 1.2 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.2 }}
+              style={{ willChange: "transform", transform: "translateZ(0)" }}
+              className="text-sm font-semibold text-gray-800 min-w-[2rem] text-center">
+              {item.quantity}
+            </motion.span>
+            <button
+              onClick={() => onUpdateQuantity(item.id, item.quantity, 1)}
+              disabled={isMaxQuantity}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${isMaxQuantity
+                ? "bg-gray-100 border-gray-200 cursor-not-allowed opacity-50"
+                : "bg-white border-gray-300 hover:bg-gray-50"
+                }`}>
+              <FiPlus className="text-xs text-gray-600" />
+            </button>
+            <button
+              onClick={() => onRemove(item.id)}
+              className="ml-auto p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+              <FiTrash2 className="text-sm" />
+            </button>
+          </div>
+          {/* Save for Later Button */}
+          <button
+            onClick={() => onSaveForLater(item)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-pink-50 text-pink-600 rounded-lg font-medium hover:bg-pink-100 transition-colors text-sm">
+            <FiHeart className="text-sm" />
+            Save for Later
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const CartDrawer = () => {
   const location = useLocation();
   // Check if we're in the mobile app section
@@ -74,21 +219,6 @@ const CartDrawer = () => {
     updateQuantity(id, newQuantity);
   };
 
-  const getProductStock = (id) => {
-    const item = items.find((i) => i.id === id);
-    return item ? item.stockQuantity : null;
-  };
-
-  const isMaxQuantity = (id, quantity) => {
-    const item = items.find((i) => i.id === id);
-    return item ? quantity >= (item.stockQuantity || 0) : false;
-  };
-
-  const isLowStock = (id) => {
-    const item = items.find((i) => i.id === id);
-    return item ? item.stock === "low_stock" : false;
-  };
-
   const handleSaveForLater = (item) => {
     addToWishlist({
       id: item.id,
@@ -98,147 +228,6 @@ const CartDrawer = () => {
     });
     removeItem(item.id);
     toast.success("Saved for later!");
-  };
-
-  // Swipeable Cart Item Component
-  const SwipeableCartItem = ({ item, index }) => {
-    const [swipeOffset, setSwipeOffset] = useState(0);
-    const [isDeleted, setIsDeleted] = useState(false);
-    const [hasAnimated, setHasAnimated] = useState(false);
-    const deletedItemRef = useRef(null);
-
-    // Only animate on mount
-    useEffect(() => {
-      setHasAnimated(true);
-    }, []);
-
-    const handleSwipeRight = () => {
-      setIsDeleted(true);
-      deletedItemRef.current = { ...item };
-      removeItem(item.id);
-      toast.success("Item removed", {
-        duration: 3000,
-        action: {
-          label: "Undo",
-          onClick: () => {
-            if (deletedItemRef.current) {
-              const { addItem: addToCart } = useCartStore.getState();
-              addToCart(deletedItemRef.current);
-              setIsDeleted(false);
-              deletedItemRef.current = null;
-            }
-          },
-        },
-      });
-    };
-
-    const swipeHandlers = useSwipeGesture({
-      onSwipeRight: handleSwipeRight,
-      threshold: 100,
-    });
-
-    // Update offset based on swipe state
-    useEffect(() => {
-      if (swipeHandlers.swipeState.isSwiping) {
-        setSwipeOffset(Math.max(0, swipeHandlers.swipeState.offset));
-      } else if (!swipeHandlers.swipeState.isSwiping && swipeOffset < 100) {
-        setSwipeOffset(0);
-      }
-    }, [swipeHandlers.swipeState.isSwiping, swipeHandlers.swipeState.offset]);
-
-    if (isDeleted) return null;
-
-    return (
-      <motion.div
-        initial={hasAnimated ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0, x: Number.isFinite(swipeOffset) ? swipeOffset : 0 }}
-        exit={{ opacity: 0, x: "100%" }}
-        transition={{
-          type: "spring",
-          stiffness: 300,
-          damping: 30,
-        }}
-        style={{ willChange: "transform, opacity", transform: "translateZ(0)" }}
-        className="relative"
-        onTouchStart={swipeHandlers.onTouchStart}
-        onTouchMove={swipeHandlers.onTouchMove}
-        onTouchEnd={swipeHandlers.onTouchEnd}>
-        <div className="flex gap-4 p-4 bg-gray-50 rounded-xl relative">
-          {/* Delete Background */}
-          {swipeOffset > 0 && (
-            <div className="absolute inset-0 bg-red-500 rounded-xl flex items-center justify-end pr-4">
-              <FiTrash2 className="text-white text-xl" />
-            </div>
-          )}
-
-          {/* Product Image */}
-          <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 relative z-10">
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-
-          {/* Product Info */}
-          <div className="flex-1 min-w-0 relative z-10">
-            <h3 className="font-semibold text-gray-800 text-sm mb-1 line-clamp-2">
-              {item.name}
-            </h3>
-            <p className="text-sm font-bold text-primary-600 mb-2">
-              {formatPrice(item.price)}
-            </p>
-
-            {/* Stock Warning */}
-            {isLowStock(item.id) && (
-              <div className="flex items-center gap-1 text-xs text-orange-600 mb-2">
-                <FiAlertCircle className="text-xs" />
-                <span>Only {getProductStock(item.id)} left!</span>
-              </div>
-            )}
-
-            {/* Quantity Controls */}
-            <div className="flex items-center gap-3 mb-2">
-              <button
-                onClick={() => handleQuantityChange(item.id, item.quantity, -1)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-300 hover:bg-gray-50 transition-colors">
-                <FiMinus className="text-xs text-gray-600" />
-              </button>
-              <motion.span
-                key={item.quantity}
-                initial={{ scale: 1.2 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.2 }}
-                style={{ willChange: "transform", transform: "translateZ(0)" }}
-                className="text-sm font-semibold text-gray-800 min-w-[2rem] text-center">
-                {item.quantity}
-              </motion.span>
-              <button
-                onClick={() => handleQuantityChange(item.id, item.quantity, 1)}
-                disabled={isMaxQuantity(item.id, item.quantity)}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${isMaxQuantity(item.id, item.quantity)
-                  ? "bg-gray-100 border-gray-200 cursor-not-allowed opacity-50"
-                  : "bg-white border-gray-300 hover:bg-gray-50"
-                  }`}>
-                <FiPlus className="text-xs text-gray-600" />
-              </button>
-              <button
-                onClick={() => removeItem(item.id)}
-                className="ml-auto p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                <FiTrash2 className="text-sm" />
-              </button>
-            </div>
-            {/* Save for Later Button */}
-            <button
-              onClick={() => handleSaveForLater(item)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-pink-50 text-pink-600 rounded-lg font-medium hover:bg-pink-100 transition-colors text-sm">
-              <FiHeart className="text-sm" />
-              Save for Later
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    );
   };
 
   return (
@@ -318,11 +307,13 @@ const CartDrawer = () => {
                         </div>
                         {/* Vendor Items */}
                         <div className="space-y-3 pl-2">
-                          {vendorGroup.items.map((item, index) => (
+                          {vendorGroup.items.map((item) => (
                             <SwipeableCartItem
                               key={item.id}
                               item={item}
-                              index={index}
+                              onUpdateQuantity={handleQuantityChange}
+                              onRemove={removeItem}
+                              onSaveForLater={handleSaveForLater}
                             />
                           ))}
                         </div>

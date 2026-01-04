@@ -78,8 +78,7 @@ const promoCodeSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for faster queries (define once, not in schema fields)
-promoCodeSchema.index({ code: 1 });
+// Indexes (code already has unique: true in field definition)
 promoCodeSchema.index({ status: 1 });
 promoCodeSchema.index({ startDate: 1, endDate: 1 });
 

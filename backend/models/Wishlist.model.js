@@ -27,8 +27,7 @@ const wishlistSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-wishlistSchema.index({ userId: 1 });
+// Indexes (userId already has unique: true in field definition)
 wishlistSchema.index({ 'products.productId': 1 });
 
 // Prevent duplicate products in wishlist

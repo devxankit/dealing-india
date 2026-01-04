@@ -82,8 +82,14 @@ export const useCampaignStore = create(
         const { type, page = 1, limit = filters.limit || 100 } = filters;
         console.log(`campaignStore - Fetching public campaigns: type=${type}, page=${page}, limit=${limit}`);
         
+        // Only include type in params if it's defined and not null/undefined
+        const params = { page, limit };
+        if (type !== undefined && type !== null && type !== '') {
+          params.type = type;
+        }
+        
         const response = await api.get('/campaigns', {
-          params: { type, page, limit },
+          params,
         });
 
         console.log('campaignStore - Received response:', response);

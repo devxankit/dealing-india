@@ -80,6 +80,16 @@ export const createOrder = async (req, res, next) => {
           throw new Error('Razorpay key ID not configured');
         }
 
+        // Validate amount before creating Razorpay order
+        if (!total || total <= 0) {
+          throw new Error('Invalid order total amount for payment');
+        }
+
+        // Minimum amount for Razorpay is ₹1 (100 paise)
+        if (total < 1) {
+          throw new Error('Order amount must be at least ₹1');
+        }
+
         razorpayOrder = await razorpayService.createOrder(
           total,
           'INR',
@@ -90,6 +100,10 @@ export const createOrder = async (req, res, next) => {
             couponCode: couponCode || '',
           }
         );
+
+        if (!razorpayOrder || !razorpayOrder.id) {
+          throw new Error('Failed to create Razorpay order - invalid response');
+        }
 
         // Update order with Razorpay order ID
         order.razorpayOrderId = razorpayOrder.id;
@@ -263,6 +277,13 @@ export const getOrder = async (req, res, next) => {
 export const getOrders = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User ID not found. Please login again.',
+      });
+    }
+    
     const { status, paymentStatus, page, limit } = req.query;
 
     const filters = {

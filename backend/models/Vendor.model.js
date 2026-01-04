@@ -116,8 +116,7 @@ const vendorSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-vendorSchema.index({ email: 1 }, { unique: true });
+// Indexes (email already has unique: true in field definition)
 vendorSchema.index({ phone: 1 }, { unique: true });
 vendorSchema.index({ status: 1 });
 vendorSchema.index({ isActive: 1 });
