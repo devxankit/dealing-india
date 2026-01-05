@@ -13,7 +13,8 @@ import {
 import { motion } from "framer-motion";
 import { useCartStore } from "../../../shared/store/useStore";
 import { useWishlistStore } from "../../../shared/store/wishlistStore";
-import { useReviewsStore } from "../../../shared/store/reviewsStore";
+
+import { getProductReviews } from "../../../shared/services/reviewService";
 import { getProductById as getProductByIdAPI, getProducts } from "../../../shared/services/productService";
 import { formatPrice } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
@@ -40,10 +41,31 @@ const MobileProductDetail = () => {
     removeItem: removeFromWishlist,
     isInWishlist,
   } = useWishlistStore();
-  const { getReviews, sortReviews } = useReviewsStore();
-
   const isFavorite = product ? isInWishlist(product.id) : false;
-  const productReviews = product ? sortReviews(product.id, "newest") : [];
+
+  // Reviews state
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Fetch reviews when product loads
+  useEffect(() => {
+    if (product?.id) {
+      const fetchReviews = async () => {
+        setReviewsLoading(true);
+        try {
+          const response = await getProductReviews(product.id);
+          if (response && response.reviews) {
+            setReviews(response.reviews);
+          }
+        } catch (error) {
+          console.error("Failed to fetch reviews", error);
+        } finally {
+          setReviewsLoading(false);
+        }
+      };
+      fetchReviews();
+    }
+  }, [product?.id]);
 
   // Fetch product from API
   useEffect(() => {
@@ -51,7 +73,7 @@ const MobileProductDetail = () => {
       try {
         setIsLoading(true);
         const productData = await getProductByIdAPI(id);
-        
+
         if (productData) {
           // Transform product data to match frontend format
           const transformedProduct = {
@@ -74,9 +96,9 @@ const MobileProductDetail = () => {
             attributes: productData.attributes || [],
             faqs: productData.faqs || [],
           };
-          
+
           setProduct(transformedProduct);
-          
+
           // Handle vendor data
           const vendorData = productData.vendorId;
           if (vendorData && typeof vendorData === 'object' && (vendorData._id || vendorData.id)) {
@@ -87,14 +109,14 @@ const MobileProductDetail = () => {
               businessName: vendorData.businessName,
               name: vendorData.name,
               storeLogo: vendorData.storeLogo || vendorData.logo,
-              isVerified: vendorData.isVerified !== undefined 
-                ? vendorData.isVerified 
+              isVerified: vendorData.isVerified !== undefined
+                ? vendorData.isVerified
                 : (vendorData.status === 'approved' || vendorData.isEmailVerified || false),
               rating: vendorData.rating || 0,
               reviewCount: vendorData.reviewCount || 0,
             });
           }
-          
+
           // Fetch similar products (same category)
           if (productData.categoryId) {
             try {
@@ -102,25 +124,25 @@ const MobileProductDetail = () => {
                 categoryId: productData.categoryId._id || productData.categoryId,
                 limit: 4,
               });
-              
+
               // Transform products to match frontend format (same as Home page)
               const transformProduct = (product) => {
                 // Handle vendor data - can be ObjectId or populated object
                 const vendor = product.vendorId;
                 const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
                   ? {
-                      id: (vendor._id || vendor.id).toString(),
-                      _id: vendor._id || vendor.id,
-                      storeName: vendor.storeName || vendor.businessName || vendor.name,
-                      businessName: vendor.businessName,
-                      name: vendor.name,
-                      storeLogo: vendor.storeLogo || vendor.logo,
-                      isVerified: vendor.isVerified !== undefined 
-                        ? vendor.isVerified 
-                        : (vendor.status === 'approved' || vendor.isEmailVerified || false),
-                    }
+                    id: (vendor._id || vendor.id).toString(),
+                    _id: vendor._id || vendor.id,
+                    storeName: vendor.storeName || vendor.businessName || vendor.name,
+                    businessName: vendor.businessName,
+                    name: vendor.name,
+                    storeLogo: vendor.storeLogo || vendor.logo,
+                    isVerified: vendor.isVerified !== undefined
+                      ? vendor.isVerified
+                      : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+                  }
                   : null;
-                
+
                 return {
                   id: product._id || product.id,
                   name: product.name,
@@ -138,7 +160,7 @@ const MobileProductDetail = () => {
                   flashSale: product.flashSale || false,
                 };
               };
-              
+
               const similar = (similarResponse.data?.products || similarResponse.products || [])
                 .filter(p => (p._id || p.id) !== transformedProduct.id)
                 .slice(0, 4)
@@ -177,7 +199,7 @@ const MobileProductDetail = () => {
 
   const currentPrice = useMemo(() => {
     if (!product) return 0;
-    
+
     // New colorVariants structure
     if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
       const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
@@ -188,7 +210,7 @@ const MobileProductDetail = () => {
         }
       }
     }
-    
+
     // Legacy structure support
     if (selectedVariant && product.variants?.prices) {
       if (
@@ -264,7 +286,7 @@ const MobileProductDetail = () => {
     }
 
     let finalPrice = product.price;
-    
+
     // New colorVariants structure
     if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
       const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
@@ -317,7 +339,7 @@ const MobileProductDetail = () => {
 
   const handleQuantityChange = (change) => {
     const newQuantity = quantity + change;
-    
+
     // Get max quantity based on selected variant
     let maxQuantity = product?.stockQuantity || 10;
     if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
@@ -326,7 +348,7 @@ const MobileProductDetail = () => {
         maxQuantity = colorVariant.sizeVariants[selectedVariant.sizeIndex].stockQuantity;
       }
     }
-    
+
     if (newQuantity >= 1 && newQuantity <= maxQuantity) {
       setQuantity(newQuantity);
     }
@@ -542,7 +564,7 @@ const MobileProductDetail = () => {
             {/* Attributes */}
             {product.attributes &&
               product.attributes.filter((attr) => (attr.name && attr.value) || (attr.attributeId && attr.values && attr.values.length > 0)).length >
-                0 && (
+              0 && (
                 <div className="mb-6 pb-6 border-b border-gray-200">
                   <h3 className="text-lg font-bold text-gray-800 mb-3">
                     Product Details
@@ -553,7 +575,7 @@ const MobileProductDetail = () => {
                       .map((attr, index) => {
                         const name = attr.name || attr.attributeName || (attr.attributeId && attr.attributeId.name);
                         const value = attr.value || (attr.values && attr.values.map(v => v.value || v).join(', '));
-                        
+
                         if (!name || !value) return null;
 
                         return (
@@ -651,14 +673,17 @@ const MobileProductDetail = () => {
             )}
 
             {/* Reviews Summary */}
-            {productReviews.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-3">
-                  Customer Reviews ({productReviews.length})
-                </h3>
+            {/* Reviews Summary */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-3">
+                Customer Reviews ({product.reviewCount || reviews.length || 0})
+              </h3>
+              {reviewsLoading ? (
+                <div className="text-center py-4 text-gray-500">Loading reviews...</div>
+              ) : reviews.length > 0 ? (
                 <div className="space-y-3">
-                  {productReviews.map((review) => (
-                    <div key={review.id} className="bg-gray-50 rounded-xl p-3">
+                  {reviews.map((review) => (
+                    <div key={review._id || review.id} className="bg-gray-50 rounded-xl p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="flex items-center">
                           {[...Array(5)].map((_, i) => (
@@ -672,15 +697,27 @@ const MobileProductDetail = () => {
                           ))}
                         </div>
                         <span className="text-xs font-semibold text-gray-700">
-                          {review.user}
+                          {review.userId?.name || review.customerName || 'Customer'}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(review.createdAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{review.comment}</p>
+                      <p className="text-sm text-gray-600">{review.review}</p>
+                      {review.images && review.images.length > 0 && (
+                        <div className="flex gap-2 mt-2">
+                          {review.images.map((img, idx) => (
+                            <img key={idx} src={img} alt="Review" className="w-16 h-16 object-cover rounded-lg" />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-gray-500 text-sm">No reviews yet. Be the first to review!</p>
+              )}
+            </div>
 
             {/* Similar Products */}
             {similarProducts.length > 0 && (

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { FiStar, FiUpload, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { submitReview } from '../../services/reviewService';
+import { createReview } from '../../services/reviewService';
 import { useAuthStore } from '../../store/authStore';
 
 const ReviewForm = ({ productId, onSubmit, onSuccess }) => {
@@ -49,7 +49,7 @@ const ReviewForm = ({ productId, onSubmit, onSuccess }) => {
       const customerName = user?.name || data.customerName || 'Anonymous User';
 
       // Submit review to API
-      await submitReview({
+      await createReview({
         productId,
         customerName,
         rating,
@@ -110,11 +110,10 @@ const ReviewForm = ({ productId, onSubmit, onSuccess }) => {
                 className="focus:outline-none"
               >
                 <FiStar
-                  className={`text-3xl transition-colors ${
-                    star <= (hoveredRating || rating)
-                      ? 'text-yellow-400 fill-yellow-400'
-                      : 'text-gray-300'
-                  }`}
+                  className={`text-3xl transition-colors ${star <= (hoveredRating || rating)
+                    ? 'text-yellow-400 fill-yellow-400'
+                    : 'text-gray-300'
+                    }`}
                 />
               </button>
             ))}
@@ -139,11 +138,10 @@ const ReviewForm = ({ productId, onSubmit, onSuccess }) => {
                   message: 'Name must be at least 2 characters',
                 },
               })}
-              className={`w-full px-4 py-3 rounded-xl border-2 ${
-                errors.customerName
-                  ? 'border-red-300 focus:border-red-500'
-                  : 'border-gray-200 focus:border-green-500'
-              } focus:outline-none transition-colors`}
+              className={`w-full px-4 py-3 rounded-xl border-2 ${errors.customerName
+                ? 'border-red-300 focus:border-red-500'
+                : 'border-gray-200 focus:border-green-500'
+                } focus:outline-none transition-colors`}
               placeholder="Enter your name"
             />
             {errors.customerName && (
@@ -166,11 +164,10 @@ const ReviewForm = ({ productId, onSubmit, onSuccess }) => {
               },
             })}
             rows={5}
-            className={`w-full px-4 py-3 rounded-xl border-2 ${
-              errors.comment
-                ? 'border-red-300 focus:border-red-500'
-                : 'border-gray-200 focus:border-green-500'
-            } focus:outline-none transition-colors resize-none`}
+            className={`w-full px-4 py-3 rounded-xl border-2 ${errors.comment
+              ? 'border-red-300 focus:border-red-500'
+              : 'border-gray-200 focus:border-green-500'
+              } focus:outline-none transition-colors resize-none`}
             placeholder="Share your experience with this product..."
           />
           {errors.comment && (

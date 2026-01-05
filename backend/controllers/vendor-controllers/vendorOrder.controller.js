@@ -8,6 +8,18 @@ import Order from '../../models/Order.model.js';
 import Product from '../../models/Product.model.js';
 import Vendor from '../../models/Vendor.model.js';
 import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
+
+const logDebug = (message) => {
+  try {
+    const logFile = path.join(process.cwd(), 'debug_earnings.log');
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
+  } catch (err) {
+    console.error('Failed to write to debug log:', err);
+  }
+};
 
 /**
  * Get vendor orders
@@ -297,18 +309,29 @@ export const getEarningsStats = async (req, res, next) => {
     const vendor = await Vendor.findById(vendorId);
     const defaultCommissionRate = vendor?.commissionRate || 0.1;
 
-    // Get vendor's product IDs to find relevant orders
-    const vendorProductIds = await Product.find({ vendorId }).distinct('_id');
-    const vendorProductIdStrings = vendorProductIds.map(id => id.toString());
+    // Get vendor's product IDs (ACTIVE AND INACTIVE) to find relevant orders
+    const vendorProducts = await Product.find({ vendorId }).select('_id').lean();
+    const vendorProductObjectIds = vendorProducts.map(p => p._id);
+    const vendorProductIdStrings = vendorProducts.map(p => p._id.toString());
 
     // console.log('DEBUG: vendorId', vendorId);
-    // console.log('DEBUG: vendorProductIds count', vendorProductIds.length);
+    // console.log('DEBUG: vendorProductIds count', vendorProducts.length);
+    logDebug(`Vendor: ${vendorId}`);
+    logDebug(`Found ${vendorProducts.length} products`);
+
+    if (vendorProductIdStrings.length === 0) {
+      logDebug('No products found associated with this vendor');
+      return res.status(200).json({
+        success: true,
+        data: { pendingEarnings: 0, totalOrderEarnings: 0, totalOrders: 0 }
+      });
+    }
 
     // Fetch all relevant orders
     const orders = await Order.find({
       $or: [
         { 'vendorBreakdown.vendorId': vendorId },
-        { 'items.productId': { $in: vendorProductIds } }
+        { 'items.productId': { $in: vendorProductObjectIds } }
       ],
       status: { $nin: ['cancelled', 'returned', 'refunded'] }
     })
@@ -323,61 +346,80 @@ export const getEarningsStats = async (req, res, next) => {
         data: { pendingEarnings: 0, totalOrderEarnings: 0, totalOrders: 0 }
       });
     }
+    logDebug(`Found ${orders.length} orders in DB`);
 
     let pendingEarnings = 0;
     let totalOrderEarnings = 0;
 
     const vendorIdStr = vendorId.toString();
+    let activeOrdersCount = 0;
 
     orders.forEach(order => {
       let orderSubtotal = 0;
       let orderCommission = 0;
       let foundInBreakdown = false;
+      let hasVendorItems = false;
 
-      // 1. Try to find in vendorBreakdown first (best accuracy)
-      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
-        const vb = order.vendorBreakdown.find(v =>
-          v.vendorId && (v.vendorId.toString() === vendorIdStr)
-        );
-        if (vb) {
-          orderSubtotal = vb.subtotal || 0;
-          orderCommission = vb.commission || 0;
-          foundInBreakdown = true;
+      // Check items to see if this order really belongs to this vendor
+      order.items.forEach(item => {
+        const pId = item.productId?.toString() || item.productId;
+        if (vendorProductIdStrings.includes(pId)) {
+          hasVendorItems = true;
         }
-      }
+      });
 
-      // 2. If not in breakdown, calculate manually from items
-      if (!foundInBreakdown && order.items) {
-        order.items.forEach(item => {
-          const pId = item.productId?.toString() || item.productId;
-          if (vendorProductIdStrings.includes(pId)) {
-            orderSubtotal += (item.price || 0) * (item.quantity || 1);
+      if (hasVendorItems) {
+        activeOrdersCount++;
+
+        // 1. Try to find in vendorBreakdown first (best accuracy)
+        if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+          const vb = order.vendorBreakdown.find(v =>
+            v.vendorId && (v.vendorId.toString() === vendorId.toString())
+          );
+          if (vb) {
+            orderSubtotal = vb.subtotal || 0;
+            orderCommission = vb.commission || 0;
+            foundInBreakdown = true;
           }
-        });
-        // Estimate commission
-        orderCommission = orderSubtotal * defaultCommissionRate;
-      }
+        }
 
-      const earnings = orderSubtotal - orderCommission;
+        // 2. If not in breakdown, calculate manually from items
+        if (!foundInBreakdown && order.items) {
+          order.items.forEach(item => {
+            const pId = item.productId?.toString() || item.productId;
+            if (vendorProductIdStrings.includes(pId)) {
+              orderSubtotal += (item.price || 0) * (item.quantity || 1);
+            }
+          });
+          orderCommission = orderSubtotal * defaultCommissionRate;
+        }
 
-      if (earnings >= 0) {
-        totalOrderEarnings += earnings;
-        // Check availability logic (Delivered/Completed = Realized)
-        // If not delivered/completed, it's pending
-        if (order.status !== 'delivered' && order.status !== 'completed') {
-          pendingEarnings += earnings;
+        const earnings = orderSubtotal - orderCommission;
+
+        if (earnings > 0) {
+          totalOrderEarnings += earnings;
+          // Check availability logic (Delivered/Completed = Realized)
+          // If not delivered/completed, it's pending
+          if (order.status !== 'delivered' && order.status !== 'completed') {
+            pendingEarnings += earnings;
+          }
+        } else {
+          logDebug(`Order ${order.orderCode} earnings 0. Subtotal: ${orderSubtotal}, Commission: ${orderCommission}`);
         }
       }
     });
+
+    logDebug(`Final: Orders=${activeOrdersCount}, Total=${totalOrderEarnings}, Pending=${pendingEarnings}`);
 
     res.status(200).json({
       success: true,
       data: {
         pendingEarnings: Math.round(pendingEarnings * 100) / 100,
         totalOrderEarnings: Math.round(totalOrderEarnings * 100) / 100,
-        totalOrders: orders.length
+        totalOrders: activeOrdersCount
       }
     });
+
 
   } catch (error) {
     console.error('Error fetching earnings stats:', error);

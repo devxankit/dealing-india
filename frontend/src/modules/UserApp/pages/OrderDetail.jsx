@@ -11,6 +11,9 @@ import PageTransition from '../../../shared/components/PageTransition';
 import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
 import Badge from '../../../shared/components/Badge';
 import LazyImage from '../../../shared/components/LazyImage';
+import ReviewModal from '../../../shared/components/ReviewModal';
+import { createReview, checkReviewEligibility } from '../../../shared/services/reviewService';
+import { FiStar } from 'react-icons/fi';
 
 const MobileOrderDetail = () => {
   const { orderId } = useParams();
@@ -19,6 +22,11 @@ const MobileOrderDetail = () => {
   const [order, setOrder] = useState(null);
   const [eligibility, setEligibility] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Review Modal State
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedProductForReview, setSelectedProductForReview] = useState(null);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -154,6 +162,46 @@ const MobileOrderDetail = () => {
     }
   };
 
+  const handleRateProduct = async (item) => {
+    const productId = item.productId?._id || item.productId || item.id;
+
+    // Optimistic check or just open modal and let backend handle verification on submit?
+    // Let's check eligibility first to be safe and get orderId if complex, 
+    // but here we know the orderId is `order._id`.
+    // However, the service `checkReviewEligibility` checks if *any* order allows it.
+    // Since we are in a specific order context, we should pass this orderId to createReview.
+
+    // Let's verify if user already reviewed THIS specific purchase?
+    // For now, just open modal.
+    setSelectedProductForReview({
+      ...item,
+      id: productId,
+      name: item.name || item.productId?.name,
+      image: item.image || item.productId?.images?.[0]
+    });
+    setIsReviewModalOpen(true);
+  };
+
+  const submitReview = async ({ rating, comment }) => {
+    if (!selectedProductForReview) return;
+
+    setIsSubmittingReview(true);
+    try {
+      await createReview({
+        productId: selectedProductForReview.id,
+        orderId: order._id || order.id,
+        rating,
+        comment
+      });
+      toast.success('Review submitted successfully!');
+      setIsReviewModalOpen(false);
+    } catch (error) {
+      toast.error(error.message || 'Failed to submit review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <PageTransition>
@@ -213,25 +261,39 @@ const MobileOrderDetail = () => {
                               const itemId = item._id || item.id || itemIdx;
 
                               return (
-                                <div key={itemId} className="flex items-center gap-3">
-                                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                                    <LazyImage
-                                      src={itemImage}
-                                      alt={itemName}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="font-semibold text-gray-800 text-sm mb-1">{itemName}</h3>
-                                    <p className="text-xs text-gray-600">
-                                      {formatPrice(itemPrice)} × {itemQuantity}
+                                <div key={itemId} className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                                      <LazyImage
+                                        src={itemImage}
+                                        alt={itemName}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h3 className="font-semibold text-gray-800 text-sm mb-1">{itemName}</h3>
+                                      <p className="text-xs text-gray-600">
+                                        {formatPrice(itemPrice)} × {itemQuantity}
+                                      </p>
+                                    </div>
+                                    <p className="font-bold text-gray-800 text-sm">
+                                      {formatPrice(itemPrice * itemQuantity)}
                                     </p>
                                   </div>
-                                  <p className="font-bold text-gray-800 text-sm">
-                                    {formatPrice(itemPrice * itemQuantity)}
-                                  </p>
+                                  {order.status === 'delivered' && (
+                                    <div className="pl-[60px]">
+                                      <button
+                                        onClick={() => handleRateProduct(item)}
+                                        className="text-xs font-semibold text-primary-600 bg-primary-50 px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-primary-100 transition-colors"
+                                      >
+                                        <FiStar className="text-primary-600" />
+                                        Rate Product
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               );
+
                             })}
                           </div>
                         </div>
@@ -248,25 +310,39 @@ const MobileOrderDetail = () => {
                       const itemId = item._id || item.id || idx;
 
                       return (
-                        <div key={itemId} className="flex items-center gap-3">
-                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                            <LazyImage
-                              src={itemImage}
-                              alt={itemName}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-800 text-sm mb-1">{itemName}</h3>
-                            <p className="text-xs text-gray-600">
-                              {formatPrice(itemPrice)} × {itemQuantity}
+                        <div key={itemId} className="flex flex-col gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                              <LazyImage
+                                src={itemImage}
+                                alt={itemName}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-800 text-sm mb-1">{itemName}</h3>
+                              <p className="text-xs text-gray-600">
+                                {formatPrice(itemPrice)} × {itemQuantity}
+                              </p>
+                            </div>
+                            <p className="font-bold text-gray-800 text-sm">
+                              {formatPrice(itemPrice * itemQuantity)}
                             </p>
                           </div>
-                          <p className="font-bold text-gray-800 text-sm">
-                            {formatPrice(itemPrice * itemQuantity)}
-                          </p>
+                          {order.status === 'delivered' && (
+                            <div className="pl-[76px]">
+                              <button
+                                onClick={() => handleRateProduct(item)}
+                                className="text-xs font-semibold text-primary-600 bg-primary-50 px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-primary-100 transition-colors"
+                              >
+                                <FiStar className="text-primary-600" />
+                                Rate Product
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
+
                     }) : (
                       <p className="text-gray-500 text-center py-4">No items found</p>
                     )}
@@ -397,7 +473,14 @@ const MobileOrderDetail = () => {
           </div>
         </MobileLayout>
       </PageTransition>
-    </ProtectedRoute>
+      <ReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        onSubmit={submitReview}
+        isSubmitting={isSubmittingReview}
+        product={selectedProductForReview}
+      />
+    </ProtectedRoute >
   );
 };
 

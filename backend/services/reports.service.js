@@ -154,7 +154,34 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     // Calculate stats
     const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
     const prevRevenue = prevOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-    
+
+    // Calculate Vendor Earnings vs Platform Earnings (Commission)
+    let totalVendorEarnings = 0;
+    let totalPlatformEarnings = 0;
+
+    orders.forEach(order => {
+      let orderVendorShare = 0;
+      let orderPlatformShare = 0;
+
+      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+        order.vendorBreakdown.forEach(vb => {
+          orderVendorShare += (vb.subtotal - vb.commission);
+          orderPlatformShare += vb.commission;
+        });
+      } else {
+        // Fallback: Assume flat 10% commission if no breakdown
+        const commissionRate = 0.1;
+        const commission = (order.total || 0) * commissionRate;
+        orderPlatformShare += commission;
+        orderVendorShare += ((order.total || 0) - commission);
+      }
+
+      totalVendorEarnings += orderVendorShare;
+      // Total Revenue includes delivery, tax etc, but for simple split: Platform = Revenue - Vendor Share
+      // detailed accuracy requires summing up non-vendor line items, but this is a good approximation
+      totalPlatformEarnings += orderPlatformShare;
+    });
+
     const totalOrders = orders.length;
     const prevOrdersCount = prevOrders.length;
 
@@ -234,6 +261,34 @@ export const getAdminDashboardSummary = async (period = 'month') => {
         customersChange: calculateChange(totalCustomers, prevCustomers),
         avgOrderValue: totalOrders === 0 ? 0 : totalRevenue / totalOrders,
       },
+      summary: [
+        {
+          label: 'Total Revenue',
+          value: totalRevenue,
+          prevValue: prevRevenue,
+          trend: prevRevenue === 0 ? 100 : ((totalRevenue - prevRevenue) / prevRevenue) * 100,
+          suffix: '₹',
+        },
+        {
+          label: 'Total Orders',
+          value: totalOrders,
+          prevValue: prevOrdersCount,
+          trend: prevOrdersCount === 0 ? 100 : ((totalOrders - prevOrdersCount) / prevOrdersCount) * 100,
+        },
+        {
+          label: 'Total Customers',
+          value: totalCustomers,
+          prevValue: prevCustomers,
+          trend: prevCustomers === 0 ? 100 : ((totalCustomers - prevCustomers) / prevCustomers) * 100,
+        },
+        {
+          label: 'Vendor Earnings',
+          value: totalVendorEarnings,
+          prevValue: 0, // Simplified for now
+          trend: 0,
+          suffix: '₹',
+        },
+      ],
       revenueData: trends.map((t) => ({
         date: t._id,
         revenue: t.revenue,

@@ -26,7 +26,6 @@ export const useCommissionStore = create(
           const data = await getVendorEarningsStats();
           
           if (data) {
-            // We start with backend data
             set({
               stats: {
                 ...get().stats,

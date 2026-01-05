@@ -12,6 +12,11 @@ const reviewSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'User ID is required'],
     },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Order',
+      required: [true, 'Order ID is required'],
+    },
     customerName: {
       type: String,
       required: [true, 'Customer name is required'],
@@ -33,6 +38,14 @@ const reviewSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    images: {
+      type: [String],
+      default: [],
+    },
+    isVerifiedPurchase: {
+      type: Boolean,
+      default: true,
+    },
     status: {
       type: String,
       enum: ['approved', 'pending', 'rejected', 'hidden'],
@@ -52,6 +65,10 @@ const reviewSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+
+// Ensure a user can only review a product once per order
+reviewSchema.index({ userId: 1, productId: 1, orderId: 1 }, { unique: true });
 
 // Indexes
 reviewSchema.index({ productId: 1, status: 1 });

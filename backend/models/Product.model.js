@@ -351,6 +351,7 @@ productSchema.index({ brandId: 1, isVisible: 1 });
 productSchema.index({ flashSale: 1, isVisible: 1 });
 productSchema.index({ isTrending: 1, isVisible: 1 });
 productSchema.index({ isNew: 1, isVisible: 1 });
+productSchema.index({ rating: -1, reviewCount: -1 });
 
 const Product = mongoose.model('Product', productSchema);
 

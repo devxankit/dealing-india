@@ -43,8 +43,7 @@ export const getVendorPerformanceMetrics = async (vendorId, period = 'all') => {
 
     // Get total products count
     const totalProducts = await Product.countDocuments({
-      vendorId,
-      isActive: true,
+      vendorId: vendorId,
     });
 
     // Get vendor for commission rate

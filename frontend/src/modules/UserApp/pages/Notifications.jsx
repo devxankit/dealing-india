@@ -1,21 +1,22 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiBell, FiSearch, FiCheck, FiX, FiArrowLeft, FiPackage, FiTruck, FiCheckCircle, FiXCircle } from "react-icons/fi";
-import { motion } from "framer-motion";
+import { FiBell, FiCheck, FiArrowLeft, FiMoreVertical, FiTrash2 } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import MobileLayout from "../components/Layout/MobileLayout";
 import PageTransition from "../../../shared/components/PageTransition";
 import ProtectedRoute from "../../../shared/components/Auth/ProtectedRoute";
 import { useAuthStore } from "../../../shared/store/authStore";
 import { useNotifications } from "../../../shared/hooks/useNotifications";
-import Badge from "../../../shared/components/Badge";
 import toast from "react-hot-toast";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+dayjs.extend(relativeTime);
 
 const Notifications = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [readFilter, setReadFilter] = useState("all");
+  const [filter, setFilter] = useState("all"); // all, unread
 
   const {
     notifications,
@@ -24,7 +25,6 @@ const Notifications = () => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    updateFilters,
   } = useNotifications({
     autoFetch: isAuthenticated,
     enableSocket: isAuthenticated,
@@ -32,60 +32,23 @@ const Notifications = () => {
 
   const filteredNotifications = useMemo(() => {
     let filtered = notifications;
-
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (notif) =>
-          notif.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          notif.message?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    if (filter === "unread") {
+      filtered = filtered.filter((n) => !n.isRead);
     }
-
-    if (typeFilter !== "all") {
-      filtered = filtered.filter((notif) => notif.type === typeFilter);
-    }
-
-    if (readFilter !== "all") {
-      filtered = filtered.filter((notif) =>
-        readFilter === "read" ? notif.isRead : !notif.isRead
-      );
-    }
-
-    return filtered.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
-  }, [notifications, searchQuery, typeFilter, readFilter]);
+    return filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [notifications, filter]);
 
   const handleMarkRead = async (id) => {
     try {
       await markAsRead(id);
-      toast.success("Notification marked as read");
     } catch (error) {
-      toast.error("Failed to mark notification as read");
-    }
-  };
-
-  const handleMarkAllRead = async () => {
-    try {
-      await markAllAsRead();
-      toast.success("All notifications marked as read");
-    } catch (error) {
-      toast.error("Failed to mark all notifications as read");
-    }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      await deleteNotification(id);
-      toast.success("Notification deleted");
-    } catch (error) {
-      toast.error("Failed to delete notification");
+      console.error(error);
     }
   };
 
   const handleNotificationClick = async (notification) => {
     if (!notification.isRead) {
-      await handleMarkRead(notification._id);
+      handleMarkRead(notification._id);
     }
     if (notification.actionUrl) {
       navigate(notification.actionUrl);
@@ -95,71 +58,22 @@ const Notifications = () => {
     }
   };
 
-  const getTypeLabel = (type) => {
-    const typeMap = {
-      order_placed: "Order Placed",
-      order_confirmed: "Order Confirmed",
-      order_shipped: "Order Shipped",
-      order_delivered: "Order Delivered",
-      order_cancelled: "Order Cancelled",
-      payment_success: "Payment Success",
-      payment_failed: "Payment Failed",
-      offer: "Offer",
-      promotion: "Promotion",
-      system: "System",
-      new_order: "New Order",
-      order_status_change: "Order Update",
-      return_request: "Return Request",
-      review: "Review",
-    };
-    return typeMap[type] || type;
-  };
-
-  const getNotificationIcon = (type) => {
-    const iconMap = {
-      order_placed: FiPackage,
-      order_confirmed: FiCheckCircle,
-      order_shipped: FiTruck,
-      order_delivered: FiCheckCircle,
-      order_cancelled: FiXCircle,
-      payment_success: FiCheckCircle,
-      payment_failed: FiXCircle,
-      offer: FiBell,
-      promotion: FiBell,
-      system: FiBell,
-      new_order: FiPackage,
-      order_status_change: FiTruck,
-      return_request: FiPackage,
-      review: FiCheckCircle,
-    };
-    return iconMap[type] || FiBell;
-  };
-
-  const getNotificationColor = (type) => {
-    const colorMap = {
-      order_placed: "bg-blue-100 text-blue-600",
-      order_confirmed: "bg-green-100 text-green-600",
-      order_shipped: "bg-purple-100 text-purple-600",
-      order_delivered: "bg-green-100 text-green-600",
-      order_cancelled: "bg-red-100 text-red-600",
-      payment_success: "bg-green-100 text-green-600",
-      payment_failed: "bg-red-100 text-red-600",
-      offer: "bg-orange-100 text-orange-600",
-      promotion: "bg-pink-100 text-pink-600",
-      system: "bg-gray-100 text-gray-600",
-      new_order: "bg-blue-100 text-blue-600",
-      order_status_change: "bg-purple-100 text-purple-600",
-      return_request: "bg-yellow-100 text-yellow-600",
-      review: "bg-green-100 text-green-600",
-    };
-    return colorMap[type] || "bg-gray-100 text-gray-600";
+  const handleDelete = async (e, id) => {
+    e.stopPropagation();
+    try {
+      await deleteNotification(id);
+      toast.success("Removed");
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
   };
 
   if (!user?.id || !isAuthenticated) {
     return (
       <ProtectedRoute>
         <MobileLayout>
-          <div className="text-center py-12">
+          <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6">
+            <FiBell className="text-4xl text-gray-300 mb-4" />
             <p className="text-gray-500">Please log in to view notifications</p>
           </div>
         </MobileLayout>
@@ -171,213 +85,124 @@ const Notifications = () => {
     <PageTransition>
       <ProtectedRoute>
         <MobileLayout>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4 pb-20">
+          <div className="bg-white min-h-screen pb-20">
             {/* Header */}
-            <div className="flex items-center gap-3 mb-4">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <FiArrowLeft className="text-xl text-gray-700" />
-              </button>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                  <FiBell className="text-primary-600" />
-                  Notifications
-                  {unreadCount > 0 && (
-                    <Badge variant="warning" className="ml-2">
-                      {unreadCount}
-                    </Badge>
-                  )}
-                </h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  Stay updated with your orders and offers
-                </p>
+            <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-100">
+              <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => navigate(-1)} className="p-1 -ml-2 text-gray-800">
+                    <FiArrowLeft className="text-xl" />
+                  </button>
+                  <h1 className="text-lg font-bold text-gray-900">Notifications</h1>
+                </div>
+
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => markAllAsRead()}
+                    className="text-xs font-medium text-primary-600 hover:text-primary-700 bg-primary-50 px-3 py-1.5 rounded-full transition-colors"
+                  >
+                    Mark all read
+                  </button>
+                )}
               </div>
-              {unreadCount > 0 && (
+
+              {/* Minimal Filter Tabs */}
+              <div className="px-4 pb-2 flex gap-4 text-sm font-medium border-b border-gray-50">
                 <button
-                  onClick={handleMarkAllRead}
-                  disabled={loading}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold text-sm disabled:opacity-50">
-                  <FiCheck className="inline mr-1" />
-                  Mark All Read
+                  onClick={() => setFilter("all")}
+                  className={`pb-2 relative ${filter === "all" ? "text-primary-600" : "text-gray-500"
+                    }`}
+                >
+                  All
+                  {filter === "all" && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-full"
+                    />
+                  )}
                 </button>
+                <button
+                  onClick={() => setFilter("unread")}
+                  className={`pb-2 relative ${filter === "unread" ? "text-primary-600" : "text-gray-500"
+                    }`}
+                >
+                  Unread
+                  {filter === "unread" && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-full"
+                    />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="max-w-md mx-auto">
+              {loading && notifications.length === 0 ? (
+                <div className="flex justify-center p-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                </div>
+              ) : filteredNotifications.length > 0 ? (
+                <ul className="divide-y divide-gray-50">
+                  <AnimatePresence initial={false}>
+                    {filteredNotifications.map((notification) => (
+                      <motion.li
+                        key={notification._id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        onClick={() => handleNotificationClick(notification)}
+                        className={`relative p-4 flex gap-3 transition-colors active:bg-gray-50 ${!notification.isRead ? "bg-blue-50/30" : "bg-white"
+                          }`}
+                      >
+                        {/* Dot Indicator for Unread */}
+                        {!notification.isRead && (
+                          <div className="absolute left-2 top-6 w-1.5 h-1.5 bg-primary-500 rounded-full shadow-sm" />
+                        )}
+
+                        {/* Icon / Avatar placeholder */}
+                        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg ${!notification.isRead ? "bg-primary-100 text-primary-600" : "bg-gray-100 text-gray-500"
+                          }`}>
+                          {notification.type.includes('order') ? <FiBell /> : <FiBell />}
+                        </div>
+
+                        <div className="flex-1 min-w-0 pr-6">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <p className={`text-sm ${!notification.isRead ? "font-semibold text-gray-900" : "font-medium text-gray-900"}`}>
+                              {notification.title}
+                            </p>
+                            <span className="text-xs text-gray-400 whitespace-nowrap ml-2">
+                              {dayjs(notification.createdAt).fromNow(true)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 leading-snug line-clamp-2">
+                            {notification.message}
+                          </p>
+                        </div>
+
+                        {/* Delete Action (Top Right absolute or inline) */}
+                        <button
+                          onClick={(e) => handleDelete(e, notification._id)}
+                          className="absolute right-2 top-4 p-2 text-gray-300 hover:text-red-500 transition-colors"
+                        >
+                          <FiTrash2 className="text-sm" />
+                        </button>
+                      </motion.li>
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                    <FiBell className="text-2xl text-gray-300" />
+                  </div>
+                  <h3 className="text-gray-900 font-medium mb-1">No notifications</h3>
+                  <p className="text-sm text-gray-500">We'll notify you when something important happens.</p>
+                </div>
               )}
             </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-                <p className="text-xs text-gray-600 mb-1">Total</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {notifications.length}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-                <p className="text-xs text-gray-600 mb-1">Unread</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {unreadCount}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-                <p className="text-xs text-gray-600 mb-1">Read</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {notifications.length - unreadCount}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-                <p className="text-xs text-gray-600 mb-1">Orders</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {
-                    notifications.filter(
-                      (n) =>
-                        n.type?.includes("order") || n.type === "order_placed" || n.type === "new_order"
-                    ).length
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-              <div className="flex flex-col gap-3">
-                <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search notifications..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                    className="flex-1 min-w-[140px] px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
-                    <option value="all">All Types</option>
-                    <option value="order_placed">Order Placed</option>
-                    <option value="order_shipped">Order Shipped</option>
-                    <option value="order_delivered">Order Delivered</option>
-                    <option value="order_cancelled">Order Cancelled</option>
-                    <option value="payment_success">Payment</option>
-                    <option value="offer">Offers</option>
-                    <option value="system">System</option>
-                  </select>
-
-                  <select
-                    value={readFilter}
-                    onChange={(e) => setReadFilter(e.target.value)}
-                    className="flex-1 min-w-[140px] px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
-                    <option value="all">All</option>
-                    <option value="unread">Unread</option>
-                    <option value="read">Read</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Loading State */}
-            {loading && notifications.length === 0 && (
-              <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
-                <p className="text-gray-500">Loading notifications...</p>
-              </div>
-            )}
-
-            {/* Notifications List */}
-            {!loading && filteredNotifications.length > 0 ? (
-              <div className="space-y-3">
-                {filteredNotifications.map((notification) => {
-                  const Icon = getNotificationIcon(notification.type);
-                  return (
-                    <motion.div
-                      key={notification._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      onClick={() => handleNotificationClick(notification)}
-                      className={`bg-white rounded-xl p-4 shadow-sm border border-gray-200 cursor-pointer transition-all hover:shadow-md ${
-                        !notification.isRead ? "bg-blue-50/50 border-blue-200" : ""
-                      }`}>
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${getNotificationColor(
-                            notification.type
-                          )}`}>
-                          <Icon className="text-lg" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className={`font-semibold text-gray-800 ${!notification.isRead ? "font-bold" : ""}`}>
-                                  {notification.title || getTypeLabel(notification.type)}
-                                </h3>
-                                {!notification.isRead && (
-                                  <span className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full"></span>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                                {notification.message}
-                              </p>
-                              <div className="flex items-center gap-3 text-xs text-gray-500">
-                                <span>
-                                  {new Date(notification.createdAt).toLocaleString()}
-                                </span>
-                                {notification.orderId && (
-                                  <span className="font-medium text-primary-600">
-                                    Order #{notification.orderId?.orderCode || notification.orderId}
-                                  </span>
-                                )}
-                                <Badge variant="info" className="text-xs">
-                                  {getTypeLabel(notification.type)}
-                                </Badge>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {!notification.isRead && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMarkRead(notification._id);
-                              }}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Mark as Read">
-                              <FiCheck className="text-sm" />
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(notification._id);
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete">
-                            <FiX className="text-sm" />
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            ) : !loading ? (
-              <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
-                <FiBell className="mx-auto text-5xl text-gray-400 mb-4" />
-                <p className="text-gray-500 font-medium text-lg">No notifications found</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  {searchQuery || typeFilter !== "all" || readFilter !== "all"
-                    ? "Try adjusting your filters"
-                    : "You're all caught up! Check back later for updates."}
-                </p>
-              </div>
-            ) : null}
-          </motion.div>
+          </div>
         </MobileLayout>
       </ProtectedRoute>
     </PageTransition>
