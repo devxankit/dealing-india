@@ -48,8 +48,14 @@ export const useAuthStore = create(
             throw new Error(response.message || 'Login failed');
           }
         } catch (error) {
+          // Always reset loading state, even on error
           set({ isLoading: false });
-          throw error;
+          
+          // Ensure error has a message
+          const errorMessage = error?.message || 
+                               error?.response?.data?.message || 
+                               'Login failed. Please check your internet connection and try again.';
+          throw new Error(errorMessage);
         }
       },
 
@@ -93,8 +99,14 @@ export const useAuthStore = create(
             throw new Error(response.message || 'Registration failed');
           }
         } catch (error) {
+          // Always reset loading state, even on error
           set({ isLoading: false });
-          throw error;
+          
+          // Ensure error has a message
+          const errorMessage = error?.message || 
+                               error?.response?.data?.message || 
+                               'Registration failed. Please check your internet connection and try again.';
+          throw new Error(errorMessage);
         }
       },
 

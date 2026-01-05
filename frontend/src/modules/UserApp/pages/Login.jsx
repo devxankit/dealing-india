@@ -36,7 +36,12 @@ const MobileLogin = () => {
       toast.success('Login successful!');
       navigate(from, { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Login failed. Please try again.');
+      // Extract error message
+      const errorMessage = error?.message || 
+                         error?.response?.data?.message || 
+                         'Login failed. Please check your credentials and try again.';
+      // Show error toast (API interceptor won't show for auth pages)
+      toast.error(errorMessage);
     }
   };
 

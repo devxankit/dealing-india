@@ -46,7 +46,12 @@ const VendorLogin = () => {
       const from = location.state?.from?.pathname || '/vendor/dashboard';
       navigate(from, { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Invalid credentials');
+      // Extract error message
+      const errorMessage = error?.message || 
+                         error?.response?.data?.message || 
+                         'Invalid credentials. Please try again.';
+      // Show error toast (API interceptor won't show for auth pages)
+      toast.error(errorMessage);
     }
   };
 

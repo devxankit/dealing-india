@@ -43,7 +43,12 @@ const MobileRegister = () => {
       // Navigate to verification page
       navigate('/app/verification', { state: { email: data.email } });
     } catch (error) {
-      toast.error(error.message || 'Registration failed. Please try again.');
+      // Extract error message
+      const errorMessage = error?.message || 
+                         error?.response?.data?.message || 
+                         'Registration failed. Please check your information and try again.';
+      // Show error toast (API interceptor won't show for auth pages)
+      toast.error(errorMessage);
     }
   };
 

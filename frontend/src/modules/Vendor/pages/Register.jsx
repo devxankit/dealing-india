@@ -146,7 +146,12 @@ const VendorRegister = () => {
       // Navigate to verification page
       navigate('/vendor/verification', { state: { email: formData.email } });
     } catch (error) {
-      toast.error(error.message || 'Registration failed. Please try again.');
+      // Extract error message
+      const errorMessage = error?.message || 
+                         error?.response?.data?.message || 
+                         'Registration failed. Please check your information and try again.';
+      // Show error toast (API interceptor won't show for auth pages)
+      toast.error(errorMessage);
     }
   };
 
