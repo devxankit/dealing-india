@@ -22,13 +22,22 @@ if (EMAIL_USER && EMAIL_PASS) {
       user: EMAIL_USER,
       pass: EMAIL_PASS,
     },
-    // Add connection timeout and retry options
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    // Increased timeouts for production (Render/Gmail can be slow)
+    connectionTimeout: process.env.NODE_ENV === 'production' ? 30000 : 10000, // 30s in prod, 10s in dev
+    greetingTimeout: process.env.NODE_ENV === 'production' ? 30000 : 10000,
+    socketTimeout: process.env.NODE_ENV === 'production' ? 30000 : 10000,
+    // Retry options for production
+    pool: process.env.NODE_ENV === 'production', // Use connection pooling in production
+    maxConnections: process.env.NODE_ENV === 'production' ? 5 : 1,
+    maxMessages: process.env.NODE_ENV === 'production' ? 100 : 1,
     // Enable debug in development
     debug: process.env.NODE_ENV === 'development',
     logger: process.env.NODE_ENV === 'development',
+    // TLS options for better compatibility
+    tls: {
+      rejectUnauthorized: false, // Some SMTP servers need this
+      ciphers: 'SSLv3',
+    },
   });
   
   // Verify transporter configuration on startup
@@ -129,7 +138,8 @@ export const sendVerificationEmail = async (email, otp) => {
     };
 
     // Send email with timeout to prevent hanging (increased timeout for production)
-    const timeoutDuration = process.env.NODE_ENV === 'production' ? 30000 : 10000; // 30s in prod, 10s in dev
+    // Render/Gmail connections can be slow, so we use longer timeout
+    const timeoutDuration = process.env.NODE_ENV === 'production' ? 60000 : 10000; // 60s in prod, 10s in dev
     let info;
     
     try {
@@ -163,8 +173,28 @@ export const sendVerificationEmail = async (email, otp) => {
         command: sendError.command,
         response: sendError.response,
         responseCode: sendError.responseCode,
-        stack: process.env.NODE_ENV === 'development' ? sendError.stack : undefined,
+        stack: sendError.stack, // Always log stack in production
       });
+      
+      // Check if it's a timeout error
+      const isTimeout = sendError.message?.includes('timeout') || 
+                       sendError.message?.includes('Connection timeout') ||
+                       sendError.code === 'ETIMEDOUT';
+      
+      if (isTimeout) {
+        // Log OTP for manual verification in case of timeout
+        console.error(`🚨 EMAIL TIMEOUT: Verification OTP for ${email}: ${otp}`);
+        console.error('⚠️  Email service timeout. This might be due to network/firewall issues on Render.');
+        console.error('⚠️  User can still verify using OTP from server logs.');
+        
+        return {
+          success: false,
+          message: 'Email service timeout. Please contact support or check server logs for OTP.',
+          error: 'EMAIL_TIMEOUT',
+          code: 'TIMEOUT',
+          otp: process.env.NODE_ENV === 'production' ? otp : undefined, // Log OTP in production for manual verification
+        };
+      }
       
       // Return error instead of throwing
       return {

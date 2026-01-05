@@ -326,6 +326,32 @@ const PORT = process.env.PORT || 5000;
 // Connect to database and start server
 const startServer = async () => {
   try {
+    // Validate critical environment variables
+    const requiredEnvVars = {
+      'MONGODB_URI': process.env.MONGODB_URI,
+      'JWT_SECRET': process.env.JWT_SECRET,
+    };
+    
+    const missingVars = Object.entries(requiredEnvVars)
+      .filter(([key, value]) => !value)
+      .map(([key]) => key);
+    
+    if (missingVars.length > 0) {
+      console.error('❌ CRITICAL: Missing required environment variables:');
+      missingVars.forEach(varName => {
+        console.error(`   - ${varName}`);
+      });
+      console.error('⚠️  Server will start but may not function correctly.');
+    }
+    
+    // Check email configuration (critical for registration)
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error('⚠️  WARNING: Email service not configured (EMAIL_USER or EMAIL_PASS missing)');
+      console.error('⚠️  Registration will fail without email service.');
+    } else {
+      console.log('✅ Email service configuration found');
+    }
+    
     // Connect to database
     await connectDB();
 
@@ -387,9 +413,30 @@ const startServer = async () => {
       console.log(`\n🚀 Server is running!`);
       console.log(`   Port: ${PORT}`);
       console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`   Health Check: http://localhost:${PORT}/api/health`);
-      console.log(`   DB Test: http://localhost:${PORT}/api/test-db`);
+      console.log(`   CORS Origins: ${corsOrigins.length} configured`);
+      console.log(`   Database: ${mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Not Connected'}`);
+      console.log(`   Email Service: ${(process.env.EMAIL_USER && process.env.EMAIL_PASS) ? '✅ Configured' : '❌ Not Configured'}`);
+      
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`   Health Check: https://dealing-india.onrender.com/api/health`);
+        console.log(`   Production URL: https://dealing-india.onrender.com`);
+      } else {
+        console.log(`   Health Check: http://localhost:${PORT}/api/health`);
+        console.log(`   DB Test: http://localhost:${PORT}/api/test-db`);
+      }
+      
       console.log(`   Socket.io: Enabled\n`);
+      
+      // Production-specific warnings
+      if (process.env.NODE_ENV === 'production') {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+          console.error('\n🚨 CRITICAL WARNING: Email service not configured in production!');
+          console.error('🚨 Registration will fail. Please set EMAIL_USER and EMAIL_PASS in Render environment variables.');
+        }
+        if (!process.env.SOCKET_CORS_ORIGIN) {
+          console.warn('\n⚠️  WARNING: SOCKET_CORS_ORIGIN not set. Socket.io may not work correctly.');
+        }
+      }
     }).on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.error(`\n❌ Port ${PORT} is already in use!`);

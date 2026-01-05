@@ -18,7 +18,7 @@ export const errorHandler = (err, req, res, next) => {
       body: req.body ? JSON.stringify(req.body).substring(0, 200) : undefined,
       params: req.params ? JSON.stringify(req.params) : undefined,
       query: req.query ? JSON.stringify(req.query) : undefined,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      stack: err.stack, // Always log stack for production debugging
     });
   }
 

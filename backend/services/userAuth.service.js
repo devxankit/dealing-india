@@ -241,7 +241,30 @@ export const registerUser = async (userData) => {
     }
 
     if (!emailResult || !emailResult.success) {
-      // If email fails, delete temporary registration
+      // Check if it's a timeout error - in production, allow registration to proceed
+      // but log the OTP for manual verification
+      const isTimeoutError = emailResult?.error === 'EMAIL_TIMEOUT' || 
+                            emailResult?.code === 'TIMEOUT' ||
+                            emailResult?.message?.includes('timeout') ||
+                            emailResult?.message?.includes('Connection timeout');
+      
+      // In production, if email times out, log OTP and allow registration to proceed
+      // This is better than failing registration completely
+      if (isTimeoutError) {
+        console.error(`🚨 CRITICAL: Email timeout during registration for ${email}`);
+        console.error(`🚨 OTP for manual verification: ${otp}`);
+        console.error('⚠️  Registration proceeding despite email timeout. User can verify using OTP from logs.');
+        
+        // Don't delete temporary registration - allow user to verify later
+        // Return success but with warning message
+        return {
+          message: 'Registration initiated. Email verification pending due to email service timeout. Please contact support with your email to receive verification code.',
+          email: email.toLowerCase(),
+          warning: 'Email service timeout - OTP logged in server',
+        };
+      }
+      
+      // For other email errors, delete temporary registration
       try {
         if (tempReg && tempReg._id) {
           await TemporaryRegistration.deleteOne({ _id: tempReg._id });

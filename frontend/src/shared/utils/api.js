@@ -2,6 +2,21 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from './constants';
 
+// Log API base URL for debugging (only in development or if URL seems wrong)
+if (typeof window !== 'undefined') {
+  const isLocalhost = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
+  const isProduction = window.location.hostname.includes('vercel.app') || 
+                       window.location.hostname.includes('onrender.com');
+  
+  if (isProduction && isLocalhost) {
+    console.error('❌ CRITICAL: API_BASE_URL is localhost in production!');
+    console.error('Current API_BASE_URL:', API_BASE_URL);
+    console.error('Please set VITE_API_BASE_URL in Vercel environment variables.');
+  } else if (process.env.NODE_ENV === 'development') {
+    console.log('🔗 API Base URL:', API_BASE_URL);
+  }
+}
+
 // Create axios instance with timeout
 const api = axios.create({
   baseURL: API_BASE_URL,
