@@ -24,13 +24,14 @@ class VendorSupportTicketController {
         });
       }
 
+      // subscriptionId is optional - will be auto-fetched if not provided and category is subscription-related
       const ticket = await SupportTicketService.createTicket(vendorId, {
         subject,
         description,
         category: category || 'subscription',
         issueType: issueType || 'other',
         priority: priority || 'medium',
-        subscriptionId,
+        subscriptionId: subscriptionId || undefined, // Pass undefined if not provided to allow auto-fetch
         transactionId,
         amount,
       });
@@ -39,6 +40,8 @@ class VendorSupportTicketController {
         success: true,
         message: 'Support ticket created successfully',
         data: ticket,
+        // Include subscriptionId in response so vendor knows what was used
+        subscriptionId: ticket.subscriptionId || null,
       });
     } catch (error) {
       console.error('Error creating support ticket:', error);

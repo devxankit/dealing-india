@@ -1,5 +1,6 @@
 import SupportTicket from '../models/SupportTicket.model.js';
 import mongoose from 'mongoose';
+import SubscriptionService from './subscription.service.js';
 
 class SupportTicketService {
   /**
@@ -7,14 +8,48 @@ class SupportTicketService {
    */
   async createTicket(vendorId, ticketData) {
     try {
+      // Auto-fetch subscriptionId if not provided and category is subscription-related
+      let subscriptionId = null;
+      
+      if (ticketData.subscriptionId) {
+        // Validate provided subscriptionId
+        if (mongoose.Types.ObjectId.isValid(ticketData.subscriptionId)) {
+          subscriptionId = new mongoose.Types.ObjectId(ticketData.subscriptionId);
+        } else {
+          console.warn(`Invalid subscriptionId provided: ${ticketData.subscriptionId}, will auto-fetch`);
+        }
+      }
+      
+      // If subscriptionId is still null and category is subscription-related, auto-fetch
+      if (!subscriptionId && (ticketData.category === 'subscription' || ticketData.category === 'billing' || ticketData.category === 'payment')) {
+        try {
+          const subscription = await SubscriptionService.getVendorSubscription(vendorId);
+          if (subscription && subscription._id) {
+            subscriptionId = subscription._id;
+            console.log(`Auto-fetched subscriptionId: ${subscriptionId} for vendor ${vendorId}`);
+          }
+        } catch (error) {
+          console.warn(`Failed to auto-fetch subscriptionId:`, error.message);
+          // Continue without subscriptionId - it's optional
+        }
+      }
+
+      // Generate ticket number before creating (to ensure it's set)
+      const year = new Date().getFullYear();
+      const count = await SupportTicket.countDocuments({
+        ticketNumber: new RegExp(`^TKT-${year}-`)
+      });
+      const ticketNumber = `TKT-${year}-${String(count + 1).padStart(4, '0')}`;
+
       const ticket = await SupportTicket.create({
+        ticketNumber, // Set ticketNumber explicitly to avoid pre-save hook issues
         vendorId,
         subject: ticketData.subject,
         description: ticketData.description,
         category: ticketData.category || 'subscription',
         issueType: ticketData.issueType || 'other',
         priority: ticketData.priority || 'medium',
-        subscriptionId: ticketData.subscriptionId || null,
+        subscriptionId,
         transactionId: ticketData.transactionId || null,
         amount: ticketData.amount || null,
         statusHistory: [{

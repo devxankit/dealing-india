@@ -9,6 +9,19 @@ import api from "../../../../shared/utils/api";
 import { initializeRazorpayCheckout, handlePaymentSuccess } from "../../../../shared/services/paymentService";
 import toast from "react-hot-toast";
 
+// Suppress Razorpay SVG warnings (these are from Razorpay's checkout modal, not our code)
+if (typeof window !== 'undefined') {
+  const originalError = console.error;
+  console.error = (...args) => {
+    // Filter out Razorpay SVG attribute warnings
+    const errorString = args[0]?.toString?.() || '';
+    if (errorString.includes('Expected length') && errorString.includes('auto')) {
+      return; // Suppress SVG width/height "auto" warnings from Razorpay
+    }
+    originalError.apply(console, args);
+  };
+}
+
 const AddReel = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
@@ -125,6 +138,13 @@ const AddReel = () => {
     }
   }, [formData.productId, vendorProducts, thumbnailFile]);
 
+  // Re-check payment requirement when product is selected and subscription is active
+  useEffect(() => {
+    if (subscription && subscription.status === 'active' && formData.productId && videoFile) {
+      checkPaymentRequirement();
+    }
+  }, [formData.productId, videoFile, subscription?.status]);
+
   // Handle video file selection
   const handleVideoChange = (e) => {
     const file = e.target.files[0];
@@ -188,6 +208,15 @@ const AddReel = () => {
     try {
       setProcessingPayment(true);
       
+      // Check if Razorpay is loaded
+      if (typeof window.Razorpay === 'undefined') {
+        // Wait a bit for script to load
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (typeof window.Razorpay === 'undefined') {
+          throw new Error('Razorpay payment gateway is not loaded. Please refresh the page and try again.');
+        }
+      }
+      
       // Initialize payment
       const response = await api.post('/vendor/subscriptions/initialize-extra-reel-payment');
       
@@ -197,62 +226,92 @@ const AddReel = () => {
 
       const { razorpay, razorpayKeyId, extraCharge: chargeAmount } = response.data;
 
-      if (!razorpay || !razorpay.orderId || !razorpayKeyId) {
-        throw new Error('Payment gateway not configured properly');
+      if (!razorpay || !razorpay.orderId) {
+        throw new Error('Payment order not created. Please try again.');
       }
+
+      if (!razorpayKeyId) {
+        throw new Error('Payment gateway not configured. Please contact support.');
+      }
+
+      // Ensure we use the extra charge amount (₹10), not product price
+      // chargeAmount is already in rupees from backend (e.g., 10 for ₹10)
+      // razorpay.amount is in paise (e.g., 1000 paise = ₹10)
+      // Use chargeAmount directly as it's the correct extra reel charge amount
+      if (!chargeAmount || chargeAmount <= 0) {
+        throw new Error('Invalid payment amount. Please try again.');
+      }
+      
+      const paymentAmount = chargeAmount; // Use extraCharge directly (₹10), not product price
 
       // Get vendor info for prefill
       const vendorInfo = JSON.parse(localStorage.getItem('vendor') || '{}');
 
-      await initializeRazorpayCheckout({
-        key: razorpayKeyId,
-        amount: razorpay.amount / 100, // Convert from paise to rupees
-        currency: razorpay.currency || 'INR',
-        name: 'Appzeto',
-        description: `Extra Reel Payment - ₹${chargeAmount}`,
-        orderId: razorpay.orderId,
-        prefill: {
-          name: vendorInfo.businessName || vendorInfo.storeName || '',
-          email: vendorInfo.email || '',
-          contact: vendorInfo.phone || '',
-        },
-        handler: async (paymentResponse) => {
-          try {
-            const paymentData = handlePaymentSuccess(paymentResponse);
-            
-            const verifyResponse = await api.post('/vendor/subscriptions/verify-extra-reel-payment', {
-              razorpayOrderId: paymentData.razorpayOrderId,
-              razorpayPaymentId: paymentData.razorpayPaymentId,
-              razorpaySignature: paymentData.razorpaySignature,
-            });
-
-            if (verifyResponse.success) {
-              toast.success('Payment successful! You can now upload the reel.');
-              setPaymentVerified(true);
-              setPaymentRequired(false);
-              // After payment, proceed with upload
-              await proceedWithUpload(true);
-            } else {
-              throw new Error(verifyResponse.message || 'Payment verification failed');
-            }
-          } catch (error) {
-            console.error('Payment verification error:', error);
-            toast.error(error.response?.data?.message || error.message || 'Payment verification failed');
-          } finally {
-            setProcessingPayment(false);
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setProcessingPayment(false);
-            toast.error('Payment cancelled');
+      try {
+        await initializeRazorpayCheckout({
+          key: razorpayKeyId,
+          amount: paymentAmount, // Use extraCharge amount (₹10), not product price
+          currency: razorpay.currency || 'INR',
+          name: 'Dealing India',
+          description: `Extra Reel Upload Payment - ₹${chargeAmount}`,
+          orderId: razorpay.orderId,
+          prefill: {
+            name: vendorInfo.businessName || vendorInfo.storeName || vendor?.storeName || '',
+            email: vendorInfo.email || vendor?.email || '',
+            contact: vendorInfo.phone || vendor?.phone || '',
           },
-        },
-      });
+          handler: async (paymentResponse) => {
+            try {
+              const paymentData = handlePaymentSuccess(paymentResponse);
+              
+              const verifyResponse = await api.post('/vendor/subscriptions/verify-extra-reel-payment', {
+                razorpayOrderId: paymentData.razorpayOrderId,
+                razorpayPaymentId: paymentData.razorpayPaymentId,
+                razorpaySignature: paymentData.razorpaySignature,
+              });
+
+              if (verifyResponse.success) {
+                toast.success('Payment successful! Uploading reel...');
+                setPaymentVerified(true);
+                setPaymentRequired(false);
+                // Reload subscription to update extraReelsCharged
+                await loadSubscription();
+                await checkPaymentRequirement();
+                // After payment, proceed with upload
+                await proceedWithUpload(true);
+              } else {
+                throw new Error(verifyResponse.message || 'Payment verification failed');
+              }
+            } catch (error) {
+              console.error('Payment verification error:', error);
+              const errorMessage = error.response?.data?.message || error.message || 'Payment verification failed';
+              toast.error(errorMessage);
+              setProcessingPayment(false);
+              setPaymentVerified(false);
+              // Don't proceed with upload if verification fails
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setProcessingPayment(false);
+              toast.error('Payment cancelled');
+            },
+          },
+        });
+      } catch (paymentError) {
+        // Handle payment cancellation or errors
+        if (paymentError.message === 'Payment cancelled by user') {
+          setProcessingPayment(false);
+          // Don't show error toast as it's already shown in modal.ondismiss
+          return;
+        }
+        throw paymentError; // Re-throw other errors
+      }
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('Payment initialization error:', error);
       setProcessingPayment(false);
-      toast.error(error.response?.data?.message || error.message || 'Failed to process payment');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to process payment';
+      toast.error(errorMessage);
     }
   };
 
@@ -260,6 +319,7 @@ const AddReel = () => {
     setLoading(true);
 
     try {
+      // Validate required fields manually (since hidden inputs can't use HTML5 validation)
       if (!videoFile) {
         toast.error("Please upload a video file");
         setLoading(false);
@@ -523,7 +583,6 @@ const AddReel = () => {
                       onChange={handleVideoChange}
                       className="hidden"
                       id="video-upload"
-                      required
                     />
                     <label
                       htmlFor="video-upload"

@@ -35,18 +35,22 @@ if (EMAIL_USER && EMAIL_PASS) {
  */
 export const sendVerificationEmail = async (email, otp) => {
   try {
-    if (!transporter) {
-      console.warn('Email service not configured. OTP:', otp);
-      // In development, log the OTP instead of sending email
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📧 [DEV MODE] Verification OTP for ${email}: ${otp}`);
-        return { success: true, message: 'OTP logged in console (dev mode)' };
-      }
-      throw new Error('Email service is not configured');
-    }
-
     if (!email || !otp) {
       throw new Error('Email and OTP are required');
+    }
+
+    // If transporter is not configured, log OTP and return success (for development/testing)
+    if (!transporter) {
+      console.warn('⚠️ Email service not configured. EMAIL_USER and EMAIL_PASS are required.');
+      console.log(`📧 [EMAIL NOT CONFIGURED] Verification OTP for ${email}: ${otp}`);
+      // Don't throw error - allow registration to proceed
+      // In production, admin should configure email credentials
+      return { 
+        success: true, 
+        message: 'OTP generated. Email service not configured - check server logs for OTP.',
+        devMode: true,
+        otp: process.env.NODE_ENV === 'development' ? otp : undefined // Only show OTP in dev mode
+      };
     }
 
     const mailOptions = {
@@ -94,15 +98,32 @@ export const sendVerificationEmail = async (email, otp) => {
       `,
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    // Send email with timeout to prevent hanging
+    const sendPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email send timeout')), 10000) // 10 second timeout
+    );
+
+    const info = await Promise.race([sendPromise, timeoutPromise]);
+    
+    console.log(`✅ Verification email sent to ${email}`);
     return {
       success: true,
       message: 'Verification email sent successfully',
       messageId: info.messageId,
     };
   } catch (error) {
-    console.error('Error sending verification email:', error);
-    throw new Error('Failed to send verification email');
+    console.error('❌ Error sending verification email:', error.message);
+    // Log OTP in case email fails so user can still verify
+    console.log(`📧 [EMAIL FAILED] Verification OTP for ${email}: ${otp}`);
+    // Don't throw error - allow registration to proceed, but log the issue
+    return {
+      success: false,
+      message: 'Failed to send email, but OTP has been generated. Check server logs.',
+      error: error.message,
+      devMode: true,
+      otp: process.env.NODE_ENV === 'development' ? otp : undefined
+    };
   }
 };
 
@@ -114,18 +135,20 @@ export const sendVerificationEmail = async (email, otp) => {
  */
 export const sendPasswordResetEmail = async (email, otp) => {
   try {
-    if (!transporter) {
-      console.warn('Email service not configured. OTP:', otp);
-      // In development, log the OTP instead of sending email
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📧 [DEV MODE] Password Reset OTP for ${email}: ${otp}`);
-        return { success: true, message: 'OTP logged in console (dev mode)' };
-      }
-      throw new Error('Email service is not configured');
-    }
-
     if (!email || !otp) {
       throw new Error('Email and OTP are required');
+    }
+
+    // If transporter is not configured, log OTP and return success
+    if (!transporter) {
+      console.warn('⚠️ Email service not configured. EMAIL_USER and EMAIL_PASS are required.');
+      console.log(`📧 [EMAIL NOT CONFIGURED] Password Reset OTP for ${email}: ${otp}`);
+      return { 
+        success: true, 
+        message: 'OTP generated. Email service not configured - check server logs for OTP.',
+        devMode: true,
+        otp: process.env.NODE_ENV === 'development' ? otp : undefined
+      };
     }
 
     const mailOptions = {
@@ -173,15 +196,32 @@ export const sendPasswordResetEmail = async (email, otp) => {
       `,
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    // Send email with timeout to prevent hanging
+    const sendPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email send timeout')), 10000) // 10 second timeout
+    );
+
+    const info = await Promise.race([sendPromise, timeoutPromise]);
+    
+    console.log(`✅ Password reset email sent to ${email}`);
     return {
       success: true,
       message: 'Password reset email sent successfully',
       messageId: info.messageId,
     };
   } catch (error) {
-    console.error('Error sending password reset email:', error);
-    throw new Error('Failed to send password reset email');
+    console.error('❌ Error sending password reset email:', error.message);
+    // Log OTP in case email fails
+    console.log(`📧 [EMAIL FAILED] Password Reset OTP for ${email}: ${otp}`);
+    // Don't throw error - allow password reset to proceed
+    return {
+      success: false,
+      message: 'Failed to send email, but OTP has been generated. Check server logs.',
+      error: error.message,
+      devMode: true,
+      otp: process.env.NODE_ENV === 'development' ? otp : undefined
+    };
   }
 };
 

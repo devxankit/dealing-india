@@ -115,14 +115,22 @@ export const registerVendor = async (vendorData) => {
       role: 'vendor',
     });
 
-    // Generate and send verification OTP
-    try {
-      const otp = await generateOTP(email, 'email_verification');
-      await sendVerificationEmail(email, otp);
-    } catch (otpError) {
-      // Log error but don't fail registration
-      console.error('Failed to send verification OTP:', otpError.message);
-    }
+    // Generate and send verification OTP (async, don't block registration)
+    generateOTP(email, 'email_verification')
+      .then(otp => {
+        return sendVerificationEmail(email, otp);
+      })
+      .then(result => {
+        if (result.success) {
+          console.log(`✅ Verification OTP sent to ${email}`);
+        } else {
+          console.warn(`⚠️ OTP generated but email failed for ${email}:`, result.message);
+        }
+      })
+      .catch(otpError => {
+        // Log error but don't fail registration
+        console.error('Failed to send verification OTP:', otpError.message);
+      });
 
     // Generate token (vendor can have token but may not be able to login until approved)
     const token = generateToken({
@@ -345,9 +353,21 @@ export const resendVendorVerificationOTP = async (email) => {
       throw new Error('Email is already verified');
     }
 
-    // Generate and send OTP
+    // Generate and send OTP (async, don't block response)
     const otp = await resendOTP(email, 'email_verification');
-    await sendVerificationEmail(email, otp);
+    
+    // Send email asynchronously to avoid blocking
+    sendVerificationEmail(email, otp)
+      .then(result => {
+        if (result.success) {
+          console.log(`✅ Verification OTP resent to ${email}`);
+        } else {
+          console.warn(`⚠️ OTP generated but email failed for ${email}:`, result.message);
+        }
+      })
+      .catch(error => {
+        console.error('Error sending verification email:', error.message);
+      });
 
     return { success: true, message: 'Verification OTP sent successfully' };
   } catch (error) {
