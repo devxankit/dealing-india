@@ -130,28 +130,50 @@ export const sendVerificationEmail = async (email, otp) => {
 
     // Send email with timeout to prevent hanging (increased timeout for production)
     const timeoutDuration = process.env.NODE_ENV === 'production' ? 30000 : 10000; // 30s in prod, 10s in dev
-    const sendPromise = transporter.sendMail(mailOptions);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error(`Email send timeout after ${timeoutDuration}ms`)), timeoutDuration)
-    );
+    let info;
+    
+    try {
+      const sendPromise = transporter.sendMail(mailOptions);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`Email send timeout after ${timeoutDuration}ms`)), timeoutDuration)
+      );
 
-    const info = await Promise.race([sendPromise, timeoutPromise]);
-    
-    // Enhanced logging for production debugging
-    const logMessage = `✅ Verification email sent to ${email}`;
-    const messageId = info.messageId || 'N/A';
-    console.log(`${logMessage} (MessageID: ${messageId})`);
-    
-    // In production, also log to help debug if emails don't arrive
-    if (process.env.NODE_ENV === 'production') {
-      console.log(`📧 Production Email Log: Sent verification OTP to ${email} at ${new Date().toISOString()}`);
+      info = await Promise.race([sendPromise, timeoutPromise]);
+      
+      // Enhanced logging for production debugging
+      const logMessage = `✅ Verification email sent to ${email}`;
+      const messageId = info.messageId || 'N/A';
+      console.log(`${logMessage} (MessageID: ${messageId})`);
+      
+      // In production, also log to help debug if emails don't arrive
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`📧 Production Email Log: Sent verification OTP to ${email} at ${new Date().toISOString()}`);
+      }
+      
+      return {
+        success: true,
+        message: 'Verification email sent successfully',
+        messageId: info.messageId,
+      };
+    } catch (sendError) {
+      // Enhanced error logging
+      console.error('❌ Error sending verification email:', {
+        message: sendError.message,
+        code: sendError.code,
+        command: sendError.command,
+        response: sendError.response,
+        responseCode: sendError.responseCode,
+        stack: process.env.NODE_ENV === 'development' ? sendError.stack : undefined,
+      });
+      
+      // Return error instead of throwing
+      return {
+        success: false,
+        message: 'Failed to send verification email. Please try again.',
+        error: sendError.message || 'EMAIL_SEND_FAILED',
+        code: sendError.code,
+      };
     }
-    
-    return {
-      success: true,
-      message: 'Verification email sent successfully',
-      messageId: info.messageId,
-    };
   } catch (error) {
     // Enhanced error logging
     console.error('❌ Error sending verification email:', error.message);

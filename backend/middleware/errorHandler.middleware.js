@@ -27,7 +27,10 @@ export const errorHandler = (err, req, res, next) => {
   let message = err.message || 'Internal Server Error';
 
   // Handle specific error types
-  if (err.name === 'ValidationError') {
+  if (err.statusCode === 429 || err.isRateLimitError) {
+    status = 429;
+    message = err.message || 'Too many requests. Please try again later.';
+  } else if (err.name === 'ValidationError') {
     status = 400;
     message = 'Validation error';
     // If it's a Mongoose validation error, extract field messages

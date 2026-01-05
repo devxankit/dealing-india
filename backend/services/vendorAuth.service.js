@@ -135,7 +135,20 @@ export const registerVendor = async (vendorData) => {
     });
 
     // Generate and send verification OTP
-    const otp = await generateOTP(email, 'email_verification');
+    let otp;
+    try {
+      otp = await generateOTP(email, 'email_verification');
+    } catch (otpError) {
+      // If it's a rate limit error, throw it with proper status
+      if (otpError.isRateLimitError || otpError.statusCode === 429) {
+        otpError.status = 429;
+        throw otpError;
+      }
+      // For other OTP errors, throw with 400 status
+      otpError.status = 400;
+      throw otpError;
+    }
+    
     const emailResult = await sendVerificationEmail(email, otp);
 
     if (!emailResult.success) {
@@ -470,7 +483,21 @@ export const forgotVendorPassword = async (email) => {
     }
 
     // Generate and send OTP
-    const otp = await generateOTP(email, 'password_reset');
+    // Generate and send OTP
+    let otp;
+    try {
+      otp = await generateOTP(email, 'password_reset');
+    } catch (otpError) {
+      // If it's a rate limit error, throw it with proper status
+      if (otpError.isRateLimitError || otpError.statusCode === 429) {
+        otpError.status = 429;
+        throw otpError;
+      }
+      // For other OTP errors, throw with 400 status
+      otpError.status = 400;
+      throw otpError;
+    }
+    
     await sendPasswordResetEmail(email, otp);
 
     return { success: true, message: 'Password reset OTP has been sent to your email' };

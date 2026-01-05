@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import User from '../models/User.model.js';
 import TemporaryRegistration from '../models/TemporaryRegistration.model.js';
 import { hashPassword, comparePassword } from '../utils/bcrypt.util.js';
@@ -13,6 +14,17 @@ import { isValidEmail, isValidPhone, validatePassword } from '../utils/validator
  */
 export const registerUser = async (userData) => {
   try {
+    // Check database connection
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('Database connection not available. Please try again later.');
+    }
+
+    // Verify TemporaryRegistration model is available
+    if (!TemporaryRegistration || typeof TemporaryRegistration.create !== 'function') {
+      console.error('❌ TemporaryRegistration model not properly initialized');
+      throw new Error('Registration service unavailable. Please try again later.');
+    }
+
     const { name, email, password, phone } = userData;
 
     // Validate inputs
@@ -50,6 +62,11 @@ export const registerUser = async (userData) => {
     // Check if there's already a pending temporary registration
     let existingTempReg = null;
     try {
+      // Ensure TemporaryRegistration model is available
+      if (!TemporaryRegistration) {
+        throw new Error('TemporaryRegistration model is not available');
+      }
+      
       existingTempReg = await TemporaryRegistration.findOne({
         email: email.toLowerCase(),
         registrationType: 'user',
@@ -57,8 +74,19 @@ export const registerUser = async (userData) => {
         expiresAt: { $gt: new Date() },
       });
     } catch (tempRegError) {
-      console.error('Error checking temporary registration:', tempRegError.message);
-      // Continue - might be first time
+      console.error('❌ Error checking temporary registration:', {
+        message: tempRegError.message,
+        name: tempRegError.name,
+        code: tempRegError.code,
+        stack: process.env.NODE_ENV === 'development' ? tempRegError.stack : undefined,
+      });
+      // If it's a critical error (not just "not found"), throw it
+      if (tempRegError.message.includes('model is not available') || 
+          tempRegError.message.includes('Cannot read property') ||
+          tempRegError.name === 'TypeError') {
+        throw new Error('Database service unavailable. Please try again later.');
+      }
+      // Continue - might be first time or collection doesn't exist yet
     }
 
     if (existingTempReg) {
@@ -81,7 +109,13 @@ export const registerUser = async (userData) => {
     // Create temporary registration
     let tempReg = null;
     try {
-      tempReg = await TemporaryRegistration.create({
+      // Ensure TemporaryRegistration model is available
+      if (!TemporaryRegistration) {
+        throw new Error('TemporaryRegistration model is not available');
+      }
+
+      // Validate required fields before creating
+      const tempRegData = {
         email: email.toLowerCase().trim(),
         registrationType: 'user',
         registrationData: {
@@ -92,18 +126,57 @@ export const registerUser = async (userData) => {
         },
         expiresAt,
         isVerified: false,
-      });
+      };
+
+      // Validate data
+      if (!tempRegData.email || !tempRegData.registrationData.name || !tempRegData.registrationData.password) {
+        throw new Error('Missing required registration data');
+      }
+
+      tempReg = await TemporaryRegistration.create(tempRegData);
+      
+      if (!tempReg || !tempReg._id) {
+        throw new Error('Failed to create temporary registration record');
+      }
     } catch (createError) {
-      console.error('Error creating temporary registration:', {
+      console.error('❌ Error creating temporary registration:', {
         message: createError.message,
         name: createError.name,
         code: createError.code,
+        keyPattern: createError.keyPattern,
+        keyValue: createError.keyValue,
+        stack: process.env.NODE_ENV === 'development' ? createError.stack : undefined,
       });
-      throw new Error('Failed to initiate registration. Please try again.');
+      
+      // Provide more specific error messages
+      if (createError.name === 'ValidationError') {
+        const validationErrors = Object.values(createError.errors || {}).map(e => e.message).join(', ');
+        throw new Error(`Validation error: ${validationErrors}`);
+      } else if (createError.code === 11000) {
+        // Duplicate key error
+        throw new Error('Registration already in progress. Please check your email for verification code.');
+      } else if (createError.message.includes('model is not available')) {
+        throw new Error('Database service unavailable. Please try again later.');
+      } else {
+        throw new Error(`Failed to initiate registration: ${createError.message}`);
+      }
     }
 
     // Generate and send verification OTP
-    const otp = await generateOTP(email, 'email_verification');
+    let otp;
+    try {
+      otp = await generateOTP(email, 'email_verification');
+    } catch (otpError) {
+      // If it's a rate limit error, throw it with proper status
+      if (otpError.isRateLimitError || otpError.statusCode === 429) {
+        otpError.status = 429;
+        throw otpError;
+      }
+      // For other OTP errors, throw with 400 status
+      otpError.status = 400;
+      throw otpError;
+    }
+    
     const emailResult = await sendVerificationEmail(email, otp);
 
     if (!emailResult.success) {
@@ -460,7 +533,21 @@ export const forgotUserPassword = async (email) => {
     }
 
     // Generate and send OTP
-    const otp = await generateOTP(email, 'password_reset');
+    // Generate and send OTP
+    let otp;
+    try {
+      otp = await generateOTP(email, 'password_reset');
+    } catch (otpError) {
+      // If it's a rate limit error, throw it with proper status
+      if (otpError.isRateLimitError || otpError.statusCode === 429) {
+        otpError.status = 429;
+        throw otpError;
+      }
+      // For other OTP errors, throw with 400 status
+      otpError.status = 400;
+      throw otpError;
+    }
+    
     await sendPasswordResetEmail(email, otp);
 
     return { success: true, message: 'Password reset OTP has been sent to your email' };

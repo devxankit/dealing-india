@@ -36,6 +36,13 @@ export const register = async (req, res, next) => {
       },
     });
   } catch (error) {
+    // Handle rate limit errors specifically
+    if (error.statusCode === 429 || error.isRateLimitError || error.status === 429) {
+      return res.status(429).json({
+        success: false,
+        message: error.message || 'Too many OTP requests. Please wait before trying again.',
+      });
+    }
     next(error);
   }
 };

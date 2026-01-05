@@ -18,6 +18,14 @@ export const register = async (req, res, next) => {
   try {
     const { name, email, password, phone } = req.body;
 
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email, and password are required',
+      });
+    }
+
     const result = await registerUser({ name, email, password, phone });
 
     res.status(201).json({
@@ -28,6 +36,21 @@ export const register = async (req, res, next) => {
       },
     });
   } catch (error) {
+    // Handle rate limit errors specifically
+    if (error.statusCode === 429 || error.isRateLimitError || error.status === 429) {
+      return res.status(429).json({
+        success: false,
+        message: error.message || 'Too many OTP requests. Please wait before trying again.',
+      });
+    }
+    
+    console.error('❌ Error in register controller:', {
+      message: error.message,
+      name: error.name,
+      status: error.status || error.statusCode,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      body: req.body ? { name: req.body.name, email: req.body.email } : undefined,
+    });
     next(error);
   }
 };
