@@ -18,6 +18,7 @@ const MobileOrderDetail = () => {
   const { addItem } = useCartStore();
   const [order, setOrder] = useState(null);
   const [eligibility, setEligibility] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -27,17 +28,22 @@ const MobileOrderDetail = () => {
       }
 
       try {
-        setLoading(true);
-        const response = await getOrderById(orderId);
-        if (response.success && response.data?.order) {
-          setOrder(response.data.order);
+        setIsLoading(true);
+        const data = await getOrderById(orderId);
+        if (data?.order) {
+          setOrder(data.order);
 
           // Check Return Eligibility if order is delivered
-          if (response.data.order.status === 'delivered') {
+          if (data.order.status === 'delivered') {
             import('../../../shared/services/returnService').then(async ({ checkReturnEligibility }) => {
               try {
                 const eligResponse = await checkReturnEligibility(orderId);
-                if (eligResponse.success) {
+                // eligResponse might need checking too depending on returnService
+                if (eligResponse?.data?.eligible !== undefined) {
+                  setEligibility(eligResponse.data);
+                } else if (eligResponse?.eligible !== undefined) {
+                  setEligibility(eligResponse);
+                } else if (eligResponse?.success && eligResponse?.data) {
                   setEligibility(eligResponse.data);
                 }
               } catch (e) {
@@ -54,7 +60,7 @@ const MobileOrderDetail = () => {
         toast.error('Failed to load order');
         navigate('/app/orders');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -65,7 +71,7 @@ const MobileOrderDetail = () => {
     navigate(`/app/return-request/${orderId}`);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <PageTransition>
         <MobileLayout showBottomNav={false} showCartBar={false}>

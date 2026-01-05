@@ -9,12 +9,16 @@ import {
   FiPlus,
   FiArrowLeft,
   FiShoppingBag,
+  FiChevronRight,
+  FiEdit2,
+  FiTag,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "../../../shared/store/useStore";
 import { useAuthStore } from "../../../shared/store/authStore";
 import { useAddressStore } from "../../../shared/store/addressStore";
 import { useOrderStore } from "../../../shared/store/orderStore";
+import { useSettingsStore } from "../../../shared/store/settingsStore";
 import { formatPrice } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import { initializeRazorpayCheckout, handlePaymentSuccess, handlePaymentError } from "../../../shared/services/paymentService";
@@ -22,6 +26,7 @@ import MobileLayout from "../components/Layout/MobileLayout";
 import MobileCheckoutSteps from "../components/Mobile/MobileCheckoutSteps";
 import PageTransition from "../../../shared/components/PageTransition";
 import "../../../shared/styles/orderAnimation.css";
+import api from "../../../shared/utils/api";
 // import successSound from '../../../data/sounds/success.mp3'; // File not found
 
 const MobileCheckout = () => {
@@ -57,6 +62,38 @@ const MobileCheckout = () => {
     country: "",
     paymentMethod: "card",
   });
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [deliveryData, setDeliveryData] = useState({ total: 0, breakdown: [] });
+  const [calculatingDelivery, setCalculatingDelivery] = useState(false);
+
+  useEffect(() => {
+    if (showCouponModal) {
+      fetchAvailableCoupons();
+    }
+  }, [showCouponModal]);
+
+  const fetchAvailableCoupons = async () => {
+    setLoadingCoupons(true);
+    try {
+      const response = await api.get('/public/promocodes/available');
+      console.log('Fetch coupons response:', response);
+      if (response && response.data && response.data.data) {
+        // Handle both structure variations just in case
+        const couponsData = response.data.data.coupons || response.data.coupons || [];
+        console.log('Set available coupons:', couponsData);
+        setAvailableCoupons(couponsData);
+      } else if (response && response.data && response.data.coupons) {
+        setAvailableCoupons(response.data.coupons || []);
+      }
+    } catch (error) {
+      console.error("Error fetching coupons:", error);
+      toast.error("Failed to load coupons");
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated && user && !isGuest) {
@@ -85,23 +122,59 @@ const MobileCheckout = () => {
     }
   }, [isAuthenticated, user, isGuest, getDefaultAddress]);
 
-  const calculateShipping = () => {
-    const total = getTotal();
-    if (appliedCoupon?.type === "freeship") {
-      return 0;
-    }
-    if (total >= 100) {
-      return 0;
-    }
-    if (shippingOption === "express") {
-      return 100;
-    }
-    return 50;
-  };
+  // Calculate Delivery Charge dynamically
+  useEffect(() => {
+    const fetchDeliveryCharge = async () => {
+      // If free shipping coupon, logic handled in discount, but base charge might still be needed?
+      // Usually free shipping overrides everything.
+      if (appliedCoupon?.type === "freeship") {
+        setDeliveryData({ total: 0, breakdown: [] });
+        return;
+      }
+
+      // We need address to calculate accurately.
+      // If no address selected, we can't calculate perfectly.
+      // But maybe we can try to find the selected address object?
+      const selectedAddr = addresses.find(a => a.id === selectedAddressId);
+
+      if (!selectedAddr) {
+        // Maybe default charge?
+        setDeliveryData({ total: 50, breakdown: [] }); // Default fallback
+        return;
+      }
+
+      setCalculatingDelivery(true);
+      try {
+        const response = await api.post('/public/delivery/calculate', {
+          items: items.map(item => ({
+            productId: item.productId || item.id,
+            quantity: item.quantity
+          })),
+          address: {
+            city: selectedAddr.city,
+            state: selectedAddr.state
+          }
+        });
+
+        if (response && response.data) {
+          setDeliveryData(response.data);
+        }
+      } catch (error) {
+        console.error("Delivery calc error:", error);
+        // Fallback
+        setDeliveryData({ total: 50, breakdown: [] });
+      } finally {
+        setCalculatingDelivery(false);
+      }
+    };
+
+    fetchDeliveryCharge();
+  }, [items, selectedAddressId, appliedCoupon]); // Recalculate if items or address changes
 
   const total = getTotal();
-  const shipping = calculateShipping();
-  
+  const shipping = deliveryData.total;
+
+
   // Calculate tax based on product.taxRate for each item
   const tax = useMemo(() => {
     return items.reduce((sum, item) => {
@@ -111,36 +184,76 @@ const MobileCheckout = () => {
       return sum + itemTax;
     }, 0);
   }, [items]);
-  
+
+  // Platform Fee / Tax from Settings
+  const { settings, initialize: initSettings } = useSettingsStore();
+
+  useEffect(() => {
+    initSettings();
+  }, []);
+
+  const platformTax = useMemo(() => {
+    if (!settings?.tax?.isEnabled) return 0;
+
+    if (settings.tax.taxType === 'percentage') {
+      return (total * (settings.tax.taxValue || 0)) / 100;
+    } else {
+      return settings.tax.taxValue || 0;
+    }
+  }, [settings, total]);
+
+
   const discount = appliedCoupon
     ? appliedCoupon.type === "percentage"
       ? total * (appliedCoupon.value / 100)
       : appliedCoupon.value
     : 0;
-  const finalTotal = Math.max(0, total + shipping + tax - discount);
+  const finalTotal = Math.max(0, total + shipping + tax + platformTax - discount);
 
-  const validateCoupon = (code) => {
-    const coupons = {
-      SAVE10: { type: "percentage", value: 10, name: "10% Off" },
-      FREESHIP: { type: "freeship", value: 0, name: "Free Shipping" },
-      WELCOME20: { type: "percentage", value: 20, name: "20% Off" },
-      SAVE50: { type: "fixed", value: 50, name: "$50 Off" },
-    };
-    return coupons[code.toUpperCase()] || null;
-  };
-
-  const handleApplyCoupon = () => {
-    if (!couponCode.trim()) {
+  const validateCoupon = async (codeToApply) => {
+    if (!codeToApply || !codeToApply.trim()) {
       toast.error("Please enter a coupon code");
       return;
     }
-    const coupon = validateCoupon(couponCode);
-    if (coupon) {
-      setAppliedCoupon(coupon);
-      toast.success(`Coupon "${coupon.name}" applied!`);
-    } else {
-      toast.error("Invalid coupon code");
+
+    try {
+      const response = await api.post('/public/promocodes/validate', {
+        code: codeToApply,
+        cartTotal: total,
+        cartItems: items.map(item => ({
+          productId: item.productId || item.id, // Fixed: send productId instead of product
+          price: item.price,
+          quantity: item.quantity
+        }))
+      });
+
+      if (response && response.data) {
+        // Response format: { success, message, data: { isValid, discountAmount, type, value, ... } }
+        const { discountAmount, code: validatedCode } = response.data; // Fixed: access data directly from response.data
+
+        setAppliedCoupon({
+          name: validatedCode,
+          type: 'fixed', // Backend returns calculated amount, treat as fixed for display
+          value: discountAmount
+        });
+        toast.success(`Coupon "${validatedCode}" applied! You saved ₹${discountAmount}`);
+        setShowCouponModal(false);
+      }
+    } catch (error) {
+      console.error("Coupon validation error:", error);
+      const errorMessage = error.response?.data?.message || "Invalid coupon code";
+      toast.error(errorMessage);
+      setAppliedCoupon(null);
     }
+  };
+
+  const handleApplyCoupon = () => {
+    validateCoupon(couponCode);
+  };
+
+  const handleSelectCoupon = (code) => {
+    setCouponCode(code);
+    validateCoupon(code);
   };
 
   const handleSelectAddress = (address) => {
@@ -226,7 +339,7 @@ const MobileCheckout = () => {
 
   const handleOnlinePayment = async () => {
     if (isProcessingPayment) return;
-    
+
     setIsProcessingPayment(true);
     try {
       // Create order via API
@@ -284,7 +397,7 @@ const MobileCheckout = () => {
             // Verify payment
             const paymentData = handlePaymentSuccess(paymentResponse);
             const verifyResult = await verifyPaymentAPI(order.id || order.orderCode, paymentData);
-            
+
             clearCart();
             toast.success("Payment successful! Order placed.");
             navigate(`/app/order-confirmation/${order.id || order.orderCode}`);
@@ -311,7 +424,7 @@ const MobileCheckout = () => {
 
   const handleCODOrder = async () => {
     if (isProcessingPayment) return;
-    
+
     setIsProcessingPayment(true);
     try {
       // Create order via API for COD
@@ -728,6 +841,14 @@ const MobileCheckout = () => {
                       </button>
                     </div>
                   )}
+                  {/* View Available Coupons Link */}
+                  <button
+                    type="button"
+                    onClick={() => setShowCouponModal(true)}
+                    className="mt-2 text-sm text-primary-600 font-medium hover:text-primary-700 flex items-center gap-1"
+                  >
+                    <FiTag className="w-4 h-4" /> View Available Coupons
+                  </button>
                 </div>
 
                 {/* Order Summary */}
@@ -800,10 +921,18 @@ const MobileCheckout = () => {
                         )}
                       </span>
                     </div>
-                    <div className="flex justify-between text-gray-600">
-                      <span>Tax</span>
-                      <span>{formatPrice(tax)}</span>
-                    </div>
+                    {tax > 0 && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>Tax (GST)</span>
+                        <span>{formatPrice(tax)}</span>
+                      </div>
+                    )}
+                    {platformTax > 0 && (
+                      <div className="flex justify-between text-gray-600">
+                        <span>{settings?.tax?.taxName || 'Service Fee'}</span>
+                        <span>{formatPrice(platformTax)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-lg font-bold text-gray-800 pt-3 border-t border-gray-200">
                       <span>Total</span>
                       <span className="text-primary-600">
@@ -867,6 +996,78 @@ const MobileCheckout = () => {
               onSubmit={handleNewAddress}
               onCancel={() => setShowAddressForm(false)}
             />
+          )}
+        </AnimatePresence>
+
+        {/* Coupon Selection Modal */}
+        <AnimatePresence>
+          {showCouponModal && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowCouponModal(false)}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto"
+              />
+
+              {/* Modal/Sheet Content */}
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="relative w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 shadow-xl pointer-events-auto max-h-[80vh] overflow-hidden flex flex-col"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-gray-800">Available Coupons</h3>
+                  <button
+                    onClick={() => setShowCouponModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <FiX className="w-5 h-5 text-gray-500" />
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto flex-1 space-y-3 p-1">
+                  {loadingCoupons ? (
+                    <div className="text-center py-8">
+                      <div className="inline-block w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                      <p className="mt-2 text-sm text-gray-500">Loading coupons...</p>
+                    </div>
+                  ) : availableCoupons.length > 0 ? (
+                    availableCoupons.map((coupon) => (
+                      <div
+                        key={coupon._id}
+                        className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 transition-colors bg-gray-50 cursor-pointer"
+                        onClick={() => handleSelectCoupon(coupon.code)}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-bold text-primary-700 text-lg border-2 border-dashed border-primary-200 px-2 py-0.5 rounded bg-white">
+                            {coupon.code}
+                          </span>
+                          <span className="text-xs font-semibold px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                            {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `₹${coupon.value} OFF`}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{coupon.name}</p>
+                        <button
+                          className="text-xs font-semibold text-primary-600 hover:text-primary-800 flex items-center gap-1"
+                        >
+                          Apply <FiChevronRight />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <FiTag className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                      <p>No coupons available at the moment.</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </MobileLayout>

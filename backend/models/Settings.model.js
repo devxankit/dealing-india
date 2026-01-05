@@ -38,7 +38,7 @@ const settingsSchema = new mongoose.Schema(
       defaultPricePerHour: { type: Number, default: 1999, min: 0 }, // default price for 1 hour
       minDurationHours: { type: Number, default: 1, min: 1 }, // minimum duration in hours
       maxDurationHours: { type: Number, default: 720, min: 1 }, // maximum duration in hours (30 days = 720 hours)
-      pricingStructure: { 
+      pricingStructure: {
         type: mongoose.Schema.Types.Mixed,
         default: {
           '1': 1999,      // 1 hour
@@ -53,6 +53,12 @@ const settingsSchema = new mongoose.Schema(
         changes: { type: mongoose.Schema.Types.Mixed },
         timestamp: { type: Date, default: Date.now }
       }]
+    },
+    tax: {
+      taxName: { type: String, default: 'Tax', trim: true },
+      taxType: { type: String, enum: ['percentage', 'fixed'], default: 'percentage' },
+      taxValue: { type: Number, default: 0, min: 0 },
+      isEnabled: { type: Boolean, default: false },
     },
   },
   {

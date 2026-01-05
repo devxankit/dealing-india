@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPackage, FiTruck, FiCheckCircle, FiXCircle, FiClock, FiEye, FiRotateCw } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -14,7 +14,7 @@ import { useAuthStore } from '../../../shared/store/authStore';
 import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeaderPadding';
 
 const Orders = () => {
-  const { getAllOrders } = useOrderStore();
+  const { getAllOrders, fetchUserOrders, isLoading } = useOrderStore();
   const { user } = useAuthStore();
   const { responsivePadding } = useResponsiveHeaderPadding();
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -27,6 +27,12 @@ const Orders = () => {
     { value: 'delivered', label: 'Delivered' },
     { value: 'cancelled', label: 'Cancelled' },
   ];
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserOrders();
+    }
+  }, [user, fetchUserOrders]);
 
   // Get orders from store
   const allOrders = getAllOrders(user?.id || null);
@@ -91,11 +97,10 @@ const Orders = () => {
                     <button
                       key={option.value}
                       onClick={() => setSelectedStatus(option.value)}
-                      className={`px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
-                        selectedStatus === option.value
-                          ? 'gradient-green text-white shadow-glow-green'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 border-2 border-gray-200'
-                      }`}
+                      className={`px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${selectedStatus === option.value
+                        ? 'gradient-green text-white shadow-glow-green'
+                        : 'bg-white text-gray-700 hover:bg-gray-100 border-2 border-gray-200'
+                        }`}
                     >
                       {option.label}
                     </button>
@@ -104,7 +109,11 @@ const Orders = () => {
 
                 {/* Orders List */}
                 <div className="space-y-4">
-                  {filteredOrders.length === 0 ? (
+                  {isLoading ? (
+                    <div className="glass-card rounded-2xl p-12 text-center">
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">Loading orders...</h3>
+                    </div>
+                  ) : filteredOrders.length === 0 ? (
                     <div className="glass-card rounded-2xl p-12 text-center">
                       <FiPackage className="text-6xl text-gray-300 mx-auto mb-4" />
                       <h3 className="text-xl font-bold text-gray-800 mb-2">No orders found</h3>
@@ -209,11 +218,10 @@ const Orders = () => {
                               {getTrackingSteps(order.status).map((step, index) => (
                                 <div key={index} className="flex items-center gap-4 mb-4">
                                   <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                      step.completed
-                                        ? 'bg-primary-600 text-white'
-                                        : 'bg-gray-200 text-gray-400'
-                                    }`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${step.completed
+                                      ? 'bg-primary-600 text-white'
+                                      : 'bg-gray-200 text-gray-400'
+                                      }`}
                                   >
                                     {step.completed ? (
                                       <FiCheckCircle className="text-sm" />
@@ -222,9 +230,8 @@ const Orders = () => {
                                     )}
                                   </div>
                                   <p
-                                    className={`font-medium ${
-                                      step.completed ? 'text-gray-800' : 'text-gray-400'
-                                    }`}
+                                    className={`font-medium ${step.completed ? 'text-gray-800' : 'text-gray-400'
+                                      }`}
                                   >
                                     {step.label}
                                   </p>

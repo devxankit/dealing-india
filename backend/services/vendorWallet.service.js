@@ -243,6 +243,21 @@ class VendorWalletService {
             processedToday
         };
     }
+    /**
+     * Get all vendor wallets (Admin)
+     */
+    async getAllVendorWallets() {
+        return await VendorWallet.find()
+            .populate('vendorId', 'name storeName email phone')
+            .sort({ balance: -1 });
+    }
+
+    /**
+     * Get specific vendor wallet (Admin)
+     */
+    async getVendorWallet(vendorId) {
+        return await this.getOrCreateWallet(vendorId);
+    }
 }
 
 export default new VendorWalletService();

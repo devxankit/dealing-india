@@ -140,6 +140,11 @@
     ]
   },
   {
+    "title": "Delivery Rules",
+    "route": "/admin/delivery-rules",
+    "children": []
+  },
+  {
     "title": "Policies",
     "route": "/admin/policies",
     "children": [

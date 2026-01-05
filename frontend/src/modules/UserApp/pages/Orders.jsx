@@ -17,7 +17,7 @@ const MobileOrders = () => {
   const [orders, setOrders] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showFilter, setShowFilter] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const statusOptions = [
     { value: 'all', label: 'All Orders' },
@@ -33,22 +33,22 @@ const MobileOrders = () => {
     if (isAuthenticated && user?.id) {
       loadOrders();
     } else {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, [isAuthenticated, user?.id, selectedStatus]);
 
   const loadOrders = async () => {
     try {
-      setLoading(true);
-      const response = await getUserOrders({ 
+      setIsLoading(true);
+      const data = await getUserOrders({
         status: selectedStatus === 'all' ? undefined : selectedStatus,
         page: 1,
         limit: 1000,
       });
-      
-      // API interceptor returns response.data, so response = { success: true, data: { orders: [...] } }
-      if (response?.success && response?.data?.orders) {
-        setOrders(Array.isArray(response.data.orders) ? response.data.orders : []);
+
+      // orderService returns the data object directly (unwrapped)
+      if (data?.orders) {
+        setOrders(Array.isArray(data.orders) ? data.orders : []);
       } else {
         setOrders([]);
       }
@@ -57,7 +57,7 @@ const MobileOrders = () => {
       toast.error('Failed to load orders');
       setOrders([]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -65,21 +65,25 @@ const MobileOrders = () => {
     return orders; // Already filtered by API
   }, [orders]);
 
-  // Pull to refresh handler
   const handleRefresh = async () => {
     if (isAuthenticated && user?.id) {
       try {
-        const response = await getUserOrders({ 
+        const data = await getUserOrders({
           status: selectedStatus === 'all' ? undefined : selectedStatus,
           page: 1,
           limit: 1000,
         });
-        if (response.success && response.data) {
-          setOrders(response.data.orders || []);
+
+        if (data?.orders) {
+          setOrders(Array.isArray(data.orders) ? data.orders : []);
+        } else {
+          setOrders([]); // Fallback if format is unexpected
         }
         toast.success('Orders refreshed');
       } catch (error) {
-        toast.error('Failed to refresh orders');
+        // toast.error('Failed to refresh orders'); 
+        // Suppress error toast to avoid spamming if network is flaky on pull-refresh
+        console.error('Failed to refresh orders', error);
       }
     }
   };
@@ -156,7 +160,7 @@ const MobileOrders = () => {
                 transition: isPulling ? 'none' : 'transform 0.3s ease-out',
               }}
             >
-              {loading ? (
+              {isLoading ? (
                 <div className="text-center py-12">
                   <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
                   <h3 className="text-xl font-bold text-gray-800 mb-2">Loading orders...</h3>

@@ -20,6 +20,7 @@ import {
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorManagementStore } from "../../store/vendorManagementStore";
+import { useAdminVendorWalletStore } from "../../store/adminVendorWalletStore";
 import Badge from "../../../../shared/components/Badge";
 import DataTable from "../../components/DataTable";
 import { formatPrice } from "../../../../shared/utils/helpers";
@@ -34,11 +35,11 @@ const PdfPreviewFrame = ({ doc, index }) => {
 
   // Check if URL is Cloudinary
   const isCloudinary = doc.url.includes('cloudinary.com');
-  
+
   // Create different viewer URLs
   const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(doc.url)}&embedded=true`;
   const directUrl = isCloudinary ? `${doc.url}#toolbar=1&navpanes=1&scrollbar=1` : `${doc.url}#view=FitH`;
-  
+
   // Determine which URL to use
   const getIframeSrc = () => {
     switch (viewMethod) {
@@ -190,6 +191,8 @@ const VendorDetail = () => {
     updateCommissionRate,
   } = useVendorManagementStore();
 
+  const { fetchVendorWallet } = useAdminVendorWalletStore();
+
   const [vendor, setVendor] = useState(null);
   const [vendorOrders, setVendorOrders] = useState([]);
   const [analytics, setAnalytics] = useState(null);
@@ -197,6 +200,7 @@ const VendorDetail = () => {
   const [isEditingCommission, setIsEditingCommission] = useState(false);
   const [commissionRate, setCommissionRate] = useState("");
   const [commissions, setCommissions] = useState([]);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   // Fetch vendor data on component mount
   useEffect(() => {
@@ -211,6 +215,12 @@ const VendorDetail = () => {
           const analyticsData = await fetchVendorAnalytics(id);
           if (analyticsData) {
             setAnalytics(analyticsData);
+          }
+
+          // Fetch wallet balance
+          const walletData = await fetchVendorWallet(id);
+          if (walletData) {
+            setWalletBalance(walletData.balance || 0);
           }
 
           // Fetch orders
@@ -583,9 +593,17 @@ const VendorDetail = () => {
                     </div>
                     <div className="bg-purple-50 rounded-lg p-4">
                       <p className="text-xs text-purple-600 mb-1">
-                        Commission Rate
+                        Wallet Balance (Withdrawable)
                       </p>
                       <p className="text-2xl font-bold text-purple-800">
+                        {formatPrice(walletBalance)}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-xs text-gray-600 mb-1">
+                        Commission Rate
+                      </p>
+                      <p className="text-2xl font-bold text-gray-800">
                         {((vendor.commissionRate || 0) * 100).toFixed(1)}%
                       </p>
                     </div>
@@ -657,12 +675,10 @@ const VendorDetail = () => {
                       >
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-purple-100'
-                            }`}>
-                              <FiFile className={`text-lg ${
-                                isPDF ? 'text-red-500' : isImage ? 'text-blue-500' : 'text-purple-500'
-                              }`} />
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-purple-100'
+                              }`}>
+                              <FiFile className={`text-lg ${isPDF ? 'text-red-500' : isImage ? 'text-blue-500' : 'text-purple-500'
+                                }`} />
                             </div>
                             <div>
                               <p className="font-semibold text-gray-800">
@@ -684,28 +700,28 @@ const VendorDetail = () => {
                                     // Try multiple methods to view PDF without download
                                     // Method 1: Try Google Docs Viewer first (most reliable)
                                     const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(doc.url)}&embedded=false`;
-                                    
+
                                     // Open Google Docs Viewer in new tab
                                     const viewerWindow = window.open(googleViewerUrl, '_blank', 'noopener,noreferrer');
-                                    
+
                                     if (!viewerWindow) {
                                       // Popup blocked - try direct method
                                       toast.info('Popup blocked. Trying alternative method...');
-                                      
+
                                       // Method 2: Try fetching and creating blob URL
                                       try {
                                         const response = await fetch(doc.url, {
                                           method: 'GET',
                                           mode: 'cors',
                                         });
-                                        
+
                                         if (response.ok) {
                                           const blob = await response.blob();
                                           const blobUrl = URL.createObjectURL(blob);
-                                          
+
                                           // Create a new window with blob URL
                                           const blobWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-                                          
+
                                           if (blobWindow) {
                                             // Cleanup after 5 minutes
                                             setTimeout(() => URL.revokeObjectURL(blobUrl), 300000);
@@ -779,7 +795,7 @@ const VendorDetail = () => {
                             </button>
                           </div>
                         </div>
-                        
+
                         {/* Display PDF Preview - Optional preview, no auto-download */}
                         {isPDF && (
                           <div className="mt-3">
@@ -832,7 +848,7 @@ const VendorDetail = () => {
                               loop
                               onEnded={(e) => {
                                 e.target.currentTime = 0;
-                                e.target.play().catch(() => {});
+                                e.target.play().catch(() => { });
                               }}
                               className="w-full max-h-96"
                               onError={(e) => {

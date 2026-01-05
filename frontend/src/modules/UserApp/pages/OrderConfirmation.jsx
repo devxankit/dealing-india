@@ -24,10 +24,14 @@ const MobileOrderConfirmation = () => {
 
       try {
         setLoading(true);
-        const response = await getOrderById(orderId);
-        if (response.success && response.data?.order) {
-          setOrder(response.data.order);
+        const data = await getOrderById(orderId);
+        // Handle potentially wrapped or unwrapped response
+        const orderData = data?.order || data?.data?.order || (data?.success ? data?.data?.order : undefined);
+
+        if (orderData) {
+          setOrder(orderData);
         } else {
+          console.error("Order confirmation: Order not found in data", data);
           toast.error('Order not found');
           navigate('/app');
         }
@@ -154,7 +158,7 @@ const MobileOrderConfirmation = () => {
                     const itemName = item.name || item.productId?.name || 'Product';
                     const itemPrice = item.price || 0;
                     const itemQuantity = item.quantity || 1;
-                    
+
                     return (
                       <div key={itemId} className="flex items-center gap-3">
                         <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">

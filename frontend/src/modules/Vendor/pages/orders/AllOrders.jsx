@@ -76,10 +76,13 @@ const AllOrders = () => {
           limit: 1000, // Get all orders for vendor
         };
         const response = await getVendorOrders(filters);
-        
-        // API interceptor returns response.data, so response = { success: true, data: { orders: [...] } }
-        if (response?.success && response?.data?.orders) {
-          setVendorOrders(Array.isArray(response.data.orders) ? response.data.orders : []);
+
+        // Handle potentially wrapped or unwrapped response
+        const data = response.data || response;
+        const ordersData = data.orders || response.orders || [];
+
+        if (ordersData) {
+          setVendorOrders(Array.isArray(ordersData) ? ordersData : []);
         } else {
           setVendorOrders([]);
         }
@@ -119,12 +122,12 @@ const AllOrders = () => {
 
       try {
         // Fetch order stats from API
-        const statsResponse = await getVendorOrderStats();
-        const orderStats = statsResponse.success ? statsResponse.data : {};
+        const statsData = await getVendorOrderStats();
+        const orderStats = statsData || {};
 
         // Filter orders by current status
-        const statusFilteredOrders = selectedStatus === 'all' 
-          ? vendorOrders 
+        const statusFilteredOrders = selectedStatus === 'all'
+          ? vendorOrders
           : vendorOrders.filter((o) => o.status?.toLowerCase() === selectedStatus.toLowerCase());
 
         // Calculate status-specific stats
@@ -133,7 +136,7 @@ const AllOrders = () => {
           const vendorData = getVendorOrderData(order);
           return sum + (vendorData.subtotal || 0);
         }, 0);
-        
+
         const statusItems = statusFilteredOrders.reduce((sum, order) => {
           const vendorData = getVendorOrderData(order);
           return sum + (vendorData.itemCount || 0);
@@ -356,7 +359,7 @@ const AllOrders = () => {
         {
           icon: FiTrendingUp,
           label: "Average Order Value",
-          value: stats.statusCount > 0 
+          value: stats.statusCount > 0
             ? formatPrice(stats.statusRevenue / stats.statusCount)
             : formatPrice(0),
           color: "bg-orange-500",

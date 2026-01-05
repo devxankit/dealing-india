@@ -28,6 +28,12 @@ const productSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+    weight: {
+      type: Number,
+      min: 0,
+      default: 0.5, // Default 500g if not specified
+      description: "Weight in kg"
+    },
     unit: {
       type: String,
       trim: true,
@@ -202,6 +208,17 @@ const productSchema = new mongoose.Schema(
           },
         },
       ],
+      default: [],
+    },
+    isCouponEligible: {
+      type: Boolean,
+      default: false,
+    },
+    applicableCoupons: {
+      type: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PromoCode',
+      }],
       default: [],
     },
     productType: {

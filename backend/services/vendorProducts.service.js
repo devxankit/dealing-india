@@ -15,7 +15,7 @@ const generateSKU = async (name, vendorId) => {
   const vendorSuffix = vendorId.toString().slice(-4).toUpperCase();
   const timestamp = Date.now().toString().slice(-6);
   let generatedSku = `${prefix}-${vendorSuffix}-${timestamp}`;
-  
+
   // Ensure uniqueness
   let isUnique = false;
   let counter = 0;
@@ -201,6 +201,8 @@ export const createVendorProduct = async (productData, vendorId) => {
       minimumOrderQuantity,
       hasSizes,
       productType,
+      isCouponEligible,
+      applicableCoupons,
     } = productData;
 
     // Validate required fields
@@ -224,7 +226,7 @@ export const createVendorProduct = async (productData, vendorId) => {
 
     // Validate SKU uniqueness if provided
     if (sku && sku.trim()) {
-      const existingProduct = await Product.findOne({ 
+      const existingProduct = await Product.findOne({
         sku: sku.trim().toUpperCase(),
         isActive: true,
         _id: { $ne: vendorId } // Exclude current product if updating
@@ -350,13 +352,13 @@ export const createVendorProduct = async (productData, vendorId) => {
             attributeId: attribute._id,
             attributeName: attr.attributeName || attribute.name,
             values: (attr.values || []).map(val => {
-              const valueObj = validValues?.find(v => 
+              const valueObj = validValues?.find(v =>
                 v._id.toString() === val.toString() || v._id.toString() === val
               );
               return valueObj ? valueObj._id : val;
             }),
           });
-        } 
+        }
         // Option 2: Custom attribute (with name and value)
         else if (attr.name && attr.value) {
           processedAttributes.push({
@@ -532,15 +534,15 @@ export const createVendorProduct = async (productData, vendorId) => {
     }
 
     // Calculate stock status
-    const stockStatus = stockQuantity === 0 
-      ? 'out_of_stock' 
-      : stockQuantity <= 10 
-        ? 'low_stock' 
+    const stockStatus = stockQuantity === 0
+      ? 'out_of_stock'
+      : stockQuantity <= 10
+        ? 'low_stock'
         : 'in_stock';
 
     // Automated SKU Selection
-    const finalSku = (sku && sku.trim()) 
-      ? sku.trim().toUpperCase() 
+    const finalSku = (sku && sku.trim())
+      ? sku.trim().toUpperCase()
       : await generateSKU(name, vendorId);
 
     // Get vendor name
@@ -571,8 +573,8 @@ export const createVendorProduct = async (productData, vendorId) => {
       categoryId: categoryId || null,
       subcategoryId: subcategoryId || null,
       // Ensure subSubCategoryId is properly set (not empty string, not undefined)
-      subSubCategoryId: (subSubCategoryId && subSubCategoryId.toString().trim() !== '') 
-        ? subSubCategoryId 
+      subSubCategoryId: (subSubCategoryId && subSubCategoryId.toString().trim() !== '')
+        ? subSubCategoryId
         : null,
       brandId: brandId || null,
       stock: stock || stockStatus,
@@ -609,6 +611,8 @@ export const createVendorProduct = async (productData, vendorId) => {
       rating: 0,
       reviewCount: 0,
       isActive: true,
+      isCouponEligible: isCouponEligible || false,
+      applicableCoupons: applicableCoupons || [],
     });
 
     return product.toObject();
@@ -675,6 +679,8 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       minimumOrderQuantity,
       hasSizes,
       productType,
+      isCouponEligible,
+      applicableCoupons,
     } = productData;
 
     // Validate category if provided
@@ -773,7 +779,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
 
     // Validate SKU uniqueness if provided
     if (sku !== undefined && sku && sku.trim()) {
-      const existingProduct = await Product.findOne({ 
+      const existingProduct = await Product.findOne({
         sku: sku.trim().toUpperCase(),
         isActive: true,
         _id: { $ne: productId }
@@ -819,7 +825,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
               attributeId: attribute._id,
               attributeName: attr.attributeName || attribute.name,
               values: (attr.values || []).map(val => {
-                const valueObj = validValues.find(v => 
+                const valueObj = validValues.find(v =>
                   v._id.toString() === val.toString() || v._id.toString() === val
                 );
                 return valueObj ? valueObj._id : val;
@@ -844,8 +850,8 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       ? validatedSubcategoryId
       : validatedCategoryId !== null
         ? validatedCategoryId
-        : (subcategoryId !== undefined || categoryId !== undefined 
-          ? null 
+        : (subcategoryId !== undefined || categoryId !== undefined
+          ? null
           : existingProduct.categoryId);
 
     // Handle image upload if new image provided
@@ -1030,13 +1036,13 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
     }
 
     // Calculate stock status if stockQuantity changed
-    const finalStockQuantity = stockQuantity !== undefined 
-      ? parseInt(stockQuantity) 
+    const finalStockQuantity = stockQuantity !== undefined
+      ? parseInt(stockQuantity)
       : existingProduct.stockQuantity;
-    const stockStatus = finalStockQuantity === 0 
-      ? 'out_of_stock' 
-      : finalStockQuantity <= 10 
-        ? 'low_stock' 
+    const stockStatus = finalStockQuantity === 0
+      ? 'out_of_stock'
+      : finalStockQuantity <= 10
+        ? 'low_stock'
         : 'in_stock';
 
     // Automated SKU Handling for Updates
@@ -1100,7 +1106,10 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ...(tags !== undefined && { tags }),
         ...(attributes !== undefined && { attributes: processedAttributes }),
         ...(seoTitle !== undefined && { seoTitle: seoTitle || '' }),
+        ...(seoTitle !== undefined && { seoTitle: seoTitle || '' }),
         ...(seoDescription !== undefined && { seoDescription: seoDescription || '' }),
+        ...(isCouponEligible !== undefined && { isCouponEligible }),
+        ...(applicableCoupons !== undefined && { applicableCoupons }),
       },
       { new: true, runValidators: true }
     )
@@ -1139,7 +1148,7 @@ export const deleteVendorProduct = async (productId, vendorId) => {
 
     // Collect image public IDs for Cloudinary deletion
     const imagePublicIds = [];
-    
+
     // Add main image public_id
     if (product.imagePublicId) {
       imagePublicIds.push(product.imagePublicId);

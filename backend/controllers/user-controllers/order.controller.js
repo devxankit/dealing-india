@@ -110,7 +110,7 @@ export const createOrder = async (req, res, next) => {
         await order.save();
       } catch (razorpayError) {
         console.error('Razorpay order creation failed:', razorpayError);
-        
+
         // Provide more specific error message
         let errorMessage = 'Failed to initialize payment gateway. Please try again.';
         if (razorpayError.message.includes('authentication failed')) {
@@ -120,7 +120,7 @@ export const createOrder = async (req, res, next) => {
         } else {
           errorMessage = razorpayError.message || errorMessage;
         }
-        
+
         // Order is created but Razorpay failed - user can retry payment
         return res.status(500).json({
           success: false,
@@ -148,11 +148,11 @@ export const createOrder = async (req, res, next) => {
         },
         razorpay: requiresRazorpay && razorpayOrder
           ? {
-              orderId: razorpayOrder.id,
-              amount: razorpayOrder.amount,
-              currency: razorpayOrder.currency,
-              keyId: razorpayKeyId,
-            }
+            orderId: razorpayOrder.id,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            keyId: razorpayKeyId,
+          }
           : null,
       },
     });
@@ -277,13 +277,14 @@ export const getOrder = async (req, res, next) => {
 export const getOrders = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id;
+    console.log('Fetching orders for user:', userId);
     if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'User ID not found. Please login again.',
       });
     }
-    
+
     const { status, paymentStatus, page, limit } = req.query;
 
     const filters = {

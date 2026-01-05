@@ -167,6 +167,20 @@ export const getVendorOrderStats = async () => {
   }
 };
 
+/**
+ * Get vendor earnings statistics
+ * @returns {Promise<Object>} Earnings statistics (pending vs realized)
+ */
+export const getVendorEarningsStats = async () => {
+  try {
+    const response = await api.get('/vendor/orders/earnings');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching vendor earnings stats:', error);
+    throw error;
+  }
+};
+
 // ==================== ADMIN ORDER METHODS ====================
 
 /**

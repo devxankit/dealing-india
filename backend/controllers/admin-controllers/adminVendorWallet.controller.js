@@ -14,6 +14,18 @@ export const getAllVendorWallets = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get specific vendor wallet (Admin)
+ */
+export const getVendorWallet = asyncHandler(async (req, res) => {
+    const { vendorId } = req.params;
+    const wallet = await VendorWalletService.getVendorWallet(vendorId);
+    res.status(200).json({
+        success: true,
+        data: wallet
+    });
+});
+
+/**
  * Get pending withdrawal requests (Admin)
  */
 export const getPendingWithdrawals = asyncHandler(async (req, res) => {

@@ -7,7 +7,7 @@ import { getSettings, updateCategorySettings } from '../../services/settings.ser
 export const getSettingsController = async (req, res, next) => {
   try {
     const settings = await getSettings();
-    
+
     res.status(200).json({
       success: true,
       message: 'Settings retrieved successfully',
@@ -28,16 +28,16 @@ export const updateSettingsController = async (req, res, next) => {
     const categoryData = req.body;
 
     // Validate category
-    const validCategories = ['general', 'products', 'tax'];
+    const validCategories = ['general', 'products', 'tax', 'banners', 'payment', 'shipping'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid category. Valid categories are: general, products, tax',
+        message: 'Invalid category. Valid categories are: general, products, tax, banners, payment, shipping',
       });
     }
 
     const settings = await updateCategorySettings(category, categoryData);
-    
+
     res.status(200).json({
       success: true,
       message: `${category} settings updated successfully`,

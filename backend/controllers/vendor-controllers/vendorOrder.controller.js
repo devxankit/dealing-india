@@ -112,6 +112,8 @@ export const updateStatus = async (req, res, next) => {
     const { orderId } = req.params;
     const { status, note } = req.body;
 
+    console.log('Vendor updating status:', { orderId, status, vendorId });
+
     if (!status) {
       return res.status(400).json({
         success: false,
@@ -174,6 +176,7 @@ export const updateStatus = async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.error('Error in vendor updateStatus:', error);
     if (error.message.includes('Invalid status transition')) {
       return res.status(400).json({
         success: false,
@@ -266,6 +269,99 @@ export const getStats = async (req, res, next) => {
       data: statsObject,
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get vendor earnings statistics (Pending vs Realized from Orders)
+ * GET /api/vendor/orders/earnings
+ */
+export const getEarningsStats = async (req, res, next) => {
+  try {
+    const vendorId = req.user.vendorId || req.user.id;
+
+    // Get vendor details for default commission rate
+    const vendor = await import('../../models/Vendor.model.js').then(m => m.default.findById(vendorId));
+    const defaultCommissionRate = vendor?.commissionRate || 0.1;
+
+    // Get vendor's product IDs to find relevant orders
+    const vendorProductIds = await Product.find({ vendorId, isActive: true }).select('_id').lean();
+    const vendorProductObjectIds = vendorProductIds.map(p => p._id);
+    const vendorProductIdStrings = vendorProductIds.map(p => p._id.toString());
+
+    // console.log('DEBUG Earnings:', { vendorId, productCount: vendorProductObjectIds.length });
+
+    if (vendorProductIdStrings.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: { pendingEarnings: 0, totalOrderEarnings: 0 }
+      });
+    }
+
+    // Fetch all relevant orders
+    const orders = await Order.find({
+      'items.productId': { $in: vendorProductObjectIds },
+      status: { $nin: ['cancelled', 'returned', 'refunded'] }
+    })
+      .select('items status vendorBreakdown total')
+      .lean();
+
+    // console.log('DEBUG Earnings Orders Found:', orders.length);
+
+    let pendingEarnings = 0;
+    let totalOrderEarnings = 0;
+
+    orders.forEach(order => {
+      let orderSubtotal = 0;
+      let orderCommission = 0;
+      let foundInBreakdown = false;
+
+      // 1. Try to find in vendorBreakdown first (best accuracy)
+      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+        const vb = order.vendorBreakdown.find(v =>
+          v.vendorId && (v.vendorId.toString() === vendorId.toString())
+        );
+        if (vb) {
+          orderSubtotal = vb.subtotal || 0;
+          orderCommission = vb.commission || 0;
+          foundInBreakdown = true;
+        }
+      }
+
+      // 2. If not in breakdown, calculate manually from items
+      if (!foundInBreakdown && order.items) {
+        order.items.forEach(item => {
+          const pId = item.productId?.toString() || item.productId;
+          if (vendorProductIdStrings.includes(pId)) {
+            orderSubtotal += (item.price || 0) * (item.quantity || 1);
+          }
+        });
+        // Estimate commission
+        orderCommission = orderSubtotal * defaultCommissionRate;
+      }
+
+      const earnings = orderSubtotal - orderCommission;
+
+      if (earnings > 0) {
+        totalOrderEarnings += earnings;
+        // Check availability logic (Delivered = Realized)
+        if (order.status !== 'delivered' && order.status !== 'completed') {
+          pendingEarnings += earnings;
+        }
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pendingEarnings,
+        totalOrderEarnings
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching earnings stats:', error);
     next(error);
   }
 };
