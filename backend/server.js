@@ -84,7 +84,8 @@ const httpServer = http.createServer(app);
 const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://dealing-india.vercel.app'
+  'https://dealing-india.vercel.app',
+  'https://dealing-india-*.vercel.app', // Allow all Vercel preview deployments
 ];
 
 // Get origins from environment variable if set
@@ -95,11 +96,31 @@ const envOrigins = process.env.SOCKET_CORS_ORIGIN
 // Merge and deduplicate origins (environment origins + defaults)
 const corsOrigins = [...new Set([...envOrigins, ...defaultOrigins])];
 
+// CORS configuration with better production support
 app.use(cors({
-  origin: corsOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow Vercel preview deployments (wildcard matching)
+    if (origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Log blocked origin for debugging
+    console.warn(`⚠️  CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // 24 hours
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -129,6 +150,46 @@ app.get('/api/health', (req, res) => {
     database: states[dbStatus] || 'Unknown',
     databaseReady: dbStatus === 1
   });
+});
+
+// Registration test route for debugging production issues
+app.post('/api/test-register', async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+    
+    // Check database connection
+    const dbStatus = mongoose.connection.readyState;
+    const dbConnected = dbStatus === 1;
+    
+    // Check email service
+    const emailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+    
+    res.json({
+      success: true,
+      message: 'Registration test endpoint',
+      checks: {
+        databaseConnected: dbConnected,
+        databaseState: dbStatus,
+        emailConfigured,
+        hasMongoDBURI: !!process.env.MONGODB_URI,
+        hasJWTSecret: !!process.env.JWT_SECRET,
+        nodeEnv: process.env.NODE_ENV,
+        corsOriginsCount: corsOrigins.length,
+      },
+      receivedData: {
+        hasName: !!name,
+        hasEmail: !!email,
+        hasPassword: !!password,
+        hasPhone: !!phone,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
+  }
 });
 
 // Database connection test route
