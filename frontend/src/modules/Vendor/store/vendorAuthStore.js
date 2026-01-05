@@ -80,7 +80,7 @@ export const useVendorAuthStore = create(
           if (response.success && response.data) {
             // Registration only returns email now - vendor will be created after email verification
             set({ isLoading: false });
-            
+
             return {
               success: true,
               email: response.data.email,
@@ -211,12 +211,12 @@ export const useVendorAuthStore = create(
               bankDetails: vendor.bankDetails || {},
             };
 
-            set({
+              set({
               vendor: vendorDataFormatted,
               token: token,
               isAuthenticated: false, // Not authenticated until admin approval
-              isLoading: false,
-            });
+                isLoading: false,
+              });
 
             localStorage.setItem("vendor-token", token);
             

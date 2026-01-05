@@ -18,12 +18,17 @@ if (typeof window !== 'undefined') {
 }
 
 // Create axios instance with timeout
+// Increased timeout for production (email sending can take up to 60s)
+const isProduction = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('vercel.app') || 
+   window.location.hostname.includes('onrender.com'));
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds timeout
+  timeout: isProduction ? 90000 : 30000, // 90s in production (for email), 30s in dev
 });
 
 // Request interceptor

@@ -17,6 +17,12 @@ const MobileRegister = () => {
   const [localLoading, setLocalLoading] = useState(false);
   const timeoutRef = useRef(null);
 
+  // Increased timeout for production (email sending can take up to 60s)
+  const isProduction = typeof window !== 'undefined' && 
+    (window.location.hostname.includes('vercel.app') || 
+     window.location.hostname.includes('onrender.com'));
+  const timeoutDuration = isProduction ? 95000 : 35000; // 95s in production, 35s in dev
+
   const {
     register,
     handleSubmit,
@@ -48,7 +54,7 @@ const MobileRegister = () => {
       timeoutRef.current = setTimeout(() => {
         setLocalLoading(false);
         toast.error('Request timeout. Please check your internet connection and try again.');
-      }, 35000);
+      }, timeoutDuration);
 
       return () => {
         if (timeoutRef.current) {

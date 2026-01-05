@@ -38,7 +38,7 @@ const VendorRegister = () => {
       timeoutRef.current = setTimeout(() => {
         setLocalLoading(false);
         toast.error('Request timeout. Please check your internet connection and try again.');
-      }, 35000);
+      }, timeoutDuration);
 
       return () => {
         if (timeoutRef.current) {

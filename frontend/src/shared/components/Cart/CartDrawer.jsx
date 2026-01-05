@@ -186,7 +186,7 @@ const CartDrawer = () => {
   useEffect(() => {
     // Only initialize cart if user is authenticated
     if (isAuthenticated) {
-      initialize();
+    initialize();
     } else {
       // If not authenticated, ensure cart is empty and initialized
       useCartStore.setState({ items: [], isInitialized: true, isLoading: false });
