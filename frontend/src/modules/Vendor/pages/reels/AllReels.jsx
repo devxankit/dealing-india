@@ -42,7 +42,9 @@ const AllReels = () => {
     
     try {
       const response = await api.get('/vendor/subscriptions/current');
-      if (response.success && response.data) {
+      // API interceptor returns response.data, so response structure is:
+      // { success: true, data: { ...subscription data... } }
+      if (response?.success && response?.data) {
         const sub = response.data;
         setSubscription({
           tierName: sub.tierId?.name || 'Free',
@@ -89,21 +91,30 @@ const AllReels = () => {
         sortOrder: "desc",
       });
 
-      // Handle both response structures
-      if (response?.reels) {
-        setReels(response.reels);
-        setTotalPages(response.pagination?.pages || 1);
-      } else if (response?.data?.reels) {
+      // API interceptor returns response.data, so response structure is:
+      // { success: true, data: { reels: [...] }, pagination: { page, limit, total, pages } }
+      if (response?.success && response?.data?.reels) {
         setReels(response.data.reels);
         setTotalPages(response.pagination?.pages || 1);
+      } else if (response?.reels) {
+        // Fallback for different response structure
+        setReels(response.reels);
+        setTotalPages(response.pagination?.pages || 1);
       } else if (Array.isArray(response)) {
+        // Fallback if response is directly an array
         setReels(response);
+        setTotalPages(1);
+      } else {
+        // No reels found
+        setReels([]);
         setTotalPages(1);
       }
     } catch (error) {
       console.error("Error loading reels:", error);
-      toast.error("Failed to load reels");
+      const errorMessage = error.response?.data?.message || error.message || "Failed to load reels";
+      toast.error(errorMessage);
       setReels([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }

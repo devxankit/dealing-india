@@ -351,14 +351,12 @@ const VendorSubscription = () => {
 
               <button 
                 onClick={() => handleSubscribe(tierId)}
-                disabled={isCurrentPlan || isProcessing || (processingPayment !== null && processingPayment !== tierId)}
+                disabled={isCurrentPlan || isProcessing}
                 className={`w-full py-3 rounded-xl font-bold transition-all ${
                   isCurrentPlan
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : isProcessing
                   ? 'bg-blue-400 text-white cursor-wait'
-                  : processingPayment !== null
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-100'
                 }`}
               >

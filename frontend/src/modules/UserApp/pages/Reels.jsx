@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { FiHeart, FiMessageCircle, FiSend, FiArrowLeft, FiGift, FiShoppingBag, FiMoreVertical, FiVideo, FiVolume2, FiVolumeX, FiX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
-import { getActiveReels } from "../../../shared/utils/reelHelpers";
 import toast from "react-hot-toast";
+import api from "../../../shared/utils/api";
 import MobileLayout from "../components/Layout/MobileLayout";
 import useMobileHeaderHeight from "../hooks/useMobileHeaderHeight";
 import MegaRewardSheet from "../components/MegaRewardSheet";
@@ -32,74 +32,59 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
   const muteIconTimeout = useRef(null);
   const headerHeight = useMobileHeaderHeight();
 
-  // Load reels data
+  // Load reels data from backend API
   useEffect(() => {
-    const type = defaultType || searchParams.get("type");
-    let loadedReels = [];
+    const loadReels = async () => {
+      const type = defaultType || searchParams.get("type");
+      let loadedReels = [];
 
-    if (type === "promotional") {
-      const promoReels = localStorage.getItem("promotional_reels");
-      if (promoReels) {
-        loadedReels = JSON.parse(promoReels);
-      }
-    } else {
-      loadedReels = getActiveReels();
-    }
-
-    // Fallback if no reels found
-    if (loadedReels.length === 0 && type !== "promotional") {
-      // Mock data if empty
-      loadedReels = [
-        {
-          id: 101,
-          videoUrl: "https://videos.pexels.com/video-files/3209828/3209828-uhd_2560_1440_25fps.mp4",
-          productName: "Summer Vibes",
-          description: "Enjoy the summer with our new collection!",
-          likes: 120,
-          comments: 45,
-          shares: 12,
-          status: 'active'
+      if (type === "promotional") {
+        // Promotional reels from localStorage (admin-created)
+        const promoReels = localStorage.getItem("promotional_reels");
+        if (promoReels) {
+          loadedReels = JSON.parse(promoReels);
         }
-      ];
-    }
+      } else {
+        // Fetch active reels from backend API
+        try {
+          const response = await api.get('/user/reels', {
+            params: {
+              page: 1,
+              limit: 50, // Load more reels for smooth scrolling
+              sortBy: 'createdAt',
+              sortOrder: 'desc'
+            }
+          });
 
-    // Check for specific reel query param
-    const reelId = searchParams.get("reel");
-    if (reelId) {
-      const foundIndex = loadedReels.findIndex(r => r.id === parseInt(reelId));
-      if (foundIndex !== -1) {
-        setCurrentIndex(foundIndex);
+          if (response?.success && response?.data?.reels) {
+            loadedReels = response.data.reels.map(reel => ({
+              ...reel,
+              id: reel._id || reel.id, // Ensure id field exists
+            }));
+          }
+        } catch (error) {
+          console.error('Error loading reels:', error);
+          toast.error('Failed to load reels');
+          loadedReels = [];
+        }
       }
-    }
 
-    // Local reels to be shown first
-    const localReels = [
-      {
-        id: 9001,
-        videoUrl: "/reels/reel1.mp4",
-        productName: "Featured Highlight",
-        description: "Must watch content!",
-        likes: 245,
-        comments: 42,
-        shares: 15,
-        status: 'active'
-      },
-      {
-        id: 9002,
-        videoUrl: "/reels/reel2.mp4",
-        productName: "Trending Now",
-        description: "Don't miss this one.",
-        likes: 189,
-        comments: 28,
-        shares: 10,
-        status: 'active'
+      // Check for specific reel query param
+      const reelId = searchParams.get("reel");
+      if (reelId && loadedReels.length > 0) {
+        const foundIndex = loadedReels.findIndex(r => 
+          (r._id || r.id)?.toString() === reelId.toString()
+        );
+        if (foundIndex !== -1) {
+          setCurrentIndex(foundIndex);
+        }
       }
-    ];
 
-    const combinedReels = [...localReels, ...loadedReels];
-    const uniqueReels = Array.from(new Map(combinedReels.map(reel => [reel.id, reel])).values());
-    setReels(uniqueReels);
-  }, [searchParams]);
+      setReels(loadedReels);
+    };
+
+    loadReels();
+  }, [searchParams, defaultType]);
 
   // Handle Play/Pause on visibility change
   useEffect(() => {
@@ -135,15 +120,16 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
     }
   };
 
-  const handleLike = (id) => {
+  const handleLike = (reel) => {
+    const reelId = reel._id || reel.id;
     setLikedReels(prev => {
-      const isLiked = !prev[id];
+      const isLiked = !prev[reelId];
       if (isLiked) {
         // Show animation only on like
         setShowHeartAnimation(true);
         setTimeout(() => setShowHeartAnimation(false), 1200);
       }
-      return { ...prev, [id]: isLiked };
+      return { ...prev, [reelId]: isLiked };
     });
   };
 
@@ -211,7 +197,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
         className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
       >
         {reels.map((reel, index) => (
-          <div key={reel.id} className="h-full w-full snap-start snap-always relative bg-gray-900 flex items-center justify-center">
+          <div key={reel._id || reel.id} className="h-full w-full snap-start snap-always relative bg-gray-900 flex items-center justify-center">
             {/* Video Player */}
             <video
               ref={el => videoRefs.current[index] = el}
@@ -223,10 +209,12 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
               playsInline
               preload="metadata"
               onLoadStart={() => {
-                setVideoStatus(prev => ({ ...prev, [reel.id]: { ...prev[reel.id], loading: true, error: false } }));
+                const reelId = reel._id || reel.id;
+                setVideoStatus(prev => ({ ...prev, [reelId]: { ...prev[reelId], loading: true, error: false } }));
               }}
               onCanPlay={() => {
-                setVideoStatus(prev => ({ ...prev, [reel.id]: { ...prev[reel.id], loading: false } }));
+                const reelId = reel._id || reel.id;
+                setVideoStatus(prev => ({ ...prev, [reelId]: { ...prev[reelId], loading: false } }));
               }}
               onEnded={(e) => {
                 e.target.currentTime = 0;
@@ -247,12 +235,13 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                     return;
                   }
 
-                  console.error(`Video Error (ID: ${reel.id}):`, {
+                  const reelId = reel._id || reel.id;
+                  console.error(`Video Error (ID: ${reelId}):`, {
                     code: error.code,
                     message: error.message,
                     src: video.src
                   });
-                  setVideoStatus(prev => ({ ...prev, [reel.id]: { loading: false, error: true } }));
+                  setVideoStatus(prev => ({ ...prev, [reelId]: { loading: false, error: true } }));
                 }
               }}
               onMouseDown={(e) => {
@@ -306,14 +295,14 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
             />
 
             {/* Loading Spinner */}
-            {videoStatus[reel.id]?.loading && (
+            {videoStatus[reel._id || reel.id]?.loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] z-10">
                 <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
               </div>
             )}
 
             {/* Error Message */}
-            {videoStatus[reel.id]?.error && (
+            {videoStatus[reel._id || reel.id]?.error && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/80 z-20 px-6 text-center">
                 <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
                   <FiX className="text-3xl text-red-500" />
@@ -322,7 +311,8 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                 <p className="text-gray-400 text-sm mb-6">Something went wrong while trying to play this reel.</p>
                 <button 
                   onClick={() => {
-                    setVideoStatus(prev => ({ ...prev, [reel.id]: { loading: true, error: false } }));
+                    const reelId = reel._id || reel.id;
+                    setVideoStatus(prev => ({ ...prev, [reelId]: { loading: true, error: false } }));
                     if (videoRefs.current[index]) {
                       videoRefs.current[index].load();
                     }
@@ -398,14 +388,14 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
 
                 {/* Right Actions Bar */}
                 <div className="flex flex-col items-center gap-6">
-                  <button onClick={() => handleLike(reel.id)} className="flex flex-col items-center gap-1 group">
+                  <button onClick={() => handleLike(reel)} className="flex flex-col items-center gap-1 group">
                     <div className="p-3 rounded-full bg-white/10 backdrop-blur-md group-active:scale-90 transition-transform">
                       <FiHeart
-                        className={`text-2xl transition-colors ${likedReels[reel.id] ? "text-red-500 fill-red-500" : "text-white"
+                        className={`text-2xl transition-colors ${likedReels[reel._id || reel.id] ? "text-red-500 fill-red-500" : "text-white"
                           }`}
                       />
                     </div>
-                    <span className="text-white text-xs font-medium">{likedReels[reel.id] ? (reel.likes + 1) : reel.likes}</span>
+                    <span className="text-white text-xs font-medium">{likedReels[reel._id || reel.id] ? (reel.likes + 1) : reel.likes}</span>
                   </button>
 
                   <button

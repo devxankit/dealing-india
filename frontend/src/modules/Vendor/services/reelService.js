@@ -16,7 +16,8 @@ export const getVendorReels = async (filters = {}) => {
   if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
 
   const response = await api.get(`/vendor/reels?${params.toString()}`);
-  // API interceptor returns response.data, so response is already { success, data: { reels }, pagination }
+  // API interceptor returns response.data, so response structure is:
+  // { success: true, data: { reels: [...] }, pagination: { page, limit, total, pages } }
   // Return response directly (it already has data and pagination)
   return response;
 };

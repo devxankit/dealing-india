@@ -1,6 +1,9 @@
 // Helper functions for managing vendor reels
+// NOTE: This file contains mock data and localStorage-based functions
+// These are DEPRECATED for vendor reels - use API calls via reelService.js instead
+// This file is kept only for UserApp/Reels.jsx compatibility
 
-// Mock Data for Initial State
+// Mock Data for Initial State (DEPRECATED - Use API instead)
 export const MOCK_VENDOR_REELS = [
   {
     id: 101,
@@ -52,8 +55,10 @@ export const MOCK_VENDOR_REELS = [
   }
 ];
 
-// Get all reels for a vendor
+// Get all reels for a vendor (DEPRECATED - Use API via reelService.js instead)
+// This function is kept for backward compatibility but should not be used for vendor reels
 export const getVendorReels = (vendorId) => {
+  console.warn('getVendorReels from reelHelpers.js is DEPRECATED. Use API calls via reelService.js instead.');
   const savedReels = localStorage.getItem('vendor-reels');
   let allReels = savedReels ? JSON.parse(savedReels) : [];
 
