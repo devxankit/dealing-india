@@ -59,16 +59,30 @@ export const registerUser = async (userData) => {
     }
 
     // Check if user already exists in database
-    const existingUser = await User.findOne({
-      $or: [{ email: email.toLowerCase() }, ...(phone ? [{ phone }] : [])],
-    });
+    let existingUser = null;
+    try {
+      existingUser = await User.findOne({
+        $or: [{ email: email.toLowerCase() }, ...(phone ? [{ phone }] : [])],
+      });
+    } catch (dbError) {
+      console.error('❌ Error checking existing user:', {
+        message: dbError.message,
+        name: dbError.name,
+        code: dbError.code,
+      });
+      throw new Error('Database error. Please try again later.');
+    }
 
     if (existingUser) {
       if (existingUser.email === email.toLowerCase()) {
-        throw new Error('Email already registered');
+        const error = new Error('Email already registered');
+        error.statusCode = 409;
+        throw error;
       }
       if (phone && existingUser.phone === phone) {
-        throw new Error('Phone number already registered');
+        const error = new Error('Phone number already registered');
+        error.statusCode = 409;
+        throw error;
       }
     }
 
@@ -195,9 +209,17 @@ export const registerUser = async (userData) => {
       throw otpError;
     }
     
-    const emailResult = await sendVerificationEmail(email, otp);
-
-    if (!emailResult.success) {
+    // Send verification email
+    let emailResult;
+    try {
+      emailResult = await sendVerificationEmail(email, otp);
+    } catch (emailError) {
+      console.error('❌ Error in sendVerificationEmail:', {
+        message: emailError.message,
+        name: emailError.name,
+        stack: emailError.stack,
+      });
+      
       // If email fails, delete temporary registration
       try {
         if (tempReg && tempReg._id) {
@@ -208,7 +230,30 @@ export const registerUser = async (userData) => {
       } catch (deleteError) {
         console.error('Error deleting temporary registration after email failure:', deleteError.message);
       }
+      
+      // If email service is not configured, still allow registration but log OTP
+      if (emailError.message?.includes('not configured') || emailError.message?.includes('EMAIL_SERVICE_NOT_CONFIGURED')) {
+        console.error(`🚨 CRITICAL: Email service not configured. OTP for ${email}: ${otp}`);
+        throw new Error('Email service not configured. Please contact support.');
+      }
+      
       throw new Error('Failed to send verification email. Please try again.');
+    }
+
+    if (!emailResult || !emailResult.success) {
+      // If email fails, delete temporary registration
+      try {
+        if (tempReg && tempReg._id) {
+          await TemporaryRegistration.deleteOne({ _id: tempReg._id });
+        } else {
+          await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
+        }
+      } catch (deleteError) {
+        console.error('Error deleting temporary registration after email failure:', deleteError.message);
+      }
+      
+      const errorMessage = emailResult?.message || 'Failed to send verification email. Please try again.';
+      throw new Error(errorMessage);
     }
 
     console.log(`✅ Verification OTP sent to ${email}`);

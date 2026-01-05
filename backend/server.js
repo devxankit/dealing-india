@@ -292,6 +292,23 @@ app.use('/api/vendor/wallet', vendorWalletRoutes);
 app.use('/api/vendor/returns', vendorReturnRoutes);
 
 
+// Global error handler for unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process in production, just log
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️  Unhandled promise rejection logged. Server continues running.');
+  }
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // In production, log and continue; in development, might want to exit
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
+});
+
 // Error handling middleware (must be after routes)
 app.use(errorHandler);
 
