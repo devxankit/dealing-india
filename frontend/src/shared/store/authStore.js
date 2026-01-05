@@ -368,6 +368,12 @@ export const useAuthStore = create(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
+        // Exclude isLoading from persistence - it's a transient UI state
+      }),
     }
   )
 );

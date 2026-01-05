@@ -25,6 +25,22 @@ const Register = () => {
 
   const password = watch('password');
 
+  // Reset loading state on mount to prevent stuck loading state from persistence
+  useEffect(() => {
+    // Reset isLoading in store if it's stuck (can happen if persisted state had isLoading: true)
+    const store = useAuthStore.getState();
+    if (store.isLoading) {
+      useAuthStore.setState({ isLoading: false });
+    }
+    // Also reset local loading state
+    setLocalLoading(false);
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []); // Run only on mount
+
   // Safety mechanism: Reset loading state if it's stuck
   useEffect(() => {
     if (localLoading || isLoading) {

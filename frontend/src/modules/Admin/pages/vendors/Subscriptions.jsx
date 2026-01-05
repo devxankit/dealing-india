@@ -123,6 +123,9 @@ const Subscriptions = () => {
         // Set empty data structure to prevent errors
         setAnalytics({
           revenue: 0,
+          totalRevenue: 0,
+          totalOrders: 0,
+          totalCustomers: 0,
           activeSubscriptions: 0,
           monthlyGrowth: '+0%',
           churnRate: '0%',
@@ -133,10 +136,21 @@ const Subscriptions = () => {
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
-      toast.error('Failed to load analytics data');
+      
+      // Handle authentication errors specifically
+      if (error.response?.status === 401 || error.message?.includes('401')) {
+        toast.error('Authentication required. Please login again.');
+        // Don't set empty data, let the error propagate so the interceptor can handle redirect
+        return;
+      }
+      
+      toast.error(error.response?.data?.message || error.message || 'Failed to load analytics data');
       // Set empty data structure to prevent errors
       setAnalytics({
         revenue: 0,
+        totalRevenue: 0,
+        totalOrders: 0,
+        totalCustomers: 0,
         activeSubscriptions: 0,
         monthlyGrowth: '+0%',
         churnRate: '0%',
