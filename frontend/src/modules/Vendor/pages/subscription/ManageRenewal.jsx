@@ -19,15 +19,15 @@ const ManageRenewal = ({ isOpen, onClose, subscription, onUpdate }) => {
       setLoading(true);
       const response = await api.put('/vendor/subscriptions/renewal', { autoRenew: !autoRenew });
       
-      if (response.data.success) {
+      if (response.success) {
         setAutoRenew(!autoRenew);
-        toast.success(response.data.message || `Auto-renewal ${!autoRenew ? 'enabled' : 'disabled'} successfully`);
+        toast.success(response.message || `Auto-renewal ${!autoRenew ? 'enabled' : 'disabled'} successfully`);
         
         if (onUpdate) {
           onUpdate({ ...subscription, autoRenew: !autoRenew });
         }
       } else {
-        throw new Error(response.data.message || 'Failed to update auto-renewal setting');
+        throw new Error(response.message || 'Failed to update auto-renewal setting');
       }
     } catch (error) {
       console.error('Error updating auto-renewal:', error);

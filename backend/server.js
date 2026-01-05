@@ -24,7 +24,6 @@ import offersRoutes from './routes/offers.routes.js';
 import categoryManagementRoutes from './routes/categoryManagement.routes.js';
 import productManagementRoutes from './routes/productManagement.routes.js';
 import productRatingsRoutes from './routes/productRatings.routes.js';
-import productFAQsRoutes from './routes/productFAQs.routes.js';
 import vendorProductsRoutes from './routes/vendorProducts.routes.js';
 import vendorReelsRoutes from './routes/vendorReels.routes.js';
 import vendorReviewsRoutes from './routes/vendorReviews.routes.js';
@@ -61,6 +60,8 @@ import publicDeliveryRoutes from './routes/publicDelivery.routes.js';
 import vendorOrderRoutes from './routes/vendorOrder.routes.js';
 import adminOrderRoutes from './routes/adminOrder.routes.js';
 import adminDeliveryRoutes from './routes/adminDelivery.routes.js';
+import adminAnalyticsRoutes from './routes/admin-routes/analytics.routes.js';
+import vendorAnalyticsRoutes from './routes/vendor-routes/analytics.routes.js';
 
 import userReelsRoutes from './routes/userReels.routes.js';
 import reelCommentsRoutes from './routes/reelComments.routes.js';
@@ -255,12 +256,12 @@ app.use('/api/admin/categories', categoryManagementRoutes);
 app.use('/api/admin/products', productManagementRoutes);
 app.use('/api/admin/product-ratings', productRatingsRoutes);
 app.use('/api/admin/settings', settingsRoutes);
-app.use('/api/admin/product-faqs', productFAQsRoutes);
 app.use('/api/admin/hero-banners', heroBannerAdminRoutes);
 app.use('/api/admin/orders', adminOrderRoutes);
 app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/admin/vendor-wallets', adminVendorWalletRoutes);
 app.use('/api/admin/returns', adminReturnRoutes);
+app.use('/api/admin/analytics', adminAnalyticsRoutes);
 
 
 // User management routes (require user authentication)
@@ -297,6 +298,7 @@ app.use('/api/vendor/orders', vendorOrderRoutes);
 app.use('/api/vendor/notifications', vendorNotificationRoutes);
 app.use('/api/vendor/wallet', vendorWalletRoutes);
 app.use('/api/vendor/returns', vendorReturnRoutes);
+app.use('/api/vendor/analytics', vendorAnalyticsRoutes);
 
 
 // Global error handler for unhandled promise rejections

@@ -35,6 +35,7 @@ export const useVendorAuthStore = create(
               address: vendor.address || {},
               documents: vendor.documents || {},
               bankDetails: vendor.bankDetails || {},
+              commissionRate: vendor.commissionRate ?? 0.1,
             };
 
             set({
@@ -166,6 +167,7 @@ export const useVendorAuthStore = create(
               address: vendor.address || {},
               documents: vendor.documents || {},
               bankDetails: vendor.bankDetails || {},
+              commissionRate: vendor.commissionRate ?? 0.1,
             };
 
             set({
@@ -209,6 +211,7 @@ export const useVendorAuthStore = create(
               address: vendor.address || {},
               documents: vendor.documents || [],
               bankDetails: vendor.bankDetails || {},
+              commissionRate: vendor.commissionRate ?? 0.1,
             };
 
               set({
@@ -343,6 +346,7 @@ export const useVendorAuthStore = create(
                 address: vendor.address || {},
                 documents: vendor.documents || {},
                 bankDetails: vendor.bankDetails || {},
+                commissionRate: vendor.commissionRate ?? 0.1,
               };
 
               // Only set authenticated if vendor is approved

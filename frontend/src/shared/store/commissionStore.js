@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getVendorById } from '../../data/vendors';
+import api from '../utils/api';
+import { getVendorEarningsStats } from '../services/orderService';
 
 export const useCommissionStore = create(
   persist(
@@ -21,22 +23,21 @@ export const useCommissionStore = create(
       fetchEarningsStats: async () => {
         set({ isLoading: true, error: null });
         try {
-          const { getVendorEarningsStats } = await import('../services/orderService');
-          const response = await getVendorEarningsStats();
-          if (response.success) {
+          const data = await getVendorEarningsStats();
+          
+          if (data) {
             // We start with backend data
             set({
               stats: {
                 ...get().stats,
-                pendingEarnings: response.data.pendingEarnings,
-                // "Total Earnings" in UI usually means Realized + Pending? Or just Realized?
-                // The backend returns totalOrderEarnings (sum of all valid orders)
-                totalEarnings: response.data.totalOrderEarnings
+                pendingEarnings: data.pendingEarnings || 0,
+                totalEarnings: data.totalOrderEarnings || 0,
+                totalOrders: data.totalOrders || 0
               }
             });
           }
         } catch (error) {
-          console.error(error);
+          console.error('Error in fetchEarningsStats:', error);
           set({ error: error.message, isLoading: false });
         } finally {
           set({ isLoading: false });
@@ -50,10 +51,31 @@ export const useCommissionStore = create(
         return get().commissions.filter(c => c.vendorId === vendorId || c.vendorId === parseInt(vendorId));
       },
 
+      // Fetch vendor settlements (approved withdrawals)
+      fetchSettlements: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await api.get('/vendor/wallet/withdrawals?status=approved');
+          if (response.success) {
+            set({ settlements: response.data });
+          }
+        } catch (error) {
+          console.error(error);
+          set({ error: error.message });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
       // Get vendor settlements
       getVendorSettlements: (vendorId) => {
-        // Currently fetching valid settlements or empty
-        return get().settlements?.filter(s => s.vendorId === vendorId || s.vendorId === parseInt(vendorId)) || [];
+        // We now fetch from backend, but keeping this for filtered access if needed
+        return get().settlements || [];
+      },
+
+      // Get vendor earnings summary
+      getVendorEarningsSummary: (vendorId) => {
+        return get().stats;
       },
 
       // Record commission (legacy/local)

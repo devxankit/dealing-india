@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
@@ -8,71 +8,52 @@ import Badge from "../../../../shared/components/Badge";
 import ExportButton from "../../components/ExportButton";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from '../../../../shared/utils/helpers';
+import * as analyticsService from "../../../../shared/services/analyticsService";
+import toast from 'react-hot-toast';
 
 const RefundReports = () => {
-  const [refunds] = useState(() => {
-    const now = Date.now();
-    const refundsList = [];
-    const reasons = [
-      "Product defect",
-      "Wrong item received",
-      "Customer request",
-      "Not as described",
-      "Size issue",
-    ];
-    const statuses = [
-      "completed",
-      "pending",
-      "completed",
-      "pending",
-      "completed",
-    ];
-    const customers = [
-      "John Doe",
-      "Jane Smith",
-      "Bob Johnson",
-      "Alice Brown",
-      "Charlie Wilson",
-      "Diana Prince",
-      "Emma Davis",
-      "Frank Miller",
-    ];
-
-    // Generate refunds for the last 30 days
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(now - i * 86400000);
-      const count = Math.floor(Math.random() * 3) + 1; // 1-3 refunds per day
-
-      for (let j = 0; j < count; j++) {
-        const status = statuses[Math.floor(Math.random() * statuses.length)];
-        refundsList.push({
-          id: `REF-${String(refundsList.length + 1).padStart(3, "0")}`,
-          orderId: `ORD-${String(Math.floor(Math.random() * 100) + 1).padStart(
-            3,
-            "0"
-          )}`,
-          customerName: customers[Math.floor(Math.random() * customers.length)],
-          amount: Math.floor(Math.random() * 500) + 50,
-          reason: reasons[Math.floor(Math.random() * reasons.length)],
-          status,
-          requestedDate: new Date(
-            date.getTime() - Math.random() * 86400000
-          ).toISOString(),
-          processedDate:
-            status === "completed"
-              ? new Date(
-                date.getTime() + Math.random() * 86400000
-              ).toISOString()
-              : null,
-        });
-      }
-    }
-
-    return refundsList;
-  });
+  const [loading, setLoading] = useState(true);
+  const [refunds, setRefunds] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const filteredRefunds = refunds.filter(
+  useEffect(() => {
+    const fetchRefundData = async () => {
+      setLoading(true);
+      try {
+        const res = await analyticsService.getRefundReports("month");
+        if (res.success) {
+          // Mocking the detailed refund list since the API returns aggregated data
+          // In a real scenario, you'd have an API that returns individual refund records
+          setRefunds(res.data.map((r, index) => ({
+            id: `REF-${index + 1}`,
+            orderId: `ORD-${index + 100}`,
+            customerName: "System Record",
+            amount: r.amount,
+            reason: "Returned Item",
+            status: "completed",
+            requestedDate: r.date,
+            processedDate: r.date
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching refund reports:', error);
+        toast.error('Failed to load refund data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRefundData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+   }
+ 
+   const filteredRefunds = refunds.filter(
     (refund) => statusFilter === "all" || refund.status === statusFilter
   );
 

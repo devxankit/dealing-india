@@ -26,7 +26,8 @@ export const getSalesReport = async (filters = {}) => {
 
     // Get orders
     const orders = await Order.find(query)
-      .populate('customerId', 'name email')
+      .populate('customerId', 'name email phone')
+      .populate('shippingAddress')
       .sort({ orderDate: -1 })
       .lean();
 
@@ -39,13 +40,17 @@ export const getSalesReport = async (filters = {}) => {
     const ordersList = orders.map((order) => ({
       id: order.orderCode || order._id.toString(),
       customer: {
-        name: order.customerId?.name || '',
-        email: order.customerId?.email || '',
+        name: order.customerId?.name || order.customerSnapshot?.name || 'Guest',
+        email: order.customerId?.email || order.customerSnapshot?.email || '',
+        phone: order.customerId?.phone || order.customerSnapshot?.phone || '',
       },
       date: order.orderDate || order.createdAt,
       status: order.status,
       total: order.total,
       items: order.items || [],
+      shippingAddress: order.shippingAddress,
+      tax: order.pricing?.tax || 0,
+      shippingFee: order.pricing?.shipping || 0,
     }));
 
     return {
@@ -115,38 +120,34 @@ export const getInventoryReport = async () => {
  */
 export const getAdminDashboardSummary = async (period = 'month') => {
   try {
-    const now = new Date();
-    let startDate;
+    const endDate = new Date();
+    const startDate = new Date();
 
-    switch (period) {
-      case 'week':
-        startDate = new Date(now.setDate(now.getDate() - 7));
-        break;
-      case 'month':
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
-        break;
-      case 'year':
-        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
-        break;
-      default:
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
+    if (period === 'week') {
+      startDate.setDate(endDate.getDate() - 7);
+    } else if (period === 'month') {
+      startDate.setMonth(endDate.getMonth() - 1);
+    } else if (period === 'quarter') {
+      startDate.setMonth(endDate.getMonth() - 3);
+    } else if (period === 'year') {
+      startDate.setFullYear(endDate.getFullYear() - 1);
+    } else {
+      startDate.setMonth(endDate.getMonth() - 1);
     }
 
     // Get orders in the period
     const orders = await Order.find({
-      orderDate: { $gte: startDate },
+      orderDate: { $gte: startDate, $lte: endDate },
       status: { $nin: ['cancelled', 'refunded'] },
     }).lean();
 
     // Get previous period orders for comparison
     const previousStartDate = new Date(startDate);
-    const previousEndDate = new Date(startDate);
-    if (period === 'week') previousStartDate.setDate(previousStartDate.getDate() - 7);
-    else if (period === 'month') previousStartDate.setMonth(previousStartDate.getMonth() - 1);
-    else if (period === 'year') previousStartDate.setFullYear(previousStartDate.getFullYear() - 1);
+    const diff = endDate.getTime() - startDate.getTime();
+    previousStartDate.setTime(startDate.getTime() - diff);
 
     const prevOrders = await Order.find({
-      orderDate: { $gte: previousStartDate, $lt: previousEndDate },
+      orderDate: { $gte: previousStartDate, $lt: startDate },
       status: { $nin: ['cancelled', 'refunded'] },
     }).lean();
 
@@ -164,9 +165,14 @@ export const getAdminDashboardSummary = async (period = 'month') => {
       createdAt: { $lt: startDate },
     });
 
+    const calculateChange = (recent, previous) => {
+      if (previous === 0) return recent > 0 ? 100 : 0;
+      return parseFloat((((recent - previous) / previous) * 100).toFixed(1));
+    };
+
     // Get top products
     const topProducts = await Order.aggregate([
-      { $match: { orderDate: { $gte: startDate }, status: { $nin: ['cancelled', 'refunded'] } } },
+      { $match: { orderDate: { $gte: startDate, $lte: endDate }, status: { $nin: ['cancelled', 'refunded'] } } },
       { $unwind: '$items' },
       {
         $group: {
@@ -183,7 +189,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
 
     // Generate revenue trends (daily for month/week, monthly for year)
     const trends = await Order.aggregate([
-      { $match: { orderDate: { $gte: startDate }, status: { $nin: ['cancelled', 'refunded'] } } },
+      { $match: { orderDate: { $gte: startDate, $lte: endDate }, status: { $nin: ['cancelled', 'refunded'] } } },
       {
         $group: {
           _id: {
@@ -201,7 +207,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
 
     // Order status breakdown
     const statusBreakdown = await Order.aggregate([
-      { $match: { orderDate: { $gte: startDate } } },
+      { $match: { orderDate: { $gte: startDate, $lte: endDate } } },
       {
         $group: {
           _id: '$status',
@@ -211,40 +217,23 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     ]);
 
     // Recent orders
-    const recentOrders = await Order.find({ orderDate: { $gte: startDate } })
+    const recentOrders = await Order.find({ orderDate: { $gte: startDate, $lte: endDate } })
       .sort({ orderDate: -1 })
       .limit(10)
-      .populate('customerId', 'name email')
+      .populate('customerId', 'name email phone')
+      .populate('shippingAddress')
       .lean();
 
     return {
-      summary: [
-        {
-          label: 'Total Revenue',
-          value: totalRevenue,
-          prevValue: prevRevenue,
-          trend: prevRevenue === 0 ? 100 : ((totalRevenue - prevRevenue) / prevRevenue) * 100,
-          suffix: '₹',
-        },
-        {
-          label: 'Total Orders',
-          value: totalOrders,
-          prevValue: prevOrdersCount,
-          trend: prevOrdersCount === 0 ? 100 : ((totalOrders - prevOrdersCount) / prevOrdersCount) * 100,
-        },
-        {
-          label: 'Total Customers',
-          value: totalCustomers,
-          prevValue: prevCustomers,
-          trend: prevCustomers === 0 ? 100 : ((totalCustomers - prevCustomers) / prevCustomers) * 100,
-        },
-        {
-          label: 'Avg Order Value',
-          value: totalOrders === 0 ? 0 : totalRevenue / totalOrders,
-          prevValue: prevOrdersCount === 0 ? 0 : prevRevenue / prevOrdersCount,
-          suffix: '₹',
-        },
-      ],
+      summary: {
+        totalRevenue,
+        revenueChange: calculateChange(totalRevenue, prevRevenue),
+        totalOrders,
+        ordersChange: calculateChange(totalOrders, prevOrdersCount),
+        totalCustomers,
+        customersChange: calculateChange(totalCustomers, prevCustomers),
+        avgOrderValue: totalOrders === 0 ? 0 : totalRevenue / totalOrders,
+      },
       revenueData: trends.map((t) => ({
         date: t._id,
         revenue: t.revenue,
@@ -266,11 +255,15 @@ export const getAdminDashboardSummary = async (period = 'month') => {
         customer: {
           name: o.customerId?.name || o.customerSnapshot?.name || 'Guest',
           email: o.customerId?.email || o.customerSnapshot?.email || '',
+          phone: o.customerId?.phone || o.customerSnapshot?.phone || '',
         },
         date: o.orderDate,
         status: o.status,
         total: o.total,
         items: o.items,
+        shippingAddress: o.shippingAddress,
+        tax: o.pricing?.tax || 0,
+        shippingFee: o.pricing?.shipping || 0,
       })),
     };
   } catch (error) {

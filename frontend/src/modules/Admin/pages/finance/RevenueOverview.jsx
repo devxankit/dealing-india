@@ -1,19 +1,58 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { FiTrendingUp, FiCalendar } from "react-icons/fi";
 import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import RevenueComparisonChart from "../../components/Analytics/RevenueComparisonChart";
 import AnimatedSelect from "../../components/AnimatedSelect";
-import { generateRevenueData } from "../../../../data/adminMockData";
+import * as analyticsService from "../../../../shared/services/analyticsService";
 import { formatPrice } from '../../../../shared/utils/helpers';
+import toast from 'react-hot-toast';
 
 const RevenueOverview = () => {
   const [period, setPeriod] = useState("month");
-  const revenueData = useMemo(() => generateRevenueData(30), []);
+  const [loading, setLoading] = useState(true);
+  const [financeData, setFinanceData] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    averageOrderValue: 0
+  });
+  const [revenueData, setRevenueData] = useState([]);
 
-  const totalRevenue = revenueData.reduce((sum, day) => sum + day.revenue, 0);
-  const totalOrders = revenueData.reduce((sum, day) => sum + day.orders, 0);
-  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  useEffect(() => {
+    const fetchFinanceData = async () => {
+      setLoading(true);
+      try {
+        const [financeRes, chartRes] = await Promise.all([
+          analyticsService.getAdminFinanceSummary(period),
+          analyticsService.getAdminChartData(period)
+        ]);
+
+        if (financeRes.success) {
+          setFinanceData(financeRes.data);
+        }
+        if (chartRes.success) {
+          setRevenueData(chartRes.data);
+        }
+      } catch (error) {
+        console.error('Error fetching finance data:', error);
+        toast.error('Failed to load finance data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFinanceData();
+  }, [period]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const { totalRevenue, totalOrders, averageOrderValue } = financeData;
 
   return (
     <motion.div

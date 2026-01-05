@@ -1,25 +1,47 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { FiTrendingUp, FiCalendar } from "react-icons/fi";
 import { motion } from "framer-motion";
 import OrderTrendsLineChart from "../../components/Analytics/OrderTrendsLineChart";
 import AnimatedSelect from "../../components/AnimatedSelect";
-import { generateRevenueData } from "../../../../data/adminMockData";
+import * as analyticsService from "../../../../shared/services/analyticsService";
+import toast from 'react-hot-toast';
 
 const OrderTrends = () => {
   const [period, setPeriod] = useState("month");
-  const revenueData = useMemo(() => generateRevenueData(30), []);
+  const [loading, setLoading] = useState(true);
+  const [revenueData, setRevenueData] = useState([]);
 
-  const orderTrends = useMemo(() => {
-    return revenueData.map((day) => ({
-      date: day.date,
-      orders: day.orders,
-    }));
-  }, [revenueData]);
+  useEffect(() => {
+    const fetchOrderTrends = async () => {
+      setLoading(true);
+      try {
+        const chartRes = await analyticsService.getAdminChartData(period);
+        if (chartRes.success) {
+          setRevenueData(chartRes.data);
+        }
+      } catch (error) {
+        console.error('Error fetching order trends:', error);
+        toast.error('Failed to load order trends');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const totalOrders = orderTrends.reduce((sum, day) => sum + day.orders, 0);
+    fetchOrderTrends();
+  }, [period]);
+
+  const totalOrders = revenueData.reduce((sum, day) => sum + day.orders, 0);
   const averageOrders =
-    orderTrends.length > 0 ? totalOrders / orderTrends.length : 0;
-  const maxOrders = Math.max(...orderTrends.map((d) => d.orders), 0);
+    revenueData.length > 0 ? totalOrders / revenueData.length : 0;
+  const maxOrders = Math.max(...revenueData.map((d) => d.orders), 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div

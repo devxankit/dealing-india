@@ -6,6 +6,7 @@ import {
 import { transformOrderWithVendorItems } from '../../services/vendorOrders.service.js';
 import Order from '../../models/Order.model.js';
 import Product from '../../models/Product.model.js';
+import Vendor from '../../models/Vendor.model.js';
 import mongoose from 'mongoose';
 
 /**
@@ -233,7 +234,10 @@ export const getStats = async (req, res, next) => {
     const stats = await Order.aggregate([
       {
         $match: {
-          'items.productId': { $in: vendorProductObjectIds },
+          $or: [
+            { 'vendorBreakdown.vendorId': new mongoose.Types.ObjectId(vendorId.toString()) },
+            { 'items.productId': { $in: vendorProductObjectIds } }
+          ]
         },
       },
       {
@@ -279,38 +283,51 @@ export const getStats = async (req, res, next) => {
  */
 export const getEarningsStats = async (req, res, next) => {
   try {
-    const vendorId = req.user.vendorId || req.user.id;
+    const rawVendorId = req.user.vendorId || req.user.id;
+    
+    // Ensure vendorId is an ObjectId for comparison
+    let vendorId;
+    try {
+      vendorId = new mongoose.Types.ObjectId(rawVendorId);
+    } catch (err) {
+      vendorId = rawVendorId;
+    }
 
     // Get vendor details for default commission rate
-    const vendor = await import('../../models/Vendor.model.js').then(m => m.default.findById(vendorId));
+    const vendor = await Vendor.findById(vendorId);
     const defaultCommissionRate = vendor?.commissionRate || 0.1;
 
     // Get vendor's product IDs to find relevant orders
-    const vendorProductIds = await Product.find({ vendorId, isActive: true }).select('_id').lean();
-    const vendorProductObjectIds = vendorProductIds.map(p => p._id);
-    const vendorProductIdStrings = vendorProductIds.map(p => p._id.toString());
+    const vendorProductIds = await Product.find({ vendorId }).distinct('_id');
+    const vendorProductIdStrings = vendorProductIds.map(id => id.toString());
 
-    // console.log('DEBUG Earnings:', { vendorId, productCount: vendorProductObjectIds.length });
-
-    if (vendorProductIdStrings.length === 0) {
-      return res.status(200).json({
-        success: true,
-        data: { pendingEarnings: 0, totalOrderEarnings: 0 }
-      });
-    }
+    // console.log('DEBUG: vendorId', vendorId);
+    // console.log('DEBUG: vendorProductIds count', vendorProductIds.length);
 
     // Fetch all relevant orders
     const orders = await Order.find({
-      'items.productId': { $in: vendorProductObjectIds },
+      $or: [
+        { 'vendorBreakdown.vendorId': vendorId },
+        { 'items.productId': { $in: vendorProductIds } }
+      ],
       status: { $nin: ['cancelled', 'returned', 'refunded'] }
     })
-      .select('items status vendorBreakdown total')
+      .select('items status vendorBreakdown total orderCode createdAt')
       .lean();
 
-    // console.log('DEBUG Earnings Orders Found:', orders.length);
+    // console.log('DEBUG: orders found', orders.length);
+
+    if (orders.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: { pendingEarnings: 0, totalOrderEarnings: 0, totalOrders: 0 }
+      });
+    }
 
     let pendingEarnings = 0;
     let totalOrderEarnings = 0;
+
+    const vendorIdStr = vendorId.toString();
 
     orders.forEach(order => {
       let orderSubtotal = 0;
@@ -320,7 +337,7 @@ export const getEarningsStats = async (req, res, next) => {
       // 1. Try to find in vendorBreakdown first (best accuracy)
       if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
         const vb = order.vendorBreakdown.find(v =>
-          v.vendorId && (v.vendorId.toString() === vendorId.toString())
+          v.vendorId && (v.vendorId.toString() === vendorIdStr)
         );
         if (vb) {
           orderSubtotal = vb.subtotal || 0;
@@ -343,9 +360,10 @@ export const getEarningsStats = async (req, res, next) => {
 
       const earnings = orderSubtotal - orderCommission;
 
-      if (earnings > 0) {
+      if (earnings >= 0) {
         totalOrderEarnings += earnings;
-        // Check availability logic (Delivered = Realized)
+        // Check availability logic (Delivered/Completed = Realized)
+        // If not delivered/completed, it's pending
         if (order.status !== 'delivered' && order.status !== 'completed') {
           pendingEarnings += earnings;
         }
@@ -355,8 +373,9 @@ export const getEarningsStats = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
-        pendingEarnings,
-        totalOrderEarnings
+        pendingEarnings: Math.round(pendingEarnings * 100) / 100,
+        totalOrderEarnings: Math.round(totalOrderEarnings * 100) / 100,
+        totalOrders: orders.length
       }
     });
 

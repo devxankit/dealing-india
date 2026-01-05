@@ -22,6 +22,13 @@ import { useCommissionStore } from "../../../shared/store/commissionStore";
 import { useOrderStore } from "../../../shared/store/orderStore";
 import { useVendorOrderStore } from "../store/vendorOrderStore";
 
+import {
+  getAvailableBannerSlots,
+  createBannerBooking,
+  getMyBannerBookings,
+  confirmBannerPayment
+} from "../services/heroBannerService";
+
 const Earnings = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,7 +37,8 @@ const Earnings = () => {
     getVendorCommissions,
     fetchEarningsStats,
     stats,
-    getVendorSettlements,
+    fetchSettlements,
+    settlements: storeSettlements,
   } = useCommissionStore();
   const { orders, fetchVendorOrders } = useVendorOrderStore();
 
@@ -49,7 +57,9 @@ const Earnings = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [commissions, setCommissions] = useState([]);
   const [settlements, setSettlements] = useState([]);
+  const [advertisements, setAdvertisements] = useState([]);
   const [earningsSummary, setEarningsSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setActiveTab(getActiveTab());
@@ -63,15 +73,31 @@ const Earnings = () => {
     // Fetch stats and orders
     fetchEarningsStats();
     fetchVendorOrders(vendorId); // Ensure we have latest orders
+    fetchSettlements(); // Fetch real settlements from backend
 
-    const vendorSettlements = getVendorSettlements(vendorId);
-    setSettlements(vendorSettlements);
+    // Fetch advertisement payments
+    const fetchAds = async () => {
+      try {
+        const response = await getMyBannerBookings();
+        if (response.success) {
+          setAdvertisements(response.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching ad payments:", error);
+      }
+    };
+    fetchAds();
   }, [
     vendorId,
     fetchEarningsStats,
-    getVendorSettlements,
+    fetchSettlements,
     fetchVendorOrders
   ]);
+
+  // Update settlements when store updates
+  useEffect(() => {
+    setSettlements(storeSettlements || []);
+  }, [storeSettlements]);
 
   // Derive commissions from real orders
   useEffect(() => {
@@ -95,13 +121,13 @@ const Earnings = () => {
 
         // Calculate totals
         const subtotal = myItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
-        const commissionRate = vendor?.commissionRate || 10; // Fallback
+        const commissionRate = vendor?.commissionRate ?? 0.1; // Fallback to 10%
         // If backend provides pre-calculated breakdown, use it.
         // But getVendorOrders might not have full breakdown populated deep.
         // Let's rely on simple calculation or if order.vendorBreakdown exists.
 
         // Allow override from vendorBreakdown if available
-        let commission = (subtotal * commissionRate) / 100;
+        let commission = subtotal * commissionRate;
         let vendorEarnings = subtotal - commission;
 
         if (order.vendorBreakdown) {
@@ -474,7 +500,7 @@ const Earnings = () => {
                         },
                         {
                           label: "Transaction ID",
-                          accessor: (row) => row.transactionId || "N/A",
+                          accessor: (row) => row.transactionId || row._id?.toString().slice(-8).toUpperCase() || "N/A",
                         },
                       ]}
                       filename="vendor-settlements"
@@ -515,14 +541,12 @@ const Earnings = () => {
                                   "N/A"}
                               </p>
                             </div>
-                            {settlement.transactionId && (
-                              <div>
-                                <p className="text-gray-600">Transaction ID</p>
-                                <p className="font-semibold text-gray-800 text-xs">
-                                  {settlement.transactionId}
-                                </p>
-                              </div>
-                            )}
+                            <div>
+                              <p className="text-gray-600">Transaction ID</p>
+                              <p className="font-semibold text-gray-800 text-xs">
+                                {settlement.transactionId || settlement._id?.toString().slice(-8).toUpperCase() || "N/A"}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -544,12 +568,106 @@ const Earnings = () => {
 
           {/* Advertisement Payment Section */}
           {activeTab === "advertisement" && (
-            <div className="text-center py-12">
-              <FiVolume2 className="text-4xl text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 mb-2">No advertisement payment records found</p>
-              <p className="text-sm text-gray-400">
-                Payment history for your advertisements will appear here
-              </p>
+            <div>
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-800 mb-1">
+                      Advertisement Payments
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      View your payments for banner advertisements
+                    </p>
+                  </div>
+                  <ExportButton
+                    data={advertisements}
+                    headers={[
+                      { label: "Booking ID", accessor: (row) => row.referenceId || row._id },
+                      {
+                        label: "Date",
+                        accessor: (row) =>
+                          new Date(row.createdAt).toLocaleDateString(),
+                      },
+                      {
+                        label: "Amount",
+                        accessor: (row) => formatPrice(row.amount),
+                      },
+                      {
+                        label: "Status",
+                        accessor: (row) => row.status,
+                      },
+                    ]}
+                    filename="advertisement-payments"
+                  />
+                </div>
+
+                {advertisements.length > 0 ? (
+                  <div className="space-y-3">
+                    {advertisements.map((ad) => (
+                      <div
+                        key={ad._id}
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-gray-800">
+                              {ad.referenceId || `AD-${ad._id.substring(0, 8)}`}
+                            </h3>
+                            <Badge
+                              variant={
+                                ad.status === "active" || ad.status === "approved"
+                                  ? "success"
+                                  : ad.status === "pending"
+                                    ? "warning"
+                                    : "error"
+                              }>
+                              {ad.status?.toUpperCase()}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-600">Payment Date</p>
+                              <p className="font-semibold text-gray-800">
+                                {new Date(ad.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Amount Paid</p>
+                              <p className="font-semibold text-blue-600">
+                                {formatPrice(ad.amount)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Banner Slot</p>
+                              <p className="font-semibold text-gray-800">
+                                Slot {ad.slotId?.slotNumber || "N/A"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Duration</p>
+                              <p className="font-semibold text-gray-800">
+                                {ad.durationHours} Hours
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => navigate(`/vendor/hero-banner-booking`)}
+                          className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                          View Booking
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <FiVolume2 className="text-4xl text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-2">No advertisement payment records found</p>
+                    <p className="text-sm text-gray-400">
+                      Payment history for your advertisements will appear here
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

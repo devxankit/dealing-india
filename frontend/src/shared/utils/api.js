@@ -91,7 +91,7 @@ api.interceptors.response.use(
                          currentPath.includes('/reset-password');
       
       if (!isAuthPage) {
-        toast.error(message);
+        toast.error(message, { id: 'network-error' });
       }
       
       // Create a proper error object
@@ -158,11 +158,11 @@ api.interceptors.response.use(
       if (!isBackgroundOperation && !currentPath.includes('/login')) {
         // Show a user-friendly message
         if (message.includes('expired') || message.includes('Token has expired')) {
-          toast.error('Your session has expired. Please login again.');
+          toast.error('Your session has expired. Please login again.', { id: 'auth-error' });
         } else if (message.includes('Authentication required')) {
-          toast.error('Please login to continue.');
+          toast.error('Please login to continue.', { id: 'auth-error' });
         } else {
-          toast.error(message);
+          toast.error(message, { id: 'auth-error' });
         }
       }
       
@@ -185,7 +185,7 @@ api.interceptors.response.use(
                        currentPath.includes('/reset-password');
     
     if (!isAuthPage) {
-      toast.error(message);
+      toast.error(message, { id: 'api-error' });
     }
     
     return Promise.reject(error);

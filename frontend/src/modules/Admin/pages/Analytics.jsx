@@ -1,18 +1,62 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiBarChart2, FiTrendingUp, FiTrendingDown, FiDownload } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { generateRevenueData, getAnalyticsSummary } from '../../../data/adminMockData';
+import * as analyticsService from '../../../shared/services/analyticsService';
 import RevenueChart from '../components/Analytics/RevenueChart';
 import SalesChart from '../components/Analytics/SalesChart';
 import TimePeriodFilter from '../components/Analytics/TimePeriodFilter';
 import ExportButton from '../components/ExportButton';
 import { formatCurrency } from '../utils/adminHelpers';
+import toast from 'react-hot-toast';
 
 const Analytics = () => {
   const [period, setPeriod] = useState('month');
-  const [dateRange, setDateRange] = useState({ start: null, end: null });
-  const analyticsSummary = getAnalyticsSummary();
-  const revenueData = generateRevenueData(30);
+  const [loading, setLoading] = useState(true);
+  const [analyticsSummary, setAnalyticsSummary] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalProducts: 0,
+    totalCustomers: 0,
+    revenueChange: 0,
+    ordersChange: 0,
+    productsChange: 0,
+    customersChange: 0
+  });
+  const [revenueData, setRevenueData] = useState([]);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      setLoading(true);
+      try {
+        const [summaryRes, chartRes] = await Promise.all([
+          analyticsService.getAdminAnalyticsSummary(period),
+          analyticsService.getAdminChartData(period)
+        ]);
+
+        if (summaryRes.success) {
+          setAnalyticsSummary(summaryRes.data);
+        }
+        if (chartRes.success) {
+          setRevenueData(chartRes.data);
+        }
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+        // toast.error is handled by api interceptor
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [period]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div

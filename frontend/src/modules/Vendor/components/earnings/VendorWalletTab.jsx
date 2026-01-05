@@ -163,7 +163,7 @@ const VendorWalletTab = () => {
                                                             {req.status === 'approved' && (
                                                                 <div className="flex items-center gap-1">
                                                                     <FiInfo size={14} className="text-gray-400" />
-                                                                    <span className="text-xs">Txn: {req.transactionId || 'N/A'}</span>
+                                                                    <span className="text-xs">Txn: {req.transactionId || req._id?.toString().slice(-8).toUpperCase() || 'N/A'}</span>
                                                                 </div>
                                                             )}
                                                             {req.status === 'rejected' && (

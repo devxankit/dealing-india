@@ -52,16 +52,6 @@ const Products = () => {
       hoverShadow: "hover:shadow-amber-500/30",
       description: "View and manage ratings",
     },
-    {
-      path: "/admin/products/product-faqs",
-      label: "Product FAQs",
-      icon: FiHelpCircle,
-      gradient: "from-indigo-500 via-indigo-600 to-indigo-700",
-      lightGradient: "from-indigo-50 via-indigo-100/80 to-indigo-50",
-      shadowColor: "shadow-indigo-500/20",
-      hoverShadow: "hover:shadow-indigo-500/30",
-      description: "Manage product FAQs",
-    },
   ];
 
   return (

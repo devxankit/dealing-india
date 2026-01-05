@@ -1,76 +1,54 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { FiFileText, FiDownload } from "react-icons/fi";
 import { motion } from "framer-motion";
 import TaxTrendsChart from "../../components/Analytics/TaxTrendsChart";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
 import { formatPrice } from '../../../../shared/utils/helpers';
-import { mockOrders } from "../../../../data/adminMockData";
+import * as analyticsService from "../../../../shared/services/analyticsService";
+import toast from 'react-hot-toast';
 
 const TaxReports = () => {
-  const [orders] = useState(mockOrders);
+  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState([]);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
-  const taxData = useMemo(() => {
-    // Generate tax data from orders and create daily aggregates for better chart visualization
-    const dailyData = {};
-
-    orders.forEach((order) => {
-      const taxRate = 0.18; // 18% tax
-      const taxAmount = order.total * taxRate;
-      const subtotal = order.total - taxAmount;
-      const dateKey = order.date.split("T")[0]; // Get date part only
-
-      if (!dailyData[dateKey]) {
-        dailyData[dateKey] = {
-          date: dateKey,
-          taxAmount: 0,
-          total: 0,
-          count: 0,
-          orders: [],
-        };
+  useEffect(() => {
+    const fetchTaxData = async () => {
+      setLoading(true);
+      try {
+        const res = await analyticsService.getTaxReports("month");
+        if (res.success) {
+          setReports(res.data);
+        }
+      } catch (error) {
+        console.error('Error fetching tax reports:', error);
+        toast.error('Failed to load tax data');
+      } finally {
+        setLoading(false);
       }
-
-      dailyData[dateKey].taxAmount += taxAmount;
-      dailyData[dateKey].total += order.total;
-      dailyData[dateKey].count += 1;
-      dailyData[dateKey].orders.push({
-        orderId: order.id,
-        customer: order.customer.name,
-        subtotal,
-        taxRate: taxRate * 100,
-        taxAmount,
-        total: order.total,
-      });
-    });
-
-    // Convert to array format for table and add individual order entries
-    const tableData = [];
-    Object.values(dailyData).forEach((dayData) => {
-      dayData.orders.forEach((order) => {
-        tableData.push({
-          orderId: order.orderId,
-          date: dayData.date,
-          customer: order.customer,
-          subtotal: order.subtotal,
-          taxRate: order.taxRate,
-          taxAmount: order.taxAmount,
-          total: order.total,
-        });
-      });
-    });
-
-    return {
-      chartData: Object.values(dailyData).map((day) => ({
-        date: day.date,
-        taxAmount: day.taxAmount,
-        total: day.total,
-        taxRate: 18,
-        count: day.count,
-      })),
-      tableData,
     };
-  }, [orders]);
+    fetchTaxData();
+  }, []);
+
+  const taxData = useMemo(() => {
+    return {
+      chartData: reports.map(r => ({
+        date: r.month,
+        taxAmount: r.taxAmount,
+        total: r.taxableAmount,
+        taxRate: 18,
+      })),
+      tableData: reports.map((r, index) => ({
+        id: index + 1,
+        date: r.month,
+        subtotal: r.taxableAmount - r.taxAmount,
+        taxRate: 18,
+        taxAmount: r.taxAmount,
+        total: r.taxableAmount,
+      }))
+    };
+  }, [reports]);
 
   const filteredTaxData = useMemo(() => {
     if (!dateRange.start && !dateRange.end) return taxData.tableData;
@@ -81,6 +59,14 @@ const TaxReports = () => {
       return (!start || itemDate >= start) && (!end || itemDate <= end);
     });
   }, [taxData, dateRange]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   const totalTax = filteredTaxData.reduce(
     (sum, item) => sum + item.taxAmount,

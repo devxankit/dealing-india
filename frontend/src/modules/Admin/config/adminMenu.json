@@ -23,8 +23,7 @@
     "route": "/admin/products",
     "children": [
       "Manage Products",
-      "Product Ratings",
-      "Product FAQs"
+      "Product Ratings"
     ]
   },
   {

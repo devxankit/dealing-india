@@ -11,7 +11,7 @@ import {
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { IndianRupee } from "lucide-react";
-import { getVendorPerformanceMetrics } from "../services/performanceService";
+import * as analyticsService from "../../../shared/services/analyticsService";
 import { toast } from "react-hot-toast";
 import TimePeriodFilter from "../../Admin/components/Analytics/TimePeriodFilter";
 import RevenueLineChart from "../../Admin/components/Analytics/RevenueLineChart";
@@ -49,14 +49,14 @@ const VendorDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await getVendorPerformanceMetrics(period);
+        const response = await analyticsService.getVendorDashboardData(period);
         if (response && response.success) {
           setData(response.data);
         }
       } catch (error) {
         console.error("Error fetching vendor dashboard data:", error);
-        setError("डैशबोर्ड डेटा लोड करने में विफल। कृपया पुन: प्रयास करें।");
-        toast.error("डैशबोर्ड डेटा लोड करने में विफल");
+        setError("Failed to load dashboard data. Please try again.");
+        // toast.error is handled by api interceptor
       } finally {
         setLoading(false);
       }
@@ -116,11 +116,11 @@ const VendorDashboard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-red-500 text-xl font-semibold">{error}</div>
-        <button 
+        <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200"
         >
-          पुन: प्रयास करें
+          Try Again
         </button>
       </div>
     );

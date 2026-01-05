@@ -20,10 +20,8 @@ const PaymentSettings = () => {
     paymentMethods: {
       bankTransfer: true,
       upi: false,
-      paypal: false,
     },
     upiId: '',
-    paypalEmail: '',
   });
   const [activeSection, setActiveSection] = useState('bank');
 
@@ -39,10 +37,8 @@ const PaymentSettings = () => {
         paymentMethods: vendor.paymentMethods || {
           bankTransfer: true,
           upi: false,
-          paypal: false,
         },
         upiId: vendor.upiId || '',
-        paypalEmail: vendor.paypalEmail || '',
       });
     }
   }, [vendor]);
@@ -82,7 +78,6 @@ const PaymentSettings = () => {
         bankDetails: formData.bankDetails,
         paymentMethods: formData.paymentMethods,
         upiId: formData.upiId,
-        paypalEmail: formData.paypalEmail,
       };
 
       updateVendorProfile(vendor.id, updateData);
@@ -252,35 +247,6 @@ const PaymentSettings = () => {
                         value={formData.upiId || ''}
                         onChange={handleChange}
                         placeholder="yourname@upi"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
-                    </div>
-                  )}
-
-                  <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={formData.paymentMethods.paypal || false}
-                      onChange={() => handlePaymentMethodToggle('paypal')}
-                      className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-semibold text-gray-700">PayPal</span>
-                      <p className="text-xs text-gray-500 mt-1">Receive payments via PayPal</p>
-                    </div>
-                  </label>
-
-                  {formData.paymentMethods.paypal && (
-                    <div className="ml-7 mb-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        PayPal Email
-                      </label>
-                      <input
-                        type="email"
-                        name="paypalEmail"
-                        value={formData.paypalEmail || ''}
-                        onChange={handleChange}
-                        placeholder="your@paypal.com"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </div>

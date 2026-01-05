@@ -5,7 +5,8 @@ import {
   Navigate,
 } from "react-router-dom";
 import React, { lazy, Suspense } from 'react';
-import { Toaster } from "react-hot-toast";
+import { Toaster, useToasterStore, toast } from "react-hot-toast";
+import { useEffect } from 'react';
 import Home from "./modules/UserWeb/pages/Home";
 import ProductDetail from "./modules/UserWeb/pages/ProductDetail";
 import Checkout from "./modules/UserWeb/pages/Checkout";
@@ -59,7 +60,6 @@ import Invoice from "./modules/Admin/pages/orders/Invoice";
 // Products child pages
 import ManageProducts from "./modules/Admin/pages/products/ManageProducts";
 import ProductRatings from "./modules/Admin/pages/products/ProductRatings";
-import ProductFAQs from "./modules/Admin/pages/products/ProductFAQs";
 // Categories child pages
 import ManageCategories from "./modules/Admin/pages/categories/ManageCategories";
 import CategoryOrder from "./modules/Admin/pages/categories/CategoryOrder";
@@ -205,6 +205,15 @@ import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics"
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
+  const { toasts } = useToasterStore();
+
+  useEffect(() => {
+    toasts
+      .filter((t) => t.visible) // Only consider visible toasts
+      .filter((_, i) => i >= 1) // Limit to 1 toast
+      .forEach((t) => toast.dismiss(t.id)); // Dismiss the extra ones
+  }, [toasts]);
+
   return (
     <>
       <Routes>
@@ -405,7 +414,6 @@ const AppRoutes = () => {
           <Route path="products/:id" element={<ProductForm />} />
           <Route path="products/manage-products" element={<ManageProducts />} />
           <Route path="products/product-ratings" element={<ProductRatings />} />
-          <Route path="products/product-faqs" element={<ProductFAQs />} />
           <Route path="more" element={<More />} />
           <Route path="categories" element={<Categories />} />
           <Route

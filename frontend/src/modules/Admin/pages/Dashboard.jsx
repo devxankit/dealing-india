@@ -8,6 +8,7 @@ import CustomerGrowthAreaChart from '../components/Analytics/CustomerGrowthAreaC
 import RevenueVsOrdersChart from '../components/Analytics/RevenueVsOrdersChart';
 import TopProducts from '../components/Analytics/TopProducts';
 import RecentOrders from '../components/Analytics/RecentOrders';
+import OrderDetailsModal from '../components/OrderDetailsModal';
 import TimePeriodFilter from '../components/Analytics/TimePeriodFilter';
 import ExportButton from '../components/ExportButton';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +21,7 @@ const Dashboard = () => {
   const [period, setPeriod] = useState('month');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
-    summary: [],
+    summary: {},
     revenueData: [],
     topProducts: [],
     orderStatus: [],
@@ -28,6 +29,8 @@ const Dashboard = () => {
   });
 
   const [error, setError] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -35,13 +38,13 @@ const Dashboard = () => {
       setError(null);
       try {
         const response = await getDashboardSummary(period);
-        if (response) {
-          setData(response);
+        if (response && response.success) {
+          setData(response.data);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        setError('डैशबोर्ड डेटा लोड करने में विफल। कृपया पुन: प्रयास करें।');
-        toast.error('डैशबोर्ड डेटा लोड करने में विफल');
+        setError('Failed to load dashboard data. Please try again.');
+        // toast.error is handled by api interceptor
       } finally {
         setLoading(false);
       }
@@ -70,7 +73,7 @@ const Dashboard = () => {
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
-          पुन: प्रयास करें
+          Try Again
         </button>
       </div>
     );
@@ -127,9 +130,22 @@ const Dashboard = () => {
         <TopProducts products={data.topProducts} />
         <RecentOrders
           orders={data.recentOrders}
-          onViewOrder={(order) => navigate(`/admin/orders/${order.id}`)}
+          onViewOrder={(order) => {
+            setSelectedOrder(order);
+            setIsOrderModalOpen(true);
+          }}
         />
       </div>
+
+      {/* Order Details Modal */}
+      <OrderDetailsModal
+        order={selectedOrder}
+        isOpen={isOrderModalOpen}
+        onClose={() => {
+          setIsOrderModalOpen(false);
+          setSelectedOrder(null);
+        }}
+      />
     </motion.div>
   );
 };

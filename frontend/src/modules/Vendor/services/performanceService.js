@@ -5,8 +5,8 @@ import api from '../../../shared/utils/api';
  * @param {string} period - Time period (week, month, year)
  * @returns {Promise<Object>} { metrics, earnings }
  */
-export const getVendorPerformanceMetrics = async (period = 'month') => {
+export const getVendorPerformanceMetrics = async (period = 'all') => {
   const response = await api.get(`/vendor/performance/metrics?period=${period}`);
-  return response.data || response;
+  return response;
 };
 

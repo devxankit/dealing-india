@@ -22,9 +22,9 @@ const BillingHistory = ({ isOpen, onClose }) => {
         params: { filter } 
       });
       
-      if (response.data && response.data.success) {
+      if (response && response.success) {
         // Transform the data to ensure date is a Date object
-        const data = response.data.data || [];
+        const data = response.data || [];
         const transformedData = data.map(item => ({
           ...item,
           date: item.date ? new Date(item.date) : new Date()

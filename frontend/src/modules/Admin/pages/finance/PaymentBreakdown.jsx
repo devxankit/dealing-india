@@ -1,13 +1,33 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { FiCreditCard, FiSmartphone } from "react-icons/fi";
 import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import PaymentBreakdownPieChart from "../../components/Analytics/PaymentBreakdownPieChart";
-import { mockOrders } from "../../../../data/adminMockData";
 import { formatPrice } from '../../../../shared/utils/helpers';
+import * as analyticsService from "../../../../shared/services/analyticsService";
+import toast from 'react-hot-toast';
 
 const PaymentBreakdown = () => {
-  const [orders] = useState(mockOrders);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const fetchPaymentData = async () => {
+      setLoading(true);
+      try {
+        const res = await analyticsService.getPaymentBreakdown("month");
+        if (res.success) {
+          setData(res.data);
+        }
+      } catch (error) {
+        console.error('Error fetching payment breakdown:', error);
+        toast.error('Failed to load payment data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPaymentData();
+  }, []);
 
   const paymentBreakdown = useMemo(() => {
     const breakdown = {
@@ -16,23 +36,36 @@ const PaymentBreakdown = () => {
       cash: { count: 0, total: 0 },
       wallet: { count: 0, total: 0 },
       upi: { count: 0, total: 0 },
+      cod: { count: 0, total: 0 }
     };
 
-    orders.forEach((order) => {
-      const method = order.paymentMethod || "creditCard";
-      if (breakdown[method]) {
-        breakdown[method].count++;
-        breakdown[method].total += order.total;
+    data.forEach((item) => {
+      // Backend returns the exact enum values from Order.model.js
+      const method = item.method;
+      if (method && breakdown[method]) {
+        breakdown[method].count = item.count;
+        breakdown[method].total = item.amount;
+      } else if (method === 'cash on delivery') {
+        breakdown.cod.count = item.count;
+        breakdown.cod.total = item.amount;
       }
     });
 
     return breakdown;
-  }, [orders]);
+  }, [data]);
 
   const totalAmount = Object.values(paymentBreakdown).reduce(
     (sum, method) => sum + method.total,
     0
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   const getMethodIcon = (method) => {
     const icons = {
@@ -41,6 +74,7 @@ const PaymentBreakdown = () => {
       cash: IndianRupee,
       wallet: FiSmartphone,
       upi: FiSmartphone,
+      cod: IndianRupee,
     };
     return icons[method] || FiCreditCard;
   };
@@ -52,6 +86,7 @@ const PaymentBreakdown = () => {
       cash: "Cash",
       wallet: "Digital Wallet",
       upi: "UPI",
+      cod: "Cash on Delivery",
     };
     return labels[method] || method;
   };

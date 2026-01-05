@@ -1,34 +1,66 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { FiTrendingUp, FiTrendingDown } from "react-icons/fi";
 import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 import ProfitLossChart from "../../components/Analytics/ProfitLossChart";
 import AnimatedSelect from "../../components/AnimatedSelect";
-import { mockOrders, generateRevenueData } from "../../../../data/adminMockData";
+import * as analyticsService from "../../../../shared/services/analyticsService";
 import { formatPrice } from '../../../../shared/utils/helpers';
+import toast from 'react-hot-toast';
 
 const ProfitLoss = () => {
   const [period, setPeriod] = useState("month");
-  const [orders] = useState(mockOrders);
-  const revenueData = useMemo(() => generateRevenueData(30), []);
+  const [loading, setLoading] = useState(true);
+  const [financials, setFinancials] = useState({
+    totalRevenue: 0,
+    costOfGoods: 0,
+    operatingExpenses: 0,
+    grossProfit: 0,
+    netProfit: 0,
+    profitMargin: 0
+  });
+  const [revenueData, setRevenueData] = useState([]);
 
-  const financials = useMemo(() => {
-    const revenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const costOfGoods = revenue * 0.6; // 60% COGS
-    const operatingExpenses = revenue * 0.2; // 20% operating expenses
-    const grossProfit = revenue - costOfGoods;
-    const netProfit = grossProfit - operatingExpenses;
-    const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+  useEffect(() => {
+    const fetchProfitLossData = async () => {
+      setLoading(true);
+      try {
+        const [financeRes, chartRes] = await Promise.all([
+          analyticsService.getAdminFinanceSummary(period),
+          analyticsService.getAdminChartData(period)
+        ]);
 
-    return {
-      revenue,
-      costOfGoods,
-      operatingExpenses,
-      grossProfit,
-      netProfit,
-      profitMargin,
+        if (financeRes.success) {
+          setFinancials({
+            revenue: financeRes.data.totalRevenue,
+            costOfGoods: financeRes.data.costOfGoods,
+            operatingExpenses: financeRes.data.operatingExpenses,
+            grossProfit: financeRes.data.grossProfit,
+            netProfit: financeRes.data.netProfit,
+            profitMargin: financeRes.data.profitMargin
+          });
+        }
+        if (chartRes.success) {
+          setRevenueData(chartRes.data);
+        }
+      } catch (error) {
+        console.error('Error fetching profit/loss data:', error);
+        toast.error('Failed to load financial data');
+      } finally {
+        setLoading(false);
+      }
     };
-  }, [orders]);
+
+    fetchProfitLossData();
+  }, [period]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
