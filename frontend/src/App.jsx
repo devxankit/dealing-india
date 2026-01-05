@@ -77,6 +77,7 @@ import PendingApprovals from "./modules/Admin/pages/vendors/PendingApprovals";
 import VendorDetail from "./modules/Admin/pages/vendors/VendorDetail";
 import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
 import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
+import VendorWalletManagement from "./modules/Admin/pages/vendors/VendorWalletManagement";
 import Subscriptions from "./modules/Admin/pages/vendors/Subscriptions";
 // Offers & Sliders child pages
 import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
@@ -147,6 +148,8 @@ const MobileSettings = lazy(() => import("./modules/UserApp/pages/Settings"));
 const MobileChangePassword = lazy(() => import("./modules/UserApp/pages/ChangePassword"));
 const MobileContentPage = lazy(() => import("./modules/UserApp/pages/ContentPage"));
 const MobileWallet = lazy(() => import("./modules/UserApp/pages/Wallet"));
+const MobileReturnRequest = lazy(() => import("./modules/UserApp/pages/ReturnRequest"));
+const MobileMyReturns = lazy(() => import("./modules/UserApp/pages/MyReturns"));
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryProtectedRoute from "./modules/Delivery/components/DeliveryProtectedRoute";
@@ -441,6 +444,10 @@ const AppRoutes = () => {
             element={<AdminVendorAnalytics />}
           />
           <Route
+            path="vendors/vendor-wallet"
+            element={<VendorWalletManagement />}
+          />
+          <Route
             path="subscriptions"
             element={<Subscriptions />}
           />
@@ -565,6 +572,7 @@ const AppRoutes = () => {
           <Route path="analytics" element={<VendorAnalytics />} />
           <Route path="earnings" element={<VendorEarnings />} />
           <Route path="earnings/overview" element={<VendorEarnings />} />
+          <Route path="earnings/wallet" element={<VendorEarnings />} />
           <Route
             path="earnings/commission-history"
             element={<VendorEarnings />}
@@ -605,7 +613,7 @@ const AppRoutes = () => {
             element={<VendorPerformanceMetrics />}
           />
           <Route path="settings" element={<VendorSettings />} />
-              <Route path="subscription" element={<VendorSubscription />} />
+          <Route path="subscription" element={<VendorSubscription />} />
           <Route path="settings/store" element={<VendorSettings />} />
           <Route path="settings/payment" element={<VendorSettings />} />
           <Route path="settings/payment-settings" element={<VendorSettings />} />
@@ -792,6 +800,26 @@ const AppRoutes = () => {
             <RouteWrapper>
               <ProtectedRoute>
                 <MobileAddresses />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/return-request/:orderId"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileReturnRequest />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/returns"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileMyReturns />
               </ProtectedRoute>
             </RouteWrapper>
           }

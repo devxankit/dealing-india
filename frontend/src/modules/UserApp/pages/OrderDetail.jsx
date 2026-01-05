@@ -17,7 +17,7 @@ const MobileOrderDetail = () => {
   const navigate = useNavigate();
   const { addItem } = useCartStore();
   const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [eligibility, setEligibility] = useState(null);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -31,6 +31,20 @@ const MobileOrderDetail = () => {
         const response = await getOrderById(orderId);
         if (response.success && response.data?.order) {
           setOrder(response.data.order);
+
+          // Check Return Eligibility if order is delivered
+          if (response.data.order.status === 'delivered') {
+            import('../../../shared/services/returnService').then(async ({ checkReturnEligibility }) => {
+              try {
+                const eligResponse = await checkReturnEligibility(orderId);
+                if (eligResponse.success) {
+                  setEligibility(eligResponse.data);
+                }
+              } catch (e) {
+                console.error("Eligibility check failed", e);
+              }
+            });
+          }
         } else {
           toast.error('Order not found');
           navigate('/app/orders');
@@ -46,6 +60,10 @@ const MobileOrderDetail = () => {
 
     fetchOrder();
   }, [orderId, navigate]);
+
+  const handleReturn = () => {
+    navigate(`/app/return-request/${orderId}`);
+  };
 
   if (loading) {
     return (
@@ -343,6 +361,17 @@ const MobileOrderDetail = () => {
                     Cancel Order
                   </button>
                 )}
+
+                {order.status === 'delivered' && eligibility?.eligible && (
+                  <button
+                    onClick={handleReturn}
+                    className="w-full py-3 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
+                  >
+                    <FiRotateCw className="text-lg" />
+                    Request Return
+                  </button>
+                )}
+
                 <button
                   onClick={handleReorder}
                   className="w-full py-3 gradient-green text-white rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-glow-green transition-all"

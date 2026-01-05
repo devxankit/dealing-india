@@ -59,6 +59,12 @@ import adminOrderRoutes from './routes/adminOrder.routes.js';
 import userNotificationRoutes from './routes/userNotification.routes.js';
 import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
 import adminNotificationRoutes from './routes/adminNotification.routes.js';
+import vendorWalletRoutes from './routes/vendorWallet.routes.js';
+import adminVendorWalletRoutes from './routes/adminVendorWallet.routes.js';
+import returnRequestRoutes from './routes/returnRequest.routes.js';
+import vendorReturnRoutes from './routes/vendorReturn.routes.js';
+import adminReturnRoutes from './routes/adminReturn.routes.js';
+
 
 // Load environment variables
 dotenv.config();
@@ -181,6 +187,9 @@ app.use('/api/admin/product-faqs', productFAQsRoutes);
 app.use('/api/admin/hero-banners', heroBannerAdminRoutes);
 app.use('/api/admin/orders', adminOrderRoutes);
 app.use('/api/admin/notifications', adminNotificationRoutes);
+app.use('/api/admin/vendor-wallets', adminVendorWalletRoutes);
+app.use('/api/admin/returns', adminReturnRoutes);
+
 
 // User management routes (require user authentication)
 app.use('/api/user/wishlist', wishlistRoutes);
@@ -191,6 +200,7 @@ app.use('/api/user/wallet', walletRoutes);
 app.use('/api/user/notifications', userNotificationRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
+app.use('/api/user/returns', returnRequestRoutes);
 
 // Vendor management routes (require vendor authentication)
 app.use('/api/vendor/products', vendorProductsRoutes);
@@ -209,6 +219,9 @@ app.use('/api/vendor/performance', vendorPerformanceRoutes);
 app.use('/api/vendor/hero-banners', heroBannerVendorRoutes);
 app.use('/api/vendor/orders', vendorOrderRoutes);
 app.use('/api/vendor/notifications', vendorNotificationRoutes);
+app.use('/api/vendor/wallet', vendorWalletRoutes);
+app.use('/api/vendor/returns', vendorReturnRoutes);
+
 
 // Error handling middleware (must be after routes)
 app.use(errorHandler);

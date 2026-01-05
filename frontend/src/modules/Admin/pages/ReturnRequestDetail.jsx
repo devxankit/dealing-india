@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { 
-  FiArrowLeft, 
-  FiCheck, 
-  FiX, 
-  FiPhone, 
+import {
+  FiArrowLeft,
+  FiCheck,
+  FiX,
+  FiPhone,
   FiMail,
   FiPackage,
   FiCalendar,
@@ -18,74 +18,70 @@ import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { IndianRupee } from 'lucide-react';
-import { mockReturnRequests } from '../../../data/adminMockData';
+import { getAdminReturns, updateReturnStatusAdmin, processRefundAdmin } from '../../../shared/services/returnService';
 import toast from 'react-hot-toast';
 
 const ReturnRequestDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [returnRequest, setReturnRequest] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    const savedRequests = localStorage.getItem('admin-return-requests');
-    const requests = savedRequests ? JSON.parse(savedRequests) : mockReturnRequests;
-    const foundRequest = requests.find((r) => r.id === id);
-    
-    if (foundRequest) {
-      setReturnRequest(foundRequest);
-      setStatus(foundRequest.status);
-    } else {
-      toast.error('Return request not found');
-      navigate('/admin/return-requests');
-    }
-  }, [id, navigate]);
+    fetchReturnRequest();
+  }, [id]);
 
-  const handleStatusUpdate = (newStatus, action = '') => {
-    const savedRequests = localStorage.getItem('admin-return-requests');
-    const requests = savedRequests ? JSON.parse(savedRequests) : mockReturnRequests;
-    
-    const updatedRequests = requests.map((request) => {
-      if (request.id === id) {
-        const updated = {
-          ...request,
-          status: newStatus,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        if (newStatus === 'approved' && action === 'approve') {
-          updated.refundStatus = 'pending';
-        } else if (newStatus === 'completed' && action === 'process-refund') {
-          updated.refundStatus = 'processed';
-        } else if (newStatus === 'completed' && !action) {
-          // If manually setting to completed, mark refund as processed
-          updated.refundStatus = 'processed';
-        } else if (newStatus === 'approved' && !action) {
-          // If manually setting to approved, ensure refund status is pending
-          if (updated.refundStatus !== 'processed') {
-            updated.refundStatus = 'pending';
-          }
+  const fetchReturnRequest = async () => {
+    try {
+      setLoading(true);
+      // Reusing getAdminReturns and filtering for now
+      const response = await getAdminReturns();
+      if (response.success) {
+        const found = response.data.find(r => r._id === id);
+        if (found) {
+          setReturnRequest(found);
+          setStatus(found.status);
+        } else {
+          toast.error('Return request not found');
+          navigate('/admin/return-requests');
         }
-        
-        return updated;
       }
-      return request;
-    });
-    
-    localStorage.setItem('admin-return-requests', JSON.stringify(updatedRequests));
-    const updatedRequest = updatedRequests.find((r) => r.id === id);
-    setReturnRequest(updatedRequest);
-    setStatus(updatedRequest.status);
-    setIsEditing(false);
-    
-    const statusMessages = {
-      approve: 'Return request approved',
-      reject: 'Return request rejected',
-      'process-refund': 'Refund processed successfully',
-    };
-    
-    toast.success(statusMessages[action] || 'Status updated successfully');
+    } catch (error) {
+      console.error('Error fetching return request:', error);
+      toast.error('Failed to fetch return request details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (newStatus, action = '') => {
+    try {
+      let response;
+      if (action === 'process-refund') {
+        response = await processRefundAdmin(id);
+      } else {
+        response = await updateReturnStatusAdmin(id, { status: newStatus });
+      }
+
+      if (response.success) {
+        setReturnRequest(response.data);
+        setStatus(response.data.status);
+        setIsEditing(false);
+
+        const statusMessages = {
+          approve: 'Return request approved',
+          reject: 'Return request rejected',
+          'process-refund': 'Refund processed successfully',
+        };
+
+        toast.success(statusMessages[action] || 'Status updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error(error.response?.data?.message || 'Failed to update status');
+    }
   };
 
   const handleStatusSave = () => {
@@ -131,8 +127,8 @@ const ReturnRequestDetail = () => {
             <FiArrowLeft className="text-lg text-gray-600" />
           </button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{returnRequest.id}</h1>
-            <p className="text-xs text-gray-500">Requested on {formatDateTime(returnRequest.requestDate)}</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{returnRequest.returnCode || returnRequest._id}</h1>
+            <p className="text-xs text-gray-500">Requested on {formatDateTime(returnRequest.createdAt)}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -256,10 +252,10 @@ const ReturnRequestDetail = () => {
               Original Order
             </h2>
             <Link
-              to={`/admin/orders/${returnRequest.orderId}`}
+              to={`/admin/orders/${returnRequest.orderId?._id || returnRequest.orderId}`}
               className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-semibold text-sm"
             >
-              <span>View Order: {returnRequest.orderId}</span>
+              <span>View Order: {returnRequest.orderId?.orderId || returnRequest.orderId}</span>
               <FiArrowLeft className="rotate-180 text-xs" />
             </Link>
           </div>
@@ -272,11 +268,11 @@ const ReturnRequestDetail = () => {
             </h2>
             <div className="space-y-2">
               {returnRequest.items.map((item, index) => (
-                <div key={item.id || index} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
-                  {item.image && (
+                <div key={item._id || index} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                  {item.productId?.images?.[0] && (
                     <img
-                      src={item.image}
-                      alt={item.name || 'Product'}
+                      src={item.productId.images[0]}
+                      alt={item.productId.name || 'Product'}
                       className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                       onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/100x100?text=Product';
@@ -284,7 +280,7 @@ const ReturnRequestDetail = () => {
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-gray-800 truncate">{item.name || 'Unknown Product'}</p>
+                    <p className="font-semibold text-sm text-gray-800 truncate">{item.productId?.name || 'Unknown Product'}</p>
                     <div className="flex items-center gap-3 mt-1">
                       <p className="text-xs text-gray-600">
                         {formatCurrency(item.price || 0)} × {item.quantity || 1}
@@ -339,28 +335,28 @@ const ReturnRequestDetail = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="text-xs text-gray-500 mb-1">Name</p>
-                <p className="font-semibold text-sm text-gray-800">{returnRequest.customer.name}</p>
+                <p className="font-semibold text-sm text-gray-800">{returnRequest.customer?.name}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">Email</p>
                 <a
-                  href={`mailto:${returnRequest.customer.email}`}
+                  href={`mailto:${returnRequest.customer?.email}`}
                   className="font-semibold text-xs text-blue-600 hover:text-blue-800 break-all"
                 >
-                  {returnRequest.customer.email}
+                  {returnRequest.customer?.email}
                 </a>
               </div>
-              {returnRequest.customer.phone && (
+              {returnRequest.customer?.phone && (
                 <div>
                   <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
                     <FiPhone className="text-xs" />
                     Phone
                   </p>
                   <a
-                    href={`tel:${returnRequest.customer.phone}`}
+                    href={`tel:${returnRequest.customer?.phone}`}
                     className="font-semibold text-sm text-gray-800 hover:text-blue-600"
                   >
-                    {returnRequest.customer.phone}
+                    {returnRequest.customer?.phone}
                   </a>
                 </div>
               )}
@@ -391,7 +387,7 @@ const ReturnRequestDetail = () => {
               </div>
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <p className="text-xs text-gray-500 mb-1">Refund Status</p>
-                <Badge variant={returnRequest.refundStatus === 'processed' ? 'success' : returnRequest.refundStatus === 'failed' ? 'error' : 'pending'}>
+                <Badge variant={returnRequest.refundStatus === 'processed' ? 'success' : returnRequest.refundStatus === 'failed' ? 'error' : 'pending'} className="text-xs">
                   {returnRequest.refundStatus}
                 </Badge>
               </div>
@@ -409,45 +405,23 @@ const ReturnRequestDetail = () => {
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-gray-800">Request Submitted</p>
-                  <p className="text-xs text-gray-500">{formatDateTime(returnRequest.requestDate)}</p>
+                  <p className="text-xs text-gray-500">{formatDateTime(returnRequest.createdAt)}</p>
                 </div>
               </div>
-              {returnRequest.status === 'approved' && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
+              {returnRequest.statusHistory?.map((history, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${history.status === 'approved' ? 'bg-blue-500' :
+                      history.status === 'processing' ? 'bg-yellow-500' :
+                        history.status === 'completed' ? 'bg-green-500' :
+                          history.status === 'rejected' ? 'bg-red-500' : 'bg-gray-400'
+                    }`}></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800">Approved</p>
-                    <p className="text-xs text-gray-500">{formatDateTime(returnRequest.updatedAt)}</p>
+                    <p className="text-xs font-semibold text-gray-800 capitalize">{history.status}</p>
+                    <p className="text-xs text-gray-500">{formatDateTime(history.timestamp)}</p>
+                    {history.comment && <p className="text-xs text-gray-500 italic">Note: {history.comment}</p>}
                   </div>
                 </div>
-              )}
-              {returnRequest.status === 'processing' && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800">Processing</p>
-                    <p className="text-xs text-gray-500">{formatDateTime(returnRequest.updatedAt)}</p>
-                  </div>
-                </div>
-              )}
-              {returnRequest.status === 'completed' && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800">Completed</p>
-                    <p className="text-xs text-gray-500">{formatDateTime(returnRequest.updatedAt)}</p>
-                  </div>
-                </div>
-              )}
-              {returnRequest.status === 'rejected' && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800">Rejected</p>
-                    <p className="text-xs text-gray-500">{formatDateTime(returnRequest.updatedAt)}</p>
-                  </div>
-                </div>
-              )}
+              ))}
             </div>
           </div>
 
@@ -456,22 +430,22 @@ const ReturnRequestDetail = () => {
             <h2 className="text-sm font-bold text-gray-800 mb-3">Quick Actions</h2>
             <div className="space-y-1.5">
               <Link
-                to={`/admin/orders/${returnRequest.orderId}`}
+                to={`/admin/orders/${returnRequest.orderId?._id || returnRequest.orderId}`}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-semibold"
               >
                 <FiShoppingBag className="text-sm" />
                 View Original Order
               </Link>
               <button
-                onClick={() => window.location.href = `mailto:${returnRequest.customer.email}`}
+                onClick={() => window.location.href = `mailto:${returnRequest.customer?.email}`}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-semibold"
               >
                 <FiMail className="text-sm" />
                 Email Customer
               </button>
-              {returnRequest.customer.phone && (
+              {returnRequest.customer?.phone && (
                 <button
-                  onClick={() => window.location.href = `tel:${returnRequest.customer.phone}`}
+                  onClick={() => window.location.href = `tel:${returnRequest.customer?.phone}`}
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-semibold"
                 >
                   <FiPhone className="text-sm" />
@@ -487,4 +461,3 @@ const ReturnRequestDetail = () => {
 };
 
 export default ReturnRequestDetail;
-

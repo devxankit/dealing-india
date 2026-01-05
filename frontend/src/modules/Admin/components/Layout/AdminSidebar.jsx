@@ -80,6 +80,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Manage Vendors": "/admin/vendors/manage-vendors",
       "Pending Approvals": "/admin/vendors/pending-approvals",
       "Commission Rates": "/admin/vendors/commission-rates",
+      "Vendor Wallet": "/admin/vendors/vendor-wallet",
       "Vendor Analytics": "/admin/vendors/vendor-analytics",
     },
     "/admin/subscriptions": {

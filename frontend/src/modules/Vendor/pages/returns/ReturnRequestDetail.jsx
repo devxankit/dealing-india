@@ -19,7 +19,7 @@ import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { IndianRupee } from "lucide-react";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
-import { mockReturnRequests } from "../../../../data/adminMockData";
+import { getVendorReturns, updateReturnStatusVendor } from "../../../../shared/services/returnService";
 import toast from "react-hot-toast";
 
 const ReturnRequestDetail = () => {
@@ -27,85 +27,61 @@ const ReturnRequestDetail = () => {
   const { id } = useParams();
   const { vendor } = useVendorAuthStore();
   const [returnRequest, setReturnRequest] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState("");
 
   const vendorId = vendor?.id;
 
   useEffect(() => {
+    fetchReturnRequest();
+  }, [id, vendorId]);
+
+  const fetchReturnRequest = async () => {
     if (!vendorId) return;
-
-    const savedRequests = localStorage.getItem("admin-return-requests");
-    const requests = savedRequests
-      ? JSON.parse(savedRequests)
-      : mockReturnRequests;
-
-    // Filter to only show requests for this vendor
-    const vendorRequests = requests.filter((req) => {
-      if (req.items && Array.isArray(req.items)) {
-        return req.items.some((item) => item.vendorId === vendorId);
+    try {
+      setLoading(true);
+      // Ideally we should have getReturnById, but reusing getVendorReturns and filtering for now
+      // as discussed in plan.
+      const response = await getVendorReturns();
+      if (response.success) {
+        const found = response.data.find(r => r._id === id);
+        if (found) {
+          setReturnRequest(found);
+          setStatus(found.status);
+        } else {
+          toast.error("Return request not found");
+          navigate("/vendor/return-requests");
+        }
       }
-      return false;
-    });
-
-    const foundRequest = vendorRequests.find((r) => r.id === id);
-
-    if (foundRequest) {
-      setReturnRequest(foundRequest);
-      setStatus(foundRequest.status);
-    } else {
-      toast.error("Return request not found");
-      navigate("/vendor/return-requests");
+    } catch (error) {
+      console.error("Error fetching return request:", error);
+      toast.error("Failed to fetch return request details");
+    } finally {
+      setLoading(false);
     }
-  }, [id, navigate, vendorId]);
+  };
 
-  const handleStatusUpdate = (newStatus, action = "") => {
-    const savedRequests = localStorage.getItem("admin-return-requests");
-    const requests = savedRequests
-      ? JSON.parse(savedRequests)
-      : mockReturnRequests;
+  const handleStatusUpdate = async (newStatus, action = "") => {
+    try {
+      const response = await updateReturnStatusVendor(id, { status: newStatus });
+      if (response.success) {
+        setReturnRequest(response.data);
+        setStatus(response.data.status);
+        setIsEditing(false);
 
-    const updatedRequests = requests.map((request) => {
-      if (request.id === id) {
-        const updated = {
-          ...request,
-          status: newStatus,
-          updatedAt: new Date().toISOString(),
+        const statusMessages = {
+          approve: "Return request approved",
+          reject: "Return request rejected",
+          "process-refund": "Refund processed successfully",
         };
 
-        if (newStatus === "approved" && action === "approve") {
-          updated.refundStatus = "pending";
-        } else if (newStatus === "completed" && action === "process-refund") {
-          updated.refundStatus = "processed";
-        } else if (newStatus === "completed" && !action) {
-          updated.refundStatus = "processed";
-        } else if (newStatus === "approved" && !action) {
-          if (updated.refundStatus !== "processed") {
-            updated.refundStatus = "pending";
-          }
-        }
-
-        return updated;
+        toast.success(statusMessages[action] || "Status updated successfully");
       }
-      return request;
-    });
-
-    localStorage.setItem(
-      "admin-return-requests",
-      JSON.stringify(updatedRequests)
-    );
-    const updatedRequest = updatedRequests.find((r) => r.id === id);
-    setReturnRequest(updatedRequest);
-    setStatus(updatedRequest.status);
-    setIsEditing(false);
-
-    const statusMessages = {
-      approve: "Return request approved",
-      reject: "Return request rejected",
-      "process-refund": "Refund processed successfully",
-    };
-
-    toast.success(statusMessages[action] || "Status updated successfully");
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error(error.response?.data?.message || "Failed to update status");
+    }
   };
 
   const handleStatusSave = () => {
@@ -150,11 +126,11 @@ const ReturnRequestDetail = () => {
           </button>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-              {returnRequest.id}
+              {returnRequest.returnCode || returnRequest._id}
             </h1>
             <p className="text-xs text-gray-500">
               Requested on{" "}
-              {new Date(returnRequest.requestDate).toLocaleDateString()}
+              {new Date(returnRequest.createdAt).toLocaleDateString()}
             </p>
           </div>
         </div>
@@ -283,8 +259,8 @@ const ReturnRequestDetail = () => {
                     returnRequest.refundStatus === "processed"
                       ? "success"
                       : returnRequest.refundStatus === "failed"
-                      ? "error"
-                      : "warning"
+                        ? "error"
+                        : "warning"
                   }
                   className="text-xs">
                   {returnRequest.refundStatus}
@@ -316,12 +292,12 @@ const ReturnRequestDetail = () => {
             <div className="space-y-2">
               {returnRequest.items.map((item, index) => (
                 <div
-                  key={item.id || index}
+                  key={item._id || index}
                   className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
-                  {item.image && (
+                  {item.productId?.images?.[0] && (
                     <img
-                      src={item.image}
-                      alt={item.name || "Product"}
+                      src={item.productId.images[0]}
+                      alt={item.productId.name || "Product"}
                       className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                       onError={(e) => {
                         e.target.src =
@@ -331,7 +307,7 @@ const ReturnRequestDetail = () => {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-gray-800 truncate">
-                      {item.name || "Unknown Product"}
+                      {item.productId?.name || "Unknown Product"}
                     </p>
                     <div className="flex items-center gap-3 mt-1">
                       <p className="text-xs text-gray-600">
@@ -394,27 +370,27 @@ const ReturnRequestDetail = () => {
               <div>
                 <p className="text-xs text-gray-500 mb-1">Name</p>
                 <p className="font-semibold text-sm text-gray-800">
-                  {returnRequest.customer.name}
+                  {returnRequest.customer?.name}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">Email</p>
                 <a
-                  href={`mailto:${returnRequest.customer.email}`}
+                  href={`mailto:${returnRequest.customer?.email}`}
                   className="font-semibold text-xs text-blue-600 hover:text-blue-800 break-all">
-                  {returnRequest.customer.email}
+                  {returnRequest.customer?.email}
                 </a>
               </div>
-              {returnRequest.customer.phone && (
+              {returnRequest.customer?.phone && (
                 <div>
                   <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
                     <FiPhone className="text-xs" />
                     Phone
                   </p>
                   <a
-                    href={`tel:${returnRequest.customer.phone}`}
+                    href={`tel:${returnRequest.customer?.phone}`}
                     className="font-semibold text-sm text-gray-800 hover:text-blue-600">
-                    {returnRequest.customer.phone}
+                    {returnRequest.customer?.phone}
                   </a>
                 </div>
               )}
@@ -456,8 +432,8 @@ const ReturnRequestDetail = () => {
                     returnRequest.refundStatus === "processed"
                       ? "success"
                       : returnRequest.refundStatus === "failed"
-                      ? "error"
-                      : "warning"
+                        ? "error"
+                        : "warning"
                   }>
                   {returnRequest.refundStatus}
                 </Badge>
@@ -545,23 +521,23 @@ const ReturnRequestDetail = () => {
             </h2>
             <div className="space-y-1.5">
               <Link
-                to={`/vendor/orders/${returnRequest.orderId}`}
+                to={`/vendor/orders/${returnRequest.orderId?._id || returnRequest.orderId}`}
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-semibold">
                 <FiShoppingBag className="text-sm" />
                 View Original Order
               </Link>
               <button
                 onClick={() =>
-                  (window.location.href = `mailto:${returnRequest.customer.email}`)
+                  (window.location.href = `mailto:${returnRequest.customer?.email}`)
                 }
                 className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-semibold">
                 <FiMail className="text-sm" />
                 Email Customer
               </button>
-              {returnRequest.customer.phone && (
+              {returnRequest.customer?.phone && (
                 <button
                   onClick={() =>
-                    (window.location.href = `tel:${returnRequest.customer.phone}`)
+                    (window.location.href = `tel:${returnRequest.customer?.phone}`)
                   }
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-semibold">
                   <FiPhone className="text-sm" />

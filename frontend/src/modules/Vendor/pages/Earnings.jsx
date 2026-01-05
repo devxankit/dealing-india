@@ -7,7 +7,10 @@ import {
   FiFileText,
   FiDownload,
   FiVolume2,
+  FiCreditCard
 } from "react-icons/fi";
+import VendorWalletTab from "../components/earnings/VendorWalletTab";
+
 import { motion } from "framer-motion";
 import Badge from "../../../shared/components/Badge";
 import ExportButton from "../../Admin/components/ExportButton";
@@ -35,7 +38,9 @@ const Earnings = () => {
     if (path.includes("/commission-history")) return "commission";
     if (path.includes("/settlement-history")) return "settlement";
     if (path.includes("/advertisement-payment")) return "advertisement";
+    if (path.includes("/wallet")) return "wallet";
     return "overview"; // Default to overview
+
   };
 
   const [activeTab, setActiveTab] = useState(getActiveTab());
@@ -95,8 +100,11 @@ const Earnings = () => {
       navigate("/vendor/earnings/settlement-history");
     } else if (tab === "advertisement") {
       navigate("/vendor/earnings/advertisement-payment");
+    } else if (tab === "wallet") {
+      navigate("/vendor/earnings/wallet");
     }
   };
+
 
   return (
     <motion.div
@@ -119,7 +127,17 @@ const Earnings = () => {
         <div className="border-b border-gray-200">
           <div className="flex overflow-x-auto scrollbar-hide -mx-1 px-1">
             <button
+              onClick={() => handleTabChange("wallet")}
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap text-sm ${activeTab === "wallet"
+                ? "border-purple-600 text-purple-600 font-semibold"
+                : "border-transparent text-gray-600 hover:text-gray-800"
+                }`}>
+              <FiCreditCard />
+              <span>Wallet</span>
+            </button>
+            <button
               onClick={() => handleTabChange("overview")}
+
               className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap text-sm ${activeTab === "overview"
                 ? "border-purple-600 text-purple-600 font-semibold"
                 : "border-transparent text-gray-600 hover:text-gray-800"
@@ -474,8 +492,14 @@ const Earnings = () => {
               </p>
             </div>
           )}
+
+          {/* Wallet Section */}
+          {activeTab === "wallet" && (
+            <VendorWalletTab />
+          )}
         </div>
       </div>
+
     </motion.div>
   );
 };

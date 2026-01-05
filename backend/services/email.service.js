@@ -185,3 +185,44 @@ export const sendPasswordResetEmail = async (email, otp) => {
   }
 };
 
+/**
+ * Send return request confirmation
+ */
+export const sendReturnRequestConfirmation = async (email, returnData) => {
+  // Implementation for return request confirmation email
+  // Simplified for now
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📧 [DEV MODE] Return Request Confirmation to ${email}`);
+  }
+  return { success: true };
+};
+
+/**
+ * Send return status update
+ */
+export const sendReturnStatusUpdate = async (email, returnData, status) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📧 [DEV MODE] Return Status Update (${status}) to ${email}`);
+  }
+  return { success: true };
+};
+
+/**
+ * Send refund processed notification
+ */
+export const sendRefundProcessed = async (email, returnData, amount) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📧 [DEV MODE] Refund Processed (${amount}) to ${email}`);
+  }
+  return { success: true };
+};
+
+const emailService = {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendReturnRequestConfirmation,
+  sendReturnStatusUpdate,
+  sendRefundProcessed
+};
+
+export default emailService;

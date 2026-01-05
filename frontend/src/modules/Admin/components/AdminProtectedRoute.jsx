@@ -13,11 +13,11 @@ const AdminProtectedRoute = ({ children }) => {
     const initAuth = async () => {
       // Wait one render cycle to allow Zustand persist to hydrate
       await new Promise(resolve => setTimeout(resolve, 0));
-      
+
       // Check current auth state after hydration
       const currentAuth = useAdminAuthStore.getState();
       const token = localStorage.getItem('admin-token');
-      
+
       // If we have a token but Zustand says not authenticated, validate with backend
       if (token && !currentAuth.isAuthenticated) {
         try {
@@ -31,8 +31,15 @@ const AdminProtectedRoute = ({ children }) => {
           // If initialization fails, clear invalid token
           localStorage.removeItem('admin-token');
         }
+      } else if (currentAuth.isAuthenticated && !token) {
+        // Inconsistent state: Authenticated but no token (likely cleared by interceptor)
+        // Force logout to prevent redirect loops
+        useAdminAuthStore.getState().logout();
+        setHasCheckedAuth(true);
+        setIsInitializing(false);
+        return;
       }
-      
+
       setHasCheckedAuth(true);
       setIsInitializing(false);
     };

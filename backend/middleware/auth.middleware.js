@@ -24,7 +24,7 @@ export const optionalAuthenticate = async (req, res, next) => {
     try {
       const decoded = verifyToken(token);
       req.user = decoded;
-      
+
       // Optionally fetch user document if token is valid
       if (decoded.role === 'user' && decoded.userId) {
         const user = await User.findById(decoded.userId);
@@ -121,3 +121,8 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
+
+// Aliases for compatibility
+export const protect = authenticate;
+export const protectVendor = authenticate;
+export const protectAdmin = authenticate;

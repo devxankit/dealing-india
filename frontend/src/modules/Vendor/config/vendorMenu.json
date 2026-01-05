@@ -109,6 +109,7 @@
     "route": "/vendor/earnings",
     "children": [
       "Earnings Overview",
+      "Wallet",
       "Commission History",
       "Settlement History",
       "Advertisement payment"
