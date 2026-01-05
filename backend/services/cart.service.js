@@ -8,6 +8,10 @@ import Product from '../models/Product.model.js';
  */
 export const getCart = async (userId) => {
   try {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
     let cart = await Cart.findOne({ userId })
       .populate({
         path: 'items.productId',
@@ -22,12 +26,17 @@ export const getCart = async (userId) => {
 
     // If cart doesn't exist, create empty one
     if (!cart) {
-      cart = await Cart.create({ userId, items: [] });
-      return {
-        id: cart._id.toString(),
-        userId: cart.userId.toString(),
-        items: [],
-      };
+      try {
+        cart = await Cart.create({ userId, items: [] });
+        return {
+          id: cart._id.toString(),
+          userId: cart.userId.toString(),
+          items: [],
+        };
+      } catch (createError) {
+        console.error('Error creating cart:', createError);
+        throw new Error('Failed to create cart');
+      }
     }
 
     // Transform items to frontend format

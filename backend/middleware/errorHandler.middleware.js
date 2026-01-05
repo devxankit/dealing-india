@@ -12,9 +12,13 @@ export const errorHandler = (err, req, res, next) => {
       message: err.message,
       name: err.name,
       code: err.code,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      status: err.status || err.statusCode || 500,
       url: req.originalUrl,
       method: req.method,
+      body: req.body ? JSON.stringify(req.body).substring(0, 200) : undefined,
+      params: req.params ? JSON.stringify(req.params) : undefined,
+      query: req.query ? JSON.stringify(req.query) : undefined,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     });
   }
 
