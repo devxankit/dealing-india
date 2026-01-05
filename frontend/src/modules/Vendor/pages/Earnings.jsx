@@ -20,6 +20,7 @@ import { IndianRupee } from "lucide-react";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { useCommissionStore } from "../../../shared/store/commissionStore";
 import { useOrderStore } from "../../../shared/store/orderStore";
+import { useVendorOrderStore } from "../store/vendorOrderStore";
 
 const Earnings = () => {
   const navigate = useNavigate();
@@ -27,10 +28,11 @@ const Earnings = () => {
   const { vendor } = useVendorAuthStore();
   const {
     getVendorCommissions,
-    getVendorEarningsSummary,
+    fetchEarningsStats,
+    stats,
     getVendorSettlements,
   } = useCommissionStore();
-  const { orders } = useOrderStore();
+  const { orders, fetchVendorOrders } = useVendorOrderStore();
 
   // Determine active tab from URL
   const getActiveTab = () => {
@@ -58,19 +60,77 @@ const Earnings = () => {
   useEffect(() => {
     if (!vendorId) return;
 
-    const vendorCommissions = getVendorCommissions(vendorId);
-    const vendorSettlements = getVendorSettlements(vendorId);
-    const summary = getVendorEarningsSummary(vendorId);
+    // Fetch stats and orders
+    fetchEarningsStats();
+    fetchVendorOrders(vendorId); // Ensure we have latest orders
 
-    setCommissions(vendorCommissions);
+    const vendorSettlements = getVendorSettlements(vendorId);
     setSettlements(vendorSettlements);
-    setEarningsSummary(summary);
   }, [
     vendorId,
-    getVendorCommissions,
+    fetchEarningsStats,
     getVendorSettlements,
-    getVendorEarningsSummary,
+    fetchVendorOrders
   ]);
+
+  // Derive commissions from real orders
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      const derivedCommissions = orders.map(order => {
+        // Find vendor specific breakdown or items
+        // Logic similar to VendorDetail.jsx
+        // Assuming order has vendorItems populated or vendorBreakdown
+        // For now, let's look for vendorItems which should be populated by getVendorOrders
+
+        // Check if vendorItems is array or object (backend response varies)
+        let myItems = [];
+        if (Array.isArray(order.vendorItems)) {
+          // Multi-vendor structure
+          const vItem = order.vendorItems.find(vi => vi.vendorId === vendorId || vi.vendorId?._id === vendorId);
+          if (vItem) myItems = vItem.items || [];
+        } else if (order.items) {
+          // Single vendor or filtered items
+          myItems = order.items.filter(i => i.productId?.vendorId === vendorId || i.vendorId === vendorId);
+        }
+
+        // Calculate totals
+        const subtotal = myItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+        const commissionRate = vendor?.commissionRate || 10; // Fallback
+        // If backend provides pre-calculated breakdown, use it.
+        // But getVendorOrders might not have full breakdown populated deep.
+        // Let's rely on simple calculation or if order.vendorBreakdown exists.
+
+        // Allow override from vendorBreakdown if available
+        let commission = (subtotal * commissionRate) / 100;
+        let vendorEarnings = subtotal - commission;
+
+        if (order.vendorBreakdown) {
+          const vb = order.vendorBreakdown.find(v => v.vendorId === vendorId);
+          if (vb) {
+            commission = vb.commission;
+            vendorEarnings = (vb.subtotal || subtotal) - vb.commission;
+          }
+        }
+
+        return {
+          id: `COMM-${order._id || order.id}`,
+          orderId: order.orderCode || order._id,
+          vendorId: vendorId,
+          subtotal: subtotal,
+          commission: commission,
+          vendorEarnings: vendorEarnings,
+          status: (order.status === 'delivered' || order.status === 'completed') ? 'paid' : (order.status === 'cancelled' ? 'cancelled' : 'pending'),
+          createdAt: order.createdAt || order.date
+        };
+      });
+      setCommissions(derivedCommissions);
+    }
+  }, [orders, vendorId, vendor]);
+
+  // Update internal state when store stats change
+  useEffect(() => {
+    setEarningsSummary(stats);
+  }, [stats]);
 
   const filteredCommissions = useMemo(() => {
     if (selectedStatus === "all") return commissions;
@@ -219,7 +279,7 @@ const Earnings = () => {
                   </div>
                   <p className="text-2xl font-bold text-blue-800">
                     {earningsSummary
-                      ? formatPrice(earningsSummary.paidEarnings)
+                      ? formatPrice(earningsSummary.totalEarnings - earningsSummary.pendingEarnings)
                       : formatPrice(0)}
                   </p>
                   <p className="text-xs text-blue-600 mt-1">Settled</p>

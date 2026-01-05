@@ -26,9 +26,9 @@ const MobileTrackOrder = () => {
 
       try {
         setLoading(true);
-        const response = await getOrderById(orderId);
-        if (response.success && response.data?.order) {
-          setOrder(response.data.order);
+        const data = await getOrderById(orderId);
+        if (data?.order) {
+          setOrder(data.order);
         } else {
           toast.error('Order not found');
           navigate('/app/orders');
@@ -93,12 +93,12 @@ const MobileTrackOrder = () => {
   const getTrackingSteps = () => {
     const statusHistory = order.statusHistory || [];
     const orderDate = order.orderDate || order.createdAt || order.date;
-    
+
     // Find timestamps from status history
     const pendingEntry = statusHistory.find(h => h.status === 'pending') || { timestamp: orderDate };
     const processingEntry = statusHistory.find(h => h.status === 'processing');
     const shippedEntry = statusHistory.find(h => ['shipped', 'shipped_seller', 'dispatched'].includes(h.status));
-    const deliveredEntry = statusHistory.find(h => h.status === 'delivered') || 
+    const deliveredEntry = statusHistory.find(h => h.status === 'delivered') ||
       (order.tracking?.deliveredAt ? { timestamp: order.tracking.deliveredAt } : null);
 
     const steps = [
@@ -229,7 +229,7 @@ const MobileTrackOrder = () => {
                       const itemName = item.name || item.productId?.name || 'Product';
                       const itemPrice = item.price || 0;
                       const itemQuantity = item.quantity || 1;
-                      
+
                       return (
                         <div key={itemId} className="flex items-center gap-3">
                           <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">

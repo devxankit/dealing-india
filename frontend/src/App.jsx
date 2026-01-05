@@ -113,6 +113,7 @@ import TermsConditions from "./modules/Admin/pages/policies/TermsConditions";
 // Firebase child pages
 import PushConfig from "./modules/Admin/pages/firebase/PushConfig";
 import Authentication from "./modules/Admin/pages/firebase/Authentication";
+import DeliveryRules from "./modules/Admin/pages/DeliveryRules";
 import RouteWrapper from "./shared/components/RouteWrapper";
 import ScrollToTop from "./shared/components/ScrollToTop";
 import OrderConfirmation from "./modules/UserWeb/pages/OrderConfirmation";
@@ -482,6 +483,7 @@ const AppRoutes = () => {
           />
           <Route path="finance/tax-reports" element={<TaxReports />} />
           <Route path="finance/refund-reports" element={<RefundReports />} />
+          <Route path="delivery-rules" element={<DeliveryRules />} />
           <Route path="analytics" element={<Analytics />} />
           <Route
             path="settings"
@@ -493,6 +495,7 @@ const AppRoutes = () => {
           <Route path="settings/products-inventory" element={<Settings />} />
           <Route path="settings/content-features" element={<Settings />} />
           <Route path="settings/notifications-seo" element={<Settings />} />
+          <Route path="settings/tax" element={<Settings />} />
           <Route path="policies" element={<PrivacyPolicy />} />
           <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="policies/refund-policy" element={<RefundPolicy />} />

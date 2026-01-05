@@ -2,6 +2,7 @@ import {
   getVendorPromotions,
   getVendorPromotionById,
 } from '../../services/vendorPromotions.service.js';
+import { getActivePromoCodesForVendors } from '../../services/promoCode.service.js';
 
 /**
  * Get all available promotions (admin-created, active)
@@ -57,6 +58,23 @@ export const getPromotion = async (req, res, next) => {
       success: true,
       message: 'Promotion retrieved successfully',
       data: { promotion },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get active coupons for product eligibility selection
+ * GET /api/vendor/promotions/active-coupons
+ */
+export const getActiveCoupons = async (req, res, next) => {
+  try {
+    const coupons = await getActivePromoCodesForVendors();
+    res.status(200).json({
+      success: true,
+      message: 'Active coupons retrieved successfully',
+      data: { coupons },
     });
   } catch (error) {
     next(error);

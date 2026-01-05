@@ -7,7 +7,7 @@ import api from '../../../shared/utils/api';
  */
 export const getVendorProducts = async (filters = {}) => {
   const params = new URLSearchParams();
-  
+
   if (filters.search) params.append('search', filters.search);
   if (filters.stock) params.append('stock', filters.stock);
   if (filters.categoryId) params.append('categoryId', filters.categoryId);
@@ -72,6 +72,15 @@ export const deleteVendorProduct = async (productId) => {
 export const updateVendorProductStatus = async (productId, statusData) => {
   const response = await api.patch(`/vendor/products/${productId}/status`, statusData);
   return response.data.product;
+};
+
+/**
+ * Get active coupons for vendor
+ * @returns {Promise<Object>} { coupons }
+ */
+export const getActiveCoupons = async () => {
+  const response = await api.get('/vendor/promotions/active-coupons');
+  return response.data?.coupons || response.coupons;
 };
 
 

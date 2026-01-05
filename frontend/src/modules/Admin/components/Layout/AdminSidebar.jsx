@@ -17,6 +17,7 @@ import {
   FiFileText,
   FiBarChart2,
   FiSettings,
+  FiTruck,
   FiGlobe,
   FiShield,
   FiDatabase,
@@ -24,6 +25,7 @@ import {
   FiX,
   FiUser,
   FiGift,
+
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
 import adminMenu from "../../config/adminMenu.json";
@@ -49,6 +51,7 @@ const iconMap = {
   Settings: FiSettings,
   Policies: FiShield,
   Firebase: FiDatabase,
+  "Delivery Rules": FiTruck,
 };
 
 // Helper function to convert child name to route path

@@ -7,178 +7,77 @@ export const useCommissionStore = create(
     (set, get) => ({
       commissions: [],
       settlements: [],
-
-      // Calculate commission for an order item
-      calculateCommission: (vendorId, itemPrice, quantity) => {
-        const vendor = getVendorById(vendorId);
-        if (!vendor) return 0;
-
-        const subtotal = itemPrice * quantity;
-        const commissionRate = vendor.commissionRate || 10; // Default 10%
-        const commission = (subtotal * commissionRate) / 100;
-        const vendorEarnings = subtotal - commission;
-
-        return {
-          subtotal,
-          commissionRate,
-          commission,
-          vendorEarnings,
-        };
+      // Stats
+      stats: {
+        totalEarnings: 0,
+        pendingEarnings: 0,
+        paidEarnings: 0,
+        totalOrders: 0
       },
+      isLoading: false,
+      error: null,
 
-      // Calculate commission for multiple items (order)
-      calculateOrderCommission: (orderItems) => {
-        // Group items by vendor
-        const vendorGroups = {};
-
-        orderItems.forEach((item) => {
-          const vendorId = item.vendorId;
-          if (!vendorGroups[vendorId]) {
-            vendorGroups[vendorId] = {
-              vendorId,
-              vendorName: item.vendorName || 'Unknown Vendor',
-              items: [],
-              subtotal: 0,
-              commission: 0,
-              vendorEarnings: 0,
-            };
+      // Fetch earnings stats from backend
+      fetchEarningsStats: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const { getVendorEarningsStats } = await import('../services/orderService');
+          const response = await getVendorEarningsStats();
+          if (response.success) {
+            // We start with backend data
+            set({
+              stats: {
+                ...get().stats,
+                pendingEarnings: response.data.pendingEarnings,
+                // "Total Earnings" in UI usually means Realized + Pending? Or just Realized?
+                // The backend returns totalOrderEarnings (sum of all valid orders)
+                totalEarnings: response.data.totalOrderEarnings
+              }
+            });
           }
-
-          const commissionData = get().calculateCommission(
-            vendorId,
-            item.price,
-            item.quantity
-          );
-
-          vendorGroups[vendorId].items.push({
-            ...item,
-            ...commissionData,
-          });
-
-          vendorGroups[vendorId].subtotal += commissionData.subtotal;
-          vendorGroups[vendorId].commission += commissionData.commission;
-          vendorGroups[vendorId].vendorEarnings += commissionData.vendorEarnings;
-        });
-
-        return Object.values(vendorGroups);
-      },
-
-      // Record commission for an order
-      recordCommission: (orderId, vendorItems) => {
-        const commissionRecords = vendorItems.map((vendorItem) => ({
-          id: `COMM-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          orderId,
-          vendorId: vendorItem.vendorId,
-          vendorName: vendorItem.vendorName,
-          subtotal: vendorItem.subtotal,
-          commission: vendorItem.commission,
-          vendorEarnings: vendorItem.vendorEarnings,
-          status: 'pending', // pending, paid, cancelled
-          createdAt: new Date().toISOString(),
-          paidAt: null,
-        }));
-
-        set((state) => ({
-          commissions: [...state.commissions, ...commissionRecords],
-        }));
-
-        return commissionRecords;
-      },
-
-      // Get commissions for a vendor
-      getVendorCommissions: (vendorId, status = null) => {
-        const state = get();
-        let vendorCommissions = state.commissions.filter(
-          (c) => c.vendorId === parseInt(vendorId)
-        );
-
-        if (status) {
-          vendorCommissions = vendorCommissions.filter((c) => c.status === status);
+        } catch (error) {
+          console.error(error);
+          set({ error: error.message, isLoading: false });
+        } finally {
+          set({ isLoading: false });
         }
-
-        return vendorCommissions;
       },
 
-      // Get vendor earnings summary
-      getVendorEarningsSummary: (vendorId) => {
-        const commissions = get().getVendorCommissions(vendorId);
+      // Get vendor commissions (now derived or fetched, but keeping for compatibility)
+      getVendorCommissions: (vendorId) => {
+        // This might return the local commissions state, or empty if we are using the derived approach in Earnings.jsx
+        // For now, let's just return what's in the store commissions array
+        return get().commissions.filter(c => c.vendorId === vendorId || c.vendorId === parseInt(vendorId));
+      },
 
-        const summary = {
-          totalEarnings: 0,
-          pendingEarnings: 0,
-          paidEarnings: 0,
-          totalCommission: 0,
-          totalOrders: 0,
-        };
+      // Get vendor settlements
+      getVendorSettlements: (vendorId) => {
+        // Currently fetching valid settlements or empty
+        return get().settlements?.filter(s => s.vendorId === vendorId || s.vendorId === parseInt(vendorId)) || [];
+      },
 
-        commissions.forEach((commission) => {
-          summary.totalEarnings += commission.vendorEarnings;
-          summary.totalCommission += commission.commission;
-          summary.totalOrders += 1;
-
-          if (commission.status === 'pending') {
-            summary.pendingEarnings += commission.vendorEarnings;
-          } else if (commission.status === 'paid') {
-            summary.paidEarnings += commission.vendorEarnings;
-          }
-        });
-
-        return summary;
+      // Record commission (legacy/local)
+      recordCommission: (orderId, vendorItems) => {
+        // ... implementation if needed, but we are moving to backend
       },
 
       // Mark commission as paid (settlement)
       markCommissionAsPaid: (commissionId, settlementData = {}) => {
-        set((state) => ({
-          commissions: state.commissions.map((c) =>
-            c.id === commissionId
-              ? {
-                ...c,
-                status: 'paid',
-                paidAt: new Date().toISOString(),
-                ...settlementData,
-              }
-              : c
-          ),
-        }));
-
-        // Record settlement
-        const commission = get().commissions.find((c) => c.id === commissionId);
-        if (commission) {
-          const settlement = {
-            id: `SETTLE-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-            commissionId,
-            vendorId: commission.vendorId,
-            vendorName: commission.vendorName,
-            amount: commission.vendorEarnings,
-            paymentMethod: settlementData.paymentMethod || 'bank_transfer',
-            transactionId: settlementData.transactionId || null,
-            notes: settlementData.notes || '',
-            createdAt: new Date().toISOString(),
-          };
-
-          set((state) => ({
-            settlements: [...state.settlements, settlement],
-          }));
-
-          return settlement;
-        }
+        // ... implementation if needed
       },
 
-      // Get settlement history for a vendor
-      getVendorSettlements: (vendorId) => {
-        return get().settlements.filter(
-          (s) => s.vendorId === parseInt(vendorId)
-        );
-      },
-
-      // Get all pending commissions (admin view)
-      getAllPendingCommissions: () => {
-        return get().commissions.filter((c) => c.status === 'pending');
-      },
-
-      // Get commission by ID
-      getCommission: (commissionId) => {
-        return get().commissions.find((c) => c.id === commissionId);
+      calculateCommission: (vendorId, itemPrice, quantity) => {
+        const vendor = getVendorById(vendorId);
+        if (!vendor) return { subtotal: 0, commission: 0, vendorEarnings: 0 };
+        const subtotal = itemPrice * quantity;
+        const commissionRate = vendor.commissionRate || 10;
+        const commission = (subtotal * commissionRate) / 100;
+        return {
+          subtotal,
+          commissionRate,
+          commission,
+          vendorEarnings: subtotal - commission,
+        };
       },
     }),
     {

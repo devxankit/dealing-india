@@ -1,4 +1,5 @@
 import PromoCode from '../models/PromoCode.model.js';
+import Product from '../models/Product.model.js';
 
 /**
  * Get all promo codes with optional filters
@@ -272,6 +273,119 @@ export const deletePromoCode = async (id) => {
       throw err;
     }
     return { success: true };
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Validate promo code logic
+ * @param {String} code - Promo code to validate
+ * @param {Number} cartTotal - Total amount of the cart
+ * @param {Array} cartItems - Array of cart items
+ * @param {String} userId - User ID (optional, for usage tracking)
+ * @returns {Promise<Object>} Validation result
+ */
+export const validatePromoCodeLogic = async (code, cartTotal, cartItems, userId) => {
+  try {
+    const promoCode = await PromoCode.findOne({ code: code.toUpperCase() });
+    if (!promoCode) {
+      const err = new Error('Invalid promo code');
+      err.status = 404;
+      throw err;
+    }
+
+    // Check if active
+    if (!promoCode.isValid) {
+      let message = 'Promo code is not valid';
+      if (promoCode.status === 'expired') message = 'Promo code has expired';
+      if (promoCode.status === 'inactive') message = 'Promo code is inactive';
+      const err = new Error(message);
+      err.status = 400;
+      throw err;
+    }
+
+    // Check minimum purchase
+    if (cartTotal < promoCode.minPurchase) {
+      const err = new Error(`Minimum purchase of ₹${promoCode.minPurchase} required`);
+      err.status = 400;
+      throw err;
+    }
+
+    // Check usage limit
+    if (promoCode.usageLimit !== -1 && promoCode.usedCount >= promoCode.usageLimit) {
+      const err = new Error('Promo code usage limit exceeded');
+      err.status = 400;
+      throw err;
+    }
+
+    let eligibleAmount = 0;
+
+    // Check product eligibility logic
+    for (const item of cartItems) {
+      const product = await Product.findById(item.productId || item.id);
+      if (product) {
+        // Check if product is eligible generally AND specifically for this coupon
+        // If Product has `isCouponEligible` true, AND (applicableCoupons is empty OR includes this coupon ID)
+        // Note: If applicableCoupons is empty but isCouponEligible is true, does it mean ALL coupons?
+        // Let's assume: isCouponEligible=true AND (applicableCoupons includes PromoID OR applicableCoupons is empty means ALL/Standard ones?)
+        // Let's follow strict instruction: "dropdown list... from which he can select one or more coupons"
+        // So `applicableCoupons` should contain the ID.
+
+        // We check: isCouponEligible is TRUE AND applicableCoupons contains this ID.
+        const isEligible = product.isCouponEligible && product.applicableCoupons && product.applicableCoupons.some(id => id.toString() === promoCode._id.toString());
+
+        if (isEligible) {
+          eligibleAmount += (item.price * item.quantity);
+        }
+      }
+    }
+
+    if (eligibleAmount === 0) {
+      const err = new Error('This promo code is not applicable to any items in your cart');
+      err.status = 400;
+      throw err;
+    }
+
+    // Calculate discount
+    let discountAmount = 0;
+    if (promoCode.type === 'percentage') {
+      discountAmount = (eligibleAmount * promoCode.value) / 100;
+      if (promoCode.maxDiscount) {
+        discountAmount = Math.min(discountAmount, promoCode.maxDiscount);
+      }
+    } else {
+      discountAmount = promoCode.value;
+      // Ensure fixed discount doesn't exceed eligible amount
+      discountAmount = Math.min(discountAmount, eligibleAmount);
+    }
+
+    return {
+      success: true,
+      code: promoCode.code,
+      type: promoCode.type,
+      value: promoCode.value,
+      discountAmount: discountAmount,
+      promoCodeId: promoCode._id
+    };
+
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Get active promo codes for vendor selection
+ * @returns {Promise<Array>} Array of active promo codes
+ */
+export const getActivePromoCodesForVendors = async () => {
+  try {
+    const now = new Date();
+    return await PromoCode.find({
+      status: 'active',
+      startDate: { $lte: now },
+      endDate: { $gte: now }
+    }).select('code type value name');
   } catch (error) {
     throw error;
   }

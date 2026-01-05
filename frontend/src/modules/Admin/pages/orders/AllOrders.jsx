@@ -148,9 +148,8 @@ const OrderItemsDropdown = ({ items, orderTotal }) => {
               stiffness: 300,
               damping: 30,
             }}
-            className={`absolute left-0 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 w-[85vw] sm:w-[500px] max-w-[600px] max-h-[400px] overflow-hidden ${
-              openUpward ? "bottom-full mb-2" : "top-full mt-2"
-            }`}
+            className={`absolute left-0 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 w-[85vw] sm:w-[500px] max-w-[600px] max-h-[400px] overflow-hidden ${openUpward ? "bottom-full mb-2" : "top-full mt-2"
+              }`}
             style={{
               transformOrigin: openUpward ? "bottom left" : "top left",
             }}>
@@ -347,9 +346,8 @@ const OrderActionsDropdown = ({
               scale: 0.95,
             }}
             transition={{ duration: 0.2 }}
-            className={`absolute right-0 z-50 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[180px] overflow-hidden ${
-              openUpward ? "bottom-full mb-2" : "top-full mt-2"
-            }`}
+            className={`absolute right-0 z-50 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[180px] overflow-hidden ${openUpward ? "bottom-full mb-2" : "top-full mt-2"
+              }`}
             style={{
               transformOrigin: openUpward ? "bottom right" : "top right",
             }}>
@@ -413,22 +411,26 @@ const AllOrders = () => {
         };
 
         const response = await getAdminOrders(filters);
-        
-        // API interceptor returns response.data, so response = { success: true, data: { orders: [...] } }
-        if (response?.success && response?.data?.orders) {
-          const orders = Array.isArray(response.data.orders) ? response.data.orders : [];
-          setOrders(orders);
-          setPagination({
-            page: response.data.page || 1,
-            totalPages: response.data.totalPages || 1,
-            total: response.data.total || 0,
-          });
+
+        // Handle potentially wrapped or unwrapped response
+        const data = response.data || response;
+        const ordersData = data.orders || response.orders || [];
+        const paginationData = {
+          page: data.page || response.page || 1,
+          total: data.total || response.total || 0,
+          totalPages: data.totalPages || response.totalPages || 1
+        };
+
+        if (ordersData.length > 0 || (paginationData.total > 0)) {
+          setOrders(Array.isArray(ordersData) ? ordersData : []);
+          setPagination(paginationData);
         } else {
           setOrders([]);
         }
       } catch (error) {
         console.error("Error fetching orders:", error);
         toast.error("Failed to load orders");
+        setOrders([]);
       } finally {
         setLoading(false);
       }
@@ -502,7 +504,7 @@ const AllOrders = () => {
       const finalTotal = calculateFinalTotal(o);
       return sum + (finalTotal || 0);
     }, 0);
-    
+
     const statusItems = statusFilteredOrders.reduce((sum, o) => {
       const items = Array.isArray(o.items) ? o.items.length : (typeof o.items === 'number' ? o.items : 0);
       return sum + items;
@@ -821,7 +823,7 @@ const AllOrders = () => {
         {
           icon: FiTrendingUp,
           label: "Average Order Value",
-          value: dashboardStats.statusCount > 0 
+          value: dashboardStats.statusCount > 0
             ? formatPrice(dashboardStats.statusRevenue / dashboardStats.statusCount)
             : formatPrice(0),
           color: "bg-orange-500",

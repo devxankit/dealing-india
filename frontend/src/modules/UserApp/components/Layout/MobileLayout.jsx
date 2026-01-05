@@ -35,7 +35,13 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, full
     !location.pathname.startsWith('/app/notifications') &&
     !location.pathname.startsWith('/app/category/') &&
     !location.pathname.startsWith('/app/product/') &&
-    !location.pathname.startsWith('/app/wallet');
+    !location.pathname.startsWith('/app/wallet') &&
+    // Hide header for Orders and Order Details
+    location.pathname !== '/app/orders' &&
+    location.pathname !== '/orders' &&
+    !location.pathname.startsWith('/app/orders/') &&
+    !location.pathname.startsWith('/orders/') &&
+    !location.pathname.startsWith('/app/track-order');
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {

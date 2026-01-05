@@ -7,6 +7,7 @@ import Vendor from '../models/Vendor.model.js';
 import mongoose from 'mongoose';
 import { createWalletTransaction } from './wallet.service.js';
 import { getVendorOrdersTransformed } from './vendorOrders.service.js';
+import vendorWalletService from './vendorWallet.service.js';
 import notificationService from './notification.service.js';
 
 /**
@@ -118,13 +119,13 @@ export const createOrder = async (orderData, io = null) => {
     // Calculate pricing breakdown
     const calculatedSubtotal = subtotal || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const calculatedShipping = shipping || 0;
-    
+
     // Fetch products for tax calculation and vendor breakdown
     const productIds = items
       .map(item => item.productId || item.id)
       .filter(id => id && mongoose.Types.ObjectId.isValid(id))
       .map(id => new mongoose.Types.ObjectId(id));
-    
+
     let products = [];
     if (productIds.length > 0) {
       try {
@@ -132,7 +133,7 @@ export const createOrder = async (orderData, io = null) => {
           .populate('vendorId', 'name storeName commissionRate')
           .select('_id vendorId vendorName taxRate taxIncluded price')
           .lean();
-        
+
         if (products.length === 0) {
           console.warn('No products found for order items:', productIds);
         }
@@ -144,7 +145,7 @@ export const createOrder = async (orderData, io = null) => {
     } else {
       console.warn('No valid product IDs found in order items');
     }
-    
+
     // Calculate tax from products if not provided or validate provided tax
     let calculatedTax = tax || 0;
     if (!tax || tax === 0) {
@@ -152,21 +153,21 @@ export const createOrder = async (orderData, io = null) => {
       calculatedTax = items.reduce((sum, item) => {
         const productId = item.productId || item.id;
         if (!productId) return sum;
-        
+
         const product = products.find(p => {
           const pId = p._id?.toString() || p._id;
           const itemId = productId?.toString() || productId;
           return pId === itemId;
         });
         if (!product) return sum;
-        
+
         const itemSubtotal = (item.price || 0) * (item.quantity || 1);
         const itemTaxRate = product.taxRate || 0;
         const itemTax = product.taxIncluded ? 0 : (itemSubtotal * itemTaxRate) / 100;
         return sum + itemTax;
       }, 0);
     }
-    
+
     const calculatedDiscount = discount || 0;
     const calculatedTotal = total || (calculatedSubtotal + calculatedTax + calculatedShipping - calculatedDiscount);
 
@@ -177,7 +178,7 @@ export const createOrder = async (orderData, io = null) => {
     items.forEach((item) => {
       const productId = item.productId || item.id;
       if (!productId) return;
-      
+
       const product = products.find(p => {
         const pId = p._id?.toString() || p._id;
         const itemId = productId?.toString() || productId;
@@ -187,7 +188,7 @@ export const createOrder = async (orderData, io = null) => {
 
       const vendorId = product.vendorId._id || product.vendorId;
       const vendorIdStr = vendorId.toString();
-      
+
       if (!vendorBreakdownMap[vendorIdStr]) {
         const vendor = product.vendorId;
         vendorBreakdownMap[vendorIdStr] = {
@@ -212,7 +213,7 @@ export const createOrder = async (orderData, io = null) => {
       vb.shipping = calculatedShipping * ratio;
       vb.tax = calculatedTax * ratio;
       vb.discount = calculatedDiscount * ratio;
-      
+
       // Calculate commission (default 10% if not set)
       const vendor = products.find(p => {
         if (!p || !p.vendorId) return false;
@@ -221,7 +222,7 @@ export const createOrder = async (orderData, io = null) => {
       });
       const commissionRate = vendor?.vendorId?.commissionRate || 0.1;
       vb.commission = vb.subtotal * commissionRate;
-      
+
       return vb;
     });
 
@@ -488,6 +489,7 @@ export const getUserOrders = async (userId, filters = {}) => {
     }
 
     const query = { customerId: customerIdQuery };
+    console.log('Querying Database with:', query);
 
     if (status) {
       query.status = status;
@@ -509,7 +511,7 @@ export const getUserOrders = async (userId, filters = {}) => {
     // Transform orders to include vendorItems from vendorBreakdown
     const transformedOrders = orders.map((order) => {
       const orderObj = { ...order };
-      
+
       // Transform vendorBreakdown to vendorItems for frontend compatibility
       if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
         orderObj.vendorItems = order.vendorBreakdown.map((vb) => {
@@ -670,9 +672,11 @@ export const validateStatusTransition = (currentStatus, newStatus, role) => {
       processing: ['cancelled'],
     },
     vendor: {
-      processing: ['ready_to_ship', 'on_hold', 'dispatched'],
+      pending: ['processing', 'cancelled', 'on_hold'],
+      processing: ['ready_to_ship', 'on_hold', 'dispatched', 'cancelled'],
       ready_to_ship: ['dispatched', 'shipped_seller'],
-      dispatched: ['shipped_seller'],
+      dispatched: ['shipped_seller', 'delivered'],
+      shipped_seller: ['delivered'],
       on_hold: ['processing', 'ready_to_ship'],
     },
     admin: { '*': '*' },
@@ -738,6 +742,44 @@ export const updateOrderStatus = async (orderId, newStatus, changedBy, changedBy
 
     if (newStatus === 'delivered' && !order.tracking?.deliveredAt) {
       updateData.tracking = { ...order.tracking, deliveredAt: new Date() };
+
+      // Credit vendor wallets
+      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+        // vendorWalletService.creditWallet creates a session.
+        // So we should probably do it AFTER this transaction commits, or modify vendorWalletService to accept a session.
+        // For simplicity and preventing locking issues, I will do it outside the session loop? 
+        // No, `updateOrderStatus` returns `updatedOrder`.
+
+        // Let's modify logic to push this action to be AFTER commit.
+        // Or simply call it without session (it starts its own). 
+        // Since `creditWallet` is distinct, it's safer to run it.
+
+        try {
+          for (const vb of order.vendorBreakdown) {
+            if (vb.vendorId) {
+              // Calculate earnings: Subtotal - Commission
+              // If subtotal includes tax? Assuming subtotal is base price or handled consistently.
+              // User said "cutting taxes", so we ignore tax field in breakdown (effectively cutting it).
+              const earnings = (vb.subtotal || 0) - (vb.commission || 0);
+
+              if (earnings > 0) {
+                await vendorWalletService.creditWallet(
+                  vb.vendorId,
+                  earnings,
+                  `Order #${order.orderCode} settlement`,
+                  order._id
+                );
+              }
+            }
+          }
+        } catch (walletError) {
+          console.error('Error crediting vendor wallet:', walletError);
+          // Non-blocking error? Or should we rollback?
+          // If wallet credit fails, should we fail the delivery status? 
+          // Probably yes, to maintain data integrity.
+          throw walletError;
+        }
+      }
     }
 
     const updatedOrder = await Order.findByIdAndUpdate(order._id, updateData, {

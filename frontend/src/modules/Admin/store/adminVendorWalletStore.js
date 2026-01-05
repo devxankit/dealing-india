@@ -71,6 +71,23 @@ export const useAdminVendorWalletStore = create((set, get) => ({
         }
     },
 
+    // Get specific vendor wallet
+    fetchVendorWallet: async (vendorId) => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await api.get(`/admin/vendor-wallets/${vendorId}`);
+            if (response.success) {
+                set({ isLoading: false });
+                return response.data;
+            } else {
+                return null;
+            }
+        } catch (error) {
+            set({ error: error.message, isLoading: false });
+            return null;
+        }
+    },
+
     // Clear errors
     clearError: () => set({ error: null })
 }));

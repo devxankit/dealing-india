@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiSettings, FiCreditCard, FiShoppingBag, FiPackage, FiFileText, FiBell } from 'react-icons/fi';
+import { FiSettings, FiCreditCard, FiShoppingBag, FiPackage, FiFileText, FiBell, FiPercent } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useSettingsStore } from '../../../shared/store/settingsStore';
 import GeneralSettings from './settings/GeneralSettings';
@@ -8,13 +8,15 @@ import PaymentShippingSettings from './settings/PaymentShippingSettings';
 import OrdersCustomersSettings from './settings/OrdersCustomersSettings';
 import ProductsInventorySettings from './settings/ProductsInventorySettings';
 import ContentFeaturesSettings from './settings/ContentFeaturesSettings';
+
 import NotificationsSEOSettings from './settings/NotificationsSEOSettings';
+import TaxSettings from './settings/TaxSettings';
 
 const Settings = () => {
   const { initialize } = useSettingsStore();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Get active tab from URL or default to 'general'
   const getActiveTabFromUrl = () => {
     const path = location.pathname;
@@ -23,6 +25,7 @@ const Settings = () => {
     if (path.includes('/products-inventory')) return 'products-inventory';
     if (path.includes('/content-features')) return 'content-features';
     if (path.includes('/notifications-seo')) return 'notifications-seo';
+    if (path.includes('/tax')) return 'tax';
     return 'general';
   };
 
@@ -45,6 +48,7 @@ const Settings = () => {
     { id: 'products-inventory', label: 'Products & Inventory', icon: FiPackage, component: ProductsInventorySettings, route: '/admin/settings/products-inventory' },
     { id: 'content-features', label: 'Content & Features', icon: FiFileText, component: ContentFeaturesSettings, route: '/admin/settings/content-features' },
     { id: 'notifications-seo', label: 'Notifications & SEO', icon: FiBell, component: NotificationsSEOSettings, route: '/admin/settings/notifications-seo' },
+    { id: 'tax', label: 'Tax & Pricing', icon: FiPercent, component: TaxSettings, route: '/admin/settings/tax' },
   ];
 
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component || GeneralSettings;
@@ -71,11 +75,10 @@ const Settings = () => {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${
-                    activeTab === tab.id
-                      ? 'border-primary-600 text-primary-600 font-semibold'
-                      : 'border-transparent text-gray-600 hover:text-gray-800'
-                  }`}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === tab.id
+                    ? 'border-primary-600 text-primary-600 font-semibold'
+                    : 'border-transparent text-gray-600 hover:text-gray-800'
+                    }`}
                 >
                   <Icon className="text-base sm:text-lg" />
                   <span className="hidden xs:inline">{tab.label}</span>

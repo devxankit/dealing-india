@@ -156,14 +156,18 @@ export const useSettingsStore = create(
         try {
           set({ isLoading: true });
           const response = await api.get("/admin/settings");
-          
+
           if (response.success && response.data?.settings) {
             const apiSettings = response.data.settings;
             // Merge API settings with defaults to ensure all fields exist
+            // Merge API settings with defaults
             const mergedSettings = {
               ...defaultSettings,
+              ...apiSettings,
               general: { ...defaultSettings.general, ...(apiSettings.general || {}) },
               products: { ...defaultSettings.products, ...(apiSettings.products || {}) },
+              // Explicitly ensure tax is effectively merged if present
+              tax: apiSettings.tax || defaultSettings.tax || {},
             };
             set({ settings: mergedSettings, isLoading: false });
             // Also save to localStorage as backup
@@ -206,14 +210,13 @@ export const useSettingsStore = create(
         try {
           // Update via API
           const response = await api.put(`/admin/settings/${category}`, settingsData);
-          
+
           if (response.success && response.data?.settings) {
             const apiSettings = response.data.settings;
             const currentSettings = get().settings;
             const updatedSettings = {
               ...currentSettings,
-              general: apiSettings.general || currentSettings.general,
-              products: apiSettings.products || currentSettings.products,
+              ...apiSettings, // This will overwrite any categories returned by API
             };
             set({ settings: updatedSettings, isLoading: false });
             // Also save to localStorage as backup

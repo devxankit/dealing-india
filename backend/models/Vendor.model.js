@@ -110,6 +110,11 @@ const vendorSchema = new mongoose.Schema(
       ref: 'VendorSubscription',
       default: null,
     },
+    deliveryRule: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'DeliveryRule',
+      default: null, // If null, use system default
+    },
   },
   {
     timestamps: true,

@@ -9,7 +9,7 @@ import CategorySelector from "../../../Admin/components/CategorySelector";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import TagInput from "../../components/TagInput";
 import ColorPicker from "../../components/ColorPicker";
-import { getVendorProductById, updateVendorProduct, createVendorProduct } from "../../services/productService";
+import { getVendorProductById, updateVendorProduct, createVendorProduct, getActiveCoupons } from "../../services/productService";
 import toast from "react-hot-toast";
 
 const ProductForm = () => {
@@ -65,10 +65,28 @@ const ProductForm = () => {
     },
     seoTitle: "",
     seoDescription: "",
+    seoTitle: "",
+    seoDescription: "",
     relatedProducts: [],
+    isCouponEligible: false,
+    applicableCoupons: [],
   });
 
   const [colorVariants, setColorVariants] = useState([]);
+  const [activeCoupons, setActiveCoupons] = useState([]);
+
+  useEffect(() => {
+    fetchActiveCoupons();
+  }, []);
+
+  const fetchActiveCoupons = async () => {
+    try {
+      const response = await getActiveCoupons();
+      setActiveCoupons(response || []);
+    } catch (error) {
+      console.error("Error fetching active coupons:", error);
+    }
+  };
 
   useEffect(() => {
     initCategories();
@@ -84,14 +102,14 @@ const ProductForm = () => {
         const brandId = String(brand._id || brand.id || brand);
         return brandId === currentBrandId;
       });
-      
+
       // If brand exists but format is different, normalize it
       if (brandExists) {
         const matchingBrand = brands.find(brand => {
           const brandId = String(brand._id || brand.id || brand);
           return brandId === currentBrandId;
         });
-        
+
         if (matchingBrand) {
           const normalizedBrandId = String(matchingBrand._id || matchingBrand.id || matchingBrand);
           if (normalizedBrandId !== currentBrandId) {
@@ -156,7 +174,7 @@ const ProductForm = () => {
       const categoryId = product.categoryId?._id || product.categoryId?.toString() || null;
       const subcategoryId = product.subcategoryId?._id || product.subcategoryId?.toString() || null;
       const subSubCategoryId = product.subSubCategoryId?._id || product.subSubCategoryId?.toString() || null;
-      
+
       // Extract brandId - handle both populated object and direct ID
       let brandIdValue = null;
       if (product.brandId) {
@@ -216,6 +234,10 @@ const ProductForm = () => {
         seoTitle: product.seoTitle || "",
         seoDescription: product.seoDescription || "",
         relatedProducts: product.relatedProducts || [],
+        isCouponEligible: product.isCouponEligible || false,
+        applicableCoupons: product.applicableCoupons
+          ? product.applicableCoupons.map(c => typeof c === 'object' ? c._id : c)
+          : [],
       });
 
       // Initialize color variants
@@ -687,9 +709,9 @@ const ProductForm = () => {
                     .filter((brand) => brand.isActive !== false)
                     .map((brand) => {
                       const brandId = String(brand._id || brand.id || brand);
-                      return { 
-                        value: brandId, 
-                        label: brand.name 
+                      return {
+                        value: brandId,
+                        label: brand.name
                       };
                     }),
                 ]}
@@ -748,6 +770,63 @@ const ProductForm = () => {
                 placeholder="0.00"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Promotions */}
+        <div>
+          <h2 className="text-base font-bold text-gray-800 mb-2">Promotions</h2>
+          <div className="space-y-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="isCouponEligible"
+                checked={formData.isCouponEligible}
+                onChange={handleChange}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <span className="text-sm font-semibold text-gray-700">
+                Eligible for Coupon Codes
+              </span>
+            </label>
+
+            {formData.isCouponEligible && activeCoupons.length > 0 && (
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <label className="block text-xs font-semibold text-gray-700 mb-2">
+                  Select Applicable Coupons
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {activeCoupons.map((coupon) => (
+                    <label key={coupon._id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-primary-300 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicableCoupons.includes(coupon._id)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData(prev => {
+                            const current = prev.applicableCoupons || [];
+                            if (checked) {
+                              return { ...prev, applicableCoupons: [...current, coupon._id] };
+                            } else {
+                              return { ...prev, applicableCoupons: current.filter(id => id !== coupon._id) };
+                            }
+                          });
+                        }}
+                        className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                      />
+                      <div>
+                        <span className="block text-sm font-bold text-gray-800">{coupon.code}</span>
+                        <span className="block text-xs text-gray-500">{coupon.name} - {coupon.type === 'percentage' ? `${coupon.value}% OFF` : `₹${coupon.value} OFF`}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {formData.isCouponEligible && activeCoupons.length === 0 && (
+              <p className="text-xs text-gray-500 italic">No active coupons available at the moment.</p>
+            )}
           </div>
         </div>
 
@@ -934,7 +1013,7 @@ const ProductForm = () => {
                   >
                     <FiTrash2 className="w-3 h-3" />
                   </button>
-                  
+
                   <div className="md:col-span-1">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Name</label>
                     <input
@@ -1050,24 +1129,24 @@ const ProductForm = () => {
                       Color Selection <span className="text-red-500">*</span>
                     </label>
                     <ColorPicker
-                      selectedColors={colorVariant.colorName ? [{ 
-                        name: colorVariant.colorName, 
-                        value: colorVariant.colorCode || colorVariant.colorName.toLowerCase() 
+                      selectedColors={colorVariant.colorName ? [{
+                        name: colorVariant.colorName,
+                        value: colorVariant.colorCode || colorVariant.colorName.toLowerCase()
                       }] : []}
                       onChange={(colors) => {
-                      const color = colors[colors.length - 1];
-                      if (color) {
-                        updateColorVariant(colorIndex, {
-                          colorName: color.name,
-                          colorCode: color.value
-                        });
-                      } else {
-                        updateColorVariant(colorIndex, {
-                          colorName: "",
-                          colorCode: ""
-                        });
-                      }
-                    }}
+                        const color = colors[colors.length - 1];
+                        if (color) {
+                          updateColorVariant(colorIndex, {
+                            colorName: color.name,
+                            colorCode: color.value
+                          });
+                        } else {
+                          updateColorVariant(colorIndex, {
+                            colorName: "",
+                            colorCode: ""
+                          });
+                        }
+                      }}
                     />
                   </div>
 
@@ -1235,7 +1314,7 @@ const ProductForm = () => {
                 </div>
               </div>
             ))}
-            
+
             {colorVariants.length === 0 && (
               <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
                 <p className="text-sm text-gray-500 mb-2">No variants added yet</p>
@@ -1333,7 +1412,7 @@ const ProductForm = () => {
           </button>
         </div>
       </form>
-    </motion.div>
+    </motion.div >
   );
 };
 

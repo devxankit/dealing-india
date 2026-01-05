@@ -21,12 +21,12 @@ const OrderDetail = () => {
     useEffect(() => {
         const fetchOrder = async () => {
             if (!id) return;
-            
+
             try {
                 setLoading(true);
-                const response = await getVendorOrderById(id);
-                if (response.success && response.data?.order) {
-                    setOrder(response.data.order);
+                const data = await getVendorOrderById(id);
+                if (data?.order) {
+                    setOrder(data.order);
                 } else {
                     toast.error('Order not found');
                     navigate('/vendor/orders');
@@ -45,8 +45,9 @@ const OrderDetail = () => {
 
     const handleStatusChange = async (newStatus) => {
         try {
-            const response = await updateVendorOrderStatus(id, newStatus);
-            if (response.success) {
+            const data = await updateVendorOrderStatus(id, newStatus);
+            // Service returns unpacked data, so we check if we got an order object back
+            if (data?.order) {
                 setOrder(prev => prev ? { ...prev, status: newStatus } : null);
                 toast.success(`Order status updated to ${newStatus}`);
             } else {
@@ -84,7 +85,7 @@ const OrderDetail = () => {
 
     // Get vendor items from vendorItems array (already filtered by backend)
     const vendorItems = order?.vendorItems?.[0]?.items || order?.items || [];
-    
+
     // Get order ID for navigation
     const orderId = order?._id || order?.id || order?.orderCode;
 
@@ -136,7 +137,7 @@ const OrderDetail = () => {
                                 const itemName = item.name || item.productId?.name || 'Product';
                                 const itemPrice = item.price || 0;
                                 const itemQuantity = item.quantity || 1;
-                                
+
                                 return (
                                     <div key={itemId} className="p-4 flex gap-4">
                                         <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">

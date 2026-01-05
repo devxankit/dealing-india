@@ -17,6 +17,7 @@ import { useCartStore } from "../../../shared/store/useStore";
 import { useAuthStore } from "../../../shared/store/authStore";
 import { useAddressStore } from "../../../shared/store/addressStore";
 import { useOrderStore } from "../../../shared/store/orderStore";
+import { useSettingsStore } from "../../../shared/store/settingsStore";
 import { formatPrice } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import { initializeRazorpayCheckout, handlePaymentSuccess } from "../../../shared/services/paymentService";
@@ -113,7 +114,7 @@ const Checkout = () => {
 
   const total = getTotal();
   const shipping = calculateShipping();
-  
+
   // Calculate tax based on product.taxRate for each item
   const tax = useMemo(() => {
     return items.reduce((sum, item) => {
@@ -123,13 +124,30 @@ const Checkout = () => {
       return sum + itemTax;
     }, 0);
   }, [items]);
-  
+
+  // Platform Fee / Tax from Settings
+  const { settings, initialize: initSettings } = useSettingsStore();
+
+  useEffect(() => {
+    initSettings();
+  }, []);
+
+  const platformTax = useMemo(() => {
+    if (!settings?.tax?.isEnabled) return 0;
+
+    if (settings.tax.taxType === 'percentage') {
+      return (total * (settings.tax.taxValue || 0)) / 100;
+    } else {
+      return settings.tax.taxValue || 0;
+    }
+  }, [settings, total]);
+
   const discount = appliedCoupon
     ? appliedCoupon.type === "percentage"
       ? total * (appliedCoupon.value / 100)
       : appliedCoupon.value
     : 0;
-  const finalTotal = Math.max(0, total + shipping + tax - discount);
+  const finalTotal = Math.max(0, total + shipping + tax + platformTax - discount);
 
   // Coupon validation
   const validateCoupon = (code) => {
@@ -238,7 +256,7 @@ const Checkout = () => {
 
   const handleOnlinePayment = async () => {
     if (isProcessingPayment) return;
-    
+
     setIsProcessingPayment(true);
     try {
       // Create order via API
@@ -265,7 +283,7 @@ const Checkout = () => {
         paymentMethod: formData.paymentMethod === 'card' ? 'creditCard' : formData.paymentMethod,
         subtotal: total,
         shipping: shipping,
-        tax: tax,
+        tax: tax + platformTax,
         discount: discount,
         total: finalTotal,
         couponCode: appliedCoupon ? couponCode : null,
@@ -296,7 +314,7 @@ const Checkout = () => {
             // Verify payment
             const paymentData = handlePaymentSuccess(paymentResponse);
             const verifyResult = await verifyPaymentAPI(order.id || order.orderCode, paymentData);
-            
+
             clearCart();
             toast.success("Payment successful! Order placed.");
             navigate(`/order-confirmation/${order.id || order.orderCode}`);
@@ -339,7 +357,7 @@ const Checkout = () => {
       paymentMethod: formData.paymentMethod,
       subtotal: total,
       shipping: shipping,
-      tax: tax,
+      tax: tax + platformTax,
       discount: discount,
       total: finalTotal,
       couponCode: appliedCoupon ? couponCode : null,
@@ -825,8 +843,8 @@ const Checkout = () => {
                         {isProcessingPayment
                           ? "Processing..."
                           : step === 3
-                          ? "Place Order"
-                          : "Continue"}
+                            ? "Place Order"
+                            : "Continue"}
                       </button>
                     </div>
                   </form>
@@ -928,23 +946,29 @@ const Checkout = () => {
                           <span>-{formatPrice(discount)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-gray-600 text-xs">
+                      <div className="flex justify-between text-gray-600">
                         <span>Shipping</span>
-                        <span>
+                        <span className="font-semibold">
                           {shipping === 0 ? (
-                            <span className="text-green-600 font-medium">
-                              FREE
-                            </span>
+                            <span className="text-green-600">Free</span>
                           ) : (
                             formatPrice(shipping)
                           )}
                         </span>
                       </div>
-                      <div className="flex justify-between text-gray-600 text-xs">
-                        <span>Tax</span>
-                        <span>{formatPrice(tax)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm font-bold text-gray-800 pt-2 border-t border-gray-200">
+                      {tax > 0 && (
+                        <div className="flex justify-between text-gray-600">
+                          <span>Tax (GST)</span>
+                          <span>{formatPrice(tax)}</span>
+                        </div>
+                      )}
+                      {platformTax > 0 && (
+                        <div className="flex justify-between text-gray-600">
+                          <span>{settings?.tax?.taxName || 'Service Fee'}</span>
+                          <span>{formatPrice(platformTax)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-lg font-bold text-gray-800 pt-2 border-t border-gray-200">
                         <span>Total</span>
                         <span className="text-primary-600">
                           {formatPrice(finalTotal)}

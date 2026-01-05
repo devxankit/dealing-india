@@ -56,8 +56,12 @@ import heroBannerAdminRoutes from './routes/heroBannerAdmin.routes.js';
 import heroBannerVendorRoutes from './routes/heroBannerVendor.routes.js';
 import publicHeroBannerRoutes from './routes/publicHeroBanner.routes.js';
 import publicCampaignsRoutes from './routes/publicCampaigns.routes.js';
+import publicPromoCodeRoutes from './routes/publicPromoCode.routes.js';
+import publicDeliveryRoutes from './routes/publicDelivery.routes.js';
 import vendorOrderRoutes from './routes/vendorOrder.routes.js';
 import adminOrderRoutes from './routes/adminOrder.routes.js';
+import adminDeliveryRoutes from './routes/adminDelivery.routes.js';
+
 import userReelsRoutes from './routes/userReels.routes.js';
 import reelCommentsRoutes from './routes/reelComments.routes.js';
 import userNotificationRoutes from './routes/userNotification.routes.js';
@@ -235,11 +239,14 @@ app.use('/api/vendors', publicVendorRoutes);
 app.use('/api/reviews', publicReviewRoutes);
 app.use('/api/hero-banners', publicHeroBannerRoutes);
 app.use('/api/campaigns', publicCampaignsRoutes);
+app.use('/api/public/promocodes', publicPromoCodeRoutes);
+app.use('/api/public/delivery', publicDeliveryRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);
 app.use('/api/admin/brands', brandManagementRoutes);
 app.use('/api/admin/policies', policyRoutes);
+app.use('/api/admin/delivery-rules', adminDeliveryRoutes);
 app.use('/api/admin/promocodes', promoCodeRoutes);
 app.use('/api/admin/customers', customerManagementRoutes);
 app.use('/api/admin/reports', reportsRoutes);

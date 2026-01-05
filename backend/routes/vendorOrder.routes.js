@@ -4,6 +4,7 @@ import {
   getOrder,
   updateStatus,
   getStats,
+  getEarningsStats,
 } from '../controllers/vendor-controllers/vendorOrder.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize, vendorApproved } from '../middleware/role.middleware.js';
@@ -18,6 +19,7 @@ router.use(vendorApproved);
 
 // Routes
 router.get('/stats', asyncHandler(getStats));
+router.get('/earnings', asyncHandler(getEarningsStats));
 router.get('/', asyncHandler(getOrders));
 router.get('/:orderId', asyncHandler(getOrder));
 router.put('/:orderId/status', asyncHandler(updateStatus));
