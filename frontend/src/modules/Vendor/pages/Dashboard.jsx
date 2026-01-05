@@ -12,6 +12,7 @@ import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { IndianRupee } from "lucide-react";
 import { getVendorPerformanceMetrics } from "../services/performanceService";
+import { useCommissionStore } from "../../../shared/store/commissionStore";
 import { toast } from "react-hot-toast";
 import TimePeriodFilter from "../../Admin/components/Analytics/TimePeriodFilter";
 import RevenueLineChart from "../../Admin/components/Analytics/RevenueLineChart";
@@ -50,8 +51,8 @@ const VendorDashboard = () => {
       setError(null);
       try {
         const response = await getVendorPerformanceMetrics(period);
-        if (response && response.success) {
-          setData(response.data);
+        if (response) {
+          setData(response);
         }
       } catch (error) {
         console.error("Error fetching vendor dashboard data:", error);
@@ -64,6 +65,15 @@ const VendorDashboard = () => {
 
     fetchDashboardData();
   }, [vendorId, period]);
+
+  // Access commission store for accurate earnings/orders
+  const { fetchEarningsStats, stats } = useCommissionStore();
+
+  useEffect(() => {
+    if (vendorId) {
+      fetchEarningsStats();
+    }
+  }, [vendorId, fetchEarningsStats]);
 
   const statCards = [
     {
@@ -78,7 +88,8 @@ const VendorDashboard = () => {
     {
       icon: FiShoppingBag,
       label: "Total Orders",
-      value: data.metrics.totalOrders,
+      // Use store stats if available, otherwise fall back to metrics
+      value: stats?.totalOrders || data.metrics.totalOrders,
       color: "bg-green-500",
       bgColor: "bg-green-50",
       textColor: "text-green-700",
@@ -96,7 +107,8 @@ const VendorDashboard = () => {
     {
       icon: IndianRupee,
       label: "Total Earnings",
-      value: formatPrice(data.earnings.totalEarnings || 0),
+      // Use store stats if available, otherwise fall back to metrics
+      value: formatPrice(stats?.totalEarnings || data.earnings.totalEarnings || 0),
       color: "bg-purple-500",
       bgColor: "bg-purple-50",
       textColor: "text-purple-700",
@@ -116,7 +128,7 @@ const VendorDashboard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-red-500 text-xl font-semibold">{error}</div>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
@@ -250,13 +262,12 @@ const VendorDashboard = () => {
                       {formatPrice(order.total || 0)}
                     </p>
                     <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        order.status === "delivered"
-                          ? "bg-green-100 text-green-700"
-                          : order.status === "pending"
+                      className={`text-xs px-2 py-1 rounded-full ${order.status === "delivered"
+                        ? "bg-green-100 text-green-700"
+                        : order.status === "pending"
                           ? "bg-yellow-100 text-yellow-700"
                           : "bg-blue-100 text-blue-700"
-                      }`}>
+                        }`}>
                       {order.status}
                     </span>
                   </div>

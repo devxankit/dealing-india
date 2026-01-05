@@ -21,7 +21,7 @@ const ProductCard = ({ product, hideRating = false }) => {
   const productLink = isMobileApp
     ? `/app/product/${product.id}`
     : `/product/${product.id}`;
-  
+
   const handleCardClick = (e) => {
     // Don't navigate if clicking on button or favorite icon
     if (e.target.closest('button') || e.target.closest('[data-no-navigate]')) {
@@ -167,11 +167,10 @@ const ProductCard = ({ product, hideRating = false }) => {
               data-no-navigate
               className="p-1 glass rounded-full shadow-lg transition-all duration-300 group">
               <FiHeart
-                className={`text-xs transition-all duration-300 ${
-                  isFavorite
+                className={`text-xs transition-all duration-300 ${isFavorite
                     ? "text-red-500 fill-red-500 scale-110"
                     : "text-gray-600"
-                }`}
+                  }`}
               />
             </button>
           </div>
@@ -219,16 +218,18 @@ const ProductCard = ({ product, hideRating = false }) => {
                 {[...Array(5)].map((_, i) => (
                   <FiStar
                     key={i}
-                    className={`text-[8px] ${
-                      i < Math.floor(product.rating)
+                    className={`text-[8px] ${i < Math.floor(product.rating)
                         ? "text-yellow-400 fill-yellow-400"
                         : "text-gray-300"
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
               <span className="text-[9px] text-gray-600 font-medium">
                 {product.rating?.toFixed(1) || '0.0'}
+              </span>
+              <span className="text-[8px] text-gray-400 ml-0.5">
+                ({product.reviewCount || 0})
               </span>
             </div>
           )}
@@ -255,22 +256,21 @@ const ProductCard = ({ product, hideRating = false }) => {
             animate={
               isAdding
                 ? {
-                    scale: [1, 1.1, 1],
-                  }
+                  scale: [1, 1.1, 1],
+                }
                 : {}
             }
             style={{ willChange: "transform", transform: "translateZ(0)" }}
-            className={`w-full py-1.5 rounded-md font-semibold text-[10px] transition-all duration-300 flex items-center justify-center gap-1 mt-auto ${
-              product.stock === "out_of_stock"
+            className={`w-full py-1.5 rounded-md font-semibold text-[10px] transition-all duration-300 flex items-center justify-center gap-1 mt-auto ${product.stock === "out_of_stock"
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                 : "gradient-green text-white group/btn"
-            }`}>
+              }`}>
             <motion.div
               animate={
                 isAdding
                   ? {
-                      rotate: [0, -10, 10, -10, 0],
-                    }
+                    rotate: [0, -10, 10, -10, 0],
+                  }
                   : {}
               }
               transition={{ duration: 0.5 }}>
@@ -280,8 +280,8 @@ const ProductCard = ({ product, hideRating = false }) => {
               {product.stock === "out_of_stock"
                 ? "Out of Stock"
                 : isAdding
-                ? "Adding..."
-                : "Add"}
+                  ? "Adding..."
+                  : "Add"}
             </span>
           </motion.button>
         </div>

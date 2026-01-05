@@ -36,8 +36,7 @@ export const getVendorPerformanceMetrics = async (vendorId, period = 'month') =>
 
     // Get total products count
     const totalProducts = await Product.countDocuments({
-      vendorId,
-      isActive: true,
+      vendorId: vendorId,
     });
 
     // Calculate metrics from orders

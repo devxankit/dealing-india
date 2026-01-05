@@ -1,13 +1,14 @@
 import express from 'express';
-import { createReview, getProductReviews } from '../controllers/public-controllers/publicReview.controller.js';
-import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import { authenticate } from '../middleware/auth.middleware.js';
+import * as reviewController from '../controllers/public-controllers/review.controller.js';
 
 const router = express.Router();
 
-// Public routes - no authentication required for viewing reviews
-// Authentication optional for creating reviews (can be anonymous)
-router.get('/product/:productId', asyncHandler(getProductReviews));
-router.post('/', asyncHandler(createReview));
+// Public routes (Get reviews)
+router.get('/product/:productId', reviewController.getProductReviews);
+
+// Protected routes (Create review, Check eligibility)
+router.post('/', authenticate, reviewController.createReview);
+router.get('/check/:productId', authenticate, reviewController.checkEligibility);
 
 export default router;
-

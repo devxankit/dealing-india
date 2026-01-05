@@ -4,11 +4,26 @@ import { motion } from 'framer-motion';
 import { formatPrice } from '../../../../shared/utils/helpers';
 
 const StatsCards = ({ stats }) => {
+  // Helper to find stat by label
+  const getStat = (label) => {
+    // If stats is an array (new backend format), find by label
+    if (Array.isArray(stats)) {
+      return stats.find(s => s.label === label) || {};
+    }
+    // Fallback for object format (if any legacy code remains)
+    return {};
+  };
+
+  const revenueStat = getStat('Total Revenue');
+  const ordersStat = getStat('Total Orders');
+  const customersStat = getStat('Total Customers');
+  const vendorEarningsStat = getStat('Vendor Earnings');
+
   const cards = [
     {
       title: 'Total Revenue',
-      value: formatPrice(stats.totalRevenue || 0),
-      change: stats.revenueChange || 0,
+      value: formatPrice(revenueStat.value || 0),
+      change: revenueStat.trend || 0,
       icon: IndianRupee,
       color: 'text-white',
       bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
@@ -16,9 +31,19 @@ const StatsCards = ({ stats }) => {
       iconBg: 'bg-white/20',
     },
     {
+      title: 'Vendor Earnings',
+      value: formatPrice(vendorEarningsStat.value || 0),
+      change: vendorEarningsStat.trend || 0,
+      icon: IndianRupee,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-purple-500 to-fuchsia-600',
+      cardBg: 'bg-gradient-to-br from-purple-50 to-fuchsia-50',
+      iconBg: 'bg-white/20',
+    },
+    {
       title: 'Total Orders',
-      value: (stats.totalOrders || 0).toLocaleString(),
-      change: stats.ordersChange || 0,
+      value: (ordersStat.value || 0).toLocaleString(),
+      change: ordersStat.trend || 0,
       icon: FiShoppingBag,
       color: 'text-white',
       bgColor: 'bg-gradient-to-br from-blue-500 to-indigo-600',
@@ -27,8 +52,8 @@ const StatsCards = ({ stats }) => {
     },
     {
       title: 'Total Customers',
-      value: (stats.totalCustomers || 0).toLocaleString(),
-      change: stats.customersChange || 0,
+      value: (customersStat.value || 0).toLocaleString(),
+      change: customersStat.trend || 0,
       icon: FiUsers,
       color: 'text-white',
       bgColor: 'bg-gradient-to-br from-orange-500 to-amber-600',
@@ -38,7 +63,7 @@ const StatsCards = ({ stats }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
       {cards.map((card, index) => {
         const Icon = card.icon;
         const isPositive = card.change >= 0;
@@ -66,7 +91,7 @@ const StatsCards = ({ stats }) => {
                 {Math.abs(card.change)}%
               </div>
             </div>
-            
+
             <div className="relative z-10">
               <h3 className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{card.title}</h3>
               <div className="flex items-baseline gap-2">

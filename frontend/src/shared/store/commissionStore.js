@@ -23,15 +23,16 @@ export const useCommissionStore = create(
         try {
           const { getVendorEarningsStats } = await import('../services/orderService');
           const response = await getVendorEarningsStats();
-          if (response.success) {
+          if (response) {
             // We start with backend data
             set({
               stats: {
                 ...get().stats,
-                pendingEarnings: response.data.pendingEarnings,
+                pendingEarnings: response.pendingEarnings || 0,
                 // "Total Earnings" in UI usually means Realized + Pending? Or just Realized?
                 // The backend returns totalOrderEarnings (sum of all valid orders)
-                totalEarnings: response.data.totalOrderEarnings
+                totalEarnings: response.totalOrderEarnings || 0,
+                totalOrders: response.totalOrders || 0
               }
             });
           }
