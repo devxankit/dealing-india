@@ -1,4 +1,5 @@
 import User from '../models/User.model.js';
+import TemporaryRegistration from '../models/TemporaryRegistration.model.js';
 import { hashPassword, comparePassword } from '../utils/bcrypt.util.js';
 import { generateToken } from '../utils/jwt.util.js';
 import { generateOTP, verifyOTP, resendOTP } from './otp.service.js';
@@ -6,9 +7,9 @@ import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.j
 import { isValidEmail, isValidPhone, validatePassword } from '../utils/validators.util.js';
 
 /**
- * Register a new user
+ * Register a new user (temporary - only creates record after email verification)
  * @param {Object} userData - { name, email, password, phone }
- * @returns {Promise<Object>} { user, token }
+ * @returns {Promise<Object>} { message, email }
  */
 export const registerUser = async (userData) => {
   try {
@@ -32,7 +33,7 @@ export const registerUser = async (userData) => {
       throw new Error(passwordValidation.message);
     }
 
-    // Check if user already exists
+    // Check if user already exists in database
     const existingUser = await User.findOne({
       $or: [{ email: email.toLowerCase() }, ...(phone ? [{ phone }] : [])],
     });
@@ -46,51 +47,55 @@ export const registerUser = async (userData) => {
       }
     }
 
-    // Hash password
+    // Check if there's already a pending temporary registration
+    const existingTempReg = await TemporaryRegistration.findOne({
+      email: email.toLowerCase(),
+      registrationType: 'user',
+      isVerified: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (existingTempReg) {
+      // Delete old temporary registration
+      await TemporaryRegistration.deleteOne({ _id: existingTempReg._id });
+    }
+
+    // Store registration data temporarily (expires in 15 minutes)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    // Hash password before storing
     const hashedPassword = await hashPassword(password);
 
-    // Create user
-    const user = await User.create({
-      name: name.trim(),
+    await TemporaryRegistration.create({
       email: email.toLowerCase().trim(),
-      password: hashedPassword,
-      phone: phone ? phone.trim() : undefined,
-      isEmailVerified: false,
-      isActive: true,
-      role: 'user',
+      registrationType: 'user',
+      registrationData: {
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        password: hashedPassword, // Store hashed password
+        phone: phone ? phone.trim() : undefined,
+      },
+      expiresAt,
+      isVerified: false,
     });
 
-    // Generate and send verification OTP (async, don't block registration)
-    generateOTP(email, 'email_verification')
-      .then(otp => {
-        return sendVerificationEmail(email, otp);
-      })
-      .then(result => {
-        if (result.success) {
-          console.log(`✅ Verification OTP sent to ${email}`);
-        } else {
-          console.warn(`⚠️ OTP generated but email failed for ${email}:`, result.message);
-        }
-      })
-      .catch(otpError => {
-        // Log error but don't fail registration
-        console.error('Failed to send verification OTP:', otpError.message);
-      });
+    // Generate and send verification OTP
+    const otp = await generateOTP(email, 'email_verification');
+    const emailResult = await sendVerificationEmail(email, otp);
 
-    // Generate token
-    const token = generateToken({
-      userId: user._id.toString(),
-      email: user.email,
-      role: user.role,
-    });
+    if (!emailResult.success) {
+      // If email fails, delete temporary registration
+      await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
+      throw new Error('Failed to send verification email. Please try again.');
+    }
 
-    // Return user without password
-    const userObj = user.toObject();
-    delete userObj.password;
+    console.log(`✅ Verification OTP sent to ${email}`);
 
+    // Return only email - no user or token until verified
     return {
-      user: userObj,
-      token,
+      message: 'Registration initiated. Please verify your email to complete registration.',
+      email: email.toLowerCase(),
     };
   } catch (error) {
     throw error;
@@ -265,10 +270,10 @@ export const changeUserPassword = async (userId, currentPassword, newPassword) =
 };
 
 /**
- * Verify user email with OTP
+ * Verify user email with OTP and create actual user account
  * @param {String} email - User email
  * @param {String} otp - 4-digit OTP code
- * @returns {Promise<Boolean>} Success status
+ * @returns {Promise<Object>} { user, token }
  */
 export const verifyUserEmail = async (email, otp) => {
   try {
@@ -276,21 +281,60 @@ export const verifyUserEmail = async (email, otp) => {
       throw new Error('Email and OTP are required');
     }
 
-    // Verify OTP
+    // Verify OTP first
     await verifyOTP(email, otp, 'email_verification');
 
-    // Update user email verification status
-    const user = await User.findOneAndUpdate(
-      { email: email.toLowerCase() },
-      { isEmailVerified: true },
-      { new: true }
-    );
+    // Find temporary registration
+    const tempRegistration = await TemporaryRegistration.findOne({
+      email: email.toLowerCase(),
+      registrationType: 'user',
+      isVerified: false,
+      expiresAt: { $gt: new Date() },
+    });
 
-    if (!user) {
-      throw new Error('User not found');
+    if (!tempRegistration) {
+      throw new Error('Registration session expired or not found. Please register again.');
     }
 
-    return true;
+    // Check if user already exists (edge case - might have been created somehow)
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      // Delete temporary registration
+      await TemporaryRegistration.deleteOne({ _id: tempRegistration._id });
+      throw new Error('User already exists');
+    }
+
+    // Create actual user in database
+    const user = await User.create({
+      name: tempRegistration.registrationData.name,
+      email: tempRegistration.registrationData.email,
+      password: tempRegistration.registrationData.password, // Already hashed
+      phone: tempRegistration.registrationData.phone,
+      isEmailVerified: true, // Set to true since OTP is verified
+      isActive: true,
+      role: 'user',
+    });
+
+    // Mark temporary registration as verified and delete it
+    await TemporaryRegistration.deleteOne({ _id: tempRegistration._id });
+
+    // Generate token
+    const token = generateToken({
+      userId: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    });
+
+    // Return user without password
+    const userObj = user.toObject();
+    delete userObj.password;
+
+    console.log(`✅ User account created and verified for ${email}`);
+
+    return {
+      user: userObj,
+      token,
+    };
   } catch (error) {
     throw error;
   }
@@ -307,14 +351,24 @@ export const resendUserVerificationOTP = async (email) => {
       throw new Error('Valid email is required');
     }
 
-    // Check if user exists
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      throw new Error('User not found');
-    }
+    // Check if temporary registration exists
+    const tempRegistration = await TemporaryRegistration.findOne({
+      email: email.toLowerCase(),
+      registrationType: 'user',
+      isVerified: false,
+      expiresAt: { $gt: new Date() },
+    });
 
-    if (user.isEmailVerified) {
-      throw new Error('Email is already verified');
+    if (!tempRegistration) {
+      // Check if user already exists and is verified
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (user) {
+        if (user.isEmailVerified) {
+          throw new Error('Email is already verified');
+        }
+        throw new Error('Registration session expired. Please register again.');
+      }
+      throw new Error('No pending registration found. Please register again.');
     }
 
     // Generate and send OTP (async, don't block response)
@@ -326,11 +380,23 @@ export const resendUserVerificationOTP = async (email) => {
         if (result.success) {
           console.log(`✅ Verification OTP resent to ${email}`);
         } else {
-          console.warn(`⚠️ OTP generated but email failed for ${email}:`, result.message);
+          // Enhanced error logging
+          console.error(`❌ OTP generated but email failed for ${email}:`, result.message);
+          if (result.error) {
+            console.error(`   Error: ${result.error}`);
+          }
+          if (result.errorCode) {
+            console.error(`   Error Code: ${result.errorCode}`);
+          }
+          // Log OTP so admin can manually verify if needed
+          if (result.otp) {
+            console.log(`   OTP for manual verification: ${result.otp}`);
+          }
         }
       })
       .catch(error => {
-        console.error('Error sending verification email:', error.message);
+        console.error('❌ Error sending verification email:', error.message);
+        console.error('   Stack:', error.stack);
       });
 
     return { success: true, message: 'Verification OTP sent successfully' };

@@ -22,9 +22,32 @@ if (EMAIL_USER && EMAIL_PASS) {
       user: EMAIL_USER,
       pass: EMAIL_PASS,
     },
+    // Add connection timeout and retry options
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+    // Enable debug in development
+    debug: process.env.NODE_ENV === 'development',
+    logger: process.env.NODE_ENV === 'development',
+  });
+  
+  // Verify transporter configuration on startup
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error('❌ Email transporter verification failed:', error.message);
+      console.error('⚠️  Emails may not be sent. Please check EMAIL_USER, EMAIL_PASS, EMAIL_HOST, and EMAIL_PORT configuration.');
+    } else {
+      console.log('✅ Email transporter configured successfully');
+    }
   });
 } else {
-  console.warn('⚠️  Email service not configured. EMAIL_USER and EMAIL_PASS are required.');
+  const isProduction = process.env.NODE_ENV === 'production';
+  console.error(`❌ Email service not configured. EMAIL_USER and EMAIL_PASS are required.`);
+  if (isProduction) {
+    console.error('⚠️  CRITICAL: Email service is required in production. Please set EMAIL_USER and EMAIL_PASS environment variables.');
+  } else {
+    console.warn('⚠️  Email service not configured. EMAIL_USER and EMAIL_PASS are required.');
+  }
 }
 
 /**
@@ -39,16 +62,23 @@ export const sendVerificationEmail = async (email, otp) => {
       throw new Error('Email and OTP are required');
     }
 
-    // If transporter is not configured, log OTP and return success (for development/testing)
+    // If transporter is not configured, log OTP and return error
     if (!transporter) {
-      console.warn('⚠️ Email service not configured. EMAIL_USER and EMAIL_PASS are required.');
+      const isProduction = process.env.NODE_ENV === 'production';
+      console.error('❌ Email service not configured. EMAIL_USER and EMAIL_PASS are required.');
       console.log(`📧 [EMAIL NOT CONFIGURED] Verification OTP for ${email}: ${otp}`);
-      // Don't throw error - allow registration to proceed
-      // In production, admin should configure email credentials
+      
+      // In production, this is a critical error
+      if (isProduction) {
+        console.error(`🚨 PRODUCTION ERROR: Cannot send verification email to ${email}. Email service must be configured.`);
+      }
+      
+      // Return error but don't throw - allow registration to proceed
       return { 
-        success: true, 
-        message: 'OTP generated. Email service not configured - check server logs for OTP.',
-        devMode: true,
+        success: false, 
+        message: 'Email service not configured. Please contact support.',
+        error: 'EMAIL_SERVICE_NOT_CONFIGURED',
+        devMode: !isProduction,
         otp: process.env.NODE_ENV === 'development' ? otp : undefined // Only show OTP in dev mode
       };
     }
@@ -98,31 +128,51 @@ export const sendVerificationEmail = async (email, otp) => {
       `,
     };
 
-    // Send email with timeout to prevent hanging
+    // Send email with timeout to prevent hanging (increased timeout for production)
+    const timeoutDuration = process.env.NODE_ENV === 'production' ? 30000 : 10000; // 30s in prod, 10s in dev
     const sendPromise = transporter.sendMail(mailOptions);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Email send timeout')), 10000) // 10 second timeout
+      setTimeout(() => reject(new Error(`Email send timeout after ${timeoutDuration}ms`)), timeoutDuration)
     );
 
     const info = await Promise.race([sendPromise, timeoutPromise]);
     
-    console.log(`✅ Verification email sent to ${email}`);
+    // Enhanced logging for production debugging
+    const logMessage = `✅ Verification email sent to ${email}`;
+    const messageId = info.messageId || 'N/A';
+    console.log(`${logMessage} (MessageID: ${messageId})`);
+    
+    // In production, also log to help debug if emails don't arrive
+    if (process.env.NODE_ENV === 'production') {
+      console.log(`📧 Production Email Log: Sent verification OTP to ${email} at ${new Date().toISOString()}`);
+    }
+    
     return {
       success: true,
       message: 'Verification email sent successfully',
       messageId: info.messageId,
     };
   } catch (error) {
+    // Enhanced error logging
     console.error('❌ Error sending verification email:', error.message);
-    // Log OTP in case email fails so user can still verify
+    console.error('Error details:', {
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+    });
+    
+    // Log OTP in case email fails so user can still verify (check server logs)
     console.log(`📧 [EMAIL FAILED] Verification OTP for ${email}: ${otp}`);
+    
     // Don't throw error - allow registration to proceed, but log the issue
     return {
       success: false,
-      message: 'Failed to send email, but OTP has been generated. Check server logs.',
+      message: 'Failed to send email, but OTP has been generated. Check server logs for OTP.',
       error: error.message,
-      devMode: true,
-      otp: process.env.NODE_ENV === 'development' ? otp : undefined
+      errorCode: error.code,
+      devMode: process.env.NODE_ENV === 'development',
+      otp: process.env.NODE_ENV === 'development' ? otp : undefined // Only show OTP in dev mode
     };
   }
 };

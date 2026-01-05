@@ -189,7 +189,8 @@ const VendorRegister = () => {
         timeoutRef.current = null;
       }
 
-      toast.success(result.message || 'Registration successful!');
+      // Show message that OTP has been sent (not registration successful yet)
+      toast.success('Verification code sent to your email. Please verify to complete registration.');
       // Navigate to verification page
       navigate('/vendor/verification', { state: { email: formData.email } });
     } catch (error) {

@@ -1,4 +1,5 @@
 import Vendor from '../models/Vendor.model.js';
+import TemporaryRegistration from '../models/TemporaryRegistration.model.js';
 import { hashPassword, comparePassword } from '../utils/bcrypt.util.js';
 import { generateToken } from '../utils/jwt.util.js';
 import { generateOTP, verifyOTP, resendOTP } from './otp.service.js';
@@ -7,9 +8,9 @@ import { isValidEmail, isValidPhone, validatePassword } from '../utils/validator
 import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
 
 /**
- * Register a new vendor
+ * Register a new vendor (temporary - only creates record after email verification)
  * @param {Object} vendorData - { name, email, phone, password, storeName, storeDescription, address, documents }
- * @returns {Promise<Object>} { vendor, token }
+ * @returns {Promise<Object>} { message, email }
  */
 export const registerVendor = async (vendorData) => {
   try {
@@ -33,7 +34,7 @@ export const registerVendor = async (vendorData) => {
       throw new Error(passwordValidation.message);
     }
 
-    // Check if vendor already exists
+    // Check if vendor already exists in database
     const existingVendor = await Vendor.findOne({
       $or: [{ email: email.toLowerCase() }, { phone }],
     });
@@ -51,7 +52,20 @@ export const registerVendor = async (vendorData) => {
       }
     }
 
-    // Hash password
+    // Check if there's already a pending temporary registration
+    const existingTempReg = await TemporaryRegistration.findOne({
+      email: email.toLowerCase(),
+      registrationType: 'vendor',
+      isVerified: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (existingTempReg) {
+      // Delete old temporary registration
+      await TemporaryRegistration.deleteOne({ _id: existingTempReg._id });
+    }
+
+    // Hash password before storing
     const hashedPassword = await hashPassword(password);
 
     // Process documents/media if provided - upload to Cloudinary
@@ -61,16 +75,16 @@ export const registerVendor = async (vendorData) => {
         if (doc.data && doc.name) {
           try {
             // Determine file type and set appropriate resource_type for Cloudinary
-            const fileType = doc.type || 'application/pdf'; // Default to PDF if type not provided
+            const fileType = doc.type || 'application/pdf';
             const isImage = fileType.startsWith('image/');
             const isVideo = fileType.startsWith('video/');
             const isPDF = fileType === 'application/pdf';
 
-            let resourceType = 'auto'; // Cloudinary will auto-detect, but we can be specific
+            let resourceType = 'auto';
             let folderName = 'vendor-documents';
 
             if (isPDF) {
-              resourceType = 'raw'; // PDFs should be uploaded as raw files
+              resourceType = 'raw';
             } else if (isImage) {
               resourceType = 'image';
               folderName = 'vendor-documents/images';
@@ -88,7 +102,7 @@ export const registerVendor = async (vendorData) => {
               name: doc.name,
               url: result.secure_url,
               publicId: result.public_id,
-              type: fileType, // Store file type for proper display in admin panel
+              type: fileType,
               uploadedAt: new Date(),
             });
           } catch (uploadError) {
@@ -99,53 +113,43 @@ export const registerVendor = async (vendorData) => {
       }
     }
 
-    // Create vendor with pending status
-    const vendor = await Vendor.create({
-      name: name.trim(),
+    // Store registration data temporarily (expires in 15 minutes)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    await TemporaryRegistration.create({
       email: email.toLowerCase().trim(),
-      phone: phone.trim(),
-      password: hashedPassword,
-      storeName: storeName.trim(),
-      storeDescription: storeDescription ? storeDescription.trim() : undefined,
-      address: address || {},
-      documents: processedDocuments,
-      status: 'pending', // Vendors start as pending
-      isEmailVerified: false,
-      isActive: true,
-      role: 'vendor',
+      registrationType: 'vendor',
+      registrationData: {
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        phone: phone.trim(),
+        password: hashedPassword, // Store hashed password
+        storeName: storeName.trim(),
+        storeDescription: storeDescription ? storeDescription.trim() : undefined,
+        address: address || {},
+        documents: processedDocuments, // Store processed documents
+      },
+      expiresAt,
+      isVerified: false,
     });
 
-    // Generate and send verification OTP (async, don't block registration)
-    generateOTP(email, 'email_verification')
-      .then(otp => {
-        return sendVerificationEmail(email, otp);
-      })
-      .then(result => {
-        if (result.success) {
-          console.log(`✅ Verification OTP sent to ${email}`);
-        } else {
-          console.warn(`⚠️ OTP generated but email failed for ${email}:`, result.message);
-        }
-      })
-      .catch(otpError => {
-        // Log error but don't fail registration
-        console.error('Failed to send verification OTP:', otpError.message);
-      });
+    // Generate and send verification OTP
+    const otp = await generateOTP(email, 'email_verification');
+    const emailResult = await sendVerificationEmail(email, otp);
 
-    // Generate token (vendor can have token but may not be able to login until approved)
-    const token = generateToken({
-      vendorId: vendor._id.toString(),
-      email: vendor.email,
-      role: vendor.role,
-    });
+    if (!emailResult.success) {
+      // If email fails, delete temporary registration
+      await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
+      throw new Error('Failed to send verification email. Please try again.');
+    }
 
-    // Return vendor without password
-    const vendorObj = vendor.toObject();
-    delete vendorObj.password;
+    console.log(`✅ Verification OTP sent to ${email}`);
 
+    // Return only email - no vendor or token until verified
     return {
-      vendor: vendorObj,
-      token,
+      message: 'Registration initiated. Please verify your email to complete registration.',
+      email: email.toLowerCase(),
     };
   } catch (error) {
     throw error;
@@ -299,10 +303,10 @@ export const updateVendorProfile = async (vendorId, updateData) => {
 };
 
 /**
- * Verify vendor email with OTP
+ * Verify vendor email with OTP and create actual vendor account
  * @param {String} email - Vendor email
  * @param {String} otp - 4-digit OTP code
- * @returns {Promise<Boolean>} Success status
+ * @returns {Promise<Object>} { vendor, token }
  */
 export const verifyVendorEmail = async (email, otp) => {
   try {
@@ -310,21 +314,65 @@ export const verifyVendorEmail = async (email, otp) => {
       throw new Error('Email and OTP are required');
     }
 
-    // Verify OTP
+    // Verify OTP first
     await verifyOTP(email, otp, 'email_verification');
 
-    // Update vendor email verification status
-    const vendor = await Vendor.findOneAndUpdate(
-      { email: email.toLowerCase() },
-      { isEmailVerified: true },
-      { new: true }
-    );
+    // Find temporary registration
+    const tempRegistration = await TemporaryRegistration.findOne({
+      email: email.toLowerCase(),
+      registrationType: 'vendor',
+      isVerified: false,
+      expiresAt: { $gt: new Date() },
+    });
 
-    if (!vendor) {
-      throw new Error('Vendor not found');
+    if (!tempRegistration) {
+      throw new Error('Registration session expired or not found. Please register again.');
     }
 
-    return true;
+    // Check if vendor already exists (edge case)
+    const existingVendor = await Vendor.findOne({ email: email.toLowerCase() });
+    if (existingVendor) {
+      // Delete temporary registration
+      await TemporaryRegistration.deleteOne({ _id: tempRegistration._id });
+      throw new Error('Vendor already exists');
+    }
+
+    // Create actual vendor in database
+    const vendor = await Vendor.create({
+      name: tempRegistration.registrationData.name,
+      email: tempRegistration.registrationData.email,
+      phone: tempRegistration.registrationData.phone,
+      password: tempRegistration.registrationData.password, // Already hashed
+      storeName: tempRegistration.registrationData.storeName,
+      storeDescription: tempRegistration.registrationData.storeDescription,
+      address: tempRegistration.registrationData.address || {},
+      documents: tempRegistration.registrationData.documents || [],
+      status: 'pending', // Vendors start as pending
+      isEmailVerified: true, // Set to true since OTP is verified
+      isActive: true,
+      role: 'vendor',
+    });
+
+    // Mark temporary registration as verified and delete it
+    await TemporaryRegistration.deleteOne({ _id: tempRegistration._id });
+
+    // Generate token
+    const token = generateToken({
+      vendorId: vendor._id.toString(),
+      email: vendor.email,
+      role: vendor.role,
+    });
+
+    // Return vendor without password
+    const vendorObj = vendor.toObject();
+    delete vendorObj.password;
+
+    console.log(`✅ Vendor account created and verified for ${email}`);
+
+    return {
+      vendor: vendorObj,
+      token,
+    };
   } catch (error) {
     throw error;
   }
@@ -341,16 +389,26 @@ export const resendVendorVerificationOTP = async (email) => {
       throw new Error('Valid email is required');
     }
 
-    // Check if vendor exists
-    const vendor = await Vendor.findOne({ email: email.toLowerCase() });
-    if (!vendor) {
-      const error = new Error('Vendor not found');
+    // Check if temporary registration exists
+    const tempRegistration = await TemporaryRegistration.findOne({
+      email: email.toLowerCase(),
+      registrationType: 'vendor',
+      isVerified: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!tempRegistration) {
+      // Check if vendor already exists and is verified
+      const vendor = await Vendor.findOne({ email: email.toLowerCase() });
+      if (vendor) {
+        if (vendor.isEmailVerified) {
+          throw new Error('Email is already verified');
+        }
+        throw new Error('Registration session expired. Please register again.');
+      }
+      const error = new Error('No pending registration found. Please register again.');
       error.statusCode = 404;
       throw error;
-    }
-
-    if (vendor.isEmailVerified) {
-      throw new Error('Email is already verified');
     }
 
     // Generate and send OTP (async, don't block response)
@@ -362,11 +420,23 @@ export const resendVendorVerificationOTP = async (email) => {
         if (result.success) {
           console.log(`✅ Verification OTP resent to ${email}`);
         } else {
-          console.warn(`⚠️ OTP generated but email failed for ${email}:`, result.message);
+          // Enhanced error logging
+          console.error(`❌ OTP generated but email failed for ${email}:`, result.message);
+          if (result.error) {
+            console.error(`   Error: ${result.error}`);
+          }
+          if (result.errorCode) {
+            console.error(`   Error Code: ${result.errorCode}`);
+          }
+          // Log OTP so admin can manually verify if needed
+          if (result.otp) {
+            console.log(`   OTP for manual verification: ${result.otp}`);
+          }
         }
       })
       .catch(error => {
-        console.error('Error sending verification email:', error.message);
+        console.error('❌ Error sending verification email:', error.message);
+        console.error('   Stack:', error.stack);
       });
 
     return { success: true, message: 'Verification OTP sent successfully' };

@@ -59,7 +59,7 @@ export const useAuthStore = create(
         }
       },
 
-      // Register action
+      // Register action (now only initiates registration, doesn't create user)
       register: async (name, email, password, phone) => {
         set({ isLoading: true });
         try {
@@ -71,30 +71,14 @@ export const useAuthStore = create(
           });
 
           if (response.success && response.data) {
-            const { user, token } = response.data;
+            // Registration only returns email now - user will be created after email verification
+            set({ isLoading: false });
             
-            // Transform backend user object to frontend format
-            const userData = {
-              id: user._id || user.id,
-              _id: user._id,
-              name: user.name,
-              email: user.email,
-              phone: user.phone || '',
-              avatar: user.avatar || null,
-              isEmailVerified: user.isEmailVerified || false,
-              role: user.role || 'user',
+            return { 
+              success: true, 
+              email: response.data.email,
+              message: response.message || 'Registration initiated. Please verify your email.'
             };
-
-            set({
-              user: userData,
-              token: token,
-              isAuthenticated: true,
-              isLoading: false,
-            });
-
-            localStorage.setItem('token', token);
-            
-            return { success: true, user: userData };
           } else {
             throw new Error(response.message || 'Registration failed');
           }
@@ -207,24 +191,37 @@ export const useAuthStore = create(
         }
       },
 
-      // Verify email with OTP
+      // Verify email with OTP (now creates user account)
       verifyEmail: async (email, otp) => {
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/verify-email', { email, otp });
 
-          if (response.success) {
-            // Update user's email verification status
-            const currentUser = get().user;
-            if (currentUser && currentUser.email === email) {
-              set({
-                user: { ...currentUser, isEmailVerified: true },
-                isLoading: false,
-              });
-            } else {
-              set({ isLoading: false });
-            }
-            return { success: true, message: response.message };
+          if (response.success && response.data) {
+            const { user, token } = response.data;
+            
+            // Transform backend user object to frontend format
+            const userData = {
+              id: user._id || user.id,
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              avatar: user.avatar || null,
+              isEmailVerified: user.isEmailVerified || true, // Should be true after verification
+              role: user.role || 'user',
+            };
+
+            set({
+              user: userData,
+              token: token,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+
+            localStorage.setItem('token', token);
+            
+            return { success: true, user: userData, message: response.message };
           } else {
             throw new Error(response.message || 'Email verification failed');
           }

@@ -22,10 +22,9 @@ export const register = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully. Please verify your email.',
+      message: result.message || 'Registration initiated. Please verify your email to complete registration.',
       data: {
-        user: result.user,
-        token: result.token,
+        email: result.email,
       },
     });
   } catch (error) {
@@ -141,11 +140,15 @@ export const verifyEmail = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
-    await verifyUserEmail(email, otp);
+    const result = await verifyUserEmail(email, otp);
 
     res.status(200).json({
       success: true,
-      message: 'Email verified successfully',
+      message: 'Email verified successfully. Account created.',
+      data: {
+        user: result.user,
+        token: result.token,
+      },
     });
   } catch (error) {
     next(error);

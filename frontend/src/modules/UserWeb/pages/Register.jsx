@@ -95,7 +95,7 @@ const Register = () => {
       // Combine country code with phone number
       const phone = data.countryCode ? `${data.countryCode}${data.phone}` : data.phone;
       
-      await registerUser(fullName, data.email, data.password, phone);
+      const result = await registerUser(fullName, data.email, data.password, phone);
       
       setLocalLoading(false);
       if (timeoutRef.current) {
@@ -103,7 +103,8 @@ const Register = () => {
         timeoutRef.current = null;
       }
       
-      toast.success('Registration successful!');
+      // Show message that OTP has been sent (not registration successful yet)
+      toast.success('Verification code sent to your email. Please verify to complete registration.');
       // Navigate to verification page
       navigate('/verification', { state: { email: data.email } });
     } catch (error) {
