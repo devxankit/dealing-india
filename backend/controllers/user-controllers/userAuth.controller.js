@@ -44,14 +44,43 @@ export const register = async (req, res, next) => {
       });
     }
     
+    // Log detailed error for production debugging
     console.error('❌ Error in register controller:', {
       message: error.message,
       name: error.name,
+      code: error.code,
       status: error.status || error.statusCode,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-      body: req.body ? { name: req.body.name, email: req.body.email } : undefined,
+      stack: error.stack, // Always log stack for production debugging
+      body: req.body ? { 
+        name: req.body.name, 
+        email: req.body.email,
+        hasPhone: !!req.body.phone 
+      } : undefined,
+      timestamp: new Date().toISOString(),
     });
-    next(error);
+    
+    // Provide user-friendly error messages
+    let userMessage = error.message || 'Registration failed. Please try again.';
+    let statusCode = error.status || error.statusCode || 500;
+    
+    // Map common errors to user-friendly messages
+    if (error.message?.includes('Database connection')) {
+      userMessage = 'Service temporarily unavailable. Please try again in a moment.';
+      statusCode = 503; // Service Unavailable
+    } else if (error.message?.includes('Registration service unavailable')) {
+      userMessage = 'Registration service is temporarily unavailable. Please try again later.';
+      statusCode = 503;
+    } else if (error.message?.includes('Email already registered')) {
+      statusCode = 409; // Conflict
+    } else if (error.message?.includes('Invalid email') || error.message?.includes('Invalid phone')) {
+      statusCode = 400; // Bad Request
+    }
+    
+    // Return error with appropriate status code
+    return res.status(statusCode).json({
+      success: false,
+      message: userMessage,
+    });
   }
 };
 

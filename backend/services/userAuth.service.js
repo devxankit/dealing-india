@@ -14,14 +14,27 @@ import { isValidEmail, isValidPhone, validatePassword } from '../utils/validator
  */
 export const registerUser = async (userData) => {
   try {
-    // Check database connection
-    if (mongoose.connection.readyState !== 1) {
-      throw new Error('Database connection not available. Please try again later.');
+    // Check database connection with better error handling
+    const dbState = mongoose.connection.readyState;
+    if (dbState !== 1) {
+      const stateMessages = {
+        0: 'disconnected',
+        2: 'connecting',
+        3: 'disconnecting',
+      };
+      const stateMessage = stateMessages[dbState] || 'unknown';
+      console.error(`❌ Database connection state: ${stateMessage} (${dbState})`);
+      throw new Error(`Database connection not available (${stateMessage}). Please try again later.`);
     }
 
     // Verify TemporaryRegistration model is available
-    if (!TemporaryRegistration || typeof TemporaryRegistration.create !== 'function') {
-      console.error('❌ TemporaryRegistration model not properly initialized');
+    if (!TemporaryRegistration) {
+      console.error('❌ TemporaryRegistration model is null or undefined');
+      throw new Error('Registration service unavailable. Please try again later.');
+    }
+    
+    if (typeof TemporaryRegistration.create !== 'function') {
+      console.error('❌ TemporaryRegistration.create is not a function');
       throw new Error('Registration service unavailable. Please try again later.');
     }
 
@@ -133,6 +146,11 @@ export const registerUser = async (userData) => {
         throw new Error('Missing required registration data');
       }
 
+      // Double check database connection before creating
+      if (mongoose.connection.readyState !== 1) {
+        throw new Error('Database connection lost. Please try again.');
+      }
+
       tempReg = await TemporaryRegistration.create(tempRegData);
       
       if (!tempReg || !tempReg._id) {
@@ -201,13 +219,23 @@ export const registerUser = async (userData) => {
       email: email.toLowerCase(),
     };
   } catch (error) {
-    // Enhanced error logging for debugging
+    // Enhanced error logging for debugging (always log in production for debugging)
     console.error('❌ Error in registerUser:', {
       message: error.message,
       name: error.name,
       code: error.code,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      statusCode: error.statusCode,
+      isRateLimitError: error.isRateLimitError,
+      dbState: mongoose.connection?.readyState,
+      hasTempRegModel: !!TemporaryRegistration,
+      stack: error.stack, // Always log stack in production for debugging
     });
+    
+    // Preserve status codes for rate limiting
+    if (error.statusCode === 429 || error.isRateLimitError) {
+      error.status = 429;
+    }
+    
     throw error;
   }
 };
