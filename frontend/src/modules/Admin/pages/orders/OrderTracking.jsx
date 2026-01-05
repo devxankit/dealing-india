@@ -28,12 +28,35 @@ const OrderTracking = () => {
           page: 1, 
           limit: 1000 // Get all orders for tracking
         });
-        if (response.success && response.data) {
-          setOrders(response.data.orders || []);
+        
+        console.log('Order Tracking Response:', response); // Debug log
+        
+        // Handle different response structures (API interceptor might unwrap)
+        let ordersData = [];
+        if (response?.success && response?.data) {
+          // Response structure: { success: true, data: { orders: [], total: 0, ... } }
+          ordersData = response.data.orders || [];
+        } else if (Array.isArray(response?.data)) {
+          // If data is directly an array
+          ordersData = response.data;
+        } else if (Array.isArray(response)) {
+          // If response is directly an array
+          ordersData = response;
+        } else if (response?.orders) {
+          // If orders is at root level
+          ordersData = response.orders;
+        }
+        
+        console.log('Orders Data:', ordersData); // Debug log
+        setOrders(ordersData);
+        
+        if (ordersData.length === 0) {
+          console.warn('No orders found in response');
         }
       } catch (error) {
         console.error("Error fetching orders:", error);
         toast.error("Failed to load orders");
+        setOrders([]); // Set empty array on error
       } finally {
         setLoading(false);
       }
@@ -265,11 +288,6 @@ const OrderTracking = () => {
                   );
                 })}
               </div>
-              <button
-                onClick={() => navigate(`/admin/orders/${selectedOrder._id || selectedOrder.id || selectedOrder.orderCode}`)}
-                className="w-full mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold">
-                View Full Details
-              </button>
             </div>
           </div>
         )}

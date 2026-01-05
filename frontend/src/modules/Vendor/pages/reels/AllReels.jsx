@@ -41,7 +41,9 @@ const AllReels = () => {
     if (!vendorId) return;
     
     try {
-      const response = await api.get('/vendor/subscriptions/current');
+      // Add cache-busting timestamp to ensure fresh data
+      const timestamp = new Date().getTime();
+      const response = await api.get(`/vendor/subscriptions/current?t=${timestamp}`);
       // API interceptor returns response.data, so response structure is:
       // { success: true, data: { ...subscription data... } }
       if (response?.success && response?.data) {

@@ -17,7 +17,6 @@ const StatsCards = ({ stats }) => {
   const revenueStat = getStat('Total Revenue');
   const ordersStat = getStat('Total Orders');
   const customersStat = getStat('Total Customers');
-  const vendorEarningsStat = getStat('Vendor Earnings');
 
   const cards = [
     {
@@ -28,16 +27,6 @@ const StatsCards = ({ stats }) => {
       color: 'text-white',
       bgColor: 'bg-gradient-to-br from-green-500 to-emerald-600',
       cardBg: 'bg-gradient-to-br from-green-50 to-emerald-50',
-      iconBg: 'bg-white/20',
-    },
-    {
-      title: 'Vendor Earnings',
-      value: formatPrice(vendorEarningsStat.value || 0),
-      change: vendorEarningsStat.trend || 0,
-      icon: IndianRupee,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-purple-500 to-fuchsia-600',
-      cardBg: 'bg-gradient-to-br from-purple-50 to-fuchsia-50',
       iconBg: 'bg-white/20',
     },
     {
@@ -63,7 +52,7 @@ const StatsCards = ({ stats }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
       {cards.map((card, index) => {
         const Icon = card.icon;
         const isPositive = card.change >= 0;

@@ -896,6 +896,8 @@ export const getAdminOrders = async (filters = {}) => {
     const skip = (page - 1) * limit;
     const query = {};
 
+    console.log('getAdminOrders - Filters:', filters); // Debug log
+
     if (status) query.status = status;
     if (paymentStatus) query.paymentStatus = paymentStatus;
     if (customerId && mongoose.Types.ObjectId.isValid(customerId)) query.customerId = customerId;
@@ -943,6 +945,8 @@ export const getAdminOrders = async (filters = {}) => {
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
+    console.log('getAdminOrders - Query:', JSON.stringify(query, null, 2)); // Debug log
+
     const orders = await Order.find(query)
       .populate('customerId', 'name email phone')
       .populate('shippingAddress')
@@ -954,6 +958,9 @@ export const getAdminOrders = async (filters = {}) => {
       .lean();
 
     const total = await Order.countDocuments(query);
+    
+    console.log(`getAdminOrders - Found ${orders.length} orders out of ${total} total`); // Debug log
+    
     return { orders, total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) };
   } catch (error) {
     throw error;

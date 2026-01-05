@@ -28,7 +28,12 @@ class VendorSubscriptionController {
 
       const subscription = await SubscriptionService.getVendorSubscription(vendorId);
       // Return null if no subscription found (this is valid - vendor might not have subscribed yet)
-      res.status(200).json({ success: true, data: subscription });
+      // Add timestamp to help frontend detect changes
+      res.status(200).json({ 
+        success: true, 
+        data: subscription,
+        timestamp: new Date().toISOString() // Add timestamp to force refresh detection
+      });
     } catch (error) {
       console.error('Error getting current subscription:', error);
       res.status(500).json({ 

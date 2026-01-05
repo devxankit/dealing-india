@@ -32,11 +32,16 @@ export const getAllReviews = async (filters = {}) => {
     }
 
     // Search filter
-    if (search) {
+    if (search && search.trim()) {
       query.$or = [
-        { customerName: { $regex: search, $options: 'i' } },
-        { review: { $regex: search, $options: 'i' } },
+        { customerName: { $regex: search.trim(), $options: 'i' } },
+        { review: { $regex: search.trim(), $options: 'i' } },
+        { customerEmail: { $regex: search.trim(), $options: 'i' } },
       ];
+      
+      // Also search in populated product name
+      // We'll handle this after populate by filtering in memory if needed
+      // For now, we'll search in productId by doing a separate query if needed
     }
 
     // Calculate pagination
@@ -59,17 +64,33 @@ export const getAllReviews = async (filters = {}) => {
     ]);
 
     // Transform reviews to match frontend expectations
-    const transformedReviews = reviews.map((review) => ({
-      ...review,
-      id: review._id,
-      productName: review.productId?.name || 'Unknown Product',
-      productId: review.productId?._id || review.productId,
-      customerName: review.customerName,
-      rating: review.rating,
-      review: review.review || '',
-      date: review.createdAt,
-      status: review.status,
-    }));
+    const transformedReviews = reviews.map((review) => {
+      // Handle productId - it can be populated (object) or just an ObjectId
+      const productIdValue = review.productId?._id 
+        ? review.productId._id.toString() 
+        : (review.productId?.toString() || review.productId);
+      
+      const productNameValue = review.productId?.name || 'Unknown Product';
+      
+      // Handle userId - it can be populated (object) or just an ObjectId
+      const userIdValue = review.userId?._id 
+        ? review.userId._id.toString() 
+        : (review.userId?.toString() || review.userId);
+      
+      return {
+        ...review,
+        _id: review._id,
+        id: review._id?.toString() || review.id,
+        productName: productNameValue,
+        productId: productIdValue,
+        customerName: review.customerName || 'Unknown Customer',
+        customerEmail: review.customerEmail || review.userId?.email || null,
+        rating: review.rating || 0,
+        review: review.review || review.comment || '',
+        date: review.createdAt || review.date || new Date(),
+        status: review.status || 'pending',
+      };
+    });
 
     const totalPages = Math.ceil(total / parseInt(limit));
 

@@ -15,9 +15,11 @@ import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/adminHelpers';
 import { getDashboardSummary } from '../services/reportService';
 import { toast } from 'react-hot-toast';
+import { useAdminAuthStore } from '../store/adminStore';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, initialize } = useAdminAuthStore();
   const [period, setPeriod] = useState('month');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
@@ -32,26 +34,56 @@ const Dashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
+  // Initialize admin auth on mount
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem('admin-token');
+      if (token && !isAuthenticated) {
+        try {
+          await initialize();
+        } catch (error) {
+          console.error('Failed to initialize admin auth:', error);
+        }
+      }
+    };
+    initAuth();
+  }, [isAuthenticated, initialize]);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
+      // Check if admin is authenticated before making request
+      const token = localStorage.getItem('admin-token');
+      if (!token) {
+        setError('Please login to access dashboard');
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
         const response = await getDashboardSummary(period);
         if (response && response.success) {
           setData(response.data);
+        } else {
+          setError('Failed to load dashboard data. Please try again.');
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        setError('Failed to load dashboard data. Please try again.');
-        // toast.error is handled by api interceptor
+        // Check if it's an authentication error
+        if (error.response?.status === 401 || error.message?.includes('401')) {
+          setError('Your session has expired. Please login again.');
+          // Clear token and redirect will be handled by API interceptor
+        } else {
+          setError('Failed to load dashboard data. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [period]);
+  }, [period, isAuthenticated]);
 
   const handleExport = () => {
     // Export functionality will be handled by ExportButton component

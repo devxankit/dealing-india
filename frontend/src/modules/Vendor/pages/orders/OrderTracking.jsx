@@ -32,9 +32,12 @@ const OrderTracking = () => {
           page: 1,
           limit: 1000, // Get all orders for tracking
         });
-        if (response.success && response.data) {
-          setVendorOrders(response.data.orders || []);
-        }
+        
+        // Handle potentially wrapped or unwrapped response due to api interceptor
+        const responseData = response.data || response;
+        const orders = responseData.orders || response.orders || [];
+        
+        setVendorOrders(orders);
       } catch (error) {
         console.error('Error fetching vendor orders:', error);
         toast.error('Failed to load orders');

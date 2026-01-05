@@ -76,41 +76,51 @@ const HeroBannerBooking = () => {
     }
   };
 
-  // Calculate price based on duration
+  // Calculate price based on duration and selected slot price
   const calculatedPrice = useMemo(() => {
+    // Use selected slot's price per hour, fallback to default if no slot selected
+    const slotPricePerHour = selectedSlot?.price || settings.defaultPricePerHour || 1999;
+    const durationHours = formData.durationHours || 1;
+    
+    // If no pricing structure, simply multiply slot price by duration
     if (!settings.pricingStructure || Object.keys(settings.pricingStructure).length === 0) {
-      // Fallback to default pricing
-      return (formData.durationHours || 1) * (settings.defaultPricePerHour || 1999);
+      return Math.round(durationHours * slotPricePerHour);
     }
     
-    const durationKey = formData.durationHours.toString();
+    // If pricing structure exists, calculate based on structure but adjust for slot price
+    const defaultPricePerHour = settings.defaultPricePerHour || 1999;
+    const priceMultiplier = slotPricePerHour / defaultPricePerHour;
+    
+    const durationKey = durationHours.toString();
     const pricingStructure = settings.pricingStructure;
     
-    // If exact match exists
+    // If exact match exists in pricing structure
     if (pricingStructure[durationKey] !== undefined) {
-      return pricingStructure[durationKey];
+      const basePrice = pricingStructure[durationKey];
+      return Math.round(basePrice * priceMultiplier);
     }
     
-    // Find closest lower bound
+    // Find closest lower bound in pricing structure
     const sortedDurations = Object.keys(pricingStructure)
       .map(Number)
       .sort((a, b) => a - b);
     
-    let basePrice = settings.defaultPricePerHour || 1999;
+    let basePrice = slotPricePerHour;
     let baseHours = 1;
     
     for (let i = sortedDurations.length - 1; i >= 0; i--) {
-      if (sortedDurations[i] <= formData.durationHours) {
+      if (sortedDurations[i] <= durationHours) {
         baseHours = sortedDurations[i];
-        basePrice = pricingStructure[baseHours.toString()];
+        const structurePrice = pricingStructure[baseHours.toString()];
+        basePrice = Math.round(structurePrice * priceMultiplier);
         break;
       }
     }
     
-    // Calculate proportional price
-    const pricePerHour = basePrice / baseHours;
-    return Math.round(pricePerHour * formData.durationHours);
-  }, [formData.durationHours, settings]);
+    // Calculate proportional price based on slot's price
+    const calculatedPricePerHour = basePrice / baseHours;
+    return Math.round(calculatedPricePerHour * durationHours);
+  }, [formData.durationHours, settings, selectedSlot]);
 
   // Get min and max dates for date picker
   const { minDate, maxDate } = useMemo(() => {
@@ -421,7 +431,7 @@ const HeroBannerBooking = () => {
                 )}
               </div>
               <div className="text-xl font-bold text-gray-900 mb-1">{formatPrice(slot.price)}</div>
-              <p className="text-xs text-gray-500 mb-4">Starting from {formatPrice(settings.defaultPricePerHour || 1999)}/hour</p>
+              <p className="text-xs text-gray-500 mb-4">Starting from {formatPrice(slot.price)}/hour</p>
               
               {!isBooked && (
                 <button className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">

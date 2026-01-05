@@ -54,9 +54,6 @@ const VendorDashboard = () => {
         const response = await analyticsService.getVendorDashboardData(period);
         if (response && response.success) {
           setData(response.data);
-        const response = await getVendorPerformanceMetrics(period);
-        if (response) {
-          setData(response);
         }
       } catch (error) {
         console.error("Error fetching vendor dashboard data:", error);
@@ -132,7 +129,6 @@ const VendorDashboard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-red-500 text-xl font-semibold">{error}</div>
-        <button
         <button
           onClick={() => window.location.reload()}
           className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200"

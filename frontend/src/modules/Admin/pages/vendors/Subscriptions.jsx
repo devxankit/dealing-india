@@ -210,12 +210,31 @@ const Subscriptions = () => {
       return;
     }
 
+    // Validate subscription ID format (MongoDB ObjectId is 24 hex characters)
+    const subscriptionId = overrideForm.subscriptionId.trim();
+    const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+    if (!objectIdRegex.test(subscriptionId)) {
+      toast.error('Invalid Subscription ID format. Please use the "Use" button from the monitoring table to fill the ID automatically.');
+      return;
+    }
+
+    // Validate extend_custom action
+    if (overrideForm.action === 'extend_custom') {
+      const days = parseInt(overrideForm.days);
+      if (!overrideForm.days || isNaN(days) || days <= 0) {
+        toast.error('Please enter a valid number of days (greater than 0)');
+        return;
+      }
+    }
+
     try {
       setOverrideLoading(true);
-      const details = overrideForm.action === 'extend_custom' ? { days: parseInt(overrideForm.days) } : {};
+      const details = overrideForm.action === 'extend_custom' 
+        ? { days: parseInt(overrideForm.days) } 
+        : {};
       
       const response = await api.post('/admin/subscriptions/manual-override', {
-        subscriptionId: overrideForm.subscriptionId,
+        subscriptionId: subscriptionId, // Use validated subscriptionId
         action: overrideForm.action,
         details
       });
@@ -227,26 +246,53 @@ const Subscriptions = () => {
         if (activeTab === 'monitoring') {
           loadMonitoring();
         }
+        // Reload analytics to refresh stats
+        if (activeTab === 'analytics') {
+          loadAnalytics();
+        }
       } else {
         throw new Error(response.message || 'Failed to apply action');
       }
     } catch (error) {
       console.error('Error applying manual override:', error);
-      toast.error(error.response?.data?.message || error.message || 'Failed to apply action');
+      
+      // Handle 401 errors specifically - don't show toast as interceptor will handle redirect
+      if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.message || 'Your session has expired. Please login again.';
+        // Don't show toast here - API interceptor will handle it and redirect
+        console.error('Authentication error:', errorMessage);
+        // The API interceptor will handle the redirect to login page
+        return;
+      }
+      
+      // Handle other errors
+      const errorMessage = error.response?.data?.message 
+        || error.message 
+        || 'Failed to apply action. Please check the subscription ID and try again.';
+      toast.error(errorMessage);
     } finally {
       setOverrideLoading(false);
     }
   };
 
-  // Format stats for StatsCards component
-  const stats = {
-    totalRevenue: analytics?.totalRevenue || analytics?.revenue || 0,
-    totalOrders: analytics?.totalOrders || 0,
-    totalCustomers: analytics?.totalCustomers || 0,
-    revenueChange: analytics?.revenueChange || 0,
-    ordersChange: analytics?.ordersChange || 0,
-    customersChange: analytics?.customersChange || 0,
-  };
+  // Format stats for StatsCards component (array format expected by StatsCards)
+  const stats = [
+    {
+      label: 'Total Revenue',
+      value: analytics?.totalRevenue || analytics?.revenue || 0,
+      trend: analytics?.revenueChange || 0,
+    },
+    {
+      label: 'Total Orders',
+      value: analytics?.totalOrders || 0,
+      trend: analytics?.ordersChange || 0,
+    },
+    {
+      label: 'Total Customers',
+      value: analytics?.totalCustomers || 0,
+      trend: analytics?.customersChange || 0,
+    },
+  ];
 
   const columns = [
     { label: 'Vendor', key: 'vendor' },
@@ -428,7 +474,43 @@ const Subscriptions = () => {
                   },
                   { label: 'Tier', key: 'tier' },
                   { label: 'Expiry Date', key: 'expiry' },
-                  { label: 'Auto Renew', key: 'renew', render: (val) => val ? 'Yes' : 'No' }
+                  { label: 'Auto Renew', key: 'renew', render: (val) => val ? 'Yes' : 'No' },
+                  { 
+                    label: 'Subscription ID', 
+                    key: 'subscriptionId',
+                    render: (val, row) => {
+                      const fullId = val?.toString() || row.subscriptionId?.toString() || 'N/A';
+                      return (
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono" title={fullId}>
+                            {fullId.slice(-8)}
+                          </code>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(fullId);
+                              toast.success('Full Subscription ID copied to clipboard!');
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                            title={`Copy full ID: ${fullId}`}
+                          >
+                            Copy
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOverrideForm(prev => ({ ...prev, subscriptionId: fullId }));
+                              toast.success('Subscription ID filled in form!');
+                            }}
+                            className="text-green-600 hover:text-green-800 text-xs font-medium px-2 py-1 rounded hover:bg-green-50 transition-colors"
+                            title="Fill in form"
+                          >
+                            Use
+                          </button>
+                        </div>
+                      );
+                    }
+                  }
                 ]} 
                 data={monitoringData} 
               />
@@ -445,15 +527,21 @@ const Subscriptions = () => {
               <p className="text-sm text-gray-500 mb-6">Manually adjust subscription end dates or status for specific vendors.</p>
               <form onSubmit={handleManualOverride} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Subscription ID</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subscription ID
+                    <span className="text-red-500 ml-1">*</span>
+                  </label>
                   <input 
                     type="text" 
                     value={overrideForm.subscriptionId}
                     onChange={(e) => setOverrideForm({ ...overrideForm, subscriptionId: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                    placeholder="Enter subscription ID..." 
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm" 
+                    placeholder="Click 'Use' button from monitoring table or paste full 24-character ID" 
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Tip: Use the "Use" button in the Monitoring table to automatically fill the correct ID
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>

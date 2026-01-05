@@ -86,9 +86,8 @@ const HeroBanner = () => {
               type: "tween",
             }}>
             {banners.map((banner, index) => (
-              <a
+              <div
                 key={banner.id}
-                href={banner.link || "#"}
                 className="flex-shrink-0"
                 style={{
                   width: `${100 / banners.length}%`,
@@ -100,7 +99,7 @@ const HeroBanner = () => {
                   className="w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
                 />
-              </a>
+              </div>
             ))}
           </motion.div>
 
@@ -169,10 +168,9 @@ const HeroBanner = () => {
               ease: "easeInOut",
             }}>
             {banners.map((banner, index) => (
-              <a
+              <div
                 key={banner.id}
-                href={banner.link || "#"}
-                className="flex-shrink-0 block pointer-events-none active:pointer-events-auto"
+                className="flex-shrink-0 block pointer-events-none"
                 style={{
                   width: `${100 / banners.length}%`,
                   height: "100%",
@@ -183,7 +181,7 @@ const HeroBanner = () => {
                   className="w-full h-full object-cover select-none"
                   draggable="false"
                 />
-              </a>
+              </div>
             ))}
           </motion.div>
           

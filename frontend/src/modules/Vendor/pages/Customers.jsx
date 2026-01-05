@@ -41,6 +41,9 @@ const Customers = () => {
           limit: 10,
         });
 
+        console.log('Vendor Customers Response:', response);
+
+        // Handle different response structures
         if (response.success && response.data) {
           setCustomers(response.data.customers || []);
           setStats(response.data.stats || {
@@ -51,6 +54,20 @@ const Customers = () => {
           if (response.meta) {
             setTotalPages(response.meta.pages || 1);
           }
+        } else if (response.customers) {
+          // Handle direct response structure
+          setCustomers(response.customers || []);
+          setStats(response.stats || {
+            totalCustomers: 0,
+            totalRevenue: 0,
+            averageOrderValue: 0,
+          });
+          if (response.pagination) {
+            setTotalPages(response.pagination.pages || 1);
+          }
+        } else {
+          console.warn('Unexpected response structure:', response);
+          setCustomers([]);
         }
       } catch (error) {
         console.error("Error fetching customers:", error);

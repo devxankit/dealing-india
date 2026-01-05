@@ -30,23 +30,56 @@ const ProductRatings = () => {
     try {
       const response = await api.get("/admin/product-ratings", {
         params: {
-          search: searchQuery,
-          status: statusFilter,
+          search: searchQuery || undefined,
+          status: statusFilter === "all" ? undefined : statusFilter,
           limit: 1000, // Fetch all for client-side filtering
         },
       });
-      const reviews = response.data.data || [];
-      // Transform _id to id for frontend compatibility
-      setRatings(reviews.map((review) => ({
-        ...review,
-        id: review._id || review.id,
-        productId: review.productId?._id || review.productId || review.productId,
-        productName: review.productName || review.productId?.name || "Unknown Product",
-        date: review.date || review.createdAt,
-      })));
+      
+      // Handle different response structures
+      const reviews = response.data?.data || response.data?.reviews || response.data || [];
+      
+      // Transform reviews to match frontend expectations
+      const transformedReviews = reviews.map((review) => {
+        // Handle productId - can be string, object, or populated object
+        const productIdValue = review.productId?._id 
+          ? review.productId._id.toString() 
+          : (review.productId?.toString() || review.productId || '');
+        
+        // Handle productName
+        const productNameValue = review.productName 
+          || review.productId?.name 
+          || 'Unknown Product';
+        
+        // Handle customerName
+        const customerNameValue = review.customerName 
+          || review.userId?.name 
+          || 'Unknown Customer';
+        
+        // Handle date
+        const dateValue = review.date 
+          || review.createdAt 
+          || new Date();
+        
+        return {
+          ...review,
+          id: review._id?.toString() || review.id?.toString() || review._id || review.id,
+          productId: productIdValue,
+          productName: productNameValue,
+          customerName: customerNameValue,
+          rating: review.rating || 0,
+          review: review.review || review.comment || '',
+          date: dateValue,
+          status: review.status || 'pending',
+        };
+      });
+      
+      setRatings(transformedReviews);
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "Failed to load ratings";
+      console.error("Error loading ratings:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to load ratings";
       toast.error(errorMessage);
+      setRatings([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -240,12 +273,19 @@ const ProductRatings = () => {
             />
           </div>
         </div>
-        <DataTable
-          data={filteredRatings}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+            <span className="ml-4 text-gray-600">Loading ratings...</span>
+          </div>
+        ) : (
+          <DataTable
+            data={filteredRatings}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       {/* Rating Detail Modal */}

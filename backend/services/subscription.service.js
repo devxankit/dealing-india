@@ -35,7 +35,37 @@ class SubscriptionService {
         ? new mongoose.Types.ObjectId(vendorId) 
         : vendorId;
 
-      const subscription = await VendorSubscription.findOne({ 
+      // First, try to get the vendor's current subscription reference
+      const Vendor = (await import('../models/Vendor.model.js')).default;
+      const vendor = await Vendor.findById(vendorObjectId).select('currentSubscription').lean();
+      
+      let subscription = null;
+      
+      // Priority 1: If vendor has a currentSubscription reference, ALWAYS use that
+      // This ensures admin manual overrides are reflected immediately
+      if (vendor?.currentSubscription) {
+        subscription = await VendorSubscription.findById(vendor.currentSubscription)
+          .populate({
+            path: 'tierId',
+            select: 'name priceMonthly reelLimit extraReelPrice features isActive'
+          })
+          .lean();
+        
+        // If subscription found via reference, return it immediately (regardless of status)
+        // This ensures vendor sees admin's manual override changes
+        if (subscription) {
+          // Check if tierId exists (might be null if tier was deleted)
+          if (subscription.tierId) {
+            return subscription;
+          } else {
+            // Tier was deleted, log warning but continue to find another subscription
+            console.warn(`Subscription ${subscription._id} has invalid tierId, trying to find alternative`);
+          }
+        }
+      }
+      
+      // Priority 2: Try to find active subscription
+      subscription = await VendorSubscription.findOne({ 
         vendorId: vendorObjectId, 
         status: 'active' 
       })
@@ -43,9 +73,24 @@ class SubscriptionService {
           path: 'tierId',
           select: 'name priceMonthly reelLimit extraReelPrice features isActive'
         })
+        .sort({ createdAt: -1 }) // Get most recent
         .lean();
       
-      // If no active subscription, return null (not an error)
+      // Priority 3: If still no subscription, get the most recent subscription regardless of status
+      // This ensures vendor sees their subscription even if admin changed status
+      if (!subscription) {
+        subscription = await VendorSubscription.findOne({ 
+          vendorId: vendorObjectId
+        })
+          .populate({
+            path: 'tierId',
+            select: 'name priceMonthly reelLimit extraReelPrice features isActive'
+          })
+          .sort({ createdAt: -1 }) // Get most recent
+          .lean();
+      }
+      
+      // If no subscription found at all, return null (not an error)
       if (!subscription) {
         return null;
       }
@@ -958,6 +1003,57 @@ class SubscriptionService {
         ? ((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1)
         : '0.0';
 
+      // Calculate revenue change percentage
+      const revenueChange = previousRevenue > 0 
+        ? parseFloat(((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1))
+        : 0;
+
+      // Calculate orders change (current period vs previous period)
+      const currentPeriodOrders = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed',
+            'auditLogs.timestamp': { $gte: thirtyDaysAgo }
+          }
+        },
+        { $group: { _id: null, count: { $sum: 1 } } }
+      ]);
+      const currentOrders = currentPeriodOrders[0]?.count || 0;
+
+      const previousPeriodOrders = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed',
+            'auditLogs.timestamp': { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
+          }
+        },
+        { $group: { _id: null, count: { $sum: 1 } } }
+      ]);
+      const previousOrders = previousPeriodOrders[0]?.count || 0;
+      const ordersChange = previousOrders > 0 
+        ? parseFloat(((currentOrders - previousOrders) / previousOrders * 100).toFixed(1))
+        : 0;
+
+      // Calculate customers change (current active vs previous period active)
+      const previousPeriodCustomers = await VendorSubscription.aggregate([
+        {
+          $match: {
+            status: 'active',
+            startDate: { $lt: thirtyDaysAgo }
+          }
+        },
+        { $group: { _id: '$vendorId' } },
+        { $group: { _id: null, count: { $sum: 1 } } }
+      ]);
+      const previousCustomers = previousPeriodCustomers[0]?.count || 0;
+      const customersChange = previousCustomers > 0 
+        ? parseFloat(((totalCustomers - previousCustomers) / previousCustomers * 100).toFixed(1))
+        : 0;
+
       // Calculate churn rate (expired subscriptions in last 30 days / total active subscriptions)
       const expiredLast30Days = await VendorSubscription.countDocuments({
         status: 'expired',
@@ -972,9 +1068,9 @@ class SubscriptionService {
         totalRevenue: totalRevenue, // For StatsCards component
         totalOrders: totalOrders, // For StatsCards component
         totalCustomers: totalCustomers, // For StatsCards component
-        revenueChange: 0, // Can be calculated if needed
-        ordersChange: 0, // Can be calculated if needed
-        customersChange: 0, // Can be calculated if needed
+        revenueChange: revenueChange, // Percentage change
+        ordersChange: ordersChange, // Percentage change
+        customersChange: customersChange, // Percentage change
         activeSubscriptions: activeSubscriptionsCount,
         monthlyGrowth: `+${monthlyGrowth}%`,
         churnRate: `${churnRate}%`,
@@ -1038,6 +1134,23 @@ class SubscriptionService {
   }
 
   async manualSubscriptionOverride(subscriptionId, action, adminId, details = {}) {
+    // Validate subscriptionId format
+    if (!subscriptionId || typeof subscriptionId !== 'string') {
+      throw new Error('Subscription ID is required and must be a string');
+    }
+    
+    // Trim whitespace
+    const trimmedId = subscriptionId.trim();
+    
+    if (!mongoose.Types.ObjectId.isValid(trimmedId)) {
+      throw new Error(`Invalid subscription ID format. Expected a 24-character hexadecimal string, got: ${trimmedId.substring(0, 20)}...`);
+    }
+
+    // Validate adminId format
+    if (!adminId || !mongoose.Types.ObjectId.isValid(adminId)) {
+      throw new Error('Invalid admin ID');
+    }
+
     const session = await mongoose.startSession();
     session.startTransaction();
     
@@ -1050,6 +1163,11 @@ class SubscriptionService {
         throw new Error('Subscription not found');
       }
 
+      // Validate subscription has required fields
+      if (!subscription.endDate) {
+        throw new Error('Subscription end date is missing');
+      }
+
       let updatedSubscription;
       const auditLog = {
         action: `manual_override_${action}`,
@@ -1060,6 +1178,9 @@ class SubscriptionService {
 
       switch (action) {
         case 'extend_30_days':
+          if (!subscription.endDate) {
+            throw new Error('Subscription end date is required for extension');
+          }
           const newEndDate = new Date(subscription.endDate);
           newEndDate.setDate(newEndDate.getDate() + 30);
           subscription.endDate = newEndDate;
@@ -1069,15 +1190,24 @@ class SubscriptionService {
           }
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
+          
+          // Update vendor's currentSubscription reference to ensure it's up to date
+          const vendorIdForExtend = subscription.vendorId?._id || subscription.vendorId;
+          if (vendorIdForExtend && mongoose.Types.ObjectId.isValid(vendorIdForExtend)) {
+            await Vendor.findByIdAndUpdate(vendorIdForExtend, {
+              currentSubscription: subscription._id
+            }, { session });
+          }
           break;
 
         case 'extend_custom':
           const { days } = details;
-          if (!days || days <= 0) {
-            throw new Error('Invalid number of days');
+          if (!days || isNaN(days) || parseInt(days) <= 0) {
+            throw new Error('Invalid number of days. Please provide a positive number.');
           }
+          const daysToAdd = parseInt(days);
           const customEndDate = new Date(subscription.endDate);
-          customEndDate.setDate(customEndDate.getDate() + parseInt(days));
+          customEndDate.setDate(customEndDate.getDate() + daysToAdd);
           subscription.endDate = customEndDate;
           subscription.nextBillingDate = customEndDate;
           if (subscription.status === 'expired') {
@@ -1085,6 +1215,14 @@ class SubscriptionService {
           }
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
+          
+          // Update vendor's currentSubscription reference
+          const vendorIdForCustom = subscription.vendorId?._id || subscription.vendorId;
+          if (vendorIdForCustom && mongoose.Types.ObjectId.isValid(vendorIdForCustom)) {
+            await Vendor.findByIdAndUpdate(vendorIdForCustom, {
+              currentSubscription: subscription._id
+            }, { session });
+          }
           break;
 
         case 'grant_premium_trial':
@@ -1093,6 +1231,9 @@ class SubscriptionService {
             throw new Error('Premium tier not found');
           }
           
+          // Get previous tier name safely
+          const previousTierName = subscription.tierId?.name || subscription.tierId?.toString() || 'Unknown';
+          
           // Deactivate current subscription
           subscription.status = 'expired';
           subscription.cancellationDate = new Date();
@@ -1100,7 +1241,7 @@ class SubscriptionService {
             action: 'manual_override_grant_premium_trial',
             timestamp: new Date(),
             performedBy: adminId,
-            details: { previousTier: subscription.tierId.name }
+            details: { previousTier: previousTierName }
           });
           await subscription.save({ session });
 
@@ -1126,9 +1267,13 @@ class SubscriptionService {
             auditLogs: [auditLog]
           }], { session });
 
-          await Vendor.findByIdAndUpdate(subscription.vendorId, {
-            currentSubscription: newTrialSub[0]._id
-          }, { session });
+          // Update vendor's current subscription reference
+          const vendorIdValue = subscription.vendorId?._id || subscription.vendorId;
+          if (vendorIdValue && mongoose.Types.ObjectId.isValid(vendorIdValue)) {
+            await Vendor.findByIdAndUpdate(vendorIdValue, {
+              currentSubscription: newTrialSub[0]._id
+            }, { session });
+          }
 
           updatedSubscription = newTrialSub[0];
           break;
@@ -1139,6 +1284,14 @@ class SubscriptionService {
           subscription.autoRenew = false;
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
+          
+          // Update vendor's currentSubscription reference to ensure vendor sees the cancellation
+          const vendorIdForCancel = subscription.vendorId?._id || subscription.vendorId;
+          if (vendorIdForCancel && mongoose.Types.ObjectId.isValid(vendorIdForCancel)) {
+            await Vendor.findByIdAndUpdate(vendorIdForCancel, {
+              currentSubscription: subscription._id
+            }, { session });
+          }
           break;
 
         case 'reactivate':
@@ -1153,6 +1306,14 @@ class SubscriptionService {
             }
             subscription.auditLogs.push(auditLog);
             updatedSubscription = await subscription.save({ session });
+            
+            // Update vendor's currentSubscription reference
+            const vendorIdForReactivate = subscription.vendorId?._id || subscription.vendorId;
+            if (vendorIdForReactivate && mongoose.Types.ObjectId.isValid(vendorIdForReactivate)) {
+              await Vendor.findByIdAndUpdate(vendorIdForReactivate, {
+                currentSubscription: subscription._id
+              }, { session });
+            }
           } else {
             throw new Error('Subscription is already active');
           }
@@ -1162,10 +1323,27 @@ class SubscriptionService {
           throw new Error(`Unknown action: ${action}`);
       }
 
+      // IMPORTANT: Always update vendor's currentSubscription reference after any manual override
+      // This ensures vendor sees the changes immediately
+      const vendorIdForUpdate = subscription.vendorId?._id || subscription.vendorId;
+      if (vendorIdForUpdate && mongoose.Types.ObjectId.isValid(vendorIdForUpdate)) {
+        await Vendor.findByIdAndUpdate(vendorIdForUpdate, {
+          currentSubscription: updatedSubscription._id
+        }, { session });
+      }
+      
       await session.commitTransaction();
-      return updatedSubscription;
+      
+      // Populate the returned subscription for better response
+      const populatedSubscription = await VendorSubscription.findById(updatedSubscription._id)
+        .populate('tierId', 'name priceMonthly reelLimit')
+        .populate('vendorId', 'businessName storeName email')
+        .lean();
+      
+      return populatedSubscription || updatedSubscription;
     } catch (error) {
       await session.abortTransaction();
+      console.error('Error in manualSubscriptionOverride:', error);
       throw error;
     } finally {
       session.endSession();

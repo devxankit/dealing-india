@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -14,57 +14,54 @@ import DataTable from "../../Admin/components/DataTable";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { IndianRupee } from "lucide-react";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { useOrderStore } from "../../../shared/store/orderStore";
+import { getVendorCustomerById } from "../services/customerService";
 import toast from "react-hot-toast";
 
 const CustomerDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const { getVendorOrders } = useOrderStore();
   const [customer, setCustomer] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const vendorId = vendor?.id;
 
   useEffect(() => {
-    if (!vendorId) return;
+    const fetchCustomerDetail = async () => {
+      if (!vendorId || !id) {
+        setLoading(false);
+        return;
+      }
 
-    // Get all vendor orders
-    const allOrders = getVendorOrders(vendorId);
+      try {
+        setLoading(true);
+        const response = await getVendorCustomerById(id);
 
-    // Find customer from orders
-    const customerOrders = allOrders.filter((order) => {
-      const customerId = order.userId || `guest-${order.id}`;
-      return customerId === id;
-    });
+        console.log('Customer Detail Response:', response);
 
-    if (customerOrders.length === 0) {
-      toast.error("Customer not found");
-      navigate(-1);
-      return;
-    }
-
-    // Extract customer info from first order
-    const firstOrder = customerOrders[0];
-    const customerData = {
-      id: id,
-      name: firstOrder.customer?.name || "Guest Customer",
-      email: firstOrder.customer?.email || "",
-      phone: firstOrder.customer?.phone || "",
-      orders: customerOrders.length,
-      totalSpent: customerOrders.reduce((sum, order) => {
-        const vendorItem = order.vendorItems?.find(
-          (vi) => vi.vendorId === vendorId
-        );
-        return sum + (vendorItem?.vendorEarnings || 0);
-      }, 0),
-      lastOrderDate: customerOrders[0].date,
+        if (response.success && response.data) {
+          setCustomer(response.data.customer);
+          setOrders(response.data.orders || []);
+        } else if (response.customer) {
+          // Handle direct response structure
+          setCustomer(response.customer);
+          setOrders(response.orders || []);
+        } else {
+          toast.error("Customer not found");
+          navigate("/vendor/customers");
+        }
+      } catch (error) {
+        console.error("Error fetching customer detail:", error);
+        toast.error("Failed to load customer details");
+        navigate("/vendor/customers");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setCustomer(customerData);
-    setOrders(customerOrders);
-  }, [id, vendorId, getVendorOrders, navigate]);
+    fetchCustomerDetail();
+  }, [id, vendorId, navigate]);
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -105,7 +102,7 @@ const CustomerDetail = () => {
       label: "Items",
       render: (value, row) => {
         const vendorItem = row.vendorItems?.find(
-          (vi) => vi.vendorId === vendorId
+          (vi) => vi.vendorId?.toString() === vendorId?.toString()
         );
         return (
           <span className="text-sm text-gray-600">
@@ -120,7 +117,7 @@ const CustomerDetail = () => {
       sortable: true,
       render: (value, row) => {
         const vendorItem = row.vendorItems?.find(
-          (vi) => vi.vendorId === vendorId
+          (vi) => vi.vendorId?.toString() === vendorId?.toString()
         );
         return (
           <span className="font-semibold text-gray-800">
@@ -147,11 +144,26 @@ const CustomerDetail = () => {
     },
   ];
 
-  if (!customer) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <p className="text-gray-600">Loading customer details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Customer not found</p>
+          <button
+            onClick={() => navigate("/vendor/customers")}
+            className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+            Back to Customers
+          </button>
         </div>
       </div>
     );

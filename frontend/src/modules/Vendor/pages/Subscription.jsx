@@ -19,14 +19,36 @@ const VendorSubscription = () => {
 
   useEffect(() => {
     loadData();
+    
+    // Refresh subscription data when page becomes visible (user switches back to tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadData();
+      }
+    };
+    
+    // Refresh on window focus (user switches back to browser)
+    const handleFocus = () => {
+      loadData();
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      // Add cache-busting timestamp to ensure fresh data
+      const timestamp = new Date().getTime();
       const [tiersResponse, subscriptionResponse] = await Promise.all([
         api.get('/vendor/subscriptions/tiers'),
-        api.get('/vendor/subscriptions/current')
+        api.get(`/vendor/subscriptions/current?t=${timestamp}`)
       ]);
 
       if (tiersResponse.success) {
@@ -37,17 +59,23 @@ const VendorSubscription = () => {
         const sub = subscriptionResponse.data;
         // Handle null subscription (vendor hasn't subscribed yet)
         if (sub) {
+          // Parse endDate properly
+          const endDateValue = sub.endDate ? new Date(sub.endDate) : null;
+          
           setCurrentSubscription({
             tierName: sub.tierId?.name || 'Free',
-            status: sub.status,
+            status: sub.status || 'pending',
             billingCycle: sub.billingCycle,
-            endDate: sub.endDate ? new Date(sub.endDate).toLocaleDateString() : null,
+            endDate: endDateValue ? endDateValue.toLocaleDateString() : null,
+            endDateRaw: endDateValue, // Store raw date for comparison
             autoRenew: sub.autoRenew,
             usage: {
               reelsUploaded: sub.usage?.reelsUploaded || 0,
               extraReelsCharged: sub.usage?.extraReelsCharged || 0,
               limit: sub.tierId?.reelLimit === -1 ? -1 : (sub.tierId?.reelLimit || 0)
-            }
+            },
+            updatedAt: sub.updatedAt || sub.createdAt, // Track when subscription was last updated
+            subscriptionId: sub._id || sub.id
           });
         } else {
           // No subscription found - this is normal for new vendors
@@ -166,9 +194,20 @@ const VendorSubscription = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">My Subscription</h1>
-        <p className="text-gray-600">Manage your vendor account subscription and billing.</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">My Subscription</h1>
+          <p className="text-gray-600">Manage your vendor account subscription and billing.</p>
+        </div>
+        <button
+          onClick={loadData}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Refresh subscription data"
+        >
+          <FiRefreshCw className={loading ? 'animate-spin' : ''} />
+          Refresh
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-10">
@@ -189,8 +228,18 @@ const VendorSubscription = () => {
             <p className="text-gray-500 text-sm mb-4">
               {currentSubscription ? (
                 <>
-                  Your subscription is {currentSubscription.status} 
-                  {currentSubscription.endDate && ` and will renew on ${currentSubscription.endDate}`}.
+                  Your subscription is <span className="font-semibold capitalize">{currentSubscription.status}</span>
+                  {currentSubscription.endDate && (
+                    <span>
+                      {' '}and {currentSubscription.status === 'active' ? 'will renew' : 'expires'} on{' '}
+                      <span className="font-semibold">{currentSubscription.endDate}</span>
+                    </span>
+                  )}
+                  {currentSubscription.updatedAt && (
+                    <span className="block text-xs text-gray-400 mt-1">
+                      Last updated: {new Date(currentSubscription.updatedAt).toLocaleString()}
+                    </span>
+                  )}
                 </>
               ) : (
                 'You don\'t have an active subscription. Please select a plan below to get started.'

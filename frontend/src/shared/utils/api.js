@@ -42,7 +42,20 @@ api.interceptors.request.use(
     
     // Determine which token to use based on request URL
     let token = null;
-    const url = config.url || '';
+    let url = config.url || '';
+    
+    // If the URL is absolute (starts with http), strip the base URL to get the relative path
+    // for token logic below
+    if (url.startsWith('http')) {
+      if (url.startsWith(API_BASE_URL)) {
+        url = url.substring(API_BASE_URL.length);
+      }
+    }
+    
+    // Ensure URL starts with / for consistent prefix checking
+    if (url && !url.startsWith('/')) {
+      url = '/' + url;
+    }
     
     // Check for admin routes first (including admin vendor management)
     // Admin routes: /auth/admin, /admin/* (config.url is relative, so no /api prefix)
@@ -143,7 +156,7 @@ api.interceptors.response.use(
         }
       }
       
-      // Suppress toast for certain expected 401 scenarios
+      // Suppress toast for certain expected 401 scenarios (but still allow redirect)
       const isBackgroundOperation = 
         url.includes('/cart') || 
         url.includes('/wishlist') || 
@@ -154,8 +167,11 @@ api.interceptors.response.use(
         url.includes('/auth/admin/me') ||
         url.includes('/auth/vendor/me');
       
+      // For dashboard/analytics, suppress toast but allow redirect
+      const isDashboardOperation = url.includes('/dashboard-summary') || url.includes('/analytics');
+      
       // Only show toast for unexpected 401s (user-initiated actions)
-      if (!isBackgroundOperation && !currentPath.includes('/login')) {
+      if (!isBackgroundOperation && !isDashboardOperation && !currentPath.includes('/login')) {
         // Show a user-friendly message
         if (message.includes('expired') || message.includes('Token has expired')) {
           toast.error('Your session has expired. Please login again.', { id: 'auth-error' });
@@ -166,8 +182,8 @@ api.interceptors.response.use(
         }
       }
       
-      // Redirect if needed (only for user-initiated actions or when on protected routes)
-      if (shouldRedirect && !isBackgroundOperation) {
+      // Redirect if needed (for dashboard operations, redirect even if it's a background operation)
+      if (shouldRedirect && (!isBackgroundOperation || isDashboardOperation)) {
         setTimeout(() => {
           window.location.href = redirectPath;
         }, 100);

@@ -65,7 +65,9 @@ const AddReel = () => {
     
     try {
       setSubscriptionLoading(true);
-      const response = await api.get('/vendor/subscriptions/current');
+      // Add cache-busting timestamp to ensure fresh data
+      const timestamp = new Date().getTime();
+      const response = await api.get(`/vendor/subscriptions/current?t=${timestamp}`);
       if (response.success && response.data) {
         const sub = response.data;
         setSubscription({

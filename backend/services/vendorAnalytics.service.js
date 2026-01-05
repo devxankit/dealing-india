@@ -43,11 +43,12 @@ const getSingleVendorAnalytics = async (vendorId) => {
       throw new Error('Vendor not found');
     }
 
-    // Get vendor orders (assuming Order model has vendorItems array)
+    // Get vendor orders using vendorBreakdown (actual Order model structure)
     let orders = [];
     if (Order) {
       orders = await Order.find({
-        'vendorItems.vendorId': vendorId,
+        'vendorBreakdown.vendorId': vendorId,
+        status: { $ne: 'cancelled' } // Exclude cancelled orders
       }).lean();
     }
 
@@ -60,13 +61,14 @@ const getSingleVendorAnalytics = async (vendorId) => {
     let paidEarnings = 0;
 
     orders.forEach((order) => {
-      const vendorItem = order.vendorItems?.find(
-        (vi) => vi.vendorId?.toString() === vendorId.toString()
+      // Use vendorBreakdown (actual field in Order model)
+      const vendorBreakdown = order.vendorBreakdown?.find(
+        (vb) => vb.vendorId?.toString() === vendorId.toString()
       );
 
-      if (vendorItem) {
-        const subtotal = vendorItem.subtotal || 0;
-        const commission = subtotal * (vendor.commissionRate || 0.1);
+      if (vendorBreakdown) {
+        const subtotal = vendorBreakdown.subtotal || 0;
+        const commission = vendorBreakdown.commission || (subtotal * (vendor.commissionRate || 0.1));
         const earnings = subtotal - commission;
 
         totalRevenue += subtotal;
@@ -126,9 +128,10 @@ const getAllVendorsAnalytics = async () => {
     let totalEarnings = 0;
 
     const vendorStats = approvedVendors.map((vendor) => {
+      // Filter orders that have this vendor in vendorBreakdown
       const vendorOrders = orders.filter((order) => {
-        return order.vendorItems?.some(
-          (vi) => vi.vendorId?.toString() === vendor._id.toString()
+        return order.vendorBreakdown?.some(
+          (vb) => vb.vendorId?.toString() === vendor._id.toString()
         );
       });
 
@@ -138,13 +141,14 @@ const getAllVendorsAnalytics = async () => {
       let vendorPaidEarnings = 0;
 
       vendorOrders.forEach((order) => {
-        const vendorItem = order.vendorItems?.find(
-          (vi) => vi.vendorId?.toString() === vendor._id.toString()
+        // Use vendorBreakdown (actual field in Order model)
+        const vendorBreakdown = order.vendorBreakdown?.find(
+          (vb) => vb.vendorId?.toString() === vendor._id.toString()
         );
 
-        if (vendorItem) {
-          const subtotal = vendorItem.subtotal || 0;
-          const commission = subtotal * (vendor.commissionRate || 0.1);
+        if (vendorBreakdown) {
+          const subtotal = vendorBreakdown.subtotal || 0;
+          const commission = vendorBreakdown.commission || (subtotal * (vendor.commissionRate || 0.1));
           const earnings = subtotal - commission;
 
           vendorRevenue += subtotal;
@@ -219,7 +223,8 @@ export const getVendorOrders = async (vendorId, filters = {}) => {
     const { page = 1, limit = 10, status } = filters;
 
     const query = {
-      'vendorItems.vendorId': vendorId,
+      'vendorBreakdown.vendorId': vendorId,
+      status: { $ne: 'cancelled' } // Exclude cancelled orders
     };
 
     if (status) {

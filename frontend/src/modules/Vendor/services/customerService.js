@@ -16,3 +16,13 @@ export const getVendorCustomers = async (filters = {}) => {
   return response.data || response;
 };
 
+/**
+ * Get vendor customer by ID
+ * @param {String} customerId - Customer ID
+ * @returns {Promise<Object>} { customer, orders }
+ */
+export const getVendorCustomerById = async (customerId) => {
+  const response = await api.get(`/vendor/customers/${customerId}`);
+  return response.data || response;
+};
+

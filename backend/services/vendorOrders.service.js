@@ -1,5 +1,6 @@
 import Order from '../models/Order.model.js';
 import Vendor from '../models/Vendor.model.js';
+import Product from '../models/Product.model.js';
 import mongoose from 'mongoose';
 
 /**
@@ -16,16 +17,22 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
     }
 
     // Check if items.productId is already populated, if not populate it
+    // Also preserve customerId if already populated
     let populatedOrder = order;
-    if (order.items && order.items[0] && order.items[0].productId && typeof order.items[0].productId === 'object' && !order.items[0].productId.vendorId) {
-      // Need to populate
+    const needsProductPopulation = order.items && order.items[0] && (
+      (typeof order.items[0].productId === 'string') ||
+      (typeof order.items[0].productId === 'object' && !order.items[0].productId.vendorId)
+    );
+    
+    if (needsProductPopulation) {
+      // Need to populate products, but preserve customerId if already populated
+      const populateOptions = ['items.productId vendorId vendorName'];
+      if (!order.customerId || typeof order.customerId === 'string' || order.customerId._id) {
+        populateOptions.push('customerId name email phone');
+      }
       populatedOrder = await Order.findById(order._id)
         .populate('items.productId', 'vendorId vendorName')
-        .lean();
-    } else if (order.items && order.items[0] && typeof order.items[0].productId === 'string') {
-      // Need to populate
-      populatedOrder = await Order.findById(order._id)
-        .populate('items.productId', 'vendorId vendorName')
+        .populate('customerId', 'name email phone')
         .lean();
     }
 
@@ -98,6 +105,26 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
       };
     });
 
+    // Extract customer info from populated order
+    // Check both order and populatedOrder for customer info
+    let customerInfo = null;
+    const customerSource = populatedOrder.customerId || order.customerId;
+    
+    if (customerSource) {
+      // Check if customerId is populated (object with name property) or just an ID
+      if (typeof customerSource === 'object' && customerSource !== null) {
+        // Check if it has name property (populated) or is just an ObjectId
+        if (customerSource.name !== undefined || customerSource.email !== undefined) {
+          // It's a populated object with customer data
+          customerInfo = {
+            name: customerSource.name || 'Guest Customer',
+            email: customerSource.email || '',
+            phone: customerSource.phone || '',
+          };
+        }
+      }
+    }
+
     // Transform order to match frontend structure
     const transformedOrder = {
       id: order._id?.toString() || order.orderCode,
@@ -122,6 +149,9 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
       paymentStatus: order.paymentStatus,
       total: order.total,
       orderDate: order.orderDate,
+      // Add customer information
+      customer: customerInfo,
+      customerSnapshot: customerInfo, // For backward compatibility
     };
 
     return transformedOrder;
@@ -152,11 +182,13 @@ export const getVendorOrdersTransformed = async (vendorId, filters = {}) => {
     }
 
     // First, get all product IDs for this vendor
-    const Product = (await import('../models/Product.model.js')).default;
     // Remove isActive check to show orders for all products (including inactive ones)
     const vendorProducts = await Product.find({ vendorId: vendorIdQuery })
       .select('_id')
       .lean();
+
+    console.log('Vendor ID Query:', vendorIdQuery);
+    console.log('Found Vendor Products Count:', vendorProducts.length);
 
     // Convert product IDs to ObjectIds for proper query matching
     const vendorProductIds = vendorProducts.map((p) => {
@@ -167,20 +199,16 @@ export const getVendorOrdersTransformed = async (vendorId, filters = {}) => {
       return productId;
     });
 
-    if (vendorProductIds.length === 0) {
-      return {
-        orders: [],
-        total: 0,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: 0,
-      };
-    }
-
     // Build query to find orders containing vendor's products
     const query = {
-      'items.productId': { $in: vendorProductIds },
+      $or: [
+        { 'vendorBreakdown.vendorId': vendorIdQuery }
+      ]
     };
+
+    if (vendorProductIds.length > 0) {
+      query.$or.push({ 'items.productId': { $in: vendorProductIds } });
+    }
 
     if (status) {
       query.status = status;
@@ -196,6 +224,9 @@ export const getVendorOrdersTransformed = async (vendorId, filters = {}) => {
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
+
+    console.log('Query used for orders:', JSON.stringify(query));
+    console.log('Orders found in database:', orders.length);
 
     // Transform each order
     const transformedOrders = [];
@@ -241,22 +272,33 @@ export const getAllVendorOrdersTransformed = async (vendorId, filters = {}) => {
   try {
     const { status } = filters;
 
-    // Get all product IDs for this vendor
-    const Product = (await import('../models/Product.model.js')).default;
-    const vendorProducts = await Product.find({ vendorId, isActive: true })
+    // Convert vendorId to ObjectId if needed
+    let vendorIdQuery;
+    if (typeof vendorId === 'string' && mongoose.Types.ObjectId.isValid(vendorId)) {
+      vendorIdQuery = new mongoose.Types.ObjectId(vendorId);
+    } else if (vendorId instanceof mongoose.Types.ObjectId) {
+      vendorIdQuery = vendorId;
+    } else {
+      vendorIdQuery = vendorId;
+    }
+
+    // First, get all product IDs for this vendor
+    const vendorProducts = await Product.find({ vendorId: vendorIdQuery })
       .select('_id')
       .lean();
 
     const vendorProductIds = vendorProducts.map((p) => p._id);
 
-    if (vendorProductIds.length === 0) {
-      return [];
-    }
-
-    // Build query
+    // Build query to find orders containing vendor's products or in breakdown
     const query = {
-      'items.productId': { $in: vendorProductIds },
+      $or: [
+        { 'vendorBreakdown.vendorId': vendorIdQuery }
+      ]
     };
+
+    if (vendorProductIds.length > 0) {
+      query.$or.push({ 'items.productId': { $in: vendorProductIds } });
+    }
 
     if (status) {
       query.status = status;

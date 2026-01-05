@@ -23,9 +23,13 @@ const VendorAnalytics = () => {
       try {
         const data = await fetchVendorAnalytics();
         if (data) {
+          console.log('Vendor Analytics Data:', data); // Debug log
           setAnalytics(data);
+        } else {
+          console.warn('No analytics data received');
         }
       } catch (error) {
+        console.error('Error loading vendor analytics:', error);
         // Error toast is shown by API interceptor
       }
     };
