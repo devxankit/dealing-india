@@ -651,8 +651,29 @@ class SubscriptionService {
       ]);
       const extraReelRevenue = extraReelRevenueResult[0]?.total || 0;
 
-      // Total revenue = subscription + extra reel charges
-      const totalRevenue = subscriptionRevenue + extraReelRevenue;
+      // Total revenue = only subscription revenue (reel plan subscription, not extra reel charges)
+      const totalRevenue = subscriptionRevenue;
+
+      // Total orders: count of subscription payments (plans purchased)
+      const totalOrdersResult = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed'
+          }
+        },
+        { $group: { _id: null, count: { $sum: 1 } } }
+      ]);
+      const totalOrders = totalOrdersResult[0]?.count || 0;
+
+      // Total customers: count of unique vendors with active subscriptions (regular plans)
+      const totalCustomersResult = await VendorSubscription.aggregate([
+        { $match: { status: 'active' } },
+        { $group: { _id: '$vendorId' } },
+        { $group: { _id: null, count: { $sum: 1 } } }
+      ]);
+      const totalCustomers = totalCustomersResult[0]?.count || 0;
 
       // Active subscriptions count
       const activeSubscriptionsCount = await VendorSubscription.countDocuments({ status: 'active' });
@@ -948,6 +969,12 @@ class SubscriptionService {
 
       return {
         revenue: totalRevenue,
+        totalRevenue: totalRevenue, // For StatsCards component
+        totalOrders: totalOrders, // For StatsCards component
+        totalCustomers: totalCustomers, // For StatsCards component
+        revenueChange: 0, // Can be calculated if needed
+        ordersChange: 0, // Can be calculated if needed
+        customersChange: 0, // Can be calculated if needed
         activeSubscriptions: activeSubscriptionsCount,
         monthlyGrowth: `+${monthlyGrowth}%`,
         churnRate: `${churnRate}%`,

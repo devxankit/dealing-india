@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiTrendingUp, FiUsers, FiSettings, FiActivity } from 'react-icons/fi';
-import { IndianRupee } from 'lucide-react';
+import { FiSettings } from 'react-icons/fi';
 import DataTable from '../../components/DataTable';
 import StatsCards from '../../components/Analytics/StatsCards';
 import RevenueChart from '../../components/Analytics/RevenueChart';
@@ -225,12 +224,15 @@ const Subscriptions = () => {
     }
   };
 
-  const stats = [
-    { title: 'Total Revenue', value: `₹${(analytics?.revenue || 0).toLocaleString()}`, icon: <IndianRupee />, color: 'blue' },
-    { title: 'Active Subscriptions', value: analytics?.activeSubscriptions || 0, icon: <FiUsers />, color: 'green' },
-    { title: 'Monthly Growth', value: analytics?.monthlyGrowth || '+0%', icon: <FiTrendingUp />, color: 'purple' },
-    { title: 'Churn Rate', value: analytics?.churnRate || '0%', icon: <FiActivity />, color: 'red' }
-  ];
+  // Format stats for StatsCards component
+  const stats = {
+    totalRevenue: analytics?.totalRevenue || analytics?.revenue || 0,
+    totalOrders: analytics?.totalOrders || 0,
+    totalCustomers: analytics?.totalCustomers || 0,
+    revenueChange: analytics?.revenueChange || 0,
+    ordersChange: analytics?.ordersChange || 0,
+    customersChange: analytics?.customersChange || 0,
+  };
 
   const columns = [
     { label: 'Vendor', key: 'vendor' },

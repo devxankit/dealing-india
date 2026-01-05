@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiShoppingBag, FiMapPin, FiUpload, FiFile, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 const VendorRegister = () => {
   const navigate = useNavigate();
   const { register: registerVendor, isLoading } = useVendorAuthStore();
+  const [localLoading, setLocalLoading] = useState(false);
+  const timeoutRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -29,6 +31,38 @@ const VendorRegister = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [documents, setDocuments] = useState([]); // Array of { name, data, type } objects
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+
+  // Safety mechanism: Reset loading state if it's stuck
+  useEffect(() => {
+    if (localLoading || isLoading) {
+      timeoutRef.current = setTimeout(() => {
+        setLocalLoading(false);
+        toast.error('Request timeout. Please check your internet connection and try again.');
+      }, 35000);
+
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
+    } else {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+  }, [isLoading, localLoading]);
+
+  // Sync local loading with store loading
+  useEffect(() => {
+    if (!isLoading) {
+      setLocalLoading(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+  }, [isLoading]);
 
   // Handle document/media upload
   const handleDocumentUpload = async (e) => {
@@ -131,6 +165,13 @@ const VendorRegister = () => {
     }
 
     try {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      setLocalLoading(true);
+
       const result = await registerVendor({
         name: formData.name,
         email: formData.email,
@@ -142,10 +183,22 @@ const VendorRegister = () => {
         documents: documents, // Include documents array
       });
 
+      setLocalLoading(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
       toast.success(result.message || 'Registration successful!');
       // Navigate to verification page
       navigate('/vendor/verification', { state: { email: formData.email } });
     } catch (error) {
+      setLocalLoading(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
       // Extract error message
       const errorMessage = error?.message || 
                          error?.response?.data?.message || 
@@ -154,6 +207,8 @@ const VendorRegister = () => {
       toast.error(errorMessage);
     }
   };
+
+  const isButtonLoading = localLoading || isLoading;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4 py-8">
@@ -477,10 +532,10 @@ const VendorRegister = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isButtonLoading}
             className="w-full gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Registering...' : 'Register as Vendor'}
+            {isButtonLoading ? 'Registering...' : 'Register as Vendor'}
           </button>
 
           {/* Login Link */}
