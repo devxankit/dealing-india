@@ -7,6 +7,7 @@ import {
   updateVendorReelStatus,
 } from '../../services/vendorReels.service.js';
 import { uploadToCloudinary } from '../../utils/cloudinary.util.js';
+import SubscriptionService from '../../services/subscription.service.js';
 
 /**
  * Get all reels for vendor
@@ -81,6 +82,38 @@ export const create = async (req, res, next) => {
     const vendorId = req.user.vendorId;
     const reelData = { ...req.body };
 
+    // Validate subscription before processing upload
+    const subscription = await SubscriptionService.getVendorSubscription(vendorId);
+    
+    if (!subscription) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must have an active subscription to upload reels. Please subscribe to a plan first.',
+        code: 'NO_SUBSCRIPTION'
+      });
+    }
+
+    // Check if subscription is expired
+    const now = new Date();
+    if (subscription.endDate && new Date(subscription.endDate) < now) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your subscription has expired. Please renew your subscription to continue uploading reels.',
+        code: 'SUBSCRIPTION_EXPIRED',
+        expiredDate: subscription.endDate
+      });
+    }
+
+    // Check if subscription status is active
+    if (subscription.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        message: `Your subscription is ${subscription.status}. Please activate your subscription to upload reels.`,
+        code: 'SUBSCRIPTION_INACTIVE',
+        status: subscription.status
+      });
+    }
+
     // Handle video file upload
     if (req.files && req.files.video && req.files.video[0]) {
       try {
@@ -129,6 +162,10 @@ export const create = async (req, res, next) => {
         message: 'Video is required. Please upload a video file or provide a video URL.',
       });
     }
+
+    // Check if payment verification is provided (for extra reels)
+    const paymentVerified = req.body.paymentVerified === true || req.body.paymentVerified === 'true';
+    reelData.paymentVerified = paymentVerified;
 
     const reel = await createVendorReel(reelData, vendorId);
 

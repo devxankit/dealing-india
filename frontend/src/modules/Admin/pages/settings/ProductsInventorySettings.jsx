@@ -163,7 +163,7 @@ const ProductsInventorySettings = () => {
                 </div>
               </div>
             </div>
-          </div>
+                </div>
 
 
           <div className="flex justify-end pt-4 sm:pt-6 border-t border-gray-200 mt-4 sm:mt-6">

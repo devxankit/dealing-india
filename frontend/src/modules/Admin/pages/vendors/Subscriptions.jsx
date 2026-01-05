@@ -5,6 +5,10 @@ import { IndianRupee } from 'lucide-react';
 import DataTable from '../../components/DataTable';
 import StatsCards from '../../components/Analytics/StatsCards';
 import RevenueChart from '../../components/Analytics/RevenueChart';
+import SupportTickets from '../supportTickets/SupportTickets';
+import EditTierModal from '../../components/EditTierModal';
+import api from '../../../../shared/utils/api';
+import toast from 'react-hot-toast';
 
 const Subscriptions = () => {
   const [activeTab, setActiveTab] = useState(() => {
@@ -30,85 +34,207 @@ const Subscriptions = () => {
   const [analytics, setAnalytics] = useState(null);
   const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTier, setSelectedTier] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [monitoringData, setMonitoringData] = useState([]);
+  const [monitoringLoading, setMonitoringLoading] = useState(false);
+  const [overrideForm, setOverrideForm] = useState({
+    subscriptionId: '',
+    action: '',
+    days: ''
+  });
+  const [overrideLoading, setOverrideLoading] = useState(false);
+
+  // Fetch tiers from backend
+  const fetchTiers = async () => {
+    try {
+      // Include inactive tiers for admin management
+      const response = await api.get('/admin/subscriptions/tiers?includeInactive=true');
+      if (response.success && response.data) {
+        // Transform backend format to frontend format
+        const transformedTiers = response.data.map(tier => ({
+          ...tier,
+          id: tier._id || tier.id,
+          features: tier.features?.map(f => typeof f === 'string' ? f : f.name || '') || []
+        }));
+        setTiers(transformedTiers);
+      }
+    } catch (error) {
+      console.error('Error fetching tiers:', error);
+      toast.error('Failed to load subscription tiers');
+      // Fallback to mock data if API fails
+      const mockTiers = [
+        { 
+          id: '1', 
+          name: 'Free', 
+          priceMonthly: 0, 
+          reelLimit: 0, 
+          extraReelPrice: 10,
+          features: ['Cost per reel upload: ₹10', 'Basic features', 'Automatic activation'],
+          isActive: true 
+        },
+        { 
+          id: '2', 
+          name: 'Starter', 
+          priceMonthly: 99, 
+          reelLimit: 30, 
+          extraReelPrice: 10,
+          features: ['30 reels per month', 'Additional reels at ₹10 each', 'Standard features'],
+          isActive: true 
+        },
+        { 
+          id: '3', 
+          name: 'Professional', 
+          priceMonthly: 299, 
+          reelLimit: 100, 
+          extraReelPrice: 10,
+          features: ['100 reels per month', 'Additional reels at ₹10 each', 'Enhanced features'],
+          isActive: true 
+        },
+        { 
+          id: '4', 
+          name: 'Premium', 
+          priceMonthly: 499, 
+          reelLimit: -1, 
+          extraReelPrice: 0,
+          features: ['Unlimited reel uploads', 'Premium features', 'Priority support'],
+          isActive: true 
+        }
+      ];
+      setTiers(mockTiers);
+    }
+  };
 
   useEffect(() => {
-    // Mock data for initial development
-    const mockAnalytics = {
-      revenue: 125000,
-      activeSubscriptions: 450,
-      tierDistribution: [
-        { name: 'Free', count: 100 },
-        { name: 'Starter', count: 200 },
-        { name: 'Professional', count: 100 },
-        { name: 'Premium', count: 50 }
-      ],
-      recentPayments: [
-        { id: '1', vendor: 'Tech Store', amount: 299, tier: 'Professional', date: '2023-12-01', status: 'completed' },
-        { id: '2', vendor: 'Fashion Hub', amount: 499, tier: 'Premium', date: '2023-12-01', status: 'completed' },
-        { id: '3', vendor: 'Gadget World', amount: 99, tier: 'Starter', date: '2023-11-30', status: 'completed' }
-      ],
-      revenueData: [
-        { date: '2023-12-01', revenue: 5000, orders: 10 },
-        { date: '2023-11-30', revenue: 4500, orders: 8 },
-        { date: '2023-11-29', revenue: 6000, orders: 12 },
-        { date: '2023-11-28', revenue: 3000, orders: 5 }
-      ]
-    };
+    loadAnalytics();
+    fetchTiers();
+    if (activeTab === 'monitoring') {
+      loadMonitoring();
+    }
+  }, [activeTab]);
 
-    const mockTiers = [
-      { 
-        id: '1', 
-        name: 'Free', 
-        priceMonthly: 0, 
-        reelLimit: 0, 
-        extraReelPrice: 10,
-        features: ['Cost per reel upload: ₹10', 'Basic features', 'Automatic activation'],
-        isActive: true 
-      },
-      { 
-        id: '2', 
-        name: 'Starter', 
-        priceMonthly: 99, 
-        reelLimit: 30, 
-        extraReelPrice: 10,
-        features: ['30 reels per month', 'Additional reels at ₹10 each', 'Standard features'],
-        isActive: true 
-      },
-      { 
-        id: '3', 
-        name: 'Professional', 
-        priceMonthly: 299, 
-        reelLimit: 100, 
-        extraReelPrice: 10,
-        features: ['100 reels per month', 'Additional reels at ₹10 each', 'Enhanced features'],
-        isActive: true 
-      },
-      { 
-        id: '4', 
-        name: 'Premium', 
-        priceMonthly: 499, 
-        reelLimit: -1, 
-        extraReelPrice: 0,
-        features: ['Unlimited reel uploads', 'Premium features', 'Priority support'],
-        isActive: true 
+  const loadAnalytics = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/admin/subscriptions/analytics');
+      if (response.success && response.data) {
+        setAnalytics(response.data);
+      } else {
+        toast.error('Failed to load analytics data');
+        // Set empty data structure to prevent errors
+        setAnalytics({
+          revenue: 0,
+          activeSubscriptions: 0,
+          monthlyGrowth: '+0%',
+          churnRate: '0%',
+          tierDistribution: [],
+          recentPayments: [],
+          revenueData: []
+        });
       }
-    ];
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      toast.error('Failed to load analytics data');
+      // Set empty data structure to prevent errors
+      setAnalytics({
+        revenue: 0,
+        activeSubscriptions: 0,
+        monthlyGrowth: '+0%',
+        churnRate: '0%',
+        tierDistribution: [],
+        recentPayments: [],
+        revenueData: []
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setAnalytics(mockAnalytics);
-    setTiers(mockTiers);
-    setLoading(false);
-  }, []);
+  const loadMonitoring = async () => {
+    try {
+      setMonitoringLoading(true);
+      const response = await api.get('/admin/subscriptions/monitoring');
+      if (response.success && response.data) {
+        setMonitoringData(response.data);
+      } else {
+        toast.error('Failed to load monitoring data');
+        setMonitoringData([]);
+      }
+    } catch (error) {
+      console.error('Error loading monitoring data:', error);
+      toast.error('Failed to load monitoring data');
+      setMonitoringData([]);
+    } finally {
+      setMonitoringLoading(false);
+    }
+  };
+
+  const handleEditTier = (tier) => {
+    setSelectedTier(tier);
+    setIsEditModalOpen(true);
+  };
+
+  const handleTierUpdateSuccess = (updatedTier) => {
+    // Update the tier in the list
+    setTiers(prevTiers => 
+      prevTiers.map(tier => 
+        (tier._id === updatedTier._id || tier.id === updatedTier._id) 
+          ? {
+              ...updatedTier,
+              id: updatedTier._id || updatedTier.id,
+              features: updatedTier.features?.map(f => typeof f === 'string' ? f : f.name || '') || []
+            }
+          : tier
+      )
+    );
+    toast.success('Tier updated successfully! Changes will reflect on vendor side.');
+  };
+
+  const handleManualOverride = async (e) => {
+    e.preventDefault();
+    if (!overrideForm.subscriptionId || !overrideForm.action) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setOverrideLoading(true);
+      const details = overrideForm.action === 'extend_custom' ? { days: parseInt(overrideForm.days) } : {};
+      
+      const response = await api.post('/admin/subscriptions/manual-override', {
+        subscriptionId: overrideForm.subscriptionId,
+        action: overrideForm.action,
+        details
+      });
+
+      if (response.success) {
+        toast.success(response.message || 'Action applied successfully');
+        setOverrideForm({ subscriptionId: '', action: '', days: '' });
+        // Reload monitoring data if on monitoring tab
+        if (activeTab === 'monitoring') {
+          loadMonitoring();
+        }
+      } else {
+        throw new Error(response.message || 'Failed to apply action');
+      }
+    } catch (error) {
+      console.error('Error applying manual override:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to apply action');
+    } finally {
+      setOverrideLoading(false);
+    }
+  };
 
   const stats = [
-    { title: 'Total Revenue', value: `₹${analytics?.revenue.toLocaleString()}`, icon: <IndianRupee />, color: 'blue' },
-    { title: 'Active Subscriptions', value: analytics?.activeSubscriptions, icon: <FiUsers />, color: 'green' },
-    { title: 'Monthly Growth', value: '+12%', icon: <FiTrendingUp />, color: 'purple' },
-    { title: 'Churn Rate', value: '2.4%', icon: <FiActivity />, color: 'red' }
+    { title: 'Total Revenue', value: `₹${(analytics?.revenue || 0).toLocaleString()}`, icon: <IndianRupee />, color: 'blue' },
+    { title: 'Active Subscriptions', value: analytics?.activeSubscriptions || 0, icon: <FiUsers />, color: 'green' },
+    { title: 'Monthly Growth', value: analytics?.monthlyGrowth || '+0%', icon: <FiTrendingUp />, color: 'purple' },
+    { title: 'Churn Rate', value: analytics?.churnRate || '0%', icon: <FiActivity />, color: 'red' }
   ];
 
   const columns = [
     { label: 'Vendor', key: 'vendor' },
-    { label: 'Amount', key: 'amount', render: (val) => `$${val}` },
+    { label: 'Amount', key: 'amount', render: (val) => `₹${val}` },
     { label: 'Tier', key: 'tier' },
     { label: 'Date', key: 'date' },
     { 
@@ -219,7 +345,11 @@ const Subscriptions = () => {
                       {tier.isActive ? 'ACTIVE' : 'INACTIVE'}
                     </span>
                   </div>
-                  <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => handleEditTier(tier)}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit tier settings"
+                  >
                     <FiSettings className="text-lg" />
                   </button>
                 </div>
@@ -242,7 +372,10 @@ const Subscriptions = () => {
                     </li>
                   ))}
                 </ul>
-                <button className="w-full py-2.5 bg-blue-50 text-blue-700 font-bold rounded-xl hover:bg-blue-100 transition-all active:scale-[0.98]">
+                <button 
+                  onClick={() => handleEditTier(tier)}
+                  className="w-full py-2.5 bg-blue-50 text-blue-700 font-bold rounded-xl hover:bg-blue-100 transition-all active:scale-[0.98]"
+                >
                   Edit Plan Details
                 </button>
               </div>
@@ -254,20 +387,36 @@ const Subscriptions = () => {
       {activeTab === 'monitoring' && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <DataTable 
-              columns={[
-                { label: 'Vendor', key: 'vendor' },
-                { label: 'Status', key: 'status' },
-                { label: 'Tier', key: 'tier' },
-                { label: 'Expiry Date', key: 'expiry' },
-                { label: 'Auto Renew', key: 'renew', render: (val) => val ? 'Yes' : 'No' }
-              ]} 
-              data={[
-                { vendor: 'Tech Store', status: 'Active', tier: 'Professional', expiry: '2024-06-01', renew: true },
-                { vendor: 'Fashion Hub', status: 'Expiring Soon', tier: 'Premium', expiry: '2023-12-15', renew: false },
-                { vendor: 'Gadget World', status: 'Active', tier: 'Starter', expiry: '2024-01-10', renew: true }
-              ]} 
-            />
+            {monitoringLoading ? (
+              <div className="text-center py-12">
+                <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-4 text-gray-500">Loading subscriptions...</p>
+              </div>
+            ) : (
+              <DataTable 
+                columns={[
+                  { label: 'Vendor', key: 'vendor' },
+                  { 
+                    label: 'Status', 
+                    key: 'status',
+                    render: (val) => (
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        val === 'active' ? 'bg-green-100 text-green-800' : 
+                        val === 'expired' ? 'bg-red-100 text-red-800' :
+                        val === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {val?.charAt(0).toUpperCase() + val?.slice(1)}
+                      </span>
+                    )
+                  },
+                  { label: 'Tier', key: 'tier' },
+                  { label: 'Expiry Date', key: 'expiry' },
+                  { label: 'Auto Renew', key: 'renew', render: (val) => val ? 'Yes' : 'No' }
+                ]} 
+                data={monitoringData} 
+              />
+            )}
           </div>
         </motion.div>
       )}
@@ -278,51 +427,75 @@ const Subscriptions = () => {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold mb-4">Manual Override</h3>
               <p className="text-sm text-gray-500 mb-6">Manually adjust subscription end dates or status for specific vendors.</p>
-              <div className="space-y-4">
+              <form onSubmit={handleManualOverride} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor ID / Email</label>
-                  <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Enter vendor details..." />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subscription ID</label>
+                  <input 
+                    type="text" 
+                    value={overrideForm.subscriptionId}
+                    onChange={(e) => setOverrideForm({ ...overrideForm, subscriptionId: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                    placeholder="Enter subscription ID..." 
+                    required
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
-                  <select className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option>Extend 30 Days</option>
-                    <option>Grant Premium Trial</option>
-                    <option>Refund Last Payment</option>
-                    <option>Cancel Subscription</option>
+                  <select 
+                    value={overrideForm.action}
+                    onChange={(e) => setOverrideForm({ ...overrideForm, action: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    required
+                  >
+                    <option value="">Select an action...</option>
+                    <option value="extend_30_days">Extend 30 Days</option>
+                    <option value="extend_custom">Extend Custom Days</option>
+                    <option value="grant_premium_trial">Grant Premium Trial</option>
+                    <option value="cancel_subscription">Cancel Subscription</option>
+                    <option value="reactivate">Reactivate Subscription</option>
                   </select>
                 </div>
-                <button className="w-full py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors">
-                  Apply Action
+                {overrideForm.action === 'extend_custom' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Days</label>
+                    <input 
+                      type="number" 
+                      value={overrideForm.days}
+                      onChange={(e) => setOverrideForm({ ...overrideForm, days: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                      placeholder="Enter number of days..." 
+                      min="1"
+                      required
+                    />
+                  </div>
+                )}
+                <button 
+                  type="submit"
+                  disabled={overrideLoading}
+                  className="w-full py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {overrideLoading ? 'Processing...' : 'Apply Action'}
                 </button>
-              </div>
+              </form>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold mb-4">Support Tickets (Subscriptions)</h3>
-              <div className="space-y-4">
-                {[
-                  { id: '1', vendor: 'Electronics Plus', issue: 'Payment failed but amount deducted', priority: 'High' },
-                  { id: '2', vendor: 'Home Decor', issue: 'Requesting refund for accidental upgrade', priority: 'Medium' }
-                ].map((ticket) => (
-                  <div key={ticket.id} className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-bold text-gray-800">{ticket.vendor}</h4>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${ticket.priority === 'High' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                        {ticket.priority}
-                      priority</span>
-                    </div>
-                    <p className="text-xs text-gray-600">{ticket.issue}</p>
-                  </div>
-                ))}
-                <button className="w-full py-2 text-blue-600 font-semibold text-sm hover:underline">
-                  View All Subscription Tickets
-                </button>
-              </div>
+              <SupportTickets />
             </div>
           </div>
         </motion.div>
       )}
+
+      {/* Edit Tier Modal */}
+      <EditTierModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedTier(null);
+        }}
+        tier={selectedTier}
+        onSuccess={handleTierUpdateSuccess}
+      />
     </div>
   );
 };

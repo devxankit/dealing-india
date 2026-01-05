@@ -14,5 +14,7 @@ router.get('/tiers', AdminSubscriptionController.getTiers);
 router.post('/tiers', logSubscriptionChange('create_tier'), AdminSubscriptionController.createTier);
 router.put('/tiers/:id', logSubscriptionChange('update_tier'), AdminSubscriptionController.updateTier);
 router.get('/analytics', AdminSubscriptionController.getAnalytics);
+router.get('/monitoring', AdminSubscriptionController.getMonitoring);
+router.post('/manual-override', logSubscriptionChange('manual_override'), AdminSubscriptionController.manualOverride);
 
 export default router;

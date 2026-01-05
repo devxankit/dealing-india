@@ -45,6 +45,15 @@ const vendorSubscriptionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    razorpayOrderId: {
+      type: String,
+    },
+    razorpayPaymentId: {
+      type: String,
+    },
+    razorpaySignature: {
+      type: String,
+    },
     lastPaymentDate: {
       type: Date,
     },

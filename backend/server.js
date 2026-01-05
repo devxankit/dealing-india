@@ -46,7 +46,9 @@ import publicReviewRoutes from './routes/publicReview.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import cartRoutes from './routes/cart.routes.js';
 import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
+import adminSupportTicketRoutes from './routes/adminSupportTicket.routes.js';
 import vendorSubscriptionRoutes from './routes/vendorSubscription.routes.js';
+import vendorSupportTicketRoutes from './routes/vendorSupportTicket.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import addressRoutes from './routes/address.routes.js';
 import walletRoutes from './routes/wallet.routes.js';
@@ -199,7 +201,9 @@ app.use('/api/user/addresses', addressRoutes);
 app.use('/api/user/wallet', walletRoutes);
 app.use('/api/user/notifications', userNotificationRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
+app.use('/api/admin/support-tickets', adminSupportTicketRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
+app.use('/api/vendor/support-tickets', vendorSupportTicketRoutes);
 app.use('/api/user/returns', returnRequestRoutes);
 
 // Vendor management routes (require vendor authentication)

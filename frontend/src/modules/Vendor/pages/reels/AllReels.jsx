@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit, FiTrash2, FiPlus, FiEye, FiVideo, FiBarChart2, FiTrendingUp, FiPlay } from "react-icons/fi";
+import { FiSearch, FiEdit, FiTrash2, FiPlus, FiEye, FiVideo, FiBarChart2, FiTrendingUp, FiPlay, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 import DataTable from "../../../../modules/Admin/components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../../../modules/Admin/components/ConfirmModal";
@@ -10,6 +10,7 @@ import {
   getVendorReels as getVendorReelsAPI,
   deleteVendorReel as deleteVendorReelAPI,
 } from "../../services/reelService";
+import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
 
 const AllReels = () => {
@@ -21,6 +22,7 @@ const AllReels = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [subscription, setSubscription] = useState(null);
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     reelId: null,
@@ -31,8 +33,34 @@ const AllReels = () => {
   useEffect(() => {
     if (vendorId) {
       loadReels();
+      loadSubscription();
     }
   }, [vendorId, currentPage, selectedStatus]);
+
+  const loadSubscription = async () => {
+    if (!vendorId) return;
+    
+    try {
+      const response = await api.get('/vendor/subscriptions/current');
+      if (response.success && response.data) {
+        const sub = response.data;
+        setSubscription({
+          tierName: sub.tierId?.name || 'Free',
+          status: sub.status,
+          endDate: sub.endDate ? new Date(sub.endDate) : null,
+          usage: {
+            reelsUploaded: sub.usage?.reelsUploaded || 0,
+            limit: sub.tierId?.reelLimit === -1 ? -1 : (sub.tierId?.reelLimit || 0)
+          }
+        });
+      } else {
+        setSubscription(null);
+      }
+    } catch (error) {
+      console.error('Error loading subscription:', error);
+      setSubscription(null);
+    }
+  };
 
   // Debounce search
   useEffect(() => {
@@ -241,6 +269,38 @@ const AllReels = () => {
           <p className="text-sm text-gray-500 mt-1">
             Manage your product reels and analyze engagement performance.
           </p>
+          {subscription && (
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              {subscription.status === 'active' && subscription.endDate && subscription.endDate > new Date() ? (
+                <>
+                  <FiCheckCircle className="text-green-600" />
+                  <span className="text-gray-700">
+                    <span className="font-semibold">{subscription.tierName}</span> Plan • 
+                    {subscription.usage.limit === -1 ? (
+                      <span className="text-green-600"> Unlimited reels</span>
+                    ) : (
+                      <span> {subscription.usage.reelsUploaded} / {subscription.usage.limit} reels used</span>
+                    )}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <FiAlertCircle className="text-red-600" />
+                  <span className="text-red-700">
+                    {!subscription ? 'No active subscription' : 
+                     subscription.status !== 'active' ? `Subscription is ${subscription.status}` :
+                     'Subscription expired'}
+                  </span>
+                  <button
+                    onClick={() => navigate('/vendor/subscription')}
+                    className="text-blue-600 hover:text-blue-700 font-semibold underline"
+                  >
+                    Subscribe Now
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <button
           onClick={() => navigate("/vendor/reels/add-reel")}

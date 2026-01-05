@@ -1,5 +1,6 @@
 import Reel from '../models/Reel.model.js';
 import Product from '../models/Product.model.js';
+import SubscriptionService from './subscription.service.js';
 
 /**
  * Get all reels for a vendor with optional filters
@@ -175,6 +176,35 @@ export const createVendorReel = async (reelData, vendorId) => {
       throw err;
     }
 
+    // Validate subscription before creating reel
+    const subscription = await SubscriptionService.getVendorSubscription(vendorId);
+    
+    if (!subscription) {
+      const err = new Error('You must have an active subscription to upload reels. Please subscribe to a plan first.');
+      err.status = 403;
+      err.code = 'NO_SUBSCRIPTION';
+      throw err;
+    }
+
+    // Check if subscription is expired
+    const now = new Date();
+    if (subscription.endDate && new Date(subscription.endDate) < now) {
+      const err = new Error('Your subscription has expired. Please renew your subscription to continue uploading reels.');
+      err.status = 403;
+      err.code = 'SUBSCRIPTION_EXPIRED';
+      err.expiredDate = subscription.endDate;
+      throw err;
+    }
+
+    // Check if subscription status is active
+    if (subscription.status !== 'active') {
+      const err = new Error(`Your subscription is ${subscription.status}. Please activate your subscription to upload reels.`);
+      err.status = 403;
+      err.code = 'SUBSCRIPTION_INACTIVE';
+      err.subscriptionStatus = subscription.status;
+      throw err;
+    }
+
     // Create reel
     const reel = await Reel.create({
       videoUrl: videoUrl.trim(),
@@ -187,6 +217,26 @@ export const createVendorReel = async (reelData, vendorId) => {
       shares: parseInt(shares) || 0,
       views: parseInt(views) || 0,
     });
+
+    // Check if payment is required for this upload
+    const paymentCheck = await SubscriptionService.checkReelUploadPayment(vendorId);
+    const paymentVerified = reelData.paymentVerified || !paymentCheck.requiresPayment;
+    
+    // Track reel upload in subscription usage
+    try {
+      await SubscriptionService.trackReelUpload(vendorId, paymentVerified);
+    } catch (trackError) {
+      // If tracking fails due to payment requirement, throw error
+      if (trackError.message.includes('Payment required')) {
+        const err = new Error(trackError.message);
+        err.status = 402; // Payment Required
+        err.code = 'PAYMENT_REQUIRED';
+        err.extraCharge = paymentCheck.extraCharge;
+        throw err;
+      }
+      // For other errors, log but don't fail the reel creation
+      console.error('Error tracking reel upload:', trackError);
+    }
 
     const populatedReel = await Reel.findById(reel._id)
       .populate('productId', 'name price image')

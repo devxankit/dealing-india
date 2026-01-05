@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiVideo, FiImage } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiVideo, FiImage, FiAlertCircle, FiCheckCircle, FiCreditCard } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { createVendorReel } from "../../services/reelService";
 import { getVendorProducts } from "../../services/productService";
 import AnimatedSelect from "../../../../modules/Admin/components/AnimatedSelect";
+import api from "../../../../shared/utils/api";
+import { initializeRazorpayCheckout, handlePaymentSuccess } from "../../../../shared/services/paymentService";
 import toast from "react-hot-toast";
 
 const AddReel = () => {
@@ -16,6 +18,12 @@ const AddReel = () => {
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [videoPreview, setVideoPreview] = useState("");
   const [thumbnailPreview, setThumbnailPreview] = useState("");
+  const [subscription, setSubscription] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const [paymentRequired, setPaymentRequired] = useState(false);
+  const [extraCharge, setExtraCharge] = useState(0);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentVerified, setPaymentVerified] = useState(false);
   const [formData, setFormData] = useState({
     productId: "",
     productName: "",
@@ -30,7 +38,57 @@ const AddReel = () => {
 
   useEffect(() => {
     loadVendorProducts();
+    loadSubscription();
   }, [vendor?.id]);
+
+  useEffect(() => {
+    if (subscription && subscription.status === 'active') {
+      checkPaymentRequirement();
+    }
+  }, [subscription]);
+
+  const loadSubscription = async () => {
+    if (!vendor?.id) return;
+    
+    try {
+      setSubscriptionLoading(true);
+      const response = await api.get('/vendor/subscriptions/current');
+      if (response.success && response.data) {
+        const sub = response.data;
+        setSubscription({
+          tierName: sub.tierId?.name || 'Free',
+          status: sub.status,
+          endDate: sub.endDate ? new Date(sub.endDate) : null,
+          usage: {
+            reelsUploaded: sub.usage?.reelsUploaded || 0,
+            limit: sub.tierId?.reelLimit === -1 ? -1 : (sub.tierId?.reelLimit || 0)
+          }
+        });
+      } else {
+        setSubscription(null);
+      }
+    } catch (error) {
+      console.error('Error loading subscription:', error);
+      setSubscription(null);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const checkPaymentRequirement = async () => {
+    if (!vendor?.id || !subscription) return;
+    
+    try {
+      const response = await api.get('/vendor/subscriptions/check-reel-payment');
+      if (response.success && response.data) {
+        setPaymentRequired(response.data.requiresPayment);
+        setExtraCharge(response.data.extraCharge || 0);
+        setPaymentVerified(false); // Reset on check
+      }
+    } catch (error) {
+      console.error('Error checking payment requirement:', error);
+    }
+  };
 
   const loadVendorProducts = async () => {
     if (!vendor?.id) return;
@@ -124,8 +182,81 @@ const AddReel = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handlePayment = async () => {
+    if (processingPayment) return;
+
+    try {
+      setProcessingPayment(true);
+      
+      // Initialize payment
+      const response = await api.post('/vendor/subscriptions/initialize-extra-reel-payment');
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to initialize payment');
+      }
+
+      const { razorpay, razorpayKeyId, extraCharge: chargeAmount } = response.data;
+
+      if (!razorpay || !razorpay.orderId || !razorpayKeyId) {
+        throw new Error('Payment gateway not configured properly');
+      }
+
+      // Get vendor info for prefill
+      const vendorInfo = JSON.parse(localStorage.getItem('vendor') || '{}');
+
+      await initializeRazorpayCheckout({
+        key: razorpayKeyId,
+        amount: razorpay.amount / 100, // Convert from paise to rupees
+        currency: razorpay.currency || 'INR',
+        name: 'Appzeto',
+        description: `Extra Reel Payment - ₹${chargeAmount}`,
+        orderId: razorpay.orderId,
+        prefill: {
+          name: vendorInfo.businessName || vendorInfo.storeName || '',
+          email: vendorInfo.email || '',
+          contact: vendorInfo.phone || '',
+        },
+        handler: async (paymentResponse) => {
+          try {
+            const paymentData = handlePaymentSuccess(paymentResponse);
+            
+            const verifyResponse = await api.post('/vendor/subscriptions/verify-extra-reel-payment', {
+              razorpayOrderId: paymentData.razorpayOrderId,
+              razorpayPaymentId: paymentData.razorpayPaymentId,
+              razorpaySignature: paymentData.razorpaySignature,
+            });
+
+            if (verifyResponse.success) {
+              toast.success('Payment successful! You can now upload the reel.');
+              setPaymentVerified(true);
+              setPaymentRequired(false);
+              // After payment, proceed with upload
+              await proceedWithUpload(true);
+            } else {
+              throw new Error(verifyResponse.message || 'Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            toast.error(error.response?.data?.message || error.message || 'Payment verification failed');
+          } finally {
+            setProcessingPayment(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setProcessingPayment(false);
+            toast.error('Payment cancelled');
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Payment error:', error);
+      setProcessingPayment(false);
+      toast.error(error.response?.data?.message || error.message || 'Failed to process payment');
+    }
+  };
+
+  const proceedWithUpload = async (isPaymentVerified = false) => {
     setLoading(true);
 
     try {
@@ -153,17 +284,90 @@ const AddReel = () => {
       formDataToSend.append('comments', formData.comments);
       formDataToSend.append('shares', formData.shares);
       formDataToSend.append('views', 0);
+      formDataToSend.append('paymentVerified', isPaymentVerified);
 
       await createVendorReel(formDataToSend);
       toast.success("Reel added successfully!");
+      // Reload subscription to update usage
+      await loadSubscription();
+      await checkPaymentRequirement();
+      setPaymentVerified(false);
       navigate("/vendor/reels/all-reels");
     } catch (error) {
       console.error("Error adding reel:", error);
-      toast.error(error.response?.data?.message || "Failed to add reel. Please try again.");
+      const errorMessage = error.response?.data?.message || "Failed to add reel. Please try again.";
+      toast.error(errorMessage);
+      
+      // If payment required error, show payment option
+      if (error.response?.data?.code === 'PAYMENT_REQUIRED') {
+        setPaymentRequired(true);
+        setExtraCharge(error.response?.data?.extraCharge || 0);
+      }
+      
+      // If subscription-related error, redirect to subscription page
+      if (error.response?.data?.code === 'NO_SUBSCRIPTION' || 
+          error.response?.data?.code === 'SUBSCRIPTION_EXPIRED' ||
+          error.response?.data?.code === 'SUBSCRIPTION_INACTIVE') {
+        setTimeout(() => navigate('/vendor/subscription'), 2000);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      // Check subscription status before proceeding
+      if (!subscription) {
+        toast.error("You must have an active subscription to upload reels. Please subscribe to a plan first.");
+        navigate('/vendor/subscription');
+        return;
+      }
+
+      if (subscription.status !== 'active') {
+        toast.error(`Your subscription is ${subscription.status}. Please activate your subscription to upload reels.`);
+        navigate('/vendor/subscription');
+        return;
+      }
+
+      if (subscription.endDate && subscription.endDate < new Date()) {
+        toast.error("Your subscription has expired. Please renew your subscription to continue uploading reels.");
+        navigate('/vendor/subscription');
+        return;
+      }
+
+      // Check if payment is required
+      if (paymentRequired && !paymentVerified) {
+        // Trigger payment flow
+        await handlePayment();
+        return;
+      }
+
+      // Proceed with upload
+      await proceedWithUpload(paymentVerified);
+    } catch (error) {
+      console.error("Error in handleSubmit:", error);
+    }
+  };
+
+  const canUploadReel = () => {
+    if (!subscription) return false;
+    if (subscription.status !== 'active') return false;
+    if (subscription.endDate && subscription.endDate < new Date()) return false;
+    return true;
+  };
+
+  const getReelLimitStatus = () => {
+    if (!subscription || subscription.usage.limit === -1) return null;
+    const { reelsUploaded, limit } = subscription.usage;
+    const percentage = (reelsUploaded / limit) * 100;
+    return { reelsUploaded, limit, percentage };
+  };
+
+  const limitStatus = getReelLimitStatus();
+  const canUpload = canUploadReel();
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -181,6 +385,93 @@ const AddReel = () => {
           <span className="font-medium">Cancel</span>
         </button>
       </div>
+
+      {/* Subscription Status Banner */}
+      {subscriptionLoading ? (
+        <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm text-gray-600">Loading subscription status...</span>
+          </div>
+        </div>
+      ) : !canUpload ? (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+          <div className="flex items-start gap-3">
+            <FiAlertCircle className="text-red-600 text-xl mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-red-900 mb-1">Subscription Required</h3>
+              <p className="text-sm text-red-700 mb-3">
+                {!subscription 
+                  ? "You must have an active subscription to upload reels. Please subscribe to a plan first."
+                  : subscription.status !== 'active'
+                  ? `Your subscription is ${subscription.status}. Please activate your subscription to upload reels.`
+                  : "Your subscription has expired. Please renew your subscription to continue uploading reels."
+                }
+              </p>
+              <button
+                onClick={() => navigate('/vendor/subscription')}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold"
+              >
+                Go to Subscription
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <div className="flex items-start gap-3">
+            <FiCheckCircle className="text-blue-600 text-xl mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-blue-900">Active Subscription: {subscription.tierName}</h3>
+                {limitStatus && (
+                  <span className="text-sm font-medium text-blue-700">
+                    {limitStatus.reelsUploaded} / {limitStatus.limit === -1 ? '∞' : limitStatus.limit} reels
+                  </span>
+                )}
+              </div>
+              {limitStatus && (
+                <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all ${
+                      limitStatus.percentage >= 90 ? 'bg-red-500' : 'bg-blue-600'
+                    }`}
+                    style={{ width: `${Math.min(limitStatus.percentage, 100)}%` }}
+                  ></div>
+                </div>
+              )}
+              {limitStatus && limitStatus.percentage >= 90 && (
+                <p className="text-xs text-blue-700">
+                  {limitStatus.percentage >= 100 
+                    ? "You've reached your reel limit. Additional reels will be charged extra."
+                    : "You're approaching your reel limit. Additional reels will be charged extra."
+                  }
+                </p>
+              )}
+              {paymentRequired && !paymentVerified && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm font-semibold text-yellow-900 mb-1">
+                    Payment Required for This Reel
+                  </p>
+                  <p className="text-xs text-yellow-700">
+                    {subscription.usage.limit === 0 
+                      ? "Free plan requires payment of ₹" + extraCharge + " for each reel upload."
+                      : "You've reached your plan limit. Additional reels cost ₹" + extraCharge + " each."
+                    }
+                  </p>
+                </div>
+              )}
+              {paymentVerified && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm font-semibold text-green-900">
+                    ✓ Payment verified! You can now upload the reel.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -202,7 +493,10 @@ const AddReel = () => {
                 </label>
                 <AnimatedSelect
                   value={formData.productId}
-                  onChange={(value) => setFormData((prev) => ({ ...prev, productId: value }))}
+                  onChange={(e) => {
+                    const value = e?.target?.value || e;
+                    setFormData((prev) => ({ ...prev, productId: value }));
+                  }}
                   options={[
                     { value: "", label: "Select a product to feature" },
                     ...vendorProducts.map((product) => ({
@@ -211,6 +505,8 @@ const AddReel = () => {
                     })),
                   ]}
                   className="bg-gray-50 border-gray-200 text-gray-900"
+                  name="productId"
+                  required
                 />
               </div>
 
@@ -285,13 +581,17 @@ const AddReel = () => {
                 <div className="w-full md:w-1/2">
                   <AnimatedSelect
                     value={formData.status}
-                    onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+                    onChange={(e) => {
+                      const value = e?.target?.value || e;
+                      setFormData((prev) => ({ ...prev, status: value }));
+                    }}
                     options={[
                       { value: "draft", label: "Save as Draft" },
                       { value: "active", label: "Publish Immediately" },
                       { value: "archived", label: "Archived" },
                     ]}
                     className="bg-gray-50 border-gray-200 text-gray-900"
+                    name="status"
                   />
                 </div>
               </div>
@@ -348,11 +648,41 @@ const AddReel = () => {
             </button>
             <button
               type="submit"
-              disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-purple-600/20 transition-all active:scale-95 flex items-center gap-2"
+              disabled={loading || !canUpload || processingPayment}
+              className={`${
+                canUpload 
+                  ? paymentRequired && !paymentVerified
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-purple-600 hover:bg-purple-700"
+                  : "bg-gray-400 cursor-not-allowed"
+              } text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2`}
             >
-              <FiSave />
-              {loading ? "Saving..." : "Publish Reel"}
+              {processingPayment ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Processing Payment...
+                </>
+              ) : loading ? (
+                <>
+                  <FiSave />
+                  Saving...
+                </>
+              ) : !canUpload ? (
+                <>
+                  <FiAlertCircle />
+                  Subscription Required
+                </>
+              ) : paymentRequired && !paymentVerified ? (
+                <>
+                  <FiCreditCard />
+                  Pay & Publish Reel (₹{extraCharge})
+                </>
+              ) : (
+                <>
+                  <FiSave />
+                  Publish Reel
+                </>
+              )}
             </button>
           </div>
         </div>
