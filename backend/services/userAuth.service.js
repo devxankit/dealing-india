@@ -48,16 +48,27 @@ export const registerUser = async (userData) => {
     }
 
     // Check if there's already a pending temporary registration
-    const existingTempReg = await TemporaryRegistration.findOne({
-      email: email.toLowerCase(),
-      registrationType: 'user',
-      isVerified: false,
-      expiresAt: { $gt: new Date() },
-    });
+    let existingTempReg = null;
+    try {
+      existingTempReg = await TemporaryRegistration.findOne({
+        email: email.toLowerCase(),
+        registrationType: 'user',
+        isVerified: false,
+        expiresAt: { $gt: new Date() },
+      });
+    } catch (tempRegError) {
+      console.error('Error checking temporary registration:', tempRegError.message);
+      // Continue - might be first time
+    }
 
     if (existingTempReg) {
       // Delete old temporary registration
-      await TemporaryRegistration.deleteOne({ _id: existingTempReg._id });
+      try {
+        await TemporaryRegistration.deleteOne({ _id: existingTempReg._id });
+      } catch (deleteError) {
+        console.error('Error deleting old temporary registration:', deleteError.message);
+        // Continue - will create new one
+      }
     }
 
     // Store registration data temporarily (expires in 15 minutes)
@@ -67,18 +78,29 @@ export const registerUser = async (userData) => {
     // Hash password before storing
     const hashedPassword = await hashPassword(password);
 
-    await TemporaryRegistration.create({
-      email: email.toLowerCase().trim(),
-      registrationType: 'user',
-      registrationData: {
-        name: name.trim(),
+    // Create temporary registration
+    let tempReg = null;
+    try {
+      tempReg = await TemporaryRegistration.create({
         email: email.toLowerCase().trim(),
-        password: hashedPassword, // Store hashed password
-        phone: phone ? phone.trim() : undefined,
-      },
-      expiresAt,
-      isVerified: false,
-    });
+        registrationType: 'user',
+        registrationData: {
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          password: hashedPassword, // Store hashed password
+          phone: phone ? phone.trim() : undefined,
+        },
+        expiresAt,
+        isVerified: false,
+      });
+    } catch (createError) {
+      console.error('Error creating temporary registration:', {
+        message: createError.message,
+        name: createError.name,
+        code: createError.code,
+      });
+      throw new Error('Failed to initiate registration. Please try again.');
+    }
 
     // Generate and send verification OTP
     const otp = await generateOTP(email, 'email_verification');
@@ -86,7 +108,15 @@ export const registerUser = async (userData) => {
 
     if (!emailResult.success) {
       // If email fails, delete temporary registration
-      await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
+      try {
+        if (tempReg && tempReg._id) {
+          await TemporaryRegistration.deleteOne({ _id: tempReg._id });
+        } else {
+          await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
+        }
+      } catch (deleteError) {
+        console.error('Error deleting temporary registration after email failure:', deleteError.message);
+      }
       throw new Error('Failed to send verification email. Please try again.');
     }
 
@@ -98,6 +128,13 @@ export const registerUser = async (userData) => {
       email: email.toLowerCase(),
     };
   } catch (error) {
+    // Enhanced error logging for debugging
+    console.error('❌ Error in registerUser:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
     throw error;
   }
 };

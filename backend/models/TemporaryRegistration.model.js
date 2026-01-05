@@ -21,7 +21,6 @@ const temporaryRegistrationSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       required: true,
-      index: { expireAfterSeconds: 0 }, // TTL index for auto-deletion after expiration
     },
     isVerified: {
       type: Boolean,
@@ -37,7 +36,12 @@ const temporaryRegistrationSchema = new mongoose.Schema(
 temporaryRegistrationSchema.index({ email: 1, registrationType: 1, isVerified: 1 });
 temporaryRegistrationSchema.index({ expiresAt: 1 });
 
-const TemporaryRegistration = mongoose.model('TemporaryRegistration', temporaryRegistrationSchema);
+// Note: TTL index will be created manually after model is initialized
+// to avoid initialization errors. The index will auto-delete expired documents.
+
+// Check if model already exists to avoid overwriting
+const TemporaryRegistration = mongoose.models.TemporaryRegistration || 
+  mongoose.model('TemporaryRegistration', temporaryRegistrationSchema);
 
 export default TemporaryRegistration;
 

@@ -274,6 +274,30 @@ const startServer = async () => {
       }
     }
 
+    // Create TTL index for TemporaryRegistration collection
+    try {
+      const tempRegCollection = mongoose.connection.collection('temporaryregistrations');
+      // Check if TTL index already exists
+      const indexes = await tempRegCollection.indexes();
+      const ttlIndexExists = indexes.some(idx => 
+        idx.key && idx.key.expiresAt === 1 && idx.expireAfterSeconds !== undefined
+      );
+      
+      if (!ttlIndexExists) {
+        await tempRegCollection.createIndex(
+          { expiresAt: 1 },
+          { expireAfterSeconds: 0 }
+        );
+        console.log('✅ Created TTL index for TemporaryRegistration');
+      }
+    } catch (ttlIndexError) {
+      // Index might already exist or collection doesn't exist yet, ignore
+      if (!ttlIndexError.message.includes('already exists') && 
+          !ttlIndexError.message.includes('not found')) {
+        console.log('Note: TTL index creation:', ttlIndexError.message);
+      }
+    }
+
     // Setup Socket.io
     const io = setupSocketIO(httpServer);
     // Make io instance available to routes/controllers

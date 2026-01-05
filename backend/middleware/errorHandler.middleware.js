@@ -8,8 +8,10 @@ export const errorHandler = (err, req, res, next) => {
   
   // Log error for debugging (skip expected policy 404s)
   if (!isPolicy404) {
-    console.error('Error:', {
+    console.error('❌ Error:', {
       message: err.message,
+      name: err.name,
+      code: err.code,
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
       url: req.originalUrl,
       method: req.method,

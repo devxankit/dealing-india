@@ -131,6 +131,20 @@ export const useAuthStore = create(
             isAuthenticated: false,
           });
           localStorage.removeItem('token');
+          
+          // Reset cart store when user logs out
+          try {
+            // Dynamic import to avoid circular dependency
+            const cartStoreModule = await import('./cartStore.js');
+            if (cartStoreModule?.useCartStore) {
+              const cartStore = cartStoreModule.useCartStore.getState();
+              if (cartStore?.reset) {
+                cartStore.reset();
+              }
+            }
+          } catch (e) {
+            // Cart store might not be loaded yet, ignore silently
+          }
         }
       },
 
