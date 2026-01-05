@@ -2,12 +2,28 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from './constants';
 
-// Create axios instance
+// Log API base URL for debugging (only in development or if URL seems wrong)
+if (typeof window !== 'undefined') {
+  const isLocalhost = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
+  const isProduction = window.location.hostname.includes('vercel.app') || 
+                       window.location.hostname.includes('onrender.com');
+  
+  if (isProduction && isLocalhost) {
+    console.error('❌ CRITICAL: API_BASE_URL is localhost in production!');
+    console.error('Current API_BASE_URL:', API_BASE_URL);
+    console.error('Please set VITE_API_BASE_URL in Vercel environment variables.');
+  } else if (process.env.NODE_ENV === 'development') {
+    console.log('🔗 API Base URL:', API_BASE_URL);
+  }
+}
+
+// Create axios instance with timeout
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 seconds timeout
 });
 
 // Request interceptor
@@ -56,6 +72,29 @@ api.interceptors.response.use(
     return response.data;
   },
   (error) => {
+    // Handle timeout and network errors
+    if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || !error.response) {
+      const message = error.code === 'ECONNABORTED' 
+        ? 'Request timeout. Please check your internet connection and try again.'
+        : 'Network error. Please check your internet connection and try again.';
+      
+      // Don't show toast for login/register pages - let components handle it
+      const currentPath = window.location.pathname;
+      const isAuthPage = currentPath.includes('/login') || 
+                         currentPath.includes('/register') ||
+                         currentPath.includes('/forgot-password') ||
+                         currentPath.includes('/reset-password');
+      
+      if (!isAuthPage) {
+        toast.error(message);
+      }
+      
+      // Create a proper error object
+      const networkError = new Error(message);
+      networkError.isNetworkError = true;
+      return Promise.reject(networkError);
+    }
+    
     const message =
       error.response?.data?.message ||
       error.message ||
@@ -133,8 +172,16 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     
-    // Show error toast for non-401 errors
-    toast.error(message);
+    // Show error toast for non-401 errors, but not on auth pages (to avoid duplicates)
+    const currentPath = window.location.pathname;
+    const isAuthPage = currentPath.includes('/login') || 
+                       currentPath.includes('/register') ||
+                       currentPath.includes('/forgot-password') ||
+                       currentPath.includes('/reset-password');
+    
+    if (!isAuthPage) {
+      toast.error(message);
+    }
     
     return Promise.reject(error);
   }

@@ -24,6 +24,9 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [reelComments, setReelComments] = useState({}); // { [reelId]: [comments] }
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [postingComment, setPostingComment] = useState(false);
 
   const videoRefs = useRef([]);
   const containerRef = useRef(null);
@@ -85,6 +88,79 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
 
     loadReels();
   }, [searchParams, defaultType]);
+
+  // Load comments for a reel
+  const loadComments = async (reelId) => {
+    if (!reelId) return;
+    
+    try {
+      setLoadingComments(true);
+      const response = await api.get(`/user/reels/${reelId}/comments`, {
+        params: {
+          page: 1,
+          limit: 50,
+        }
+      });
+
+      if (response?.success && response?.data?.comments) {
+        setReelComments(prev => ({
+          ...prev,
+          [reelId]: response.data.comments,
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading comments:', error);
+      toast.error('Failed to load comments');
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  // Post a comment
+  const postComment = async (reelId, text) => {
+    if (!reelId || !text) return;
+
+    try {
+      setPostingComment(true);
+      const response = await api.post(`/user/reels/${reelId}/comments`, {
+        text,
+      });
+
+      if (response?.success && response?.data) {
+        const newComment = response.data;
+        // Add comment to local state
+        setReelComments(prev => ({
+          ...prev,
+          [reelId]: [newComment, ...(prev[reelId] || [])],
+        }));
+        
+        // Update reel comment count
+        setReels(prev => prev.map(reel => {
+          const id = reel._id || reel.id;
+          if (id === reelId) {
+            return { ...reel, comments: (reel.comments || 0) + 1 };
+          }
+          return reel;
+        }));
+
+        toast.success("Comment posted!");
+        setCommentText("");
+      }
+    } catch (error) {
+      console.error('Error posting comment:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to post comment';
+      toast.error(errorMessage);
+      
+      // If authentication error, prompt user to login
+      if (error.response?.status === 401) {
+        setTimeout(() => {
+          navigate('/app/auth/login');
+        }, 2000);
+      }
+    } finally {
+      setPostingComment(false);
+    }
+  };
 
   // Handle Play/Pause on visibility change
   useEffect(() => {
@@ -399,13 +475,20 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                   </button>
 
                   <button
-                    onClick={() => setShowComments(true)}
+                    onClick={async () => {
+                      setShowComments(true);
+                      // Load comments when opening comments modal
+                      const reelId = reel._id || reel.id;
+                      if (!reelComments[reelId]) {
+                        await loadComments(reelId);
+                      }
+                    }}
                     className="flex flex-col items-center gap-1 group"
                   >
                     <div className="p-3 rounded-full bg-white/10 backdrop-blur-md">
                       <FiMessageCircle className="text-2xl text-white" />
                     </div>
-                    <span className="text-white text-xs font-medium">{reel.comments}</span>
+                    <span className="text-white text-xs font-medium">{reel.comments || 0}</span>
                   </button>
 
                   <button onClick={() => handleShare(reel)} className="flex flex-col items-center gap-1 group">
@@ -453,7 +536,9 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
               className="absolute bottom-0 left-0 right-0 h-[60vh] bg-white rounded-t-3xl z-50 flex flex-col overflow-hidden"
             >
               <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                <h3 className="font-bold text-gray-800">Comments ({reels[currentIndex]?.comments || 0})</h3>
+                <h3 className="font-bold text-gray-800">
+                  Comments ({reelComments[reels[currentIndex]?._id || reels[currentIndex]?.id]?.length || reels[currentIndex]?.comments || 0})
+                </h3>
                 <button
                   onClick={() => setShowComments(false)}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -463,34 +548,43 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Dummy Comments */}
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0">
-                    JS
+                {loadingComments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-900">John Smith <span className="text-gray-400 font-normal ml-1">2h ago</span></p>
-                    <p className="text-sm text-gray-700">This looks amazing! 🔥 Need to buy this asap.</p>
+                ) : reelComments[reels[currentIndex]?._id || reels[currentIndex]?.id]?.length > 0 ? (
+                  reelComments[reels[currentIndex]?._id || reels[currentIndex]?.id].map((comment) => {
+                    const initials = comment.userName
+                      .split(' ')
+                      .map(n => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2);
+                    const bgColors = ['bg-indigo-100', 'bg-pink-100', 'bg-green-100', 'bg-purple-100', 'bg-blue-100', 'bg-yellow-100'];
+                    const textColors = ['text-indigo-600', 'text-pink-600', 'text-green-600', 'text-purple-600', 'text-blue-600', 'text-yellow-600'];
+                    const colorIndex = comment.userName.charCodeAt(0) % bgColors.length;
+                    
+                    return (
+                      <div key={comment.id} className="flex gap-3">
+                        <div className={`w-8 h-8 rounded-full ${bgColors[colorIndex]} flex items-center justify-center ${textColors[colorIndex]} font-bold text-xs shrink-0`}>
+                          {initials}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-gray-900">
+                            {comment.userName} <span className="text-gray-400 font-normal ml-1">{comment.timeAgo}</span>
+                          </p>
+                          <p className="text-sm text-gray-700">{comment.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <FiMessageCircle className="text-4xl text-gray-300 mb-2" />
+                    <p className="text-gray-500 text-sm">No comments yet</p>
+                    <p className="text-gray-400 text-xs mt-1">Be the first to comment!</p>
                   </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-xs shrink-0">
-                    MD
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-900">Maria D <span className="text-gray-400 font-normal ml-1">5h ago</span></p>
-                    <p className="text-sm text-gray-700">Is this available in size M?</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs shrink-0">
-                    AK
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-900">Arun Kumar <span className="text-gray-400 font-normal ml-1">1d ago</span></p>
-                    <p className="text-sm text-gray-700">Great quality products usually from this vendor.</p>
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="p-3 border-t border-gray-100 bg-gray-50">
@@ -503,16 +597,19 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                     className="flex-1 bg-white border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-indigo-500"
                   />
                   <button
-                    disabled={!commentText.trim()}
-                    onClick={() => {
-                      if (commentText.trim()) {
-                        toast.success("Comment posted!");
-                        setCommentText("");
+                    disabled={!commentText.trim() || postingComment}
+                    onClick={async () => {
+                      if (commentText.trim() && !postingComment) {
+                        await postComment(reels[currentIndex]?._id || reels[currentIndex]?.id, commentText.trim());
                       }
                     }}
                     className="bg-indigo-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-md disabled:opacity-50 disabled:shadow-none"
                   >
-                    <FiSend className="text-sm transform translate-x-0.5 translate-y-0.5" />
+                    {postingComment ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <FiSend className="text-sm transform translate-x-0.5 translate-y-0.5" />
+                    )}
                   </button>
                 </div>
               </div>

@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore, useUIStore } from "../../store/useStore";
 import { useWishlistStore } from "../../store/wishlistStore";
+import { useAuthStore } from "../../store/authStore";
 import { formatPrice } from "../../utils/helpers";
 import { Link, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -179,10 +180,18 @@ const CartDrawer = () => {
   const { addItem: addToWishlist } = useWishlistStore();
   const total = getTotal();
 
-  // Initialize cart from backend when component mounts
+  // Initialize cart from backend when component mounts (only if user is authenticated)
+  const { isAuthenticated } = useAuthStore();
+  
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    // Only initialize cart if user is authenticated
+    if (isAuthenticated) {
+      initialize();
+    } else {
+      // If not authenticated, ensure cart is empty and initialized
+      useCartStore.setState({ items: [], isInitialized: true, isLoading: false });
+    }
+  }, [initialize, isAuthenticated]);
 
   // Group items by vendor
   const itemsByVendor = useMemo(

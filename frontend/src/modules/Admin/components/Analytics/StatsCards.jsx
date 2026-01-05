@@ -1,4 +1,4 @@
-import { FiShoppingBag, FiPackage, FiUsers } from 'react-icons/fi';
+import { FiShoppingBag, FiUsers } from 'react-icons/fi';
 import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatPrice } from '../../../../shared/utils/helpers';
@@ -26,16 +26,6 @@ const StatsCards = ({ stats }) => {
       iconBg: 'bg-white/20',
     },
     {
-      title: 'Total Products',
-      value: (stats.totalProducts || 0).toLocaleString(),
-      change: stats.productsChange || 0,
-      icon: FiPackage,
-      color: 'text-white',
-      bgColor: 'bg-gradient-to-br from-purple-500 to-violet-600',
-      cardBg: 'bg-gradient-to-br from-purple-50 to-violet-50',
-      iconBg: 'bg-white/20',
-    },
-    {
       title: 'Total Customers',
       value: (stats.totalCustomers || 0).toLocaleString(),
       change: stats.customersChange || 0,
@@ -48,7 +38,7 @@ const StatsCards = ({ stats }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
       {cards.map((card, index) => {
         const Icon = card.icon;
         const isPositive = card.change >= 0;

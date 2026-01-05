@@ -72,7 +72,8 @@ const VendorVerification = () => {
     try {
       const result = await verifyEmail(email, verificationCode);
       if (result.success) {
-        toast.success(result.message || 'Verification successful! Your account is pending admin approval.');
+        // Show registration successful message after OTP verification
+        toast.success('Registration successful! Your account has been created and is pending admin approval.');
         navigate('/vendor/login');
       }
     } catch (error) {

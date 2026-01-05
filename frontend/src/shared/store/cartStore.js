@@ -24,11 +24,20 @@ export const useCartStore = create(
 
       // Initialize cart from backend
       initialize: async () => {
-        const { isAuthenticated, token } = useAuthStore.getState();
+        // Get fresh auth state
+        const authState = useAuthStore.getState();
+        const { isAuthenticated, token } = authState;
         
-        // Check if user is authenticated and token is valid
-        if (!isAuthenticated || !token) {
-          set({ items: [], isInitialized: true });
+        // Check if user is authenticated
+        if (!isAuthenticated) {
+          set({ items: [], isInitialized: true, isLoading: false });
+          return;
+        }
+
+        // Check if token exists in localStorage as well (double check)
+        const tokenFromStorage = localStorage.getItem('token');
+        if (!token || !tokenFromStorage || token !== tokenFromStorage) {
+          set({ items: [], isInitialized: true, isLoading: false });
           return;
         }
 
@@ -45,6 +54,10 @@ export const useCartStore = create(
               set({ items: [], isLoading: false, isInitialized: true });
               return;
             }
+          } else {
+            // Invalid token format
+            set({ items: [], isLoading: false, isInitialized: true });
+            return;
           }
         } catch (e) {
           // Token parsing failed, might be invalid - skip API call
@@ -67,9 +80,20 @@ export const useCartStore = create(
             set({ items: [], isLoading: false, isInitialized: true });
           }
         } catch (error) {
-          // Silently handle cart initialization errors (token might be expired)
-          // Don't log to console to avoid noise
-          set({ items: [], isLoading: false, isInitialized: true });
+          // Handle 401 errors silently (user not authenticated)
+          // Handle other errors silently too to avoid console noise
+          const isUnauthorized = error?.response?.status === 401 || 
+                                 error?.response?.statusCode === 401 ||
+                                 error?.message?.includes('401') ||
+                                 error?.message?.includes('Unauthorized');
+          
+          if (isUnauthorized) {
+            // User is not authenticated - clear cart and mark as initialized
+            set({ items: [], isLoading: false, isInitialized: true });
+          } else {
+            // Other errors - still mark as initialized to prevent retry loops
+            set({ items: [], isLoading: false, isInitialized: true });
+          }
         }
       },
 

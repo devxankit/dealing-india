@@ -39,7 +39,7 @@ class RazorpayService {
 
   /**
    * Create an order in Razorpay
-   * @param {Number} amount - Amount in paise (e.g., 10000 for ₹100)
+   * @param {Number} amount - Amount in rupees (e.g., 100 for ₹100)
    * @param {String} currency - Currency code (default: 'INR')
    * @param {String} receipt - Receipt ID for the order
    * @param {Object} notes - Additional notes/metadata

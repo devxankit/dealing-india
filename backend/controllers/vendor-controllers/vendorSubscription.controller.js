@@ -255,7 +255,12 @@ class VendorSubscriptionController {
         data: result
       });
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      console.error('Error verifying extra reel payment:', error);
+      const statusCode = error.message?.includes('verification failed') ? 400 : 500;
+      res.status(statusCode).json({ 
+        success: false, 
+        message: error.message || 'Failed to verify payment' 
+      });
     }
   }
 }

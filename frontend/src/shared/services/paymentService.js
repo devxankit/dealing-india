@@ -26,7 +26,7 @@ export const initializeRazorpayCheckout = (options) => {
       key,
       amount,
       currency = 'INR',
-      name = 'Appzeto',
+      name = 'Dealing India',
       description = 'Order Payment',
       orderId,
       prefill = {},
@@ -38,6 +38,14 @@ export const initializeRazorpayCheckout = (options) => {
       reject(new Error('Missing required Razorpay options: key, amount, or orderId'));
       return;
     }
+
+    // Handle modal dismissal
+    const handleModalDismiss = () => {
+      if (modal.ondismiss) {
+        modal.ondismiss();
+      }
+      reject(new Error('Payment cancelled by user'));
+    };
 
     const razorpayOptions = {
       key,
@@ -55,10 +63,8 @@ export const initializeRazorpayCheckout = (options) => {
         color: '#10b981', // Green color matching app theme
       },
       modal: {
-        ondismiss: () => {
-          reject(new Error('Payment cancelled by user'));
-        },
         ...modal,
+        ondismiss: handleModalDismiss,
       },
       handler: (response) => {
         if (handler) {
@@ -70,6 +76,9 @@ export const initializeRazorpayCheckout = (options) => {
 
     try {
       const razorpay = new window.Razorpay(razorpayOptions);
+      razorpay.on('payment.failed', (response) => {
+        reject(new Error(response.error.description || 'Payment failed'));
+      });
       razorpay.open();
     } catch (error) {
       reject(error);

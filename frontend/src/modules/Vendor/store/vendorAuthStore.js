@@ -51,12 +51,18 @@ export const useVendorAuthStore = create(
             throw new Error(response.message || 'Login failed');
           }
         } catch (error) {
+          // Always reset loading state, even on error
           set({ isLoading: false });
-          throw error;
+          
+          // Ensure error has a message
+          const errorMessage = error?.message || 
+                               error?.response?.data?.message || 
+                               'Login failed. Please check your internet connection and try again.';
+          throw new Error(errorMessage);
         }
       },
 
-      // Vendor registration action
+      // Vendor registration action (now only initiates registration, doesn't create vendor)
       register: async (vendorData) => {
         set({ isLoading: true });
         try {
@@ -72,46 +78,26 @@ export const useVendorAuthStore = create(
           });
 
           if (response.success && response.data) {
-            const { vendor, token } = response.data;
-
-            // Transform backend vendor object to frontend format
-            const vendorDataFormatted = {
-              id: vendor._id || vendor.id,
-              _id: vendor._id,
-              name: vendor.name,
-              email: vendor.email,
-              phone: vendor.phone || '',
-              storeName: vendor.storeName,
-              storeDescription: vendor.storeDescription || '',
-              storeLogo: vendor.storeLogo || null,
-              status: vendor.status,
-              isEmailVerified: vendor.isEmailVerified || false,
-              role: vendor.role || 'vendor',
-              address: vendor.address || {},
-              documents: vendor.documents || [], // Array of documents
-              bankDetails: vendor.bankDetails || {},
-            };
-
-            set({
-              vendor: vendorDataFormatted,
-              token: token,
-              isAuthenticated: false, // Not authenticated until approved
-              isLoading: false,
-            });
-
-            localStorage.setItem("vendor-token", token);
-
+            // Registration only returns email now - vendor will be created after email verification
+            set({ isLoading: false });
+            
             return {
               success: true,
-              vendor: vendorDataFormatted,
-              message: response.message || "Registration successful! Your account is pending admin approval.",
+              email: response.data.email,
+              message: response.message || 'Registration initiated. Please verify your email to complete registration.',
             };
           } else {
             throw new Error(response.message || 'Registration failed');
           }
         } catch (error) {
+          // Always reset loading state, even on error
           set({ isLoading: false });
-          throw error;
+          
+          // Ensure error has a message
+          const errorMessage = error?.message || 
+                               error?.response?.data?.message || 
+                               'Registration failed. Please check your internet connection and try again.';
+          throw new Error(errorMessage);
         }
       },
 
@@ -198,23 +184,47 @@ export const useVendorAuthStore = create(
       },
 
       // Verify vendor email with OTP
+      // Verify email with OTP (now creates vendor account)
       verifyEmail: async (email, otp) => {
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/vendor/verify-email', { email, otp });
 
-          if (response.success) {
-            // Update vendor's email verification status
-            const currentVendor = get().vendor;
-            if (currentVendor && currentVendor.email === email) {
-              set({
-                vendor: { ...currentVendor, isEmailVerified: true },
-                isLoading: false,
-              });
-            } else {
-              set({ isLoading: false });
-            }
-            return { success: true, message: response.message };
+          if (response.success && response.data) {
+            const { vendor, token } = response.data;
+            
+            // Transform backend vendor object to frontend format
+            const vendorDataFormatted = {
+              id: vendor._id || vendor.id,
+              _id: vendor._id,
+              name: vendor.name,
+              email: vendor.email,
+              phone: vendor.phone || '',
+              storeName: vendor.storeName,
+              storeDescription: vendor.storeDescription || '',
+              storeLogo: vendor.storeLogo || null,
+              status: vendor.status,
+              isEmailVerified: vendor.isEmailVerified || true, // Should be true after verification
+              role: vendor.role || 'vendor',
+              address: vendor.address || {},
+              documents: vendor.documents || [],
+              bankDetails: vendor.bankDetails || {},
+            };
+
+            set({
+              vendor: vendorDataFormatted,
+              token: token,
+              isAuthenticated: false, // Not authenticated until admin approval
+              isLoading: false,
+            });
+
+            localStorage.setItem("vendor-token", token);
+            
+            return { 
+              success: true, 
+              vendor: vendorDataFormatted, 
+              message: response.message 
+            };
           } else {
             throw new Error(response.message || 'Email verification failed');
           }

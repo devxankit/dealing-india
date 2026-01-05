@@ -86,37 +86,50 @@ export const authenticate = async (req, res, next) => {
 
     // Optionally, fetch and attach full user document
     // This can be useful if you need access to the full user object
-    if (decoded.role === 'user' && decoded.userId) {
-      const user = await User.findById(decoded.userId);
-      if (!user || !user.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: 'User account not found or inactive',
-        });
+    try {
+      if (decoded.role === 'user' && decoded.userId) {
+        const user = await User.findById(decoded.userId);
+        if (!user || !user.isActive) {
+          return res.status(401).json({
+            success: false,
+            message: 'User account not found or inactive',
+          });
+        }
+        req.userDoc = user;
+      } else if (decoded.role === 'vendor' && decoded.vendorId) {
+        const vendor = await Vendor.findById(decoded.vendorId);
+        if (!vendor || !vendor.isActive) {
+          return res.status(401).json({
+            success: false,
+            message: 'Vendor account not found or inactive',
+          });
+        }
+        req.userDoc = vendor;
+      } else if (decoded.role === 'admin' && decoded.adminId) {
+        const admin = await Admin.findById(decoded.adminId);
+        if (!admin || !admin.isActive) {
+          return res.status(401).json({
+            success: false,
+            message: 'Admin account not found or inactive',
+          });
+        }
+        req.userDoc = admin;
       }
-      req.userDoc = user;
-    } else if (decoded.role === 'vendor' && decoded.vendorId) {
-      const vendor = await Vendor.findById(decoded.vendorId);
-      if (!vendor || !vendor.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: 'Vendor account not found or inactive',
-        });
-      }
-      req.userDoc = vendor;
-    } else if (decoded.role === 'admin' && decoded.adminId) {
-      const admin = await Admin.findById(decoded.adminId);
-      if (!admin || !admin.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: 'Admin account not found or inactive',
-        });
-      }
-      req.userDoc = admin;
+    } catch (dbError) {
+      console.error('Error fetching user document in auth middleware:', {
+        message: dbError.message,
+        role: decoded.role,
+        userId: decoded.userId || decoded.vendorId || decoded.adminId,
+      });
+      // Continue without userDoc - some endpoints might not need it
     }
 
     next();
   } catch (error) {
+    console.error('Error in authenticate middleware:', {
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
     next(error);
   }
 };

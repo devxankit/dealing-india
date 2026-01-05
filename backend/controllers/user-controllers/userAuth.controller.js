@@ -18,18 +18,69 @@ export const register = async (req, res, next) => {
   try {
     const { name, email, password, phone } = req.body;
 
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email, and password are required',
+      });
+    }
+
     const result = await registerUser({ name, email, password, phone });
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully. Please verify your email.',
+      message: result.message || 'Registration initiated. Please verify your email to complete registration.',
       data: {
-        user: result.user,
-        token: result.token,
+        email: result.email,
       },
     });
   } catch (error) {
-    next(error);
+    // Handle rate limit errors specifically
+    if (error.statusCode === 429 || error.isRateLimitError || error.status === 429) {
+      return res.status(429).json({
+        success: false,
+        message: error.message || 'Too many OTP requests. Please wait before trying again.',
+      });
+    }
+    
+    // Log detailed error for production debugging
+    console.error('❌ Error in register controller:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      status: error.status || error.statusCode,
+      stack: error.stack, // Always log stack for production debugging
+      body: req.body ? { 
+        name: req.body.name, 
+        email: req.body.email,
+        hasPhone: !!req.body.phone 
+      } : undefined,
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Provide user-friendly error messages
+    let userMessage = error.message || 'Registration failed. Please try again.';
+    let statusCode = error.status || error.statusCode || 500;
+    
+    // Map common errors to user-friendly messages
+    if (error.message?.includes('Database connection')) {
+      userMessage = 'Service temporarily unavailable. Please try again in a moment.';
+      statusCode = 503; // Service Unavailable
+    } else if (error.message?.includes('Registration service unavailable')) {
+      userMessage = 'Registration service is temporarily unavailable. Please try again later.';
+      statusCode = 503;
+    } else if (error.message?.includes('Email already registered')) {
+      statusCode = 409; // Conflict
+    } else if (error.message?.includes('Invalid email') || error.message?.includes('Invalid phone')) {
+      statusCode = 400; // Bad Request
+    }
+    
+    // Return error with appropriate status code
+    return res.status(statusCode).json({
+      success: false,
+      message: userMessage,
+    });
   }
 };
 
@@ -141,11 +192,15 @@ export const verifyEmail = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
 
-    await verifyUserEmail(email, otp);
+    const result = await verifyUserEmail(email, otp);
 
     res.status(200).json({
       success: true,
-      message: 'Email verified successfully',
+      message: 'Email verified successfully. Account created.',
+      data: {
+        user: result.user,
+        token: result.token,
+      },
     });
   } catch (error) {
     next(error);

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiTrendingUp, FiUsers, FiSettings, FiActivity } from 'react-icons/fi';
-import { IndianRupee } from 'lucide-react';
+import { FiSettings } from 'react-icons/fi';
 import DataTable from '../../components/DataTable';
 import StatsCards from '../../components/Analytics/StatsCards';
 import RevenueChart from '../../components/Analytics/RevenueChart';
@@ -124,6 +123,9 @@ const Subscriptions = () => {
         // Set empty data structure to prevent errors
         setAnalytics({
           revenue: 0,
+          totalRevenue: 0,
+          totalOrders: 0,
+          totalCustomers: 0,
           activeSubscriptions: 0,
           monthlyGrowth: '+0%',
           churnRate: '0%',
@@ -134,10 +136,21 @@ const Subscriptions = () => {
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
-      toast.error('Failed to load analytics data');
+      
+      // Handle authentication errors specifically
+      if (error.response?.status === 401 || error.message?.includes('401')) {
+        toast.error('Authentication required. Please login again.');
+        // Don't set empty data, let the error propagate so the interceptor can handle redirect
+        return;
+      }
+      
+      toast.error(error.response?.data?.message || error.message || 'Failed to load analytics data');
       // Set empty data structure to prevent errors
       setAnalytics({
         revenue: 0,
+        totalRevenue: 0,
+        totalOrders: 0,
+        totalCustomers: 0,
         activeSubscriptions: 0,
         monthlyGrowth: '+0%',
         churnRate: '0%',
@@ -225,12 +238,15 @@ const Subscriptions = () => {
     }
   };
 
-  const stats = [
-    { title: 'Total Revenue', value: `₹${(analytics?.revenue || 0).toLocaleString()}`, icon: <IndianRupee />, color: 'blue' },
-    { title: 'Active Subscriptions', value: analytics?.activeSubscriptions || 0, icon: <FiUsers />, color: 'green' },
-    { title: 'Monthly Growth', value: analytics?.monthlyGrowth || '+0%', icon: <FiTrendingUp />, color: 'purple' },
-    { title: 'Churn Rate', value: analytics?.churnRate || '0%', icon: <FiActivity />, color: 'red' }
-  ];
+  // Format stats for StatsCards component
+  const stats = {
+    totalRevenue: analytics?.totalRevenue || analytics?.revenue || 0,
+    totalOrders: analytics?.totalOrders || 0,
+    totalCustomers: analytics?.totalCustomers || 0,
+    revenueChange: analytics?.revenueChange || 0,
+    ordersChange: analytics?.ordersChange || 0,
+    customersChange: analytics?.customersChange || 0,
+  };
 
   const columns = [
     { label: 'Vendor', key: 'vendor' },

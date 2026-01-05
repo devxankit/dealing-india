@@ -206,4 +206,3 @@ Admin Monitors Subscriptions:
 - [ ] Admin Analytics tab shows real data
 - [ ] Admin Monitoring tab shows real vendor subscriptions
 - [ ] Admin Support Tools can manually override subscriptions
-- [ ] Reel usage is correctly tracked in subscription

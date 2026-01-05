@@ -2,7 +2,7 @@ import OTP from '../models/OTP.model.js';
 import { isValidOTP } from '../utils/validators.util.js';
 
 const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES) || 10;
-const RATE_LIMIT_REQUESTS = parseInt(process.env.OTP_RATE_LIMIT_REQUESTS) || 3;
+const RATE_LIMIT_REQUESTS = parseInt(process.env.OTP_RATE_LIMIT_REQUESTS) || 10; // Changed from 3 to 10
 const RATE_LIMIT_WINDOW = parseInt(process.env.OTP_RATE_LIMIT_WINDOW) || 15; // minutes
 
 /**
@@ -29,9 +29,12 @@ export const generateOTP = async (identifier, type) => {
     });
 
     if (recentOTPs >= RATE_LIMIT_REQUESTS) {
-      throw new Error(
+      const error = new Error(
         `Too many OTP requests. Please wait ${RATE_LIMIT_WINDOW} minutes before requesting again.`
       );
+      error.statusCode = 429; // Too Many Requests
+      error.isRateLimitError = true;
+      throw error;
     }
 
     // Mark any existing unused OTPs as used (prevent multiple active OTPs)

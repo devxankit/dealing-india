@@ -226,25 +226,26 @@ class SubscriptionService {
         currentSubscription: subscription._id
       }, { session });
 
-      // Create transaction record
+      // Add audit log entry for subscription payment (for billing history)
+      // Note: Transaction model is for customer orders, not vendor subscriptions
+      // We track vendor subscription payments via VendorSubscription model and audit logs
       const amount = subscription.tierId.priceMonthly;
       if (amount > 0) {
-        await Transaction.create([{
-          transactionCode: `SUB-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        subscription.auditLogs.push({
+          action: 'subscription_payment',
+          timestamp: new Date(),
+          details: {
           amount,
-          type: 'payment',
           status: 'completed',
-          method: 'razorpay',
-          vendorId: subscription.vendorId,
           razorpayOrderId,
           razorpayPaymentId,
           razorpaySignature,
-          details: {
-            subscriptionId: subscription._id,
+            type: 'subscription_payment',
             tierName: subscription.tierId.name,
-            type: 'subscription_payment'
+            paymentDate: new Date()
           }
-        }], { session });
+        });
+        await subscription.save({ session });
       }
 
       // Send notification to admin
@@ -325,19 +326,9 @@ class SubscriptionService {
         currentSubscription: subscription[0]._id
       }, { session });
 
-      // Create a transaction record
-      const amount = tier.priceMonthly;
-      if (amount > 0) {
-        await Transaction.create([{
-          transactionCode: `SUB-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          amount,
-          type: 'payment',
-          status: 'completed',
-          method: paymentMethod,
-          vendorId,
-          details: { subscriptionId: subscription[0]._id, tierName: tier.name }
-        }], { session });
-      }
+      // Note: Transaction model is for customer orders, not vendor subscriptions
+      // We track vendor subscription payments via VendorSubscription model and audit logs
+      // No need to create Transaction record for vendor subscriptions
 
       await session.commitTransaction();
       return subscription[0];
@@ -404,8 +395,9 @@ class SubscriptionService {
 
       // Create Razorpay order for extra reel payment
       const orderCode = `REEL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      // createOrder expects amount in rupees, it will convert to paise internally
       const razorpayOrder = await razorpayService.createOrder(
-        paymentCheck.extraCharge * 100, // Convert to paise
+        paymentCheck.extraCharge, // Pass amount in rupees (e.g., 10 for ₹10)
         'INR',
         orderCode,
         {
@@ -470,23 +462,24 @@ class SubscriptionService {
       const { tierId: tier } = subscription;
       const extraCharge = tier.extraReelPrice || 10;
 
-      // Create transaction record
-      await Transaction.create([{
-        transactionCode: `REEL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        amount: extraCharge,
-        type: 'payment',
-        status: 'completed',
-        method: 'razorpay',
-        vendorId,
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature,
+      // Add audit log entry for extra reel payment (for billing history)
+      // This is the primary way we track extra reel payments - don't overwrite subscription payment fields
+      subscription.auditLogs.push({
+        action: 'extra_reel_payment',
+        timestamp: new Date(),
         details: {
-          subscriptionId: subscription._id,
-          type: 'extra_reel_payment',
-          tierName: tier.name
+        amount: extraCharge,
+        status: 'completed',
+          razorpayOrderId,
+          razorpayPaymentId,
+          razorpaySignature,
+          type: 'extra_reel_charge',
+          paymentDate: new Date()
         }
-      }], { session });
+      });
+
+      // Update last payment date (but don't overwrite subscription payment IDs)
+      subscription.lastPaymentDate = new Date();
 
       // Record payment but don't increment usage yet (will be done when reel is uploaded)
       subscription.usage.extraReelsCharged += extraCharge;
@@ -591,16 +584,22 @@ class SubscriptionService {
         currentSubscription: newSub[0]._id
       }, { session });
 
+      // Note: Transaction model is for customer orders, not vendor subscriptions
+      // Track upgrade payment via audit logs instead
       if (chargeAmount > 0) {
-        await Transaction.create([{
-          transactionCode: `SUB-UP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        newSub[0].auditLogs.push({
+          action: 'upgrade_payment',
+          timestamp: new Date(),
+          details: {
           amount: chargeAmount,
-          type: 'payment',
           status: 'completed',
-          method: currentSub.paymentMethod,
-          vendorId,
-          details: { subscriptionId: newSub[0]._id, tierName: newTier.name, type: 'upgrade_proration' }
-        }], { session });
+            type: 'upgrade_proration',
+            tierName: newTier.name,
+            previousTierName: currentSub.tierId?.name || 'Unknown',
+            paymentDate: new Date()
+          }
+        });
+        await newSub[0].save({ session });
       }
 
       await session.commitTransaction();
@@ -615,19 +614,66 @@ class SubscriptionService {
 
   async getSubscriptionAnalytics() {
     try {
-      // Total revenue from all subscription-related transactions
-      const totalRevenueResult = await Transaction.aggregate([
-        { 
-          $match: { 
-            $or: [
-              { transactionCode: /^SUB-/ },
-              { 'details.type': { $in: ['subscription_payment', 'upgrade_proration', 'extra_reel_charge'] } }
-            ]
-          } 
+      // Total revenue from subscription transactions (VendorSubscription audit logs)
+      // Transaction model is for customer orders, not vendor subscriptions
+      const subscriptionRevenueResult = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed'
+          }
         },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$auditLogs.details.amount' }
+          }
+        }
       ]);
-      const totalRevenue = totalRevenueResult[0]?.total || 0;
+      const subscriptionRevenue = subscriptionRevenueResult[0]?.total || 0;
+
+      // Total revenue from extra reel payments (VendorSubscription audit logs)
+      const extraReelRevenueResult = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': 'extra_reel_payment',
+            'auditLogs.details.status': 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$auditLogs.details.amount' }
+          }
+        }
+      ]);
+      const extraReelRevenue = extraReelRevenueResult[0]?.total || 0;
+
+      // Total revenue = only subscription revenue (reel plan subscription, not extra reel charges)
+      const totalRevenue = subscriptionRevenue;
+
+      // Total orders: count of subscription payments (plans purchased)
+      const totalOrdersResult = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed'
+          }
+        },
+        { $group: { _id: null, count: { $sum: 1 } } }
+      ]);
+      const totalOrders = totalOrdersResult[0]?.count || 0;
+
+      // Total customers: count of unique vendors with active subscriptions (regular plans)
+      const totalCustomersResult = await VendorSubscription.aggregate([
+        { $match: { status: 'active' } },
+        { $group: { _id: '$vendorId' } },
+        { $group: { _id: null, count: { $sum: 1 } } }
+      ]);
+      const totalCustomers = totalCustomersResult[0]?.count || 0;
 
       // Active subscriptions count
       const activeSubscriptionsCount = await VendorSubscription.countDocuments({ status: 'active' });
@@ -641,61 +687,147 @@ class SubscriptionService {
         { $project: { name: '$tier.name', count: 1 } }
       ]);
 
-      // Recent payments (last 10 subscription payments)
-      const recentPayments = await Transaction.find({
-        $or: [
-          { transactionCode: /^SUB-/ },
-          { 'details.type': { $in: ['subscription_payment', 'upgrade_proration'] } }
-        ],
-        status: 'completed'
-      })
-        .sort({ createdAt: -1 })
-        .limit(10)
-        .populate({
-          path: 'vendorId',
-          select: 'businessName storeName',
-          model: 'Vendor'
-        })
-        .lean();
+      // Recent payments (last 10 subscription payments from VendorSubscription audit logs)
+      // Transaction model is for customer orders, not vendor subscriptions
+      const recentSubscriptionPayments = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed'
+          }
+        },
+        { $sort: { 'auditLogs.timestamp': -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: 'vendors',
+            localField: 'vendorId',
+            foreignField: '_id',
+            as: 'vendor'
+          }
+        },
+        { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: 'subscriptiontiers',
+            localField: 'tierId',
+            foreignField: '_id',
+            as: 'tier'
+          }
+        },
+        { $unwind: { path: '$tier', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: { $toString: '$_id' },
+            vendorId: { $toString: '$vendorId' },
+            vendorName: { $ifNull: ['$vendor.businessName', '$vendor.storeName'] },
+            amount: '$auditLogs.details.amount',
+            tierName: { $ifNull: ['$tier.name', '$auditLogs.details.tierName', 'Unknown'] },
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
+            status: '$auditLogs.details.status',
+            type: '$auditLogs.details.type',
+            timestamp: '$auditLogs.timestamp',
+            razorpayOrderId: '$auditLogs.details.razorpayOrderId'
+          }
+        }
+      ]);
 
-      const enrichedPayments = recentPayments.map(payment => {
-        const vendorName = payment.vendorId?.businessName || payment.vendorId?.storeName || 'Unknown Vendor';
-        const tierName = payment.details?.tierName || 'Unknown Tier';
-        return {
-          id: payment._id.toString(),
-          vendor: vendorName,
+      // Recent extra reel payments (from VendorSubscription audit logs)
+      const recentExtraReelPayments = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': 'extra_reel_payment',
+            'auditLogs.details.status': 'completed'
+          }
+        },
+        { $sort: { 'auditLogs.timestamp': -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: 'vendors',
+            localField: 'vendorId',
+            foreignField: '_id',
+            as: 'vendor'
+          }
+        },
+        { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: 'subscriptiontiers',
+            localField: 'tierId',
+            foreignField: '_id',
+            as: 'tier'
+          }
+        },
+        { $unwind: { path: '$tier', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            id: { $toString: '$_id' },
+            vendorName: { $ifNull: ['$vendor.businessName', '$vendor.storeName'] },
+            amount: '$auditLogs.details.amount',
+            tierName: { $ifNull: ['$tier.name', 'Unknown'] },
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
+            status: '$auditLogs.details.status',
+            type: 'extra_reel_charge',
+            timestamp: '$auditLogs.timestamp'
+          }
+        }
+      ]);
+
+      // Format subscription payments from audit logs
+      const enrichedSubscriptionPayments = recentSubscriptionPayments.map(payment => ({
+        id: payment._id,
+        vendor: payment.vendorName || 'Unknown Vendor',
           amount: payment.amount,
-          tier: tierName,
-          date: payment.createdAt.toISOString().split('T')[0],
-          status: payment.status
-        };
-      });
+        tier: payment.tierName,
+        date: payment.date,
+        status: payment.status,
+        type: payment.type || 'subscription_payment',
+        timestamp: payment.timestamp
+      }));
 
-      // Revenue chart data (last 30 days)
+      const enrichedExtraReelPayments = recentExtraReelPayments.map(payment => ({
+        id: payment.id,
+        vendor: payment.vendorName || 'Unknown Vendor',
+        amount: payment.amount,
+        tier: payment.tierName,
+        date: payment.date,
+        status: payment.status,
+        type: payment.type,
+        timestamp: payment.timestamp
+      }));
+
+      // Combine and sort by timestamp (newest first)
+      const allRecentPayments = [...enrichedSubscriptionPayments, ...enrichedExtraReelPayments]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 10)
+        .map(({ timestamp, ...rest }) => rest); // Remove timestamp from final output
+
+      // Revenue chart data (last 30 days) - includes both subscription and extra reel payments
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const revenueData = await Transaction.aggregate([
+      // Subscription revenue data (from VendorSubscription audit logs)
+      const subscriptionRevenueData = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
         {
           $match: {
-            $or: [
-              { transactionCode: /^SUB-/ },
-              { 'details.type': { $in: ['subscription_payment', 'upgrade_proration'] } }
-            ],
-            status: 'completed',
-            createdAt: { $gte: thirtyDaysAgo }
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed',
+            'auditLogs.timestamp': { $gte: thirtyDaysAgo }
           }
         },
         {
           $group: {
             _id: {
-              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+              $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' }
             },
-            revenue: { $sum: '$amount' },
+            revenue: { $sum: '$auditLogs.details.amount' },
             orders: { $sum: 1 }
           }
         },
-        { $sort: { _id: 1 } },
         {
           $project: {
             date: '$_id',
@@ -706,40 +838,122 @@ class SubscriptionService {
         }
       ]);
 
+      // Extra reel revenue data
+      const extraReelRevenueData = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': 'extra_reel_payment',
+            'auditLogs.details.status': 'completed',
+            'auditLogs.timestamp': { $gte: thirtyDaysAgo }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' }
+            },
+            revenue: { $sum: '$auditLogs.details.amount' },
+            orders: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            date: '$_id',
+            revenue: 1,
+            orders: 1,
+            _id: 0
+          }
+        }
+      ]);
+
+      // Combine and merge revenue data by date
+      const revenueMap = new Map();
+      
+      subscriptionRevenueData.forEach(item => {
+        revenueMap.set(item.date, {
+          date: item.date,
+          revenue: item.revenue,
+          orders: item.orders
+        });
+      });
+
+      extraReelRevenueData.forEach(item => {
+        if (revenueMap.has(item.date)) {
+          const existing = revenueMap.get(item.date);
+          existing.revenue += item.revenue;
+          existing.orders += item.orders;
+        } else {
+          revenueMap.set(item.date, {
+            date: item.date,
+            revenue: item.revenue,
+            orders: item.orders
+          });
+        }
+      });
+
+      const revenueData = Array.from(revenueMap.values()).sort((a, b) => 
+        new Date(a.date) - new Date(b.date)
+      );
+
       // Calculate monthly growth (comparing last 30 days with previous 30 days)
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
-      const currentPeriodRevenue = await Transaction.aggregate([
+      // Current period: subscription + extra reel payments (from VendorSubscription audit logs)
+      const currentPeriodSubscriptionRevenue = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
         {
           $match: {
-            $or: [
-              { transactionCode: /^SUB-/ },
-              { 'details.type': { $in: ['subscription_payment', 'upgrade_proration'] } }
-            ],
-            status: 'completed',
-            createdAt: { $gte: thirtyDaysAgo }
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed',
+            'auditLogs.timestamp': { $gte: thirtyDaysAgo }
           }
         },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
       ]);
 
-      const previousPeriodRevenue = await Transaction.aggregate([
+      const currentPeriodExtraReelRevenue = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
         {
           $match: {
-            $or: [
-              { transactionCode: /^SUB-/ },
-              { 'details.type': { $in: ['subscription_payment', 'upgrade_proration'] } }
-            ],
-            status: 'completed',
-            createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
+            'auditLogs.action': 'extra_reel_payment',
+            'auditLogs.details.status': 'completed',
+            'auditLogs.timestamp': { $gte: thirtyDaysAgo }
           }
         },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
       ]);
 
-      const currentRevenue = currentPeriodRevenue[0]?.total || 0;
-      const previousRevenue = previousPeriodRevenue[0]?.total || 0;
+      // Previous period: subscription + extra reel payments (from VendorSubscription audit logs)
+      const previousPeriodSubscriptionRevenue = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+            'auditLogs.details.status': 'completed',
+            'auditLogs.timestamp': { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
+      ]);
+
+      const previousPeriodExtraReelRevenue = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+          $match: {
+            'auditLogs.action': 'extra_reel_payment',
+            'auditLogs.details.status': 'completed',
+            'auditLogs.timestamp': { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
+      ]);
+
+      const currentRevenue = (currentPeriodSubscriptionRevenue[0]?.total || 0) + 
+                            (currentPeriodExtraReelRevenue[0]?.total || 0);
+      const previousRevenue = (previousPeriodSubscriptionRevenue[0]?.total || 0) + 
+                              (previousPeriodExtraReelRevenue[0]?.total || 0);
       const monthlyGrowth = previousRevenue > 0 
         ? ((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1)
         : '0.0';
@@ -755,11 +969,17 @@ class SubscriptionService {
 
       return {
         revenue: totalRevenue,
+        totalRevenue: totalRevenue, // For StatsCards component
+        totalOrders: totalOrders, // For StatsCards component
+        totalCustomers: totalCustomers, // For StatsCards component
+        revenueChange: 0, // Can be calculated if needed
+        ordersChange: 0, // Can be calculated if needed
+        customersChange: 0, // Can be calculated if needed
         activeSubscriptions: activeSubscriptionsCount,
         monthlyGrowth: `+${monthlyGrowth}%`,
         churnRate: `${churnRate}%`,
         tierDistribution: tierDistribution.map(t => ({ name: t.name, count: t.count })),
-        recentPayments: enrichedPayments,
+        recentPayments: allRecentPayments,
         revenueData: revenueData
       };
     } catch (error) {
@@ -987,15 +1207,42 @@ class SubscriptionService {
         : vendorId;
 
       // Get all subscriptions for the vendor (including expired ones)
+      // Use lean() for better performance - auditLogs are included in lean() results
       const subscriptions = await VendorSubscription.find({ vendorId: vendorObjectId })
         .populate('tierId', 'name')
         .sort({ createdAt: -1 })
         .lean();
+      
+      // Process subscriptions and ensure auditLogs are properly formatted
+      const subscriptionsData = subscriptions.map(sub => {
+        // Ensure auditLogs is an array (lean() preserves arrays)
+        const auditLogs = Array.isArray(sub.auditLogs) ? sub.auditLogs : [];
+        
+        return {
+          ...sub,
+          auditLogs: auditLogs.map(log => {
+            // Ensure log is a plain object with required fields
+            if (log && typeof log === 'object') {
+              return {
+                action: log.action,
+                timestamp: log.timestamp,
+                details: log.details || {}
+              };
+            }
+            return log;
+          })
+        };
+      });
 
       const billingHistory = [];
+      
+      // Debug logging (only in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Billing History] Found ${subscriptionsData.length} subscriptions for vendor ${vendorId}`);
+      }
 
       // Process each subscription to create billing history entries
-      for (const sub of subscriptions) {
+      for (const sub of subscriptionsData) {
         // Add subscription payment entry if payment was made
         // Check for lastPaymentDate OR if subscription was created (for free tiers)
         if (sub.lastPaymentDate || (sub.status === 'active' && sub.tierId)) {
@@ -1020,28 +1267,169 @@ class SubscriptionService {
           }
         }
 
-        // Add renewal entries from audit logs
-        if (sub.auditLogs && sub.auditLogs.length > 0) {
-          for (const log of sub.auditLogs) {
-            if (log.action === 'renewal' && log.details?.amount) {
+        // Add entries from audit logs (renewals and extra reel payments)
+        // Ensure auditLogs is an array and iterate through it
+        const auditLogs = Array.isArray(sub.auditLogs) ? sub.auditLogs : [];
+        
+        if (auditLogs.length > 0) {
+          for (const log of auditLogs) {
+            // Skip if log is null or undefined
+            if (!log || !log.action) continue;
+            
+            // Debug logging for extra reel payments
+            if (log.action === 'extra_reel_payment') {
+              console.log(`[Billing History] Processing extra_reel_payment log:`, {
+                hasDetails: !!log.details,
+                detailsType: typeof log.details,
+                amount: log.details?.amount,
+                status: log.details?.status,
+                timestamp: log.timestamp
+              });
+            }
+            
+            // Renewal entries
+            if (log.action === 'renewal' && log.details && typeof log.details === 'object' && log.details.amount) {
+              const renewalDate = log.timestamp instanceof Date 
+                ? log.timestamp 
+                : new Date(log.timestamp);
+              
               billingHistory.push({
-                id: `${sub._id}-${log.timestamp}`,
-                transactionCode: `RENEW-${sub._id}-${new Date(log.timestamp).getTime()}`,
+                id: `${sub._id}-renewal-${renewalDate.getTime()}`,
+                transactionCode: `RENEW-${sub._id}-${renewalDate.getTime()}`,
                 amount: log.details.amount,
                 type: 'subscription_payment',
                 status: log.details.status === 'success' ? 'completed' : 'failed',
                 method: sub.paymentMethod || 'razorpay',
                 tierName: sub.tierId?.name || 'Unknown',
-                date: log.timestamp,
+                date: renewalDate,
                 invoiceUrl: null
               });
             }
+            
+            // Subscription payment entries (initial payment)
+            if (log.action === 'subscription_payment' && log.details && typeof log.details === 'object' && log.details.amount) {
+              const paymentDate = log.timestamp instanceof Date 
+                ? log.timestamp 
+                : (log.details.paymentDate instanceof Date
+                  ? log.details.paymentDate
+                  : new Date(log.timestamp));
+              
+              billingHistory.push({
+                id: `${sub._id}-payment-${paymentDate.getTime()}`,
+                transactionCode: log.details.razorpayOrderId || `SUB-${sub._id}-${paymentDate.getTime()}`,
+                amount: log.details.amount,
+                type: 'subscription_payment',
+                status: log.details.status === 'completed' ? 'completed' : 'failed',
+                method: sub.paymentMethod || 'razorpay',
+                tierName: log.details.tierName || sub.tierId?.name || 'Unknown',
+                date: paymentDate,
+                invoiceUrl: null
+              });
+            }
+            
+            // Upgrade payment entries
+            if (log.action === 'upgrade_payment' && log.details && typeof log.details === 'object' && log.details.amount) {
+              const upgradeDate = log.timestamp instanceof Date 
+                ? log.timestamp 
+                : (log.details.paymentDate instanceof Date
+                  ? log.details.paymentDate
+                  : new Date(log.timestamp));
+              
+              billingHistory.push({
+                id: `${sub._id}-upgrade-${upgradeDate.getTime()}`,
+                transactionCode: `UPGRADE-${sub._id}-${upgradeDate.getTime()}`,
+                amount: log.details.amount,
+                type: 'upgrade_proration',
+                status: log.details.status === 'completed' ? 'completed' : 'failed',
+                method: sub.paymentMethod || 'razorpay',
+                tierName: log.details.tierName || sub.tierId?.name || 'Unknown',
+                date: upgradeDate,
+                invoiceUrl: null
+              });
+            }
+            
+            // Extra reel payment entries - check for details object and amount
+            if (log.action === 'extra_reel_payment') {
+              // Check if details exists - handle both object and stringified JSON
+              let details = log.details;
+              
+              // If details is a string, try to parse it
+              if (typeof details === 'string') {
+                try {
+                  details = JSON.parse(details);
+                } catch (e) {
+                  console.log(`[Billing History] Failed to parse details string:`, e);
+                  details = null;
+                }
+              }
+              
+              const hasDetails = details && typeof details === 'object';
+              // Get amount - check multiple possible locations
+              const amount = hasDetails 
+                ? (details.amount !== undefined && details.amount !== null ? details.amount : null)
+                : null;
+              
+              // Debug logging (only in development)
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`[Billing History] Processing extra_reel_payment:`, {
+                  hasDetails,
+                  detailsType: typeof log.details,
+                  amount,
+                  amountType: typeof amount
+                });
+              }
+              
+              if (hasDetails && amount !== null && amount !== undefined && !isNaN(amount)) {
+                // Ensure timestamp is a Date object
+                const paymentDate = log.timestamp instanceof Date 
+                  ? log.timestamp 
+                  : (details.paymentDate instanceof Date
+                    ? details.paymentDate
+                    : new Date(log.timestamp));
+                
+                // Debug logging (only in development)
+                if (process.env.NODE_ENV === 'development') {
+                  console.log(`[Billing History] ✓ Adding extra reel payment to billing history:`, {
+                    amount,
+                    date: paymentDate,
+                    status: details.status
+                  });
+                }
+                
+                billingHistory.push({
+                  id: `${sub._id}-extra-reel-${paymentDate.getTime()}`,
+                  transactionCode: details.razorpayOrderId || `REEL-${sub._id}-${paymentDate.getTime()}`,
+                  amount: Number(amount),
+                  type: 'extra_reel_charge',
+                  status: details.status === 'completed' ? 'completed' : 'failed',
+                  method: 'razorpay',
+                  tierName: sub.tierId?.name || 'Unknown',
+                  date: paymentDate,
+                  invoiceUrl: null
+                });
+              } else if (process.env.NODE_ENV === 'development') {
+                console.log(`[Billing History] ✗ Skipping extra_reel_payment - validation failed:`, {
+                  hasDetails,
+                  amount,
+                  isNaN: isNaN(amount)
+                });
+              }
+            }
           }
         }
+        
+        // Extra reel payments are tracked via audit logs, so no need for additional checks here
       }
 
       // Sort by date (newest first)
       billingHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      // Debug logging (only in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Billing History] Final billing history count: ${billingHistory.length}`);
+        const extraReelCount = billingHistory.filter(item => item.type === 'extra_reel_charge').length;
+        console.log(`[Billing History] Extra reel charges in history: ${extraReelCount}`);
+      }
 
       // Apply filter
       if (filter !== 'all') {

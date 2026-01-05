@@ -63,6 +63,7 @@ import adminOrderRoutes from './routes/adminOrder.routes.js';
 import adminDeliveryRoutes from './routes/adminDelivery.routes.js';
 
 import userReelsRoutes from './routes/userReels.routes.js';
+import reelCommentsRoutes from './routes/reelComments.routes.js';
 import userNotificationRoutes from './routes/userNotification.routes.js';
 import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
 import adminNotificationRoutes from './routes/adminNotification.routes.js';
@@ -87,7 +88,8 @@ const httpServer = http.createServer(app);
 const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://dealing-india.vercel.app'
+  'https://dealing-india.vercel.app',
+  'https://dealing-india-*.vercel.app', // Allow all Vercel preview deployments
 ];
 
 // Get origins from environment variable if set
@@ -98,11 +100,31 @@ const envOrigins = process.env.SOCKET_CORS_ORIGIN
 // Merge and deduplicate origins (environment origins + defaults)
 const corsOrigins = [...new Set([...envOrigins, ...defaultOrigins])];
 
+// CORS configuration with better production support
 app.use(cors({
-  origin: corsOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow Vercel preview deployments (wildcard matching)
+    if (origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Log blocked origin for debugging
+    console.warn(`⚠️  CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // 24 hours
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -132,6 +154,46 @@ app.get('/api/health', (req, res) => {
     database: states[dbStatus] || 'Unknown',
     databaseReady: dbStatus === 1
   });
+});
+
+// Registration test route for debugging production issues
+app.post('/api/test-register', async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+    
+    // Check database connection
+    const dbStatus = mongoose.connection.readyState;
+    const dbConnected = dbStatus === 1;
+    
+    // Check email service
+    const emailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+    
+    res.json({
+      success: true,
+      message: 'Registration test endpoint',
+      checks: {
+        databaseConnected: dbConnected,
+        databaseState: dbStatus,
+        emailConfigured,
+        hasMongoDBURI: !!process.env.MONGODB_URI,
+        hasJWTSecret: !!process.env.JWT_SECRET,
+        nodeEnv: process.env.NODE_ENV,
+        corsOriginsCount: corsOrigins.length,
+      },
+      receivedData: {
+        hasName: !!name,
+        hasEmail: !!email,
+        hasPassword: !!password,
+        hasPhone: !!phone,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
+  }
 });
 
 // Database connection test route
@@ -209,6 +271,7 @@ app.use('/api/user/addresses', addressRoutes);
 app.use('/api/user/wallet', walletRoutes);
 app.use('/api/user/notifications', userNotificationRoutes);
 app.use('/api/user/reels', userReelsRoutes);
+app.use('/api/user/reels', reelCommentsRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/admin/support-tickets', adminSupportTicketRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
@@ -236,6 +299,23 @@ app.use('/api/vendor/wallet', vendorWalletRoutes);
 app.use('/api/vendor/returns', vendorReturnRoutes);
 
 
+// Global error handler for unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process in production, just log
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️  Unhandled promise rejection logged. Server continues running.');
+  }
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // In production, log and continue; in development, might want to exit
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(1);
+  }
+});
+
 // Error handling middleware (must be after routes)
 app.use(errorHandler);
 
@@ -253,6 +333,32 @@ const PORT = process.env.PORT || 5000;
 // Connect to database and start server
 const startServer = async () => {
   try {
+    // Validate critical environment variables
+    const requiredEnvVars = {
+      'MONGODB_URI': process.env.MONGODB_URI,
+      'JWT_SECRET': process.env.JWT_SECRET,
+    };
+    
+    const missingVars = Object.entries(requiredEnvVars)
+      .filter(([key, value]) => !value)
+      .map(([key]) => key);
+    
+    if (missingVars.length > 0) {
+      console.error('❌ CRITICAL: Missing required environment variables:');
+      missingVars.forEach(varName => {
+        console.error(`   - ${varName}`);
+      });
+      console.error('⚠️  Server will start but may not function correctly.');
+    }
+    
+    // Check email configuration (critical for registration)
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error('⚠️  WARNING: Email service not configured (EMAIL_USER or EMAIL_PASS missing)');
+      console.error('⚠️  Registration will fail without email service.');
+    } else {
+      console.log('✅ Email service configuration found');
+    }
+    
     // Connect to database
     await connectDB();
 
@@ -279,6 +385,30 @@ const startServer = async () => {
       }
     }
 
+    // Create TTL index for TemporaryRegistration collection
+    try {
+      const tempRegCollection = mongoose.connection.collection('temporaryregistrations');
+      // Check if TTL index already exists
+      const indexes = await tempRegCollection.indexes();
+      const ttlIndexExists = indexes.some(idx => 
+        idx.key && idx.key.expiresAt === 1 && idx.expireAfterSeconds !== undefined
+      );
+      
+      if (!ttlIndexExists) {
+        await tempRegCollection.createIndex(
+          { expiresAt: 1 },
+          { expireAfterSeconds: 0 }
+        );
+        console.log('✅ Created TTL index for TemporaryRegistration');
+      }
+    } catch (ttlIndexError) {
+      // Index might already exist or collection doesn't exist yet, ignore
+      if (!ttlIndexError.message.includes('already exists') && 
+          !ttlIndexError.message.includes('not found')) {
+        console.log('Note: TTL index creation:', ttlIndexError.message);
+      }
+    }
+
     // Setup Socket.io
     const io = setupSocketIO(httpServer);
     // Make io instance available to routes/controllers
@@ -290,9 +420,30 @@ const startServer = async () => {
       console.log(`\n🚀 Server is running!`);
       console.log(`   Port: ${PORT}`);
       console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`   Health Check: http://localhost:${PORT}/api/health`);
-      console.log(`   DB Test: http://localhost:${PORT}/api/test-db`);
+      console.log(`   CORS Origins: ${corsOrigins.length} configured`);
+      console.log(`   Database: ${mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Not Connected'}`);
+      console.log(`   Email Service: ${(process.env.EMAIL_USER && process.env.EMAIL_PASS) ? '✅ Configured' : '❌ Not Configured'}`);
+      
+      if (process.env.NODE_ENV === 'production') {
+        console.log(`   Health Check: https://dealing-india.onrender.com/api/health`);
+        console.log(`   Production URL: https://dealing-india.onrender.com`);
+      } else {
+        console.log(`   Health Check: http://localhost:${PORT}/api/health`);
+        console.log(`   DB Test: http://localhost:${PORT}/api/test-db`);
+      }
+      
       console.log(`   Socket.io: Enabled\n`);
+      
+      // Production-specific warnings
+      if (process.env.NODE_ENV === 'production') {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+          console.error('\n🚨 CRITICAL WARNING: Email service not configured in production!');
+          console.error('🚨 Registration will fail. Please set EMAIL_USER and EMAIL_PASS in Render environment variables.');
+        }
+        if (!process.env.SOCKET_CORS_ORIGIN) {
+          console.warn('\n⚠️  WARNING: SOCKET_CORS_ORIGIN not set. Socket.io may not work correctly.');
+        }
+      }
     }).on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.error(`\n❌ Port ${PORT} is already in use!`);

@@ -8,11 +8,17 @@ export const errorHandler = (err, req, res, next) => {
   
   // Log error for debugging (skip expected policy 404s)
   if (!isPolicy404) {
-    console.error('Error:', {
+    console.error('❌ Error:', {
       message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      name: err.name,
+      code: err.code,
+      status: err.status || err.statusCode || 500,
       url: req.originalUrl,
       method: req.method,
+      body: req.body ? JSON.stringify(req.body).substring(0, 200) : undefined,
+      params: req.params ? JSON.stringify(req.params) : undefined,
+      query: req.query ? JSON.stringify(req.query) : undefined,
+      stack: err.stack, // Always log stack for production debugging
     });
   }
 
@@ -21,7 +27,10 @@ export const errorHandler = (err, req, res, next) => {
   let message = err.message || 'Internal Server Error';
 
   // Handle specific error types
-  if (err.name === 'ValidationError') {
+  if (err.statusCode === 429 || err.isRateLimitError) {
+    status = 429;
+    message = err.message || 'Too many requests. Please try again later.';
+  } else if (err.name === 'ValidationError') {
     status = 400;
     message = 'Validation error';
     // If it's a Mongoose validation error, extract field messages

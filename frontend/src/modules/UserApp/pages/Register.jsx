@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiCalendar } from 'react-icons/fi';
@@ -14,6 +14,8 @@ const MobileRegister = () => {
   const { register: registerUser, isLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [formMode, setFormMode] = useState('signup'); // 'signup' or 'login'
+  const [localLoading, setLocalLoading] = useState(false);
+  const timeoutRef = useRef(null);
 
   const {
     register,
@@ -24,6 +26,54 @@ const MobileRegister = () => {
 
   const password = watch('password');
 
+  // Reset loading state on mount to prevent stuck loading state from persistence
+  useEffect(() => {
+    // Reset isLoading in store if it's stuck (can happen if persisted state had isLoading: true)
+    const store = useAuthStore.getState();
+    if (store.isLoading) {
+      useAuthStore.setState({ isLoading: false });
+    }
+    // Also reset local loading state
+    setLocalLoading(false);
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []); // Run only on mount
+
+  // Safety mechanism: Reset loading state if it's stuck
+  useEffect(() => {
+    if (localLoading || isLoading) {
+      timeoutRef.current = setTimeout(() => {
+        setLocalLoading(false);
+        toast.error('Request timeout. Please check your internet connection and try again.');
+      }, 35000);
+
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
+    } else {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+  }, [isLoading, localLoading]);
+
+  // Sync local loading with store loading
+  useEffect(() => {
+    if (!isLoading) {
+      setLocalLoading(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    }
+  }, [isLoading]);
+
   const handleModeChange = (mode) => {
     setFormMode(mode);
     if (mode === 'login') {
@@ -33,19 +83,47 @@ const MobileRegister = () => {
 
   const onSubmit = async (data) => {
     try {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      setLocalLoading(true);
+
       // Combine first name and last name
       const fullName = `${data.firstName} ${data.lastName}`;
       // Combine country code with phone number
       const phone = data.countryCode ? `${data.countryCode}${data.phone}` : data.phone;
 
-      await registerUser(fullName, data.email, data.password, phone);
-      toast.success('Registration successful!');
+      const result = await registerUser(fullName, data.email, data.password, phone);
+      
+      setLocalLoading(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
+      // Show message that OTP has been sent (not registration successful yet)
+      toast.success('Verification code sent to your email. Please verify to complete registration.');
       // Navigate to verification page
       navigate('/app/verification', { state: { email: data.email } });
     } catch (error) {
-      toast.error(error.message || 'Registration failed. Please try again.');
+      setLocalLoading(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
+      // Extract error message
+      const errorMessage = error?.message || 
+                         error?.response?.data?.message || 
+                         'Registration failed. Please check your information and try again.';
+      // Show error toast (API interceptor won't show for auth pages)
+      toast.error(errorMessage);
     }
   };
+
+  const isButtonLoading = localLoading || isLoading;
 
   return (
     <PageTransition>
@@ -280,10 +358,10 @@ const MobileRegister = () => {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-primary-500 hover:bg-primary-600 text-white py-3.5 rounded-xl font-semibold text-base transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? 'Creating Account...' : 'Sign Up'}
+                  disabled={isButtonLoading}
+                    className="w-full bg-primary-500 hover:bg-primary-600 text-white py-3.5 rounded-xl font-semibold text-base transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isButtonLoading ? 'Creating Account...' : 'Sign Up'}
                 </button>
               </form>
 

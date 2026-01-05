@@ -11,7 +11,22 @@ import {
  */
 export const getCartController = async (req, res, next) => {
   try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'User authentication required',
+      });
+    }
+
     const userId = req.user.userId;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is missing',
+      });
+    }
+
     const cart = await getCart(userId);
 
     res.status(200).json({
@@ -20,6 +35,11 @@ export const getCartController = async (req, res, next) => {
       data: cart,
     });
   } catch (error) {
+    console.error('Error in getCartController:', {
+      message: error.message,
+      userId: req.user?.userId,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+    });
     next(error);
   }
 };
