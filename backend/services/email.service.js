@@ -1,7 +1,11 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import dns from 'dns';
+import util from 'util';
 
 dotenv.config();
+
+const resolve4 = util.promisify(dns.resolve4);
 
 // Email configuration from environment variables
 const EMAIL_HOST = process.env.EMAIL_HOST || 'smtp.gmail.com';
@@ -18,74 +22,100 @@ const isProduction = process.env.NODE_ENV === 'production' ||
 
 // Singleton-like pattern for transporter
 let transporter = null;
+let isTransporterVerified = false;
 
 /**
- * Get or create the nodemailer transporter
- * Implements dynamic creation pattern from reference documentation
+ * Robust Transporter Creation with Fallback Strategy
+ * Tries Port 465 (SSL) first, then falls back to Port 587 (TLS)
  */
-const getTransporter = () => {
-  // If transporter already exists, return it
-  if (transporter) return transporter;
+const createRobustTransporter = async () => {
+  const cleanEmailPass = EMAIL_PASS.replace(/\s+/g, '');
+  const isGmail = EMAIL_HOST.toLowerCase().includes('gmail.com');
 
-  // Validation: Check if credentials are present
+  // Strategy 1: Preferred Secure SSL (Port 465)
+  // This is usually the most reliable on Cloud Functions/Render
+  const configSecure = {
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user: EMAIL_USER, pass: cleanEmailPass },
+    family: 4, // Force IPv4
+    timeout: 10000, // 10s connection timeout
+  };
+
+  // Strategy 2: Legacy TLS (Port 587)
+  // Fallback if 465 is blocked
+  const configTLS = {
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    auth: { user: EMAIL_USER, pass: cleanEmailPass },
+    family: 4,
+    timeout: 10000,
+    tls: {
+      ciphers: 'SSLv3'
+    }
+  };
+
+  // Helper to test a config
+  const tryConfig = async (config, name) => {
+    console.log(`📧 Attempting SMTP Connection (${name})...`);
+    const t = nodemailer.createTransport(config);
+    try {
+      await t.verify();
+      console.log(`✅ SMTP Connection Successful (${name})`);
+      return t;
+    } catch (error) {
+      console.warn(`⚠️ SMTP Connection Failed (${name}):`, error.message);
+      return null;
+    }
+  };
+
+  if (isGmail) {
+    // Try 465 first
+    let t = await tryConfig(configSecure, 'Gmail SSL/465');
+    if (t) return t;
+
+    // Try 587 second
+    console.log('� Falling back to TLS/587...');
+    t = await tryConfig(configTLS, 'Gmail TLS/587');
+    if (t) return t;
+
+    throw new Error('All SMTP connection strategies failed.');
+  } else {
+    // Generic Non-Gmail Logic
+    return nodemailer.createTransport({
+      host: EMAIL_HOST,
+      port: EMAIL_PORT,
+      secure: EMAIL_PORT === 465,
+      auth: { user: EMAIL_USER, pass: cleanEmailPass },
+      family: 4
+    });
+  }
+};
+
+/**
+ * Get or create the nodemailer transporter (Async)
+ */
+const getTransporter = async () => {
+  if (transporter && isTransporterVerified) return transporter;
+
   if (!EMAIL_USER || !EMAIL_PASS) {
     console.warn('⚠️ SMTP not configured. EMAIL_USER and EMAIL_PASS are required.');
     return null;
   }
 
-  // Clean password (remove spaces)
-  const cleanEmailPass = EMAIL_PASS.replace(/\s+/g, '');
-
-  // Gmail Special Case Logic (Manual Config for reliability)
-  const isGmail = EMAIL_HOST.toLowerCase().includes('gmail.com');
-
-  if (isGmail) {
-    console.log('📧 Configuring Email Service: Gmail Mode (Manual Secure)');
-    transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // Use SSL
-      auth: {
-        user: EMAIL_USER,
-        pass: cleanEmailPass,
-      },
-      // Force IPv4 for reliability on Render
-      family: 4, 
-      // Network Timeouts
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 10000,   // 10 seconds
-      socketTimeout: 10000,     // 10 seconds
-    });
-  } else {
-    console.log('📧 Configuring Email Service: Generic SMTP Mode');
-    transporter = nodemailer.createTransport({
-      host: EMAIL_HOST,
-      port: EMAIL_PORT,
-      secure: EMAIL_PORT === 465, // True for 465, false for other ports
-      auth: {
-        user: EMAIL_USER,
-        pass: cleanEmailPass,
-      },
-      // Force IPv4 for reliability
-      family: 4,
-      // Connection pooling for performance
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-    });
+  try {
+    transporter = await createRobustTransporter();
+    isTransporterVerified = true;
+    return transporter;
+  } catch (error) {
+    console.error('❌ FATAL: Could not initialize email transporter:', error.message);
+    transporter = null;
+    isTransporterVerified = false;
+    return null;
   }
-
-  // Verify connection (non-blocking)
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error('❌ Email Transporter Verification Failed:', error.message);
-      transporter = null; // Reset to force recreation on next attempt
-    } else {
-      console.log('✅ Email Transporter Verified Successfully');
-    }
-  });
-
-  return transporter;
 };
 
 /**
@@ -93,14 +123,13 @@ const getTransporter = () => {
  * Wraps transporter.sendMail with error handling and logging
  */
 const sendEmail = async (to, subject, html, text) => {
-  const mailTransporter = getTransporter();
+  const mailTransporter = await getTransporter();
 
   // Development/Fallback Mode
   if (!mailTransporter) {
-    console.log('⚠️ [DEV MODE] Email would have been sent to:', to);
+    console.log('⚠️ [DEV MODE/FAILURE] Email would have been sent to:', to);
     console.log('Subject:', subject);
-    console.log('Content (Preview):', text?.substring(0, 100) + '...');
-    return { success: false, error: 'Transporter not configured' };
+    return { success: false, error: 'Transporter not configured or failed' };
   }
 
   const mailOptions = {
@@ -118,11 +147,9 @@ const sendEmail = async (to, subject, html, text) => {
   } catch (error) {
     console.error('❌ Error sending email:', error.message);
     
-    // Check for timeout or connection issues
-    if (error.code === 'ETIMEDOUT' || error.command === 'CONN') {
-       console.error('⚠️ Network timeout detected. Resetting transporter.');
-       transporter = null; // Reset transporter for next attempt
-    }
+    // Invalidate transporter on error to force reconnection next time
+    transporter = null;
+    isTransporterVerified = false;
     
     throw error;
   }
