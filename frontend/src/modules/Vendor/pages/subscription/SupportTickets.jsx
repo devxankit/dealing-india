@@ -6,7 +6,7 @@ import api from '../../../../shared/utils/api';
 import CreateTicketModal from './CreateTicketModal';
 import TicketDetailModal from './TicketDetailModal';
 
-const SupportTickets = () => {
+const SupportTickets = ({ subscriptionOnly = false }) => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, open, resolved, closed
@@ -16,26 +16,52 @@ const SupportTickets = () => {
 
   useEffect(() => {
     loadTickets();
-  }, [filter]);
+  }, [filter, subscriptionOnly]);
 
   const loadTickets = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/vendor/support-tickets', { 
-        params: { 
-          status: filter !== 'all' ? filter : undefined,
-          category: 'subscription' 
-        } 
-      });
+      const params = { 
+        status: filter !== 'all' ? filter : undefined
+      };
       
-      if (response.success) {
-        setTickets(response.data || []);
+      // Don't pass category filter - we'll filter client-side
+      // Backend doesn't support multiple categories in single query
+      
+      const response = await api.get('/vendor/support-tickets', { params });
+      
+      console.log('Tickets API Response:', response);
+      
+      // API interceptor returns response.data directly, so response is already the backend response
+      if (response && response.success !== false) {
+        let ticketsData = response.data || [];
+        
+        if (Array.isArray(ticketsData)) {
+          // Filter tickets based on subscriptionOnly prop
+          if (subscriptionOnly) {
+            // Only show subscription, billing, or payment related tickets
+            ticketsData = ticketsData.filter(ticket => 
+              ticket.category && ['subscription', 'billing', 'payment'].includes(ticket.category)
+            );
+          } else {
+            // Show only general tickets (technical, other)
+            ticketsData = ticketsData.filter(ticket => 
+              ticket.category && ['technical', 'other'].includes(ticket.category)
+            );
+          }
+          
+          setTickets(ticketsData);
+        } else {
+          console.error('API returned invalid data format:', response);
+          setTickets([]);
+        }
       } else {
-        // Fallback to empty array if API fails
+        console.error('API returned success: false', response);
         setTickets([]);
       }
     } catch (error) {
       console.error('Error loading tickets:', error);
+      console.error('Error details:', error.response?.data || error.message);
       // Don't show error toast, just use empty array
       setTickets([]);
     } finally {
@@ -45,13 +71,26 @@ const SupportTickets = () => {
 
   const handleCreateTicket = async (ticketData) => {
     try {
+      // Ensure category is set correctly based on subscriptionOnly
+      let category = ticketData.category || 'other';
+      if (subscriptionOnly) {
+        // Force subscription-related categories
+        if (!['subscription', 'billing', 'payment'].includes(category)) {
+          category = 'subscription';
+        }
+      } else {
+        // Force general categories
+        if (!['technical', 'other'].includes(category)) {
+          category = 'other';
+        }
+      }
+      
       const response = await api.post('/vendor/support-tickets', {
         subject: ticketData.subject,
         description: ticketData.description,
-        category: ticketData.category || 'subscription',
+        category: category,
         issueType: ticketData.issueType,
         priority: ticketData.priority,
-        subscriptionId: ticketData.subscriptionId || null,
         transactionId: ticketData.transactionId || null,
         amount: ticketData.amount ? parseFloat(ticketData.amount) : null,
       });
@@ -120,8 +159,12 @@ const SupportTickets = () => {
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-1">Support Tickets (Subscriptions)</h3>
-          <p className="text-sm text-gray-500">Get help with subscription-related issues</p>
+          <h3 className="text-lg font-semibold text-gray-800 mb-1">Support Tickets</h3>
+          <p className="text-sm text-gray-500">
+            {subscriptionOnly 
+              ? 'Get help with your subscription, billing, and payment issues' 
+              : 'Get help with your account and orders'}
+          </p>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
@@ -229,7 +272,7 @@ const SupportTickets = () => {
               }}
               className="w-full py-2 text-blue-600 font-semibold text-sm hover:underline"
             >
-              View All Subscription Tickets ({tickets.length})
+              View All Tickets ({tickets.length})
             </button>
           )}
         </div>
@@ -240,6 +283,7 @@ const SupportTickets = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateTicket}
+        subscriptionOnly={subscriptionOnly}
       />
 
       <TicketDetailModal

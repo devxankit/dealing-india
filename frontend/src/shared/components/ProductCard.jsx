@@ -50,6 +50,31 @@ const ProductCard = ({ product, hideRating = false }) => {
   const buttonRef = useRef(null);
   const cartIconRef = useRef(null);
 
+  const handleBuyNow = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    try {
+      // Direct checkout with the product details without adding to cart store
+      const buyNowItem = {
+        id: product.id || product._id,
+        name: product.name,
+        price: product.price,
+        image: product.image || product.images?.[0],
+        quantity: 1,
+        vendorId: product.vendorId || product.vendor?.id || product.vendor?._id,
+        vendorName: product.vendorName || product.vendor?.storeName || product.vendor?.businessName,
+      };
+      
+      const checkoutPath = isMobileApp ? "/app/checkout" : "/checkout";
+      navigate(checkoutPath, { state: { buyNowItem } });
+    } catch (error) {
+      console.error('Error in Buy Now:', error);
+    }
+  };
+
   const handleAddToCart = async (e) => {
     if (e) {
       e.preventDefault();
@@ -246,10 +271,10 @@ const ProductCard = ({ product, hideRating = false }) => {
             )}
           </div>
 
-          {/* Add Button */}
+          {/* Buy Now Button */}
           <motion.button
             ref={buttonRef}
-            onClick={handleAddToCart}
+            onClick={handleBuyNow}
             data-no-navigate
             disabled={product.stock === "out_of_stock" || isAdding}
             whileTap={{ scale: 0.95 }}
@@ -281,7 +306,7 @@ const ProductCard = ({ product, hideRating = false }) => {
                 ? "Out of Stock"
                 : isAdding
                   ? "Adding..."
-                  : "Add"}
+                  : "Buy Now"}
             </span>
           </motion.button>
         </div>

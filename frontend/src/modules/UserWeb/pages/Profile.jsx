@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { FiUser, FiMail, FiPhone, FiLock, FiEye, FiEyeOff, FiCamera, FiSave } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
@@ -13,6 +14,7 @@ import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
 import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeaderPadding';
 
 const Profile = () => {
+  const navigate = useNavigate();
   const { user, updateProfile, changePassword, isLoading } = useAuthStore();
   const { responsivePadding } = useResponsiveHeaderPadding();
   const [activeTab, setActiveTab] = useState('personal');
@@ -93,6 +95,16 @@ const Profile = () => {
                     }`}
                   >
                     Change Password
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('support')}
+                    className={`px-6 py-3 font-semibold transition-colors ${
+                      activeTab === 'support'
+                        ? 'text-primary-600 border-b-2 border-primary-600'
+                        : 'text-gray-600 hover:text-gray-800'
+                    }`}
+                  >
+                    Support Tickets
                   </button>
                   <button
                     onClick={() => setActiveTab('settings')}
@@ -359,6 +371,25 @@ const Profile = () => {
                         {isLoading ? 'Changing Password...' : 'Change Password'}
                       </button>
                     </form>
+                  </motion.div>
+                )}
+
+                {/* Support Tickets Tab */}
+                {activeTab === 'support' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="glass-card rounded-2xl p-6 sm:p-8"
+                  >
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6">Support Tickets</h2>
+                    <div className="text-center py-8">
+                      <p className="text-gray-600 mb-4">Manage your support tickets and get help</p>
+                      <button
+                        onClick={() => navigate('/app/support-tickets')}
+                        className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                        View Support Tickets
+                      </button>
+                    </div>
                   </motion.div>
                 )}
 

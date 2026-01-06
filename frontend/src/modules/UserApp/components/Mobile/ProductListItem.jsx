@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiShoppingBag, FiHeart } from "react-icons/fi";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
@@ -10,6 +10,7 @@ import VendorBadge from "../../../Vendor/components/VendorBadge";
 import { getVendorById } from '../../../../data/vendors';
 
 const ProductListItem = ({ product, index }) => {
+  const navigate = useNavigate();
   const location = window.location.pathname;
   const isMobileApp = location.startsWith("/app");
   const productLink = isMobileApp
@@ -25,6 +26,24 @@ const ProductListItem = ({ product, index }) => {
     isInWishlist,
   } = useWishlistStore();
   const isFavorite = isInWishlist(product.id);
+
+  const handleBuyNow = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    const buyNowItem = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      quantity: 1,
+    };
+    
+    const checkoutPath = isMobileApp ? "/app/checkout" : "/checkout";
+    navigate(checkoutPath, { state: { buyNowItem } });
+  };
 
   const handleAddToCart = (e) => {
     if (e) {
@@ -143,12 +162,12 @@ const ProductListItem = ({ product, index }) => {
             )}
           </div>
 
-          {/* Add to Cart Button */}
+          {/* Buy Now Button */}
           <button
-            onClick={handleAddToCart}
+            onClick={handleBuyNow}
             className="w-full py-1.5 gradient-green text-white rounded-lg font-semibold text-xs flex items-center justify-center gap-1 hover:shadow-glow-green transition-all">
             <FiShoppingBag className="text-xs" />
-            Add to Cart
+            Buy Now
           </button>
         </div>
       </div>

@@ -27,6 +27,16 @@
     ]
   },
   {
+    "title": "User Chat",
+    "route": "/vendor/chat",
+    "children": []
+  },
+  {
+    "title": "Support Tickets",
+    "route": "/vendor/support-tickets",
+    "children": []
+  },
+  {
     "title": "Reels",
     "route": "/vendor/reels",
     "children": [

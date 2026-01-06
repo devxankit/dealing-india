@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
   FiMapPin,
   FiPhone,
@@ -31,7 +31,16 @@ import useResponsiveHeaderPadding from "../../../shared/hooks/useResponsiveHeade
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, getTotal, clearCart, getItemsByVendor } = useCartStore();
+  const location = useLocation();
+  const buyNowItem = location.state?.buyNowItem;
+  
+  const { items: cartItems, getTotal, clearCart, getItemsByVendor } = useCartStore();
+  
+  // Use buyNowItem if it exists, otherwise use cartItems
+  const items = useMemo(() => {
+    return buyNowItem ? [buyNowItem] : cartItems;
+  }, [buyNowItem, cartItems]);
+
   const { user, isAuthenticated } = useAuthStore();
   const { addresses, getDefaultAddress, addAddress } = useAddressStore();
   const { createOrder, createOrderAPI, verifyPaymentAPI } = useOrderStore();
@@ -39,10 +48,13 @@ const Checkout = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Group items by vendor
-  const itemsByVendor = useMemo(
-    () => getItemsByVendor(),
-    [items, getItemsByVendor]
-  );
+  const itemsByVendor = useMemo(() => {
+    if (buyNowItem) {
+      const vendorId = buyNowItem.vendorId || 'default';
+      return { [vendorId]: [buyNowItem] };
+    }
+    return getItemsByVendor();
+  }, [items, buyNowItem, getItemsByVendor]);
 
   const [step, setStep] = useState(1);
   const [isGuest, setIsGuest] = useState(false);
@@ -94,14 +106,14 @@ const Checkout = () => {
 
   // Calculate shipping cost
   const calculateShipping = () => {
-    const total = getTotal();
+    const subtotal = buyNowItem ? (buyNowItem.price * buyNowItem.quantity) : getTotal();
     const freeShippingThreshold = 100;
 
     if (appliedCoupon?.type === "freeship") {
       return 0;
     }
 
-    if (total >= freeShippingThreshold) {
+    if (subtotal >= freeShippingThreshold) {
       return 0;
     }
 
@@ -112,7 +124,13 @@ const Checkout = () => {
     return 50; // Standard shipping
   };
 
-  const total = getTotal();
+  const subtotal = useMemo(() => {
+    if (buyNowItem) {
+      return buyNowItem.price * buyNowItem.quantity;
+    }
+    return getTotal();
+  }, [buyNowItem, getTotal, items]);
+
   const shipping = calculateShipping();
 
   // Calculate tax based on product.taxRate for each item
@@ -136,18 +154,18 @@ const Checkout = () => {
     if (!settings?.tax?.isEnabled) return 0;
 
     if (settings.tax.taxType === 'percentage') {
-      return (total * (settings.tax.taxValue || 0)) / 100;
+      return (subtotal * (settings.tax.taxValue || 0)) / 100;
     } else {
       return settings.tax.taxValue || 0;
     }
-  }, [settings, total]);
+  }, [settings, subtotal]);
 
   const discount = appliedCoupon
     ? appliedCoupon.type === "percentage"
-      ? total * (appliedCoupon.value / 100)
+      ? subtotal * (appliedCoupon.value / 100)
       : appliedCoupon.value
     : 0;
-  const finalTotal = Math.max(0, total + shipping + tax + platformTax - discount);
+  const finalTotal = Math.max(0, subtotal + shipping + tax + platformTax - discount);
 
   // Coupon validation
   const validateCoupon = (code) => {
@@ -281,7 +299,7 @@ const Checkout = () => {
           country: formData.country,
         },
         paymentMethod: formData.paymentMethod === 'card' ? 'creditCard' : formData.paymentMethod,
-        subtotal: total,
+        subtotal: subtotal,
         shipping: shipping,
         tax: tax + platformTax,
         discount: discount,
@@ -315,7 +333,9 @@ const Checkout = () => {
             const paymentData = handlePaymentSuccess(paymentResponse);
             const verifyResult = await verifyPaymentAPI(order.id || order.orderCode, paymentData);
 
-            clearCart();
+            if (!buyNowItem) {
+              clearCart();
+            }
             toast.success("Payment successful! Order placed.");
             navigate(`/order-confirmation/${order.id || order.orderCode}`);
           } catch (error) {
@@ -355,7 +375,7 @@ const Checkout = () => {
         country: formData.country,
       },
       paymentMethod: formData.paymentMethod,
-      subtotal: total,
+      subtotal: subtotal,
       shipping: shipping,
       tax: tax + platformTax,
       discount: discount,
@@ -363,7 +383,9 @@ const Checkout = () => {
       couponCode: appliedCoupon ? couponCode : null,
     });
 
-    clearCart();
+    if (!buyNowItem) {
+      clearCart();
+    }
     toast.success("Order placed successfully!");
     navigate(`/order-confirmation/${order.id}`);
   };

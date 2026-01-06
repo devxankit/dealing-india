@@ -423,9 +423,9 @@ const VendorSubscription = () => {
         })}
       </div>
 
-      {/* Support Tickets Section */}
+      {/* Support Tickets Section - Only Subscription Related */}
       <div className="mt-10">
-        <SupportTickets />
+        <SupportTickets subscriptionOnly={true} />
       </div>
 
       <div className="mt-16 bg-blue-50 rounded-3xl p-8 flex flex-col md:flex-row items-center gap-8">

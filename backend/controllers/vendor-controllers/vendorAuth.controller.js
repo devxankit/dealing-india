@@ -32,7 +32,7 @@ export const register = async (req, res, next) => {
       success: true,
       message: result.message || 'Registration initiated. Please verify your email to complete registration.',
       data: {
-        email: result.email,
+        ...result,
       },
     });
   } catch (error) {

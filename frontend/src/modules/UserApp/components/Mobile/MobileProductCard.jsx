@@ -1,5 +1,5 @@
 import { FiHeart, FiShoppingBag, FiStar } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
@@ -17,6 +17,7 @@ import VendorBadge from "../../../Vendor/components/VendorBadge";
 import { getVendorById } from "../../../../data/vendors";
 
 const MobileProductCard = ({ product }) => {
+  const navigate = useNavigate();
   const addItem = useCartStore((state) => state.addItem);
   const triggerCartAnimation = useUIStore(
     (state) => state.triggerCartAnimation
@@ -35,6 +36,23 @@ const MobileProductCard = ({ product }) => {
     end: { x: 0, y: 0 },
   });
   const buttonRef = useRef(null);
+
+  const handleBuyNow = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    const buyNowItem = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      quantity: 1,
+    };
+    
+    navigate("/app/checkout", { state: { buyNowItem } });
+  };
 
   const handleAddToCart = (e) => {
     if (e) {
@@ -213,22 +231,22 @@ const MobileProductCard = ({ product }) => {
                 )}
               </div>
 
-              {/* Add to Cart Button */}
+              {/* Buy Now Button */}
               <motion.button
                 ref={buttonRef}
-                onClick={handleAddToCart}
+                onClick={handleBuyNow}
                 disabled={product.stock === "out_of_stock"}
                 whileTap={{ scale: 0.95 }}
                 className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
                   product.stock === "out_of_stock"
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50"
+                    : "gradient-green text-white"
                 }`}>
                 <FiShoppingBag className="text-base" />
                 <span>
                   {product.stock === "out_of_stock"
                     ? "Out of Stock"
-                    : "Add to Cart"}
+                    : "Buy Now"}
                 </span>
               </motion.button>
             </div>

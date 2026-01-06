@@ -104,7 +104,8 @@ class VendorSupportTicketController {
 
       const { id } = req.params;
 
-      const ticket = await SupportTicketService.getTicketById(id, vendorId);
+      // Get ticket with vendor role to ensure proper filtering
+      const ticket = await SupportTicketService.getTicketById(id, vendorId, 'vendor');
 
       if (!ticket) {
         return res.status(404).json({
@@ -113,9 +114,15 @@ class VendorSupportTicketController {
         });
       }
 
+      // Get ticket messages for complete conversation history
+      const messages = await SupportTicketService.getTicketMessages(id);
+
       res.status(200).json({
         success: true,
-        data: ticket,
+        data: {
+          ...ticket,
+          messages: messages || [],
+        },
       });
     } catch (error) {
       console.error('Error getting ticket:', error);

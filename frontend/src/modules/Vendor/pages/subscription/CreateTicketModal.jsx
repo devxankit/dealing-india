@@ -3,14 +3,16 @@ import { FiX, FiAlertCircle, FiCreditCard, FiMessageSquare } from 'react-icons/f
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
+const CreateTicketModal = ({ isOpen, onClose, onSubmit, subscriptionOnly = false }) => {
+  // Set default category based on subscriptionOnly prop
+  const defaultCategory = subscriptionOnly ? 'subscription' : 'other';
+  
   const [formData, setFormData] = useState({
     subject: '',
     description: '',
-    category: 'subscription',
+    category: defaultCategory,
     priority: 'medium',
-    issueType: 'payment_failed', // payment_failed, refund_request, activation_issue, other
-    subscriptionId: '',
+    issueType: 'other', // payment_failed, refund_request, order_issue, product_issue, billing_issue, other
     transactionId: '',
     amount: ''
   });
@@ -19,8 +21,8 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
   const issueTypes = [
     { value: 'payment_failed', label: 'Payment Failed but Amount Deducted', icon: FiCreditCard },
     { value: 'refund_request', label: 'Refund Request', icon: FiAlertCircle },
-    { value: 'activation_issue', label: 'Subscription Not Activating', icon: FiMessageSquare },
-    { value: 'upgrade_downgrade', label: 'Upgrade/Downgrade Issue', icon: FiMessageSquare },
+    { value: 'order_issue', label: 'Order Related Issue', icon: FiMessageSquare },
+    { value: 'product_issue', label: 'Product Related Issue', icon: FiMessageSquare },
     { value: 'billing_issue', label: 'Billing Issue', icon: FiCreditCard },
     { value: 'other', label: 'Other Issue', icon: FiMessageSquare }
   ];
@@ -40,10 +42,9 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
       setFormData({
         subject: '',
         description: '',
-        category: 'subscription',
+        category: subscriptionOnly ? 'subscription' : 'other',
         priority: 'medium',
-        issueType: 'payment_failed',
-        subscriptionId: '',
+        issueType: 'other',
         transactionId: '',
         amount: ''
       });
@@ -55,22 +56,38 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
   };
 
   const handleIssueTypeChange = (issueType) => {
-    setFormData({ ...formData, issueType });
+    // Auto-set category based on issue type when subscriptionOnly
+    let category = formData.category;
+    if (subscriptionOnly) {
+      // Map issue types to subscription-related categories
+      const categoryMap = {
+        payment_failed: 'payment',
+        refund_request: 'billing',
+        billing_issue: 'billing',
+        order_issue: subscriptionOnly ? 'subscription' : 'other',
+        product_issue: subscriptionOnly ? 'subscription' : 'other',
+        other: 'subscription'
+      };
+      category = categoryMap[issueType] || 'subscription';
+    } else {
+      // For general support, use technical or other
+      category = ['order_issue', 'product_issue'].includes(issueType) ? 'technical' : 'other';
+    }
     
     // Auto-fill subject based on issue type
     const issueTypeLabels = {
       payment_failed: 'Payment Failed but Amount Deducted',
       refund_request: 'Refund Request',
-      activation_issue: 'Subscription Not Activating',
-      upgrade_downgrade: 'Upgrade/Downgrade Issue',
+      order_issue: 'Order Related Issue',
+      product_issue: 'Product Related Issue',
       billing_issue: 'Billing Issue',
-      other: 'Subscription Issue'
+      other: subscriptionOnly ? 'Subscription Issue' : 'General Issue'
     };
     
     if (!formData.subject || formData.subject === issueTypeLabels[formData.issueType]) {
-      setFormData({ ...formData, issueType, subject: issueTypeLabels[issueType] });
+      setFormData({ ...formData, issueType, category, subject: issueTypeLabels[issueType] });
     } else {
-      setFormData({ ...formData, issueType });
+      setFormData({ ...formData, issueType, category });
     }
   };
 
@@ -93,7 +110,7 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-800">Raise Support Ticket</h2>
-                <p className="text-sm text-gray-500">Get help with subscription issues</p>
+                <p className="text-sm text-gray-500">Get help with your account and orders</p>
               </div>
             </div>
             <button
@@ -202,18 +219,6 @@ const CreateTicketModal = ({ isOpen, onClose, onSubmit }) => {
                           value={formData.amount}
                           onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                           placeholder="e.g., 99"
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Subscription ID (if available)
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.subscriptionId}
-                          onChange={(e) => setFormData({ ...formData, subscriptionId: e.target.value })}
-                          placeholder="e.g., sub_1234567890"
                           className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>

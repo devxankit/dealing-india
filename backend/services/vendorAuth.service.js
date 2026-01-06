@@ -77,20 +77,21 @@ export const registerVendor = async (vendorData) => {
             // Determine file type and set appropriate resource_type for Cloudinary
             const fileType = doc.type || 'application/pdf';
             const isImage = fileType.startsWith('image/');
-            const isVideo = fileType.startsWith('video/');
             const isPDF = fileType === 'application/pdf';
+
+            if (!isImage && !isPDF) {
+              console.warn(`Skipping invalid file type: ${fileType}`);
+              continue;
+            }
 
             let resourceType = 'auto';
             let folderName = 'vendor-documents';
 
             if (isPDF) {
-              resourceType = 'raw';
+              resourceType = 'auto';
             } else if (isImage) {
               resourceType = 'image';
               folderName = 'vendor-documents/images';
-            } else if (isVideo) {
-              resourceType = 'video';
-              folderName = 'vendor-documents/videos';
             }
 
             // Upload to Cloudinary
@@ -152,9 +153,25 @@ export const registerVendor = async (vendorData) => {
     const emailResult = await sendVerificationEmail(email, otp);
 
     if (!emailResult.success) {
-      // If email fails, delete temporary registration
+      // If email fails, don't delete temporary registration if it's likely due to missing config
+      // Instead, log the OTP for manual verification during development/setup
+      console.error(`❌ Failed to send verification email to ${email}:`, emailResult.error);
+      
+      const isConfigMissing = !process.env.EMAIL_USER || !process.env.EMAIL_PASS;
+      
+      if (isConfigMissing) {
+        console.warn('⚠️  EMAIL_USER or EMAIL_PASS missing. Registration allowed to proceed for setup purposes.');
+        console.warn(`🔑 VERIFICATION OTP FOR ${email}: ${otp}`);
+        
+        return {
+          message: 'Registration initiated. (EMAIL CONFIG MISSING - check server logs for OTP)',
+          email: email.toLowerCase(),
+          debugOtp: otp, // Include OTP in response only if config is missing (for development)
+        };
+      }
+
       await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
-      throw new Error('Failed to send verification email. Please try again.');
+      throw new Error('Failed to send verification email. Please try again later.');
     }
 
     console.log(`✅ Verification OTP sent to ${email}`);

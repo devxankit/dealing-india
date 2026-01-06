@@ -103,8 +103,60 @@ export const setupSocketIO = (httpServer) => {
 
     // User/Vendor handlers
     if (userRole === 'user' || userRole === 'vendor') {
-      // Add user/vendor-specific handlers here if needed
+      // Chat event handlers
+      socket.on('join_chat_room', (data) => {
+        const { conversationId } = data;
+        if (conversationId) {
+          socket.join(`chat_${conversationId}`);
+          socket.emit('joined_chat_room', { conversationId });
+        }
+      });
+
+      socket.on('leave_chat_room', (data) => {
+        const { conversationId } = data;
+        if (conversationId) {
+          socket.leave(`chat_${conversationId}`);
+        }
+      });
+
+      socket.on('typing_start', (data) => {
+        const { conversationId } = data;
+        if (conversationId) {
+          socket.to(`chat_${conversationId}`).emit('user_typing', {
+            conversationId,
+            userId,
+            userRole,
+          });
+        }
+      });
+
+      socket.on('typing_stop', (data) => {
+        const { conversationId } = data;
+        if (conversationId) {
+          socket.to(`chat_${conversationId}`).emit('user_stopped_typing', {
+            conversationId,
+            userId,
+            userRole,
+          });
+        }
+      });
     }
+
+    // Support ticket event handlers
+    socket.on('join_ticket_room', (data) => {
+      const { ticketId } = data;
+      if (ticketId) {
+        socket.join(`ticket_${ticketId}`);
+        socket.emit('joined_ticket_room', { ticketId });
+      }
+    });
+
+    socket.on('leave_ticket_room', (data) => {
+      const { ticketId } = data;
+      if (ticketId) {
+        socket.leave(`ticket_${ticketId}`);
+      }
+    });
 
     // Notification event handlers
     socket.on('mark_notification_read', async (data) => {

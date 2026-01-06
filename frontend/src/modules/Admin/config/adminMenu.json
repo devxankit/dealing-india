@@ -107,6 +107,13 @@
     ]
   },
   {
+    "title": "Support",
+    "route": "/admin/support",
+    "children": [
+      "Tickets"
+    ]
+  },
+  {
     "title": "Reports",
     "route": "/admin/reports",
     "children": [

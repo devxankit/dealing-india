@@ -10,6 +10,7 @@ import {
   FiList,
   FiMessageSquare,
   FiLoader,
+  FiPhone,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { formatPrice } from "../../../shared/utils/helpers";
@@ -284,6 +285,23 @@ const VendorStore = () => {
                         </span>{" "}
                         Products
                       </div>
+                    </div>
+                    {/* Chat and Call Buttons */}
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => navigate(`/app/chat/${vendor._id || vendor.id}`)}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium">
+                        <FiMessageSquare className="text-base" />
+                        Chat
+                      </button>
+                      {vendor.phone && (
+                        <a
+                          href={`tel:${vendor.phone}`}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                        <FiPhone className="text-base" />
+                        Call
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>

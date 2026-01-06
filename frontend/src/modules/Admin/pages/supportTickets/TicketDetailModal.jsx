@@ -8,13 +8,36 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
   const [response, setResponse] = useState('');
   const [status, setStatus] = useState('in_progress');
   const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   React.useEffect(() => {
     if (ticket) {
       setStatus(ticket.status || 'in_progress');
       setResponse('');
+      // Load messages if ticket has messages array
+      if (ticket.messages && Array.isArray(ticket.messages)) {
+        setMessages(ticket.messages);
+      } else {
+        loadMessages();
+      }
     }
   }, [ticket]);
+
+  const loadMessages = async () => {
+    if (!ticket?._id && !ticket?.id) return;
+    try {
+      setLoadingMessages(true);
+      const response = await api.get(`/admin/support-tickets/${ticket._id || ticket.id}`);
+      if (response.success && response.data.messages) {
+        setMessages(response.data.messages);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
 
   const handleRespond = async (e) => {
     e.preventDefault();
@@ -34,6 +57,8 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
       if (responseData.success) {
         toast.success('Response sent successfully');
         setResponse('');
+        // Reload messages
+        await loadMessages();
         if (onUpdate) {
           onUpdate();
         }
@@ -163,19 +188,43 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
 
           {/* Content */}
           <div className="p-6 space-y-6">
-            {/* Vendor Info */}
+            {/* User/Vendor Info */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
                 <FiUser className="text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">Vendor</span>
+                <span className="text-sm font-medium text-gray-700">
+                  {ticket.createdByRole === 'user' ? 'User' : 'Vendor'}
+                </span>
+                {ticket.createdByRole && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    ticket.createdByRole === 'user' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                  }`}>
+                    {ticket.createdByRole === 'user' ? 'User' : 'Vendor'}
+                  </span>
+                )}
               </div>
-              <p className="text-sm font-semibold text-gray-800">
-                {ticket.vendorId && typeof ticket.vendorId === 'object'
-                  ? (ticket.vendorId.businessName || ticket.vendorId.storeName || 'Unknown Vendor')
-                  : 'Unknown Vendor'}
-              </p>
-              {ticket.vendorId && typeof ticket.vendorId === 'object' && ticket.vendorId.email && (
-                <p className="text-xs text-gray-500">{ticket.vendorId.email}</p>
+              {ticket.createdByRole === 'user' ? (
+                <>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {ticket.userId && typeof ticket.userId === 'object'
+                      ? (ticket.userId.name || ticket.userId.email || 'Unknown User')
+                      : 'Unknown User'}
+                  </p>
+                  {ticket.userId && typeof ticket.userId === 'object' && ticket.userId.email && (
+                    <p className="text-xs text-gray-500">{ticket.userId.email}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {ticket.vendorId && typeof ticket.vendorId === 'object'
+                      ? (ticket.vendorId.businessName || ticket.vendorId.storeName || 'Unknown Vendor')
+                      : 'Unknown Vendor'}
+                  </p>
+                  {ticket.vendorId && typeof ticket.vendorId === 'object' && ticket.vendorId.email && (
+                    <p className="text-xs text-gray-500">{ticket.vendorId.email}</p>
+                  )}
+                </>
               )}
             </div>
 
@@ -236,11 +285,53 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
               </div>
             )}
 
-            {/* Admin Response Section */}
+            {/* Messages Thread */}
             <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Admin Response</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-4">Conversation</h3>
               
-              {ticket.adminResponse ? (
+              {loadingMessages ? (
+                <div className="text-center py-4">
+                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                </div>
+              ) : messages.length > 0 ? (
+                <div className="space-y-4 mb-4">
+                  {messages.map((message) => {
+                    const isAdmin = message.senderRole === 'admin';
+                    return (
+                      <div
+                        key={message._id}
+                        className={`rounded-lg p-4 ${
+                          isAdmin
+                            ? 'bg-blue-50 border border-blue-200'
+                            : 'bg-gray-50 border border-gray-200'
+                        }`}>
+                        <div className="flex items-start gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            isAdmin ? 'bg-blue-100' : 'bg-gray-200'
+                          }`}>
+                            <span className={`text-xs font-semibold ${
+                              isAdmin ? 'text-blue-600' : 'text-gray-600'
+                            }`}>
+                              {isAdmin ? 'A' : message.senderId?.name?.charAt(0) || 'U'}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-gray-800">
+                                {isAdmin ? 'Admin' : (message.senderId?.name || 'User')}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatDate(message.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{message.message}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : ticket.adminResponse ? (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                   <div className="flex items-start gap-2 mb-2">
                     <FiCheckCircle className="text-green-600 mt-0.5" />
@@ -273,7 +364,7 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                   <textarea
                     value={response}
                     onChange={(e) => setResponse(e.target.value)}
-                    placeholder="Enter your response to the vendor..."
+                    placeholder={`Enter your response to the ${ticket.createdByRole === 'user' ? 'user' : 'vendor'}...`}
                     rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                     required

@@ -36,6 +36,10 @@ const notificationSchema = new mongoose.Schema(
         'offer',
         'promotion',
         'custom',
+        'chat_message',
+        'ticket_created',
+        'ticket_replied',
+        'ticket_status_changed',
       ],
     },
     title: {

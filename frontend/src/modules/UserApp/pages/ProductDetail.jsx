@@ -265,6 +265,61 @@ const MobileProductDetail = () => {
     );
   }
 
+  const handleBuyNow = () => {
+    // Check stock for variations
+    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+      const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
+      if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
+        const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
+        if (sizeVariant.stockQuantity === 0 || sizeVariant.stockStatus === 'out_of_stock') {
+          toast.error("This variation is out of stock");
+          return;
+        }
+      }
+    } else if (product.stock === "out_of_stock") {
+      toast.error("Product is out of stock");
+      return;
+    }
+
+    let finalPrice = product.price;
+
+    // New colorVariants structure
+    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+      const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
+      if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
+        const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
+        if (sizeVariant.price !== null && sizeVariant.price !== undefined) {
+          finalPrice = sizeVariant.price;
+        }
+      }
+    }
+    // Legacy structure support
+    else if (selectedVariant && product.variants?.prices) {
+      if (
+        selectedVariant.size &&
+        product.variants.prices[selectedVariant.size]
+      ) {
+        finalPrice = product.variants.prices[selectedVariant.size];
+      } else if (
+        selectedVariant.color &&
+        product.variants.prices[selectedVariant.color]
+      ) {
+        finalPrice = product.variants.prices[selectedVariant.color];
+      }
+    }
+
+    const buyNowItem = {
+      id: product.id,
+      name: product.name,
+      price: finalPrice,
+      image: productImages[0],
+      quantity: quantity,
+      variant: selectedVariant,
+      vendorId: product.vendorId,
+    };
+    navigate("/app/checkout", { state: { buyNowItem } });
+  };
+
   const handleAddToCart = () => {
     // Check stock for new colorVariants structure
     if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
@@ -603,21 +658,36 @@ const MobileProductDetail = () => {
               </p>
 
               {/* Action Buttons (Moved from floating) */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={product.stock === "out_of_stock"}
-                  className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${product.stock === "out_of_stock"
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50"
-                    }`}>
-                  <FiShoppingBag className="text-base" />
-                  <span>
-                    {product.stock === "out_of_stock"
-                      ? "OUT OF STOCK"
-                      : "ADD TO CART"}
-                  </span>
-                </button>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={product.stock === "out_of_stock"}
+                    className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${product.stock === "out_of_stock"
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50"
+                      }`}>
+                    <FiShoppingBag className="text-base" />
+                    <span>
+                      {product.stock === "out_of_stock"
+                        ? "OUT OF STOCK"
+                        : "ADD TO CART"}
+                    </span>
+                  </button>
+                  <button
+                    onClick={handleBuyNow}
+                    disabled={product.stock === "out_of_stock"}
+                    className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${product.stock === "out_of_stock"
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "gradient-green text-white"
+                      }`}>
+                    <span>
+                      {product.stock === "out_of_stock"
+                        ? "OUT OF STOCK"
+                        : "BUY NOW"}
+                    </span>
+                  </button>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleFavorite}

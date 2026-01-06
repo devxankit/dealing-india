@@ -73,6 +73,9 @@ import adminVendorWalletRoutes from './routes/adminVendorWallet.routes.js';
 import returnRequestRoutes from './routes/returnRequest.routes.js';
 import vendorReturnRoutes from './routes/vendorReturn.routes.js';
 import adminReturnRoutes from './routes/adminReturn.routes.js';
+import userChatRoutes from './routes/userChat.routes.js';
+import vendorChatRoutes from './routes/vendorChat.routes.js';
+import userSupportTicketRoutes from './routes/userSupportTicket.routes.js';
 
 
 // Load environment variables
@@ -273,10 +276,13 @@ app.use('/api/user/wallet', walletRoutes);
 app.use('/api/user/notifications', userNotificationRoutes);
 app.use('/api/user/reels', userReelsRoutes);
 app.use('/api/user/reels', reelCommentsRoutes);
+app.use('/api/user/chat', userChatRoutes);
+app.use('/api/user/support-tickets', userSupportTicketRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/admin/support-tickets', adminSupportTicketRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 app.use('/api/vendor/support-tickets', vendorSupportTicketRoutes);
+app.use('/api/vendor/chat', vendorChatRoutes);
 app.use('/api/user/returns', returnRequestRoutes);
 
 // Vendor management routes (require vendor authentication)

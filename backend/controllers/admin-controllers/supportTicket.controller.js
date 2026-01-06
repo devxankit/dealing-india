@@ -7,13 +7,15 @@ class AdminSupportTicketController {
    */
   async getAllTickets(req, res) {
     try {
-      const { status, category, priority, vendorId } = req.query;
+      const { status, category, priority, vendorId, userId, createdByRole } = req.query;
 
       const tickets = await SupportTicketService.getAllTickets({
         status,
         category,
         priority,
         vendorId,
+        userId,
+        createdByRole,
       });
 
       res.status(200).json({
@@ -47,9 +49,15 @@ class AdminSupportTicketController {
         });
       }
 
+      // Get ticket messages
+      const messages = await SupportTicketService.getTicketMessages(id);
+
       res.status(200).json({
         success: true,
-        data: ticket,
+        data: {
+          ...ticket,
+          messages,
+        },
       });
     } catch (error) {
       console.error('Error getting ticket:', error);
@@ -84,17 +92,46 @@ class AdminSupportTicketController {
         });
       }
 
-      const ticket = await SupportTicketService.respondToTicket(
+      // Add message to ticket
+      const ticketMessage = await SupportTicketService.addTicketMessage(
         id,
         adminId,
+        'admin',
         response,
-        status || 'in_progress'
+        []
       );
+
+      // Update ticket status if provided
+      let ticket;
+      if (status) {
+        ticket = await SupportTicketService.updateTicketStatus(
+          id,
+          status,
+          adminId,
+          'admin',
+          'Admin responded'
+        );
+      } else {
+        ticket = await SupportTicketService.getTicketById(id);
+      }
+
+      // Get Socket.IO instance from app
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`ticket_${id}`).emit('ticket_message', ticketMessage);
+        io.to(`ticket_${id}`).emit('ticket_updated', { ticketId: id, message: ticketMessage });
+        if (status) {
+          io.to(`ticket_${id}`).emit('ticket_status_changed', { ticketId: id, status, ticket });
+        }
+      }
 
       res.status(200).json({
         success: true,
         message: 'Response sent successfully',
-        data: ticket,
+        data: {
+          ...ticket,
+          messages: await SupportTicketService.getTicketMessages(id),
+        },
       });
     } catch (error) {
       console.error('Error responding to ticket:', error);
@@ -136,6 +173,13 @@ class AdminSupportTicketController {
         'admin',
         note || 'Status updated by admin'
       );
+
+      // Get Socket.IO instance from app
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`ticket_${id}`).emit('ticket_status_changed', { ticketId: id, status, ticket });
+        io.to(`ticket_${id}`).emit('ticket_updated', { ticketId: id, status, ticket });
+      }
 
       res.status(200).json({
         success: true,

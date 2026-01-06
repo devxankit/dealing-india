@@ -8,10 +8,24 @@ const supportTicketSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    createdByRole: {
+      type: String,
+      enum: ['user', 'vendor'],
+      required: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: function() {
+        return this.createdByRole === 'user';
+      },
+    },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',
-      required: true,
+      required: function() {
+        return this.createdByRole === 'vendor';
+      },
     },
     subject: {
       type: String,
@@ -89,11 +103,11 @@ const supportTicketSchema = new mongoose.Schema(
         },
         changedByModel: {
           type: String,
-          enum: ['Vendor', 'Admin'],
+          enum: ['User', 'Vendor', 'Admin'],
         },
         changedByRole: {
           type: String,
-          enum: ['vendor', 'admin'],
+          enum: ['user', 'vendor', 'admin'],
           required: true,
         },
         timestamp: {
@@ -116,6 +130,8 @@ const supportTicketSchema = new mongoose.Schema(
 
 // Indexes
 supportTicketSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
+supportTicketSchema.index({ userId: 1, status: 1, createdAt: -1 });
+supportTicketSchema.index({ createdByRole: 1, status: 1, createdAt: -1 });
 supportTicketSchema.index({ ticketNumber: 1 });
 supportTicketSchema.index({ category: 1, status: 1 });
 supportTicketSchema.index({ priority: 1, status: 1 });

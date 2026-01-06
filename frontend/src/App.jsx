@@ -19,6 +19,10 @@ import UserForgotPassword from "./modules/UserWeb/pages/ForgotPassword";
 import Profile from "./modules/UserWeb/pages/Profile";
 import Orders from "./modules/UserWeb/pages/Orders";
 import Addresses from "./modules/UserWeb/pages/Addresses";
+import Chat from "./modules/UserWeb/pages/Chat";
+import SupportTickets from "./modules/UserWeb/pages/SupportTickets";
+import SupportTicketDetail from "./modules/UserWeb/pages/SupportTicketDetail";
+import AdminSupportTickets from "./modules/Admin/pages/supportTickets/SupportTickets";
 import Wishlist from "./modules/UserWeb/pages/Wishlist";
 import Offers from "./modules/UserWeb/pages/Offers";
 import DailyDeals from "./modules/UserWeb/pages/DailyDeals";
@@ -181,6 +185,7 @@ import VendorAnalytics from "./modules/Vendor/pages/Analytics";
 import VendorEarnings from "./modules/Vendor/pages/Earnings";
 import VendorSettings from "./modules/Vendor/pages/Settings";
 import VendorSubscription from "./modules/Vendor/pages/Subscription";
+import VendorSupportTickets from "./modules/Vendor/pages/SupportTickets";
 import VendorHeroBannerBooking from "./modules/Vendor/pages/HeroBannerBooking";
 import VendorHeroBannerBookingDetail from "./modules/Vendor/pages/HeroBannerBookingDetail";
 import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
@@ -191,6 +196,7 @@ import VendorReturnRequestDetail from "./modules/Vendor/pages/returns/ReturnRequ
 import VendorProductReviews from "./modules/Vendor/pages/ProductReviews";
 import VendorPromotions from "./modules/Vendor/pages/Promotions";
 import VendorNotifications from "./modules/Vendor/pages/Notifications";
+import VendorChat from "./modules/Vendor/pages/Chat";
 import VendorAllReels from "./modules/Vendor/pages/reels/AllReels";
 import VendorAddReel from "./modules/Vendor/pages/reels/AddReel";
 import VendorEditReel from "./modules/Vendor/pages/reels/EditReel";
@@ -516,6 +522,8 @@ const AppRoutes = () => {
           <Route path="campaigns" element={<Campaigns />} />
           <Route path="hero-banners" element={<AdminHeroBanner />} />
           <Route path="hero-banners/details/:id" element={<AdminHeroBannerDetail />} />
+          <Route path="support" element={<Navigate to="/admin/support/tickets" replace />} />
+          <Route path="support/tickets" element={<AdminSupportTickets />} />
 
           <Route path="wallet" element={<AdminWallet />} />
           <Route path="banners" element={<Banners />} />
@@ -580,6 +588,9 @@ const AppRoutes = () => {
           <Route path="orders/canceled-order" element={<VendorAllOrders />} />
           <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
           <Route path="orders/:id" element={<VendorOrderDetail />} />
+          <Route path="chat" element={<VendorChat />} />
+          <Route path="chat/:userId" element={<VendorChat />} />
+          <Route path="support-tickets" element={<VendorSupportTickets />} />
           <Route path="reels" element={<VendorReels />} />
           <Route path="reels/all-reels" element={<VendorAllReels />} />
           <Route path="reels/add-reel" element={<VendorAddReel />} />
@@ -796,6 +807,36 @@ const AppRoutes = () => {
             <RouteWrapper>
               <ProtectedRoute>
                 <MobileProfile />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/chat/:vendorId?"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <Chat />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/support-tickets"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <SupportTickets />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/support-tickets/:id"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <SupportTicketDetail />
               </ProtectedRoute>
             </RouteWrapper>
           }

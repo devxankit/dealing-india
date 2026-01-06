@@ -29,7 +29,8 @@ const VendorRegister = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [documents, setDocuments] = useState([]); // Array of { name, data, type } objects
+  const [panCard, setPanCard] = useState(null); // { name, data, type }
+  const [businessLicense, setBusinessLicense] = useState(null); // { name, data, type }
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 
   // Increased timeout for production (email sending can take up to 60s)
@@ -71,55 +72,54 @@ const VendorRegister = () => {
   }, [isLoading]);
 
   // Handle document/media upload
-  const handleDocumentUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
+  const handleDocumentUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
     setIsUploadingDocs(true);
-    const newDocs = [];
 
-    for (const file of files) {
-      // Validate file type (PDF, images, videos)
-      const isPDF = file.type === 'application/pdf';
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
+    // Validate file type (PDF, images)
+    const isPDF = file.type === 'application/pdf';
+    const isImage = file.type.startsWith('image/');
 
-      if (!isPDF && !isImage && !isVideo) {
-        toast.error(`${file.name} is not a valid file type (PDF, image, or video)`);
-        continue;
-      }
-
-      // Validate file size
-      // PDFs and images: max 5MB, Videos: max 50MB
-      const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
-      if (file.size > maxSize) {
-        const maxSizeMB = isVideo ? 50 : 5;
-        toast.error(`${file.name} is too large (max ${maxSizeMB}MB)`);
-        continue;
-      }
-
-      // Convert to base64
-      try {
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-
-        newDocs.push({
-          name: file.name,
-          data: base64,
-          type: file.type, // Store file type for backend processing
-        });
-      } catch (error) {
-        toast.error(`Failed to read ${file.name}`);
-      }
+    if (!isPDF && !isImage) {
+      toast.error(`${file.name} is not a valid file type (PDF or image)`);
+      setIsUploadingDocs(false);
+      return;
     }
 
-    if (newDocs.length > 0) {
-      setDocuments(prev => [...prev, ...newDocs]);
-      toast.success(`${newDocs.length} file(s) added`);
+    // Validate file size: max 5MB
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error(`${file.name} is too large (max 5MB)`);
+      setIsUploadingDocs(false);
+      return;
+    }
+
+    // Convert to base64
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const docData = {
+        name: type === 'pan' ? 'PAN Card' : 'Business License',
+        fileName: file.name,
+        data: base64,
+        type: file.type,
+      };
+
+      if (type === 'pan') {
+        setPanCard(docData);
+      } else {
+        setBusinessLicense(docData);
+      }
+      toast.success(`${type === 'pan' ? 'PAN Card' : 'Business License'} added`);
+    } catch (error) {
+      toast.error(`Failed to read ${file.name}`);
     }
     setIsUploadingDocs(false);
     // Reset input
@@ -127,8 +127,12 @@ const VendorRegister = () => {
   };
 
   // Remove document
-  const removeDocument = (index) => {
-    setDocuments(prev => prev.filter((_, i) => i !== index));
+  const removeDocument = (type) => {
+    if (type === 'pan') {
+      setPanCard(null);
+    } else {
+      setBusinessLicense(null);
+    }
   };
 
   const handleChange = (e) => {
@@ -177,6 +181,10 @@ const VendorRegister = () => {
       }
 
       setLocalLoading(true);
+
+      const documents = [];
+      if (panCard) documents.push(panCard);
+      if (businessLicense) documents.push(businessLicense);
 
       const result = await registerVendor({
         name: formData.name,
@@ -462,70 +470,108 @@ const VendorRegister = () => {
 
           {/* Document Upload Section */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Documents & Media</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Upload your business documents, images, or videos for verification (PDF/Images: max 5MB, Videos: max 50MB)
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Documents</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Upload your PAN Card and Business License for verification (PDF or Images, max 5MB each)
             </p>
 
-            {/* Upload Button */}
-            <div className="mb-4">
-              <input
-                type="file"
-                accept=".pdf,application/pdf,image/*,video/*"
-                multiple
-                onChange={handleDocumentUpload}
-                className="hidden"
-                id="document-upload"
-                disabled={isUploadingDocs}
-              />
-              <label
-                htmlFor="document-upload"
-                className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors ${isUploadingDocs ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-              >
-                <FiUpload className="text-gray-500" />
-                <span className="text-gray-600 font-medium">
-                  {isUploadingDocs ? 'Processing...' : 'Click to upload files (PDF, Images, Videos)'}
-                </span>
-              </label>
-            </div>
-
-            {/* Document List */}
-            {documents.length > 0 && (
-              <div className="space-y-2">
-                {documents.map((doc, index) => {
-                  const isImage = doc.type?.startsWith('image/');
-                  const isVideo = doc.type?.startsWith('video/');
-                  const isPDF = doc.type === 'application/pdf';
-                  
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* PAN Card Upload */}
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-700">
+                  PAN Card <span className="text-red-500">*</span>
+                </label>
+                {!panCard ? (
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf,image/*"
+                      onChange={(e) => handleDocumentUpload(e, 'pan')}
+                      className="hidden"
+                      id="pan-upload"
+                      disabled={isUploadingDocs}
+                    />
+                    <label
+                      htmlFor="pan-upload"
+                      className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-all ${isUploadingDocs ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <div className="flex items-center gap-3">
-                        {isImage && <FiFile className="text-blue-500 text-xl" />}
-                        {isVideo && <FiFile className="text-purple-500 text-xl" />}
-                        {isPDF && <FiFile className="text-red-500 text-xl" />}
-                        <span className="text-sm text-gray-700 font-medium truncate max-w-[200px]">
-                          {doc.name}
-                        </span>
+                      <FiUpload className="text-2xl text-gray-400" />
+                      <span className="text-sm text-gray-500 font-medium">Upload PAN Card</span>
+                      <span className="text-xs text-gray-400">PDF or Image (max 5MB)</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-4 bg-primary-50 rounded-2xl border-2 border-primary-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                        <FiFile className="text-primary-600 text-lg" />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeDocument(index)}
-                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                      >
-                        <FiX />
-                      </button>
+                      <div className="overflow-hidden">
+                        <p className="text-sm font-semibold text-gray-800 truncate max-w-[150px]">
+                          {panCard.fileName}
+                        </p>
+                        <p className="text-xs text-primary-600">PAN Card</p>
+                      </div>
                     </div>
-                  );
-                })}
-                <p className="text-xs text-gray-500 mt-2">
-                  {documents.length} file(s) selected
-                </p>
+                    <button
+                      type="button"
+                      onClick={() => removeDocument('pan')}
+                      className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Business License Upload */}
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Business License <span className="text-red-500">*</span>
+                </label>
+                {!businessLicense ? (
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf,image/*"
+                      onChange={(e) => handleDocumentUpload(e, 'license')}
+                      className="hidden"
+                      id="license-upload"
+                      disabled={isUploadingDocs}
+                    />
+                    <label
+                      htmlFor="license-upload"
+                      className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-all ${isUploadingDocs ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <FiUpload className="text-2xl text-gray-400" />
+                      <span className="text-sm text-gray-500 font-medium">Upload License</span>
+                      <span className="text-xs text-gray-400">PDF or Image (max 5MB)</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-4 bg-primary-50 rounded-2xl border-2 border-primary-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                        <FiFile className="text-primary-600 text-lg" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="text-sm font-semibold text-gray-800 truncate max-w-[150px]">
+                          {businessLicense.fileName}
+                        </p>
+                        <p className="text-xs text-primary-600">Business License</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeDocument('license')}
+                      className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Info Message */}

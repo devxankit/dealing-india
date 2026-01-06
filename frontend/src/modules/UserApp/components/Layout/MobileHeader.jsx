@@ -79,6 +79,11 @@ const MobileHeader = () => {
 
   const currentCategoryId = getCurrentCategoryId();
 
+  // Hide header on chat page and vendor store page
+  if (location.pathname.startsWith('/app/chat') || location.pathname.startsWith('/app/vendor/')) {
+    return null;
+  }
+
   // Get current page from location
   const getCurrentPage = () => {
     const path = location.pathname;

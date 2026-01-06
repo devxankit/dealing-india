@@ -10,51 +10,94 @@ const SupportTickets = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, open, in_progress, resolved, closed
   const [priorityFilter, setPriorityFilter] = useState('all'); // all, high, medium, low
-  const [categoryFilter, setCategoryFilter] = useState('subscription');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all'); // all, user, vendor
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     loadTickets();
-  }, [filter, priorityFilter, categoryFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, priorityFilter, categoryFilter, roleFilter]);
+
+  // Trigger search when searchQuery changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadTickets();
+    }, 500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   const loadTickets = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/admin/support-tickets', {
-        params: {
-          status: filter !== 'all' ? filter : undefined,
-          priority: priorityFilter !== 'all' ? priorityFilter : undefined,
-          category: categoryFilter,
-        },
-      });
+      
+      // Build query parameters
+      const params = {};
+      if (filter !== 'all') params.status = filter;
+      if (priorityFilter !== 'all') params.priority = priorityFilter;
+      if (categoryFilter !== 'all') params.category = categoryFilter;
+      if (roleFilter !== 'all') params.createdByRole = roleFilter;
 
-      if (response.success) {
-        let filteredTickets = response.data || [];
+      const response = await api.get('/admin/support-tickets', { params });
 
-        // Apply search filter
-        if (searchQuery.trim()) {
-          filteredTickets = filteredTickets.filter(
-            (ticket) =>
-              ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              ticket.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              ticket.ticketNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              (ticket.vendorId && typeof ticket.vendorId === 'object' && (
-                ticket.vendorId.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                ticket.vendorId.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                ticket.vendorId.email?.toLowerCase().includes(searchQuery.toLowerCase())
-              ))
-          );
-        }
-
-        setTickets(filteredTickets);
-      } else {
-        setTickets([]);
+      // API interceptor returns response.data directly, so response is already the backend response
+      // Backend returns: { success: true, data: tickets, count: tickets.length }
+      let ticketsData = [];
+      
+      // Debug logging (remove in production)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Admin Support Tickets API Response:', response);
       }
+      
+      if (response) {
+        if (response.success && Array.isArray(response.data)) {
+          ticketsData = response.data;
+        } else if (Array.isArray(response)) {
+          // Fallback: if response is directly an array
+          ticketsData = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          // Another fallback: if data is nested
+          ticketsData = response.data;
+        } else if (response.success === false) {
+          // Backend returned error
+          throw new Error(response.message || 'Failed to load tickets');
+        }
+      }
+
+      // Ensure ticketsData is an array
+      if (!Array.isArray(ticketsData)) {
+        ticketsData = [];
+      }
+
+      // Apply search filter on client side
+      if (searchQuery.trim() && ticketsData.length > 0) {
+        ticketsData = ticketsData.filter(
+          (ticket) =>
+            ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            ticket.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            ticket.ticketNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (ticket.vendorId && typeof ticket.vendorId === 'object' && (
+              ticket.vendorId.businessName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              ticket.vendorId.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              ticket.vendorId.email?.toLowerCase().includes(searchQuery.toLowerCase())
+            )) ||
+            (ticket.userId && typeof ticket.userId === 'object' && (
+              ticket.userId.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              ticket.userId.email?.toLowerCase().includes(searchQuery.toLowerCase())
+            ))
+        );
+      }
+
+      setTickets(ticketsData);
     } catch (error) {
       console.error('Error loading tickets:', error);
-      toast.error('Failed to load support tickets');
+      console.error('Error response:', error.response);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load support tickets';
+      toast.error(errorMessage);
       setTickets([]);
     } finally {
       setLoading(false);
@@ -128,8 +171,8 @@ const SupportTickets = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-1">Support Tickets (Subscriptions)</h3>
-          <p className="text-sm text-gray-500">Manage and respond to vendor subscription support tickets</p>
+          <h3 className="text-lg font-semibold text-gray-800 mb-1">Support Tickets</h3>
+          <p className="text-sm text-gray-500">Manage and respond to user and vendor support tickets</p>
         </div>
       </div>
 
@@ -169,7 +212,7 @@ const SupportTickets = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
-                loadTickets();
+                // Search is handled by useEffect with debounce
               }
             }}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -196,6 +239,29 @@ const SupportTickets = () => {
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </select>
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="all">All Roles</option>
+          <option value="user">User</option>
+          <option value="vendor">Vendor</option>
+        </select>
+        {categoryFilter !== 'all' && (
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="all">All Categories</option>
+            <option value="subscription">Subscription</option>
+            <option value="payment">Payment</option>
+            <option value="billing">Billing</option>
+            <option value="technical">Technical</option>
+            <option value="other">Other</option>
+          </select>
+        )}
       </div>
 
       {/* Tickets List */}
@@ -218,13 +284,15 @@ const SupportTickets = () => {
               onClick={async () => {
                 try {
                   const response = await api.get(`/admin/support-tickets/${ticket._id || ticket.id}`);
-                  if (response.success) {
+                  // API interceptor returns response.data, so response is already the backend response
+                  if (response && response.success && response.data) {
                     setSelectedTicket(response.data);
-                    setShowDetailModal(true);
+                  } else if (response && response.data) {
+                    setSelectedTicket(response.data);
                   } else {
-                    setSelectedTicket(ticket);
-                    setShowDetailModal(true);
+                    setSelectedTicket(response || ticket);
                   }
+                  setShowDetailModal(true);
                 } catch (error) {
                   console.error('Error loading ticket details:', error);
                   setSelectedTicket(ticket);
@@ -237,10 +305,19 @@ const SupportTickets = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h4 className="font-semibold text-gray-800 text-sm">
-                      {ticket.vendorId && typeof ticket.vendorId === 'object'
-                        ? (ticket.vendorId.businessName || ticket.vendorId.storeName || 'Unknown Vendor')
-                        : 'Unknown Vendor'}
+                      {ticket.createdByRole === 'user' 
+                        ? (ticket.userId && typeof ticket.userId === 'object'
+                            ? (ticket.userId.name || ticket.userId.email || 'Unknown User')
+                            : 'Unknown User')
+                        : (ticket.vendorId && typeof ticket.vendorId === 'object'
+                            ? (ticket.vendorId.businessName || ticket.vendorId.storeName || 'Unknown Vendor')
+                            : 'Unknown Vendor')}
                     </h4>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                      ticket.createdByRole === 'user' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                    }`}>
+                      {ticket.createdByRole === 'user' ? 'User' : 'Vendor'}
+                    </span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getPriorityColor(ticket.priority)}`}>
                       {ticket.priority}
                     </span>
@@ -285,4 +362,5 @@ const SupportTickets = () => {
 };
 
 export default SupportTickets;
+
 

@@ -171,7 +171,34 @@ const ProductDetail = () => {
     );
   }
 
-  const handleAddToCart = () => {
+  const handleBuyNow = async () => {
+    try {
+      // Get variant price if variant is selected
+      let finalPrice = product.price;
+      if (selectedVariant && product.variants?.prices) {
+        if (selectedVariant.size && product.variants.prices[selectedVariant.size]) {
+          finalPrice = product.variants.prices[selectedVariant.size];
+        } else if (selectedVariant.color && product.variants.prices[selectedVariant.color]) {
+          finalPrice = product.variants.prices[selectedVariant.color];
+        }
+      }
+
+      const buyNowItem = {
+        id: product.id,
+        name: product.name,
+        price: finalPrice,
+        image: product.image,
+        quantity: quantity,
+        variant: selectedVariant,
+        vendorId: product.vendorId,
+      };
+      navigate("/checkout", { state: { buyNowItem } });
+    } catch (error) {
+      console.error('Error in Buy Now:', error);
+    }
+  };
+
+  const handleAddToCart = async () => {
     if (product.stock === 'out_of_stock') {
       toast.error('Product is out of stock');
       return;
@@ -409,12 +436,25 @@ const ProductDetail = () => {
                   className={`flex-1 py-4 rounded-xl font-semibold text-base transition-all duration-300 flex items-center justify-center gap-2 ${
                     product.stock === 'out_of_stock'
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'gradient-green text-white hover:shadow-glow-green hover:scale-105'
+                      : 'bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50'
                   }`}
                 >
                   <FiShoppingBag className="text-xl" />
                   <span>
                     {product.stock === 'out_of_stock' ? 'Out of Stock' : 'Add to Cart'}
+                  </span>
+                </button>
+                <button
+                  onClick={handleBuyNow}
+                  disabled={product.stock === 'out_of_stock'}
+                  className={`flex-1 py-4 rounded-xl font-semibold text-base transition-all duration-300 flex items-center justify-center gap-2 ${
+                    product.stock === 'out_of_stock'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'gradient-green text-white hover:shadow-glow-green hover:scale-105'
+                  }`}
+                >
+                  <span>
+                    {product.stock === 'out_of_stock' ? 'Out of Stock' : 'Buy Now'}
                   </span>
                 </button>
                 <button
