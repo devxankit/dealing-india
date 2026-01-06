@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEye, FiCheck, FiX, FiRefreshCw } from "react-icons/fi";
+import { FiSearch, FiEye, FiCheck, FiX, FiRefreshCw, FiPackage } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import ExportButton from "../../Admin/components/ExportButton";
@@ -33,9 +33,20 @@ const ReturnRequests = () => {
     try {
       setLoading(true);
       const response = await getVendorReturns();
-      if (response.success) {
-        setReturnRequests(response.data);
+      console.log('Vendor returns response:', response);
+
+      let data = [];
+      if (Array.isArray(response)) {
+        data = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        data = response.data;
+      } else if (response && Array.isArray(response.returns)) {
+        data = response.returns;
+      } else if (response && response.success && Array.isArray(response.data)) {
+        data = response.data;
       }
+
+      setReturnRequests(data);
     } catch (error) {
       console.error("Error fetching return requests:", error);
       toast.error("Failed to fetch return requests");
@@ -246,6 +257,18 @@ const ReturnRequests = () => {
             </>
           )}
           {row.status === "approved" && row.refundStatus === "pending" && (
+            <button
+              onClick={() => {
+                if (window.confirm("Confirm receipt of return items? This will mark status as Processing.")) {
+                  handleStatusUpdate(row._id, "processing", "process-item");
+                }
+              }}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Mark as Processing (Item Received)">
+              <FiPackage />
+            </button>
+          )}
+          {row.status === "processing" && row.refundStatus === "pending" && (
             <button
               onClick={() => {
                 if (window.confirm("Process refund for this return request?")) {

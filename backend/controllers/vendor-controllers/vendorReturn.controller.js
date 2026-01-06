@@ -2,7 +2,20 @@ import returnService from '../../services/return.service.js';
 
 export const getVendorReturns = async (req, res) => {
     try {
-        const vendorId = req.user.vendorId;
+        // Robust ID extraction:
+        // 1. try req.user.vendorId (from token payload if named so)
+        // 2. try req.user.id (standard jwt subject)
+        // 3. try req.user.userId (common variation)
+        // 4. try req.user._id (if user object)
+        const vendorId = req.user.vendorId || req.user.id || req.user.userId || req.user._id;
+
+        console.log('Fetching returns for Vendor ID:', vendorId);
+
+        if (!vendorId) {
+            console.error('Vendor ID missing from request user:', req.user);
+            return res.status(401).json({ success: false, message: 'Vendor ID could not be determined' });
+        }
+
         const { status } = req.query;
 
         const returns = await returnService.getVendorReturns(vendorId, { status });
@@ -38,7 +51,7 @@ export const updateReturnStatus = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Unauthorized access to this return request' });
         }
 
-        if (!['approved', 'rejected'].includes(status)) {
+        if (!['approved', 'rejected', 'processing', 'completed'].includes(status)) {
             return res.status(400).json({ success: false, message: 'Invalid status for vendor update' });
         }
 

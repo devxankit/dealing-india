@@ -741,42 +741,37 @@ export const updateOrderStatus = async (orderId, newStatus, changedBy, changedBy
     }
 
     if (newStatus === 'delivered' && !order.tracking?.deliveredAt) {
-      updateData.tracking = { ...order.tracking, deliveredAt: new Date() };
+      const deliveredAt = new Date();
+      updateData.tracking = { ...order.tracking, deliveredAt };
 
-      // Credit vendor wallets
+      // Set return window (7 days from delivery)
+      const returnWindowDays = 7;
+      const returnWindowExpiresAt = new Date(deliveredAt);
+      returnWindowExpiresAt.setDate(returnWindowExpiresAt.getDate() + returnWindowDays);
+      updateData.returnWindowExpiresAt = returnWindowExpiresAt;
+      updateData.fundsReleased = false;
+
+      // Credit vendor wallets (to pending balance)
       if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
-        // vendorWalletService.creditWallet creates a session.
-        // So we should probably do it AFTER this transaction commits, or modify vendorWalletService to accept a session.
-        // For simplicity and preventing locking issues, I will do it outside the session loop? 
-        // No, `updateOrderStatus` returns `updatedOrder`.
-
-        // Let's modify logic to push this action to be AFTER commit.
-        // Or simply call it without session (it starts its own). 
-        // Since `creditWallet` is distinct, it's safer to run it.
-
         try {
           for (const vb of order.vendorBreakdown) {
             if (vb.vendorId) {
               // Calculate earnings: Subtotal - Commission
-              // If subtotal includes tax? Assuming subtotal is base price or handled consistently.
-              // User said "cutting taxes", so we ignore tax field in breakdown (effectively cutting it).
               const earnings = (vb.subtotal || 0) - (vb.commission || 0);
 
               if (earnings > 0) {
-                await vendorWalletService.creditWallet(
+                // Use creditPendingWallet instead of creditWallet
+                await vendorWalletService.creditPendingWallet(
                   vb.vendorId,
                   earnings,
-                  `Order #${order.orderCode} settlement`,
+                  `Order #${order.orderCode} settlement (Pending)`,
                   order._id
                 );
               }
             }
           }
         } catch (walletError) {
-          console.error('Error crediting vendor wallet:', walletError);
-          // Non-blocking error? Or should we rollback?
-          // If wallet credit fails, should we fail the delivery status? 
-          // Probably yes, to maintain data integrity.
+          console.error('Error crediting vendor pending wallet:', walletError);
           throw walletError;
         }
       }
@@ -958,9 +953,9 @@ export const getAdminOrders = async (filters = {}) => {
       .lean();
 
     const total = await Order.countDocuments(query);
-    
+
     console.log(`getAdminOrders - Found ${orders.length} orders out of ${total} total`); // Debug log
-    
+
     return { orders, total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) };
   } catch (error) {
     throw error;

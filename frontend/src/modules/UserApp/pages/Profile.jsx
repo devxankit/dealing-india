@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiUser, FiPackage, FiMapPin, FiCreditCard, FiGift,
   FiLogOut, FiChevronRight, FiEdit2, FiSettings, FiCamera,
-  FiShield, FiArrowLeft, FiMessageSquare
+  FiShield, FiArrowLeft, FiMessageSquare, FiRotateCcw
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -39,6 +39,7 @@ const MobileProfile = () => {
 
   const menuItems = [
     { icon: FiPackage, label: 'My Orders', subtitle: 'Track, return, or buy again', path: '/app/orders', color: 'text-blue-600', bg: 'bg-blue-50' },
+    { icon: FiRotateCcw, label: 'My Returns', subtitle: 'Track return status', path: '/app/returns', color: 'text-amber-600', bg: 'bg-amber-50' },
     { icon: FiMapPin, label: 'Addresses', subtitle: 'Manage delivery addresses', path: '/app/addresses', color: 'text-orange-600', bg: 'bg-orange-50' },
     { icon: FiCreditCard, label: 'Wallet & Payments', subtitle: 'Methods, history, and credits', path: '/app/wallet', color: 'text-purple-600', bg: 'bg-purple-50' },
     { icon: FiMessageSquare, label: 'Support Tickets', subtitle: 'Get help with orders and account', path: '/app/support-tickets', color: 'text-indigo-600', bg: 'bg-indigo-50' },

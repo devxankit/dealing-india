@@ -842,6 +842,16 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/app/returns"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileMyReturns />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
           path="/app/orders"
           element={
             <RouteWrapper>
@@ -867,16 +877,6 @@ const AppRoutes = () => {
             <RouteWrapper>
               <ProtectedRoute>
                 <MobileReturnRequest />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/returns"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileMyReturns />
               </ProtectedRoute>
             </RouteWrapper>
           }
@@ -942,16 +942,6 @@ const AppRoutes = () => {
           element={
             <RouteWrapper>
               <MobileContentPage title="About Us" type="about" />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/notifications"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileContentPage title="Notifications" type="notifications" />
-              </ProtectedRoute>
             </RouteWrapper>
           }
         />

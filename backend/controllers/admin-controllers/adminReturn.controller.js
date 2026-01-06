@@ -4,7 +4,9 @@ import ReturnPolicyConfig from '../../models/ReturnPolicyConfig.model.js';
 export const getAllReturns = async (req, res) => {
     try {
         const { status } = req.query;
+        console.log('Admin API: getAllReturns status:', status);
         const returns = await returnService.getAdminReturns({ status });
+        console.log('Admin API: getAllReturns found:', returns.length);
 
         res.status(200).json({
             success: true,
@@ -102,6 +104,23 @@ export const updateReturnPolicy = async (req, res) => {
         res.status(400).json({
             success: false,
             message: error.message,
+        });
+    }
+};
+
+export const forceDeleteReturn = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const result = await returnService.deleteByOrderId(orderId);
+        res.status(200).json({
+            success: true,
+            message: `Force deleted returns for order ${orderId}`,
+            data: result
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
         });
     }
 };

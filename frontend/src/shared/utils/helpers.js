@@ -94,3 +94,15 @@ export const getPlaceholderImage = (
 
   return `data:image/svg+xml;base64,${btoa(svg)}`;
 };
+
+/**
+ * Format date
+ */
+export const formatDate = (date) => {
+  if (!date) return '';
+  return new Date(date).toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};

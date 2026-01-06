@@ -96,3 +96,12 @@ export const updateReturnPolicy = async (data) => {
         throw error;
     }
 };
+
+export const forceDeleteReturnAdmin = async (orderId) => {
+    try {
+        const response = await axiosInstance.delete(`/admin/returns/force-delete/${orderId}`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};

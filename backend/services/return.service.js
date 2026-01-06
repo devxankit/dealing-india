@@ -7,6 +7,8 @@ import VendorWalletService from './vendorWallet.service.js';
 import notificationService from './notification.service.js';
 import mongoose from 'mongoose';
 
+import Product from '../models/Product.model.js';
+
 class ReturnService {
     /**
      * Generate unique return code
@@ -41,38 +43,93 @@ class ReturnService {
         return config;
     }
 
-    /**
-     * Check return eligibility for an order
-     */
-    async checkEligibility(orderId) {
+    async createReturnRequest(userId, returnData) {
+        const { orderId, items } = returnData;
+
+        // Check eligibility again
+        const eligibility = await this.checkEligibility(orderId, userId);
+        if (!eligibility.eligible) {
+            throw new Error(eligibility.reason);
+        }
+
+        // Validate order actually belongs to customer
         const order = await Order.findById(orderId);
         if (!order) throw new Error('Order not found');
 
+        // Use loose equality for ObjectId vs String comparison
+        if (order.customer.toString() !== userId.toString()) {
+            throw new Error('Unauthorized return request');
+        }
+
+        // Get vendorId from the first product
+        // We assume return items belong to the same vendor for now
+        // or we default to the vendor of the first item
+        const firstItem = items[0];
+        const product = await Product.findById(firstItem.productId || firstItem.id);
+
+        if (!product) throw new Error('Product info not found for return item');
+        const vendorId = product.vendorId;
+
+        // Generate return code
+        const returnCode = await this.generateReturnCode();
+
+        // Create request
+        const returnRequest = await ReturnRequest.create({
+            ...returnData,
+            customerId: userId,
+            vendorId,
+            returnCode,
+            status: 'pending',
+            refundAmount: 0 // Will be calculated below
+        });
+
+        // Calculate refund amount from items in order
+        let calculatedRefund = 0;
+        for (const retItem of items) {
+            const orderItem = order.items.find(i => (i._id && i._id.toString() === retItem.itemId) || (i.id === retItem.itemId));
+            if (orderItem) {
+                calculatedRefund += (orderItem.price * retItem.quantity);
+            }
+        }
+        returnRequest.refundAmount = calculatedRefund;
+        await returnRequest.save();
+
+        return returnRequest;
+    }
+
+    async checkEligibility(orderId, userId) {
+        const order = await Order.findById(orderId);
+        if (!order) return { eligible: false, reason: 'Order not found' };
+
+        // Check if delivered
         if (order.status !== 'delivered') {
-            return { eligible: false, reason: 'Order not delivered yet' };
+            return { eligible: false, reason: 'Order is not delivered yet' };
         }
 
-        const config = await this.getPolicyConfig();
-        const deliveryDate = new Date(order.tracking?.deliveredAt || order.updatedAt);
+        // Check return window (e.g., 7 days)
+        const deliveryDate = new Date(order.statusHistory.find(h => h.status === 'delivered')?.date || order.updatedAt);
         const now = new Date();
-        const diffTime = Math.abs(now - deliveryDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.ceil((now - deliveryDate) / (1000 * 60 * 60 * 24));
 
-        if (diffDays > config.returnWindowDays) {
-            return {
-                eligible: false,
-                reason: `Return window closed. Policy allows returns within ${config.returnWindowDays} days of delivery.`,
-                daysPassed: diffDays
-            };
+        if (diffDays > 7) {
+            return { eligible: false, reason: 'Return period expired' };
         }
 
-        // Check if already returned
-        const existingReturn = await ReturnRequest.findOne({ orderId, status: { $nin: ['cancelled', 'rejected'] } });
+        // Check if already returned BY THIS USER
+        // If userId is provided, ensure we only block if the return belongs to SAME user.
+        // If no userId provided (rare), fallback to partial check? No, always require userId now.
+        const query = { orderId, status: { $nin: ['cancelled', 'rejected'] } };
+        if (userId) {
+            query.customerId = userId;
+        }
+
+        const existingReturn = await ReturnRequest.findOne(query);
         if (existingReturn) {
+            console.log('Service: checkEligibility - Existing return found:', existingReturn._id, 'Customer:', existingReturn.customerId);
             return { eligible: false, reason: 'Return request already exists for this order' };
         }
 
-        return { eligible: true, daysRemaining: config.returnWindowDays - diffDays + 1 };
+        return { eligible: true };
     }
 
     /**
@@ -120,14 +177,11 @@ class ReturnService {
             throw new Error('No valid items to return');
         }
 
-        // 3. Check Auto-Approval
+        // 3. Auto-Approval (Always True)
         const config = await this.getPolicyConfig();
-        let initialStatus = 'pending';
-        let refundStatus = 'pending';
-
-        if (config.autoApproveEnabled && totalRefundAmount <= config.autoApproveMaxAmount) {
-            initialStatus = 'approved';
-        }
+        // Force auto-approve regardless of config/amount
+        let initialStatus = 'approved';
+        let refundStatus = 'processing';
 
         // Determine Vendor
         let vendorId = null;
@@ -164,25 +218,37 @@ class ReturnService {
 
         // 5. Notifications
         await notificationService.createNotification({
-            recipient: userId,
-            recipientModel: 'User',
+            recipientId: userId,
+            recipientType: 'user', // Corrected from recipientModel
             title: 'Return Request Submitted',
             message: `Your return request ${returnCode} has been submitted.`,
-            type: 'order',
+            type: 'return_request',
             relatedId: returnRequest._id,
             onModel: 'ReturnRequest'
         });
 
         if (vendorId) {
             await notificationService.createNotification({
-                recipient: vendorId,
-                recipientModel: 'Vendor',
-                title: 'New Return Request',
-                message: `New return request ${returnCode} for Order ${order.orderCode}`,
-                type: 'order',
+                recipientId: vendorId,
+                recipientType: 'vendor',
+                title: 'New Return (Auto-Approved)',
+                message: `Return ${returnCode} for Order ${order.orderCode} has been auto-approved.`,
+                type: 'return_request', // Enum valid
                 relatedId: returnRequest._id,
                 onModel: 'ReturnRequest'
             });
+        }
+
+        // 6. Trigger Immediate Refund
+        try {
+            // Use 'System' as the processor since it's automatic
+            await this.processRefund(returnRequest._id, null, 'System');
+            // Refresh with latest status if needed, though processRefund updates it
+        } catch (err) {
+            console.error('Auto-refund failed:', err);
+            // Don't fail the request creation, but log it. Admin can retry.
+            returnRequest.refundStatus = 'failed';
+            await returnRequest.save();
         }
 
         return returnRequest;
@@ -214,11 +280,11 @@ class ReturnService {
         await returnRequest.save();
 
         await notificationService.createNotification({
-            recipient: returnRequest.customerId,
-            recipientModel: 'User',
+            recipientId: returnRequest.customerId,
+            recipientType: 'user',
             title: `Return Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
             message: `Your return request ${returnRequest.returnCode} has been ${status}.`,
-            type: 'order',
+            type: 'return_request', // Enum valid
             relatedId: returnRequest._id,
             onModel: 'ReturnRequest'
         });
@@ -256,7 +322,8 @@ class ReturnService {
             );
 
             if (returnRequest.vendorId) {
-                await VendorWalletService.debitWallet(
+                // Use debitPendingOrBalance instead of forced debitWallet
+                await VendorWalletService.debitPendingOrBalance(
                     returnRequest.vendorId,
                     returnRequest.refundAmount,
                     `Refund deduction for return ${returnRequest.returnCode}`,
@@ -297,11 +364,11 @@ class ReturnService {
             });
 
             await notificationService.createNotification({
-                recipient: returnRequest.customerId,
-                recipientModel: 'User',
+                recipientId: returnRequest.customerId,
+                recipientType: 'user',
                 title: 'Refund Processed',
                 message: `Refund of ₹${returnRequest.refundAmount} has been credited to your wallet.`,
-                type: 'wallet',
+                type: 'payment_success', // Enum valid (closest match for wallet credit)
                 relatedId: refundTransaction._id,
                 onModel: 'RefundTransaction'
             });
@@ -318,7 +385,9 @@ class ReturnService {
 
     // Getters
     async getUserReturns(userId, filters = {}) {
-        return await ReturnRequest.find({ customerId: userId }).sort({ createdAt: -1 });
+        return await ReturnRequest.find({ customerId: userId })
+            .populate('items.productId', 'name images price')
+            .sort({ createdAt: -1 });
     }
 
     async getVendorReturns(vendorId, filters = {}) {
@@ -326,6 +395,7 @@ class ReturnService {
         if (filters.status) query.status = filters.status;
         return await ReturnRequest.find(query)
             .populate('customerId', 'name email phone')
+            .populate('items.productId', 'name images price')
             .sort({ createdAt: -1 });
     }
 
@@ -335,7 +405,12 @@ class ReturnService {
         return await ReturnRequest.find(query)
             .populate('customerId', 'name email')
             .populate('vendorId', 'businessName')
+            .populate('items.productId', 'name images price')
             .sort({ createdAt: -1 });
+    }
+
+    async deleteByOrderId(orderId) {
+        return await ReturnRequest.deleteMany({ orderId });
     }
 }
 

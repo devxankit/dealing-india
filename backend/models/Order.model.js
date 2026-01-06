@@ -169,6 +169,14 @@ const orderSchema = new mongoose.Schema(
       estimatedDelivery: Date,
       deliveredAt: Date,
     },
+    // Return window and settlement tracking
+    returnWindowExpiresAt: {
+      type: Date,
+    },
+    fundsReleased: {
+      type: Boolean,
+      default: false,
+    },
     // Vendor breakdown (for multi-vendor orders)
     vendorBreakdown: [
       {
