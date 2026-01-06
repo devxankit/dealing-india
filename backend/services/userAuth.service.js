@@ -75,12 +75,12 @@ export const registerUser = async (userData) => {
 
     if (existingUser) {
       if (existingUser.email === email.toLowerCase()) {
-        const error = new Error('Email already registered');
+        const error = new Error('Email already registered. Please login.');
         error.statusCode = 409;
         throw error;
       }
       if (phone && existingUser.phone === phone) {
-        const error = new Error('Phone number already registered');
+        const error = new Error('Phone number already registered. Please login.');
         error.statusCode = 409;
         throw error;
       }
