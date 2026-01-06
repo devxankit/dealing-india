@@ -109,12 +109,8 @@ const Login = () => {
         timeoutRef.current = null;
       }
       
-      // Extract error message
-      const errorMessage = error?.message || 
-                         error?.response?.data?.message || 
-                         'Login failed. Please check your credentials and try again.';
-      // Show error toast (API interceptor won't show for auth pages)
-      toast.error(errorMessage);
+      // Show error toast with the message from store/interceptor
+      toast.error(error.message || 'Login failed. Please try again.');
     }
   };
 

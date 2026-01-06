@@ -187,7 +187,7 @@ export const loginVendor = async (email, password) => {
     }).select('+password'); // Include password field
 
     if (!vendor) {
-      const error = new Error('Invalid credentials');
+      const error = new Error('Invalid email or password');
       error.statusCode = 401;
       throw error;
     }
@@ -211,7 +211,7 @@ export const loginVendor = async (email, password) => {
     // Verify password
     const isPasswordValid = await comparePassword(password, vendor.password);
     if (!isPasswordValid) {
-      const error = new Error('Invalid credentials');
+      const error = new Error('Invalid email or password');
       error.statusCode = 401;
       throw error;
     }

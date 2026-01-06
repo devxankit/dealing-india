@@ -329,18 +329,24 @@ export const loginUser = async (identifier, password) => {
     }).select('+password'); // Include password field
 
     if (!user) {
-      throw new Error('Invalid credentials');
+      const error = new Error('Invalid email/phone or password');
+      error.statusCode = 401;
+      throw error;
     }
 
     // Check if account is active
     if (!user.isActive) {
-      throw new Error('Account is inactive. Please contact support.');
+      const error = new Error('Account is inactive. Please contact support.');
+      error.statusCode = 403;
+      throw error;
     }
 
     // Verify password
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
-      throw new Error('Invalid credentials');
+      const error = new Error('Invalid email/phone or password');
+      error.statusCode = 401;
+      throw error;
     }
 
     // Generate token

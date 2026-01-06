@@ -5,6 +5,7 @@ import Brand from '../models/Brand.model.js';
 import Attribute from '../models/Attribute.model.js';
 import AttributeValue from '../models/AttributeValue.model.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.util.js';
+import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
 
 /**
  * Automated SKU Generation
@@ -113,8 +114,15 @@ export const getVendorProducts = async (vendorId, filters = {}) => {
 
     const totalPages = Math.ceil(total / parseInt(limit));
 
+    // Sanitize product images - remove broken/invalid image URLs
+    const sanitizedProducts = products.map(product => ({
+      ...product,
+      image: sanitizeImageUrl(product.image),
+      images: sanitizeImageUrls(product.images || []),
+    }));
+
     return {
-      products,
+      products: sanitizedProducts,
       total,
       page: parseInt(page),
       limit: parseInt(limit),
@@ -150,6 +158,10 @@ export const getVendorProductById = async (productId, vendorId) => {
       err.status = 404;
       throw err;
     }
+
+    // Sanitize product images - remove broken/invalid image URLs
+    product.image = sanitizeImageUrl(product.image);
+    product.images = sanitizeImageUrls(product.images || []);
 
     return product;
   } catch (error) {

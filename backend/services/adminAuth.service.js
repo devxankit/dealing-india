@@ -61,7 +61,7 @@ export const loginAdmin = async (email, password) => {
           const allAdmins = await Admin.find({}).select('email');
           console.log('Available admins:', allAdmins.map(a => a.email));
         }
-        const err = new Error('Invalid credentials');
+        const err = new Error('Invalid email or password');
         err.status = 401;
         throw err;
       }
@@ -88,7 +88,7 @@ export const loginAdmin = async (email, password) => {
         console.log('Admin login attempt - Password mismatch for:', normalizedEmail);
         console.log('Password provided length:', trimmedPassword.length);
       }
-      const err = new Error('Invalid credentials');
+      const err = new Error('Invalid email or password');
       err.status = 401;
       throw err;
     }

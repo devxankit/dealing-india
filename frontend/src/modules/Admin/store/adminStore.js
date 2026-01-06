@@ -55,7 +55,27 @@ export const useAdminAuthStore = create(
           }
         } catch (error) {
           set({ isLoading: false });
-          throw error;
+          
+          // Extract error message properly
+          // The API interceptor returns error.response.data, so check multiple places
+          let errorMessage = error?.message;
+          
+          // Check if error has response data (from axios)
+          if (!errorMessage && error?.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          }
+          
+          // Check if error.response.data is the message itself (from API interceptor)
+          if (!errorMessage && typeof error?.response?.data === 'string') {
+            errorMessage = error.response.data;
+          }
+          
+          // Fallback message
+          if (!errorMessage) {
+            errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+          }
+          
+          throw new Error(errorMessage);
         }
       },
 

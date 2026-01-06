@@ -131,6 +131,15 @@ const MobileHome = () => {
           return [];
         };
 
+        // Helper function to handle errors gracefully
+        const handleProductError = (error, sectionName) => {
+          // Don't log network errors - they're already handled by API interceptor
+          if (error?.isNetworkError || error?.isConnectionRefused) {
+            return; // Silently fail - API interceptor will show notification
+          }
+          console.error(`Failed to fetch ${sectionName}:`, error);
+        };
+
         // Process popular products
         if (popularResponse.status === 'fulfilled') {
           try {
@@ -147,7 +156,7 @@ const MobileHome = () => {
             setMostPopular([]);
           }
         } else {
-          console.error("Failed to fetch popular products:", popularResponse.reason);
+          handleProductError(popularResponse.reason, 'popular products');
           setMostPopular([]);
         }
         setIsLoadingPopular(false);
@@ -164,11 +173,11 @@ const MobileHome = () => {
               setTrending([]);
             }
           } catch (error) {
-            console.error("Error processing trending products:", error);
+            handleProductError(error, 'trending products');
             setTrending([]);
           }
         } else {
-          console.error("Failed to fetch trending products:", trendingResponse.reason);
+          handleProductError(trendingResponse.reason, 'trending products');
           setTrending([]);
         }
         setIsLoadingTrending(false);
@@ -185,11 +194,11 @@ const MobileHome = () => {
               setFlashSale([]);
             }
           } catch (error) {
-            console.error("Error processing flash sale products:", error);
+            handleProductError(error, 'flash sale products');
             setFlashSale([]);
           }
         } else {
-          console.error("Failed to fetch flash sale products:", flashSaleResponse.reason);
+          handleProductError(flashSaleResponse.reason, 'flash sale products');
           setFlashSale([]);
         }
         setIsLoadingFlashSale(false);

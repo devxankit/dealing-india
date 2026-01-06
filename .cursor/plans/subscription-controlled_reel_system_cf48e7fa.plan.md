@@ -205,4 +205,3 @@ Admin Monitors Subscriptions:
 - [ ] Vendor exceeding limit can upload but extra charge is tracked
 - [ ] Admin Analytics tab shows real data
 - [ ] Admin Monitoring tab shows real vendor subscriptions
-- [ ] Admin Support Tools can manually override subscriptions

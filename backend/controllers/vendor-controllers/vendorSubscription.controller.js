@@ -82,18 +82,38 @@ class VendorSubscriptionController {
 
   async verifyPayment(req, res) {
     try {
-      const { subscriptionId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+      const { vendorId, tierId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
       
-      if (!subscriptionId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      // Validate required fields
+      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
         return res.status(400).json({
           success: false,
           message: 'All payment details are required'
         });
       }
 
+      // Get vendorId from authenticated user or request body
+      const authenticatedVendorId = req.user?.vendorId || req.userDoc?._id;
+      const finalVendorId = vendorId || authenticatedVendorId;
+      
+      if (!finalVendorId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vendor ID is required'
+        });
+      }
+
+      if (!tierId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Tier ID is required'
+        });
+      }
+
       const io = req.app.get('io');
       const subscription = await SubscriptionService.verifySubscriptionPayment(
-        subscriptionId,
+        finalVendorId,
+        tierId,
         {
           razorpayOrderId,
           razorpayPaymentId,
@@ -108,7 +128,13 @@ class VendorSubscriptionController {
         data: subscription
       });
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      // Handle payment failure specifically
+      const statusCode = error.message?.includes('Payment not successful') || 
+                        error.message?.includes('verification failed') ? 400 : 500;
+      res.status(statusCode).json({ 
+        success: false, 
+        message: error.message || 'Payment verification failed' 
+      });
     }
   }
 

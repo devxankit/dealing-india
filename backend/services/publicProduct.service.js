@@ -4,6 +4,7 @@ import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
 import { getCategoryDepth } from './categoryManagement.service.js';
 import { getAllFAQs } from './productFAQs.service.js';
+import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
 
 /**
  * Get all public products with optional filters (only visible products)
@@ -237,8 +238,15 @@ export const getPublicProducts = async (filters = {}) => {
 
     const totalPages = Math.ceil(total / parseInt(limit));
 
+    // Sanitize product images - remove broken/invalid image URLs
+    const sanitizedProducts = products.map(product => ({
+      ...product,
+      image: sanitizeImageUrl(product.image),
+      images: sanitizeImageUrls(product.images || []),
+    }));
+
     return {
-      products,
+      products: sanitizedProducts,
       total,
       page: parseInt(page),
       limit: parseInt(limit),
@@ -284,6 +292,10 @@ export const getPublicProductById = async (productId) => {
       console.error('Error fetching FAQs for product:', faqError);
       product.faqs = []; // Default to empty if FAQ fetch fails
     }
+
+    // Sanitize product images - remove broken/invalid image URLs
+    product.image = sanitizeImageUrl(product.image);
+    product.images = sanitizeImageUrls(product.images || []);
 
     return product;
   } catch (error) {

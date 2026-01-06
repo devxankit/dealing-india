@@ -28,7 +28,7 @@ export const getActiveReelsForUsers = async (filters = {}) => {
     const [reels, total] = await Promise.all([
       Reel.find(query)
         .populate('productId', 'name price image')
-        .populate('vendorId', 'businessName storeName')
+        .populate('vendorId', 'businessName storeName storeLogo')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))
@@ -36,12 +36,14 @@ export const getActiveReelsForUsers = async (filters = {}) => {
       Reel.countDocuments(query),
     ]);
 
-    // Add productName, productPrice, and vendorName to each reel
+    // Add productName, productPrice, vendorName, and vendorLogo to each reel
     const enrichedReels = reels.map(reel => ({
       ...reel,
       productName: reel.productId?.name || '',
       productPrice: reel.productId?.price || 0,
       vendorName: reel.vendorId?.businessName || reel.vendorId?.storeName || '',
+      vendorLogo: reel.vendorId?.storeLogo || null,
+      vendorId: reel.vendorId?._id || reel.vendorId,
       thumbnail: reel.thumbnail || reel.productId?.image || null,
     }));
 

@@ -69,7 +69,10 @@ export const useCategoryStore = create(
           
           set({ categories: deduplicatedCategories, isLoading: false });
         } catch (error) {
-          console.error('Failed to fetch categories:', error);
+          // Don't log network errors - they're already handled by API interceptor
+          if (!error?.isNetworkError && !error?.isConnectionRefused) {
+            console.error('Failed to fetch categories:', error);
+          }
           // Only clear categories if this was a non-background refresh
           if (!forceRefresh || currentState.categories.length === 0) {
             set({ categories: [], isLoading: false });

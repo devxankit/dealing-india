@@ -81,17 +81,23 @@ export const useCartStore = create(
           }
         } catch (error) {
           // Handle 401 errors silently (user not authenticated)
-          // Handle other errors silently too to avoid console noise
+          // Handle network errors silently - they're already handled by API interceptor
           const isUnauthorized = error?.response?.status === 401 || 
                                  error?.response?.statusCode === 401 ||
                                  error?.message?.includes('401') ||
                                  error?.message?.includes('Unauthorized');
           
+          const isNetworkError = error?.isNetworkError || error?.isConnectionRefused;
+          
           if (isUnauthorized) {
             // User is not authenticated - clear cart and mark as initialized
             set({ items: [], isLoading: false, isInitialized: true });
+          } else if (!isNetworkError) {
+            // Only log non-network errors
+            console.error('Error initializing cart:', error);
+            set({ items: [], isLoading: false, isInitialized: true });
           } else {
-            // Other errors - still mark as initialized to prevent retry loops
+            // Network errors - silently mark as initialized to prevent retry loops
             set({ items: [], isLoading: false, isInitialized: true });
           }
         }

@@ -64,6 +64,29 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
               ...reel,
               id: reel._id || reel.id, // Ensure id field exists
             }));
+
+            // Load liked status for reels if user is authenticated
+            try {
+              const user = JSON.parse(localStorage.getItem('user') || '{}');
+              if (user._id || user.id) {
+                const reelIds = loadedReels.map(r => r._id || r.id).filter(Boolean);
+                if (reelIds.length > 0) {
+                  const likedResponse = await api.get('/user/reels/liked', {
+                    params: { reelIds: reelIds.join(',') }
+                  });
+                  if (likedResponse?.success && likedResponse?.data?.likedReelIds) {
+                    const likedMap = {};
+                    likedResponse.data.likedReelIds.forEach(id => {
+                      likedMap[id] = true;
+                    });
+                    setLikedReels(likedMap);
+                  }
+                }
+              }
+            } catch (error) {
+              // User might not be authenticated, ignore
+              console.log('Could not load liked status:', error);
+            }
           }
         } catch (error) {
           console.error('Error loading reels:', error);
@@ -196,42 +219,104 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
     }
   };
 
-  const handleLike = (reel) => {
+  const handleLike = async (reel) => {
     const reelId = reel._id || reel.id;
+    const isCurrentlyLiked = likedReels[reelId];
+    
+    // Optimistic update
     setLikedReels(prev => {
-      const isLiked = !prev[reelId];
-      if (isLiked) {
+      const newLiked = !prev[reelId];
+      if (newLiked) {
         // Show animation only on like
         setShowHeartAnimation(true);
         setTimeout(() => setShowHeartAnimation(false), 1200);
       }
-      return { ...prev, [reelId]: isLiked };
+      return { ...prev, [reelId]: newLiked };
     });
+
+    // Update like count optimistically
+    setReels(prev => prev.map(r => {
+      const id = r._id || r.id;
+      if (id === reelId) {
+        return { 
+          ...r, 
+          likes: isCurrentlyLiked ? Math.max(0, (r.likes || 0) - 1) : (r.likes || 0) + 1 
+        };
+      }
+      return r;
+    }));
+
+    // Call API to save like
+    try {
+      const response = await api.post(`/user/reels/${reelId}/like`);
+      if (response?.success && response?.data) {
+        // Update with actual like count from server
+        setReels(prev => prev.map(r => {
+          const id = r._id || r.id;
+          if (id === reelId) {
+            return { ...r, likes: response.data.likes };
+          }
+          return r;
+        }));
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setLikedReels(prev => ({ ...prev, [reelId]: isCurrentlyLiked }));
+      setReels(prev => prev.map(r => {
+        const id = r._id || r.id;
+        if (id === reelId) {
+          return { ...r, likes: reel.likes || 0 };
+        }
+        return r;
+      }));
+      
+      if (error.response?.status === 401) {
+        toast.error('Please login to like reels');
+      } else {
+        toast.error('Failed to like reel');
+      }
+    }
   };
 
   const handleShare = (reel) => {
-    // Increment share count for Mega Reward
-    const currentShares = parseInt(localStorage.getItem('mega_reward_shares') || '0');
-    localStorage.setItem('mega_reward_shares', (currentShares + 1).toString());
+    // Only show mega reward message for promotional reels
+    const isPromotional = reel.isPromotional || false;
+    const shareUrl = `${window.location.origin}/app/reels?reel=${reel._id || reel.id}`;
+
+    if (isPromotional) {
+      // Increment share count for Mega Reward (only for promotional reels)
+      const currentShares = parseInt(localStorage.getItem('mega_reward_shares') || '0');
+      localStorage.setItem('mega_reward_shares', (currentShares + 1).toString());
+    }
 
     if (navigator.share) {
       navigator.share({
         title: reel.productName || reel.title,
         text: reel.description,
-        url: window.location.href
+        url: shareUrl
       }).then(() => {
-        toast.success("Shared successfully! +1 Step for Mega Reward 🎁");
+        if (isPromotional) {
+          toast.success("Shared successfully! +1 Step for Mega Reward 🎁");
+        } else {
+          toast.success("Shared successfully!");
+        }
       }).catch((e) => {
         console.error(e);
-        // Even if cancelled, we counted the 'attempt' or click for simplicity in web context
-        // But optimally we waiting for .then. 
-        // For now, let's keep the count consistent with the click action.
+        // User cancelled or error occurred
       });
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied! +1 Step for Mega Reward 🎁");
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        if (isPromotional) {
+          toast.success("Link copied! +1 Step for Mega Reward 🎁");
+        } else {
+          toast.success("Link copied to clipboard!");
+        }
+      }).catch(() => {
+        toast.error("Failed to copy link");
+      });
     }
   };
+
 
   if (reels.length === 0) {
     return (
@@ -442,11 +527,18 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                 <div className="flex-1 mr-12">
                   {/* User/Vendor Info */}
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-gray-200 border border-white">
-                      <img src="https://ui-avatars.com/api/?name=Vendor" alt="Vendor" className="w-full h-full rounded-full" />
+                    <div className="w-8 h-8 rounded-full bg-gray-200 border border-white overflow-hidden">
+                      {reel.vendorLogo ? (
+                        <img src={reel.vendorLogo} alt={reel.vendorName || "Vendor"} className="w-full h-full object-cover" />
+                      ) : (
+                        <img 
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(reel.vendorName || "Vendor")}&background=random`} 
+                          alt={reel.vendorName || "Vendor"} 
+                          className="w-full h-full object-cover" 
+                        />
+                      )}
                     </div>
                     <span className="text-white font-bold text-sm">{reel.vendorName || reel.uploadedBy || "Dealing India"}</span>
-                    <button className="text-xs border border-white/50 text-white px-2 py-0.5 rounded-md backdrop-blur-sm">Follow</button>
                   </div>
 
                   {/* Description */}
@@ -454,11 +546,26 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                   <p className="text-white/80 text-sm line-clamp-2 mb-2">{reel.description}</p>
 
                   {/* Product Link Tag */}
-                  {(reel.productPrice || reel.price) && (
-                    <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg mb-2">
+                  {(reel.productPrice || reel.price) && reel.productId && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Handle productId whether it's an object or string
+                        const productId = typeof reel.productId === 'object' 
+                          ? (reel.productId._id || reel.productId.id)
+                          : reel.productId;
+                        
+                        if (productId) {
+                          navigate(`/app/product/${productId}`);
+                        } else {
+                          toast.error('Product not available');
+                        }
+                      }}
+                      className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg mb-2 hover:bg-white/30 transition-colors cursor-pointer active:scale-95"
+                    >
                       <FiShoppingBag className="text-yellow-400 text-xs" />
                       <span className="text-white text-xs font-bold">Shop Now • ₹{reel.productPrice || reel.price}</span>
-                    </div>
+                    </button>
                   )}
                 </div>
 
@@ -471,7 +578,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                           }`}
                       />
                     </div>
-                    <span className="text-white text-xs font-medium">{likedReels[reel._id || reel.id] ? (reel.likes + 1) : reel.likes}</span>
+                    <span className="text-white text-xs font-medium">{reel.likes || 0}</span>
                   </button>
 
                   <button

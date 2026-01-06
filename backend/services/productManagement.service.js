@@ -1,6 +1,7 @@
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
+import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
 
 /**
  * Get all products with optional filters
@@ -86,8 +87,15 @@ export const getAllProducts = async (filters = {}) => {
 
     const totalPages = Math.ceil(total / parseInt(limit));
 
+    // Sanitize product images - remove broken/invalid image URLs
+    const sanitizedProducts = products.map(product => ({
+      ...product,
+      image: sanitizeImageUrl(product.image),
+      images: sanitizeImageUrls(product.images || []),
+    }));
+
     return {
-      products,
+      products: sanitizedProducts,
       total,
       page: parseInt(page),
       limit: parseInt(limit),
@@ -116,6 +124,11 @@ export const getProductById = async (productId) => {
     if (!product) {
       throw new Error('Product not found');
     }
+
+    // Sanitize product images - remove broken/invalid image URLs
+    product.image = sanitizeImageUrl(product.image);
+    product.images = sanitizeImageUrls(product.images || []);
+
     return product;
   } catch (error) {
     if (error.name === 'CastError') {

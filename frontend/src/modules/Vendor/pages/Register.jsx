@@ -32,6 +32,12 @@ const VendorRegister = () => {
   const [documents, setDocuments] = useState([]); // Array of { name, data, type } objects
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 
+  // Increased timeout for production (email sending can take up to 60s)
+  const isProduction = typeof window !== 'undefined' && 
+    (window.location.hostname.includes('vercel.app') || 
+     window.location.hostname.includes('onrender.com'));
+  const timeoutDuration = isProduction ? 95000 : 35000; // 95s in production, 35s in dev
+
   // Safety mechanism: Reset loading state if it's stuck
   useEffect(() => {
     if (localLoading || isLoading) {

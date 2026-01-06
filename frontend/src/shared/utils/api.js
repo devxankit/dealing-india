@@ -1,6 +1,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from './constants';
+import { backendStatus } from './backendStatus';
 
 // Log API base URL for debugging (only in development or if URL seems wrong)
 if (typeof window !== 'undefined') {
@@ -87,14 +88,20 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
+    // Mark backend as up on successful response
+    backendStatus.markBackendUp();
     return response.data;
   },
   (error) => {
     // Handle timeout and network errors
     if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || !error.response) {
-      const message = error.code === 'ECONNABORTED' 
-        ? 'Request timeout. Please check your internet connection and try again.'
-        : 'Network error. Please check your internet connection and try again.';
+      // Check if this is a connection refused error (backend not running)
+      const isConnectionRefused = error.code === 'ERR_NETWORK' || 
+                                  error.message?.includes('ERR_CONNECTION_REFUSED') ||
+                                  error.message?.includes('Failed to fetch');
+      
+      // Mark backend as down
+      const isNewlyDown = backendStatus.markBackendDown();
       
       // Don't show toast for login/register pages - let components handle it
       const currentPath = window.location.pathname;
@@ -103,20 +110,78 @@ api.interceptors.response.use(
                          currentPath.includes('/forgot-password') ||
                          currentPath.includes('/reset-password');
       
-      if (!isAuthPage) {
-        toast.error(message, { id: 'network-error' });
+      // Show notification only if:
+      // 1. Not on auth page
+      // 2. Backend is newly down OR notification should be shown
+      // 3. This prevents multiple toasts for simultaneous requests
+      if (!isAuthPage && (isNewlyDown || backendStatus.shouldShowErrorNotification())) {
+        const message = isConnectionRefused
+          ? 'Backend server is not running. Please start the server and refresh the page.'
+          : error.code === 'ECONNABORTED'
+          ? 'Request timeout. Please check your internet connection and try again.'
+          : 'Network error. Please check your internet connection and try again.';
+        
+        toast.error(message, { 
+          id: 'backend-down-error',
+          duration: 6000, // Show for 6 seconds
+        });
       }
       
       // Create a proper error object
-      const networkError = new Error(message);
+      const networkError = new Error(
+        isConnectionRefused
+          ? 'Backend server is not running'
+          : error.code === 'ECONNABORTED'
+          ? 'Request timeout'
+          : 'Network error'
+      );
       networkError.isNetworkError = true;
+      networkError.isConnectionRefused = isConnectionRefused;
       return Promise.reject(networkError);
     }
     
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      'Something went wrong';
+    // Extract error message - prioritize backend message
+    let message = error.response?.data?.message;
+    
+    // If no backend message, use axios error message but clean it up
+    if (!message) {
+      if (error.response?.status === 500) {
+        message = 'Server error. Please try again later.';
+      } else if (error.response?.status === 400) {
+        message = 'Invalid request. Please check your input.';
+      } else if (error.response?.status === 401) {
+        message = 'Invalid credentials. Please check your email/phone and password.';
+      } else if (error.response?.status === 403) {
+        message = 'Access denied.';
+      } else if (error.response?.status === 404) {
+        message = 'Resource not found.';
+      } else {
+        // Clean up axios error messages
+        const axiosMessage = error.message || '';
+        if (axiosMessage.includes('Request failed with status code')) {
+          // Don't show generic axios error messages
+          message = 'Something went wrong. Please try again.';
+        } else {
+          message = axiosMessage || 'Something went wrong';
+        }
+      }
+    }
+
+    // Update error message if we have a better one from backend
+    // Do this early so all logic below uses the updated message
+    if (message && error.message !== message) {
+      try {
+        // Try to update the message property (might be read-only in some cases)
+        Object.defineProperty(error, 'message', {
+          value: message,
+          writable: true,
+          configurable: true
+        });
+      } catch (e) {
+        // Fallback to simple assignment
+        error.message = message;
+      }
+    }
     
     // Handle 401 (Unauthorized) - clear appropriate token and redirect
     if (error.response?.status === 401) {
@@ -170,8 +235,13 @@ api.interceptors.response.use(
       // For dashboard/analytics, suppress toast but allow redirect
       const isDashboardOperation = url.includes('/dashboard-summary') || url.includes('/analytics');
       
-      // Only show toast for unexpected 401s (user-initiated actions)
-      if (!isBackgroundOperation && !isDashboardOperation && !currentPath.includes('/login')) {
+      // Check if this is a login request - don't show toast for login errors (component will handle it)
+      const isLoginRequest = url.includes('/auth/user/login') || 
+                            url.includes('/auth/vendor/login') || 
+                            url.includes('/auth/admin/login');
+      
+      // Only show toast for unexpected 401s (user-initiated actions), but NOT for login requests
+      if (!isLoginRequest && !isBackgroundOperation && !isDashboardOperation && !currentPath.includes('/login')) {
         // Show a user-friendly message
         if (message.includes('expired') || message.includes('Token has expired')) {
           toast.error('Your session has expired. Please login again.', { id: 'auth-error' });
@@ -193,14 +263,23 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     
-    // Show error toast for non-401 errors, but not on auth pages (to avoid duplicates)
+    // Check if this is a login/register request - don't show toast (component will handle it)
+    const url = error.config?.url || '';
+    const isAuthRequest = url.includes('/auth/user/login') || 
+                         url.includes('/auth/vendor/login') || 
+                         url.includes('/auth/admin/login') ||
+                         url.includes('/auth/user/register') ||
+                         url.includes('/auth/vendor/register');
+    
+    // Show error toast for non-401 errors, but not on auth pages or auth requests (to avoid duplicates)
     const currentPath = window.location.pathname;
     const isAuthPage = currentPath.includes('/login') || 
                        currentPath.includes('/register') ||
                        currentPath.includes('/forgot-password') ||
                        currentPath.includes('/reset-password');
     
-    if (!isAuthPage) {
+    // Don't show toast for auth requests or auth pages - let components handle their own errors
+    if (!isAuthRequest && !isAuthPage) {
       toast.error(message, { id: 'api-error' });
     }
     

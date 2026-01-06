@@ -20,9 +20,6 @@ const settingsSchema = new mongoose.Schema(
       minimumVendorRating: { type: Number, default: 3.0, min: 0, max: 5 },
       vendorApprovalRequired: { type: Boolean, default: true },
       autoApproveVerified: { type: Boolean, default: false },
-      vendorProductManagement: { type: Boolean, default: true },
-      vendorOrderManagement: { type: Boolean, default: true },
-      vendorAnalytics: { type: Boolean, default: true },
     },
     products: {
       itemsPerPage: { type: Number, default: 12, min: 1, max: 100 },

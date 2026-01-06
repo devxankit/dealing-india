@@ -103,7 +103,7 @@ const VendorSubscription = () => {
         throw new Error(response.message || 'Failed to initialize subscription');
       }
 
-      const { subscription, razorpay } = response.data;
+      const { subscription, razorpay, vendorId, tierId: responseTierId } = response.data;
 
       // If free tier, subscription is already activated
       if (!razorpay) {
@@ -120,13 +120,17 @@ const VendorSubscription = () => {
 
       // Get vendor info for prefill
       const vendorInfo = JSON.parse(localStorage.getItem('vendor') || '{}');
+      
+      // Get tier name from tiers list for description
+      const selectedTier = tiers.find(t => (t._id || t.id) === tierId);
+      const tierName = selectedTier?.name || 'Plan';
 
       await initializeRazorpayCheckout({
         key: razorpay.keyId,
         amount: razorpay.amount / 100, // Convert from paise to rupees
         currency: razorpay.currency || 'INR',
         name: 'Appzeto',
-        description: `Subscription Payment - ${subscription.tierId?.name || 'Plan'}`,
+        description: `Subscription Payment - ${tierName}`,
         orderId: razorpay.orderId,
         prefill: {
           name: vendorInfo.businessName || vendorInfo.storeName || '',
@@ -138,8 +142,10 @@ const VendorSubscription = () => {
             // Verify payment
             const paymentData = handlePaymentSuccess(paymentResponse);
             
+            // Pass vendorId and tierId instead of subscriptionId (subscription doesn't exist yet)
             const verifyResponse = await api.post('/vendor/subscriptions/verify-payment', {
-              subscriptionId: subscription._id,
+              vendorId: vendorId || vendorInfo._id || vendorInfo.id,
+              tierId: responseTierId || tierId,
               razorpayOrderId: paymentData.razorpayOrderId,
               razorpayPaymentId: paymentData.razorpayPaymentId,
               razorpaySignature: paymentData.razorpaySignature,
@@ -172,7 +178,8 @@ const VendorSubscription = () => {
         modal: {
           ondismiss: () => {
             setProcessingPayment(null);
-            toast.error('Payment cancelled');
+            // Don't show error toast for user cancellation - it's expected behavior
+            // Subscription won't be created, which is correct
           },
         },
       });

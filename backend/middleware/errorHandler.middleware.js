@@ -23,10 +23,11 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   // Default error status and message
+  // Preserve status code from service/controller if set
   let status = err.status || err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
-  // Handle specific error types
+  // Handle specific error types (but preserve status if already set)
   if (err.statusCode === 429 || err.isRateLimitError) {
     status = 429;
     message = err.message || 'Too many requests. Please try again later.';

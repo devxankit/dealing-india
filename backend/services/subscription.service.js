@@ -111,75 +111,65 @@ class SubscriptionService {
 
   /**
    * Initialize subscription with Razorpay order (for payment)
+   * NOTE: Does NOT create subscription record until payment is completed
    */
   async initializeSubscription(vendorId, tierId, io = null) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
     try {
-      const tier = await SubscriptionTier.findById(tierId).session(session);
+      const tier = await SubscriptionTier.findById(tierId);
       if (!tier) throw new Error('Subscription tier not found');
 
-      const vendor = await Vendor.findById(vendorId).session(session);
+      const vendor = await Vendor.findById(vendorId);
       if (!vendor) throw new Error('Vendor not found');
 
       // If free tier, activate immediately
       if (tier.priceMonthly === 0) {
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 1);
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+          const startDate = new Date();
+          const endDate = new Date();
+          endDate.setMonth(endDate.getMonth() + 1);
 
-        const subscription = await VendorSubscription.create([{
-          vendorId,
-          tierId,
-          billingCycle: 'monthly',
-          startDate,
-          endDate,
-          paymentMethod: 'free',
-          status: 'active',
-          lastPaymentDate: startDate,
-          nextBillingDate: endDate,
-          usage: {
-            reelsUploaded: 0,
-            extraReelsCharged: 0,
-            lastResetDate: startDate
-          }
-        }], { session });
+          const subscription = await VendorSubscription.create([{
+            vendorId,
+            tierId,
+            billingCycle: 'monthly',
+            startDate,
+            endDate,
+            paymentMethod: 'free',
+            status: 'active',
+            lastPaymentDate: startDate,
+            nextBillingDate: endDate,
+            usage: {
+              reelsUploaded: 0,
+              extraReelsCharged: 0,
+              lastResetDate: startDate
+            }
+          }], { session });
 
-        await Vendor.findByIdAndUpdate(vendorId, {
-          currentSubscription: subscription[0]._id
-        }, { session });
+          await Vendor.findByIdAndUpdate(vendorId, {
+            currentSubscription: subscription[0]._id
+          }, { session });
 
-        await session.commitTransaction();
-        return {
-          subscription: subscription[0],
-          razorpay: null,
-          razorpayKeyId: null
-        };
+          await session.commitTransaction();
+          return {
+            subscription: subscription[0],
+            razorpay: null,
+            razorpayKeyId: null
+          };
+        } catch (error) {
+          await session.abortTransaction();
+          throw error;
+        } finally {
+          session.endSession();
+        }
       }
 
-      // For paid tiers, create pending subscription and Razorpay order
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1);
-
+      // For paid tiers, ONLY create Razorpay order (DO NOT create subscription yet)
+      // Subscription will be created only when payment is verified
       const subscriptionCode = `SUB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
-      const subscription = await VendorSubscription.create([{
-        vendorId,
-        tierId,
-        billingCycle: 'monthly',
-        startDate,
-        endDate,
-        paymentMethod: 'razorpay',
-        status: 'pending', // Will be activated after payment
-        usage: {
-          reelsUploaded: 0,
-          extraReelsCharged: 0,
-          lastResetDate: startDate
-        }
-      }], { session });
-
-      // Create Razorpay order
+      // Create Razorpay order with metadata (vendorId, tierId) for later reference
       let razorpayOrder = null;
       let razorpayKeyId = null;
       
@@ -189,7 +179,6 @@ class SubscriptionService {
           'INR',
           subscriptionCode,
           {
-            subscriptionId: subscription[0]._id.toString(),
             vendorId: vendorId.toString(),
             tierId: tierId.toString(),
             tierName: tier.name,
@@ -197,55 +186,45 @@ class SubscriptionService {
           }
         );
 
-        if (razorpayOrder && razorpayOrder.id) {
-          subscription[0].razorpayOrderId = razorpayOrder.id;
-          await subscription[0].save({ session });
-        }
-
         razorpayKeyId = process.env.RAZORPAY_KEY_ID || null;
       } catch (razorpayError) {
         console.error('Razorpay order creation failed:', razorpayError);
-        await session.abortTransaction();
         throw new Error(`Failed to initialize payment: ${razorpayError.message}`);
       }
 
-      await session.commitTransaction();
-      
+      // Return razorpay order details WITHOUT creating subscription
+      // Subscription will be created in verifySubscriptionPayment when payment succeeds
       return {
-        subscription: subscription[0],
+        subscription: null, // No subscription created yet
         razorpay: razorpayOrder,
-        razorpayKeyId
+        razorpayKeyId,
+        vendorId: vendorId.toString(),
+        tierId: tierId.toString()
       };
     } catch (error) {
-      await session.abortTransaction();
       throw error;
-    } finally {
-      session.endSession();
     }
   }
 
   /**
-   * Verify payment and activate subscription
+   * Verify payment and create/activate subscription
+   * Now accepts vendorId and tierId instead of subscriptionId since subscription doesn't exist yet
    */
-  async verifySubscriptionPayment(subscriptionId, paymentData, io = null) {
+  async verifySubscriptionPayment(vendorId, tierId, paymentData, io = null) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
       const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = paymentData;
 
-      const subscription = await VendorSubscription.findById(subscriptionId).session(session)
-        .populate('tierId')
-        .populate({
-          path: 'vendorId',
-          select: 'businessName storeName email phone'
-        });
-      
-      if (!subscription) throw new Error('Subscription not found');
-      if (subscription.status === 'active') {
-        throw new Error('Subscription is already active');
-      }
+      // Validate vendor and tier exist
+      const vendor = await Vendor.findById(vendorId).session(session)
+        .select('businessName storeName email phone');
+      if (!vendor) throw new Error('Vendor not found');
 
-      // Verify Razorpay payment
+      const tier = await SubscriptionTier.findById(tierId).session(session);
+      if (!tier) throw new Error('Subscription tier not found');
+
+      // Verify Razorpay payment signature
       const isValid = razorpayService.verifyPayment(
         razorpayOrderId,
         razorpayPaymentId,
@@ -256,60 +235,126 @@ class SubscriptionService {
         throw new Error('Payment verification failed');
       }
 
-      // Update subscription with payment details and activate
-      subscription.razorpayOrderId = razorpayOrderId;
-      subscription.razorpayPaymentId = razorpayPaymentId;
-      subscription.razorpaySignature = razorpaySignature;
-      subscription.status = 'active';
-      subscription.lastPaymentDate = new Date();
-      subscription.nextBillingDate = subscription.endDate;
-      
-      await subscription.save({ session });
+      // Get payment details from Razorpay to confirm payment status
+      let paymentDetails;
+      try {
+        paymentDetails = await razorpayService.getPaymentDetails(razorpayPaymentId);
+      } catch (error) {
+        console.error('Error fetching payment details:', error);
+        throw new Error('Failed to verify payment with payment gateway');
+      }
 
-      // Update vendor's current subscription
-      await Vendor.findByIdAndUpdate(subscription.vendorId, {
-        currentSubscription: subscription._id
-      }, { session });
+      // Check if payment is actually successful
+      if (paymentDetails.status !== 'captured' && paymentDetails.status !== 'authorized') {
+        // Payment failed - create subscription with 'failed' status for tracking
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 1);
 
-      // Add audit log entry for subscription payment (for billing history)
-      // Note: Transaction model is for customer orders, not vendor subscriptions
-      // We track vendor subscription payments via VendorSubscription model and audit logs
-      const amount = subscription.tierId.priceMonthly;
-      if (amount > 0) {
-        subscription.auditLogs.push({
-          action: 'subscription_payment',
-          timestamp: new Date(),
-          details: {
-          amount,
-          status: 'completed',
+        const failedSubscription = await VendorSubscription.create([{
+          vendorId,
+          tierId,
+          billingCycle: 'monthly',
+          startDate,
+          endDate,
+          paymentMethod: 'razorpay',
+          status: 'failed', // Mark as failed
           razorpayOrderId,
           razorpayPaymentId,
           razorpaySignature,
+          usage: {
+            reelsUploaded: 0,
+            extraReelsCharged: 0,
+            lastResetDate: startDate
+          },
+          auditLogs: [{
+            action: 'subscription_payment',
+            timestamp: new Date(),
+            details: {
+              amount: tier.priceMonthly,
+              status: 'failed',
+              razorpayOrderId,
+              razorpayPaymentId,
+              razorpaySignature,
+              type: 'subscription_payment',
+              tierName: tier.name,
+              paymentDate: new Date(),
+              failureReason: `Payment status: ${paymentDetails.status}`
+            }
+          }]
+        }], { session });
+
+        await session.commitTransaction();
+        throw new Error('Payment not successful. Payment status: ' + paymentDetails.status);
+      }
+
+      // Payment successful - create subscription with 'active' status
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 1);
+
+      const subscription = await VendorSubscription.create([{
+        vendorId,
+        tierId,
+        billingCycle: 'monthly',
+        startDate,
+        endDate,
+        paymentMethod: 'razorpay',
+        status: 'active', // Activate immediately since payment succeeded
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        lastPaymentDate: new Date(),
+        nextBillingDate: endDate,
+        usage: {
+          reelsUploaded: 0,
+          extraReelsCharged: 0,
+          lastResetDate: startDate
+        }
+      }], { session });
+
+      // Update vendor's current subscription
+      await Vendor.findByIdAndUpdate(vendorId, {
+        currentSubscription: subscription[0]._id
+      }, { session });
+
+      // Add audit log entry for subscription payment (for billing history)
+      const amount = tier.priceMonthly;
+      if (amount > 0) {
+        subscription[0].auditLogs.push({
+          action: 'subscription_payment',
+          timestamp: new Date(),
+          details: {
+            amount,
+            status: 'completed',
+            razorpayOrderId,
+            razorpayPaymentId,
+            razorpaySignature,
             type: 'subscription_payment',
-            tierName: subscription.tierId.name,
+            tierName: tier.name,
             paymentDate: new Date()
           }
         });
-        await subscription.save({ session });
+        await subscription[0].save({ session });
       }
 
       // Send notification to admin
       try {
-        const vendorName = subscription.vendorId?.businessName || subscription.vendorId?.storeName || 'A vendor';
-        const tierName = subscription.tierId?.name || 'Unknown Plan';
+        const vendorName = vendor.businessName || vendor.storeName || 'A vendor';
+        const tierName = tier.name || 'Unknown Plan';
         const adminNotification = {
           recipientType: 'admin',
           type: 'payment_success',
           title: 'New Subscription Payment',
           message: `${vendorName} has subscribed to ${tierName} plan (₹${amount})`,
           metadata: {
-            subscriptionId: subscription._id,
-            vendorId: subscription.vendorId?._id || subscription.vendorId,
+            subscriptionId: subscription[0]._id,
+            vendorId: vendorId,
             tierName: tierName,
             amount,
             type: 'subscription'
           },
-          actionUrl: `/admin/subscriptions/${subscription._id}`
+          actionUrl: `/admin/subscriptions/${subscription[0]._id}`
         };
 
         // Get all admins and send notification
@@ -330,7 +375,16 @@ class SubscriptionService {
       }
 
       await session.commitTransaction();
-      return subscription;
+      
+      // Populate the subscription before returning
+      const populatedSubscription = await VendorSubscription.findById(subscription[0]._id)
+        .populate('tierId')
+        .populate({
+          path: 'vendorId',
+          select: 'businessName storeName email phone'
+        });
+      
+      return populatedSubscription;
     } catch (error) {
       await session.abortTransaction();
       throw error;

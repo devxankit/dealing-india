@@ -55,6 +55,13 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required',
+      });
+    }
+
     const result = await loginVendor(email, password);
 
     res.status(200).json({
@@ -66,7 +73,15 @@ export const login = async (req, res, next) => {
       },
     });
   } catch (error) {
-    next(error);
+    // Preserve status code from service
+    const statusCode = error.statusCode || error.status || 500;
+    const message = error.message || 'Login failed. Please check your credentials.';
+    
+    // Don't pass to next() if we can handle it here
+    return res.status(statusCode).json({
+      success: false,
+      message,
+    });
   }
 };
 

@@ -20,6 +20,20 @@ const LazyImage = ({
   context = 'listing', // 'hero', 'product-detail', 'product-listing', 'thumbnail'
   ...props
 }) => {
+  // If no src or src is null/empty, use placeholder immediately
+  if (!src || src === null || src.trim() === '') {
+    const placeholder = getPlaceholderImage(placeholderWidth, placeholderHeight, placeholderText || alt || "Image");
+    return (
+      <div className={`relative overflow-hidden ${className || ""}`}>
+        <img
+          src={placeholder}
+          alt={alt || "Placeholder"}
+          className={className || ""}
+        />
+      </div>
+    );
+  }
+
   // Get optimized image path and loading strategy
   const optimizedSrc = getOptimizedImagePath(src, context);
   const loadingStrategy = getImageLoadingStrategy(context);
@@ -72,6 +86,10 @@ const LazyImage = ({
   };
 
   const handleError = (e) => {
+    // Prevent error from bubbling up and showing in console
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    
     // If we haven't tried a fallback yet, use the placeholder
     if (!fallbackSrc) {
       const placeholder = getPlaceholderImage(
