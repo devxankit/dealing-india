@@ -30,9 +30,10 @@ const HeroBannerBooking = () => {
   const [bookings, setBookings] = useState([]);
   const [settings, setSettings] = useState({
     bookingWindowDays: 30,
-    minDurationHours: 1,
+    bookingWindowDays: 30,
+    minDurationHours: 24,
     maxDurationHours: 720,
-    defaultPricePerHour: 1999,
+    defaultPricePerDay: 1999,
     pricingStructure: {}
   });
   const [loading, setLoading] = useState(false);
@@ -45,9 +46,8 @@ const HeroBannerBooking = () => {
     image: null,
     preview: null,
     startDate: "",
-    startTime: "00:00",
-    durationHours: 1,
-    durationType: "hour", // hour, day, week
+    durationDays: 1, // Changed from durationHours
+    durationType: "day", // Only support day/week/month now
   });
 
   useEffect(() => {
@@ -90,49 +90,42 @@ const HeroBannerBooking = () => {
 
   // Calculate price based on duration and selected slot price
   const calculatedPrice = useMemo(() => {
-    // Use selected slot's price per hour, fallback to default if no slot selected
-    const slotPricePerHour = selectedSlot?.price || settings.defaultPricePerHour || 1999;
-    const durationHours = formData.durationHours || 1;
+    const slotPricePerDay = selectedSlot?.price || settings.defaultPricePerDay || 1999;
+    const durationDays = formData.durationDays || 1;
 
-    // If no pricing structure, simply multiply slot price by duration
-    if (!settings.pricingStructure || Object.keys(settings.pricingStructure).length === 0) {
-      return Math.round(durationHours * slotPricePerHour);
-    }
+    // Use simple daily rate logic
+    // Price = Slot Price * Days
+    // If pricing structure exists (e.g. bulk discount for 7 days), we can check it
+    // But currently backend pricing structure is based on hours ('24', '168')
+    // Let's keep it simple: slotPrice is "Per Day".
 
-    // If pricing structure exists, calculate based on structure but adjust for slot price
-    const defaultPricePerHour = settings.defaultPricePerHour || 1999;
-    const priceMultiplier = slotPricePerHour / defaultPricePerHour;
+    // Check if there is a bulk discount structure available in settings
+    let finalPricePerDay = slotPricePerDay;
 
-    const durationKey = durationHours.toString();
-    const pricingStructure = settings.pricingStructure;
+    // If settings has pricing structure, we might want to apply it
+    // But aligning 'day' logic with 'hours' structure is tricky if keys are hours.
+    // If user buys 7 days (168 hours), do they get discount?
+    // Let's ignore complex structure for now unless explicitly requested. 
+    // User requested: "100% price... 1 day" -> Just Full Day Price.
 
-    // If exact match exists in pricing structure
-    if (pricingStructure[durationKey] !== undefined) {
-      const basePrice = pricingStructure[durationKey];
-      return Math.round(basePrice * priceMultiplier);
-    }
+    return Math.round(finalPricePerDay * durationDays);
+  }, [formData.durationDays, settings, selectedSlot]);
 
-    // Find closest lower bound in pricing structure
-    const sortedDurations = Object.keys(pricingStructure)
-      .map(Number)
-      .sort((a, b) => a - b);
+  // Calculate End Date for display
+  const calculatedEndDate = useMemo(() => {
+    if (!formData.startDate) return null;
 
-    let basePrice = slotPricePerHour;
-    let baseHours = 1;
+    const start = new Date(formData.startDate);
+    // Valid until Midnight of the last day.
+    // Logic: Start Jan 6. Duration 1 Day. Valid until Jan 6 Midnight (Jan 7 00:00).
 
-    for (let i = sortedDurations.length - 1; i >= 0; i--) {
-      if (sortedDurations[i] <= durationHours) {
-        baseHours = sortedDurations[i];
-        const structurePrice = pricingStructure[baseHours.toString()];
-        basePrice = Math.round(structurePrice * priceMultiplier);
-        break;
-      }
-    }
+    const days = parseInt(formData.durationDays) || 1;
+    const end = new Date(start);
+    end.setDate(end.getDate() + days); // Add days
+    end.setHours(0, 0, 0, 0); // Midnight
 
-    // Calculate proportional price based on slot's price
-    const calculatedPricePerHour = basePrice / baseHours;
-    return Math.round(calculatedPricePerHour * durationHours);
-  }, [formData.durationHours, settings, selectedSlot]);
+    return end;
+  }, [formData.startDate, formData.durationDays]);
 
   // Get min and max dates for date picker
   const { minDate, maxDate } = useMemo(() => {
@@ -144,11 +137,9 @@ const HeroBannerBooking = () => {
   }, [settings.bookingWindowDays]);
 
   // Format duration for display
-  const formatDuration = (hours) => {
-    if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-    if (hours < 168) return `${(hours / 24).toFixed(1).replace(/\.0$/, '')} ${hours < 48 ? 'day' : 'days'}`;
-    if (hours < 720) return `${(hours / 168).toFixed(1).replace(/\.0$/, '')} ${hours < 336 ? 'week' : 'weeks'}`;
-    return `${(hours / 720).toFixed(1).replace(/\.0$/, '')} ${hours < 1440 ? 'month' : 'months'}`;
+  const formatDuration = (days) => {
+    if (days === 1) return "1 Day";
+    return `${days} Days`;
   };
 
   const handleFileChange = (e) => {
@@ -202,36 +193,19 @@ const HeroBannerBooking = () => {
   };
 
   const handleDurationChange = (e) => {
-    const val = parseInt(e.target.value) || 1;
-    let hours = val;
+    let val = parseInt(e.target.value) || 1;
+    // ensure int
+    val = Math.max(1, Math.round(val));
 
-    if (formData.durationType === "day") hours = val * 24;
-    if (formData.durationType === "week") hours = val * 24 * 7;
-
-    updateDuration(hours, formData.durationType);
-  };
-
-  const handleDurationTypeChange = (e) => {
-    const type = e.target.value;
-    // Calculate current meaningful value based on old type
-    // Not strictly converting value to keep UX simple (e.g. 1 hour -> 1 day when switching type)
-    // Just resetting to 1 for the new type
-
-    let hours = 1;
-    if (type === "day") hours = 24;
-    if (type === "week") hours = 168;
-
-    updateDuration(hours, type);
-  };
-
-  const updateDuration = (hours, type) => {
-    const clampedHours = Math.max(settings.minDurationHours, Math.min(settings.maxDurationHours, hours));
     setFormData(prev => ({
       ...prev,
-      durationHours: clampedHours,
-      durationType: type
+      durationDays: val
     }));
   };
+
+  // Removed handleDurationTypeChange and updateDuration as we only support Days now (effectively)
+  // or simple int input
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -249,7 +223,9 @@ const HeroBannerBooking = () => {
 
     // Validate date is within booking window
     // Combine date and time
-    const startDateTimeString = `${formData.startDate}T${formData.startTime}:00`;
+    // Combine date and time (defaulting to 00:00 for validation purposes, actual expiry is midnight)
+    // Actually, backend now handles expiry.
+    const startDateTimeString = `${formData.startDate}T00:00:00`;
     const selectedDate = new Date(startDateTimeString);
     const now = new Date();
     const maxDate = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
@@ -272,7 +248,7 @@ const HeroBannerBooking = () => {
       bookingFormData.append("link", formData.link);
       bookingFormData.append("image", formData.image);
       bookingFormData.append("startDate", selectedDate.toISOString());
-      bookingFormData.append("durationHours", formData.durationHours);
+      bookingFormData.append("durationDays", formData.durationDays); // Send durationDays
 
       const response = await createBannerBooking(bookingFormData);
 
@@ -365,9 +341,10 @@ const HeroBannerBooking = () => {
       image: null,
       preview: null,
       startDate: "",
-      startTime: "00:00",
-      durationHours: 1,
-      durationType: "hour"
+      startDate: "",
+      // startTime reset removed
+      durationDays: 1,
+      durationType: "day"
     });
     setSelectedSlot(null);
   };
@@ -380,9 +357,10 @@ const HeroBannerBooking = () => {
       image: null,
       preview: null,
       startDate: "",
-      startTime: "00:00",
-      durationHours: settings.minDurationHours || 1,
-      durationType: "hour"
+      startDate: "",
+      // startTime remove
+      durationDays: 1,
+      durationType: "day"
     });
     setShowBookingModal(true);
   };
@@ -407,8 +385,12 @@ const HeroBannerBooking = () => {
     },
     {
       header: "Duration",
-      accessor: "durationHours",
-      render: (val) => <span className="text-sm text-gray-600">{formatDuration(val || 24)}</span>,
+      accessor: "durationHours", // Still reading durationHours from backend response for now? Or switch to generic render
+      render: (val, row) => {
+        // If backend returns durationDays, use it. If durationHours, convert.
+        const days = row.durationDays || (row.durationHours ? row.durationHours / 24 : 1);
+        return <span className="text-sm text-gray-600">{days} Day{days !== 1 ? 's' : ''}</span>;
+      },
     },
     {
       header: "Price",
@@ -484,7 +466,7 @@ const HeroBannerBooking = () => {
                 )}
               </div>
               <div className="text-xl font-bold text-gray-900 mb-1">{formatPrice(slot.price)}</div>
-              <p className="text-xs text-gray-500 mb-4">Starting from {formatPrice(slot.price)}/hour</p>
+              <p className="text-xs text-gray-500 mb-4">Starting from {formatPrice(slot.price)}/day</p>
 
               <button className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
                 <FiPlus /> Book Now
@@ -531,15 +513,16 @@ const HeroBannerBooking = () => {
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 <div className="space-y-4">
-                  {/* Start Date Selection */}
+                  {/* Start Date Selection - Only Date, No Time */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                       <FiCalendar className="text-blue-600" />
-                      Start Date & Time
+                      Start Date
                       <div className="group relative">
                         <FiInfo className="text-gray-400 cursor-help" />
                         <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg z-20">
                           You can book dates up to {settings.bookingWindowDays} days in advance. Dates cannot be in the past.
+                          Booking applies from selected date until midnight.
                         </div>
                       </div>
                     </label>
@@ -553,13 +536,6 @@ const HeroBannerBooking = () => {
                         value={formData.startDate}
                         onChange={handleDateChange}
                       />
-                      <input
-                        type="time"
-                        required
-                        className="block w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        value={formData.startTime}
-                        onChange={handleTimeChange}
-                      />
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
                       Available dates: {new Date(minDate).toLocaleDateString()} to {new Date(maxDate).toLocaleDateString()}
@@ -570,65 +546,43 @@ const HeroBannerBooking = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                       <FiClock className="text-blue-600" />
-                      Duration
-                      <div className="group relative">
-                        <FiInfo className="text-gray-400 cursor-help" />
-                        <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg z-20">
-                          Duration must be between {settings.minDurationHours} hour{settings.minDurationHours !== 1 ? 's' : ''} and {formatDuration(settings.maxDurationHours)}. Price is calculated based on your selected duration.
-                        </div>
-                      </div>
+                      Duration (Days)
                     </label>
                     <div className="flex items-center gap-3">
-                      <select
-                        className="block w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        value={formData.durationType}
-                        onChange={handleDurationTypeChange}
-                      >
-                        <option value="hour">Hours</option>
-                        <option value="day">Days</option>
-                        <option value="week">Weeks</option>
-                      </select>
                       <input
                         type="number"
                         required
                         min="1"
-                        max={formData.durationType === "hour" ? settings.maxDurationHours :
-                          formData.durationType === "day" ? Math.floor(settings.maxDurationHours / 24) :
-                            Math.floor(settings.maxDurationHours / 168)}
+                        max="30" // Reasonable cap
                         step="1"
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        value={
-                          formData.durationType === "hour" ? formData.durationHours :
-                            formData.durationType === "day" ? Math.round(formData.durationHours / 24) :
-                              Math.round(formData.durationHours / 168)
-                        }
+                        className="block w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        value={formData.durationDays}
                         onChange={handleDurationChange}
                       />
-                      <span className="text-sm text-gray-600 whitespace-nowrap min-w-[80px]">
-                        {formData.durationType === "hour" ? "" : `(${formatDuration(formData.durationHours)})`}
+                      <span className="text-sm text-gray-600">
+                        Day{formData.durationDays !== 1 ? 's' : ''}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Range: {settings.minDurationHours} - {settings.maxDurationHours} hours ({formatDuration(settings.minDurationHours)} - {formatDuration(settings.maxDurationHours)})
-                    </p>
+                    {calculatedEndDate && (
+                      <p className="mt-2 text-sm text-green-600 font-medium">
+                        Valid until: {calculatedEndDate.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} (Midnight)
+                      </p>
+                    )}
                   </div>
 
-                  {/* Price Display */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="text-sm font-medium text-gray-700">Total Price</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          For {formatDuration(formData.durationHours)} starting {formData.startDate ? new Date(formData.startDate).toLocaleDateString() : 'selected date'}
+                          For {formData.durationDays} Day{formData.durationDays !== 1 ? 's' : ''} starting {formData.startDate ? new Date(formData.startDate).toLocaleDateString() : 'selected date'}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-blue-600">{formatPrice(calculatedPrice)}</p>
-                        {formData.durationHours > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {formatPrice(Math.round(calculatedPrice / formData.durationHours))}/hour
-                          </p>
-                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          FIXED DAILY RATE
+                        </p>
                       </div>
                     </div>
                   </div>

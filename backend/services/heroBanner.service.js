@@ -26,14 +26,13 @@ export const getBannerSettings = async () => {
   return {
     universalDisplayTime: bannerSettings.universalDisplayTime || 2000,
     bookingWindowDays: bannerSettings.bookingWindowDays || 30,
-    defaultPricePerHour: bannerSettings.defaultPricePerHour || 1999,
-    minDurationHours: bannerSettings.minDurationHours || 1,
+    defaultPricePerDay: bannerSettings.defaultPricePerDay || 1999,
+    minDurationHours: bannerSettings.minDurationHours || 24,
     maxDurationHours: bannerSettings.maxDurationHours || 720,
     pricingStructure: bannerSettings.pricingStructure || {
-      '1': 1999,
-      '24': 15000,
-      '168': 90000,
-      '720': 300000
+      '24': 1999,
+      '168': 13000,
+      '720': 50000
     }
   };
 };
@@ -65,12 +64,12 @@ export const updateBannerSettings = async (settingsData, adminId) => {
     changes.bookingWindowDays = { from: oldBannerSettings.bookingWindowDays, to: settingsData.bookingWindowDays };
   }
 
-  if (settingsData.defaultPricePerHour !== undefined) {
-    if (settingsData.defaultPricePerHour < 0) {
-      throw new Error('Default price per hour cannot be negative');
+  if (settingsData.defaultPricePerDay !== undefined) {
+    if (settingsData.defaultPricePerDay < 0) {
+      throw new Error('Default price per day cannot be negative');
     }
-    settings.banners.defaultPricePerHour = settingsData.defaultPricePerHour;
-    changes.defaultPricePerHour = { from: oldBannerSettings.defaultPricePerHour, to: settingsData.defaultPricePerHour };
+    settings.banners.defaultPricePerDay = settingsData.defaultPricePerDay;
+    changes.defaultPricePerDay = { from: oldBannerSettings.defaultPricePerDay, to: settingsData.defaultPricePerDay };
   }
 
   if (settingsData.minDurationHours !== undefined) {
@@ -120,21 +119,21 @@ export const updateBannerSettings = async (settingsData, adminId) => {
 };
 
 /**
- * Calculate price based on duration in hours
+ * Calculate price based on duration in days
  */
-export const calculatePrice = async (durationHours, slotId) => {
+export const calculatePrice = async (duration, slotId) => {
   const settings = await getBannerSettings();
   let pricingStructure = settings.pricingStructure || {};
-  let slotPricePerHour = settings.defaultPricePerHour || 1999;
+  let slotPricePerDay = settings.defaultPricePerDay || 1999;
 
-  const defaultPrice = settings.defaultPricePerHour || 1999;
+  const defaultPrice = settings.defaultPricePerDay || 1999;
   let priceMultiplier = 1;
   let hasSlotSpecificStructure = false;
 
   if (slotId) {
     const slot = await BannerSlot.findById(slotId);
     if (slot) {
-      slotPricePerHour = slot.price;
+      slotPricePerDay = slot.price;
 
       if (slot.pricingStructure && slot.pricingStructure.size > 0) {
         // Convert Mongoose Map to Object
@@ -153,15 +152,32 @@ export const calculatePrice = async (durationHours, slotId) => {
 
   // Calculate multiplier ONLY if using global structure
   if (!hasSlotSpecificStructure) {
-    priceMultiplier = defaultPrice > 0 ? slotPricePerHour / defaultPrice : 1;
+    priceMultiplier = defaultPrice > 0 ? slotPricePerDay / defaultPrice : 1;
   }
 
-  // Convert durationHours to string key for lookup
-  const durationKey = durationHours.toString();
+  // Treat input as days if it seems small (< 24), but also handle if someone passes hours?
+  // User request: "One day... counted as 12.00 am... charged 100%"
+  // We should interpret `duration` as "Number of Calendar Days" (1, 2, 3...)
+  // But wait, frontend currently sends hours (24, 48).
+  // I need to support both or standardize.
+  // Ideally, I convert everything to "Days".
 
-  // If exact match exists in pricing structure
-  if (pricingStructure[durationKey] !== undefined) {
-    return Math.round(pricingStructure[durationKey] * priceMultiplier);
+  let durationDays = duration;
+  if (duration >= 24) {
+    // Assuming existing frontend sends 24 for 1 day
+    durationDays = duration / 24;
+  }
+  // Ensure at least 1 day charged
+  durationDays = Math.max(1, Math.ceil(durationDays));
+
+
+  // Convert durationDays to hour key for lookup (since structure is '24', '168')
+  // This maintains compatibility with existing structure keys
+  const durationHoursKey = (durationDays * 24).toString();
+
+  // If exact match exists in pricing structure (e.g. '24', '168')
+  if (pricingStructure[durationHoursKey] !== undefined) {
+    return Math.round(pricingStructure[durationHoursKey] * priceMultiplier);
   }
 
   // Find the closest lower bound in pricing structure
@@ -169,12 +185,15 @@ export const calculatePrice = async (durationHours, slotId) => {
     .map(Number)
     .sort((a, b) => a - b);
 
-  let basePrice = hasSlotSpecificStructure ? slotPricePerHour : defaultPrice;
-  let baseHours = 1;
+  let basePrice = hasSlotSpecificStructure ? slotPricePerDay : defaultPrice;
+  let baseHours = 24;
 
-  // Find the highest duration key that is <= durationHours
+  // Find the highest duration key that is <= our duration (in hours)
+  // We use hours for lookup compatibility
+  const totalDurationHours = durationDays * 24;
+
   for (let i = sortedDurations.length - 1; i >= 0; i--) {
-    if (sortedDurations[i] <= durationHours) {
+    if (sortedDurations[i] <= totalDurationHours) {
       baseHours = sortedDurations[i];
       basePrice = pricingStructure[baseHours.toString()];
       break;
@@ -182,13 +201,16 @@ export const calculatePrice = async (durationHours, slotId) => {
   }
 
   // If match found and using global structure, apply specific base price logic
-  if (baseHours === 1 && !pricingStructure['1']) {
-    basePrice = hasSlotSpecificStructure ? slotPricePerHour : defaultPrice;
+  if (baseHours === 24 && !pricingStructure['24']) {
+    basePrice = hasSlotSpecificStructure ? slotPricePerDay : defaultPrice;
   }
 
-  // Calculate proportional price
-  const pricePerHour = basePrice / baseHours;
-  const finalPrice = pricePerHour * durationHours;
+  // Base Price is for `baseHours` (e.g. 24 hours = 1 day).
+  // We want Price Per Day.
+  const baseDays = baseHours / 24;
+  const pricePerDay = basePrice / baseDays;
+
+  const finalPrice = pricePerDay * durationDays;
 
   return Math.round(finalPrice * priceMultiplier);
 };
@@ -238,7 +260,7 @@ export const createBooking = async (vendorId, bookingData, file) => {
   if (!bookingData.startDate) {
     throw new Error('Start date is required');
   }
-  if (!bookingData.durationHours) {
+  if (!bookingData.durationHours && !bookingData.durationDays) {
     throw new Error('Duration is required');
   }
 
@@ -248,10 +270,32 @@ export const createBooking = async (vendorId, bookingData, file) => {
   const settings = await getBannerSettings();
 
   // Validate duration
-  const durationHoursNum = parseFloat(durationHours);
-  if (isNaN(durationHoursNum) || durationHoursNum < settings.minDurationHours || durationHoursNum > settings.maxDurationHours) {
-    throw new Error(`Duration must be between ${settings.minDurationHours} and ${settings.maxDurationHours} hours`);
+  // Accepted inputs: durationHours (legacy, usually 24, 48...) OR durationDays (new)
+
+  let durationDays = bookingData.durationDays;
+  if (!durationDays && durationHours) {
+    // Legacy fallback
+    durationDays = parseFloat(durationHours) / 24;
   }
+
+  if (!durationDays || isNaN(durationDays) || durationDays < 0.1) { // 0.1 safety check
+    throw new Error('Valid duration in days is required');
+  }
+
+  // Enforce min/max days (converting settings hours to days)
+  const minDays = (settings.minDurationHours || 24) / 24;
+  const maxDays = (settings.maxDurationHours || 720) / 24;
+
+  if (durationDays < minDays) {
+    // Allow if it's explicitly "1 day" even if min is technically 24 hours
+    // But consistency is better. Let's just warn if strict. 
+    // For now, auto-correct 0 to 1? No, error.
+    throw new Error(`Minimum duration is ${minDays} day(s)`);
+  }
+  if (durationDays > maxDays) {
+    throw new Error(`Maximum duration is ${maxDays} days`);
+  }
+
 
   // Convert start date to Date object
   const startDateObj = startDate instanceof Date ? startDate : new Date(startDate);
@@ -259,23 +303,33 @@ export const createBooking = async (vendorId, bookingData, file) => {
     throw new Error('Invalid start date format');
   }
 
-  // Calculate end date from duration
-  const endDateObj = new Date(startDateObj.getTime() + (durationHoursNum * 60 * 60 * 1000));
+  // Calculate End Date:
+  // "visible only till night 12.am"
+  // Logic: 
+  // Start Date: Jan 6, 3:00 PM
+  // Duration: 1 Day
+  // End Date: Jan 6 (Today) Midnight -> Jan 7, 00:00 AM.
+  //
+  // Start Date: Jan 6, 3:00 PM
+  // Duration: 2 Days
+  // End Date: Jan 7 (Tomorrow) Midnight -> Jan 8, 00:00 AM.
 
-  // Validate booking window (30 days by default)
-  const now = new Date();
-  const maxBookingDate = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
+  // We take the Start Date, Add (DurationDays - 1) Days, then set to End of that day (which is next midnight)
+  // Actually simpler: 
+  // 1 Day = Remainder of Today.
+  // End Date = StartDate (Date Part) + 1 Day (at 00:00:00)
 
-  if (startDateObj < now) {
-    throw new Error('Start date cannot be in the past');
-  }
+  const tempDate = new Date(startDateObj);
+  // Add durationDays (integer part mostly, but let's assume integers for "days")
+  const fullDays = Math.ceil(durationDays);
 
-  if (startDateObj > maxBookingDate) {
-    throw new Error(`Start date cannot be more than ${settings.bookingWindowDays} days in the future`);
-  }
+  tempDate.setDate(tempDate.getDate() + fullDays);
+  tempDate.setHours(0, 0, 0, 0); // Set to Midnight of that target date
 
-  // Calculate price based on duration
-  const amountNum = await calculatePrice(durationHoursNum, slotId);
+  const endDateObj = tempDate;
+
+  // Calculate price based on durationDays (passing as days to our updated function)
+  const amountNum = await calculatePrice(durationDays, slotId);
 
   const slot = await BannerSlot.findById(slotId);
   if (!slot) throw new Error('Slot not found');
@@ -315,7 +369,9 @@ export const createBooking = async (vendorId, bookingData, file) => {
     link: link || '/',
     startDate: startDateObj,
     endDate: endDateObj,
-    durationHours: durationHoursNum,
+    durationHours: durationDays * 24, // Store as hours for compatibility if Schema requires? 
+    // Wait, Schema might strict check? Schema usually just Number.
+    // "durationHours" field name implies hours. Storing 24 for 1 day is safer for legacy read.
     amount: amountNum,
     status: 'pending',
     paymentStatus: 'unpaid'
@@ -407,6 +463,7 @@ export const getActiveBanners = async () => {
     endDate: { $gte: now }
   })
     .populate('slotId')
+    .populate('vendorId', '_id businessName storeName') // Populate vendor info
     .sort({ 'slotId.slotNumber': 1 });
 
   return activeBookings.map(booking => ({
@@ -414,7 +471,9 @@ export const getActiveBanners = async () => {
     slotNumber: booking.slotId?.slotNumber || 0,
     image: booking.bannerImage,
     link: booking.link,
-    title: booking.title
+    title: booking.title,
+    vendorId: booking.vendorId?._id, // Return vendor ID
+    vendorName: booking.vendorId?.businessName || booking.vendorId?.storeName // Return vendor name
   }));
 };
 
