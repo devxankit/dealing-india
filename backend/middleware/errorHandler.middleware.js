@@ -5,7 +5,7 @@
 export const errorHandler = (err, req, res, next) => {
   // Don't log expected 404s for policies (they don't exist yet)
   const isPolicy404 = req.originalUrl?.includes('/admin/policies/') && err.status === 404;
-  
+
   // Log error for debugging (skip expected policy 404s)
   if (!isPolicy404) {
     console.error('❌ Error:', {
@@ -45,7 +45,7 @@ export const errorHandler = (err, req, res, next) => {
   } else if (err.name === 'MongoServerError' && err.code === 11000) {
     status = 409;
     const field = Object.keys(err.keyPattern)[0];
-    message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`;
+    message = `Duplicate entry for ${field} (Value: ${JSON.stringify(err.keyValue)})`;
   } else if (err.name === 'JsonWebTokenError') {
     status = 401;
     message = 'Invalid token';

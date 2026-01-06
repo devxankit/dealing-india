@@ -14,6 +14,11 @@ const bannerSlotSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    pricingStructure: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
     isActive: {
       type: Boolean,
       default: true,

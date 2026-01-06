@@ -17,7 +17,8 @@ import {
   getAvailableBannerSlots,
   createBannerBooking,
   getMyBannerBookings,
-  confirmBannerPayment
+  confirmBannerPayment,
+  cancelBannerBooking
 } from "../services/heroBannerService";
 import { initializeRazorpayCheckout, handlePaymentSuccess } from "../../../shared/services/paymentService";
 import Badge from "../../../shared/components/Badge";
@@ -37,14 +38,16 @@ const HeroBannerBooking = () => {
   const [loading, setLoading] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     title: "",
     link: "",
     image: null,
     preview: null,
     startDate: "",
+    startTime: "00:00",
     durationHours: 1,
+    durationType: "hour", // hour, day, week
   });
 
   useEffect(() => {
@@ -58,15 +61,24 @@ const HeroBannerBooking = () => {
         getAvailableBannerSlots(),
         getMyBannerBookings()
       ]);
-      
-      // Handle both old and new response formats
-      if (slotsRes.data?.slots) {
-        setSlots(slotsRes.data.slots);
-        setSettings(slotsRes.data.settings || settings);
+
+      setLoading(false);
+
+
+      // Backend returns: { success: true, data: { slots: [], settings: {} } }
+      // Interceptor returns that object as `slotsRes`
+      // So we need to access slotsRes.data.slots
+
+      const payload = slotsRes.data || slotsRes; // Fallback in case structure changes
+
+      if (payload && Array.isArray(payload.slots)) {
+        setSlots(payload.slots);
+        setSettings(payload.settings || settings);
       } else {
-        setSlots(slotsRes.data || []);
+        setSlots([]);
+        console.warn("Unexpected slots response structure", slotsRes);
       }
-      
+
       setBookings(bookingsRes.data || []);
     } catch (error) {
       console.error("Error loading banner data:", error);
@@ -81,33 +93,33 @@ const HeroBannerBooking = () => {
     // Use selected slot's price per hour, fallback to default if no slot selected
     const slotPricePerHour = selectedSlot?.price || settings.defaultPricePerHour || 1999;
     const durationHours = formData.durationHours || 1;
-    
+
     // If no pricing structure, simply multiply slot price by duration
     if (!settings.pricingStructure || Object.keys(settings.pricingStructure).length === 0) {
       return Math.round(durationHours * slotPricePerHour);
     }
-    
+
     // If pricing structure exists, calculate based on structure but adjust for slot price
     const defaultPricePerHour = settings.defaultPricePerHour || 1999;
     const priceMultiplier = slotPricePerHour / defaultPricePerHour;
-    
+
     const durationKey = durationHours.toString();
     const pricingStructure = settings.pricingStructure;
-    
+
     // If exact match exists in pricing structure
     if (pricingStructure[durationKey] !== undefined) {
       const basePrice = pricingStructure[durationKey];
       return Math.round(basePrice * priceMultiplier);
     }
-    
+
     // Find closest lower bound in pricing structure
     const sortedDurations = Object.keys(pricingStructure)
       .map(Number)
       .sort((a, b) => a - b);
-    
+
     let basePrice = slotPricePerHour;
     let baseHours = 1;
-    
+
     for (let i = sortedDurations.length - 1; i >= 0; i--) {
       if (sortedDurations[i] <= durationHours) {
         baseHours = sortedDurations[i];
@@ -116,7 +128,7 @@ const HeroBannerBooking = () => {
         break;
       }
     }
-    
+
     // Calculate proportional price based on slot's price
     const calculatedPricePerHour = basePrice / baseHours;
     return Math.round(calculatedPricePerHour * durationHours);
@@ -134,9 +146,9 @@ const HeroBannerBooking = () => {
   // Format duration for display
   const formatDuration = (hours) => {
     if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
-    if (hours < 168) return `${Math.round(hours / 24)} ${hours < 48 ? 'day' : 'days'}`;
-    if (hours < 720) return `${Math.round(hours / 168)} ${hours < 336 ? 'week' : 'weeks'}`;
-    return `${Math.round(hours / 720)} ${hours < 1440 ? 'month' : 'months'}`;
+    if (hours < 168) return `${(hours / 24).toFixed(1).replace(/\.0$/, '')} ${hours < 48 ? 'day' : 'days'}`;
+    if (hours < 720) return `${(hours / 168).toFixed(1).replace(/\.0$/, '')} ${hours < 336 ? 'week' : 'weeks'}`;
+    return `${(hours / 720).toFixed(1).replace(/\.0$/, '')} ${hours < 1440 ? 'month' : 'months'}`;
   };
 
   const handleFileChange = (e) => {
@@ -182,39 +194,71 @@ const HeroBannerBooking = () => {
     });
   };
 
-  const handleDurationChange = (e) => {
-    const hours = parseInt(e.target.value) || 1;
-    const clampedHours = Math.max(settings.minDurationHours, Math.min(settings.maxDurationHours, hours));
+  const handleTimeChange = (e) => {
     setFormData({
       ...formData,
-      durationHours: clampedHours,
+      startTime: e.target.value,
     });
+  };
+
+  const handleDurationChange = (e) => {
+    const val = parseInt(e.target.value) || 1;
+    let hours = val;
+
+    if (formData.durationType === "day") hours = val * 24;
+    if (formData.durationType === "week") hours = val * 24 * 7;
+
+    updateDuration(hours, formData.durationType);
+  };
+
+  const handleDurationTypeChange = (e) => {
+    const type = e.target.value;
+    // Calculate current meaningful value based on old type
+    // Not strictly converting value to keep UX simple (e.g. 1 hour -> 1 day when switching type)
+    // Just resetting to 1 for the new type
+
+    let hours = 1;
+    if (type === "day") hours = 24;
+    if (type === "week") hours = 168;
+
+    updateDuration(hours, type);
+  };
+
+  const updateDuration = (hours, type) => {
+    const clampedHours = Math.max(settings.minDurationHours, Math.min(settings.maxDurationHours, hours));
+    setFormData(prev => ({
+      ...prev,
+      durationHours: clampedHours,
+      durationType: type
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.image) {
       toast.error("Please upload a banner image");
       return;
     }
-    
+
     if (!formData.startDate) {
       toast.error("Please select a start date");
       return;
     }
 
     // Validate date is within booking window
-    const selectedDate = new Date(formData.startDate);
+    // Combine date and time
+    const startDateTimeString = `${formData.startDate}T${formData.startTime}:00`;
+    const selectedDate = new Date(startDateTimeString);
     const now = new Date();
     const maxDate = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
-    
+
     if (selectedDate < now) {
-      toast.error("Start date cannot be in the past");
+      toast.error("Start time cannot be in the past");
       return;
     }
-    
+
     if (selectedDate > maxDate) {
       toast.error(`Start date cannot be more than ${settings.bookingWindowDays} days in the future`);
       return;
@@ -227,16 +271,16 @@ const HeroBannerBooking = () => {
       bookingFormData.append("title", formData.title);
       bookingFormData.append("link", formData.link);
       bookingFormData.append("image", formData.image);
-      bookingFormData.append("startDate", new Date(formData.startDate).toISOString());
+      bookingFormData.append("startDate", selectedDate.toISOString());
       bookingFormData.append("durationHours", formData.durationHours);
 
       const response = await createBannerBooking(bookingFormData);
-      
+
       if (response.success && response.data.razorpayOrder) {
         toast.success("Booking initiated! Opening payment gateway...");
         await handleRazorpayPayment(
-          response.data._id, 
-          response.data.razorpayOrder, 
+          response.data._id,
+          response.data.razorpayOrder,
           calculatedPrice,
           response.data.razorpayKeyId
         );
@@ -257,7 +301,7 @@ const HeroBannerBooking = () => {
   const handleRazorpayPayment = async (bookingId, razorpayOrder, amount, razorpayKeyId = null) => {
     try {
       const keyId = razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
-      
+
       if (!keyId) {
         toast.error("Payment gateway not configured. Please contact support.");
         return;
@@ -278,7 +322,7 @@ const HeroBannerBooking = () => {
         handler: async (paymentResponse) => {
           try {
             const paymentData = handlePaymentSuccess(paymentResponse);
-            
+
             await confirmBannerPayment({
               bookingId,
               razorpayPaymentId: paymentData.razorpayPaymentId,
@@ -286,7 +330,7 @@ const HeroBannerBooking = () => {
               razorpaySignature: paymentData.razorpaySignature,
               paymentMethod: 'razorpay'
             });
-            
+
             toast.success("Payment successful! Your banner booking is pending admin approval.");
             setShowBookingModal(false);
             resetForm();
@@ -297,8 +341,14 @@ const HeroBannerBooking = () => {
           }
         },
         modal: {
-          ondismiss: () => {
-            toast.error("Payment cancelled");
+          ondismiss: async () => {
+            try {
+              toast.error("Payment cancelled");
+              await cancelBannerBooking(bookingId);
+              loadData(); // Refresh list to remove the temp booking
+            } catch (err) {
+              console.error("Error cancelling booking:", err);
+            }
           },
         },
       });
@@ -315,7 +365,9 @@ const HeroBannerBooking = () => {
       image: null,
       preview: null,
       startDate: "",
+      startTime: "00:00",
       durationHours: 1,
+      durationType: "hour"
     });
     setSelectedSlot(null);
   };
@@ -328,7 +380,9 @@ const HeroBannerBooking = () => {
       image: null,
       preview: null,
       startDate: "",
+      startTime: "00:00",
       durationHours: settings.minDurationHours || 1,
+      durationType: "hour"
     });
     setShowBookingModal(true);
   };
@@ -373,7 +427,7 @@ const HeroBannerBooking = () => {
     {
       header: "Start Date",
       accessor: "startDate",
-      render: (val) => new Date(val).toLocaleDateString(),
+      render: (val) => new Date(val).toLocaleString(),
     },
     {
       header: "Created At",
@@ -385,7 +439,7 @@ const HeroBannerBooking = () => {
       accessor: "_id",
       render: (val, row) => (
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => navigate(`/vendor/hero-banner-booking/details/${row._id}`)}
             className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
             title="View Details"
@@ -408,36 +462,33 @@ const HeroBannerBooking = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
         {slots.map((slot) => {
-          const isBooked = slot.currentBooking && 
+          const isBooked = slot.currentBooking &&
             (slot.currentBooking.status === 'active' || slot.currentBooking.status === 'pending');
-          
+
           return (
             <motion.div
               key={slot._id}
               whileHover={{ y: -5 }}
-              className={`p-4 rounded-xl border-2 transition-all ${
-                isBooked 
-                ? "bg-gray-50 border-gray-200 opacity-75" 
-                : "bg-white border-blue-100 hover:border-blue-500 cursor-pointer shadow-sm hover:shadow-md"
-              }`}
-              onClick={() => !isBooked && openBookingModal(slot)}
+              className={`p-4 rounded-xl border-2 transition-all ${isBooked
+                ? "bg-blue-50/50 border-blue-100"
+                : "bg-white border-blue-100 hover:border-blue-500 shadow-sm hover:shadow-md"
+                } cursor-pointer`}
+              onClick={() => openBookingModal(slot)}
             >
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Slot {slot.slotNumber}</span>
                 {isBooked ? (
-                  <Badge variant="error">Booked</Badge>
+                  <Badge variant="info">Active Now</Badge>
                 ) : (
                   <Badge variant="success">Available</Badge>
                 )}
               </div>
               <div className="text-xl font-bold text-gray-900 mb-1">{formatPrice(slot.price)}</div>
               <p className="text-xs text-gray-500 mb-4">Starting from {formatPrice(slot.price)}/hour</p>
-              
-              {!isBooked && (
-                <button className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
-                  <FiPlus /> Book Now
-                </button>
-              )}
+
+              <button className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                <FiPlus /> Book Now
+              </button>
             </motion.div>
           );
         })}
@@ -470,7 +521,7 @@ const HeroBannerBooking = () => {
                   <h3 className="text-xl font-bold text-gray-900">Book Hero Banner Slot {selectedSlot?.slotNumber}</h3>
                   <p className="text-sm text-blue-600 font-medium">Calculate your price based on duration</p>
                 </div>
-                <button 
+                <button
                   onClick={() => (setShowBookingModal(false), resetForm())}
                   className="p-2 hover:bg-white rounded-full transition-colors"
                 >
@@ -484,7 +535,7 @@ const HeroBannerBooking = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                       <FiCalendar className="text-blue-600" />
-                      Start Date
+                      Start Date & Time
                       <div className="group relative">
                         <FiInfo className="text-gray-400 cursor-help" />
                         <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg z-20">
@@ -492,15 +543,24 @@ const HeroBannerBooking = () => {
                         </div>
                       </div>
                     </label>
-                    <input
-                      type="date"
-                      required
-                      min={minDate}
-                      max={maxDate}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      value={formData.startDate}
-                      onChange={handleDateChange}
-                    />
+                    <div className="flex gap-3">
+                      <input
+                        type="date"
+                        required
+                        min={minDate}
+                        max={maxDate}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        value={formData.startDate}
+                        onChange={handleDateChange}
+                      />
+                      <input
+                        type="time"
+                        required
+                        className="block w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        value={formData.startTime}
+                        onChange={handleTimeChange}
+                      />
+                    </div>
                     <p className="mt-1 text-xs text-gray-500">
                       Available dates: {new Date(minDate).toLocaleDateString()} to {new Date(maxDate).toLocaleDateString()}
                     </p>
@@ -519,18 +579,33 @@ const HeroBannerBooking = () => {
                       </div>
                     </label>
                     <div className="flex items-center gap-3">
+                      <select
+                        className="block w-24 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        value={formData.durationType}
+                        onChange={handleDurationTypeChange}
+                      >
+                        <option value="hour">Hours</option>
+                        <option value="day">Days</option>
+                        <option value="week">Weeks</option>
+                      </select>
                       <input
                         type="number"
                         required
-                        min={settings.minDurationHours}
-                        max={settings.maxDurationHours}
+                        min="1"
+                        max={formData.durationType === "hour" ? settings.maxDurationHours :
+                          formData.durationType === "day" ? Math.floor(settings.maxDurationHours / 24) :
+                            Math.floor(settings.maxDurationHours / 168)}
                         step="1"
                         className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        value={formData.durationHours}
+                        value={
+                          formData.durationType === "hour" ? formData.durationHours :
+                            formData.durationType === "day" ? Math.round(formData.durationHours / 24) :
+                              Math.round(formData.durationHours / 168)
+                        }
                         onChange={handleDurationChange}
                       />
-                      <span className="text-sm text-gray-600 whitespace-nowrap">
-                        hours ({formatDuration(formData.durationHours)})
+                      <span className="text-sm text-gray-600 whitespace-nowrap min-w-[80px]">
+                        {formData.durationType === "hour" ? "" : `(${formatDuration(formData.durationHours)})`}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
@@ -617,7 +692,7 @@ const HeroBannerBooking = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Image Guidelines */}
                     <div className="mt-3 bg-blue-50 rounded-lg p-3 flex items-start gap-2">
                       <FiInfo className="text-blue-500 mt-0.5 flex-shrink-0" />

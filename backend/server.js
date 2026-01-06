@@ -106,17 +106,17 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     // Check if origin is in allowed list
     if (corsOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
+
     // Allow Vercel preview deployments (wildcard matching)
     if (origin.includes('vercel.app')) {
       return callback(null, true);
     }
-    
+
     // Log blocked origin for debugging
     console.warn(`⚠️  CORS blocked origin: ${origin}`);
     callback(new Error('Not allowed by CORS'));
@@ -161,14 +161,14 @@ app.get('/api/health', (req, res) => {
 app.post('/api/test-register', async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
-    
+
     // Check database connection
     const dbStatus = mongoose.connection.readyState;
     const dbConnected = dbStatus === 1;
-    
+
     // Check email service
     const emailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-    
+
     res.json({
       success: true,
       message: 'Registration test endpoint',
@@ -340,11 +340,11 @@ const startServer = async () => {
       'MONGODB_URI': process.env.MONGODB_URI,
       'JWT_SECRET': process.env.JWT_SECRET,
     };
-    
+
     const missingVars = Object.entries(requiredEnvVars)
       .filter(([key, value]) => !value)
       .map(([key]) => key);
-    
+
     if (missingVars.length > 0) {
       console.error('❌ CRITICAL: Missing required environment variables:');
       missingVars.forEach(varName => {
@@ -352,7 +352,7 @@ const startServer = async () => {
       });
       console.error('⚠️  Server will start but may not function correctly.');
     }
-    
+
     // Check email configuration (critical for registration)
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.error('⚠️  WARNING: Email service not configured (EMAIL_USER or EMAIL_PASS missing)');
@@ -360,7 +360,7 @@ const startServer = async () => {
     } else {
       console.log('✅ Email service configuration found');
     }
-    
+
     // Connect to database
     await connectDB();
 
@@ -392,10 +392,10 @@ const startServer = async () => {
       const tempRegCollection = mongoose.connection.collection('temporaryregistrations');
       // Check if TTL index already exists
       const indexes = await tempRegCollection.indexes();
-      const ttlIndexExists = indexes.some(idx => 
+      const ttlIndexExists = indexes.some(idx =>
         idx.key && idx.key.expiresAt === 1 && idx.expireAfterSeconds !== undefined
       );
-      
+
       if (!ttlIndexExists) {
         await tempRegCollection.createIndex(
           { expiresAt: 1 },
@@ -405,8 +405,8 @@ const startServer = async () => {
       }
     } catch (ttlIndexError) {
       // Index might already exist or collection doesn't exist yet, ignore
-      if (!ttlIndexError.message.includes('already exists') && 
-          !ttlIndexError.message.includes('not found')) {
+      if (!ttlIndexError.message.includes('already exists') &&
+        !ttlIndexError.message.includes('not found')) {
         console.log('Note: TTL index creation:', ttlIndexError.message);
       }
     }
@@ -425,7 +425,7 @@ const startServer = async () => {
       console.log(`   CORS Origins: ${corsOrigins.length} configured`);
       console.log(`   Database: ${mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Not Connected'}`);
       console.log(`   Email Service: ${(process.env.EMAIL_USER && process.env.EMAIL_PASS) ? '✅ Configured' : '❌ Not Configured'}`);
-      
+
       if (process.env.NODE_ENV === 'production') {
         console.log(`   Health Check: https://dealing-india.onrender.com/api/health`);
         console.log(`   Production URL: https://dealing-india.onrender.com`);
@@ -433,9 +433,9 @@ const startServer = async () => {
         console.log(`   Health Check: http://localhost:${PORT}/api/health`);
         console.log(`   DB Test: http://localhost:${PORT}/api/test-db`);
       }
-      
+
       console.log(`   Socket.io: Enabled\n`);
-      
+
       // Production-specific warnings
       if (process.env.NODE_ENV === 'production') {
         if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -464,4 +464,3 @@ const startServer = async () => {
 };
 
 startServer();
-

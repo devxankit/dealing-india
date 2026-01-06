@@ -4,10 +4,26 @@ export const getSlots = async (req, res, next) => {
   try {
     const slots = await heroBannerService.getBannerSlots();
     const settings = await heroBannerService.getBannerSettings();
-    
+
     res.status(200).json({
       success: true,
       data: { slots, settings }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSlot = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const slotData = req.body;
+    const slot = await heroBannerService.updateSlot(id, slotData);
+
+    res.status(200).json({
+      success: true,
+      message: 'Banner slot updated successfully',
+      data: slot
     });
   } catch (error) {
     next(error);
@@ -22,14 +38,34 @@ export const updateSettings = async (req, res, next) => {
       error.status = 401;
       return next(error);
     }
-    
+
     const settingsData = req.body;
     const settings = await heroBannerService.updateBannerSettings(settingsData, adminId);
-    
+
     res.status(200).json({
       success: true,
       message: 'Banner settings updated successfully',
       data: settings
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getBooking = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const booking = await heroBannerService.getBookingById(id);
+
+    if (!booking) {
+      const error = new Error('Booking not found');
+      error.status = 404;
+      return next(error);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: booking
     });
   } catch (error) {
     next(error);
@@ -52,7 +88,7 @@ export const approveBooking = async (req, res, next) => {
   try {
     const { id } = req.params;
     const booking = await heroBannerService.approveBooking(id);
-    
+
     res.status(200).json({
       success: true,
       message: 'Banner booking approved successfully',
@@ -68,7 +104,7 @@ export const rejectBooking = async (req, res, next) => {
     const { id } = req.params;
     const { reason } = req.body;
     const booking = await heroBannerService.rejectBooking(id, reason);
-    
+
     res.status(200).json({
       success: true,
       message: 'Banner booking rejected successfully',
