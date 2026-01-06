@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getActiveBanners } from "../../../Vendor/services/heroBannerService";
 
 const HeroBanner = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [banners, setBanners] = useState([]);
   const [displayTime, setDisplayTime] = useState(2000);
@@ -47,6 +50,20 @@ const HeroBanner = () => {
     setCurrentSlide((prev) => (prev === 0 ? banners.length - 1 : prev - 1));
   };
 
+  const handleBannerClick = (banner) => {
+    if (banner.vendorId) {
+      const isMobileApp = location.pathname.startsWith('/app');
+      const basePath = isMobileApp ? '/app' : '';
+      navigate(`${basePath}/vendor/${banner.vendorId}`);
+    } else if (banner.link) {
+      if (banner.link.startsWith('http')) {
+        window.location.href = banner.link;
+      } else {
+        navigate(banner.link);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-4">
@@ -58,7 +75,7 @@ const HeroBanner = () => {
   if (banners.length === 0) return null;
 
   return (
-    <div 
+    <div
       className="w-full overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -88,7 +105,8 @@ const HeroBanner = () => {
             {banners.map((banner, index) => (
               <div
                 key={banner.id}
-                className="flex-shrink-0"
+                className="flex-shrink-0 cursor-pointer"
+                onClick={() => handleBannerClick(banner)}
                 style={{
                   width: `${100 / banners.length}%`,
                   height: "100%",
@@ -107,13 +125,13 @@ const HeroBanner = () => {
           {banners.length > 1 && (
             <>
               <button
-                onClick={handlePrev}
+                onClick={(e) => { e.stopPropagation(); handlePrev(); }}
                 className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </button>
               <button
-                onClick={handleNext}
+                onClick={(e) => { e.stopPropagation(); handleNext(); }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -127,11 +145,10 @@ const HeroBanner = () => {
               {banners.map((_, index) => (
                 <button
                   key={index}
-                  onClick={() => setCurrentSlide(index)}
+                  onClick={(e) => { e.stopPropagation(); setCurrentSlide(index); }}
                   aria-label={`Go to slide ${index + 1}`}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    currentSlide === index ? "bg-white w-6 shadow-md" : "bg-white/40 w-1.5 hover:bg-white/60"
-                  }`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${currentSlide === index ? "bg-white w-6 shadow-md" : "bg-white/40 w-1.5 hover:bg-white/60"
+                    }`}
                 />
               ))}
             </div>
@@ -170,7 +187,8 @@ const HeroBanner = () => {
             {banners.map((banner, index) => (
               <div
                 key={banner.id}
-                className="flex-shrink-0 block pointer-events-none"
+                className="flex-shrink-0 cursor-pointer"
+                onClick={() => handleBannerClick(banner)}
                 style={{
                   width: `${100 / banners.length}%`,
                   height: "100%",
@@ -184,7 +202,7 @@ const HeroBanner = () => {
               </div>
             ))}
           </motion.div>
-          
+
           {/* Mobile Dots */}
           {banners.length > 1 && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
@@ -192,9 +210,8 @@ const HeroBanner = () => {
                 <button
                   key={index}
                   onClick={() => setCurrentSlide(index)}
-                  className={`h-1 rounded-full transition-all duration-300 ${
-                    currentSlide === index ? "bg-white w-4" : "bg-white/50 w-1"
-                  }`}
+                  className={`h-1 rounded-full transition-all duration-300 ${currentSlide === index ? "bg-white w-4" : "bg-white/50 w-1"
+                    }`}
                 />
               ))}
             </div>

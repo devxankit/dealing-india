@@ -38,9 +38,9 @@ const AdminHeroBanner = () => {
   const [settings, setSettings] = useState({
     universalDisplayTime: 2000,
     bookingWindowDays: 30,
-    minDurationHours: 1,
+    minDurationHours: 24,
     maxDurationHours: 720,
-    defaultPricePerHour: 1999,
+    defaultPricePerDay: 1999,
     pricingStructure: {}
   });
   const [revenueStats, setRevenueStats] = useState({
@@ -115,7 +115,7 @@ const AdminHeroBanner = () => {
     // Validate inputs
     const basePrice = parseFloat(slotForm.price);
     if (isNaN(basePrice) || basePrice < 0) {
-      toast.error("Invalid base hourly price");
+      toast.error("Invalid base daily price");
       return;
     }
 
@@ -215,8 +215,8 @@ const AdminHeroBanner = () => {
       toast.error("Maximum duration must be greater than or equal to minimum duration");
       return;
     }
-    if (settingsForm.defaultPricePerHour < 0) {
-      toast.error("Default price per hour cannot be negative");
+    if (settingsForm.defaultPricePerDay < 0) {
+      toast.error("Default price per day cannot be negative");
       return;
     }
 
@@ -523,9 +523,9 @@ const AdminHeroBanner = () => {
                       min="1"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                       value={settingsForm.minDurationHours}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, minDurationHours: parseInt(e.target.value) || 1 })}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, minDurationHours: parseInt(e.target.value) || 24 })}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Minimum: 1 hour</p>
+                    <p className="mt-1 text-xs text-gray-500">Minimum: 24 hours (1 day)</p>
                   </div>
 
                   {/* Max Duration */}
@@ -543,18 +543,18 @@ const AdminHeroBanner = () => {
                     <p className="mt-1 text-xs text-gray-500">Maximum: 720 hours (30 days)</p>
                   </div>
 
-                  {/* Default Price Per Hour */}
+                  {/* Default Price Per Day */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Default Price Per Hour (₹)
+                      Default Price Per Day (₹)
                     </label>
                     <input
                       type="number"
                       min="0"
                       step="0.01"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      value={settingsForm.defaultPricePerHour}
-                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultPricePerHour: parseFloat(e.target.value) || 1999 })}
+                      value={settingsForm.defaultPricePerDay}
+                      onChange={(e) => setSettingsForm({ ...settingsForm, defaultPricePerDay: parseFloat(e.target.value) || 1999 })}
                     />
                     <p className="mt-1 text-xs text-gray-500">Used when no specific pricing entry exists for a duration</p>
                   </div>
@@ -567,7 +567,7 @@ const AdminHeroBanner = () => {
                       <FiInfo className="text-gray-400 cursor-help" />
                       <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg z-20">
                         Define fixed prices for specific durations to offer bulk discounts. <br />
-                        For example, set "24 hours" to a lower price than "24 x Hourly Rate".
+                        For example, set "168 hours (1 week)" to a lower price than "7 x Daily Rate".
                       </div>
                     </div>
                   </label>
@@ -588,8 +588,8 @@ const AdminHeroBanner = () => {
                             .sort(([a], [b]) => parseInt(a) - parseInt(b))
                             .map(([hours, price]) => {
                               const hoursNum = parseInt(hours);
-                              const hourlyRate = price / hoursNum;
-                              const isDiscounted = hourlyRate < settingsForm.defaultPricePerHour;
+                              const dailyRate = price / (hoursNum / 24);
+                              const isDiscounted = dailyRate < settingsForm.defaultPricePerDay;
 
                               return (
                                 <tr key={hours} className="hover:bg-gray-50">
@@ -600,7 +600,7 @@ const AdminHeroBanner = () => {
                                   <td className="px-4 py-2 text-sm font-medium">{formatPrice(price)}</td>
                                   <td className="px-4 py-2 text-sm">
                                     <span className={`text-xs ${isDiscounted ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
-                                      {formatPrice(Math.round(hourlyRate))}/hr
+                                      {formatPrice(Math.round(dailyRate))}/day
                                     </span>
                                   </td>
                                   <td className="px-4 py-2">
@@ -618,7 +618,7 @@ const AdminHeroBanner = () => {
                           {Object.keys(settingsForm.pricingStructure || {}).length === 0 && (
                             <tr>
                               <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">
-                                No custom rates defined. Standard hourly rate ({formatPrice(settingsForm.defaultPricePerHour)}/hr) applies to all.
+                                No custom rates defined. Standard daily rate ({formatPrice(settingsForm.defaultPricePerDay)}/day) applies to all.
                               </td>
                             </tr>
                           )}
@@ -731,7 +731,7 @@ const AdminHeroBanner = () => {
 
               <div className="mb-3">
                 <div className="flex items-center justify-between">
-                  <div className="text-lg font-bold text-gray-900">{formatPrice(slot.price)} <span className="text-xs font-normal text-gray-400">/hr</span></div>
+                  <div className="text-lg font-bold text-gray-900">{formatPrice(slot.price)} <span className="text-xs font-normal text-gray-400">/day</span></div>
                   <button
                     onClick={() => {
                       if (editingSlotId === slot._id) {
@@ -773,7 +773,7 @@ const AdminHeroBanner = () => {
                     <div className="space-y-4">
                       {/* Base Price Input */}
                       <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase">Hourly Price (Base)</label>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Daily Price (Base)</label>
                         <input
                           type="number"
                           className="w-full mt-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"

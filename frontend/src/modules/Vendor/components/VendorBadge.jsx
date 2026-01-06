@@ -12,10 +12,16 @@ const VendorBadge = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  // Ensure we check if we are in app mode OR if the pathname specifically starts with /app
   const isMobileApp = location.pathname.startsWith("/app");
+
+  // Clean up vendor ID - handle both string and object
+  const vendorId = vendor?.id || vendor?._id;
+  if (!vendorId) return null;
+
   const vendorLink = isMobileApp
-    ? `/app/vendor/${vendor?.id}`
-    : `/vendor/${vendor?.id}`;
+    ? `/app/vendor/${vendorId}`
+    : `/vendor/${vendorId}`;
 
   if (!vendor) return null;
 
@@ -63,13 +69,12 @@ const VendorBadge = ({
         </div>
       ) : (
         <FiShoppingBag
-          className={`text-primary-600 ${
-            size === "sm"
+          className={`text-primary-600 ${size === "sm"
               ? "text-[10px]"
               : size === "md"
-              ? "text-xs"
-              : "text-sm"
-          }`}
+                ? "text-xs"
+                : "text-sm"
+            }`}
         />
       )}
 
@@ -80,13 +85,12 @@ const VendorBadge = ({
           animate={{ scale: [1, 1.1, 1] }}
           transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}>
           <FiCheckCircle
-            className={`text-accent-600 ${
-              size === "sm"
+            className={`text-accent-600 ${size === "sm"
                 ? "text-[10px]"
                 : size === "md"
-                ? "text-xs"
-                : "text-sm"
-            }`}
+                  ? "text-xs"
+                  : "text-sm"
+              }`}
             title="Verified Vendor"
           />
         </motion.div>
