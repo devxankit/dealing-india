@@ -52,6 +52,8 @@ if (EMAIL_USER && EMAIL_PASS) {
     connectionTimeout: isProduction ? 60000 : 10000, // 60s in prod, 10s in dev
     greetingTimeout: isProduction ? 60000 : 10000,
     socketTimeout: isProduction ? 60000 : 10000,
+    // Force IPv4 to avoid IPv6 timeouts (common on Render/Gmail)
+    family: 4, 
     // Retry options for production
     pool: isProduction, // Use connection pooling in production
     maxConnections: isProduction ? 5 : 1,
