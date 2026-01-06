@@ -17,6 +17,15 @@ export const getMyBannerBookings = async () => {
 };
 
 /**
+ * Get vendor's booking details
+ * @param {string} bookingId
+ */
+export const getVendorBannerBookingDetails = async (bookingId) => {
+  const response = await api.get(`/vendor/hero-banners/bookings/${bookingId}`);
+  return response;
+};
+
+/**
  * Create a new banner booking
  * @param {FormData} formData - Booking data including image
  */
@@ -35,6 +44,15 @@ export const createBannerBooking = async (formData) => {
  */
 export const confirmBannerPayment = async (paymentData) => {
   const response = await api.post('/vendor/hero-banners/confirm-payment', paymentData);
+  return response;
+};
+
+/**
+ * Cancel/Delete an unpaid booking
+ * @param {string} bookingId
+ */
+export const cancelBannerBooking = async (bookingId) => {
+  const response = await api.delete(`/vendor/hero-banners/bookings/${bookingId}`);
   return response;
 };
 
@@ -59,6 +77,15 @@ export const getAdminBannerSlots = async () => {
  */
 export const getAdminBannerBookings = async () => {
   const response = await api.get('/admin/hero-banners/bookings');
+  return response;
+};
+
+/**
+ * Admin: Get banner booking details
+ * @param {string} bookingId
+ */
+export const getAdminBannerBookingDetails = async (bookingId) => {
+  const response = await api.get(`/admin/hero-banners/bookings/${bookingId}`);
   return response;
 };
 

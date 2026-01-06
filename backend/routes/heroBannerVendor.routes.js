@@ -3,7 +3,9 @@ import {
   getAvailableSlots,
   createBannerBooking,
   getMyBookings,
-  confirmPayment
+  confirmPayment,
+  cancelBooking,
+  getBookingDetails
 } from '../controllers/vendor-controllers/heroBanner.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
@@ -17,7 +19,9 @@ router.use(authorize('vendor'));
 
 router.get('/slots', asyncHandler(getAvailableSlots));
 router.get('/my-bookings', asyncHandler(getMyBookings));
+router.get('/bookings/:id', asyncHandler(getBookingDetails));
 router.post('/book', upload.single('image'), asyncHandler(createBannerBooking));
 router.post('/confirm-payment', asyncHandler(confirmPayment));
+router.delete('/bookings/:bookingId', asyncHandler(cancelBooking));
 
 export default router;

@@ -79,7 +79,7 @@ const MobileProfile = () => {
               >
                 {/* Subtle Glow */}
                 <div className="absolute -right-4 -top-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl" />
-                
+
                 <div className="relative z-10 flex items-center gap-4">
                   {/* Compact Icon Section */}
                   <div className="relative flex-shrink-0">
@@ -156,10 +156,10 @@ const MobileProfile = () => {
                     className="fixed inset-0 bg-black/60 z-[99999]"
                   />
                   <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-sm bg-white rounded-2xl p-6 z-[100000] shadow-2xl text-center"
+                    initial={{ scale: 0.9, opacity: 0, x: "-50%", y: "-50%" }}
+                    animate={{ scale: 1, opacity: 1, x: "-50%", y: "-50%" }}
+                    exit={{ scale: 0.9, opacity: 0, x: "-50%", y: "-50%" }}
+                    className="fixed top-1/2 left-1/2 w-[90%] max-w-sm bg-white rounded-2xl p-6 z-[100000] shadow-2xl text-center"
                   >
                     <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                       <FiLogOut className="text-2xl" />

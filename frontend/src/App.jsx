@@ -44,6 +44,7 @@ import Customers from "./modules/Admin/pages/Customers";
 import Inventory from "./modules/Admin/pages/Inventory";
 import Campaigns from "./modules/Admin/pages/Campaigns";
 import AdminHeroBanner from "./modules/Admin/pages/AdminHeroBanner";
+import AdminHeroBannerDetail from "./modules/Admin/pages/AdminHeroBannerDetail";
 import AdminWallet from "./modules/Admin/pages/AdminWallet";
 import Banners from "./modules/Admin/pages/Banners";
 import Reviews from "./modules/Admin/pages/Reviews";
@@ -181,6 +182,7 @@ import VendorEarnings from "./modules/Vendor/pages/Earnings";
 import VendorSettings from "./modules/Vendor/pages/Settings";
 import VendorSubscription from "./modules/Vendor/pages/Subscription";
 import VendorHeroBannerBooking from "./modules/Vendor/pages/HeroBannerBooking";
+import VendorHeroBannerBookingDetail from "./modules/Vendor/pages/HeroBannerBookingDetail";
 import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
 
 import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
@@ -513,6 +515,8 @@ const AppRoutes = () => {
           <Route path="firebase/authentication" element={<Authentication />} />
           <Route path="campaigns" element={<Campaigns />} />
           <Route path="hero-banners" element={<AdminHeroBanner />} />
+          <Route path="hero-banners/details/:id" element={<AdminHeroBannerDetail />} />
+
           <Route path="wallet" element={<AdminWallet />} />
           <Route path="banners" element={<Banners />} />
           <Route path="reviews" element={<Reviews />} />
@@ -611,6 +615,7 @@ const AppRoutes = () => {
           <Route path="product-reviews" element={<VendorProductReviews />} />
           <Route path="promotions" element={<VendorPromotions />} />
           <Route path="hero-banner-booking" element={<VendorHeroBannerBooking />} />
+          <Route path="hero-banner-booking/details/:id" element={<VendorHeroBannerBookingDetail />} />
           <Route path="notifications" element={<VendorNotifications />} />
           <Route
             path="shipping-management"

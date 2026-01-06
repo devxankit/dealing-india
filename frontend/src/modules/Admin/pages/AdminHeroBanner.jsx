@@ -51,7 +51,7 @@ const AdminHeroBanner = () => {
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [editingSlotId, setEditingSlotId] = useState(null);
   const [tempPrice, setTempPrice] = useState("");
-  
+
   // Settings form state
   const [settingsForm, setSettingsForm] = useState({
     universalDisplayTime: 2000,
@@ -61,7 +61,13 @@ const AdminHeroBanner = () => {
     defaultPricePerHour: 1999,
     pricingStructure: {}
   });
-  
+
+  const [slotForm, setSlotForm] = useState({
+    price: "",
+    dayPrice: "",
+    weekPrice: ""
+  });
+
   // Pricing structure editor state
   const [newPricingEntry, setNewPricingEntry] = useState({ hours: "", price: "" });
 
@@ -77,40 +83,91 @@ const AdminHeroBanner = () => {
         getAdminBannerBookings(),
         getBannerRevenueStats()
       ]);
-      
-      const loadedSettings = slotsRes.data.settings || settings;
-      setSlots(slotsRes.data.slots || []);
-      setSettings(loadedSettings);
-      setSettingsForm(loadedSettings);
+
+      console.log("Admin Slots Response:", slotsRes);
+
+      // Handle slots response structure
+      // Expected: { success: true, data: { slots: [], settings: {} } } via interceptor
+      const slotsData = slotsRes.data || slotsRes;
+
+      if (slotsData && slotsData.slots) {
+        setSlots(slotsData.slots);
+        if (slotsData.settings) {
+          setSettings(slotsData.settings);
+          setSettingsForm(slotsData.settings);
+        }
+      } else {
+        setSlots([]);
+      }
+
       setBookings(bookingsRes.data || []);
       setRevenueStats(revenueRes.data || { totalRevenue: 0, percentageChange: 0 });
+
     } catch (error) {
       console.error("Error loading admin banner data:", error);
-      toast.error("Failed to load banner management data");
+      toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdatePrice = async (slotId) => {
-    const price = parseFloat(tempPrice);
-    if (isNaN(price) || price < 0) {
-      toast.error("Please enter a valid price");
+  const handleUpdateSlotFull = async (slotId) => {
+    // Validate inputs
+    const basePrice = parseFloat(slotForm.price);
+    if (isNaN(basePrice) || basePrice < 0) {
+      toast.error("Invalid base hourly price");
       return;
     }
 
+    const dayPrice = slotForm.dayPrice !== "" ? parseFloat(slotForm.dayPrice) : null;
+    const weekPrice = slotForm.weekPrice !== "" ? parseFloat(slotForm.weekPrice) : null;
+
+    if (slotForm.dayPrice !== "" && (isNaN(dayPrice) || dayPrice < 0)) {
+      toast.error("Invalid day price");
+      return;
+    }
+    if (slotForm.weekPrice !== "" && (isNaN(weekPrice) || weekPrice < 0)) {
+      toast.error("Invalid week price");
+      return;
+    }
+
+    // Construct pricing structure
+    const updatedPricingStructure = {};
+    if (dayPrice !== null) updatedPricingStructure['24'] = dayPrice;
+    if (weekPrice !== null) updatedPricingStructure['168'] = weekPrice;
+
     setLoading(true);
     try {
-      await updateBannerSlot(slotId, { price });
-      setSlots(slots.map(s => s._id === slotId ? { ...s, price } : s));
+      // Send updates
+      // We send both price and structure. Note: backend updateSlot handles partial updates,
+      // but here we want to set structure explicitly. 
+      // Current backend `updateSlot` merges/sets logic: 
+      // "if (slotData.pricingStructure !== undefined) slot.pricingStructure = slotData.pricingStructure;"
+      // This REPLACES the structure, which is what we want for a "Form Save" action.
+
+      await updateBannerSlot(slotId, {
+        price: basePrice,
+        pricingStructure: updatedPricingStructure
+      });
+
+      // Optimistic update
+      setSlots(slots.map(s => s._id === slotId ? {
+        ...s,
+        price: basePrice,
+        pricingStructure: updatedPricingStructure
+      } : s));
+
       setEditingSlotId(null);
-      toast.success("Slot price updated");
+      toast.success("Slot settings saved successfully");
     } catch (error) {
-      toast.error("Failed to update price");
+      console.error("Update error:", error);
+      toast.error("Failed to save slot settings");
     } finally {
       setLoading(false);
     }
   };
+
+  /* REMOVED handleUpdatePrice (legacy) */
 
   const handleApproveBanner = async (bookingId) => {
     setLoading(true);
@@ -162,7 +219,7 @@ const AdminHeroBanner = () => {
       toast.error("Default price per hour cannot be negative");
       return;
     }
-    
+
     setLoading(true);
     try {
       await updateBannerSettings(settingsForm);
@@ -180,7 +237,7 @@ const AdminHeroBanner = () => {
   const handleAddPricingEntry = () => {
     const hours = parseInt(newPricingEntry.hours);
     const price = parseFloat(newPricingEntry.price);
-    
+
     if (isNaN(hours) || hours < 1) {
       toast.error("Please enter a valid number of hours");
       return;
@@ -193,22 +250,22 @@ const AdminHeroBanner = () => {
       toast.error(`Hours must be between ${settingsForm.minDurationHours} and ${settingsForm.maxDurationHours}`);
       return;
     }
-    
+
     const newStructure = { ...settingsForm.pricingStructure };
     newStructure[hours.toString()] = price;
-    
+
     setSettingsForm({
       ...settingsForm,
       pricingStructure: newStructure
     });
-    
+
     setNewPricingEntry({ hours: "", price: "" });
   };
 
   const handleRemovePricingEntry = (hours) => {
     const newStructure = { ...settingsForm.pricingStructure };
     delete newStructure[hours.toString()];
-    
+
     setSettingsForm({
       ...settingsForm,
       pricingStructure: newStructure
@@ -244,9 +301,9 @@ const AdminHeroBanner = () => {
       render: (val) => (
         <div className="relative group/img">
           <img src={val} alt="Banner" className="h-10 w-20 object-cover rounded border" />
-          <a 
-            href={val} 
-            target="_blank" 
+          <a
+            href={val}
+            target="_blank"
             rel="noopener noreferrer"
             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity rounded"
           >
@@ -307,7 +364,7 @@ const AdminHeroBanner = () => {
       accessor: "_id",
       render: (val, row) => (
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => navigate(`/admin/hero-banners/details/${row._id}`)}
             className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
             title="View Details"
@@ -316,7 +373,7 @@ const AdminHeroBanner = () => {
           </button>
           {row.paymentStatus === "paid" && row.adminApprovalStatus === "pending" && (
             <>
-              <button 
+              <button
                 onClick={() => handleApproveBanner(row._id)}
                 className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
                 title="Approve Banner"
@@ -324,7 +381,7 @@ const AdminHeroBanner = () => {
               >
                 <FiCheckCircle className="text-lg" />
               </button>
-              <button 
+              <button
                 onClick={() => {
                   const reason = prompt("Enter rejection reason (optional):");
                   if (reason !== null) {
@@ -345,13 +402,13 @@ const AdminHeroBanner = () => {
   ];
 
   return (
-    <div className="p-6">
+    <div className="p-6" >
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Hero Banner Management</h1>
           <p className="text-gray-500">Manage banner slots, bookings, and display settings</p>
         </div>
-        
+
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
@@ -373,8 +430,8 @@ const AdminHeroBanner = () => {
             </div>
           </div>
           <div className="h-10 w-px bg-gray-100"></div>
-          
-          <button 
+
+          <button
             onClick={() => navigate('/admin/wallet')}
             className="flex items-center gap-4 hover:bg-gray-50 px-4 py-2 rounded-2xl transition-all group border border-transparent hover:border-gray-100 shadow-sm hover:shadow-md"
           >
@@ -396,7 +453,7 @@ const AdminHeroBanner = () => {
       </div>
 
       {/* Banner Settings Panel */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 overflow-hidden" >
         <button
           onClick={() => setShowSettingsPanel(!showSettingsPanel)}
           className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
@@ -503,83 +560,123 @@ const AdminHeroBanner = () => {
                   </div>
                 </div>
 
-                {/* Pricing Structure */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Pricing Structure
+                    Pricing Structure & Discounts
                     <div className="group relative inline-block ml-2">
                       <FiInfo className="text-gray-400 cursor-help" />
                       <div className="hidden group-hover:block absolute left-0 bottom-full mb-2 w-64 p-2 bg-gray-900 text-white text-xs rounded-lg z-20">
-                        Define specific prices for different durations. Prices for durations not listed will be calculated proportionally from the default price.
+                        Define fixed prices for specific durations to offer bulk discounts. <br />
+                        For example, set "24 hours" to a lower price than "24 x Hourly Rate".
                       </div>
                     </div>
                   </label>
-                  
+
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Duration (hours)</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Duration</th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Price (₹)</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Effective Rate</th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-700">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {Object.entries(settingsForm.pricingStructure || {})
                             .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                            .map(([hours, price]) => (
-                              <tr key={hours} className="hover:bg-gray-50">
-                                <td className="px-4 py-2 text-sm">{formatDuration(parseInt(hours))} ({hours}h)</td>
-                                <td className="px-4 py-2 text-sm font-medium">{formatPrice(price)}</td>
-                                <td className="px-4 py-2">
-                                  <button
-                                    onClick={() => handleRemovePricingEntry(hours)}
-                                    className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                    title="Remove"
-                                  >
-                                    <FiTrash2 className="text-sm" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                            .map(([hours, price]) => {
+                              const hoursNum = parseInt(hours);
+                              const hourlyRate = price / hoursNum;
+                              const isDiscounted = hourlyRate < settingsForm.defaultPricePerHour;
+
+                              return (
+                                <tr key={hours} className="hover:bg-gray-50">
+                                  <td className="px-4 py-2 text-sm">
+                                    <span className="font-medium">{formatDuration(hoursNum)}</span>
+                                    <span className="text-xs text-gray-500 ml-1">({hours}h)</span>
+                                  </td>
+                                  <td className="px-4 py-2 text-sm font-medium">{formatPrice(price)}</td>
+                                  <td className="px-4 py-2 text-sm">
+                                    <span className={`text-xs ${isDiscounted ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                                      {formatPrice(Math.round(hourlyRate))}/hr
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <button
+                                      onClick={() => handleRemovePricingEntry(hours)}
+                                      className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                      title="Remove"
+                                    >
+                                      <FiTrash2 className="text-sm" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           {Object.keys(settingsForm.pricingStructure || {}).length === 0 && (
                             <tr>
-                              <td colSpan="3" className="px-4 py-4 text-center text-sm text-gray-500">
-                                No pricing entries. Prices will use default rate.
+                              <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">
+                                No custom rates defined. Standard hourly rate ({formatPrice(settingsForm.defaultPricePerHour)}/hr) applies to all.
                               </td>
                             </tr>
                           )}
                         </tbody>
                       </table>
                     </div>
-                    
-                    <div className="p-4 bg-gray-50 border-t border-gray-200 flex gap-3">
-                      <input
-                        type="number"
-                        placeholder="Hours"
-                        min={settingsForm.minDurationHours}
-                        max={settingsForm.maxDurationHours}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                        value={newPricingEntry.hours}
-                        onChange={(e) => setNewPricingEntry({ ...newPricingEntry, hours: e.target.value })}
-                      />
-                      <input
-                        type="number"
-                        placeholder="Price (₹)"
-                        min="0"
-                        step="0.01"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                        value={newPricingEntry.price}
-                        onChange={(e) => setNewPricingEntry({ ...newPricingEntry, price: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddPricingEntry}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 text-sm"
-                      >
-                        <FiPlus /> Add
-                      </button>
+
+                    <div className="p-4 bg-gray-50 border-t border-gray-200">
+                      <div className="flex gap-2 mb-3">
+                        <button
+                          type="button"
+                          onClick={() => setNewPricingEntry({ hours: "24", price: "" })}
+                          className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          + 1 Day Rate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewPricingEntry({ hours: "168", price: "" })}
+                          className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          + 1 Week Rate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewPricingEntry({ hours: "720", price: "" })}
+                          className="px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          + 1 Month Rate
+                        </button>
+                      </div>
+                      <div className="flex gap-3">
+                        <input
+                          type="number"
+                          placeholder="Hours"
+                          min={settingsForm.minDurationHours}
+                          max={settingsForm.maxDurationHours}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                          value={newPricingEntry.hours}
+                          onChange={(e) => setNewPricingEntry({ ...newPricingEntry, hours: e.target.value })}
+                        />
+                        <input
+                          type="number"
+                          placeholder="Price (₹)"
+                          min="0"
+                          step="0.01"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                          value={newPricingEntry.price}
+                          onChange={(e) => setNewPricingEntry({ ...newPricingEntry, price: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddPricingEntry}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2 text-sm"
+                        >
+                          <FiPlus /> Add Rate
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -609,19 +706,19 @@ const AdminHeroBanner = () => {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </div >
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-10">
         {slots.map((slot) => {
           const booking = slot.currentBooking;
           const isActive = booking && booking.status === 'active';
-          
+
           return (
             <div
               key={slot._id}
-              className={`p-4 rounded-xl border-2 bg-white ${
-                isActive ? "border-green-100 shadow-sm" : "border-gray-100 opacity-80"
-              }`}
+              className={`p-4 rounded-xl border-2 bg-white transition-all ${editingSlotId === slot._id ? "border-blue-500 ring-2 ring-blue-100" :
+                isActive ? "border-green-100 shadow-sm" : "border-gray-100 opacity-90"
+                }`}
             >
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Slot {slot.slotNumber}</span>
@@ -631,54 +728,118 @@ const AdminHeroBanner = () => {
                   <Badge variant="warning">Empty</Badge>
                 )}
               </div>
-              <div className="flex justify-between items-center mb-1">
-                {editingSlotId === slot._id ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      className="w-20 px-1 py-0.5 border border-blue-300 rounded text-sm focus:ring-1 focus:ring-blue-500 outline-none"
-                      value={tempPrice}
-                      onChange={(e) => setTempPrice(e.target.value)}
-                      autoFocus
-                    />
-                    <button 
-                      onClick={() => handleUpdatePrice(slot._id)}
-                      className="text-green-600 hover:text-green-700"
-                    >
-                      <FiCheckCircle size={14} />
-                    </button>
-                    <button 
-                      onClick={() => setEditingSlotId(null)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <FiXCircle size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 group/price">
-                    <div className="text-lg font-bold text-gray-900">{formatPrice(slot.price)}</div>
-                    <button 
-                      onClick={() => {
+
+              <div className="mb-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-lg font-bold text-gray-900">{formatPrice(slot.price)} <span className="text-xs font-normal text-gray-400">/hr</span></div>
+                  <button
+                    onClick={() => {
+                      if (editingSlotId === slot._id) {
+                        setEditingSlotId(null);
+                      } else {
                         setEditingSlotId(slot._id);
-                        setTempPrice(slot.price.toString());
-                      }}
-                      className="text-gray-400 hover:text-blue-600 opacity-0 group-hover/price:opacity-100 transition-opacity"
-                    >
-                      <FiEdit3 size={14} />
-                    </button>
-                  </div>
+                        // Initialize form with current slot data
+                        // Note: pricingStructure keys are strings '24', '168'
+                        const structure = slot.pricingStructure || {};
+                        setSlotForm({
+                          price: slot.price,
+                          dayPrice: structure['24'] || "",
+                          weekPrice: structure['168'] || ""
+                        });
+                      }
+                    }}
+                    className={`p-1.5 rounded-full transition-colors ${editingSlotId === slot._id ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100'}`}
+                    title="Edit Slot Settings"
+                  >
+                    <FiSettings size={14} />
+                  </button>
+                </div>
+                {slot.pricingStructure && Object.keys(slot.pricingStructure).length > 0 && (
+                  <p className="text-[10px] text-green-600 font-medium mt-1">
+                    <FiCheckCircle className="inline mr-1" />
+                    Custom Rates Active ({Object.keys(slot.pricingStructure).length})
+                  </p>
                 )}
               </div>
-              
+
+              <AnimatePresence>
+                {editingSlotId === slot._id && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden mb-3 border-t border-dashed border-gray-200 pt-3"
+                  >
+                    <div className="space-y-4">
+                      {/* Base Price Input */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Hourly Price (Base)</label>
+                        <input
+                          type="number"
+                          className="w-full mt-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                          placeholder="e.g 1999"
+                          value={slotForm.price}
+                          onChange={(e) => setSlotForm({ ...slotForm, price: e.target.value })}
+                        />
+                      </div>
+
+                      {/* Custom Rates Inputs */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase mb-2 block">Discounted Rates</label>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] text-gray-400 block mb-0.5">1 Day (24h)</label>
+                            <input
+                              type="number"
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              placeholder="Default"
+                              value={slotForm.dayPrice}
+                              onChange={(e) => setSlotForm({ ...slotForm, dayPrice: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] text-gray-400 block mb-0.5">1 Week (168h)</label>
+                            <input
+                              type="number"
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              placeholder="Default"
+                              value={slotForm.weekPrice}
+                              onChange={(e) => setSlotForm({ ...slotForm, weekPrice: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Save Actions */}
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => handleUpdateSlotFull(slot._id)}
+                          className="flex-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={() => setEditingSlotId(null)}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded hover:bg-gray-200 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {isActive ? (
-                <div className="mt-3 space-y-2">
+                <div className="mt-2 space-y-2">
                   <img src={booking.bannerImage} alt="" className="w-full h-20 object-cover rounded border" />
                   <p className="text-xs font-medium text-gray-700 truncate">{booking.vendorId?.businessName}</p>
                 </div>
               ) : (
-                <div className="mt-3 h-28 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-lg bg-gray-50">
-                  <FiCalendar className="text-gray-300 text-xl mb-1" />
-                  <p className="text-[10px] text-gray-400 font-medium">AVAILABLE FOR BOOKING</p>
+                <div className="mt-2 h-20 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-lg bg-gray-50">
+                  <FiCalendar className="text-gray-300 text-lg mb-1" />
+                  <p className="text-[9px] text-gray-400 font-medium">AVAILABLE</p>
                 </div>
               )}
             </div>
@@ -691,9 +852,9 @@ const AdminHeroBanner = () => {
           <h2 className="text-lg font-bold text-gray-900">All Bookings</h2>
           <div className="flex gap-2">
             <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Search bookings..." 
+              <input
+                type="text"
+                placeholder="Search bookings..."
                 className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
               />
               <FiInfo className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -708,7 +869,7 @@ const AdminHeroBanner = () => {
         />
       </div>
 
-    </div>
+    </div >
   );
 };
 

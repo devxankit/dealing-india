@@ -17,13 +17,13 @@ export const createBannerBooking = async (req, res, next) => {
   try {
     // Use vendorId from JWT token (preferred) or fallback to id
     const vendorId = req.user.vendorId || req.user.id;
-    
+
     if (!vendorId) {
       const error = new Error('Vendor ID not found in authentication token');
       error.status = 401;
       return next(error);
     }
-    
+
     // Validate required fields
     if (!req.body.slotId) {
       const error = new Error('Slot ID is required');
@@ -45,9 +45,9 @@ export const createBannerBooking = async (req, res, next) => {
       error.status = 400;
       return next(error);
     }
-    
+
     const booking = await heroBannerService.createBooking(vendorId, req.body, req.file);
-    
+
     res.status(201).json({
       success: true,
       message: 'Booking initiated successfully',
@@ -62,13 +62,13 @@ export const getMyBookings = async (req, res, next) => {
   try {
     // Use vendorId from JWT token (preferred) or fallback to id
     const vendorId = req.user.vendorId || req.user.id;
-    
+
     if (!vendorId) {
       const error = new Error('Vendor ID not found in authentication token');
       error.status = 401;
       return next(error);
     }
-    
+
     const bookings = await heroBannerService.getVendorBookings(vendorId);
     res.status(200).json({
       success: true,
@@ -82,30 +82,82 @@ export const getMyBookings = async (req, res, next) => {
 export const confirmPayment = async (req, res, next) => {
   try {
     const { bookingId, razorpayPaymentId, razorpayOrderId, razorpaySignature, paymentMethod } = req.body;
-    
+
     if (!bookingId) {
       const error = new Error('Booking ID is required');
       error.status = 400;
       return next(error);
     }
-    
+
     if (!razorpayPaymentId || !razorpayOrderId) {
       const error = new Error('Razorpay payment ID and order ID are required');
       error.status = 400;
       return next(error);
     }
-    
+
     const paymentData = {
       razorpayPaymentId,
       razorpayOrderId,
       razorpaySignature
     };
-    
+
     const booking = await heroBannerService.confirmBookingPayment(bookingId, paymentData, paymentMethod || 'razorpay');
-    
+
     res.status(200).json({
       success: true,
       message: 'Payment confirmed successfully. Waiting for admin approval.',
+      data: booking
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cancelBooking = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const vendorId = req.user.vendorId || req.user.id;
+
+    if (!bookingId) {
+      const error = new Error('Booking ID is required');
+      error.status = 400;
+      return next(error);
+    }
+
+    // Use service to delete if unpaid
+    await heroBannerService.deleteUnpaidBooking(bookingId, vendorId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking cancelled successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getBookingDetails = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const vendorId = req.user.vendorId || req.user.id;
+
+    if (!vendorId) {
+      const error = new Error('Vendor ID not found in authentication token');
+      error.status = 401;
+      return next(error);
+    }
+
+    // Using strict vendor check to ensure they can only see their own bookings
+    const booking = await heroBannerService.getVendorBookingById(id, vendorId);
+
+    if (!booking) {
+      const error = new Error('Booking not found');
+      error.status = 404;
+      return next(error);
+    }
+
+    res.status(200).json({
+      success: true,
       data: booking
     });
   } catch (error) {
