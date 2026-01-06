@@ -38,15 +38,25 @@ const ReturnRequestDetail = () => {
       setLoading(true);
       // Reusing getAdminReturns and filtering for now
       const response = await getAdminReturns();
-      if (response.success) {
-        const found = response.data.find(r => r._id === id);
-        if (found) {
-          setReturnRequest(found);
-          setStatus(found.status);
-        } else {
-          toast.error('Return request not found');
-          navigate('/admin/return-requests');
-        }
+
+      let data = [];
+      if (Array.isArray(response)) {
+        data = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        data = response.data;
+      } else if (response && Array.isArray(response.returns)) {
+        data = response.returns;
+      } else if (response && response.success && Array.isArray(response.data)) {
+        data = response.data;
+      }
+
+      const found = data.find(r => r._id === id);
+      if (found) {
+        setReturnRequest(found);
+        setStatus(found.status);
+      } else {
+        toast.error('Return request not found');
+        navigate('/admin/return-requests');
       }
     } catch (error) {
       console.error('Error fetching return request:', error);
@@ -65,19 +75,31 @@ const ReturnRequestDetail = () => {
         response = await updateReturnStatusAdmin(id, { status: newStatus });
       }
 
-      if (response.success) {
-        setReturnRequest(response.data);
-        setStatus(response.data.status);
-        setIsEditing(false);
+      // Robust response handling
+      const updatedData = response.data || response;
 
-        const statusMessages = {
-          approve: 'Return request approved',
-          reject: 'Return request rejected',
-          'process-refund': 'Refund processed successfully',
-        };
-
-        toast.success(statusMessages[action] || 'Status updated successfully');
+      // Handle cases where updatedData might be nested or direct
+      // If update returns the full object, use it.
+      if (updatedData && (updatedData._id || updatedData.id)) {
+        setReturnRequest(updatedData);
+        setStatus(updatedData.status);
+      } else {
+        // If response is just success message, re-fetch or optimistically update
+        setReturnRequest(prev => ({ ...prev, status: newStatus }));
+        setStatus(newStatus);
       }
+
+      setIsEditing(false);
+
+      const statusMessages = {
+        approve: 'Return request approved',
+        reject: 'Return request rejected',
+        'process-item': 'Item marked as received (Processing)',
+        'process-refund': 'Refund processed successfully',
+      };
+
+      toast.success(statusMessages[action] || 'Status updated successfully');
+
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error(error.response?.data?.message || 'Failed to update status');
@@ -200,7 +222,19 @@ const ReturnRequestDetail = () => {
                   </button>
                 </>
               )}
-              {returnRequest.status === 'approved' && returnRequest.refundStatus === 'pending' && (
+              {returnRequest.status === "approved" && (
+                <button
+                  onClick={() => {
+                    if (window.confirm("Confirm receipt of return items? This will mark status as Processing.")) {
+                      handleStatusUpdate("processing", "process-item");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold">
+                  <FiPackage className="text-sm" />
+                  Item Received
+                </button>
+              )}
+              {returnRequest.status === 'processing' && returnRequest.refundStatus === 'pending' && (
                 <button
                   onClick={() => {
                     if (window.confirm('Process refund for this return request?')) {
@@ -211,6 +245,21 @@ const ReturnRequestDetail = () => {
                 >
                   <FiRefreshCw className="text-sm" />
                   Process Refund
+                </button>
+              )}
+              {/* Admin Override: Allow refund on 'approved' directly if needed (legacy behavior or admin power) */}
+              {returnRequest.status === 'approved' && returnRequest.refundStatus === 'pending' && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Directly process refund (Skipping Processing Step)?')) {
+                      handleStatusUpdate('completed', 'process-refund');
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold ml-2"
+                  title="Direct Refund"
+                >
+                  <FiRefreshCw className="text-sm" />
+                  Refund Now
                 </button>
               )}
             </>
@@ -411,9 +460,9 @@ const ReturnRequestDetail = () => {
               {returnRequest.statusHistory?.map((history, index) => (
                 <div key={index} className="flex items-start gap-2">
                   <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${history.status === 'approved' ? 'bg-blue-500' :
-                      history.status === 'processing' ? 'bg-yellow-500' :
-                        history.status === 'completed' ? 'bg-green-500' :
-                          history.status === 'rejected' ? 'bg-red-500' : 'bg-gray-400'
+                    history.status === 'processing' ? 'bg-yellow-500' :
+                      history.status === 'completed' ? 'bg-green-500' :
+                        history.status === 'rejected' ? 'bg-red-500' : 'bg-gray-400'
                     }`}></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800 capitalize">{history.status}</p>

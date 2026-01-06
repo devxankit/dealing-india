@@ -68,7 +68,7 @@ const returnRequestSchema = new mongoose.Schema(
         },
         description: {
             type: String,
-            required: true,
+            required: false,
             trim: true,
         },
         images: [{ // Proof images uploaded by customer
@@ -110,7 +110,7 @@ const returnRequestSchema = new mongoose.Schema(
                 },
                 changedByModel: {
                     type: String,
-                    enum: ['User', 'Vendor', 'Admin'],
+                    enum: ['User', 'Vendor', 'Admin', 'System'],
                 },
                 timestamp: {
                     type: Date,

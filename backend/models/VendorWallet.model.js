@@ -12,6 +12,10 @@ const vendorWalletSchema = new mongoose.Schema(
             type: Number,
             required: true,
             default: 0,
+        },
+        pendingBalance: {
+            type: Number,
+            default: 0,
             min: 0,
         },
         totalWithdrawn: {

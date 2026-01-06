@@ -41,7 +41,9 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, full
     location.pathname !== '/orders' &&
     !location.pathname.startsWith('/app/orders/') &&
     !location.pathname.startsWith('/orders/') &&
-    !location.pathname.startsWith('/app/track-order');
+    !location.pathname.startsWith('/app/track-order') &&
+    !location.pathname.startsWith('/app/return-request') &&
+    !location.pathname.startsWith('/app/returns');
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {

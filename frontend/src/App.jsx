@@ -801,6 +801,16 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/app/returns"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileMyReturns />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
           path="/app/orders"
           element={
             <RouteWrapper>

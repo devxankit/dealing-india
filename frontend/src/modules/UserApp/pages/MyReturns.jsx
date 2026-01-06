@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiBox, FiClock, FiCheckCircle, FiXCircle, FiRefreshCcw } from 'react-icons/fi';
+import { FiArrowLeft, FiPackage, FiClock, FiCheckCircle, FiXCircle, FiRefreshCw } from 'react-icons/fi';
 import MobileLayout from "../components/Layout/MobileLayout";
 import { getUserReturns } from '../../../shared/services/returnService';
-import { formatPrice } from '../../../shared/utils/helpers';
+import { formatPrice, formatDate } from '../../../shared/utils/helpers';
 import PageTransition from '../../../shared/components/PageTransition';
 import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
 import LoadingSpinner from '../../../shared/components/LoadingSpinner';
-import Badge from '../../../shared/components/Badge';
+import toast from 'react-hot-toast';
 
 const MyReturns = () => {
     const navigate = useNavigate();
@@ -22,11 +22,23 @@ const MyReturns = () => {
         try {
             setLoading(true);
             const response = await getUserReturns();
-            if (response.success) {
-                setReturns(response.data);
+            console.log('MyReturns received:', response);
+
+            // Handle both { data: [...] } and [...] formats
+            let data = [];
+            if (Array.isArray(response)) {
+                data = response;
+            } else if (response && response.data && Array.isArray(response.data)) {
+                data = response.data;
+            } else if (response && Array.isArray(response.returns)) {
+                data = response.returns;
             }
+
+            setReturns(data);
+
         } catch (error) {
-            console.error('Error fetching returns:', error);
+            console.error('Fetch error:', error);
+            // toast.error('Failed to load returns'); // Commented out to prevent ReferenceError
         } finally {
             setLoading(false);
         }
@@ -34,29 +46,31 @@ const MyReturns = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'approved': return 'bg-green-100 text-green-700';
-            case 'rejected': return 'bg-red-100 text-red-700';
-            case 'completed': return 'bg-blue-100 text-blue-700';
-            case 'cancelled': return 'bg-gray-100 text-gray-700';
-            default: return 'bg-yellow-100 text-yellow-700';
+            case 'approved': return 'text-green-600 bg-green-50 border-green-200';
+            case 'completed': return 'text-blue-600 bg-blue-50 border-blue-200';
+            case 'rejected': return 'text-red-600 bg-red-50 border-red-200';
+            case 'cancelled': return 'text-gray-600 bg-gray-50 border-gray-200';
+            default: return 'text-amber-600 bg-amber-50 border-amber-200';
         }
     };
 
     const getStatusIcon = (status) => {
         switch (status) {
-            case 'approved': return <FiCheckCircle />;
-            case 'rejected': return <FiXCircle />;
+            case 'approved':
             case 'completed': return <FiCheckCircle />;
+            case 'rejected':
             case 'cancelled': return <FiXCircle />;
             default: return <FiClock />;
         }
     };
 
+    if (loading) return <LoadingSpinner />;
+
     return (
         <ProtectedRoute>
             <PageTransition>
                 <MobileLayout showBottomNav={true} showCartBar={false}>
-                    <div className="pb-20">
+                    <div className="min-h-screen bg-gray-50 pb-24">
                         {/* Header */}
                         <div className="px-4 py-4 bg-white border-b border-gray-200 sticky top-0 z-30 flex items-center gap-3">
                             <button onClick={() => navigate('/app/profile')} className="p-2 hover:bg-gray-100 rounded-full">
@@ -65,70 +79,68 @@ const MyReturns = () => {
                             <h1 className="text-xl font-bold text-gray-800">My Returns</h1>
                         </div>
 
-                        {loading ? (
-                            <LoadingSpinner />
-                        ) : returns.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
-                                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                                    <FiRefreshCcw className="text-3xl text-gray-400" />
+                        {/* List */}
+                        <div className="p-4 space-y-4">
+                            {returns.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
+                                        <FiRefreshCw size={32} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-800 mb-2">No Returns Yet</h3>
+                                    <p className="text-gray-500 text-sm max-w-[200px]">
+                                        You haven't requested any returns yet.
+                                    </p>
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">No Returns Yet</h3>
-                                <p className="text-gray-500 mb-6">You haven't requested any returns yet.</p>
-                                <button
-                                    onClick={() => navigate('/app/orders')}
-                                    className="px-6 py-2 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700"
-                                >
-                                    View Orders
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="p-4 space-y-4">
-                                {returns.map((request) => (
-                                    <div key={request._id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                        <div className="p-4 border-b border-gray-100 flexjustify-between items-start gap-3">
-                                            <div className="flex-1">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <span className="text-xs font-bold text-gray-500">#{request.returnCode}</span>
-                                                    <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 font-medium ${getStatusColor(request.status)}`}>
-                                                        {getStatusIcon(request.status)}
-                                                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-gray-500 mb-2">
-                                                    Requested on {new Date(request.createdAt).toLocaleDateString()}
-                                                </p>
+                            ) : (
+                                returns.map((req) => (
+                                    <div key={req._id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                        {/* Header */}
+                                        <div className="p-4 border-b border-gray-50 flex justify-between items-start">
+                                            <div>
+                                                <p className="text-xs text-gray-500 mb-1">Return ID: {req.returnCode}</p>
+                                                <p className="text-xs text-gray-400">{formatDate(req.createdAt)}</p>
+                                            </div>
+                                            <div className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${getStatusColor(req.status)}`}>
+                                                {getStatusIcon(req.status)}
+                                                <span className="capitalize">{req.status}</span>
                                             </div>
                                         </div>
 
-                                        <div className="p-4 bg-gray-50">
-                                            <div className="space-y-3">
-                                                {request.items.map((item, idx) => (
+                                        {/* Items */}
+                                        <div className="p-4 bg-gray-50/50 space-y-3">
+                                            {req.items.map((item, idx) => {
+                                                const product = item.productId || {};
+                                                return (
                                                     <div key={idx} className="flex gap-3">
-                                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border border-gray-200 text-gray-400 overflow-hidden">
-                                                            {/* Simple placeholder or image if available */}
-                                                            <FiBox />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <p className="text-sm font-semibold text-gray-800 truncate">
-                                                                {item.productId?.name || 'Product'}
+                                                        <img
+                                                            src={product.images?.[0] || '/placeholder.png'}
+                                                            alt={product.name || 'Product'}
+                                                            className="w-12 h-12 rounded-lg object-cover bg-white border border-gray-100"
+                                                        />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium text-gray-800 line-clamp-1">
+                                                                {product.name || 'Product Details Unavailable'}
                                                             </p>
-                                                            <p className="text-xs text-gray-500">
-                                                                Qty: {item.quantity} • {formatPrice(item.price)}
-                                                            </p>
+                                                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                                                <span>Qty: {item.quantity}</span>
+                                                                <span>•</span>
+                                                                <span>{formatPrice(product.price || 0)}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                );
+                                            })}
                                         </div>
 
-                                        <div className="p-3 bg-white flex justify-between items-center">
-                                            <span className="text-sm text-gray-600">Refund Amount</span>
-                                            <span className="font-bold text-green-600">{formatPrice(request.refundAmount)}</span>
+                                        {/* Footer */}
+                                        <div className="p-3 bg-white flex justify-between items-center border-t border-gray-50">
+                                            <span className="text-sm text-gray-500">Refund Amount</span>
+                                            <span className="font-bold text-gray-800">{formatPrice(req.refundAmount)}</span>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                ))
+                            )}
+                        </div>
                     </div>
                 </MobileLayout>
             </PageTransition>

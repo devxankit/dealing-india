@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiCamera, FiCheck, FiAlertCircle } from 'react-icons/fi';
+import { FiArrowLeft, FiCamera, FiCheck, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
 import { getOrderById } from '../../../shared/services/orderService';
 import { checkReturnEligibility, createReturnRequest } from '../../../shared/services/returnService';
@@ -17,6 +18,8 @@ const ReturnRequest = () => {
     const [loading, setLoading] = useState(true);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [eligibility, setEligibility] = useState(null);
+
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Form State
     const [selectedItems, setSelectedItems] = useState({}); // { itemId: quantity }
@@ -39,8 +42,11 @@ const ReturnRequest = () => {
                 setLoading(true);
                 // 1. Fetch Order
                 const orderResponse = await getOrderById(orderId);
-                if (orderResponse.success) {
-                    setOrder(orderResponse.data.order);
+
+                const orderData = orderResponse?.order || (orderResponse?.success && orderResponse?.data?.order);
+
+                if (orderData) {
+                    setOrder(orderData);
                 } else {
                     toast.error('Order not found');
                     navigate('/app/orders');
@@ -73,7 +79,7 @@ const ReturnRequest = () => {
             delete newSelected[itemId];
             setSelectedItems(newSelected);
         } else {
-            setSelectedItems({ ...selectedItems, [itemId]: item.quantity }); // Default to max qty
+            setSelectedItems({ ...selectedItems, [itemId]: (item.quantity || 1) }); // Default to max qty or 1
         }
     };
 
@@ -129,12 +135,13 @@ const ReturnRequest = () => {
             };
 
             const response = await createReturnRequest(returnData);
-            if (response.success) {
-                toast.success('Return requested successfully');
-                navigate('/app/orders'); // Or to a 'Return Success' or 'My Returns' page
+            if (response.success || response.status === 'success') {
+                setShowSuccessModal(true);
             }
         } catch (error) {
             console.error(error);
+            // Handle specific "already exists" case silently if we want to just go to My Returns? 
+            // Better to show error.
             toast.error(error.response?.data?.message || 'Failed to submit return request');
         } finally {
             setSubmitLoading(false);
@@ -142,6 +149,7 @@ const ReturnRequest = () => {
     };
 
     if (loading) return <LoadingSpinner />;
+    if (!order) return null;
 
     if (eligibility && !eligibility.eligible) {
         return (
@@ -152,6 +160,9 @@ const ReturnRequest = () => {
                     <p className="text-gray-600 mb-6">{eligibility.reason}</p>
                     <button onClick={() => navigate(-1)} className="px-6 py-2 bg-gray-200 rounded-full font-semibold">
                         Go Back
+                    </button>
+                    <button onClick={() => navigate('/app/returns')} className="mt-4 text-primary-600 font-medium">
+                        View My Returns
                     </button>
                 </div>
             </MobileLayout>
@@ -180,7 +191,7 @@ const ReturnRequest = () => {
                                         const itemId = item._id || item.id;
                                         const isSelected = !!selectedItems[itemId];
                                         const qty = selectedItems[itemId] || 0;
-                                        const imageUrl = item.image || item.productId?.images?.[0] || '/placeholder.png';
+                                        const imageUrl = item.image || item.productId?.images?.[0] || '/placeholder.png'; // Improved safe access
 
                                         return (
                                             <div key={itemId}
@@ -297,6 +308,40 @@ const ReturnRequest = () => {
                                 {submitLoading ? 'Submitting...' : 'Submit Return Request'}
                             </button>
                         </div>
+
+                        {/* Success Modal */}
+                        <AnimatePresence>
+                            {showSuccessModal && (
+                                <>
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="fixed inset-0 bg-black/60 z-[9999]"
+                                    />
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.9, y: "50%" }}
+                                        animate={{ opacity: 1, scale: 1, y: "-50%" }}
+                                        exit={{ opacity: 0, scale: 0.9, y: "50%" }}
+                                        className="fixed top-1/2 left-1/2 -translate-x-1/2 w-[85%] max-w-sm bg-white rounded-3xl p-8 z-[10000] text-center shadow-2xl"
+                                    >
+                                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <FiCheckCircle className="text-5xl text-green-500" />
+                                        </div>
+                                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Return Requested!</h2>
+                                        <p className="text-gray-500 mb-8">
+                                            Your return request has been submitted successfully. You can track its status in "My Returns".
+                                        </p>
+                                        <button
+                                            onClick={() => navigate('/app/returns')}
+                                            className="w-full py-3.5 bg-green-500 text-white font-bold rounded-xl shadow-lg shadow-green-200 hover:bg-green-600 transition-colors"
+                                        >
+                                            Go to My Returns
+                                        </button>
+                                    </motion.div>
+                                </>
+                            )}
+                        </AnimatePresence>
 
                     </div>
                 </MobileLayout>

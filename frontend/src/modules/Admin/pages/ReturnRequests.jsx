@@ -11,6 +11,7 @@ import { getAdminReturns, updateReturnStatusAdmin, processRefundAdmin } from '..
 import toast from 'react-hot-toast';
 
 const ReturnRequests = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [returnRequests, setReturnRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,9 +27,20 @@ const ReturnRequests = () => {
     try {
       setLoading(true);
       const response = await getAdminReturns();
-      if (response.success) {
-        setReturnRequests(response.data);
+      console.log('Admin returns response:', response);
+
+      let data = [];
+      if (Array.isArray(response)) {
+        data = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        data = response.data;
+      } else if (response && Array.isArray(response.returns)) {
+        data = response.returns;
+      } else if (response && response.success && Array.isArray(response.data)) {
+        data = response.data;
       }
+
+      setReturnRequests(data);
     } catch (error) {
       console.error('Error fetching return requests:', error);
       toast.error('Failed to fetch return requests');
@@ -369,6 +381,37 @@ const ReturnRequests = () => {
         itemsPerPage={10}
         onRowClick={(row) => navigate(`/admin/return-requests/${row._id}`)}
       />
+      {/* Emergency Cleanup Tool */}
+      <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-8">
+        <h3 className="text-red-800 font-bold mb-2">Emergency Data Cleanup</h3>
+        <p className="text-red-600 text-sm mb-4">Use this only if a return request is stuck/invisible but preventing new requests.</p>
+        <div className="flex gap-4">
+          <input
+            type="text"
+            placeholder="Enter Order ID"
+            id="cleanup-order-id"
+            className="border border-red-300 rounded px-3 py-2 w-64"
+          />
+          <button
+            onClick={async () => {
+              const orderId = document.getElementById('cleanup-order-id').value;
+              if (!orderId) return alert('Enter ID');
+              if (!window.confirm('Force delete all returns for this order? This cannot be undone.')) return;
+              try {
+                const { forceDeleteReturnAdmin } = await import('../../../shared/services/returnService');
+                await forceDeleteReturnAdmin(orderId);
+                alert('Cleanup successful');
+                fetchReturnRequests();
+              } catch (e) {
+                alert('Failed: ' + e.message);
+              }
+            }}
+            className="bg-red-600 text-white px-4 py-2 rounded font-bold hover:bg-red-700"
+          >
+            Force Delete
+          </button>
+        </div>
+      </div>
     </motion.div>
   );
 };

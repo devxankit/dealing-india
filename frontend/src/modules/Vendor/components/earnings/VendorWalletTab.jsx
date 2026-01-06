@@ -61,8 +61,8 @@ const VendorWalletTab = () => {
                 <div className="md:col-span-2 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden">
                     <div className="relative z-10">
                         <div className="flex items-center gap-2 mb-4 opacity-80">
-                            <FiCreditCard size={20} />
-                            <span className="text-sm font-medium uppercase tracking-wider">Available Balance</span>
+                            <FiCheckCircle size={20} />
+                            <span className="text-sm font-medium uppercase tracking-wider">Available Balance (Withdrawable)</span>
                         </div>
                         <h2 className="text-4xl md:text-5xl font-bold mb-6">
                             {formatPrice(wallet?.balance || 0)}
@@ -85,15 +85,26 @@ const VendorWalletTab = () => {
                 </div>
 
                 <div className="space-y-4">
+                    <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 shadow-sm relative group">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm text-amber-700 font-medium">Pending Balance</p>
+                            <FiClock className="text-amber-500" />
+                        </div>
+                        <p className="text-2xl font-bold text-amber-800">{formatPrice(wallet?.pendingBalance || 0)}</p>
+                        <div className="mt-2 flex items-center gap-1 text-[10px] text-amber-600">
+                            <FiInfo size={12} />
+                            <span>Held for 7-day return period</span>
+                        </div>
+
+                        {/* Tooltip on hover */}
+                        <div className="absolute top-full left-0 mt-2 p-3 bg-gray-800 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 w-64 shadow-xl pointer-events-none">
+                            Earnings from delivered orders are held here for 7 days. If no return is requested, they automatically move to your Available Balance.
+                        </div>
+                    </div>
+
                     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                         <p className="text-sm text-gray-500 mb-1">Total Withdrawn</p>
                         <p className="text-2xl font-bold text-gray-800">{formatPrice(wallet?.totalWithdrawn || 0)}</p>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                        <p className="text-sm text-gray-500 mb-1">Last Withdrawal</p>
-                        <p className="text-lg font-semibold text-gray-800">
-                            {wallet?.lastWithdrawalDate ? new Date(wallet.lastWithdrawalDate).toLocaleDateString() : 'No history'}
-                        </p>
                     </div>
                 </div>
             </div>
@@ -217,7 +228,7 @@ const VendorWalletTab = () => {
                                                         </td>
                                                         <td className="py-4">
                                                             <span className={`text-xs font-bold uppercase ${txn.type === 'credit' ? 'text-green-600' :
-                                                                    txn.type === 'withdrawal' ? 'text-blue-600' : 'text-red-600'
+                                                                txn.type === 'withdrawal' ? 'text-blue-600' : 'text-red-600'
                                                                 }`}>
                                                                 {txn.type}
                                                             </span>

@@ -41,18 +41,28 @@ const ReturnRequestDetail = () => {
     if (!vendorId) return;
     try {
       setLoading(true);
-      // Ideally we should have getReturnById, but reusing getVendorReturns and filtering for now
-      // as discussed in plan.
+
       const response = await getVendorReturns();
-      if (response.success) {
-        const found = response.data.find(r => r._id === id);
-        if (found) {
-          setReturnRequest(found);
-          setStatus(found.status);
-        } else {
-          toast.error("Return request not found");
-          navigate("/vendor/return-requests");
-        }
+      console.log("Details response:", response);
+
+      let data = [];
+      if (Array.isArray(response)) {
+        data = response;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        data = response.data;
+      } else if (response && Array.isArray(response.returns)) {
+        data = response.returns;
+      } else if (response && response.success && Array.isArray(response.data)) {
+        data = response.data;
+      }
+
+      const found = data.find(r => r._id === id);
+      if (found) {
+        setReturnRequest(found);
+        setStatus(found.status);
+      } else {
+        toast.error("Return request not found");
+        navigate("/vendor/return-requests");
       }
     } catch (error) {
       console.error("Error fetching return request:", error);
@@ -65,19 +75,21 @@ const ReturnRequestDetail = () => {
   const handleStatusUpdate = async (newStatus, action = "") => {
     try {
       const response = await updateReturnStatusVendor(id, { status: newStatus });
-      if (response.success) {
-        setReturnRequest(response.data);
-        setStatus(response.data.status);
-        setIsEditing(false);
+      const updatedData = response.data || response;
 
-        const statusMessages = {
-          approve: "Return request approved",
-          reject: "Return request rejected",
-          "process-refund": "Refund processed successfully",
-        };
+      setReturnRequest(updatedData);
+      setStatus(updatedData.status);
+      setIsEditing(false);
 
-        toast.success(statusMessages[action] || "Status updated successfully");
-      }
+      const statusMessages = {
+        approve: "Return request approved",
+        reject: "Return request rejected",
+        "process-item": "Item marked as received (Processing)",
+        "process-refund": "Refund processed successfully",
+      };
+
+      toast.success(statusMessages[action] || "Status updated successfully");
+
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error(error.response?.data?.message || "Failed to update status");
@@ -180,11 +192,7 @@ const ReturnRequestDetail = () => {
                 <>
                   <button
                     onClick={() => {
-                      if (
-                        window.confirm(
-                          "Are you sure you want to approve this return request?"
-                        )
-                      ) {
+                      if (window.confirm("Are you sure you want to approve this return request?")) {
                         handleStatusUpdate("approved", "approve");
                       }
                     }}
@@ -194,11 +202,7 @@ const ReturnRequestDetail = () => {
                   </button>
                   <button
                     onClick={() => {
-                      if (
-                        window.confirm(
-                          "Are you sure you want to reject this return request?"
-                        )
-                      ) {
+                      if (window.confirm("Are you sure you want to reject this return request?")) {
                         handleStatusUpdate("rejected", "reject");
                       }
                     }}
@@ -208,23 +212,30 @@ const ReturnRequestDetail = () => {
                   </button>
                 </>
               )}
-              {returnRequest.status === "approved" &&
-                returnRequest.refundStatus === "pending" && (
-                  <button
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "Process refund for this return request?"
-                        )
-                      ) {
-                        handleStatusUpdate("completed", "process-refund");
-                      }
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold">
-                    <FiRefreshCw className="text-sm" />
-                    Process Refund
-                  </button>
-                )}
+              {returnRequest.status === "approved" && (
+                <button
+                  onClick={() => {
+                    if (window.confirm("Confirm receipt of return items? This will mark status as Processing.")) {
+                      handleStatusUpdate("processing", "process-item");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold">
+                  <FiPackage className="text-sm" />
+                  Item Received
+                </button>
+              )}
+              {returnRequest.status === "processing" && returnRequest.refundStatus === "pending" && (
+                <button
+                  onClick={() => {
+                    if (window.confirm("Process refund for this return request?")) {
+                      handleStatusUpdate("completed", "process-refund");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold">
+                  <FiRefreshCw className="text-sm" />
+                  Process Refund
+                </button>
+              )}
             </>
           )}
         </div>
@@ -455,7 +466,7 @@ const ReturnRequestDetail = () => {
                     Request Submitted
                   </p>
                   <p className="text-xs text-gray-500">
-                    {new Date(returnRequest.requestDate).toLocaleDateString()}
+                    {new Date(returnRequest.createdAt).toLocaleDateString()}
                   </p>
                 </div>
               </div>
