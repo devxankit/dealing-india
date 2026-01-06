@@ -108,6 +108,20 @@ const SupportTickets = ({ subscriptionOnly = false }) => {
     }
   };
 
+  const handleTicketUpdate = async () => {
+    if (selectedTicket) {
+      try {
+        const response = await api.get(`/vendor/support-tickets/${selectedTicket._id || selectedTicket.id}`);
+        if (response.success) {
+          setSelectedTicket(response.data);
+        }
+      } catch (error) {
+        console.error('Error refreshing ticket details:', error);
+      }
+    }
+    await loadTickets();
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'open':
@@ -293,6 +307,7 @@ const SupportTickets = ({ subscriptionOnly = false }) => {
           setSelectedTicket(null);
         }}
         ticket={selectedTicket}
+        onUpdate={handleTicketUpdate}
       />
     </div>
   );

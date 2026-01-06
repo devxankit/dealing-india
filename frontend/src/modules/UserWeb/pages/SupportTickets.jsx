@@ -12,6 +12,8 @@ import useResponsiveHeaderPadding from '../../../shared/hooks/useResponsiveHeade
 import supportTicketService from '../../../shared/services/supportTicketService';
 import toast from 'react-hot-toast';
 import Badge from '../../../shared/components/Badge';
+import TicketDetailModal from '../components/TicketDetailModal';
+import api from '../../../shared/utils/api';
 
 const SupportTickets = () => {
   const navigate = useNavigate();
@@ -23,6 +25,8 @@ const SupportTickets = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     loadTickets();
@@ -51,6 +55,20 @@ const SupportTickets = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTicketUpdate = async () => {
+    if (selectedTicket) {
+      try {
+        const response = await api.get(`/user/support-tickets/${selectedTicket._id || selectedTicket.id}`);
+        if (response.success) {
+          setSelectedTicket(response.data);
+        }
+      } catch (error) {
+        console.error('Error refreshing ticket details:', error);
+      }
+    }
+    await loadTickets();
   };
 
   const getStatusIcon = (status) => {
@@ -139,7 +157,22 @@ const SupportTickets = () => {
                 key={ticket._id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                onClick={() => navigate(`/app/support-tickets/${ticket._id}`)}
+                onClick={async () => {
+                  try {
+                    const response = await api.get(`/user/support-tickets/${ticket._id}`);
+                    if (response.success) {
+                      setSelectedTicket(response.data);
+                      setShowDetailModal(true);
+                    } else {
+                      setSelectedTicket(ticket);
+                      setShowDetailModal(true);
+                    }
+                  } catch (error) {
+                    console.error('Error loading ticket details:', error);
+                    setSelectedTicket(ticket);
+                    setShowDetailModal(true);
+                  }
+                }}
                 className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -182,6 +215,17 @@ const SupportTickets = () => {
           }}
         />
       )}
+
+      {/* Ticket Detail Modal */}
+      <TicketDetailModal
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedTicket(null);
+        }}
+        ticket={selectedTicket}
+        onUpdate={handleTicketUpdate}
+      />
     </div>
   );
 

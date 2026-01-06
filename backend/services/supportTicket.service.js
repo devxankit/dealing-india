@@ -2,6 +2,7 @@ import SupportTicket from '../models/SupportTicket.model.js';
 import TicketMessage from '../models/TicketMessage.model.js';
 import mongoose from 'mongoose';
 import SubscriptionService from './subscription.service.js';
+import notificationService from './notification.service.js';
 
 class SupportTicketService {
   /**
@@ -64,10 +65,30 @@ class SupportTicketService {
         metadata: ticketData.metadata || {},
       });
 
-      return await SupportTicket.findById(ticket._id)
+      const savedTicket = await SupportTicket.findById(ticket._id)
         .populate('vendorId', 'businessName storeName email')
         .populate('subscriptionId')
         .lean();
+
+      // Notify admins about new ticket from vendor
+      try {
+        await notificationService.sendBulkNotification({
+          recipientType: 'admin',
+          type: 'ticket_created',
+          title: 'New Vendor Support Ticket',
+          message: `New ticket "${savedTicket.subject}" from vendor ${savedTicket.vendorId?.businessName || 'Unknown'}`,
+          actionUrl: `/admin/support-tickets/${savedTicket._id}`,
+          metadata: {
+            ticketId: savedTicket._id.toString(),
+            ticketNumber: savedTicket.ticketNumber,
+            createdByRole: 'vendor',
+          },
+        }, 'admins');
+      } catch (notifError) {
+        console.error('Failed to notify admins about new vendor ticket:', notifError);
+      }
+
+      return savedTicket;
     } catch (error) {
       throw error;
     }
@@ -114,9 +135,23 @@ class SupportTicketService {
         .populate('userId', 'name email')
         .lean();
 
-      // Note: Admin notification would be broadcasted or sent to all admins
-      // For now, we'll skip admin notification on user ticket creation
-      // Admin can see new tickets in their dashboard
+      // Notify admins about new ticket
+      try {
+        await notificationService.sendBulkNotification({
+          recipientType: 'admin',
+          type: 'ticket_created',
+          title: 'New Support Ticket',
+          message: `New ticket "${savedTicket.subject}" from user ${savedTicket.userId?.name || 'Unknown'}`,
+          actionUrl: `/admin/support-tickets/${savedTicket._id}`,
+          metadata: {
+            ticketId: savedTicket._id.toString(),
+            ticketNumber: savedTicket.ticketNumber,
+            createdByRole: 'user',
+          },
+        }, 'admins');
+      } catch (notifError) {
+        console.error('Failed to notify admins about new ticket:', notifError);
+      }
 
       return savedTicket;
     } catch (error) {
@@ -299,21 +334,43 @@ class SupportTicketService {
    */
   async addTicketMessage(ticketId, senderId, senderRole, message, attachments = []) {
     try {
+      console.log('--- Ticket Message Start ---');
+      console.log('Ticket ID:', ticketId);
+      console.log('Sender ID:', senderId);
+      console.log('Sender Role:', senderRole);
+
+      if (!ticketId || !senderId) {
+        throw new Error('Ticket ID and Sender ID are required');
+      }
+
       const ticket = await SupportTicket.findById(ticketId);
       if (!ticket) {
+        console.error('Ticket not found for ID:', ticketId);
         throw new Error('Ticket not found');
       }
 
       const senderRoleModel = senderRole === 'admin' ? 'Admin' : senderRole === 'user' ? 'User' : 'Vendor';
+      
+      // Ensure senderId is a valid ObjectId
+      const senderIdObj = mongoose.Types.ObjectId.isValid(senderId) 
+        ? new mongoose.Types.ObjectId(senderId) 
+        : senderId;
 
       const ticketMessage = await TicketMessage.create({
-        ticketId,
-        senderId,
+        ticketId: new mongoose.Types.ObjectId(ticketId),
+        senderId: senderIdObj,
         senderRole,
         senderRoleModel,
         message,
         attachments,
       });
+
+      console.log('Ticket message created in DB:', ticketMessage._id);
+
+      // Update ticket's updatedAt timestamp
+      await SupportTicket.findByIdAndUpdate(ticketId, { updatedAt: new Date() });
+
+      console.log('Ticket message created successfully:', ticketMessage._id);
 
       const savedMessage = await TicketMessage.findById(ticketMessage._id)
         .populate('senderId', 'name email businessName storeName')
@@ -329,28 +386,39 @@ class SupportTicketService {
           recipientId = ticketData.userId?._id || ticketData.userId || ticketData.vendorId?._id || ticketData.vendorId;
           recipientType = ticketData.createdByRole;
         } else {
-          // User/vendor sent message, notify admin (would need admin ID or broadcast)
-          // For now, skip admin notification - they can see updates in dashboard
-          recipientId = null;
+          // User/vendor sent message, notify admin
+          // For admin notifications, we use recipientType 'admin' and recipientId can be null if it's for all admins
+          recipientId = null; // Will be handled by notificationService as broadcast to admins if implemented
+          recipientType = 'admin';
         }
 
-        if (recipientId && recipientType) {
+        if (recipientType) {
           try {
-            await notificationService.createNotification({
+            const notificationData = {
               recipientId,
               recipientType,
               type: 'ticket_replied',
-              title: 'New reply on your ticket',
-              message: `Your ticket "${ticketData.subject}" has a new reply`,
+              title: 'New reply on support ticket',
+              message: `Ticket "${ticketData.subject}" has a new reply from ${senderRole}`,
               actionUrl: recipientType === 'user' 
                 ? `/app/support-tickets/${ticketId}` 
-                : `/vendor/support-tickets/${ticketId}`,
+                : recipientType === 'vendor'
+                  ? `/vendor/support-tickets/${ticketId}`
+                  : `/admin/support-tickets/${ticketId}`,
               metadata: {
                 ticketId: ticketId.toString(),
                 ticketNumber: ticketData.ticketNumber,
                 messageId: savedMessage._id.toString(),
+                senderRole,
               },
-            });
+            };
+
+            if (recipientType === 'admin') {
+              // Special handling for admin notification - send to all admins
+              await notificationService.sendBulkNotification(notificationData, 'admins');
+            } else if (recipientId) {
+              await notificationService.createNotification(notificationData);
+            }
           } catch (notifError) {
             console.error('Failed to create ticket reply notification:', notifError);
           }
@@ -368,13 +436,16 @@ class SupportTicketService {
    */
   async getTicketMessages(ticketId) {
     try {
+      console.log('Fetching messages for ticket:', ticketId);
       const messages = await TicketMessage.find({ ticketId })
         .populate('senderId', 'name email businessName storeName')
         .sort({ createdAt: 1 })
         .lean();
 
+      console.log(`Found ${messages.length} messages for ticket ${ticketId}`);
       return messages;
     } catch (error) {
+      console.error('Error fetching ticket messages:', error);
       throw error;
     }
   }

@@ -6,12 +6,20 @@ import { loginAdmin, getAdminById } from '../../services/adminAuth.service.js';
  */
 export const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, secretCode } = req.body;
 
-    if (!email || !password) {
+    if (!email || !password || !secretCode) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required',
+        message: 'Email, password and secret code are required',
+      });
+    }
+
+    // Verify secret code
+    if (secretCode !== process.env.ADMIN_LOGIN_CODE) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid secret code',
       });
     }
 
@@ -29,7 +37,7 @@ export const login = async (req, res, next) => {
     // Preserve status code from service
     const statusCode = error.status || error.statusCode || 500;
     const message = error.message || 'Login failed. Please check your credentials.';
-    
+
     // Don't pass to next() if we can handle it here
     return res.status(statusCode).json({
       success: false,

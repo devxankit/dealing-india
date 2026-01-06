@@ -8,14 +8,19 @@ class VendorChatController {
   async getConversations(req, res) {
     try {
       const vendorId = req.user?.vendorId || req.userDoc?._id;
+      console.log('--- Vendor Chat Debug ---');
+      console.log('Request User:', JSON.stringify(req.user, null, 2));
+      console.log('Vendor ID from request:', vendorId);
+      
       if (!vendorId) {
         return res.status(400).json({
           success: false,
-          message: 'Vendor ID not found',
+          message: 'Vendor ID not found in token or user document',
         });
       }
 
       const conversations = await ChatService.getVendorConversations(vendorId);
+      console.log('Conversations found:', conversations.length);
 
       res.status(200).json({
         success: true,
@@ -58,8 +63,10 @@ class VendorChatController {
 
       res.status(200).json({
         success: true,
-        data: result.messages,
-        pagination: result.pagination,
+        data: {
+          messages: result.messages,
+          pagination: result.pagination,
+        },
       });
     } catch (error) {
       console.error('Error getting messages:', error);
@@ -101,20 +108,6 @@ class VendorChatController {
         'user',
         message
       );
-
-      // Get Socket.IO instance from app
-      if (io) {
-        // Emit to conversation room
-        io.to(`chat_${conversationId}`).emit('receive_message', newMessage);
-        // Emit to receiver's personal room (user)
-        io.to(`user_${receiverId}`).emit('new_chat_message', newMessage);
-        // Also emit to user notification room
-        io.to(`notifications_${receiverId}_user`).emit('new_notification', {
-          type: 'chat_message',
-          title: 'New message',
-          message: `You have a new message from ${req.userDoc?.storeName || req.userDoc?.name || 'Vendor'}`,
-        });
-      }
 
       res.status(201).json({
         success: true,

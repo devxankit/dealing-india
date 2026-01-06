@@ -10,6 +10,7 @@ import {
   FiXCircle,
   FiShoppingBag,
   FiTrendingUp,
+  FiFileText,
 } from 'react-icons/fi';
 import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -21,9 +22,11 @@ import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { useVendorStore } from '../../store/vendorStore';
-import { getVendorOrders, getVendorOrderStats } from '../../../../shared/services/orderService';
+import { getVendorOrders, getVendorOrderStats, getVendorOrderById } from '../../../../shared/services/orderService';
 import { useCommissionStore } from '../../../../shared/store/commissionStore';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AllOrders = () => {
   const navigate = useNavigate();
@@ -256,12 +259,220 @@ const AllOrders = () => {
       sortable: false,
       render: (_, row) => {
         const orderId = row._id || row.id || row.orderCode;
+
+        const handleDownloadInvoice = async (e, rowData) => {
+          e.stopPropagation(); // Prevent row click navigation
+          const toastId = toast.loading('Preparing invoice...');
+          try {
+            // Fetch full order details to ensure addresses are present
+            const orderId = rowData._id || rowData.id || rowData.orderCode;
+            const response = await getVendorOrderById(orderId);
+            const order = response?.data?.order || response?.order || response?.data || rowData;
+
+            console.log('Full Order for PDF:', order);
+
+            const doc = new jsPDF();
+
+            // Helper to sanitize currency
+            const formatCurrency = (amount) => {
+              const formatted = formatPrice(amount);
+              return formatted.replace(/[₹]/g, 'Rs. ').replace(/[^a-zA-Z0-9.,\s-]/g, '');
+            };
+
+            // --- Colors & Fonts ---
+            const primaryColor = [63, 81, 181]; // Indigo
+            const grayColor = [100, 100, 100];
+
+            // --- Header ---
+            doc.setFontSize(22);
+            doc.setTextColor(...primaryColor);
+            doc.setFont(undefined, 'bold');
+            doc.text(vendor?.storeName || "Appzeto Market", 14, 20);
+
+            doc.setFontSize(10);
+            doc.setTextColor(...grayColor);
+            doc.setFont(undefined, 'normal');
+            doc.text(vendor?.email || "", 14, 26);
+            if (vendor?.phone) doc.text(vendor.phone, 14, 31);
+
+            doc.setFontSize(30);
+            doc.setTextColor(200, 200, 200);
+            doc.text("INVOICE", 140, 22);
+
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Order #: ${order.orderCode || order.id || order._id}`, 140, 32);
+            doc.text(`Date: ${new Date(order.orderDate || order.createdAt || order.date).toLocaleDateString()}`, 140, 37);
+            doc.text(`Status: ${order.status?.toUpperCase()}`, 140, 42);
+
+            // Separator
+            doc.setDrawColor(230, 230, 230);
+            doc.line(14, 48, 196, 48);
+
+            // --- Address Section ---
+            let leftY = 55;
+            let rightY = 55;
+
+            // Billing
+            doc.setFontSize(11);
+            doc.setTextColor(...primaryColor);
+            doc.setFont(undefined, 'bold');
+            doc.text("Bill To:", 14, leftY);
+            leftY += 6;
+
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+
+            const customerName = order.customerSnapshot?.name || order.customerId?.name || order.customer?.name || "N/A";
+            const customerEmail = order.customerSnapshot?.email || order.customerId?.email || order.customer?.email || "";
+            const customerPhone = order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || "";
+            const billingAddressStr = order.billingAddress?.address || order.customerSnapshot?.address || ""; // Fallback
+
+            doc.text(customerName, 14, leftY);
+            leftY += 5;
+            if (billingAddressStr) {
+              const splitBillAddr = doc.splitTextToSize(billingAddressStr, 80);
+              doc.text(splitBillAddr, 14, leftY);
+              leftY += (splitBillAddr.length * 5);
+            }
+            doc.text(customerEmail, 14, leftY);
+            leftY += 5;
+            if (customerPhone) {
+              doc.text(customerPhone, 14, leftY);
+              leftY += 5;
+            }
+
+            // Shipping
+            doc.setFontSize(11);
+            doc.setTextColor(...primaryColor);
+            doc.setFont(undefined, 'bold');
+            doc.text("Ship To:", 110, rightY);
+            rightY += 6;
+
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont(undefined, 'normal');
+
+            if (order.shippingAddress) {
+              const sa = order.shippingAddress;
+              // Try multiple fields for address line
+              const addressLine = sa.address || sa.street || sa.addressLine1 || sa.fullAddress || "";
+
+              // Build city/state string safely
+              const cityStateParts = [];
+              if (sa.city) cityStateParts.push(sa.city);
+              if (sa.state) cityStateParts.push(sa.state);
+              if (sa.zipCode || sa.pincode) cityStateParts.push(sa.zipCode || sa.pincode);
+              const cityState = cityStateParts.join(", ");
+
+              const country = sa.country || "";
+
+              doc.text(sa.name || customerName, 110, rightY);
+              rightY += 5;
+
+              if (addressLine) {
+                const splitAddress = doc.splitTextToSize(addressLine, 80);
+                doc.text(splitAddress, 110, rightY);
+                rightY += (splitAddress.length * 5);
+              }
+
+              if (cityState) {
+                doc.text(cityState, 110, rightY);
+                rightY += 5;
+              }
+
+              if (country) {
+                doc.text(country, 110, rightY);
+                rightY += 5;
+              }
+            } else {
+              doc.text("Same as Billing", 110, rightY);
+              rightY += 5;
+            }
+
+            // Determine max Y for table start
+            const tableStartY = Math.max(leftY, rightY) + 10;
+
+            // --- Order Items Table ---
+            const vendorData = getVendorOrderData(order);
+
+            autoTable(doc, {
+              startY: tableStartY,
+              head: [['Item / Description', 'Qty', 'Unit Price', 'Total']],
+              body: order.items?.map(item => [
+                item.name || item.productId?.name || 'Item',
+                item.quantity || 1,
+                formatCurrency(item.price || 0),
+                formatCurrency((item.price || 0) * (item.quantity || 1))
+              ]) || [],
+              theme: 'striped',
+              headStyles: { fillColor: primaryColor },
+              styles: { fontSize: 10, cellPadding: 3, valign: 'middle' },
+              columnStyles: {
+                0: { cellWidth: 80 },
+                1: { halign: 'center' },
+                2: { halign: 'right' },
+                3: { halign: 'right' }
+              }
+            });
+
+            // --- Totals ---
+            const finalY = (doc.lastAutoTable?.finalY || 150) + 10;
+            const rightAlignX = 196;
+
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+
+            const textRight = (str, y, isBold = false) => {
+              if (isBold) doc.setFont(undefined, 'bold');
+              else doc.setFont(undefined, 'normal');
+              doc.text(str, rightAlignX, y, { align: 'right' });
+            };
+
+            textRight(`Subtotal: ${formatCurrency(vendorData.subtotal)}`, finalY);
+
+            doc.setFontSize(12);
+            doc.setTextColor(...primaryColor);
+            textRight(`Total: ${formatCurrency(vendorData.subtotal)}`, finalY + 10, true);
+
+            // --- Footer ---
+            const pageHeight = doc.internal.pageSize.height || 297;
+            doc.setFontSize(10);
+            doc.setTextColor(150, 150, 150);
+            doc.setFont(undefined, 'normal');
+
+            doc.text("Thank you for your business!", 105, finalY + 30, { align: 'center' });
+
+            const paymentMethod = order.paymentMethod?.toUpperCase() || "N/A";
+            doc.text(`Payment Method: ${paymentMethod}`, 14, pageHeight - 20);
+
+            doc.save(`Invoice-${order.orderCode || order._id}.pdf`);
+            toast.success('Invoice downloaded', { id: toastId });
+          } catch (error) {
+            console.error('Download failed', error);
+            toast.error('Failed to download invoice', { id: toastId });
+          }
+        };
+
         return (
-          <button
-            onClick={() => navigate(`/vendor/orders/${orderId}`)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-            <FiEye />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/vendor/orders/${orderId}`);
+              }}
+              title="View Details"
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+              <FiEye />
+            </button>
+            <button
+              onClick={(e) => handleDownloadInvoice(e, row)}
+              title="Download Invoice"
+              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
+              <FiFileText />
+            </button>
+          </div>
         );
       },
     },

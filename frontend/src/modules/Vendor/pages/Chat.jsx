@@ -26,36 +26,35 @@ const VendorChat = () => {
     const initChat = async () => {
       try {
         setLoading(true);
+        const currentVendorId = vendor?._id || vendor?.id;
+        console.log('Initializing vendor chat for vendor:', currentVendorId);
         
         // Initialize socket
-        const token = localStorage.getItem('vendorToken');
+        const token = localStorage.getItem('vendor-token');
         if (token) {
           socketRef.current = initializeSocket(token);
           
-          socketRef.current.on('receive_message', (message) => {
-            if (message.conversationId === selectedConversation?._id) {
-              setMessages((prev) => [...prev, message]);
-              scrollToBottom();
-            }
-            // Update conversation list
-            loadConversations();
-          });
-
           socketRef.current.on('new_chat_message', (message) => {
-            if (message.conversationId === selectedConversation?._id) {
-              setMessages((prev) => [...prev, message]);
-              scrollToBottom();
-            }
+            console.log('Vendor received global new message:', message);
             loadConversations();
           });
         }
 
-        await loadConversations();
+        const response = await chatService.getVendorConversations();
+        let loadedConvs = [];
+        if (response.success) {
+          loadedConvs = response.data || [];
+          setConversations(loadedConvs);
+          console.log('Loaded conversations:', loadedConvs.length);
+        }
 
-        if (userId) {
-          // Find conversation with this user
-          const conv = conversations.find(
-            (c) => c.otherParticipant?.userId?._id === userId || c.otherParticipant?.userId === userId
+        // Handle direct chat from URL if userId is present
+        if (userId && loadedConvs.length > 0) {
+          const conv = loadedConvs.find(
+            (c) => {
+              const otherId = c.otherParticipant?.userId?._id || c.otherParticipant?.userId;
+              return otherId === userId;
+            }
           );
           if (conv) {
             selectConversation(conv);
@@ -63,24 +62,71 @@ const VendorChat = () => {
         }
       } catch (error) {
         console.error('Error initializing chat:', error);
-        toast.error('Failed to load chat');
+        // Don't show toast error if it's just a 401/404 during init
       } finally {
         setLoading(false);
       }
     };
 
-    initChat();
+    if (vendor) {
+      initChat();
+    }
 
     return () => {
       if (socketRef.current) {
         socketRef.current.off('receive_message');
         socketRef.current.off('new_chat_message');
+      }
+    };
+  }, [userId, vendor?._id]);
+
+  // Handle socket listeners when selectedConversation changes
+  useEffect(() => {
+    if (socketRef.current && selectedConversation?._id) {
+      console.log('Vendor joining chat room:', selectedConversation._id);
+      socketRef.current.emit('join_chat_room', { conversationId: selectedConversation._id });
+
+      const handleNewMessage = (message) => {
+        console.log('Vendor received message:', message);
+        
+        // If it's for the currently selected conversation, add to messages
+        if (selectedConversation && message.conversationId === selectedConversation._id) {
+          setMessages((prev) => {
+            const exists = prev.find(m => m._id === message._id);
+            if (exists) return prev;
+            return [...prev, message];
+          });
+          scrollToBottom();
+          // Mark as read when receiving in open chat
+          chatService.markVendorAllAsRead(selectedConversation._id).catch(console.error);
+        }
+        
+        // Always refresh conversations list to update last message/unread count
+        loadConversations();
+      };
+
+      socketRef.current.on('receive_message', handleNewMessage);
+
+      return () => {
         if (selectedConversation?._id) {
           socketRef.current.emit('leave_chat_room', { conversationId: selectedConversation._id });
         }
-      }
-    };
-  }, []);
+        socketRef.current.off('receive_message', handleNewMessage);
+      };
+    } else if (socketRef.current) {
+      // If no conversation selected, still listen for new messages to update list
+      const handleNewMessageForList = (message) => {
+        console.log('Vendor received message for list update:', message);
+        loadConversations();
+      };
+      
+      socketRef.current.on('new_chat_message', handleNewMessageForList);
+      
+      return () => {
+        socketRef.current.off('new_chat_message', handleNewMessageForList);
+      };
+    }
+  }, [selectedConversation?._id]);
 
   useEffect(() => {
     scrollToBottom();
@@ -148,7 +194,12 @@ const VendorChat = () => {
       );
 
       if (response.success) {
-        setMessages((prev) => [...prev, response.data.data]);
+        const newMessage = response.data?.data || response.data || response;
+        setMessages((prev) => {
+          const exists = prev.find(m => m._id === newMessage._id);
+          if (exists) return prev;
+          return [...prev, newMessage];
+        });
         setMessageText('');
         scrollToBottom();
         loadConversations();

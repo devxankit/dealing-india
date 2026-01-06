@@ -35,37 +35,11 @@ const Chat = () => {
     const initChat = async () => {
       try {
         setLoading(true);
-        
+
         // Initialize socket
         const token = localStorage.getItem('token');
         if (token) {
           socketRef.current = initializeSocket(token);
-          
-          socketRef.current.on('receive_message', (message) => {
-            console.log('Received message:', message);
-            if (message.conversationId === conversation?._id || message.conversationId === vendorId) {
-              setMessages((prev) => {
-                // Avoid duplicates
-                const exists = prev.find(m => m._id === message._id);
-                if (exists) return prev;
-                return [...prev, message];
-              });
-              scrollToBottom();
-            }
-          });
-
-          socketRef.current.on('new_chat_message', (message) => {
-            console.log('New chat message:', message);
-            if (message.conversationId === conversation?._id || message.conversationId === vendorId) {
-              setMessages((prev) => {
-                // Avoid duplicates
-                const exists = prev.find(m => m._id === message._id);
-                if (exists) return prev;
-                return [...prev, message];
-              });
-              scrollToBottom();
-            }
-          });
         }
 
         if (vendorId) {
@@ -75,19 +49,14 @@ const Chat = () => {
           if (convResponse && convResponse.success !== false) {
             const conv = convResponse.data || convResponse;
             setConversation(conv);
-            
+
             // Get vendor info from participants
-            const vendorParticipant = conv.participants?.find(p => p.role === 'vendor') || 
-                                     conv.participants?.find(p => p.userId?.role === 'vendor');
+            const vendorParticipant = conv.participants?.find(p => p.role === 'vendor') ||
+              conv.participants?.find(p => p.userId?.role === 'vendor');
             if (vendorParticipant?.userId) {
               setVendor(vendorParticipant.userId);
             } else if (conv.vendorId) {
               setVendor(conv.vendorId);
-            }
-
-            // Join chat room
-            if (socketRef.current && conv._id) {
-              socketRef.current.emit('join_chat_room', { conversationId: conv._id });
             }
 
             // Load messages
@@ -131,12 +100,38 @@ const Chat = () => {
       if (socketRef.current) {
         socketRef.current.off('receive_message');
         socketRef.current.off('new_chat_message');
-        if (conversation?._id) {
-          socketRef.current.emit('leave_chat_room', { conversationId: conversation._id });
-        }
       }
     };
   }, [vendorId]);
+
+  // Handle socket listeners separately when conversation changes
+  useEffect(() => {
+    if (socketRef.current && conversation?._id) {
+      console.log('Joining chat room:', conversation._id);
+      socketRef.current.emit('join_chat_room', { conversationId: conversation._id });
+
+      const handleNewMessage = (message) => {
+        console.log('Received message via socket:', message);
+        if (message.conversationId === conversation._id) {
+          setMessages((prev) => {
+            const exists = prev.find(m => m._id === message._id);
+            if (exists) return prev;
+            return [...prev, message];
+          });
+          setTimeout(scrollToBottom, 100);
+        }
+      };
+
+      socketRef.current.on('receive_message', handleNewMessage);
+
+      return () => {
+        if (conversation?._id) {
+          socketRef.current.emit('leave_chat_room', { conversationId: conversation._id });
+        }
+        socketRef.current.off('receive_message', handleNewMessage);
+      };
+    }
+  }, [conversation?._id]);
 
   useEffect(() => {
     scrollToBottom();
@@ -157,7 +152,7 @@ const Chat = () => {
         return;
       }
 
-      const receiverId = vendorParticipant.userId._id || vendorParticipant.userId;
+      const receiverId = vendorParticipant.userId?._id || vendorParticipant.userId;
       const response = await chatService.sendMessage(
         conversation._id,
         receiverId,
@@ -166,7 +161,11 @@ const Chat = () => {
 
       if (response && response.success !== false) {
         const newMessage = response.data?.data || response.data || response;
-        setMessages((prev) => [...prev, newMessage]);
+        setMessages((prev) => {
+          const exists = prev.find(m => m._id === newMessage._id);
+          if (exists) return prev;
+          return [...prev, newMessage];
+        });
         setMessageText('');
         scrollToBottom();
       } else {
@@ -213,7 +212,7 @@ const Chat = () => {
                   <FiMessageSquare className="text-6xl text-gray-400 mx-auto mb-4" />
                   <h2 className="text-xl font-semibold text-gray-800 mb-2">No Conversations Yet</h2>
                   <p className="text-gray-600 mb-6">
-                    {vendorId 
+                    {vendorId
                       ? 'Start chatting with this vendor by sending a message'
                       : 'Visit a vendor store and click "Chat" to start a conversation'}
                   </p>
@@ -251,7 +250,7 @@ const Chat = () => {
                 <FiMessageSquare className="text-6xl text-gray-400 mx-auto mb-4" />
                 <h2 className="text-xl font-semibold text-gray-800 mb-2">No Conversations Yet</h2>
                 <p className="text-gray-600 mb-6">
-                  {vendorId 
+                  {vendorId
                     ? 'Start chatting with this vendor by sending a message'
                     : 'Visit a vendor store and click "Chat" to start a conversation'}
                 </p>
@@ -324,16 +323,14 @@ const Chat = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-[75%] rounded-lg px-4 py-2 ${
-                    isSender
+                  className={`max-w-[75%] rounded-lg px-4 py-2 ${isSender
                       ? 'bg-primary-600 text-white'
                       : 'bg-white text-gray-800 border border-gray-200'
-                  }`}>
+                    }`}>
                   <p className="text-sm">{message.message}</p>
                   <p
-                    className={`text-xs mt-1 ${
-                      isSender ? 'text-primary-100' : 'text-gray-500'
-                    }`}>
+                    className={`text-xs mt-1 ${isSender ? 'text-primary-100' : 'text-gray-500'
+                      }`}>
                     {new Date(message.createdAt).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',

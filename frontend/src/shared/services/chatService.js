@@ -7,7 +7,7 @@ class ChatService {
   async createOrGetConversation(vendorId) {
     try {
       const response = await api.post('/user/chat/conversations', { vendorId });
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -19,7 +19,7 @@ class ChatService {
   async getUserConversations() {
     try {
       const response = await api.get('/user/chat/conversations');
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -33,7 +33,7 @@ class ChatService {
       const response = await api.get(`/user/chat/conversations/${conversationId}/messages`, {
         params: { page, limit },
       });
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -49,7 +49,7 @@ class ChatService {
         receiverId,
         message,
       });
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -61,7 +61,7 @@ class ChatService {
   async markMessageAsRead(messageId) {
     try {
       const response = await api.put(`/user/chat/messages/${messageId}/read`);
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -73,20 +73,19 @@ class ChatService {
   async markAllAsRead(conversationId) {
     try {
       const response = await api.put(`/user/chat/conversations/${conversationId}/read-all`);
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
   }
 
-  // Vendor methods
   /**
    * Get vendor's conversations
    */
   async getVendorConversations() {
     try {
       const response = await api.get('/vendor/chat/conversations');
-      return response.data;
+      return response; // Return the whole response object { success, data, count }
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -100,7 +99,7 @@ class ChatService {
       const response = await api.get(`/vendor/chat/conversations/${conversationId}/messages`, {
         params: { page, limit },
       });
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -116,7 +115,7 @@ class ChatService {
         receiverId,
         message,
       });
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -128,7 +127,7 @@ class ChatService {
   async markVendorMessageAsRead(messageId) {
     try {
       const response = await api.put(`/vendor/chat/messages/${messageId}/read`);
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }
@@ -140,7 +139,7 @@ class ChatService {
   async markVendorAllAsRead(conversationId) {
     try {
       const response = await api.put(`/vendor/chat/conversations/${conversationId}/read-all`);
-      return response.data;
+      return response;
     } catch (error) {
       throw error.response?.data || error;
     }

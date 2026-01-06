@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiX, FiCheckCircle, FiClock, FiXCircle, FiAlertCircle, FiCalendar, FiUser, FiMessageSquare, FiRefreshCw, FiSend } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '../../../../shared/utils/api';
+import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
-import { initializeSocket, getSocket } from '../../../../shared/utils/socket';
+import { initializeSocket, getSocket } from '../../../shared/utils/socket';
 
 const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
   const [reply, setReply] = useState('');
@@ -17,7 +17,7 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
       setMessages(ticket.messages || []);
       
       // Initialize socket and join ticket room
-      const token = localStorage.getItem('vendor-token');
+      const token = localStorage.getItem('token');
       if (token) {
         const socket = initializeSocket(token);
         socketRef.current = socket;
@@ -65,7 +65,7 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
 
     try {
       setLoading(true);
-      const response = await api.post(`/vendor/support-tickets/${ticket._id}/reply`, {
+      const response = await api.post(`/user/support-tickets/${ticket._id}/reply`, {
         message: reply.trim()
       });
 
@@ -197,33 +197,6 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
               </div>
             </div>
 
-            {/* Additional Details */}
-            {(ticket.transactionId || ticket.subscriptionId || ticket.amount) && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Additional Details</h3>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-                  {ticket.transactionId && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Transaction ID:</span>
-                      <span className="font-medium text-gray-800">{ticket.transactionId}</span>
-                    </div>
-                  )}
-                  {ticket.subscriptionId && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Subscription ID:</span>
-                      <span className="font-medium text-gray-800">{ticket.subscriptionId}</span>
-                    </div>
-                  )}
-                  {ticket.amount && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Amount:</span>
-                      <span className="font-medium text-gray-800">₹{ticket.amount}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Admin Response */}
             {ticket.adminResponse && (
               <div>
@@ -284,24 +257,6 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                         </span>
                       </div>
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">{message.message}</p>
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-xs text-gray-600 mb-1">Attachments:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {message.attachments.map((attachment, idx) => (
-                              <a
-                                key={idx}
-                                href={attachment.url || attachment}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-blue-600 hover:underline"
-                              >
-                                {attachment.name || attachment.filename || `Attachment ${idx + 1}`}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   ))}
                   <div ref={messagesEndRef} />
@@ -342,26 +297,12 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                         )}
                         {history.changedBy && (
                           <p className="text-xs text-gray-500 mt-1">
-                            Changed by: {history.changedBy?.name || history.changedBy?.businessName || history.changedBy?.email || history.changedByRole || 'System'}
+                            Changed by: {history.changedBy?.name || history.changedBy?.email || history.changedByRole || 'System'}
                           </p>
                         )}
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
-
-            {!ticket.adminResponse && !ticket.messages?.length && ticket.status === 'open' && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-start gap-2">
-                  <FiClock className="text-yellow-600 text-lg mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-yellow-800">Awaiting Response</p>
-                    <p className="text-xs text-yellow-700 mt-1">
-                      Our support team will review your ticket and respond soon. You'll be notified when there's an update.
-                    </p>
-                  </div>
                 </div>
               </div>
             )}
@@ -419,4 +360,3 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
 };
 
 export default TicketDetailModal;
-

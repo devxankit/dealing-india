@@ -74,11 +74,11 @@ class AdminSupportTicketController {
    */
   async respondToTicket(req, res) {
     try {
-      const adminId = req.admin?._id || req.userDoc?._id;
+      const adminId = req.user?.adminId || req.user?._id || req.userDoc?._id;
       if (!adminId) {
-        return res.status(400).json({
+        return res.status(401).json({
           success: false,
-          message: 'Admin ID not found',
+          message: 'Admin not authenticated properly',
         });
       }
 

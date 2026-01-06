@@ -188,7 +188,7 @@ export const createVendorProduct = async (productData, vendorId) => {
       categoryId,
       subcategoryId,
       subSubCategoryId, // This should be set when sub-subcategory is selected
-      brandId,
+      brandId: initialBrandId,
       stock,
       stockQuantity,
       description,
@@ -310,8 +310,27 @@ export const createVendorProduct = async (productData, vendorId) => {
       }
     }
 
-    // Validate brand if provided - handle object format
-    if (brandId) {
+    // Handle Brand: Manual Name or ID
+    let brandId = initialBrandId;
+
+    if (productData.brandName && productData.brandName.trim()) {
+      const BrandModel = mongoose.model('Brand');
+      const nameRegex = new RegExp(`^${productData.brandName.trim()}$`, 'i');
+      let brand = await BrandModel.findOne({ name: nameRegex });
+
+      if (!brand) {
+        // Create new brand
+        console.log(`Creating new brand: ${productData.brandName}`);
+        brand = await BrandModel.create({
+          name: productData.brandName.trim(),
+          isActive: true, // Automatically active
+          isFeatured: false
+        });
+      }
+      brandId = brand._id;
+    }
+    // Validate brand if provided as ID
+    else if (brandId) {
       let brandIdToCheck = brandId;
       if (typeof brandId === 'object' && brandId !== null) {
         brandIdToCheck = brandId._id || brandId.id || brandId;
@@ -328,6 +347,7 @@ export const createVendorProduct = async (productData, vendorId) => {
         err.status = 404;
         throw err;
       }
+      brandId = brand._id;
     }
 
     // Validate and process attributes

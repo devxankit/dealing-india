@@ -4,6 +4,8 @@ import Admin from '../models/Admin.model.js';
 import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
 
+let io;
+
 /**
  * Setup Socket.io server
  * 
@@ -34,7 +36,7 @@ export const setupSocketIO = (httpServer) => {
   // Merge and deduplicate origins (environment origins + defaults)
   const corsOrigins = [...new Set([...envOrigins, ...defaultOrigins])];
 
-  const io = new Server(httpServer, {
+  io = new Server(httpServer, {
     cors: {
       origin: corsOrigins,
       methods: ['GET', 'POST'],
@@ -90,7 +92,8 @@ export const setupSocketIO = (httpServer) => {
     const userId = socket.user.adminId || socket.user.userId || socket.user.vendorId;
 
     // Join user's personal room
-    socket.join(`user_${userId}`);
+    socket.join(`${userRole}_${userId}`);
+    console.log(`Socket ${socket.id} joined personal room: ${userRole}_${userId}`);
 
     // Join notification room for real-time notifications
     const notificationRoom = `notifications_${userId}_${userRole}`;
@@ -180,10 +183,18 @@ export const setupSocketIO = (httpServer) => {
 
     // Handle disconnect
     socket.on('disconnect', () => {
-      // Cleanup if needed
+      console.log('User disconnected:', socket.id);
     });
   });
 
+  return io;
+};
+
+/**
+ * Get Socket.io instance
+ * @returns {Server} Socket.io instance
+ */
+export const getSocket = () => {
   return io;
 };
 

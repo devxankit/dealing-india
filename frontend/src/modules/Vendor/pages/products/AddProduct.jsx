@@ -476,6 +476,7 @@ const AddProduct = () => {
         subcategoryId: formData.subcategoryId ? formData.subcategoryId : null,
         subSubCategoryId: formData.subSubCategoryId ? formData.subSubCategoryId : null,
         brandId: formData.brandId ? formData.brandId : null,
+        brandName: formData.brandName ? formData.brandName : null,
         hasSizes: formData.hasSizes,
         productType: formData.productType,
         attributes: formData.attributes, // Correctly set attributes
@@ -672,21 +673,41 @@ const AddProduct = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Brand
-                    </label>
-                    <AnimatedSelect
-                      name="brandId"
-                      value={formData.brandId || ""}
-                      onChange={handleChange}
-                      placeholder="Select Brand"
-                      options={[
-                        { value: "", label: "Select Brand" },
-                        ...brands
-                          .filter((brand) => brand.isActive !== false)
-                          .map((brand) => ({ value: String(brand.id), label: brand.name })),
-                      ]}
-                    />
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-semibold text-gray-700">
+                        Brand
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, isManualBrand: !prev.isManualBrand, brandId: null, brandName: '' }))}
+                        className="text-[10px] text-primary-600 hover:text-primary-800 underline focus:outline-none"
+                      >
+                        {formData.isManualBrand ? "Select from list" : "Brand not listed?"}
+                      </button>
+                    </div>
+                    {formData.isManualBrand ? (
+                      <input
+                        type="text"
+                        name="brandName"
+                        value={formData.brandName || ""}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                        placeholder="Enter brand name manually"
+                      />
+                    ) : (
+                      <AnimatedSelect
+                        name="brandId"
+                        value={formData.brandId || ""}
+                        onChange={handleChange}
+                        placeholder="Select Brand"
+                        options={[
+                          { value: "", label: "Select Brand" },
+                          ...brands
+                            .filter((brand) => brand.isActive !== false)
+                            .map((brand) => ({ value: String(brand.id), label: brand.name })),
+                        ]}
+                      />
+                    )}
                   </div>
 
                   <div className="md:col-span-2">

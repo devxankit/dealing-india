@@ -21,7 +21,6 @@ import Orders from "./modules/UserWeb/pages/Orders";
 import Addresses from "./modules/UserWeb/pages/Addresses";
 import Chat from "./modules/UserWeb/pages/Chat";
 import SupportTickets from "./modules/UserWeb/pages/SupportTickets";
-import SupportTicketDetail from "./modules/UserWeb/pages/SupportTicketDetail";
 import AdminSupportTickets from "./modules/Admin/pages/supportTickets/SupportTickets";
 import Wishlist from "./modules/UserWeb/pages/Wishlist";
 import Offers from "./modules/UserWeb/pages/Offers";
@@ -181,6 +180,7 @@ import VendorOrders from "./modules/Vendor/pages/Orders";
 import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
 import VendorOrderTracking from "./modules/Vendor/pages/orders/OrderTracking";
 import VendorOrderDetail from "./modules/Vendor/pages/orders/OrderDetail";
+import VendorInvoice from "./modules/Vendor/pages/orders/Invoice";
 import VendorAnalytics from "./modules/Vendor/pages/Analytics";
 import VendorEarnings from "./modules/Vendor/pages/Earnings";
 import VendorSettings from "./modules/Vendor/pages/Settings";
@@ -588,6 +588,7 @@ const AppRoutes = () => {
           <Route path="orders/canceled-order" element={<VendorAllOrders />} />
           <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
           <Route path="orders/:id" element={<VendorOrderDetail />} />
+          <Route path="orders/:id/invoice" element={<VendorInvoice />} />
           <Route path="chat" element={<VendorChat />} />
           <Route path="chat/:userId" element={<VendorChat />} />
           <Route path="support-tickets" element={<VendorSupportTickets />} />
@@ -827,16 +828,6 @@ const AppRoutes = () => {
             <RouteWrapper>
               <ProtectedRoute>
                 <SupportTickets />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/support-tickets/:id"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <SupportTicketDetail />
               </ProtectedRoute>
             </RouteWrapper>
           }

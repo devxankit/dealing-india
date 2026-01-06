@@ -9,10 +9,11 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated, isLoading } = useAdminAuthStore();
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    secretCode: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -34,14 +35,14 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!formData.email || !formData.password) {
-      toast.error('Please fill in all fields');
+
+    if (!formData.email || !formData.password || !formData.secretCode) {
+      toast.error('Please fill in all fields including the secret code');
       return;
     }
 
     try {
-      await login(formData.email, formData.password, rememberMe);
+      await login(formData.email, formData.password, formData.secretCode, rememberMe);
       toast.success('Login successful!');
       const from = location.state?.from?.pathname || '/admin/dashboard';
       navigate(from, { replace: true });
@@ -111,6 +112,25 @@ const AdminLogin = () => {
               >
                 {showPassword ? <FiEyeOff /> : <FiEye />}
               </button>
+            </div>
+          </div>
+
+          {/* Secret Code Field */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Secret Code
+            </label>
+            <div className="relative">
+              <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="password"
+                name="secretCode"
+                value={formData.secretCode}
+                onChange={handleChange}
+                placeholder="Enter secret access code"
+                className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                required
+              />
             </div>
           </div>
 

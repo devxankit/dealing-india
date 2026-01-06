@@ -186,6 +186,60 @@ class VendorSupportTicketController {
       });
     }
   }
+
+  /**
+   * Reply to ticket
+   * POST /api/vendor/support-tickets/:id/reply
+   */
+  async replyToTicket(req, res) {
+    try {
+      const vendorId = req.user?.vendorId || req.user?._id || req.userDoc?._id;
+      const { id } = req.params;
+      const { message, attachments } = req.body;
+
+      if (!vendorId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Vendor not authenticated properly',
+        });
+      }
+
+      if (!message) {
+        return res.status(400).json({
+          success: false,
+          message: 'Message is required',
+        });
+      }
+
+      const ticketMessage = await SupportTicketService.addTicketMessage(
+        id,
+        vendorId,
+        'vendor',
+        message,
+        attachments || []
+      );
+
+      // Real-time update via Socket.io
+      const io = req.app.get('io');
+      if (io) {
+        // Emit to ticket specific room
+        io.to(`ticket_${id}`).emit('ticket_message', ticketMessage);
+        io.to(`ticket_${id}`).emit('ticket_updated', { ticketId: id, message: ticketMessage });
+        console.log(`Socket emit: ticket_message to ticket_${id}`);
+      }
+
+      res.status(200).json({
+        success: true,
+        data: ticketMessage,
+      });
+    } catch (error) {
+      console.error('Error replying to ticket:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to send reply',
+      });
+    }
+  }
 }
 
 export default new VendorSupportTicketController();

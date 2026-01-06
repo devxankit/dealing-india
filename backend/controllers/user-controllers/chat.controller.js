@@ -45,6 +45,9 @@ class UserChatController {
   async getConversations(req, res) {
     try {
       const userId = req.user?.userId || req.userDoc?._id;
+      console.log('--- User Chat Debug: getConversations ---');
+      console.log('User ID:', userId);
+      
       if (!userId) {
         return res.status(400).json({
           success: false,
@@ -53,6 +56,7 @@ class UserChatController {
       }
 
       const conversations = await ChatService.getUserConversations(userId);
+      console.log('Conversations found:', conversations.length);
 
       res.status(200).json({
         success: true,
@@ -75,6 +79,11 @@ class UserChatController {
   async getMessages(req, res) {
     try {
       const userId = req.user?.userId || req.userDoc?._id;
+      const { id } = req.params;
+      console.log('--- User Chat Debug: getMessages ---');
+      console.log('User ID:', userId);
+      console.log('Conversation ID:', id);
+
       if (!userId) {
         return res.status(400).json({
           success: false,
@@ -82,7 +91,6 @@ class UserChatController {
         });
       }
 
-      const { id } = req.params;
       const { page = 1, limit = 50 } = req.query;
 
       const result = await ChatService.getMessages(
@@ -92,11 +100,14 @@ class UserChatController {
         parseInt(page),
         parseInt(limit)
       );
+      console.log('Messages found:', result.messages.length);
 
       res.status(200).json({
         success: true,
-        data: result.messages,
-        pagination: result.pagination,
+        data: {
+          messages: result.messages,
+          pagination: result.pagination,
+        },
       });
     } catch (error) {
       console.error('Error getting messages:', error);
@@ -113,6 +124,10 @@ class UserChatController {
    */
   async sendMessage(req, res) {
     try {
+      console.log('UserChatController.sendMessage initiated');
+      console.log('Request body:', req.body);
+      console.log('User:', req.user);
+
       const userId = req.user?.userId || req.userDoc?._id;
       if (!userId) {
         return res.status(400).json({
@@ -139,28 +154,13 @@ class UserChatController {
         message
       );
 
-      // Get Socket.IO instance from app
-      const io = req.app.get('io');
-      if (io) {
-        // Emit to conversation room
-        io.to(`chat_${conversationId}`).emit('receive_message', newMessage);
-        // Emit to receiver's personal room (vendor)
-        io.to(`user_${receiverId}`).emit('new_chat_message', newMessage);
-        // Also emit to vendor notification room
-        io.to(`notifications_${receiverId}_vendor`).emit('new_notification', {
-          type: 'chat_message',
-          title: 'New message',
-          message: `You have a new message from ${req.userDoc?.name || 'User'}`,
-        });
-      }
-
       res.status(201).json({
         success: true,
         message: 'Message sent successfully',
         data: newMessage,
       });
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error sending message in UserChatController:', error);
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to send message',

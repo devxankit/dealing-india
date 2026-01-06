@@ -13,6 +13,7 @@ router.post('/', VendorSupportTicketController.createTicket);
 router.get('/', VendorSupportTicketController.getTickets);
 router.get('/:id', VendorSupportTicketController.getTicket);
 router.patch('/:id/status', VendorSupportTicketController.updateStatus);
+router.post('/:id/reply', VendorSupportTicketController.replyToTicket);
 
 export default router;
 

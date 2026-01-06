@@ -146,11 +146,11 @@ class UserSupportTicketController {
    */
   async replyToTicket(req, res) {
     try {
-      const userId = req.user?.userId || req.userDoc?._id;
+      const userId = req.user?.userId || req.user?._id || req.userDoc?._id;
       if (!userId) {
-        return res.status(400).json({
+        return res.status(401).json({
           success: false,
-          message: 'User ID not found',
+          message: 'User not authenticated properly',
         });
       }
 

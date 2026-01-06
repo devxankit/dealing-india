@@ -3,6 +3,38 @@ import { motion } from 'framer-motion';
 import { useBrandStore } from '../../../../shared/store/brandStore';
 import LazyImage from '../../../../shared/components/LazyImage';
 
+const BrandItem = ({ brand }) => {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div
+      className="flex-shrink-0 flex flex-col items-center"
+      style={{
+        width: 'clamp(5rem, 20vw, 6rem)',
+      }}
+    >
+      <div className={`bg-white rounded-xl p-2 shadow-sm border border-gray-100 mb-2 w-full aspect-square flex items-center justify-center ${hasError ? 'bg-gray-100' : ''}`}>
+        {!hasError ? (
+          <img
+            src={brand.logo}
+            alt={brand.name}
+            className="w-[80%] h-[80%] object-contain pointer-events-none select-none"
+            onError={() => setHasError(true)}
+            loading="lazy"
+          />
+        ) : (
+          <span className="font-bold text-2xl text-gray-400">
+            {brand.name ? brand.name.charAt(0).toUpperCase() : '?'}
+          </span>
+        )}
+      </div>
+      <p className="text-xs font-semibold text-gray-800 text-center truncate w-full px-1">
+        {brand.name}
+      </p>
+    </div>
+  );
+};
+
 const BrandLogosScroll = () => {
   const { brands, initialize, isLoading } = useBrandStore();
   const [displayBrands, setDisplayBrands] = useState([]);
@@ -84,28 +116,7 @@ const BrandLogosScroll = () => {
       >
         <div className="flex gap-4 w-max px-4">
           {marqueeBrands.map((brand, index) => (
-            <div
-              key={`${brand.id}-${index}`}
-              className="flex-shrink-0 flex flex-col items-center"
-              style={{
-                width: 'clamp(5rem, 20vw, 6rem)',
-              }}
-            >
-              <div className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 mb-2 w-full aspect-square flex items-center justify-center">
-                <img
-                  src={brand.logo}
-                  alt={brand.name}
-                  className="w-[80%] h-[80%] object-contain pointer-events-none select-none"
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/120x80?text=Brand';
-                  }}
-                  loading="lazy"
-                />
-              </div>
-              <p className="text-xs font-semibold text-gray-800 text-center truncate w-full px-1">
-                {brand.name}
-              </p>
-            </div>
+            <BrandItem key={`${brand.id}-${index}`} brand={brand} />
           ))}
         </div>
       </div>

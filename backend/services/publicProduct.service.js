@@ -76,9 +76,9 @@ export const getPublicProducts = async (filters = {}) => {
           totalPages: 0,
         };
       }
-      
+
       const categoryObjectId = new mongoose.Types.ObjectId(categoryId);
-      
+
       // Determine the depth/level of the category
       let categoryDepth = 1;
       try {
@@ -87,10 +87,10 @@ export const getPublicProducts = async (filters = {}) => {
         console.warn('⚠️ Could not determine category depth, defaulting to level 1:', error.message);
         categoryDepth = 1;
       }
-      
+
       let categoryFilter;
       let checkingFields = [];
-      
+
       // Build filter based on category depth:
       // Depth 1 (main category): Check categoryId OR subcategoryId OR subSubCategoryId (show all in category tree)
       // Depth 2 (subcategory): Check subcategoryId OR subSubCategoryId (show products in this subcategory and its sub-subcategories)
@@ -100,12 +100,12 @@ export const getPublicProducts = async (filters = {}) => {
       if (categoryDepth === 1) {
         // Main category - show all products in this category and its children
         categoryFilter = {
-        $or: [
-          { categoryId: categoryObjectId },
-          { subcategoryId: categoryObjectId },
-          { subSubCategoryId: categoryObjectId },
-        ],
-      };
+          $or: [
+            { categoryId: categoryObjectId },
+            { subcategoryId: categoryObjectId },
+            { subSubCategoryId: categoryObjectId },
+          ],
+        };
         checkingFields = ['categoryId', 'subcategoryId', 'subSubCategoryId'];
       } else if (categoryDepth === 2) {
         // Subcategory - show products in this subcategory and its sub-subcategories
@@ -133,7 +133,7 @@ export const getPublicProducts = async (filters = {}) => {
         };
         checkingFields = ['subSubCategoryId'];
       }
-      
+
       andConditions.push(categoryFilter);
     }
 
@@ -296,6 +296,8 @@ export const getPublicProductById = async (productId) => {
     // Sanitize product images - remove broken/invalid image URLs
     product.image = sanitizeImageUrl(product.image);
     product.images = sanitizeImageUrls(product.images || []);
+
+    console.log('Public Product Fetch:', product._id, 'Brand:', product.brandId); // Debug logging
 
     return product;
   } catch (error) {
