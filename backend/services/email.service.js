@@ -36,19 +36,25 @@ const getTransporter = () => {
   // Clean password (remove spaces)
   const cleanEmailPass = EMAIL_PASS.replace(/\s+/g, '');
 
-  // Gmail Special Case Logic (from reference docs)
+  // Gmail Special Case Logic (Manual Config for reliability)
   const isGmail = EMAIL_HOST.toLowerCase().includes('gmail.com');
 
   if (isGmail) {
-    console.log('📧 Configuring Email Service: Gmail Mode');
+    console.log('📧 Configuring Email Service: Gmail Mode (Manual Secure)');
     transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, // Use SSL
       auth: {
         user: EMAIL_USER,
         pass: cleanEmailPass,
       },
       // Force IPv4 for reliability on Render
       family: 4, 
+      // Network Timeouts
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,   // 10 seconds
+      socketTimeout: 10000,     // 10 seconds
     });
   } else {
     console.log('📧 Configuring Email Service: Generic SMTP Mode');
