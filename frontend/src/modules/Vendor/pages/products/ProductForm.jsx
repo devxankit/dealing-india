@@ -67,6 +67,8 @@ const ProductForm = () => {
     seoDescription: "",
     relatedProducts: [],
     isCouponEligible: false,
+    isManualBrand: false,
+    brandName: "",
   });
 
   const [colorVariants, setColorVariants] = useState([]);
@@ -102,14 +104,14 @@ const ProductForm = () => {
         const brandId = String(brand._id || brand.id || brand);
         return brandId === currentBrandId;
       });
-      
+
       // If brand exists but format is different, normalize it
       if (brandExists) {
         const matchingBrand = brands.find(brand => {
           const brandId = String(brand._id || brand.id || brand);
           return brandId === currentBrandId;
         });
-        
+
         if (matchingBrand) {
           const normalizedBrandId = String(matchingBrand._id || matchingBrand.id || matchingBrand);
           if (normalizedBrandId !== currentBrandId) {
@@ -180,7 +182,7 @@ const ProductForm = () => {
           categoryId = String(product.categoryId);
         }
       }
-      
+
       let subcategoryId = null;
       if (product.subcategoryId) {
         if (typeof product.subcategoryId === 'object' && product.subcategoryId !== null) {
@@ -189,7 +191,7 @@ const ProductForm = () => {
           subcategoryId = String(product.subcategoryId);
         }
       }
-      
+
       let subSubCategoryId = null;
       if (product.subSubCategoryId) {
         if (typeof product.subSubCategoryId === 'object' && product.subSubCategoryId !== null) {
@@ -198,7 +200,7 @@ const ProductForm = () => {
           subSubCategoryId = String(product.subSubCategoryId);
         }
       }
-      
+
       // Extract brandId - handle both populated object and direct ID
       let brandIdValue = null;
       if (product.brandId) {
@@ -258,6 +260,8 @@ const ProductForm = () => {
         seoTitle: product.seoTitle || "",
         seoDescription: product.seoDescription || "",
         relatedProducts: product.relatedProducts || [],
+        brandName: product.brandName || "",
+        isManualBrand: !!product.brandName && !product.brandId,
       });
 
       // Initialize color variants
@@ -280,7 +284,7 @@ const ProductForm = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     // Handle category changes - ensure proper clearing of dependent categories
     if (name === "categoryId") {
       setFormData((prev) => ({
@@ -316,16 +320,16 @@ const ProductForm = () => {
   const handleCategoryChange = (e) => {
     const { name, value } = e.target;
     const normalizedValue = value ? String(value) : null;
-    
+
     console.log('Category change:', { name, value, normalizedValue }); // Debug log
-    
+
     // Use functional update to ensure we always work with the latest state
     // React will batch multiple calls to setFormData, but each call will see
     // the result of the previous call in the same batch
     setFormData((prev) => {
       // Create a new object to ensure React detects the change
       const updates = { ...prev };
-      
+
       if (name === "categoryId") {
         // When main category changes, update it and clear dependent categories
         updates.categoryId = normalizedValue;
@@ -342,7 +346,7 @@ const ProductForm = () => {
         updates.subSubCategoryId = normalizedValue;
         // Keep existing categoryId and subcategoryId
       }
-      
+
       return updates;
     });
   };
@@ -637,6 +641,8 @@ const ProductForm = () => {
         subcategoryId: getCategoryId(formData.subcategoryId),
         subSubCategoryId: getCategoryId(formData.subSubCategoryId),
         brandId: getCategoryId(formData.brandId),
+        brandName: formData.brandName ? formData.brandName : null,
+
         variants: {
           ...formData.variants,
           colorVariants: colorVariants.map((cv) => ({
@@ -769,27 +775,47 @@ const ProductForm = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Brand
-              </label>
-              <AnimatedSelect
-                name="brandId"
-                value={formData.brandId ? String(formData.brandId) : ""}
-                onChange={handleChange}
-                placeholder="Select Brand"
-                options={[
-                  { value: "", label: "Select Brand" },
-                  ...brands
-                    .filter((brand) => brand.isActive !== false)
-                    .map((brand) => {
-                      const brandId = String(brand._id || brand.id || brand);
-                      return { 
-                        value: brandId, 
-                        label: brand.name 
-                      };
-                    }),
-                ]}
-              />
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-xs font-semibold text-gray-700">
+                  Brand
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, isManualBrand: !prev.isManualBrand, brandId: null, brandName: '' }))}
+                  className="text-[10px] text-primary-600 hover:text-primary-800 underline focus:outline-none"
+                >
+                  {formData.isManualBrand ? "Select from list" : "Brand not listed?"}
+                </button>
+              </div>
+              {formData.isManualBrand ? (
+                <input
+                  type="text"
+                  name="brandName"
+                  value={formData.brandName || ""}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  placeholder="Enter brand name manually"
+                />
+              ) : (
+                <AnimatedSelect
+                  name="brandId"
+                  value={formData.brandId ? String(formData.brandId) : ""}
+                  onChange={handleChange}
+                  placeholder="Select Brand"
+                  options={[
+                    { value: "", label: "Select Brand" },
+                    ...brands
+                      .filter((brand) => brand.isActive !== false)
+                      .map((brand) => {
+                        const brandId = String(brand._id || brand.id || brand);
+                        return {
+                          value: brandId,
+                          label: brand.name
+                        };
+                      }),
+                  ]}
+                />
+              )}
             </div>
 
             <div className="md:col-span-2">
@@ -1030,7 +1056,7 @@ const ProductForm = () => {
                   >
                     <FiTrash2 className="w-3 h-3" />
                   </button>
-                  
+
                   <div className="md:col-span-1">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Name</label>
                     <input
@@ -1146,24 +1172,24 @@ const ProductForm = () => {
                       Color Selection <span className="text-red-500">*</span>
                     </label>
                     <ColorPicker
-                      selectedColors={colorVariant.colorName ? [{ 
-                        name: colorVariant.colorName, 
-                        value: colorVariant.colorCode || colorVariant.colorName.toLowerCase() 
+                      selectedColors={colorVariant.colorName ? [{
+                        name: colorVariant.colorName,
+                        value: colorVariant.colorCode || colorVariant.colorName.toLowerCase()
                       }] : []}
                       onChange={(colors) => {
-                      const color = colors[colors.length - 1];
-                      if (color) {
-                        updateColorVariant(colorIndex, {
-                          colorName: color.name,
-                          colorCode: color.value
-                        });
-                      } else {
-                        updateColorVariant(colorIndex, {
-                          colorName: "",
-                          colorCode: ""
-                        });
-                      }
-                    }}
+                        const color = colors[colors.length - 1];
+                        if (color) {
+                          updateColorVariant(colorIndex, {
+                            colorName: color.name,
+                            colorCode: color.value
+                          });
+                        } else {
+                          updateColorVariant(colorIndex, {
+                            colorName: "",
+                            colorCode: ""
+                          });
+                        }
+                      }}
                     />
                   </div>
 
@@ -1331,7 +1357,7 @@ const ProductForm = () => {
                 </div>
               </div>
             ))}
-            
+
             {colorVariants.length === 0 && (
               <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50">
                 <p className="text-sm text-gray-500 mb-2">No variants added yet</p>

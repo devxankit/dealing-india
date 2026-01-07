@@ -1,18 +1,17 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit, FiTrash2, FiFilter, FiPackage, FiTrendingDown, FiXCircle, FiLayers, FiTag, FiAlertCircle } from "react-icons/fi";
+import { FiSearch, FiTrash2, FiFilter, FiPackage, FiTrendingDown, FiXCircle, FiLayers, FiAlertCircle } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
-import ProductFormModal from "../../components/ProductFormModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from "../../../../shared/utils/helpers";
 
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
-import { useBrandStore } from "../../../../shared/store/brandStore";
+import { useVendorManagementStore } from "../../store/vendorManagementStore";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api.js";
 
@@ -21,27 +20,24 @@ const ManageProducts = () => {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const { categories, initialize: initCategories } = useCategoryStore();
-  const { brands, initialize: initBrands } = useBrandStore();
+  const { vendors, fetchVendors } = useVendorManagementStore();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedBrand, setSelectedBrand] = useState("all");
+  const [selectedVendor, setSelectedVendor] = useState("all");
   const [deleteModal, setDeleteModal] = useState({
-    isOpen: false,
-    productId: null,
-  });
-  const [productFormModal, setProductFormModal] = useState({
     isOpen: false,
     productId: null,
   });
 
   useEffect(() => {
     initCategories();
-    initBrands();
+    fetchVendors({ limit: 1000 }); // Fetch all vendors for the dropdown
     loadProducts();
   }, []);
 
-  // Helper to transform MongoDB _id to id
+  // Helper to transform MongoDB _id to id and flatten relationships
   const transformProduct = (product) => {
     if (!product) return null;
     return {
@@ -49,7 +45,8 @@ const ManageProducts = () => {
       id: product._id || product.id,
       categoryId: product.categoryId?._id || product.categoryId?.id || product.categoryId,
       subcategoryId: product.subcategoryId?._id || product.subcategoryId?.id || product.subcategoryId,
-      brandId: product.brandId?._id || product.brandId?.id || product.brandId,
+      subSubCategoryId: product.subSubCategoryId?._id || product.subSubCategoryId?.id || product.subSubCategoryId,
+      vendorId: product.vendorId?._id || product.vendorId?.id || product.vendorId,
     };
   };
 
@@ -88,32 +85,66 @@ const ManageProducts = () => {
     }
 
     if (selectedCategory !== "all") {
+      // Find the selected category and its subcategories/sub-subcategories
+      const findChildIds = (catId) => {
+        const ids = [catId];
+        const category = categories.find(c => String(c.id || c._id) === String(catId));
+        
+        if (category?.subcategories) {
+          category.subcategories.forEach(sub => {
+            ids.push(String(sub.id || sub._id));
+            if (sub.subSubCategories) {
+              sub.subSubCategories.forEach(ssub => {
+                ids.push(String(ssub.id || ssub._id));
+              });
+            }
+          });
+        }
+        return ids;
+      };
+
+      const allowedCategoryIds = findChildIds(selectedCategory);
+
       filtered = filtered.filter((product) => {
-        const catId = product.categoryId?.toString() || product.categoryId;
-        const subCatId = product.subcategoryId?.toString() || product.subcategoryId;
-        return catId === selectedCategory || subCatId === selectedCategory;
+        const prodCatId = String(product.categoryId || "");
+        const prodSubCatId = String(product.subcategoryId || "");
+        const prodSubSubCatId = String(product.subSubCategoryId || "");
+        
+        return allowedCategoryIds.includes(prodCatId) || 
+               allowedCategoryIds.includes(prodSubCatId) || 
+               allowedCategoryIds.includes(prodSubSubCatId);
       });
     }
 
-    if (selectedBrand !== "all") {
+    if (selectedVendor !== "all") {
       filtered = filtered.filter((product) => {
-        const brandId = product.brandId?.toString() || product.brandId;
-        return brandId === selectedBrand;
+        const vendorId = String(product.vendorId || "");
+        return vendorId === selectedVendor;
       });
     }
 
     return filtered;
-  }, [products, searchQuery, selectedStatus, selectedCategory, selectedBrand]);
+  }, [products, searchQuery, selectedStatus, selectedCategory, selectedVendor, categories]);
 
-  // Calculate product statistics
+  // Calculate product statistics based on filtered results
   const productStats = useMemo(() => {
-    const totalProducts = products.length;
-    const inStockProducts = products.filter((p) => p.stock === "in_stock").length;
-    const lowStockProducts = products.filter((p) => p.stock === "low_stock").length;
-    const outOfStockProducts = products.filter((p) => p.stock === "out_of_stock").length;
+    const totalProducts = filteredProducts.length;
+    
+    // Calculate total quantities based on stock status
+    const inStockProducts = filteredProducts
+      .filter((p) => p.stock === "in_stock")
+      .reduce((sum, p) => sum + (Number(p.stockQuantity) || 0), 0);
+      
+    const lowStockProducts = filteredProducts
+      .filter((p) => p.stock === "low_stock")
+      .reduce((sum, p) => sum + (Number(p.stockQuantity) || 0), 0);
+      
+    const outOfStockProducts = filteredProducts
+      .filter((p) => p.stock === "out_of_stock")
+      .reduce((sum, p) => sum + (Number(p.stockQuantity) || 0), 0);
+
     const totalCategories = categories.filter((cat) => cat.isActive !== false).length;
-    const totalBrands = brands.length;
-    const totalValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stockQuantity || 0)), 0);
+    const totalValue = filteredProducts.reduce((sum, p) => sum + ((p.price || 0) * (Number(p.stockQuantity) || 0)), 0);
 
     return {
       totalProducts,
@@ -121,10 +152,9 @@ const ManageProducts = () => {
       lowStockProducts,
       outOfStockProducts,
       totalCategories,
-      totalBrands,
       totalValue,
     };
-  }, [products, categories, brands]);
+  }, [filteredProducts, categories]);
 
   const columns = [
     {
@@ -186,14 +216,6 @@ const ManageProducts = () => {
       sortable: false,
       render: (_, row) => (
         <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setProductFormModal({ isOpen: true, productId: row.id });
-            }}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-            <FiEdit />
-          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -273,7 +295,7 @@ const ManageProducts = () => {
       </div>
 
       {/* Additional Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
           icon={FiLayers}
           label="Total Categories"
@@ -281,14 +303,6 @@ const ManageProducts = () => {
           color="bg-purple-500"
           bgColor="bg-purple-50"
           textColor="text-purple-700"
-        />
-        <StatCard
-          icon={FiTag}
-          label="Total Brands"
-          value={productStats.totalBrands}
-          color="bg-indigo-500"
-          bgColor="bg-indigo-50"
-          textColor="text-indigo-700"
         />
         <StatCard
           icon={FiPackage}
@@ -339,6 +353,19 @@ const ManageProducts = () => {
               className="w-full sm:w-auto min-w-[160px]"
             />
 
+            <AnimatedSelect
+              value={selectedVendor}
+              onChange={(e) => setSelectedVendor(e.target.value)}
+              options={[
+                { value: "all", label: "All Vendors" },
+                ...vendors.map((vendor) => ({
+                  value: String(vendor.id || vendor._id),
+                  label: vendor.storeName || vendor.name || "Unknown Vendor",
+                })),
+              ]}
+              className="w-full sm:w-auto min-w-[180px]"
+            />
+
             <div className="w-full sm:w-auto">
               <ExportButton
                 data={filteredProducts}
@@ -369,9 +396,6 @@ const ManageProducts = () => {
             columns={columns}
             pagination={true}
             itemsPerPage={10}
-            onRowClick={(row) =>
-              setProductFormModal({ isOpen: true, productId: row.id || row._id })
-            }
           />
         )}
       </div>
@@ -385,15 +409,6 @@ const ManageProducts = () => {
         confirmText="Delete"
         cancelText="Cancel"
         type="danger"
-      />
-
-      <ProductFormModal
-        isOpen={productFormModal.isOpen}
-        onClose={() => setProductFormModal({ isOpen: false, productId: null })}
-        productId={productFormModal.productId}
-        onSuccess={() => {
-          loadProducts();
-        }}
       />
     </motion.div>
   );

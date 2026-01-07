@@ -59,6 +59,8 @@ const AddProduct = () => {
     relatedProducts: [],
     isCouponEligible: false,
     applicableCoupons: [],
+    brandName: "",
+    isManualBrand: false,
   });
 
 

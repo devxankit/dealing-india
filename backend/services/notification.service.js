@@ -93,6 +93,7 @@ class NotificationService {
       const query = {
         recipientId: new mongoose.Types.ObjectId(recipientId),
         recipientType,
+        type: { $ne: 'chat_message' }, // Exclude chat messages from notification list
       };
 
       if (isRead !== undefined) {
@@ -149,6 +150,7 @@ class NotificationService {
         recipientId: new mongoose.Types.ObjectId(recipientId),
         recipientType,
         isRead: false,
+        type: { $ne: 'chat_message' }, // Exclude chat messages from unread count
       });
 
       return count;

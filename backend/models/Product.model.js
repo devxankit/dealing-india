@@ -88,6 +88,10 @@ const productSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Brand',
     },
+    brandName: {
+      type: String,
+      trim: true,
+    },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',

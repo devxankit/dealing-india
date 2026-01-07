@@ -1,6 +1,8 @@
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
+import Cart from '../models/Cart.model.js';
+import Wishlist from '../models/Wishlist.model.js';
 import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
 
 /**
@@ -429,10 +431,29 @@ export const updateProduct = async (productId, updateData) => {
  */
 export const deleteProduct = async (productId) => {
   try {
+    // Delete product from database
     const product = await Product.findByIdAndDelete(productId);
     if (!product) {
       throw new Error('Product not found');
     }
+
+    // Proactively remove this product from all user carts and wishlists
+    try {
+      await Promise.all([
+        Cart.updateMany(
+          { 'items.productId': productId },
+          { $pull: { items: { productId: productId } } }
+        ),
+        Wishlist.updateMany(
+          { 'products.productId': productId },
+          { $pull: { products: { productId: productId } } }
+        )
+      ]);
+    } catch (cleanupError) {
+      console.error('Failed to remove deleted product from carts/wishlists:', cleanupError);
+      // Don't throw error here, as the main product is already deleted
+    }
+
     return true;
   } catch (error) {
     if (error.name === 'CastError') {

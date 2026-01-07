@@ -155,7 +155,7 @@ export const useSettingsStore = create(
       initialize: async () => {
         try {
           set({ isLoading: true });
-          const response = await api.get("/admin/settings");
+          const response = await api.get("/settings/public");
 
           if (response.success && response.data?.settings) {
             const apiSettings = response.data.settings;

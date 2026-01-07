@@ -609,6 +609,8 @@ export const createVendorProduct = async (productData, vendorId) => {
         ? subSubCategoryId
         : null,
       brandId: brandId || null,
+      brandName: productData.brandName || null,
+
       stock: stock || stockStatus,
       stockQuantity: parseInt(stockQuantity),
       totalAllowedQuantity: totalAllowedQuantity ? parseInt(totalAllowedQuantity) : null,
@@ -687,6 +689,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       subcategoryId,
       subSubCategoryId,
       brandId,
+      brandName,
       stock,
       stockQuantity,
       description,
@@ -807,6 +810,23 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         throw err;
       }
       validatedBrandId = brand._id;
+    }
+
+    // Handle Brand: Manual Name or ID
+    let finalBrandId = validatedBrandId;
+    if (productData.brandName && productData.brandName.trim()) {
+      const BrandModel = mongoose.model('Brand');
+      const nameRegex = new RegExp(`^${productData.brandName.trim()}$`, 'i');
+      let brand = await BrandModel.findOne({ name: nameRegex });
+
+      if (!brand) {
+        brand = await BrandModel.create({
+          name: productData.brandName.trim(),
+          isActive: true,
+          isFeatured: false
+        });
+      }
+      finalBrandId = brand._id;
     }
 
     // Validate SKU uniqueness if provided
@@ -1106,7 +1126,8 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ...(subcategoryId !== undefined && { subcategoryId: validatedSubcategoryId || null }),
         ...(subSubCategoryId !== undefined && { subSubCategoryId: validatedSubSubCategoryId || null }),
         ...(categoryId !== undefined && subcategoryId === undefined && { subcategoryId: null }),
-        ...(brandId !== undefined && { brandId: validatedBrandId || null }),
+        ...((brandId !== undefined || brandName !== undefined) && { brandId: finalBrandId || null }),
+        ...(brandName !== undefined && { brandName: brandName || null }),
         ...(stockQuantity !== undefined && { stockQuantity: finalStockQuantity, stock: stock || stockStatus }),
         ...(stock !== undefined && stockQuantity === undefined && { stock }),
         ...(totalAllowedQuantity !== undefined && { totalAllowedQuantity: totalAllowedQuantity ? parseInt(totalAllowedQuantity) : null }),

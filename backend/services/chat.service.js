@@ -24,13 +24,26 @@ class ChatService {
       const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
 
       // Check if conversation already exists using a more robust query
+      // Handling both ObjectId and String formats just in case
       const existingChat = await Chat.findOne({
-        participants: {
-          $all: [
-            { $elemMatch: { userId: userObjectId, role: 'user' } },
-            { $elemMatch: { userId: vendorObjectId, role: 'vendor' } }
-          ]
-        }
+        $and: [
+          {
+            participants: {
+              $elemMatch: {
+                userId: { $in: [userObjectId, userId.toString()] },
+                role: 'user'
+              }
+            }
+          },
+          {
+            participants: {
+              $elemMatch: {
+                userId: { $in: [vendorObjectId, vendorId.toString()] },
+                role: 'vendor'
+              }
+            }
+          }
+        ]
       })
         .populate('participants.userId', 'name email storeName')
         .populate('lastMessage')
@@ -109,37 +122,42 @@ class ChatService {
         .lean();
 
       console.log(`Found ${conversations.length} raw conversations for user ${userId}`);
-      if (conversations.length > 0) {
-        console.log('First conversation participants:', JSON.stringify(conversations[0].participants.map(p => ({
-          userId: p.userId._id || p.userId,
-          role: p.role
-        })), null, 2));
-      }
+      
+      // Deduplicate conversations by other participant ID
+      const deduplicated = [];
+      const seenParticipants = new Set();
 
-      // Transform conversations to include participant info
-      return conversations.map((conv) => {
+      for (const conv of conversations) {
         const otherParticipant = conv.participants.find(
           (p) => p.userId && (p.userId._id || p.userId).toString() !== userId.toString()
         );
+        
+        if (otherParticipant) {
+          const otherId = (otherParticipant.userId._id || otherParticipant.userId).toString();
+          if (!seenParticipants.has(otherId)) {
+            seenParticipants.add(otherId);
+            
+            // Transform and add
+            let unreadCount = 0;
+            if (conv.unreadCount) {
+              const key = `user_${userId}`;
+              if (conv.unreadCount instanceof Map) {
+                unreadCount = conv.unreadCount.get(key) || 0;
+              } else {
+                unreadCount = conv.unreadCount[key] || 0;
+              }
+            }
 
-        // Handle unreadCount
-        let unreadCount = 0;
-        if (conv.unreadCount) {
-          const key = `user_${userId}`;
-          // In lean(), Map becomes a POJO, but let's be safe
-          if (conv.unreadCount instanceof Map) {
-            unreadCount = conv.unreadCount.get(key) || 0;
-          } else {
-            unreadCount = conv.unreadCount[key] || 0;
+            deduplicated.push({
+              ...conv,
+              otherParticipant,
+              unreadCount,
+            });
           }
         }
+      }
 
-        return {
-          ...conv,
-          otherParticipant: otherParticipant || null,
-          unreadCount,
-        };
-      });
+      return deduplicated;
     } catch (error) {
       console.error('Error in getUserConversations:', error);
       throw error;
@@ -183,36 +201,42 @@ class ChatService {
         .lean();
 
       console.log(`Found ${conversations.length} raw conversations for vendor ${vendorId}`);
-      if (conversations.length > 0) {
-        console.log('First conversation participants:', JSON.stringify(conversations[0].participants.map(p => ({
-          userId: p.userId._id || p.userId,
-          role: p.role
-        })), null, 2));
-      }
+      
+      // Deduplicate conversations by other participant ID
+      const deduplicated = [];
+      const seenParticipants = new Set();
 
-      // Transform conversations to include participant info
-      return conversations.map((conv) => {
+      for (const conv of conversations) {
         const otherParticipant = conv.participants.find(
           (p) => p.userId && (p.userId._id || p.userId).toString() !== vendorId.toString()
         );
+        
+        if (otherParticipant) {
+          const otherId = (otherParticipant.userId._id || otherParticipant.userId).toString();
+          if (!seenParticipants.has(otherId)) {
+            seenParticipants.add(otherId);
+            
+            // Transform and add
+            let unreadCount = 0;
+            if (conv.unreadCount) {
+              const key = `vendor_${vendorId}`;
+              if (conv.unreadCount instanceof Map) {
+                unreadCount = conv.unreadCount.get(key) || 0;
+              } else {
+                unreadCount = conv.unreadCount[key] || 0;
+              }
+            }
 
-        // Handle unreadCount
-        let unreadCount = 0;
-        if (conv.unreadCount) {
-          const key = `vendor_${vendorId}`;
-          if (conv.unreadCount instanceof Map) {
-            unreadCount = conv.unreadCount.get(key) || 0;
-          } else {
-            unreadCount = conv.unreadCount[key] || 0;
+            deduplicated.push({
+              ...conv,
+              otherParticipant,
+              unreadCount,
+            });
           }
         }
+      }
 
-        return {
-          ...conv,
-          otherParticipant: otherParticipant || null,
-          unreadCount,
-        };
-      });
+      return deduplicated;
     } catch (error) {
       console.error('Error in getVendorConversations:', error);
       throw error;
@@ -378,7 +402,8 @@ class ChatService {
         console.log(`Emitting to receiver personal room: ${receiverRoom}`);
         io.to(receiverRoom).emit('new_chat_message', populatedMessage);
 
-        // 3. Emit to receiver's notification room
+        // 3. Emit to receiver's notification room (Disabled for chat messages as per requirement)
+        /*
         const notificationRoom = `notifications_${receiverId}_${receiverRole}`;
         console.log(`Emitting to notification room: ${notificationRoom}`);
         io.to(notificationRoom).emit('new_notification', {
@@ -392,9 +417,11 @@ class ChatService {
             senderRole,
           }
         });
+        */
       }
 
-      // Create notification for receiver
+      // Create notification for receiver (Disabled for chat messages as per requirement)
+      /*
       try {
         await notificationService.createNotification({
           recipientId: receiverId,
@@ -414,6 +441,7 @@ class ChatService {
         // Don't fail message send if notification fails
         console.error('Failed to create chat notification:', notifError);
       }
+      */
 
       return populatedMessage;
     } catch (error) {

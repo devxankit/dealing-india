@@ -4,6 +4,7 @@ import {
   getVendor,
   updateStatus,
   updateCommission,
+  toggleActive,
   getPending,
   getApproved,
   getAnalytics,
@@ -29,6 +30,7 @@ router.get('/:id', asyncHandler(getVendor));
 router.get('/:id/orders', asyncHandler(getOrders));
 router.put('/:id/status', asyncHandler(updateStatus));
 router.put('/:id/commission', asyncHandler(updateCommission));
+router.patch('/:id/toggle-active', asyncHandler(toggleActive));
 
 export default router;
 

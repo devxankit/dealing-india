@@ -60,6 +60,7 @@ import publicDeliveryRoutes from './routes/publicDelivery.routes.js';
 import vendorOrderRoutes from './routes/vendorOrder.routes.js';
 import adminOrderRoutes from './routes/adminOrder.routes.js';
 import adminDeliveryRoutes from './routes/adminDelivery.routes.js';
+import publicSettingsRoutes from './routes/publicSettings.routes.js';
 import adminAnalyticsRoutes from './routes/admin-routes/analytics.routes.js';
 import vendorAnalyticsRoutes from './routes/vendor-routes/analytics.routes.js';
 
@@ -245,6 +246,7 @@ app.use('/api/hero-banners', publicHeroBannerRoutes);
 app.use('/api/campaigns', publicCampaignsRoutes);
 app.use('/api/public/promocodes', publicPromoCodeRoutes);
 app.use('/api/public/delivery', publicDeliveryRoutes);
+app.use('/api/settings', publicSettingsRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);

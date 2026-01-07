@@ -236,14 +236,14 @@ const VendorChat = () => {
   const userName = userInfo?.name || 'User';
 
   return (
-    <PageTransition>
-      <div className="h-full flex">
+    <PageTransition className="h-full">
+      <div className="h-full flex bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
         {/* Conversations List */}
-        <div className="w-80 border-r border-gray-200 bg-white flex flex-col">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-800">User Chats</h2>
+        <div className={`${selectedConversation ? 'hidden sm:flex' : 'flex'} w-full sm:w-80 border-r border-gray-200 bg-white flex-col h-full relative`}>
+          <div className="sticky top-0 p-5 border-b border-gray-200 bg-white z-20 shrink-0">
+            <h2 className="text-lg font-bold text-gray-800">User Chats</h2>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             {conversations.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
                 <FiMessageSquare className="text-4xl mx-auto mb-2 text-gray-400" />
@@ -292,22 +292,27 @@ const VendorChat = () => {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 flex flex-col">
+        <div className={`${!selectedConversation ? 'hidden sm:flex' : 'flex'} flex-1 flex flex-col h-full bg-gray-50 relative overflow-hidden`}>
           {selectedConversation ? (
             <>
               {/* Header */}
-              <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center gap-3 shrink-0 z-20">
+                <button
+                  onClick={() => setSelectedConversation(null)}
+                  className="sm:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
+                  <FiArrowLeft className="text-xl" />
+                </button>
+                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
                   <FiUser className="text-primary-600" />
                 </div>
-                <div className="flex-1">
-                  <h1 className="font-semibold text-gray-800">{userName}</h1>
+                <div className="flex-1 min-w-0">
+                  <h1 className="font-semibold text-gray-800 truncate">{userName}</h1>
                   <p className="text-sm text-gray-500">User</p>
                 </div>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-500 py-8">
                     <p>No messages yet. Start the conversation!</p>
@@ -346,7 +351,7 @@ const VendorChat = () => {
               </div>
 
               {/* Input */}
-              <div className="bg-white border-t border-gray-200 p-4">
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shrink-0 z-20">
                 <div className="flex gap-2">
                   <input
                     type="text"

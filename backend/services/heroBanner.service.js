@@ -463,19 +463,26 @@ export const getActiveBanners = async () => {
     endDate: { $gte: now }
   })
     .populate('slotId')
-    .populate('vendorId', '_id businessName storeName') // Populate vendor info
+    .populate({
+      path: 'vendorId',
+      match: { isActive: true },
+      select: '_id businessName storeName'
+    })
     .sort({ 'slotId.slotNumber': 1 });
 
-  return activeBookings.map(booking => ({
-    id: booking._id,
-    slotNumber: booking.slotId?.slotNumber || 0,
-    image: booking.bannerImage,
-    link: booking.link,
-    title: booking.title,
-    vendorId: booking.vendorId?._id, // Return vendor ID
-    vendorName: booking.vendorId?.businessName || booking.vendorId?.storeName // Return vendor name
-  }));
+  return activeBookings
+    .filter(booking => booking.vendorId) // Only include banners from active vendors
+    .map(booking => ({
+      id: booking._id,
+      slotNumber: booking.slotId?.slotNumber || 0,
+      image: booking.bannerImage,
+      link: booking.link,
+      title: booking.title,
+      vendorId: booking.vendorId?._id,
+      vendorName: booking.vendorId?.businessName || booking.vendorId?.storeName
+    }));
 };
+
 
 /**
  * Get vendor bookings

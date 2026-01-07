@@ -95,6 +95,8 @@ const MobileProductDetail = () => {
             sizes: productData.sizes || [],
             attributes: productData.attributes || [],
             faqs: productData.faqs || [],
+            brandName: productData.brandName || productData.brandId?.name || '',
+
           };
 
           setProduct(transformedProduct);
@@ -560,8 +562,15 @@ const MobileProductDetail = () => {
               )}
             </div>
 
-            {/* Unit */}
-            <p className="text-gray-600 mb-4 text-sm">Unit: {product.unit}</p>
+            {/* Unit & Brand */}
+            <div className="flex items-center gap-4 mb-4">
+              <p className="text-gray-600 text-sm">Unit: {product.unit}</p>
+              {product.brandName && (
+                <p className="text-gray-600 text-sm border-l border-gray-300 pl-4">
+                  Brand: <span className="font-semibold text-gray-800">{product.brandName}</span>
+                </p>
+              )}
+            </div>
 
             {/* Variant Selector */}
             {product.variants && (

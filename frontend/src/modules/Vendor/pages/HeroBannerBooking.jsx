@@ -30,7 +30,6 @@ const HeroBannerBooking = () => {
   const [bookings, setBookings] = useState([]);
   const [settings, setSettings] = useState({
     bookingWindowDays: 30,
-    bookingWindowDays: 30,
     minDurationHours: 24,
     maxDurationHours: 720,
     defaultPricePerDay: 1999,
@@ -341,7 +340,6 @@ const HeroBannerBooking = () => {
       image: null,
       preview: null,
       startDate: "",
-      startDate: "",
       // startTime reset removed
       durationDays: 1,
       durationType: "day"
@@ -356,7 +354,6 @@ const HeroBannerBooking = () => {
       link: "",
       image: null,
       preview: null,
-      startDate: "",
       startDate: "",
       // startTime remove
       durationDays: 1,

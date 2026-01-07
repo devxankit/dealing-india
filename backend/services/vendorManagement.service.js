@@ -9,6 +9,7 @@ export const getAllVendors = async (filters = {}) => {
   try {
     const {
       status,
+      isActive,
       search,
       page = 1,
       limit = 10,
@@ -22,6 +23,11 @@ export const getAllVendors = async (filters = {}) => {
     // Filter by status
     if (status && status !== 'all') {
       query.status = status;
+    }
+
+    // Filter by isActive if provided
+    if (isActive !== undefined && isActive !== null) {
+      query.isActive = isActive === true || isActive === 'true';
     }
 
     // Search filter
@@ -153,6 +159,31 @@ export const updateCommissionRate = async (vendorId, commissionRate) => {
     throw error;
   }
 };
+
+/**
+ * Toggle vendor active status
+ * @param {String} vendorId - Vendor ID
+ * @returns {Promise<Object>} Updated vendor
+ */
+export const toggleVendorActive = async (vendorId) => {
+  try {
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      throw new Error('Vendor not found');
+    }
+
+    vendor.isActive = !vendor.isActive;
+    await vendor.save();
+
+    return vendor;
+  } catch (error) {
+    if (error.name === 'CastError') {
+      throw new Error('Invalid vendor ID');
+    }
+    throw error;
+  }
+};
+
 
 /**
  * Get pending vendors

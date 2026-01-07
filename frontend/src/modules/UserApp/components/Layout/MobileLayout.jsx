@@ -67,17 +67,17 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, full
   }, [fullScreen]);
 
   return (
-    <div className={fullScreen ? "h-screen overflow-hidden flex flex-col" : ""}>
+    <div className={fullScreen ? "h-screen overflow-hidden flex flex-col fixed inset-0 z-50 bg-white" : ""}>
       {shouldShowHeader && <MobileHeader />}
       <main
-        className={`${fullScreen ? "flex-1 overflow-hidden" : "min-h-screen w-full overflow-x-hidden"} transition-all duration-300 ease-in-out ${!fullScreen && shouldShowBottomNav ? 'pb-20' : ''} ${!fullScreen && showCartBar ? 'pb-24' : ''}`}
+        className={`${fullScreen ? "flex-1 h-full overflow-hidden relative" : "min-h-screen w-full overflow-x-hidden"} transition-all duration-300 ease-in-out ${!fullScreen && shouldShowBottomNav ? 'pb-20' : ''} ${!fullScreen && showCartBar ? 'pb-24' : ''}`}
         style={{ paddingTop: shouldShowHeader ? `${headerHeight}px` : '0px' }}
       >
         {children}
       </main>
-      {showCartBar && <MobileCartBar />}
-      {shouldShowBottomNav && <MobileBottomNav />}
-      <CartDrawer />
+      {!fullScreen && showCartBar && <MobileCartBar />}
+      {!fullScreen && shouldShowBottomNav && <MobileBottomNav />}
+      {!fullScreen && <CartDrawer />}
     </div>
   );
 };

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
+import Vendor from '../models/Vendor.model.js';
 import { getCategoryDepth } from './categoryManagement.service.js';
 import { getAllFAQs } from './productFAQs.service.js';
 import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
@@ -32,9 +33,14 @@ export const getPublicProducts = async (filters = {}) => {
       sortOrder = 'desc',
     } = filters;
 
-    // Build query - only visible products
+    // Get active and approved vendors
+    const activeVendors = await Vendor.find({ isActive: true, status: 'approved' }).select('_id');
+    const activeVendorIds = activeVendors.map(v => v._id);
+
+    // Build query - only visible products from active vendors
     const query = {
       isVisible: true, // Only show visible products
+      vendorId: { $in: activeVendorIds }
     };
     const andConditions = [];
 
@@ -49,7 +55,17 @@ export const getPublicProducts = async (filters = {}) => {
           totalPages: 0,
         };
       }
-      query.vendorId = new mongoose.Types.ObjectId(vendorId);
+      const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
+      if (!activeVendorIds.some(id => id.toString() === vendorObjectId.toString())) {
+        return {
+          products: [],
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: 0,
+        };
+      }
+      query.vendorId = vendorObjectId;
     }
 
     // Search filter
@@ -278,6 +294,12 @@ export const getPublicProductById = async (productId) => {
 
     if (!product) {
       throw new Error('Product not found or not available');
+    }
+
+    // Check if vendor is active and approved
+    const vendor = await Vendor.findById(product.vendorId).select('isActive status');
+    if (!vendor || !vendor.isActive || vendor.status !== 'approved') {
+      throw new Error('Product is no longer available');
     }
 
     // Fetch FAQs for this product

@@ -25,7 +25,7 @@ const pageTransition = {
  * Page transition wrapper
  * Animations have been disabled to ensure instant page rendering without white flashes
  */
-const PageTransition = ({ children }) => {
+const PageTransition = ({ children, className = "" }) => {
   const location = useLocation();
   const [direction, setDirection] = useState('none');
   const [prevPath, setPrevPath] = useState(location.pathname);
@@ -58,7 +58,7 @@ const PageTransition = ({ children }) => {
   // Use a regular div with key to ensure proper remounting, then wrap with motion
   // This prevents motion.div from interfering with React Router's remounting mechanism
   return (
-    <div key={uniqueKey} className="w-full">
+    <div key={uniqueKey} className={`w-full ${className}`}>
       <motion.div
         custom={direction}
         initial="initial"
@@ -66,7 +66,7 @@ const PageTransition = ({ children }) => {
         variants={pageVariants}
         transition={pageTransition}
         style={{ willChange: 'auto', transform: 'none' }}
-        className="w-full"
+        className={`w-full ${className}`}
       >
         {children}
       </motion.div>

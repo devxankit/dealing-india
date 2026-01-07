@@ -188,6 +188,38 @@ export const useVendorManagementStore = create((set, get) => ({
     }
   },
 
+  // Toggle vendor active status
+  toggleVendorActive: async (vendorId) => {
+    set({ isLoading: true });
+    try {
+      const response = await api.patch(`/admin/vendors/${vendorId}/toggle-active`);
+
+      if (response.success && response.data) {
+        const updatedVendor = transformVendor(response.data.vendor);
+
+        // Update in vendors list
+        set((state) => ({
+          vendors: state.vendors.map((v) =>
+            v.id === vendorId ? updatedVendor : v
+          ),
+          selectedVendor:
+            state.selectedVendor?.id === vendorId
+              ? updatedVendor
+              : state.selectedVendor,
+          isLoading: false,
+        }));
+
+        return updatedVendor;
+      } else {
+        throw new Error(response.message || 'Failed to toggle vendor active status');
+      }
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+
   // Fetch vendor analytics
   fetchVendorAnalytics: async (vendorId = null) => {
     set({ isLoading: true });

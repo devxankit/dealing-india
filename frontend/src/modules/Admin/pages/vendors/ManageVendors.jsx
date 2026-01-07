@@ -6,6 +6,8 @@ import {
   FiEye,
   FiCheckCircle,
   FiXCircle,
+  FiUserCheck,
+  FiUserX,
 } from "react-icons/fi";
 import { IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
@@ -26,13 +28,14 @@ const ManageVendors = () => {
     fetchVendors,
     updateVendorStatus,
     updateCommissionRate,
+    toggleVendorActive,
   } = useVendorManagementStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [actionModal, setActionModal] = useState({
     isOpen: false,
-    type: null, // 'approve', 'suspend', 'commission'
+    type: null, // 'approve', 'suspend', 'commission', 'toggle-active'
     vendorId: null,
     vendorName: null,
   });
@@ -119,8 +122,8 @@ const ManageVendors = () => {
             value === "approved"
               ? "success"
               : value === "pending"
-              ? "warning"
-              : "error"
+                ? "warning"
+                : "error"
           }>
           {value?.toUpperCase() || "N/A"}
         </Badge>
@@ -138,6 +141,16 @@ const ManageVendors = () => {
           </span>
         );
       },
+    },
+    {
+      key: "isActive",
+      label: "Profile Status",
+      sortable: true,
+      render: (value) => (
+        <Badge variant={value ? "success" : "error"}>
+          {value ? "ACTIVE" : "INACTIVE"}
+        </Badge>
+      ),
     },
     {
       key: "stats",
@@ -222,6 +235,24 @@ const ManageVendors = () => {
             title="Update Commission Rate">
             <IndianRupee />
           </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setActionModal({
+                isOpen: true,
+                type: "toggle-active",
+                vendorId: row.id,
+                vendorName: row.storeName || row.name,
+                isActive: row.isActive,
+              });
+            }}
+            className={`p-2 rounded-lg transition-colors ${row.isActive
+              ? "text-green-600 hover:bg-green-50"
+              : "text-red-600 hover:bg-red-50"
+              }`}
+            title={row.isActive ? "Deactivate Vendor" : "Activate Vendor"}>
+            {row.isActive ? <FiUserCheck /> : <FiUserX />}
+          </button>
         </div>
       ),
     },
@@ -299,6 +330,24 @@ const ManageVendors = () => {
     }
   };
 
+  const handleToggleActive = async () => {
+    try {
+      await toggleVendorActive(actionModal.vendorId);
+      setActionModal({
+        isOpen: false,
+        type: null,
+        vendorId: null,
+        vendorName: null,
+      });
+      toast.success(
+        `Vendor ${actionModal.isActive ? "deactivated" : "activated"} successfully`
+      );
+    } catch (error) {
+      // Error toast is shown by API interceptor
+    }
+  };
+
+
   const getModalContent = () => {
     switch (actionModal.type) {
       case "approve":
@@ -344,6 +393,18 @@ const ManageVendors = () => {
               </p>
             </div>
           ),
+        };
+      case "toggle-active":
+        return {
+          title: actionModal.isActive ? "Deactivate Vendor?" : "Activate Vendor?",
+          message: `Are you sure you want to ${actionModal.isActive ? "deactivate" : "activate"
+            } "${actionModal.vendorName}"? ${actionModal.isActive
+              ? "They will not be able to access their account and their products will be hidden."
+              : "They will regain access to their account and their products will be visible again."
+            }`,
+          confirmText: actionModal.isActive ? "Deactivate" : "Activate",
+          onConfirm: handleToggleActive,
+          type: actionModal.isActive ? "danger" : "success",
         };
       default:
         return null;

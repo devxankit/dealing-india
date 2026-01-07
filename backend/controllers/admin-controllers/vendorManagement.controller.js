@@ -3,6 +3,7 @@ import {
   getVendorById,
   updateVendorStatus,
   updateCommissionRate,
+  toggleVendorActive,
   getPendingVendors,
   getApprovedVendors,
 } from '../../services/vendorManagement.service.js';
@@ -113,6 +114,25 @@ export const updateCommission = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Commission rate updated successfully',
+      data: { vendor },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Toggle vendor active status
+ * PATCH /api/admin/vendors/:id/toggle-active
+ */
+export const toggleActive = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const vendor = await toggleVendorActive(id);
+
+    res.status(200).json({
+      success: true,
+      message: `Vendor ${vendor.isActive ? 'activated' : 'deactivated'} successfully`,
       data: { vendor },
     });
   } catch (error) {

@@ -33,17 +33,23 @@ const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const buyNowItem = location.state?.buyNowItem;
-  
+
   const { items: cartItems, getTotal, clearCart, getItemsByVendor } = useCartStore();
-  
+
   // Use buyNowItem if it exists, otherwise use cartItems
   const items = useMemo(() => {
     return buyNowItem ? [buyNowItem] : cartItems;
   }, [buyNowItem, cartItems]);
 
   const { user, isAuthenticated } = useAuthStore();
-  const { addresses, getDefaultAddress, addAddress } = useAddressStore();
+  const { addresses, getDefaultAddress, addAddress, fetchAddresses } = useAddressStore();
   const { createOrder, createOrderAPI, verifyPaymentAPI } = useOrderStore();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAddresses();
+    }
+  }, [isAuthenticated, fetchAddresses]);
   const { responsivePadding } = useResponsiveHeaderPadding();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 

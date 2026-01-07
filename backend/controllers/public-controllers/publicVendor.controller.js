@@ -15,9 +15,10 @@ export const getPublicVendors = async (req, res, next) => {
       sortOrder = 'desc',
     } = req.query;
 
-    // Get approved vendors
+    // Get approved and active vendors
     const result = await getApprovedVendors({
       search,
+      isActive: true, // Only show active vendors
       page: parseInt(page),
       limit: parseInt(limit),
       sortBy,
@@ -43,7 +44,7 @@ export const getPublicVendors = async (req, res, next) => {
 
         let averageRating = 0;
         let totalReviews = 0;
-        
+
         if (products.length > 0) {
           const productsWithRating = products.filter(p => p.rating > 0);
           if (productsWithRating.length > 0) {
@@ -101,10 +102,10 @@ export const getPublicVendor = async (req, res, next) => {
     const { id } = req.params;
     const vendor = await getVendorById(id);
 
-    if (!vendor || vendor.status !== 'approved') {
+    if (!vendor || vendor.status !== 'approved' || vendor.isActive === false) {
       return res.status(404).json({
         success: false,
-        message: 'Vendor not found',
+        message: 'Vendor not found or inactive',
       });
     }
 
@@ -124,7 +125,7 @@ export const getPublicVendor = async (req, res, next) => {
 
     let averageRating = 0;
     let totalReviews = 0;
-    
+
     if (products.length > 0) {
       const productsWithRating = products.filter(p => p.rating > 0);
       if (productsWithRating.length > 0) {

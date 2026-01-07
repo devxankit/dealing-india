@@ -187,14 +187,32 @@ const Chat = () => {
   };
 
   if (loading) {
+    const loadingContent = (
+      <div className="h-full flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading chat...</p>
+        </div>
+      </div>
+    );
+
+    if (isMobileApp) {
+      return (
+        <ProtectedRoute>
+          <PageTransition className="h-full">
+            <MobileLayout showBottomNav={false} showCartBar={false} fullScreen={true}>
+              {loadingContent}
+            </MobileLayout>
+          </PageTransition>
+        </ProtectedRoute>
+      );
+    }
+
     return (
       <ProtectedRoute>
         <PageTransition>
           <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading chat...</p>
-            </div>
+            {loadingContent}
           </div>
         </PageTransition>
       </ProtectedRoute>
@@ -204,10 +222,10 @@ const Chat = () => {
   if (!conversation && !loading) {
     return (
       <ProtectedRoute>
-        <PageTransition>
+        <PageTransition className="h-full">
           {isMobileApp ? (
-            <MobileLayout showBottomNav={false} showCartBar={false}>
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <MobileLayout showBottomNav={false} showCartBar={false} fullScreen={true}>
+              <div className="h-full bg-gray-50 flex items-center justify-center p-4">
                 <div className="text-center">
                   <FiMessageSquare className="text-6xl text-gray-400 mx-auto mb-4" />
                   <h2 className="text-xl font-semibold text-gray-800 mb-2">No Conversations Yet</h2>
@@ -291,7 +309,7 @@ const Chat = () => {
   const vendorName = vendorInfo?.storeName || vendorInfo?.name || 'Vendor';
 
   const content = (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-full bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
         <button
@@ -370,8 +388,8 @@ const Chat = () => {
   if (isMobileApp) {
     return (
       <ProtectedRoute>
-        <PageTransition>
-          <MobileLayout showBottomNav={false} showCartBar={false}>
+        <PageTransition className="h-full">
+          <MobileLayout showBottomNav={false} showCartBar={false} fullScreen={true}>
             {content}
           </MobileLayout>
         </PageTransition>
