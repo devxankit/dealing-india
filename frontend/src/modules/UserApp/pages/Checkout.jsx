@@ -57,7 +57,13 @@ const MobileCheckout = () => {
   const itemsByVendor = useMemo(() => {
     if (buyNowItem) {
       const vendorId = buyNowItem.vendorId || 'default';
-      return { [vendorId]: [buyNowItem] };
+      const vendorName = buyNowItem.vendorName || "Unknown Vendor";
+      return [{
+        vendorId,
+        vendorName,
+        items: [buyNowItem],
+        subtotal: (buyNowItem.price || 0) * (buyNowItem.quantity || 1)
+      }];
     }
     return getItemsByVendor();
   }, [items, buyNowItem, getItemsByVendor]);
@@ -195,6 +201,9 @@ const MobileCheckout = () => {
     }
     return getTotal();
   }, [buyNowItem, getTotal, items]);
+
+  // Alias subtotal to total for compatibility with existing logic
+  const total = subtotal;
 
   const shipping = deliveryData.total;
 

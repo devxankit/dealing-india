@@ -473,6 +473,11 @@ const AddProduct = () => {
       return;
     }
 
+    if (formData.stockQuantity === undefined || formData.stockQuantity === null || formData.stockQuantity === "" || isNaN(parseInt(formData.stockQuantity))) {
+      toast.error("Please enter the base stock quantity");
+      return;
+    }
+
 
     // Validate color variants if provided
     if (colorVariants.length > 0) {
@@ -511,17 +516,7 @@ const AddProduct = () => {
     }
 
     try {
-      // Calculate total stock from variants if provided
-      let totalStock = 0;
-      if (colorVariants.length > 0) {
-        colorVariants.forEach((cv) => {
-          cv.sizeVariants.forEach((sv) => {
-            totalStock += parseInt(sv.stockQuantity) || 0;
-          });
-        });
-      } else {
-        totalStock = parseInt(formData.stockQuantity) || 0;
-      }
+      const totalStock = parseInt(formData.stockQuantity) || 0;
 
       // Prepare product data
       const productData = {
@@ -1052,22 +1047,21 @@ const AddProduct = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Stock Quantity {colorVariants.length === 0 && <span className="text-red-500">*</span>}
+                      Stock Quantity <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
                       name="stockQuantity"
                       value={formData.stockQuantity}
                       onChange={handleChange}
-                      required={colorVariants.length === 0}
+                      required
                       min="0"
-                      disabled={colorVariants.length > 0}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                       placeholder="0"
                     />
                     {colorVariants.length > 0 && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Stock will be calculated from color/size variants
+                        Base stock is independent of variant quantities
                       </p>
                     )}
                   </div>

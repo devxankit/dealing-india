@@ -6,7 +6,7 @@ import { useCartStore } from '../../../shared/store/useStore';
 import { useWishlistStore } from '../../../shared/store/wishlistStore';
 import { useReviewsStore } from '../../../shared/store/reviewsStore';
 import { getProductById as getProductByIdAPI, getProducts } from '../../../shared/services/productService';
-import { formatPrice } from '../../../shared/utils/helpers';
+import { formatPrice, calculateTotalStock, validateStockCalculation } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
 import Badge from '../../../shared/components/Badge';
 import ProductCard from '../../../shared/components/ProductCard';
@@ -69,6 +69,8 @@ const ProductDetail = () => {
             sizes: productData.sizes || [],
             attributes: productData.attributes || [],
             faqs: productData.faqs || [],
+            primaryColorName: productData.primaryColorName,
+            primaryColorCode: productData.primaryColorCode,
           };
 
           setProduct(transformedProduct);
@@ -389,16 +391,24 @@ const ProductDetail = () => {
                     <div className="mb-6">
                       {product.stock === 'in_stock' && (
                         <p className="text-primary-600 font-semibold">
-                          ✓ In Stock ({product.stockQuantity} available)
+                          ✓ In Stock ({calculateTotalStock(product)} available)
                         </p>
                       )}
                       {product.stock === 'low_stock' && (
                         <p className="text-orange-600 font-semibold">
-                          ⚠ Low Stock (Only {product.stockQuantity} left)
+                          ⚠ Low Stock (Only {calculateTotalStock(product)} left)
                         </p>
                       )}
                       {product.stock === 'out_of_stock' && (
                         <p className="text-red-600 font-semibold">✗ Out of Stock</p>
+                      )}
+                      {import.meta.env.DEV && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {(() => {
+                            const { mainStock, variantSum, total } = validateStockCalculation(product);
+                            return `debug: main=${mainStock}, variants=${variantSum}, total=${total}`;
+                          })()}
+                        </div>
                       )}
                       {product.variants?.colorVariants && selectedVariant?.colorIndex !== undefined && selectedVariant?.sizeIndex !== undefined && (
                         <p className="text-gray-700 font-semibold">

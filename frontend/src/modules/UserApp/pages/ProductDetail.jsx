@@ -16,7 +16,7 @@ import { useWishlistStore } from "../../../shared/store/wishlistStore";
 
 import { getProductReviews } from "../../../shared/services/reviewService";
 import { getProductById as getProductByIdAPI, getProducts } from "../../../shared/services/productService";
-import { formatPrice } from "../../../shared/utils/helpers";
+import { formatPrice, calculateTotalStock, validateStockCalculation } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import MobileLayout from "../components/Layout/MobileLayout";
 import ImageGallery from "../../../shared/components/Product/ImageGallery";
@@ -95,6 +95,8 @@ const MobileProductDetail = () => {
             sizes: productData.sizes || [],
             attributes: productData.attributes || [],
             faqs: productData.faqs || [],
+            primaryColorName: productData.primaryColorName,
+            primaryColorCode: productData.primaryColorCode,
             brandName: productData.brandName || productData.brandId?.name || '',
 
           };
@@ -576,14 +578,10 @@ const MobileProductDetail = () => {
 
             {/* Stock Status */}
             <div className="mb-4">
-              {product.stock === "in_stock" && (
-                <p className="text-primary-600 font-semibold text-sm">
-                  ✓ In Stock ({product.stockQuantity} available)
-                </p>
-              )}
-              {product.stock === "low_stock" && (
-                <p className="text-orange-600 font-semibold text-sm">
-                  ⚠ Low Stock (Only {product.stockQuantity} left)
+              {product.stock !== "out_of_stock" && (
+                <p className={`${product.stock === 'low_stock' ? 'text-orange-600' : 'text-primary-600'} font-semibold text-sm`}>
+                  {product.stock === 'low_stock' ? '⚠ ' : '✓ '}
+                  {product.stock === 'low_stock' ? 'Low Stock' : 'In Stock'} ({calculateTotalStock(product)} available)
                 </p>
               )}
               {product.stock === "out_of_stock" && (
@@ -591,14 +589,43 @@ const MobileProductDetail = () => {
                   ✗ Out of Stock
                 </p>
               )}
-              {product.variants?.colorVariants && selectedVariant?.colorIndex !== undefined && selectedVariant?.sizeIndex !== undefined && (
-                <p className="text-gray-700 font-semibold text-sm">
-                  Selected Variation:{" "}
-                  <span className="text-gray-900">
-                    {product.variants.colorVariants[selectedVariant.colorIndex]?.sizeVariants?.[selectedVariant.sizeIndex]?.stockQuantity ?? 0} available
-                  </span>
+              {product.stock !== "out_of_stock" && (
+                <p className="text-gray-600 text-xs mt-1">
+                  Base stock: <span className="font-semibold text-gray-800">{product.stockQuantity ?? 0}</span> available
                 </p>
               )}
+              {import.meta.env.DEV && (
+                <div className="text-xs text-gray-500 mt-1">
+                  {(() => {
+                    const { mainStock, variantSum, total } = validateStockCalculation(product);
+                    return `debug: main=${mainStock}, variants=${variantSum}, total=${total}`;
+                  })()}
+                </div>
+              )}
+              {/* Selected Variation Stock Display */}
+              {(
+                // Case 1: Variant Selected (Valid colorIndex & sizeIndex)
+                (product.variants?.colorVariants && selectedVariant?.colorIndex !== undefined && selectedVariant?.sizeIndex !== undefined) ||
+                // Case 2: Main Product Selected (color matches primary & colorIndex is null)
+                (selectedVariant?.color === product.primaryColorName && selectedVariant?.colorIndex === null)
+              ) && (
+                  <p className="text-gray-700 font-semibold text-sm">
+                    Selected Variation:{" "}
+                    <span className="text-gray-900">
+                      {(() => {
+                        // Logic for Variant Stock
+                        if (selectedVariant?.colorIndex !== undefined && selectedVariant?.sizeIndex !== undefined) {
+                          return product.variants.colorVariants[selectedVariant.colorIndex]?.sizeVariants?.[selectedVariant.sizeIndex]?.stockQuantity ?? 0;
+                        }
+                        // Logic for Main Product Stock
+                        if (selectedVariant?.color === product.primaryColorName) {
+                          return product.stockQuantity ?? 0;
+                        }
+                        return 0;
+                      })()} available
+                    </span>
+                  </p>
+                )}
             </div>
 
             {/* Unit & Brand */}
@@ -614,30 +641,6 @@ const MobileProductDetail = () => {
             {/* Variant Selector */}
             {product.variants && (
               <div className="mb-6">
-                {product.primaryColorName && (
-                  <div className="mb-3">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Product Color: <span className="font-normal text-gray-600">{product.primaryColorName}</span>
-                    </label>
-                    <div className="flex flex-wrap gap-3">
-                      <div
-                        className="relative w-12 h-12 rounded-full border-2 transition-all duration-300 border-gray-300"
-                        style={
-                          product.primaryColorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(product.primaryColorCode)
-                            ? { backgroundColor: product.primaryColorCode }
-                            : {}
-                        }
-                        title={product.primaryColorName}
-                      >
-                        {!(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).test(product.primaryColorCode || '') && (
-                          <span className="text-xs font-semibold text-gray-700 flex items-center justify-center h-full">
-                            {product.primaryColorName?.charAt(0)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
                 <VariantSelector
                   variants={product.variants}
                   onVariantChange={setSelectedVariant}

@@ -47,10 +47,11 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, full
     // Hide header for Chat
     !location.pathname.startsWith('/app/chat') &&
     // Hide header for Vendor Store
-    !location.pathname.startsWith('/app/vendor/');
+    !location.pathname.startsWith('/app/vendor/') &&
     !location.pathname.startsWith('/app/track-order') &&
     !location.pathname.startsWith('/app/return-request') &&
-    !location.pathname.startsWith('/app/returns');
+    !location.pathname.startsWith('/app/returns') &&
+    !location.pathname.startsWith('/app/order-confirmation');
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {
