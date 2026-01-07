@@ -192,10 +192,41 @@ const MobileProductDetail = () => {
 
   const productImages = useMemo(() => {
     if (!product) return [];
-    return product.images && product.images.length > 0
-      ? product.images
-      : [product.image];
-  }, [product]);
+
+    const images = [];
+
+    // Always put main image first (User requirement)
+    if (product.image) {
+      images.push(product.image);
+    }
+
+    // Add gallery images, avoiding duplicates
+    if (product.images && product.images.length > 0) {
+      product.images.forEach((img) => {
+        if (img && !images.includes(img)) {
+          images.push(img);
+        }
+      });
+    }
+
+    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined) {
+      const cv = product.variants.colorVariants[selectedVariant.colorIndex];
+      // Add variant gallery images next to main image
+      if (cv?.images && Array.isArray(cv.images)) {
+        cv.images.forEach((vimg) => {
+          if (vimg && !images.includes(vimg)) {
+            images.push(vimg);
+          }
+        });
+      }
+      // Put thumbnail first after main image
+      if (cv?.thumbnailImage && !images.includes(cv.thumbnailImage)) {
+        images.splice(1, 0, cv.thumbnailImage);
+      }
+    }
+
+    return images.length > 0 ? images : (product.image ? [product.image] : []);
+  }, [product, selectedVariant]);
 
   const currentPrice = useMemo(() => {
     if (!product) return 0;
@@ -558,6 +589,14 @@ const MobileProductDetail = () => {
                   ✗ Out of Stock
                 </p>
               )}
+              {product.variants?.colorVariants && selectedVariant?.colorIndex !== undefined && selectedVariant?.sizeIndex !== undefined && (
+                <p className="text-gray-700 font-semibold text-sm">
+                  Selected Variation:{" "}
+                  <span className="text-gray-900">
+                    {product.variants.colorVariants[selectedVariant.colorIndex]?.sizeVariants?.[selectedVariant.sizeIndex]?.stockQuantity ?? 0} available
+                  </span>
+                </p>
+              )}
             </div>
 
             {/* Unit */}
@@ -566,10 +605,36 @@ const MobileProductDetail = () => {
             {/* Variant Selector */}
             {product.variants && (
               <div className="mb-6">
+                {product.primaryColorName && (
+                  <div className="mb-3">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Product Color: <span className="font-normal text-gray-600">{product.primaryColorName}</span>
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      <div
+                        className="relative w-12 h-12 rounded-full border-2 transition-all duration-300 border-gray-300"
+                        style={
+                          product.primaryColorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(product.primaryColorCode)
+                            ? { backgroundColor: product.primaryColorCode }
+                            : {}
+                        }
+                        title={product.primaryColorName}
+                      >
+                        {!(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/).test(product.primaryColorCode || '') && (
+                          <span className="text-xs font-semibold text-gray-700 flex items-center justify-center h-full">
+                            {product.primaryColorName?.charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <VariantSelector
                   variants={product.variants}
                   onVariantChange={setSelectedVariant}
                   currentPrice={product.price}
+                  primaryColorName={product.primaryColorName}
+                  primaryColorCode={product.primaryColorCode}
                 />
               </div>
             )}
@@ -591,7 +656,11 @@ const MobileProductDetail = () => {
                 </span>
                 <button
                   onClick={() => handleQuantityChange(1)}
-                  disabled={quantity >= (product.stockQuantity || 10)}
+                  disabled={
+                    selectedVariant && product.variants?.colorVariants && selectedVariant.sizeIndex !== undefined
+                      ? quantity >= (product.variants.colorVariants[selectedVariant.colorIndex]?.sizeVariants?.[selectedVariant.sizeIndex]?.stockQuantity || 0)
+                      : quantity >= (product.stockQuantity || 10)
+                  }
                   className="w-12 h-12 flex items-center justify-center rounded-xl bg-gray-100 border border-gray-300 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                   <FiPlus className="text-gray-600" />
                 </button>

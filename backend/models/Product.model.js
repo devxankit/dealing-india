@@ -39,6 +39,16 @@ const productSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    primaryColorName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    primaryColorCode: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     image: {
       type: String,
       default: null,
@@ -270,6 +280,14 @@ const productSchema = new mongoose.Schema(
               type: String,
               default: null,
             },
+            images: {
+              type: [String],
+              default: [],
+            },
+            imagesPublicIds: {
+              type: [String],
+              default: [],
+            },
             sizeVariants: {
               type: [
                 {
@@ -356,4 +374,3 @@ productSchema.index({ rating: -1, reviewCount: -1 });
 const Product = mongoose.model('Product', productSchema);
 
 export default Product;
-

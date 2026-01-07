@@ -24,6 +24,8 @@ const AddProduct = () => {
   const [formData, setFormData] = useState({
     name: "",
     unit: "",
+    primaryColorName: "",
+    primaryColorCode: "",
     price: "",
     originalPrice: "",
     image: "",
@@ -215,6 +217,7 @@ const AddProduct = () => {
       colorName: "",
       colorCode: "",
       thumbnailImage: "",
+      images: [],
       sizeVariants: [],
     };
 
@@ -274,6 +277,61 @@ const AddProduct = () => {
       toast.error("Error reading image file");
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleColorVariantImagesUpload = (index, files) => {
+    const fileList = Array.from(files || []);
+    if (fileList.length === 0) return;
+    const validFiles = fileList.filter((file) => {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} is not an image file`);
+        return false;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} size should be less than 5MB`);
+        return false;
+      }
+      return true;
+    });
+    if (validFiles.length === 0) return;
+    Promise.all(
+      validFiles.map(
+        (file) =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          })
+      )
+    )
+      .then((results) => {
+        setColorVariants((prev) => {
+          const updated = [...prev];
+          const existing = updated[index]?.images || [];
+          updated[index] = {
+            ...updated[index],
+            images: [...existing, ...results],
+          };
+          return updated;
+        });
+        toast.success(`${validFiles.length} image(s) added to variant`);
+      })
+      .catch(() => {
+        toast.error("Error reading image files");
+      });
+  };
+
+  const removeColorVariantImage = (colorIndex, imageIndex) => {
+    setColorVariants((prev) => {
+      const updated = [...prev];
+      const imgs = updated[colorIndex]?.images || [];
+      updated[colorIndex] = {
+        ...updated[colorIndex],
+        images: imgs.filter((_, i) => i !== imageIndex),
+      };
+      return updated;
+    });
   };
 
   // Size variant management functions
@@ -405,6 +463,11 @@ const AddProduct = () => {
     // Validation
     if (!formData.name || !formData.price) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!formData.primaryColorName || formData.primaryColorName.trim() === "") {
+      toast.error("Please select the main product color");
       return;
     }
 
@@ -656,6 +719,48 @@ const AddProduct = () => {
                         { value: "sqm", label: "Square Meter (sqm)" },
                       ]}
                     />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Main Product Color <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <ColorPicker
+                        selectedColors={formData.primaryColorName ? [{
+                          name: formData.primaryColorName,
+                          value: formData.primaryColorCode || formData.primaryColorName.toLowerCase()
+                        }] : []}
+                        onChange={(colors) => {
+                          const color = colors && colors.length > 0 ? colors[colors.length - 1] : null;
+                          if (color && color.name) {
+                            setFormData(prev => ({
+                              ...prev,
+                              primaryColorName: color.name,
+                              primaryColorCode: color.value || color.name.toLowerCase().replace(/\s+/g, '-')
+                            }));
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              primaryColorName: "",
+                              primaryColorCode: ""
+                            }));
+                          }
+                        }}
+                      />
+                      <div
+                        className="w-8 h-8 rounded-full border-2 border-gray-300"
+                        style={
+                          formData.primaryColorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(formData.primaryColorCode)
+                            ? { backgroundColor: formData.primaryColorCode }
+                            : {}
+                        }
+                        title={formData.primaryColorName || "No color selected"}
+                      />
+                      <span className="text-xs text-gray-600">
+                        {formData.primaryColorName || "Select a color"}
+                      </span>
+                    </div>
                   </div>
 
                   <div>
@@ -1333,6 +1438,65 @@ const AddProduct = () => {
                                 alt="Thumbnail"
                                 className="w-16 h-16 object-cover rounded-lg border-2 border-primary-300"
                               />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Variant Images */}
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Variant Images
+                          </label>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={(e) =>
+                                  handleColorVariantImagesUpload(
+                                    colorIndex,
+                                    e.target.files
+                                  )
+                                }
+                                className="hidden"
+                                id={`color-images-${colorIndex}`}
+                              />
+                              <label
+                                htmlFor={`color-images-${colorIndex}`}
+                                className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white text-sm">
+                                <FiUpload className="text-base text-primary-600" />
+                                <span className="text-xs font-medium text-gray-700">
+                                  Upload Images
+                                </span>
+                              </label>
+                              <span className="text-xs text-gray-500">
+                                {colorVariant.images?.length || 0} image(s)
+                              </span>
+                            </div>
+                            {colorVariant.images && colorVariant.images.length > 0 && (
+                              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                {colorVariant.images.map((img, idx) => (
+                                  <div key={idx} className="relative group">
+                                    <img
+                                      src={img}
+                                      alt={`Variant ${idx + 1}`}
+                                      className="w-full h-16 object-cover rounded-lg border-2 border-primary-300"
+                                      onError={(e) => {
+                                        e.target.style.display = "none";
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeColorVariantImage(colorIndex, idx)}
+                                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                      title="Remove image"
+                                    >
+                                      <FiTrash2 className="text-xs" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
                         </div>

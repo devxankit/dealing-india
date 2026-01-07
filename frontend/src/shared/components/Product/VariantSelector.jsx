@@ -2,34 +2,18 @@ import { useState, useEffect } from 'react';
 import { FiCheck } from 'react-icons/fi';
 import { formatPrice } from '../../utils/helpers';
 
-const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
+const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColorName, primaryColorCode }) => {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedColorIndex, setSelectedColorIndex] = useState(null);
 
   useEffect(() => {
-    // Initialize with default variant or first available
+    // Initialize with default variant if available
     if (variants) {
-      // New colorVariants structure
-      if (variants.colorVariants && variants.colorVariants.length > 0) {
-        const firstColor = variants.colorVariants[0];
-        if (firstColor.sizeVariants && firstColor.sizeVariants.length > 0) {
-          setSelectedColorIndex(0);
-          setSelectedVariant({
-            color: firstColor.colorName,
-            colorIndex: 0,
-            size: firstColor.sizeVariants[0].size,
-            sizeIndex: 0,
-          });
-        }
-      }
-      // Legacy structure support
-      else if (variants.defaultVariant) {
+      // Prioritize explicit defaultVariant
+      if (variants.defaultVariant) {
         setSelectedVariant(variants.defaultVariant);
-      } else if (variants.sizes && variants.sizes.length > 0) {
-        setSelectedVariant({ size: variants.sizes[0] });
-      } else if (variants.colors && variants.colors.length > 0) {
-        setSelectedVariant({ color: variants.colors[0] });
       }
+      // Do NOT auto-select first variant to allow main product details to be shown
     }
   }, [variants]);
 
@@ -52,13 +36,13 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
       const colorIndex = colorIndexOrColor;
       const colorVariant = variants.colorVariants[colorIndex];
       setSelectedColorIndex(colorIndex);
-      
+
       // Auto-select first available size for the color
       if (colorVariant.sizeVariants && colorVariant.sizeVariants.length > 0) {
         const firstAvailableSize = colorVariant.sizeVariants.find(
           (sv) => sv.stockQuantity > 0
         ) || colorVariant.sizeVariants[0];
-        
+
         setSelectedVariant({
           color: colorVariant.colorName,
           colorIndex,
@@ -80,11 +64,18 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
     }
   };
 
+  const handlePrimaryColorSelect = () => {
+    setSelectedColorIndex(null);
+    setSelectedVariant({
+      color: primaryColorName,
+    });
+  };
+
   const handleSizeSelect = (sizeIndex) => {
     if (selectedColorIndex !== null) {
       const colorVariant = variants.colorVariants[selectedColorIndex];
       const sizeVariant = colorVariant.sizeVariants[sizeIndex];
-      
+
       setSelectedVariant({
         color: colorVariant.colorName,
         colorIndex: selectedColorIndex,
@@ -121,7 +112,7 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
         return variants.prices[selectedVariant.color];
       }
     }
-    
+
     return currentPrice;
   };
 
@@ -156,22 +147,45 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
               </span>
             </label>
             <div className="flex flex-wrap gap-3">
+              {primaryColorName && (
+                <button
+                  onClick={handlePrimaryColorSelect}
+                  className={`relative w-12 h-12 rounded-full border-2 transition-all duration-300 ${selectedColorIndex === null && selectedVariant?.color === primaryColorName
+                      ? 'border-primary-600 scale-110 shadow-lg'
+                      : 'border-gray-300 hover:border-primary-400 hover:scale-105'
+                    }`}
+                  style={
+                    primaryColorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(primaryColorCode)
+                      ? { backgroundColor: primaryColorCode }
+                      : {}
+                  }
+                  title={primaryColorName}
+                >
+                  {!primaryColorCode || !/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(primaryColorCode) && (
+                    <span className="text-xs font-semibold text-gray-700">{primaryColorName.charAt(0)}</span>
+                  )}
+                  {selectedColorIndex === null && selectedVariant?.color === primaryColorName && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
+                      <FiCheck className="text-white text-xs" />
+                    </span>
+                  )}
+                </button>
+              )}
               {variants.colorVariants.map((colorVariant, index) => {
                 const isSelected = selectedColorIndex === index;
                 const hasStock = colorVariant.sizeVariants?.some(sv => sv.stockQuantity > 0);
-                
+
                 return (
                   <button
                     key={index}
                     onClick={() => handleColorSelect(index)}
                     disabled={!hasStock}
-                    className={`relative rounded-lg border-2 transition-all duration-300 overflow-hidden ${
-                      isSelected
+                    className={`relative rounded-lg border-2 transition-all duration-300 overflow-hidden ${isSelected
                         ? 'border-primary-600 scale-105 shadow-lg'
                         : hasStock
-                        ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
-                        : 'border-gray-200 opacity-50 cursor-not-allowed'
-                    }`}
+                          ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
+                          : 'border-gray-200 opacity-50 cursor-not-allowed'
+                      }`}
                     title={colorVariant.colorName}
                   >
                     {colorVariant.thumbnailImage ? (
@@ -234,19 +248,18 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
                 {getSelectedSizeVariants().map((sizeVariant, index) => {
                   const isSelected = selectedVariant?.sizeIndex === index;
                   const isAvailable = isSizeAvailable(sizeVariant);
-                  
+
                   return (
                     <button
                       key={index}
                       onClick={() => handleSizeSelect(index)}
                       disabled={!isAvailable}
-                      className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${
-                        isSelected
+                      className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${isSelected
                           ? 'border-primary-600 bg-primary-50 text-primary-700'
                           : isAvailable
-                          ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
-                          : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
-                      }`}
+                            ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
+                            : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                        }`}
                       title={`Stock: ${sizeVariant.stockQuantity}`}
                     >
                       {sizeVariant.size}
@@ -264,6 +277,16 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
                   );
                 })}
               </div>
+              {selectedVariant?.sizeIndex !== undefined && selectedColorIndex !== null && (
+                <div className="mt-2">
+                  <span className="text-xs font-semibold text-gray-700">
+                    Available:{" "}
+                    <span className="text-gray-900">
+                      {variants.colorVariants[selectedColorIndex]?.sizeVariants?.[selectedVariant.sizeIndex]?.stockQuantity ?? 0}
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </>
@@ -279,19 +302,18 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
             {variants.sizes.map((size, index) => {
               const isSelected = selectedVariant?.size === size;
               const isAvailable = isVariantAvailable('size', size);
-              
+
               return (
                 <button
                   key={size}
                   onClick={() => handleSizeSelect(index)}
                   disabled={!isAvailable}
-                  className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${
-                    isSelected
+                  className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${isSelected
                       ? 'border-primary-600 bg-primary-50 text-primary-700'
                       : isAvailable
-                      ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
-                      : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
-                  }`}
+                        ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
+                        : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                    }`}
                 >
                   {size}
                   {isSelected && (
@@ -316,27 +338,26 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
             {variants.colors.map((color) => {
               const isSelected = selectedVariant?.color === color;
               const isAvailable = isVariantAvailable('color', color);
-              
+
               // Check if color is a hex code or color name
               const isHexColor = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
-              
+
               return (
                 <button
                   key={color}
                   onClick={() => handleColorSelect(color)}
                   disabled={!isAvailable}
-                  className={`relative w-12 h-12 rounded-full border-2 transition-all duration-300 ${
-                    isSelected
+                  className={`relative w-12 h-12 rounded-full border-2 transition-all duration-300 ${isSelected
                       ? 'border-primary-600 scale-110 shadow-lg'
                       : isAvailable
-                      ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
-                      : 'border-gray-200 opacity-50 cursor-not-allowed'
-                  }`}
+                        ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
+                        : 'border-gray-200 opacity-50 cursor-not-allowed'
+                    }`}
                   style={
                     isHexColor
                       ? {
-                          backgroundColor: color,
-                        }
+                        backgroundColor: color,
+                      }
                       : {}
                   }
                   title={color}
@@ -368,4 +389,3 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
 };
 
 export default VariantSelector;
-

@@ -25,12 +25,12 @@ const MobileCategory = () => {
   // Initialize store on mount and refresh periodically
   useEffect(() => {
     initialize(true); // Force refresh on mount
-    
+
     // Refresh categories every 30 seconds to catch new additions
     const refreshInterval = setInterval(() => {
       initialize(true);
     }, 30000);
-    
+
     return () => clearInterval(refreshInterval);
   }, [initialize]);
 
@@ -51,7 +51,7 @@ const MobileCategory = () => {
     }
     return subs;
   }, [categoryId, categories, getCategoriesByParent]);
-  
+
   // Compute categories to show in filter
   const filterCategories = useMemo(() => {
     // First priority: subcategories of current category
@@ -79,25 +79,25 @@ const MobileCategory = () => {
   // State for selected nested subcategories (supports unlimited depth)
   // Structure: { level0: categoryId, level1: subcategoryId, level2: subSubcategoryId, ... }
   const [selectedNestedCategories, setSelectedNestedCategories] = useState({});
-  
+
   // State for dropdown visibility for each category
   const [openDropdowns, setOpenDropdowns] = useState({});
-  
+
   // State for filter dropdown visibility (for level 3+ categories)
   const [openFilterDropdowns, setOpenFilterDropdowns] = useState({});
 
   // Get nested subcategories recursively for any level
   const getNestedSubcategories = useCallback((parentId) => {
     if (!parentId) return [];
-    
+
     // Normalize parentId to string
     const normalizedParentId = parentId?.toString() || String(parentId);
-    
+
     // Get children categories
     const children = getCategoriesByParent(normalizedParentId).filter(
       (cat) => cat.isActive !== false
     );
-    
+
     return children;
   }, [getCategoriesByParent, categories]);
 
@@ -121,7 +121,7 @@ const MobileCategory = () => {
     while (currentParentId && level < 2 && level < maxLevels) {
       // Get children for current parent
       const children = getNestedSubcategories(currentParentId);
-      
+
       if (children.length === 0) {
         // No more children, stop
         break;
@@ -129,7 +129,7 @@ const MobileCategory = () => {
 
       // Get selected category ID for this level
       const selectedId = selectedNestedCategories[`level${level}`] || null;
-      
+
       // First 2 levels (0, 1) are shown as buttons
       buttonLevels.push({
         level,
@@ -146,7 +146,7 @@ const MobileCategory = () => {
           const catId = cat.id?.toString() || String(cat.id);
           return catId === normalizedSelectedId;
         });
-        
+
         if (selectedCategory) {
           // Move to next level with selected category as parent
           currentParentId = normalizedSelectedId;
@@ -165,20 +165,20 @@ const MobileCategory = () => {
     // This ensures all deeper categories are accessible even if not selected
     const buildDropdownsForCategory = (parentId, parentLevel, depth = 0) => {
       if (depth >= 18 || parentLevel >= maxLevels) return; // Limit depth to prevent infinite recursion
-      
+
       const children = getChildrenForCategory(parentId, parentLevel + 1);
       if (children.length === 0) return;
-      
+
       const normalizedParentId = parentId?.toString() || String(parentId);
       if (!dropdownLevels[normalizedParentId]) {
         dropdownLevels[normalizedParentId] = [];
       }
-      
+
       // Check if this level already exists in dropdowns
       const levelExists = dropdownLevels[normalizedParentId].some(
         dl => dl.level === parentLevel + 1 && dl.parentId === normalizedParentId
       );
-      
+
       if (!levelExists) {
         dropdownLevels[normalizedParentId].push({
           level: parentLevel + 1,
@@ -187,14 +187,14 @@ const MobileCategory = () => {
           categories: children,
         });
       }
-      
+
       // Recursively build for all children
       children.forEach(child => {
         const childId = child.id?.toString() || String(child.id);
         buildDropdownsForCategory(childId, parentLevel + 1, depth + 1);
       });
     };
-    
+
     if (buttonLevels.length > 0) {
       // Build dropdowns for all level 1 categories (these will show level 2+)
       const level1Data = buttonLevels.find(bl => bl.level === 1);
@@ -219,7 +219,7 @@ const MobileCategory = () => {
   }, [categoryId, selectedNestedCategories, getNestedSubcategories, getChildrenForCategory]);
 
   const { buttonLevels, dropdownLevels } = useMemo(() => getActiveNestedLevels(), [getActiveNestedLevels, categories]);
-  
+
   // Toggle dropdown for a category
   const toggleDropdown = (categoryId, forceOpen = null) => {
     const normalizedId = categoryId?.toString() || String(categoryId);
@@ -228,12 +228,12 @@ const MobileCategory = () => {
       [normalizedId]: forceOpen !== null ? forceOpen : !prev[normalizedId]
     }));
   };
-  
+
   // Close all dropdowns
   const closeAllDropdowns = () => {
     setOpenDropdowns({});
   };
-  
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -241,10 +241,10 @@ const MobileCategory = () => {
         closeAllDropdowns();
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
@@ -259,7 +259,7 @@ const MobileCategory = () => {
   // Auto-select first subcategory at each level (supports unlimited depth)
   useEffect(() => {
     if (!categoryId || categories.length === 0) return;
-    
+
     // Don't auto-select if user has manually selected something
     // Check if there are any manual selections beyond what auto-selection would create
     const hasManualSelections = Object.keys(selectedNestedCategories).length > 0;
@@ -268,33 +268,33 @@ const MobileCategory = () => {
       let isValid = true;
       let currentParentId = categoryId?.toString() || String(categoryId);
       let level = 0;
-      
+
       while (currentParentId && level < 20) {
         const selectedId = selectedNestedCategories[`level${level}`];
         if (!selectedId) break;
-        
+
         const children = getNestedSubcategories(currentParentId);
         const selectedCategory = children.find(cat => {
           const catId = cat.id?.toString() || String(cat.id);
           const selId = selectedId?.toString() || String(selectedId);
           return catId === selId;
         });
-        
+
         if (!selectedCategory) {
           isValid = false;
           break;
         }
-        
+
         currentParentId = selectedId?.toString() || String(selectedId);
         level++;
       }
-      
+
       if (isValid) {
         // Selections are still valid, don't override
         return;
       }
     }
-    
+
     const newSelections = {};
     let currentParentId = categoryId?.toString() || String(categoryId);
     let level = 0;
@@ -335,12 +335,12 @@ const MobileCategory = () => {
         newSelections[`level${index}`] = normalizedId;
       }
     });
-    
+
     // Clear deeper levels
     for (let i = categoryPath.length; i < 20; i++) {
       delete newSelections[`level${i}`];
     }
-    
+
     setSelectedNestedCategories(newSelections);
     setShowFilters(false);
   };
@@ -351,19 +351,19 @@ const MobileCategory = () => {
     // Normalize categoryId to string
     const normalizedId = categoryId?.toString() || String(categoryId);
     newSelections[`level${level}`] = normalizedId;
-    
+
     // Clear deeper levels when a category is selected
     for (let i = level + 1; i < 20; i++) {
       delete newSelections[`level${i}`];
     }
-    
+
     // Auto-select first child of selected category if it has children
     const children = getNestedSubcategories(normalizedId);
     if (children.length > 0) {
       const firstChild = children[0];
       const firstChildId = firstChild.id?.toString() || String(firstChild.id);
       newSelections[`level${level + 1}`] = firstChildId;
-      
+
       // Recursively auto-select deeper levels
       let currentParentId = firstChildId;
       let currentLevel = level + 2;
@@ -380,9 +380,9 @@ const MobileCategory = () => {
         }
       }
     }
-    
+
     setSelectedNestedCategories(newSelections);
-    
+
     // Auto-open dropdown for level 1 categories that have deeper levels (level 2+)
     if (level === 1) {
       const hasDeeperLevels = children.length > 0;
@@ -431,7 +431,7 @@ const MobileCategory = () => {
         }
       }
       console.log('Fetching products for category:', categoryIdToUse);
-      
+
       const result = await getProductsByCategory(categoryIdToUse, {
         minPrice: filters.minPrice || undefined,
         maxPrice: filters.maxPrice || undefined,
@@ -445,28 +445,28 @@ const MobileCategory = () => {
       });
 
       console.log('Products API response:', result);
-      
+
       // Handle different response structures
       const fetchedProducts = result.products || result.data?.products || result.data || [];
-      
+
       console.log('Fetched products:', fetchedProducts.length, fetchedProducts);
-      
+
       // Transform products to match frontend format
       const transformedProducts = fetchedProducts.map((product) => {
         // Handle vendor data - can be ObjectId or populated object
         const vendor = product.vendorId || product.vendor;
         const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
           ? {
-              id: (vendor._id || vendor.id).toString(),
-              _id: vendor._id || vendor.id,
-              storeName: vendor.storeName || vendor.businessName || vendor.name,
-              businessName: vendor.businessName,
-              name: vendor.name,
-              storeLogo: vendor.storeLogo || vendor.logo,
-              isVerified: vendor.isVerified !== undefined 
-                ? vendor.isVerified 
-                : (vendor.status === 'approved' || vendor.isEmailVerified || false),
-            }
+            id: (vendor._id || vendor.id).toString(),
+            _id: vendor._id || vendor.id,
+            storeName: vendor.storeName || vendor.businessName || vendor.name,
+            businessName: vendor.businessName,
+            name: vendor.name,
+            storeLogo: vendor.storeLogo || vendor.logo,
+            isVerified: vendor.isVerified !== undefined
+              ? vendor.isVerified
+              : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+          }
           : null;
 
         return {
@@ -636,26 +636,26 @@ const MobileCategory = () => {
                 className="p-1.5 hover:bg-gray-100 rounded-full transition-colors">
                 <FiArrowLeft className="text-lg text-gray-700" />
               </button>
-              
+
               <div className="flex-1 flex items-center gap-2 overflow-hidden">
                 <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                <LazyImage
-                  src={category.image}
-                  alt={category.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
+                  <LazyImage
+                    src={category.image}
+                    alt={category.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
                       e.target.src = getPlaceholderImage(32, 32, "Category");
-                  }}
-                />
-              </div>
+                    }}
+                  />
+                </div>
                 <div className="overflow-hidden">
                   <h1 className="text-base font-bold text-gray-800 truncate leading-tight">
-                  {category.name}
-                </h1>
+                    {category.name}
+                  </h1>
                   <p className="text-[10px] text-gray-500 leading-none">
                     {loadingProducts ? "Loading..." : `${products.length} products`}
-                </p>
-              </div>
+                  </p>
+                </div>
               </div>
 
               <div className="flex items-center gap-1.5">
@@ -663,24 +663,22 @@ const MobileCategory = () => {
                 <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`p-1 rounded transition-colors ${
-                      viewMode === "list"
-                        ? "bg-white text-primary-600 shadow-sm"
-                        : "text-gray-500"
-                    }`}>
+                    className={`p-1 rounded transition-colors ${viewMode === "list"
+                      ? "bg-white text-primary-600 shadow-sm"
+                      : "text-gray-500"
+                      }`}>
                     <FiList className="text-base" />
                   </button>
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`p-1 rounded transition-colors ${
-                      viewMode === "grid"
-                        ? "bg-white text-primary-600 shadow-sm"
-                        : "text-gray-500"
-                    }`}>
+                    className={`p-1 rounded transition-colors ${viewMode === "grid"
+                      ? "bg-white text-primary-600 shadow-sm"
+                      : "text-gray-500"
+                      }`}>
                     <FiGrid className="text-base" />
                   </button>
                 </div>
-                
+
                 <div className="relative">
                   <button
                     onClick={() => {
@@ -689,13 +687,11 @@ const MobileCategory = () => {
                       }
                       setShowFilters(!showFilters);
                     }}
-                    className={`p-1.5 glass-card rounded-lg hover:bg-white/80 transition-colors ${
-                      showFilters ? "bg-white/80" : ""
-                    }`}>
+                    className={`p-1.5 glass-card rounded-lg hover:bg-white/80 transition-colors ${showFilters ? "bg-white/80" : ""
+                      }`}>
                     <FiFilter
-                      className={`text-base transition-colors ${
-                        hasActiveFilters ? "text-blue-600" : "text-gray-500"
-                      }`}
+                      className={`text-base transition-colors ${hasActiveFilters ? "text-blue-600" : "text-gray-500"
+                        }`}
                     />
                   </button>
 
@@ -705,13 +701,13 @@ const MobileCategory = () => {
                     filters={filters}
                     onFilterChange={handleFilterChange}
                     onClearFilters={clearFilters}
-                    hideCategoryFilter={true}
+                    hideCategoryFilter={false}
                     deepestCategoryId={deepestCategoryId}
                   />
-                          </div>
-                        </div>
-                                </div>
-                              </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Scrollable Content Area */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-behavior-smooth pb-24">
@@ -724,15 +720,30 @@ const MobileCategory = () => {
                     <span className="text-xs text-gray-500">{subcategories.length} available</span>
                   </div>
                   {viewMode === "grid" ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3 md:gap-4">
+                    <div className="flex overflow-x-auto overflow-y-hidden flex-nowrap gap-3 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {subcategories.map((sub, index) => (
                         <motion.button
                           key={sub.id}
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: index * 0.05 }}
-                          onClick={() => navigate(`/app/category/${sub.id}`)}
-                          className="flex flex-col items-center gap-2 active:scale-95 transition-all p-2 rounded-2xl hover:bg-gray-50/50"
+                          onClick={() => {
+                            if (sub.isFilterOnly === true || sub.isFilterOnly === 'true') {
+                              // If already selected, clear it (toggle behavior)
+                              if (selectedNestedCategories.level0 === sub.id) {
+                                setSelectedNestedCategories({});
+                              } else {
+                                handleNestedCategorySelect(0, sub.id);
+                                setShowFilters(true); // Open search panel as requested
+                              }
+                            } else {
+                              navigate(`/app/category/${sub.id}`);
+                            }
+                          }}
+                          className={`flex-shrink-0 w-[calc((100%-24px)/3)] snap-start flex flex-col items-center gap-2 active:scale-95 transition-all p-2 rounded-2xl border-2 ${selectedNestedCategories.level0 === sub.id
+                            ? "border-primary-500 bg-primary-50/50 shadow-sm"
+                            : "border-transparent hover:bg-gray-50/50"
+                            }`}
                         >
                           <div className="w-20 h-20 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-gray-50 border-2 border-white shadow-sm hover:shadow-md transition-shadow">
                             <LazyImage
@@ -758,8 +769,22 @@ const MobileCategory = () => {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          onClick={() => navigate(`/app/category/${sub.id}`)}
-                          className="flex items-center gap-4 p-3 bg-white rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-all w-full text-left"
+                          onClick={() => {
+                            if (sub.isFilterOnly === true || sub.isFilterOnly === 'true') {
+                              if (selectedNestedCategories.level0 === sub.id) {
+                                setSelectedNestedCategories({});
+                              } else {
+                                handleNestedCategorySelect(0, sub.id);
+                                setShowFilters(true); // Open search panel as requested
+                              }
+                            } else {
+                              navigate(`/app/category/${sub.id}`);
+                            }
+                          }}
+                          className={`flex items-center gap-4 p-3 rounded-xl border-2 transition-all w-full text-left active:scale-95 ${selectedNestedCategories.level0 === sub.id
+                            ? "border-primary-500 bg-primary-50 shadow-sm"
+                            : "border-gray-100 bg-white shadow-sm"
+                            }`}
                         >
                           <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
                             <LazyImage
@@ -779,7 +804,11 @@ const MobileCategory = () => {
                               Explore subcategories
                             </p>
                           </div>
-                          <FiChevronRight className="text-gray-400" />
+                          {sub.isFilterOnly ? (
+                            <FiFilter className={selectedNestedCategories.level0 === sub.id ? "text-primary-600" : "text-gray-400"} />
+                          ) : (
+                            <FiChevronRight className="text-gray-400" />
+                          )}
                         </motion.button>
                       ))}
                     </div>
@@ -850,7 +879,7 @@ const MobileCategory = () => {
                         <ProductListItem product={product} />
                       </motion.div>
                     ))}
-                    
+
                     {hasMore && (
                       <div
                         ref={loadMoreRef}
