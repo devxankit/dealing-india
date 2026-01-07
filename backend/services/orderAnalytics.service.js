@@ -15,13 +15,13 @@ export const getTodayOrdersAnalytics = async (date) => {
     const stats = await Order.aggregate([
         {
             $match: {
-                orderDate: { $gte: startOfDay, $lte: endOfDay },
+                createdAt: { $gte: startOfDay, $lte: endOfDay },
                 status: { $nin: ['cancelled', 'refunded'] }
             }
         },
         {
             $group: {
-                _id: { $hour: '$orderDate' },
+                _id: { $hour: '$createdAt' },
                 orders: { $sum: 1 },
                 revenue: { $sum: '$total' }
             }
@@ -54,13 +54,13 @@ export const getWeeklyOrdersAnalytics = async () => {
     const stats = await Order.aggregate([
         {
             $match: {
-                orderDate: { $gte: startDate, $lte: endDate },
+                createdAt: { $gte: startDate, $lte: endDate },
                 status: { $nin: ['cancelled', 'refunded'] }
             }
         },
         {
             $group: {
-                _id: { $dateToString: { format: '%Y-%m-%d', date: '$orderDate' } },
+                _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
                 orders: { $sum: 1 },
                 revenue: { $sum: '$total' }
             }
@@ -97,13 +97,13 @@ export const getMonthlyOrdersAnalytics = async () => {
     const stats = await Order.aggregate([
         {
             $match: {
-                orderDate: { $gte: startDate, $lte: endDate },
+                createdAt: { $gte: startDate, $lte: endDate },
                 status: { $nin: ['cancelled', 'refunded'] }
             }
         },
         {
             $group: {
-                _id: { $dateToString: { format: '%Y-%m-%d', date: '$orderDate' } },
+                _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
                 orders: { $sum: 1 },
                 revenue: { $sum: '$total' }
             }
@@ -140,13 +140,13 @@ export const getYearlyOrdersAnalytics = async () => {
     const stats = await Order.aggregate([
         {
             $match: {
-                orderDate: { $gte: startDate, $lte: endDate },
+                createdAt: { $gte: startDate, $lte: endDate },
                 status: { $nin: ['cancelled', 'refunded'] }
             }
         },
         {
             $group: {
-                _id: { $dateToString: { format: '%Y-%m', date: '$orderDate' } },
+                _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
                 orders: { $sum: 1 },
                 revenue: { $sum: '$total' }
             }

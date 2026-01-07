@@ -305,7 +305,9 @@ export const getAdminOrderStats = async () => {
     console.error('Error fetching admin order stats:', error);
     throw error;
   }
-};/**
+};
+
+/**
  * Get admin order analytics for charts
  * @param {Object} params - { type, date }
  * @returns {Promise<Object>} Analytics data
@@ -317,7 +319,8 @@ export const getAdminOrderAnalytics = async (params = {}) => {
     if (params.date) queryParams.append('date', params.date);
 
     const response = await api.get(`/admin/reports/order-analytics?${queryParams.toString()}`);
-    return response.data;
+    // response is already unwrapped by axios interceptor, so it's the backend JSON: { success, data }
+    return response;
   } catch (error) {
     console.error('Error fetching order analytics:', error);
     throw error;
