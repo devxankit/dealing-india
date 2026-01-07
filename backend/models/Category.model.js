@@ -53,6 +53,10 @@ const categorySchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    isFilterOnly: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

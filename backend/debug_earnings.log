@@ -410,3 +410,35 @@
 [2026-01-07T05:59:16.411Z] Found 2 products
 [2026-01-07T05:59:16.441Z] Found 1 orders in DB
 [2026-01-07T05:59:16.442Z] Final: Orders=1, Total=3840, Pending=0
+[2026-01-07T05:14:48.130Z] Vendor: 6952230e25b9a947bdbc19a1
+[2026-01-07T05:14:48.133Z] Found 21 products
+[2026-01-07T05:14:48.161Z] Found 7 orders in DB
+[2026-01-07T05:14:48.163Z] Final: Orders=7, Total=11429.099999999999, Pending=8161.2
+[2026-01-07T05:14:48.246Z] Vendor: 6952230e25b9a947bdbc19a1
+[2026-01-07T05:14:48.247Z] Found 21 products
+[2026-01-07T05:14:48.280Z] Found 7 orders in DB
+[2026-01-07T05:14:48.281Z] Final: Orders=7, Total=11429.099999999999, Pending=8161.2
+[2026-01-07T06:23:29.152Z] Vendor: 6952230e25b9a947bdbc19a1
+[2026-01-07T06:23:29.158Z] Found 21 products
+[2026-01-07T06:23:29.191Z] Found 7 orders in DB
+[2026-01-07T06:23:29.194Z] Final: Orders=7, Total=11429.099999999999, Pending=8161.2
+[2026-01-07T06:23:29.285Z] Vendor: 6952230e25b9a947bdbc19a1
+[2026-01-07T06:23:29.285Z] Found 21 products
+[2026-01-07T06:23:29.316Z] Found 7 orders in DB
+[2026-01-07T06:23:29.317Z] Final: Orders=7, Total=11429.099999999999, Pending=8161.2
+[2026-01-07T06:23:51.797Z] Vendor: 695cbfa6b0ae56e5cfb7db09
+[2026-01-07T06:23:51.797Z] Found 2 products
+[2026-01-07T06:23:51.832Z] Found 1 orders in DB
+[2026-01-07T06:23:51.833Z] Final: Orders=1, Total=3840, Pending=0
+[2026-01-07T06:23:51.954Z] Vendor: 695cbfa6b0ae56e5cfb7db09
+[2026-01-07T06:23:51.956Z] Found 2 products
+[2026-01-07T06:23:51.994Z] Found 1 orders in DB
+[2026-01-07T06:23:51.996Z] Final: Orders=1, Total=3840, Pending=0
+[2026-01-07T07:13:30.350Z] Vendor: 695cbfa6b0ae56e5cfb7db09
+[2026-01-07T07:13:30.362Z] Found 2 products
+[2026-01-07T07:13:30.395Z] Found 1 orders in DB
+[2026-01-07T07:13:30.397Z] Final: Orders=1, Total=3840, Pending=0
+[2026-01-07T07:13:30.503Z] Vendor: 695cbfa6b0ae56e5cfb7db09
+[2026-01-07T07:13:30.504Z] Found 2 products
+[2026-01-07T07:13:30.535Z] Found 1 orders in DB
+[2026-01-07T07:13:30.536Z] Final: Orders=1, Total=3840, Pending=0

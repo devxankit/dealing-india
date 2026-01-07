@@ -24,7 +24,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
       ? getCategoryById(category.parentId)
       : null;
 
-  // Calculate category depth (1 = root, 2 = subcategory, 3 = sub-subcategory)
+  // Calculate category depth (1 = root, 2 = subcategory, 3 = sub-subcategory, 4 = deepest)
   const getCategoryDepth = (catId) => {
     if (!catId) return 1;
     let depth = 1;
@@ -39,7 +39,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
       if (!cat || !cat.parentId) break;
 
       depth++;
-      if (depth > 3) return depth; // Already exceeded
+      if (depth > 4) return depth; // Already exceeded
       currentId = cat.parentId;
     }
 
@@ -47,10 +47,10 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
   };
 
   // Get current category depth
-  const currentDepth = isEdit && category?.parentId 
-    ? getCategoryDepth(category.parentId) + 1 
-    : parentId 
-      ? getCategoryDepth(parentId) + 1 
+  const currentDepth = isEdit && category?.parentId
+    ? getCategoryDepth(category.parentId) + 1
+    : parentId
+      ? getCategoryDepth(parentId) + 1
       : 1;
 
   const [formData, setFormData] = useState({
@@ -63,6 +63,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     order: 0,
     showInHeader: false,
     headerColor: null,
+    isFilterOnly: false,
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [imageFile, setImageFile] = useState(null);
@@ -353,6 +354,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         order: category.order || 0,
         showInHeader: category.showInHeader !== undefined ? category.showInHeader : false,
         headerColor: category.headerColor || null,
+        isFilterOnly: category.isFilterOnly || false,
       });
       // Set preview if image exists
       if (category.image) {
@@ -374,6 +376,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         order: 0,
         showInHeader: false,
         headerColor: null,
+        isFilterOnly: false,
       });
       setImagePreview(null);
       setImageFile(null);
@@ -465,8 +468,8 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     // Validate depth before submission
     if (!isEdit && formData.parentId) {
       const parentDepth = getCategoryDepth(formData.parentId);
-      if (parentDepth >= 3) {
-        toast.error("Maximum category depth reached. Cannot create subcategories beyond level 3.");
+      if (parentDepth >= 4) {
+        toast.error("Maximum category depth reached. Cannot create subcategories beyond level 4.");
         return;
       }
     }
@@ -493,10 +496,10 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     }
   };
 
-  // Get available parent categories (exclude current category, its children, and categories that would exceed level 3)
+  // Get available parent categories (exclude current category, its children, and categories that would exceed level 4)
   const getAvailableParents = () => {
     let available = categories.filter((cat) => cat.isActive);
-    
+
     // Exclude current category if editing
     if (isEdit) {
       available = available.filter((cat) => cat.id !== category.id);
@@ -506,6 +509,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     // - Level 1 (root): Only root categories (depth 1) as parent
     // - Level 2 (first subcategory): Only Level 1 (root) parents (depth 1)
     // - Level 3 (second subcategory): Only Level 2 parents (depth 2)
+    // - Level 4 (deepest subcategory): Only Level 3 parents (depth 3)
     if (currentDepth === 1) {
       // Creating root category - allow all root categories (depth 1) as parent
       available = available.filter((cat) => {
@@ -518,11 +522,11 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         const catDepth = getCategoryDepth(cat.id);
         return catDepth === 1; // Only root categories
       });
-    } else if (currentDepth === 3) {
-      // Creating second subcategory - only allow Level 2 parents
+    } else if (currentDepth >= 3) {
+      // Creating higher level subcategory (Level 3 or 4) - only allow immediate parent level
       available = available.filter((cat) => {
         const catDepth = getCategoryDepth(cat.id);
-        return catDepth === 2; // Only Level 2 categories
+        return catDepth === currentDepth - 1;
       });
     }
 
@@ -670,7 +674,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                     </label>
                     {/* Show parent selector ONLY for Level 1 (root) when creating new category without parentId prop */}
                     {/* If parentId prop is passed, parent is fixed (for first subcategory) */}
-                    {/* Level 3 (second subcategory) also has fixed parent */}
+                    {/* Level 3 & 4 subcategories also have fixed parent */}
                     {currentDepth === 1 && !parentId && !isEdit ? (
                       <>
                         <AnimatedSelect
@@ -688,9 +692,9 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                         />
                         {formData.parentId && (
                           <p className="text-xs text-gray-500 mt-1">
-                            Selected parent is at level {getCategoryDepth(formData.parentId)}. 
-                            {getCategoryDepth(formData.parentId) >= 3 
-                              ? " Cannot create subcategories beyond level 3." 
+                            Selected parent is at level {getCategoryDepth(formData.parentId)}.
+                            {getCategoryDepth(formData.parentId) >= 4
+                              ? " Cannot create subcategories beyond level 4."
                               : ` This will create a level ${getCategoryDepth(formData.parentId) + 1} category.`}
                           </p>
                         )}
@@ -780,113 +784,113 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
               )}
 
               {/* Image */}
-              {currentDepth === 1 || currentDepth === 2 || currentDepth === 3 ? (
-              <div>
+              {currentDepth >= 1 && currentDepth <= 4 ? (
                 <div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">
-                    Category Image
-                  </h3>
-                  <div className="space-y-4">
-                    {/* Upload Method Toggle */}
-                    <div className="flex gap-2 mb-4">
-                      <button
-                        type="button"
-                        onClick={() => setUploadMethod("upload")}
-                        className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition-all ${uploadMethod === "upload"
-                          ? "bg-primary-600 text-white shadow-md"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                      >
-                        <FiUpload className="inline-block mr-2" />
-                        Upload Image
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setUploadMethod("url")}
-                        className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition-all ${uploadMethod === "url"
-                          ? "bg-primary-600 text-white shadow-md"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          }`}
-                      >
-                        Image URL
-                      </button>
-                    </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">
+                      Category Image
+                    </h3>
+                    <div className="space-y-4">
+                      {/* Upload Method Toggle */}
+                      <div className="flex gap-2 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => setUploadMethod("upload")}
+                          className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition-all ${uploadMethod === "upload"
+                            ? "bg-primary-600 text-white shadow-md"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                        >
+                          <FiUpload className="inline-block mr-2" />
+                          Upload Image
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setUploadMethod("url")}
+                          className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition-all ${uploadMethod === "url"
+                            ? "bg-primary-600 text-white shadow-md"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                        >
+                          Image URL
+                        </button>
+                      </div>
 
-                    {/* Upload Method: File Upload */}
-                    {uploadMethod === "upload" && (
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Upload Image <span className="text-gray-500 text-xs">(Max 5MB)</span>
-                        </label>
-                        <div className="flex items-center gap-4">
-                          <label className="flex-1 cursor-pointer">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleFileChange}
-                              className="hidden"
-                            />
-                            <div className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all text-center">
-                              <FiUpload className="inline-block text-xl text-gray-400 mb-2" />
-                              <p className="text-sm text-gray-600">
-                                {imageFile ? imageFile.name : "Click to upload or drag and drop"}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                PNG, JPG, GIF up to 5MB
-                              </p>
-                            </div>
+                      {/* Upload Method: File Upload */}
+                      {uploadMethod === "upload" && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Upload Image <span className="text-gray-500 text-xs">(Max 5MB)</span>
                           </label>
+                          <div className="flex items-center gap-4">
+                            <label className="flex-1 cursor-pointer">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                className="hidden"
+                              />
+                              <div className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-all text-center">
+                                <FiUpload className="inline-block text-xl text-gray-400 mb-2" />
+                                <p className="text-sm text-gray-600">
+                                  {imageFile ? imageFile.name : "Click to upload or drag and drop"}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  PNG, JPG, GIF up to 5MB
+                                </p>
+                              </div>
+                            </label>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Upload Method: URL */}
-                    {uploadMethod === "url" && (
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Image URL <span className="text-gray-500 text-xs">(Optional)</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="image"
-                          value={formData.image}
-                          onChange={handleImageUrlChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          placeholder="https://example.com/image.png or data/categories/category.png"
-                        />
-                      </div>
-                    )}
-
-                    {/* Image Preview */}
-                    {imagePreview && (
-                      <div className="mt-4 relative inline-block">
-                        <div className="relative">
-                          <img
-                            src={imagePreview}
-                            alt="Preview"
-                            className="w-40 h-40 object-cover rounded-lg border-2 border-gray-200 shadow-sm"
-                            onError={(e) => {
-                              e.target.style.display = "none";
-                              toast.error("Failed to load image preview");
-                            }}
+                      {/* Upload Method: URL */}
+                      {uploadMethod === "url" && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Image URL <span className="text-gray-500 text-xs">(Optional)</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="image"
+                            value={formData.image}
+                            onChange={handleImageUrlChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            placeholder="https://example.com/image.png or data/categories/category.png"
                           />
-                          <button
-                            type="button"
-                            onClick={handleRemoveImage}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition-colors"
-                            title="Remove image"
-                          >
-                            <FiX className="text-sm" />
-                          </button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          {imageFile ? `File: ${imageFile.name}` : "Image preview"}
-                        </p>
-                      </div>
-                    )}
+                      )}
+
+                      {/* Image Preview */}
+                      {imagePreview && (
+                        <div className="mt-4 relative inline-block">
+                          <div className="relative">
+                            <img
+                              src={imagePreview}
+                              alt="Preview"
+                              className="w-40 h-40 object-cover rounded-lg border-2 border-gray-200 shadow-sm"
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                                toast.error("Failed to load image preview");
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleRemoveImage}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 shadow-lg hover:bg-red-600 transition-colors"
+                              title="Remove image"
+                            >
+                              <FiX className="text-sm" />
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            {imageFile ? `File: ${imageFile.name}` : "Image preview"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
               ) : null}
 
               {/* Settings */}
@@ -937,6 +941,27 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                       </span>
                     </label>
                   )}
+
+                  {/* Filter Only Mode - Only for subcategories (depth > 1) */}
+                  {isSubcategory && (
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        name="isFilterOnly"
+                        checked={formData.isFilterOnly}
+                        onChange={handleChange}
+                        className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-gray-700">
+                          Filter Only Mode
+                        </span>
+                        <p className="text-xs text-gray-500">
+                          Clicking this subcategory will apply a search filter instead of navigating.
+                        </p>
+                      </div>
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -978,21 +1003,18 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                             onClick={() => {
                               setFormData({ ...formData, headerColor: colorOption.value });
                             }}
-                            className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
-                              isSelected
-                                ? "border-primary-500 bg-primary-50 shadow-md"
-                                : "border-gray-200 hover:border-gray-300 hover:bg-white"
-                            }`}
+                            className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${isSelected
+                              ? "border-primary-500 bg-primary-50 shadow-md"
+                              : "border-gray-200 hover:border-gray-300 hover:bg-white"
+                              }`}
                             title={colorOption.name}>
                             <div
-                              className={`w-8 h-8 rounded-full ${colorOption.color} shadow-sm ${
-                                isSelected ? "ring-2 ring-primary-500 ring-offset-2" : ""
-                              }`}
+                              className={`w-8 h-8 rounded-full ${colorOption.color} shadow-sm ${isSelected ? "ring-2 ring-primary-500 ring-offset-2" : ""
+                                }`}
                             />
                             <span
-                              className={`text-[10px] mt-1 text-center ${
-                                isSelected ? "text-primary-600 font-semibold" : "text-gray-500"
-                              }`}>
+                              className={`text-[10px] mt-1 text-center ${isSelected ? "text-primary-600 font-semibold" : "text-gray-500"
+                                }`}>
                               {colorOption.name}
                             </span>
                           </button>
@@ -1006,26 +1028,25 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                         </span>
                         <div className="flex items-center gap-2">
                           <div
-                            className={`w-6 h-6 rounded-full ${
-                              [
-                                { value: "pink", color: "bg-pink-500" },
-                                { value: "amber", color: "bg-amber-500" },
-                                { value: "orange", color: "bg-orange-500" },
-                                { value: "green", color: "bg-green-500" },
-                                { value: "purple", color: "bg-purple-500" },
-                                { value: "blue", color: "bg-blue-500" },
-                                { value: "red", color: "bg-red-500" },
-                                { value: "indigo", color: "bg-indigo-500" },
-                                { value: "teal", color: "bg-teal-500" },
-                                { value: "cyan", color: "bg-cyan-500" },
-                                { value: "yellow", color: "bg-yellow-500" },
-                                { value: "rose", color: "bg-rose-500" },
-                                { value: "violet", color: "bg-violet-500" },
-                                { value: "emerald", color: "bg-emerald-500" },
-                                { value: "sky", color: "bg-sky-500" },
-                                { value: "fuchsia", color: "bg-fuchsia-500" },
-                              ].find((c) => c.value === formData.headerColor)?.color || "bg-gray-500"
-                            }`}
+                            className={`w-6 h-6 rounded-full ${[
+                              { value: "pink", color: "bg-pink-500" },
+                              { value: "amber", color: "bg-amber-500" },
+                              { value: "orange", color: "bg-orange-500" },
+                              { value: "green", color: "bg-green-500" },
+                              { value: "purple", color: "bg-purple-500" },
+                              { value: "blue", color: "bg-blue-500" },
+                              { value: "red", color: "bg-red-500" },
+                              { value: "indigo", color: "bg-indigo-500" },
+                              { value: "teal", color: "bg-teal-500" },
+                              { value: "cyan", color: "bg-cyan-500" },
+                              { value: "yellow", color: "bg-yellow-500" },
+                              { value: "rose", color: "bg-rose-500" },
+                              { value: "violet", color: "bg-violet-500" },
+                              { value: "emerald", color: "bg-emerald-500" },
+                              { value: "sky", color: "bg-sky-500" },
+                              { value: "fuchsia", color: "bg-fuchsia-500" },
+                            ].find((c) => c.value === formData.headerColor)?.color || "bg-gray-500"
+                              }`}
                           />
                           <span className="text-sm text-gray-600 capitalize">
                             {formData.headerColor}
@@ -1039,22 +1060,22 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">
-                <Button 
-                  type="button" 
-                  onClick={onClose} 
+                <Button
+                  type="button"
+                  onClick={onClose}
                   variant="secondary"
                   disabled={isSubmitting || isLoading}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  variant="primary" 
+                <Button
+                  type="submit"
+                  variant="primary"
                   icon={FiSave}
                   disabled={isSubmitting || isLoading}
                 >
-                  {isSubmitting || isLoading 
-                    ? (isEdit ? "Updating..." : "Creating...") 
+                  {isSubmitting || isLoading
+                    ? (isEdit ? "Updating..." : "Creating...")
                     : (isEdit ? "Update Category" : "Create Category")
                   }
                 </Button>
@@ -1063,7 +1084,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
           </motion.div>
         </motion.div>
       </>
-    </AnimatePresence>
+    </AnimatePresence >
   );
 };
 

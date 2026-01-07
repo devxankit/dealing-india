@@ -181,6 +181,8 @@ export const createVendorProduct = async (productData, vendorId) => {
       name,
       sku,
       unit,
+      primaryColorName,
+      primaryColorCode,
       price,
       originalPrice,
       image,
@@ -232,6 +234,12 @@ export const createVendorProduct = async (productData, vendorId) => {
 
     if (stockQuantity === undefined || stockQuantity === null || isNaN(parseInt(stockQuantity)) || parseInt(stockQuantity) < 0) {
       const err = new Error('Valid stock quantity is required (must be a non-negative number)');
+      err.status = 400;
+      throw err;
+    }
+
+    if (!primaryColorName || !primaryColorName.trim()) {
+      const err = new Error('Primary color is required');
       err.status = 400;
       throw err;
     }
@@ -452,6 +460,23 @@ export const createVendorProduct = async (productData, vendorId) => {
           }
         }
 
+        // Upload additional variant images if provided
+        let variantImageUrls = [];
+        let variantImagePublicIds = [];
+        if (colorVariant.images && Array.isArray(colorVariant.images)) {
+          for (const vimg of colorVariant.images) {
+            if (typeof vimg === 'string') {
+              if (vimg.startsWith('data:') || vimg.startsWith('http')) {
+                const uploadResult = await uploadBase64ToCloudinary(vimg, 'products/variants');
+                variantImageUrls.push(uploadResult.secure_url);
+                variantImagePublicIds.push(uploadResult.public_id);
+              } else {
+                variantImageUrls.push(vimg);
+              }
+            }
+          }
+        }
+
         // Process size variants for this color
         const processedSizeVariants = [];
         if (colorVariant.sizeVariants && Array.isArray(colorVariant.sizeVariants)) {
@@ -486,6 +511,8 @@ export const createVendorProduct = async (productData, vendorId) => {
           colorCode: colorVariant.colorCode ? colorVariant.colorCode.trim() : null,
           thumbnailImage: thumbnailImageUrl,
           thumbnailImagePublicId: thumbnailImagePublicId,
+          images: variantImageUrls,
+          imagesPublicIds: variantImagePublicIds,
           sizeVariants: processedSizeVariants,
         });
       }
@@ -595,6 +622,8 @@ export const createVendorProduct = async (productData, vendorId) => {
       name: name.trim(),
       sku: finalSku,
       unit: unit || '',
+      primaryColorName: primaryColorName ? primaryColorName.trim() : '',
+      primaryColorCode: primaryColorCode ? primaryColorCode.trim() : '',
       price: parseFloat(price),
       originalPrice: originalPrice ? parseFloat(originalPrice) : null,
       image: imageUrl,
@@ -716,6 +745,8 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       productType,
       isCouponEligible,
       applicableCoupons,
+      primaryColorName,
+      primaryColorCode,
     } = productData;
 
     // Validate category if provided
@@ -958,11 +989,14 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
     // Process color variants if provided
     let processedColorVariants = existingProduct.variants?.colorVariants || [];
     if (variants !== undefined && variants.colorVariants !== undefined) {
-      // Delete old variant thumbnail images
+      // Delete old variant thumbnail images and gallery images
       if (existingProduct.variants?.colorVariants) {
         for (const oldCv of existingProduct.variants.colorVariants) {
           if (oldCv.thumbnailImagePublicId) {
             await deleteFromCloudinary(oldCv.thumbnailImagePublicId);
+          }
+          if (oldCv.imagesPublicIds && Array.isArray(oldCv.imagesPublicIds)) {
+            await Promise.all(oldCv.imagesPublicIds.map(id => deleteFromCloudinary(id)));
           }
         }
       }
@@ -984,6 +1018,23 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
               thumbnailImagePublicId = uploadResult.public_id;
             } else {
               thumbnailImageUrl = colorVariant.thumbnailImage;
+            }
+          }
+
+          // Upload additional variant images if provided
+          let variantImageUrls = [];
+          let variantImagePublicIds = [];
+          if (colorVariant.images && Array.isArray(colorVariant.images)) {
+            for (const vimg of colorVariant.images) {
+              if (typeof vimg === 'string') {
+                if (vimg.startsWith('data:') || vimg.startsWith('http')) {
+                  const uploadResult = await uploadBase64ToCloudinary(vimg, 'products/variants');
+                  variantImageUrls.push(uploadResult.secure_url);
+                  variantImagePublicIds.push(uploadResult.public_id);
+                } else {
+                  variantImageUrls.push(vimg);
+                }
+              }
             }
           }
 
@@ -1021,6 +1072,8 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
             colorCode: colorVariant.colorCode ? colorVariant.colorCode.trim() : null,
             thumbnailImage: thumbnailImageUrl,
             thumbnailImagePublicId: thumbnailImagePublicId,
+            images: variantImageUrls,
+            imagesPublicIds: variantImagePublicIds,
             sizeVariants: processedSizeVariants,
           });
         }
@@ -1117,6 +1170,8 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ...(name !== undefined && { name: name.trim() }),
         sku: finalSku,
         ...(unit !== undefined && { unit: unit || '' }),
+        ...(primaryColorName !== undefined && { primaryColorName: primaryColorName ? primaryColorName.trim() : '' }),
+        ...(primaryColorCode !== undefined && { primaryColorCode: primaryColorCode ? primaryColorCode.trim() : '' }),
         ...(price !== undefined && { price: parseFloat(price) }),
         ...(originalPrice !== undefined && { originalPrice: originalPrice ? parseFloat(originalPrice) : null }),
         ...(image !== undefined && { image: imageUrl, imagePublicId: imagePublicId }),

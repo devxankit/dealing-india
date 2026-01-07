@@ -124,7 +124,7 @@ export const getCategoryDepth = async (categoryId) => {
       }
 
       depth++;
-      if (depth > 3) {
+      if (depth > 4) {
         return depth; // Already exceeded max
       }
       currentCategoryId = category.parentId;
@@ -176,7 +176,7 @@ export const hasCircularReference = async (categoryId, parentId) => {
  */
 export const createCategory = async (categoryData) => {
   try {
-    const { name, description, image, icon, parentId, isActive, order, showInHeader, headerColor } = categoryData;
+    const { name, description, image, icon, parentId, isActive, order, showInHeader, headerColor, isFilterOnly } = categoryData;
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -190,10 +190,10 @@ export const createCategory = async (categoryData) => {
         throw new Error('Parent category not found');
       }
 
-      // Check depth: Maximum 3 levels allowed (1 = root, 2 = subcategory, 3 = sub-subcategory)
+      // Check depth: Maximum 4 levels allowed (1 = root, 2 = subcategory, 3 = sub-subcategory, 4 = deepest)
       const parentDepth = await getCategoryDepth(parentId);
-      if (parentDepth >= 3) {
-        throw new Error('Maximum category depth reached. Cannot create subcategories beyond level 3.');
+      if (parentDepth >= 4) {
+        throw new Error('Maximum category depth reached. Cannot create subcategories beyond level 4.');
       }
     }
 
@@ -218,6 +218,7 @@ export const createCategory = async (categoryData) => {
       order: finalOrder,
       showInHeader: showInHeader !== undefined ? showInHeader : false,
       headerColor: headerColor || null,
+      isFilterOnly: isFilterOnly !== undefined ? isFilterOnly : false,
     });
 
     return category.toObject();
@@ -237,7 +238,7 @@ export const createCategory = async (categoryData) => {
  */
 export const updateCategory = async (categoryId, updateData) => {
   try {
-    const { name, description, image, imagePublicId, icon, parentId, isActive, order, showInHeader, headerColor } = updateData;
+    const { name, description, image, imagePublicId, icon, parentId, isActive, order, showInHeader, headerColor, isFilterOnly } = updateData;
 
     // Check if category exists
     const category = await Category.findById(categoryId);
@@ -264,10 +265,10 @@ export const updateCategory = async (categoryId, updateData) => {
           throw new Error('Parent category not found');
         }
 
-        // Check depth: Maximum 3 levels allowed (1 = root, 2 = subcategory, 3 = sub-subcategory)
+        // Check depth: Maximum 4 levels allowed (1 = root, 2 = subcategory, 3 = sub-subcategory, 4 = deepest)
         const parentDepth = await getCategoryDepth(parentId);
-        if (parentDepth >= 3) {
-          throw new Error('Maximum category depth reached. Cannot create subcategories beyond level 3.');
+        if (parentDepth >= 4) {
+          throw new Error('Maximum category depth reached. Cannot create subcategories beyond level 4.');
         }
       }
     }
@@ -284,6 +285,7 @@ export const updateCategory = async (categoryId, updateData) => {
     if (order !== undefined) updateObj.order = order;
     if (showInHeader !== undefined) updateObj.showInHeader = showInHeader;
     if (headerColor !== undefined) updateObj.headerColor = headerColor || null;
+    if (isFilterOnly !== undefined) updateObj.isFilterOnly = isFilterOnly;
 
     const updatedCategory = await Category.findByIdAndUpdate(
       categoryId,

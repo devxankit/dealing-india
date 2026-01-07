@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
-import { FiChevronDown, FiChevronRight, FiEdit, FiTrash2, FiEye, FiEyeOff, FiPlus } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiEdit, FiTrash2, FiEye, FiEyeOff, FiPlus, FiFilter } from 'react-icons/fi';
 import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import Badge from '../../../../shared/components/Badge';
 import toast from 'react-hot-toast';
 import Button from '../Button';
 
 const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAddSubcategory, level = 0 }) => {
-  const { toggleCategoryStatus } = useCategoryStore();
+  const { toggleCategoryStatus, categories: allCategories } = useCategoryStore();
   const [expanded, setExpanded] = useState({});
 
   const toggleExpand = (id) => {
@@ -15,16 +15,16 @@ const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAdd
 
   const getChildren = (parentId) => {
     if (!parentId) return [];
-    
+
     // Normalize parentId to string for consistent comparison
     const parentIdStr = parentId?.toString() || String(parentId);
-    
+
     return categories.filter((cat) => {
       // Normalize category's parentId to string
-      const catParentId = cat.parentId 
+      const catParentId = cat.parentId
         ? (cat.parentId.toString ? cat.parentId.toString() : String(cat.parentId))
         : null;
-      
+
       // Compare as strings to handle type mismatches
       return catParentId === parentIdStr;
     });
@@ -38,14 +38,14 @@ const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAdd
     }
 
     const visible = new Set(filteredCategoryIds);
-    
+
     // Add all parents of filtered categories to maintain tree structure
     const addParents = (categoryId) => {
       const category = categories.find(cat => {
         const catId = cat.id?.toString();
         return catId === categoryId;
       });
-      
+
       if (category && category.parentId) {
         const parentId = category.parentId?.toString();
         if (parentId && !visible.has(parentId)) {
@@ -57,7 +57,7 @@ const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAdd
 
     // For each filtered category, add its parents
     filteredCategoryIds.forEach(catId => addParents(catId));
-    
+
     return visible;
   }, [categories, filteredCategoryIds]);
 
@@ -66,20 +66,30 @@ const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAdd
     const categoryId = category.id?.toString();
     return visibleCategoryIds.has(categoryId);
   };
-  
+
   const getDepth = (catId) => {
     // Depth: 1 = root, 2 = first subcategory, 3 = second subcategory
     let depth = 1;
     let currentId = catId;
     const visited = new Set();
     while (currentId) {
-      if (visited.has(String(currentId))) break;
-      visited.add(String(currentId));
-      const cat = categories.find((c) => c.id === currentId);
-      if (!cat || !cat.parentId) break;
+      const currentIdStr = currentId?.toString() || String(currentId);
+      if (visited.has(currentIdStr)) break;
+      visited.add(currentIdStr);
+
+      const cat = allCategories.find((c) => {
+        const catIdStr = c.id?.toString() || String(c.id);
+        return catIdStr === currentIdStr;
+      });
+
+      if (!cat) break;
+
+      const parentIdStr = cat.parentId?.toString() || String(cat.parentId);
+      if (!cat.parentId || parentIdStr === 'null' || parentIdStr === 'undefined') break;
+
       depth += 1;
       currentId = cat.parentId;
-      if (depth > 3) break;
+      if (depth > 4) break;
     }
     return depth;
   };
@@ -94,16 +104,15 @@ const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAdd
     const hasChildren = children.length > 0;
     const isExpanded = expanded[category.id];
     const depth = getDepth(category.id);
-    const canAddSubcategory = depth < 3;
+    const canAddSubcategory = depth < 4;
 
     return (
       <div key={category.id} className="select-none">
         {/* Mobile Card Design */}
         <div className="sm:hidden">
           <div
-            className={`bg-white border border-gray-200 rounded-2xl p-3.5 mb-2.5 shadow-sm hover:shadow-md transition-all active:scale-[0.98] ${
-              level > 0 ? 'ml-3' : ''
-            }`}
+            className={`bg-white border border-gray-200 rounded-2xl p-3.5 mb-2.5 shadow-sm hover:shadow-md transition-all active:scale-[0.98] ${level > 0 ? 'ml-3' : ''
+              }`}
           >
             {/* Header Section - Image, Name, Badge, Expand */}
             <div className="flex items-start gap-3 mb-3">
@@ -140,22 +149,28 @@ const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAdd
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-1">
-                    {category.name}
-                  </h3>
+                    <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-1">
+                      {category.name}
+                    </h3>
                     {hasChildren && (
                       <p className="text-[10px] text-gray-500 mt-0.5">
                         {children.length} subcategor{children.length !== 1 ? 'ies' : 'y'}
                       </p>
                     )}
                   </div>
-                  <Badge 
-                    variant={category.isActive ? 'success' : 'error'} 
+                  <Badge
+                    variant={category.isActive ? 'success' : 'error'}
                     className="flex-shrink-0 text-[10px] px-2 py-0.5"
                   >
                     {category.isActive ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
+                {category.isFilterOnly && (
+                  <div className="flex items-center gap-1.5 mb-1 text-[10px] text-primary-600 font-bold bg-primary-50 w-fit px-2 py-0.5 rounded-full">
+                    <FiFilter className="text-[10px]" />
+                    <span>Filter Only</span>
+                  </div>
+                )}
                 {category.description && (
                   <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
                     {category.description}
@@ -214,9 +229,8 @@ const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAdd
 
         {/* Desktop Design */}
         <div
-          className={`hidden sm:flex items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors ${
-            level > 0 ? 'ml-6' : ''
-          }`}
+          className={`hidden sm:flex items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors ${level > 0 ? 'ml-6' : ''
+            }`}
         >
           {hasChildren && (
             <Button
@@ -241,10 +255,15 @@ const CategoryTree = ({ categories, filteredCategoryIds, onEdit, onDelete, onAdd
             )}
             <div className="flex-1">
               <div className="flex items-center gap-2">
-              <p className="font-semibold text-gray-800">{category.name}</p>
+                <p className="font-semibold text-gray-800">{category.name}</p>
                 {hasChildren && (
                   <Badge variant="info" className="text-[10px] px-1.5 py-0.5">
                     {children.length}
+                  </Badge>
+                )}
+                {category.isFilterOnly && (
+                  <Badge variant="info" className="text-[10px] px-1.5 py-0.5 flex items-center gap-1">
+                    <FiFilter className="text-[10px]" /> Filter Only
                   </Badge>
                 )}
               </div>

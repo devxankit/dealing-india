@@ -7,11 +7,11 @@ import { IndianRupee } from 'lucide-react';
 import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import useSwipeGesture from '../../hooks/useSwipeGesture';
 
-const MobileFilterPanel = ({ 
-  isOpen, 
-  onClose, 
-  filters, 
-  onFilterChange, 
+const MobileFilterPanel = ({
+  isOpen,
+  onClose,
+  filters,
+  onFilterChange,
   onClearFilters,
   hideCategoryFilter = false, // Hide category filter option from sidebar
   deepestCategoryId = null // Show only subcategories of this deepest category
@@ -23,8 +23,8 @@ const MobileFilterPanel = ({
 
   // Set default active section based on whether category filter is hidden
   useEffect(() => {
-    setActiveSection('price');
-  }, [isOpen]);
+    setActiveSection(hideCategoryFilter ? 'price' : 'category');
+  }, [isOpen, hideCategoryFilter]);
 
   // Prevent body scroll when panel is open
   useEffect(() => {
@@ -74,15 +74,15 @@ const MobileFilterPanel = ({
           </p>
         );
       }
-      
+
       // Show only direct children as flat list (no nesting, no parent levels)
       return (
         <div className="space-y-1.5">
           {list.map(cat => {
             const catId = cat.id?.toString() || String(cat.id);
             return (
-              <label 
-                key={catId} 
+              <label
+                key={catId}
                 className="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg transition-colors bg-primary-50 hover:bg-primary-100 border border-primary-200"
               >
                 <input
@@ -103,35 +103,34 @@ const MobileFilterPanel = ({
         </div>
       );
     }
-    
+
     // If deepestCategoryId is provided but level > 0, don't render nested children
     if (deepestCategoryId && level > 0) {
       return null;
     }
-    
+
     // Normal nested category rendering (for general pages like Offers, Search)
     // Only render if deepestCategoryId is NOT provided
     if (deepestCategoryId) {
       return null; // Don't render nested categories when deepestCategoryId is provided
     }
-    
+
     const list = parentId ? getChildren(parentId) : categories.filter(c => !c.parentId && c.isActive !== false);
     if (!list || list.length === 0) return null;
-    
+
     return (
       <div className={level === 0 ? 'space-y-1.5' : 'ml-4 space-y-1'}>
         {list.map(cat => {
           const catId = cat.id?.toString() || String(cat.id);
           const hasChildren = getChildren(catId).length > 0;
           const isLeafCategory = !hasChildren;
-          
+
           return (
             <div key={catId} className="space-y-1">
-              <label className={`flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg transition-colors ${
-                isLeafCategory 
-                  ? 'bg-primary-50 hover:bg-primary-100 border border-primary-200' 
+              <label className={`flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg transition-colors ${isLeafCategory
+                  ? 'bg-primary-50 hover:bg-primary-100 border border-primary-200'
                   : 'hover:bg-gray-50'
-              }`}>
+                }`}>
                 <input
                   type="radio"
                   name="category"
@@ -140,13 +139,12 @@ const MobileFilterPanel = ({
                   onChange={(e) => onFilterChange('category', catId)}
                   className="w-4 h-4 text-primary-500 flex-shrink-0"
                 />
-                <span className={`text-sm font-medium ${
-                  isLeafCategory 
-                    ? 'text-primary-700 font-semibold' 
-                    : level === 0 
-                      ? 'text-gray-800 font-semibold' 
+                <span className={`text-sm font-medium ${isLeafCategory
+                    ? 'text-primary-700 font-semibold'
+                    : level === 0
+                      ? 'text-gray-800 font-semibold'
                       : 'text-gray-700'
-                }`}>
+                  }`}>
                   {cat.name}
                   {isLeafCategory && <span className="ml-1.5 text-xs text-primary-500">✓</span>}
                 </span>
@@ -165,6 +163,7 @@ const MobileFilterPanel = ({
 
   // Filter sections configuration
   const filterSections = [
+    ...(!hideCategoryFilter ? [{ id: 'category', label: 'Category', icon: FiGrid }] : []),
     { id: 'sort', label: 'Sort By', icon: FiTrendingUp },
     { id: 'price', label: 'Price', icon: IndianRupee },
     { id: 'rating', label: 'Rating', icon: FiStar },
@@ -175,6 +174,16 @@ const MobileFilterPanel = ({
   // Render content based on active section
   const renderContent = () => {
     switch (activeSection) {
+      case 'category':
+        return (
+          <div>
+            <h3 className="font-semibold text-gray-700 mb-3 text-sm flex items-center gap-2">
+              <FiGrid className="text-primary-500" />
+              Select Category
+            </h3>
+            {renderNestedCategories()}
+          </div>
+        );
       case 'sort':
         return (
           <div>
@@ -244,7 +253,7 @@ const MobileFilterPanel = ({
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 {[
                   { label: 'Under ₹500', min: '0', max: '500' },
@@ -255,16 +264,15 @@ const MobileFilterPanel = ({
                   <button
                     key={range.label}
                     onClick={() => {
-                      onFilterChange({ 
-                        minPrice: range.min, 
-                        maxPrice: range.max 
+                      onFilterChange({
+                        minPrice: range.min,
+                        maxPrice: range.max
                       });
                     }}
-                    className={`px-3 py-1.5 rounded-full border text-[11px] transition-colors ${
-                      filters.minPrice === range.min && filters.maxPrice === range.max
+                    className={`px-3 py-1.5 rounded-full border text-[11px] transition-colors ${filters.minPrice === range.min && filters.maxPrice === range.max
                         ? 'border-primary-500 bg-primary-50 text-primary-600 font-bold'
                         : 'border-gray-200 text-gray-600 hover:border-primary-500 hover:text-primary-600'
-                    }`}
+                      }`}
                   >
                     {range.label}
                   </button>
@@ -289,9 +297,9 @@ const MobileFilterPanel = ({
                   <div className="flex items-center gap-2">
                     <div className="flex items-center text-yellow-400">
                       {[...Array(5)].map((_, i) => (
-                        <FiStar 
-                          key={i} 
-                          className={`text-xs ${i < rating ? 'fill-current' : 'text-gray-200'}`} 
+                        <FiStar
+                          key={i}
+                          className={`text-xs ${i < rating ? 'fill-current' : 'text-gray-200'}`}
                         />
                       ))}
                     </div>
@@ -446,11 +454,10 @@ const MobileFilterPanel = ({
                       <button
                         key={section.id}
                         onClick={() => setActiveSection(section.id)}
-                        className={`w-full flex flex-col items-center gap-1 px-1.5 py-2.5 transition-all ${
-                          isActive
+                        className={`w-full flex flex-col items-center gap-1 px-1.5 py-2.5 transition-all ${isActive
                             ? 'bg-white border-r-2 border-primary-500 text-primary-600 shadow-sm'
                             : 'text-gray-600 hover:bg-gray-100'
-                        }`}
+                          }`}
                       >
                         <Icon className={`text-lg ${isActive ? 'text-primary-500' : 'text-gray-500'}`} />
                         <span className={`text-[10px] font-semibold leading-tight ${isActive ? 'text-primary-600' : 'text-gray-600'}`}>
