@@ -62,7 +62,7 @@ const MobileCheckout = () => {
         vendorId,
         vendorName,
         items: [buyNowItem],
-        subtotal: buyNowItem.price * buyNowItem.quantity
+        subtotal: (buyNowItem.price || 0) * (buyNowItem.quantity || 1)
       }];
     }
     return getItemsByVendor();
@@ -201,6 +201,9 @@ const MobileCheckout = () => {
     }
     return getTotal();
   }, [buyNowItem, getTotal, items]);
+
+  // Alias subtotal to total for compatibility with existing logic
+  const total = subtotal;
 
   const shipping = deliveryData.total;
 

@@ -143,21 +143,36 @@ const MobileOrderDetail = () => {
 
   const handleCancel = async () => {
     if (window.confirm('Are you sure you want to cancel this order?')) {
-      if (['pending', 'processing'].includes(order.status)) {
+      const cancellableStatuses = ['pending', 'processing'];
+      if (cancellableStatuses.includes(order.status?.toLowerCase())) {
         try {
           const response = await cancelOrder(order._id || order.id || order.orderCode);
-          if (response.success) {
+          // Check if response has success property or data wrapping
+          if (response.success || response.order || response.data?.order) {
             toast.success('Order cancelled successfully');
+
+            // If it was a prepaid order, let them know about the refund
+            const isPrepaid = order.paymentStatus === 'completed' ||
+              (order.paymentMethod && !['cod', 'cash'].includes(order.paymentMethod.toLowerCase()));
+
+            if (isPrepaid) {
+              toast.success('Refund has been credited to your wallet balance', {
+                duration: 6000,
+                icon: '💳'
+              });
+            }
+
             navigate('/app/orders');
           } else {
-            toast.error('Failed to cancel order');
+            toast.error(response.message || 'Failed to cancel order');
           }
         } catch (error) {
           console.error('Error cancelling order:', error);
-          toast.error(error.response?.data?.message || 'Failed to cancel order');
+          const errorMsg = error.response?.data?.message || error.message || 'Failed to cancel order';
+          toast.error(errorMsg);
         }
       } else {
-        toast.error('This order cannot be cancelled');
+        toast.error(`Orders in ${order.status} status cannot be cancelled`);
       }
     }
   };

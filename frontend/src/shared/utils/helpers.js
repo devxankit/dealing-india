@@ -96,6 +96,41 @@ export const getPlaceholderImage = (
 };
 
 /**
+ * Calculate total stock quantity for a product
+ * Aggregates main product stock and all variant stocks
+ */
+ export const calculateTotalStock = (product) => {
+   if (!product) return 0;
+   const mainStock = parseInt(product.stockQuantity) || 0;
+   const primaryColorName = (product.primaryColorName || product?.variants?.defaultVariant?.color || '').toString().trim().toLowerCase();
+   let variantSum = 0;
+   let primaryVariantSum = 0;
+   if (product.variants?.colorVariants && Array.isArray(product.variants.colorVariants)) {
+     product.variants.colorVariants.forEach((cv) => {
+       const cvColor = (cv.color || cv.colorName || '').toString().trim().toLowerCase();
+       const cvTotal = cv.sizeVariants?.reduce((sizeAcc, sv) => sizeAcc + (parseInt(sv.stockQuantity) || 0), 0) || 0;
+       variantSum += cvTotal;
+       if (!primaryVariantSum && primaryColorName && cvColor === primaryColorName) {
+         primaryVariantSum = cvTotal;
+       }
+     });
+     if (!primaryVariantSum && mainStock > 0) {
+       const candidateSum = product.variants.colorVariants.reduce((found, cv) => {
+         if (found) return found;
+         const sum = cv.sizeVariants?.reduce((acc, sv) => acc + (parseInt(sv.stockQuantity) || 0), 0) || 0;
+         return sum === mainStock ? sum : 0;
+       }, 0);
+       primaryVariantSum = candidateSum || 0;
+     }
+     // Guard: if variants sum equals main, treat as same entity
+     if (primaryVariantSum === 0 && variantSum === mainStock) {
+       return mainStock;
+     }
+   }
+   return mainStock + Math.max(variantSum - primaryVariantSum, 0);
+ };
+
+/**
  * Format date
  */
 export const formatDate = (date) => {
@@ -106,3 +141,25 @@ export const formatDate = (date) => {
     day: 'numeric'
   });
 };
+
+export const validateStockCalculation = (product) => {
+  const mainStock = parseInt(product?.stockQuantity) || 0;
+  const totals = (product?.variants?.colorVariants || []).map((cv) => {
+    return cv.sizeVariants?.reduce((acc, sv) => acc + (parseInt(sv.stockQuantity) || 0), 0) || 0;
+  });
+  const variantSum = totals.reduce((a, b) => a + b, 0);
+  const total = calculateTotalStock(product);
+  let isConsistent = false;
+  const pName = (product?.primaryColorName || '').toString().trim().toLowerCase();
+  if (pName) {
+    const idx = (product?.variants?.colorVariants || []).findIndex((cv) => {
+      const cvColor = (cv.color || cv.colorName || '').toString().trim().toLowerCase();
+      return cvColor === pName;
+    });
+    const pSum = idx >= 0 ? totals[idx] : 0;
+    isConsistent = total === mainStock + (variantSum - pSum);
+  } else {
+    isConsistent = variantSum === mainStock ? total === mainStock : total === mainStock + variantSum;
+  }
+  return { mainStock, variantSum, total, isConsistent };
+ };

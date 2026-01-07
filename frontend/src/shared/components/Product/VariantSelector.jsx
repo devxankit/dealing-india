@@ -68,6 +68,7 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
     setSelectedColorIndex(null);
     setSelectedVariant({
       color: primaryColorName,
+      colorIndex: null,
     });
   };
 
@@ -150,25 +151,32 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
               {primaryColorName && (
                 <button
                   onClick={handlePrimaryColorSelect}
-                  className={`relative w-12 h-12 rounded-full border-2 transition-all duration-300 ${selectedColorIndex === null && selectedVariant?.color === primaryColorName
-                      ? 'border-primary-600 scale-110 shadow-lg'
-                      : 'border-gray-300 hover:border-primary-400 hover:scale-105'
+                  className={`relative rounded-lg border-2 transition-all duration-300 overflow-hidden ${selectedColorIndex === null && selectedVariant?.color === primaryColorName
+                    ? 'border-primary-600 scale-105 shadow-lg'
+                    : 'border-gray-300 hover:border-primary-400 hover:scale-105'
                     }`}
-                  style={
-                    primaryColorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(primaryColorCode)
-                      ? { backgroundColor: primaryColorCode }
-                      : {}
-                  }
                   title={primaryColorName}
                 >
-                  {!primaryColorCode || !/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(primaryColorCode) && (
-                    <span className="text-xs font-semibold text-gray-700">{primaryColorName.charAt(0)}</span>
-                  )}
+                  <div
+                    className="w-16 h-16 flex items-center justify-center text-xs font-semibold text-gray-700"
+                    style={
+                      primaryColorCode && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(primaryColorCode)
+                        ? { backgroundColor: primaryColorCode }
+                        : { backgroundColor: '#f3f4f6' }
+                    }
+                  >
+                    {(!primaryColorCode || !/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(primaryColorCode)) && (
+                      <span className="text-xs font-semibold text-gray-700">{primaryColorName.charAt(0)}</span>
+                    )}
+                  </div>
                   {selectedColorIndex === null && selectedVariant?.color === primaryColorName && (
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
                       <FiCheck className="text-white text-xs" />
                     </span>
                   )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 text-center truncate">
+                    {primaryColorName}
+                  </div>
                 </button>
               )}
               {variants.colorVariants.map((colorVariant, index) => {
@@ -181,10 +189,10 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
                     onClick={() => handleColorSelect(index)}
                     disabled={!hasStock}
                     className={`relative rounded-lg border-2 transition-all duration-300 overflow-hidden ${isSelected
-                        ? 'border-primary-600 scale-105 shadow-lg'
-                        : hasStock
-                          ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
-                          : 'border-gray-200 opacity-50 cursor-not-allowed'
+                      ? 'border-primary-600 scale-105 shadow-lg'
+                      : hasStock
+                        ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
+                        : 'border-gray-200 opacity-50 cursor-not-allowed'
                       }`}
                     title={colorVariant.colorName}
                   >
@@ -255,10 +263,10 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
                       onClick={() => handleSizeSelect(index)}
                       disabled={!isAvailable}
                       className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${isSelected
-                          ? 'border-primary-600 bg-primary-50 text-primary-700'
-                          : isAvailable
-                            ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
-                            : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                        ? 'border-primary-600 bg-primary-50 text-primary-700'
+                        : isAvailable
+                          ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
+                          : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
                         }`}
                       title={`Stock: ${sizeVariant.stockQuantity}`}
                     >
@@ -309,10 +317,10 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
                   onClick={() => handleSizeSelect(index)}
                   disabled={!isAvailable}
                   className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${isSelected
-                      ? 'border-primary-600 bg-primary-50 text-primary-700'
-                      : isAvailable
-                        ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
-                        : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                    ? 'border-primary-600 bg-primary-50 text-primary-700'
+                    : isAvailable
+                      ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
+                      : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
                     }`}
                 >
                   {size}
@@ -348,10 +356,10 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
                   onClick={() => handleColorSelect(color)}
                   disabled={!isAvailable}
                   className={`relative w-12 h-12 rounded-full border-2 transition-all duration-300 ${isSelected
-                      ? 'border-primary-600 scale-110 shadow-lg'
-                      : isAvailable
-                        ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
-                        : 'border-gray-200 opacity-50 cursor-not-allowed'
+                    ? 'border-primary-600 scale-110 shadow-lg'
+                    : isAvailable
+                      ? 'border-gray-300 hover:border-primary-400 hover:scale-105'
+                      : 'border-gray-200 opacity-50 cursor-not-allowed'
                     }`}
                   style={
                     isHexColor

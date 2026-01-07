@@ -373,6 +373,25 @@ class ReturnService {
                 onModel: 'RefundTransaction'
             });
 
+            // RESTORE STOCK on Refund/Return completion
+            if (returnRequest.items && returnRequest.items.length > 0) {
+                for (const item of returnRequest.items) {
+                    if (item.productId) {
+                        // Restore main stock (Total Aggregated Stock)
+                        // We increment stockQuantity by the returned quantity
+                        await Product.findByIdAndUpdate(
+                            item.productId,
+                            { $inc: { stockQuantity: item.quantity } },
+                            { session }
+                        );
+
+                        // Note: Specific variant stock restoration is not implemented 
+                        // because ReturnRequest items do not currently persist variant selection (color/size).
+                        // However, maintaining the Total Stock accuracy is the primary requirement.
+                    }
+                }
+            }
+
             return returnRequest;
 
         } catch (error) {

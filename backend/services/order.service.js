@@ -32,6 +32,44 @@ const generateTransactionCode = () => {
 };
 
 /**
+ * Restore stock for order items
+ * @param {Array} items - Order items
+ * @param {Object} session - Mongoose session
+ */
+const restoreStock = async (items, session) => {
+  for (const item of items) {
+    if (item.productId) {
+      // Restore main stock
+      await Product.findByIdAndUpdate(
+        item.productId,
+        { $inc: { stockQuantity: item.quantity } },
+        { session }
+      );
+
+      // Restore variant stock if applicable
+      if (item.selectedColor || item.selectedSize) {
+        const product = await Product.findById(item.productId).session(session);
+        if (product && product.variants?.colorVariants) {
+          const colorIndex = product.variants.colorVariants.findIndex(cv => cv.colorName === item.selectedColor);
+          if (colorIndex !== -1) {
+            const sizeIndex = product.variants.colorVariants[colorIndex].sizeVariants.findIndex(sv => sv.size === item.selectedSize);
+            if (sizeIndex !== -1) {
+              const updateQuery = {};
+              updateQuery[`variants.colorVariants.${colorIndex}.sizeVariants.${sizeIndex}.stockQuantity`] = item.quantity;
+              await Product.findByIdAndUpdate(
+                item.productId,
+                { $inc: updateQuery },
+                { session }
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+/**
  * Create a new order
  * @param {Object} orderData - Order data
  * @param {String} orderData.customerId - Customer ID
@@ -146,6 +184,75 @@ export const createOrder = async (orderData, io = null) => {
       }
     } else {
       console.warn('No valid product IDs found in order items');
+    }
+
+    // Calculate tax from products if not provided or validate provided tax
+    // DEDUCT STOCK
+    for (const item of items) {
+      const productId = item.productId || item.id;
+      const quantity = item.quantity;
+
+      // Skip if no product ID
+      if (!productId) continue;
+
+      const product = await Product.findById(productId).session(session);
+      if (!product) {
+        throw new Error(`Product not found: ${item.name}`);
+      }
+
+      // Check main stock
+      if (product.stockQuantity < quantity) {
+        throw new Error(`Insufficient stock for ${product.name}`);
+      }
+
+      // Decrement main stock (Total aggregated stock)
+      await Product.findByIdAndUpdate(
+        productId,
+        { $inc: { stockQuantity: -quantity } },
+        { session }
+      );
+
+      // Handle Variant Stock Deduction if applicable
+      // Expecting item to have selectedColor/selectedSize or variant information
+      // If we don't have explicit variant IDs, we try to match by name
+      if (item.selectedColor && item.selectedSize && product.variants?.colorVariants) {
+        const colorVariant = product.variants.colorVariants.find(
+          cv => cv.colorName === item.selectedColor
+        );
+
+        if (colorVariant && colorVariant.sizeVariants) {
+          const sizeVariant = colorVariant.sizeVariants.find(
+            sv => sv.size === item.selectedSize
+          );
+
+          if (sizeVariant) {
+            if (sizeVariant.stockQuantity < quantity) {
+              throw new Error(`Insufficient stock for ${product.name} (${item.selectedColor}, ${item.selectedSize})`);
+            }
+
+            // We need to update the specific element in the array
+            // Using array filters for atomic update or finding index
+            // Mongoose array filters are cleaner but strictly speaking we can fetch-modify-save here since we are in transaction
+            // BUT simpler is to use atomic update with positional operator
+
+            // Ideally we need to find the indices to use positional operator.
+            // Since we have the document, let's find indices.
+            const colorIndex = product.variants.colorVariants.findIndex(cv => cv.colorName === item.selectedColor);
+            const sizeIndex = product.variants.colorVariants[colorIndex].sizeVariants.findIndex(sv => sv.size === item.selectedSize);
+
+            if (colorIndex !== -1 && sizeIndex !== -1) {
+              const updateQuery = {};
+              updateQuery[`variants.colorVariants.${colorIndex}.sizeVariants.${sizeIndex}.stockQuantity`] = -quantity;
+
+              await Product.findByIdAndUpdate(
+                productId,
+                { $inc: updateQuery },
+                { session }
+              );
+            }
+          }
+        }
+      }
     }
 
     // Calculate tax from products if not provided or validate provided tax
@@ -611,7 +718,7 @@ export const cancelOrder = async (orderId, userId) => {
       cancelledAt: new Date(),
       cancelledBy: userId,
       cancelledByRole: 'user',
-      refundStatus: order.paymentStatus === 'completed' ? 'pending' : undefined,
+      refundStatus: order.paymentStatus === 'completed' ? 'completed' : undefined, // Mark completed as we credit wallet
       refundAmount: order.paymentStatus === 'completed' ? order.total : undefined,
     };
 
@@ -634,7 +741,12 @@ export const cancelOrder = async (orderId, userId) => {
       { new: true, session }
     );
 
-    // If payment was completed, create refund transaction
+
+
+    // RESTORE STOCK
+    await restoreStock(order.items, session);
+
+    // If payment was completed, process refund to wallet
     if (order.paymentStatus === 'completed') {
       const transactionCode = generateTransactionCode();
       await Transaction.create(
@@ -645,7 +757,7 @@ export const cancelOrder = async (orderId, userId) => {
             customerId: order.customerId,
             amount: order.total,
             type: 'refund',
-            status: 'pending', // Refund will be processed separately
+            status: 'completed', // Refunded to wallet
             method: order.paymentMethod,
             paymentGateway: order.razorpayPaymentId ? 'razorpay' : 'manual',
             razorpayOrderId: order.razorpayOrderId,
@@ -655,21 +767,19 @@ export const cancelOrder = async (orderId, userId) => {
         { session }
       );
 
-      // Create wallet transaction for refund (credit)
-      if (order.paymentMethod === 'wallet') {
-        try {
-          await createWalletTransaction(
-            order.customerId.toString(),
-            'credit',
-            order.total,
-            `Order Refund - ${order.orderCode}`,
-            order._id.toString(),
-            'refund'
-          );
-        } catch (walletError) {
-          console.error('Error creating wallet refund transaction:', walletError);
-          // Don't fail the order cancellation if wallet transaction fails
-        }
+      // Create wallet transaction for refund (credit) - ALL prepaid cancelled orders get wallet credit
+      try {
+        await createWalletTransaction(
+          order.customerId.toString(),
+          'credit',
+          order.total,
+          `Order Refund - ${order.orderCode}`,
+          order._id.toString(),
+          'refund'
+        );
+      } catch (walletError) {
+        console.error('Error creating wallet refund transaction:', walletError);
+        // Don't fail the order cancellation if wallet transaction fails
       }
     }
 
@@ -750,15 +860,64 @@ export const updateOrderStatus = async (orderId, newStatus, changedBy, changedBy
       },
     };
 
-    if (newStatus === 'cancelled' && !order.cancellation) {
-      updateData.cancellation = {
-        cancelledAt: new Date(),
-        cancelledBy: changedBy,
-        cancelledByRole,
-        reason: note || 'Order cancelled',
-        refundStatus: order.paymentStatus === 'completed' ? 'pending' : undefined,
-        refundAmount: order.paymentStatus === 'completed' ? order.total : undefined,
-      };
+    // Special logic for cancellation
+    if (newStatus === 'cancelled' && order.status !== 'cancelled') {
+      // Restore stock
+      await restoreStock(order.items, session);
+
+      // Handle refund if prepaid
+      if (order.paymentStatus === 'completed') {
+        const transactionCode = generateTransactionCode();
+        await Transaction.create(
+          [
+            {
+              transactionCode,
+              orderId: order._id,
+              customerId: order.customerId,
+              amount: order.total,
+              type: 'refund',
+              status: 'completed', // Credited to wallet
+              method: order.paymentMethod,
+              paymentGateway: order.razorpayPaymentId ? 'razorpay' : 'manual',
+              razorpayOrderId: order.razorpayOrderId,
+              razorpayPaymentId: order.razorpayPaymentId,
+            },
+          ],
+          { session }
+        );
+
+        // Credit wallet
+        try {
+          await createWalletTransaction(
+            order.customerId.toString(),
+            'credit',
+            order.total,
+            `Order Refund (Cancelled by ${changedByRole}) - ${order.orderCode}`,
+            order._id.toString(),
+            'refund'
+          );
+        } catch (walletError) {
+          console.error('Error crediting wallet on status update:', walletError);
+        }
+      }
+
+      if (!order.cancellation) {
+        updateData.cancellation = {
+          cancelledAt: new Date(),
+          cancelledBy: changedBy,
+          cancelledByRole,
+          reason: note || 'Order cancelled',
+          refundStatus: order.paymentStatus === 'completed' ? 'completed' : undefined,
+          refundAmount: order.paymentStatus === 'completed' ? order.total : undefined,
+        };
+      } else {
+        updateData['cancellation.cancelledAt'] = new Date();
+        updateData['cancellation.cancelledBy'] = changedBy;
+        updateData['cancellation.cancelledByRole'] = changedByRole;
+        if (order.paymentStatus === 'completed') {
+          updateData['cancellation.refundStatus'] = 'completed';
+        }
+      }
     }
 
     if (newStatus === 'delivered' && !order.tracking?.deliveredAt) {
