@@ -165,15 +165,20 @@ export const getAdminDashboardSummary = async (period = 'month') => {
 
       if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
         order.vendorBreakdown.forEach(vb => {
-          orderVendorShare += (vb.subtotal - vb.commission);
+          orderVendorShare += (vb.subtotal - (vb.discount || 0) - vb.commission);
           orderPlatformShare += vb.commission;
         });
+        // Add tax, shipping and platform fees to platform share
+        orderPlatformShare += (order.pricing?.tax || 0);
+        orderPlatformShare += (order.pricing?.shipping || 0);
+        orderPlatformShare += (order.pricing?.platformFee || 0);
       } else {
         // Fallback: Assume flat 10% commission if no breakdown
         const commissionRate = 0.1;
-        const commission = (order.total || 0) * commissionRate;
-        orderPlatformShare += commission;
-        orderVendorShare += ((order.total || 0) - commission);
+        const subtotal = order.pricing?.subtotal || order.total || 0;
+        const commission = subtotal * commissionRate;
+        orderPlatformShare += commission + (order.pricing?.tax || 0) + (order.pricing?.shipping || 0);
+        orderVendorShare += (subtotal - (order.pricing?.discount || 0) - commission);
       }
 
       totalVendorEarnings += orderVendorShare;

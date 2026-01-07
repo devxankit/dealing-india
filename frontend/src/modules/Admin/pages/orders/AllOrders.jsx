@@ -30,6 +30,7 @@ import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { formatCurrency, formatDateTime } from "../../utils/adminHelpers";
 import { getAdminOrders } from "../../../../shared/services/orderService";
+import OrderAnalyticsCharts from "./components/OrderAnalyticsCharts";
 import toast from "react-hot-toast";
 
 // OrderItemsDropdown component
@@ -952,6 +953,9 @@ const AllOrders = () => {
           );
         })}
       </div>
+
+      {/* Order Analytics Visualizations */}
+      <OrderAnalyticsCharts />
 
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">

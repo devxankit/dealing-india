@@ -6,6 +6,8 @@ import mongoose from 'mongoose';
 import connectDB from './config/database.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { setupSocketIO } from './config/socket.io.js';
+import { connectRedis } from './config/redis.config.js';
+import redisClient from './config/redis.config.js';
 
 // Import routes
 import userAuthRoutes from './routes/userAuth.routes.js';
@@ -157,7 +159,11 @@ app.get('/api/health', (req, res) => {
     message: 'Server is running',
     timestamp: new Date().toISOString(),
     database: states[dbStatus] || 'Unknown',
-    databaseReady: dbStatus === 1
+    databaseReady: dbStatus === 1,
+    redis: redisClient.isReady ? 'Connected' : 'Disconnected',
+    redisReady: redisClient.isReady,
+    env: process.env.NODE_ENV,
+    uptime: process.uptime()
   });
 });
 
@@ -372,6 +378,9 @@ const startServer = async () => {
     // Connect to database
     await connectDB();
 
+    // Connect to Redis
+    await connectRedis();
+
     // Drop problematic OTP index if it exists
     try {
       const otpCollection = mongoose.connection.collection('otps');
@@ -432,6 +441,7 @@ const startServer = async () => {
       console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`   CORS Origins: ${corsOrigins.length} configured`);
       console.log(`   Database: ${mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Not Connected'}`);
+      console.log(`   Redis: ${redisClient.isReady ? '✅ Connected' : '❌ Not Connected'}`);
       console.log(`   Email Service: ${(process.env.EMAIL_USER && process.env.EMAIL_PASS) ? '✅ Configured' : '❌ Not Configured'}`);
 
       if (process.env.NODE_ENV === 'production') {

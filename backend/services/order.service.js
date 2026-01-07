@@ -9,6 +9,7 @@ import { createWalletTransaction } from './wallet.service.js';
 import { getVendorOrdersTransformed } from './vendorOrders.service.js';
 import vendorWalletService from './vendorWallet.service.js';
 import notificationService from './notification.service.js';
+import redisService from './redis.service.js';
 
 /**
  * Generate unique order code
@@ -61,6 +62,7 @@ export const createOrder = async (orderData, io = null) => {
       shipping = 0,
       tax = 0,
       discount = 0,
+      platformFee = 0,
       couponCode = null,
     } = orderData;
 
@@ -169,7 +171,7 @@ export const createOrder = async (orderData, io = null) => {
     }
 
     const calculatedDiscount = discount || 0;
-    const calculatedTotal = total || (calculatedSubtotal + calculatedTax + calculatedShipping - calculatedDiscount);
+    const calculatedTotal = total || (calculatedSubtotal + calculatedTax + calculatedShipping + platformFee - calculatedDiscount);
 
     // Calculate vendor breakdown
     const vendorBreakdownMap = {};
@@ -247,6 +249,7 @@ export const createOrder = async (orderData, io = null) => {
         tax: calculatedTax,
         discount: calculatedDiscount,
         shipping: calculatedShipping,
+        platformFee: platformFee || 0,
         total: calculatedTotal,
         couponCode: couponCode || null,
       },
@@ -263,6 +266,24 @@ export const createOrder = async (orderData, io = null) => {
     };
 
     const order = await Order.create([newOrderData], { session });
+    const orderDoc = order[0];
+
+    // Update Redis stats for vendors (Today's Orders)
+    try {
+      const now = new Date();
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      const secondsToMidnight = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
+
+      if (orderDoc.vendorBreakdown && orderDoc.vendorBreakdown.length > 0) {
+        for (const vb of orderDoc.vendorBreakdown) {
+          const key = `vendor:orders:today:${vb.vendorId.toString()}`;
+          await redisService.incr(key);
+          await redisService.expire(key, Math.max(secondsToMidnight, 60)); // Ensure at least 60s
+        }
+      }
+    } catch (redisError) {
+      console.log('Note: Redis order counter skipped:', redisError.message);
+    }
 
     // Create notifications for user and vendors
     try {
@@ -756,8 +777,8 @@ export const updateOrderStatus = async (orderId, newStatus, changedBy, changedBy
         try {
           for (const vb of order.vendorBreakdown) {
             if (vb.vendorId) {
-              // Calculate earnings: Subtotal - Commission
-              const earnings = (vb.subtotal || 0) - (vb.commission || 0);
+              // Calculate earnings: Subtotal - Discount - Commission
+              const earnings = (vb.subtotal || 0) - (vb.discount || 0) - (vb.commission || 0);
 
               if (earnings > 0) {
                 // Use creditPendingWallet instead of creditWallet

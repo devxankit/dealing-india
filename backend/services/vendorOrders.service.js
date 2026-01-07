@@ -23,7 +23,7 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
       (typeof order.items[0].productId === 'string') ||
       (typeof order.items[0].productId === 'object' && !order.items[0].productId.vendorId)
     );
-    
+
     if (needsProductPopulation) {
       // Need to populate products, but preserve customerId if already populated
       const populateOptions = ['items.productId vendorId vendorName'];
@@ -51,7 +51,7 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
       }
 
       const itemVendorId = product.vendorId.toString();
-      
+
       // Only process items for the requested vendor
       if (itemVendorId !== vendorId.toString()) {
         return;
@@ -95,12 +95,25 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
 
     // Calculate commission and earnings for each vendor group
     const vendorItems = Object.values(vendorGroups).map((group) => {
-      const commission = group.subtotal * commissionRate;
-      const vendorEarnings = group.subtotal - commission;
+      // Find matching breakdown entry from original order
+      const breakdown = order.vendorBreakdown?.find(vb =>
+        (vb.vendorId?._id || vb.vendorId)?.toString() === group.vendorId.toString()
+      );
+
+      if (breakdown) {
+        group.shipping = breakdown.shipping || 0;
+        group.tax = breakdown.tax || 0;
+        group.discount = breakdown.discount || 0;
+        group.commission = breakdown.commission || 0;
+      } else {
+        // Fallback if no breakdown found
+        group.commission = group.subtotal * commissionRate;
+      }
+
+      const vendorEarnings = group.subtotal - group.discount - group.commission;
 
       return {
         ...group,
-        commission,
         vendorEarnings,
       };
     });
@@ -109,7 +122,7 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
     // Check both order and populatedOrder for customer info
     let customerInfo = null;
     const customerSource = populatedOrder.customerId || order.customerId;
-    
+
     if (customerSource) {
       // Check if customerId is populated (object with name property) or just an ID
       if (typeof customerSource === 'object' && customerSource !== null) {

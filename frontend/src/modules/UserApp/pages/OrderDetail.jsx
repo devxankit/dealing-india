@@ -426,6 +426,12 @@ const MobileOrderDetail = () => {
                     <span>Tax</span>
                     <span>{formatPrice(order.pricing?.tax || order.tax || 0)}</span>
                   </div>
+                  {(order.pricing?.platformFee || 0) > 0 && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>Platform Fee</span>
+                      <span>{formatPrice(order.pricing.platformFee)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-lg font-bold text-gray-800 pt-2 border-t border-gray-200">
                     <span>Total</span>
                     <span className="text-primary-600">{formatPrice(order.pricing?.total || order.total || 0)}</span>

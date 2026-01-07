@@ -98,6 +98,11 @@ const orderSchema = new mongoose.Schema(
         min: 0,
         default: 0,
       },
+      platformFee: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
       total: {
         type: Number,
         min: 0,

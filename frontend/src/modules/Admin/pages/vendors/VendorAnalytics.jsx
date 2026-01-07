@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { IndianRupee } from "lucide-react";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorManagementStore } from "../../store/vendorManagementStore";
+import VendorRegistrationCharts from "./components/VendorRegistrationCharts";
 
 const VendorAnalytics = () => {
   const navigate = useNavigate();
@@ -118,6 +119,9 @@ const VendorAnalytics = () => {
           </p>
         </div>
       </div>
+
+      {/* Vendor Registration Analytics */}
+      <VendorRegistrationCharts />
 
       {/* Vendor Performance Table */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">

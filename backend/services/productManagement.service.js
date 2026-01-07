@@ -4,6 +4,7 @@ import Brand from '../models/Brand.model.js';
 import Cart from '../models/Cart.model.js';
 import Wishlist from '../models/Wishlist.model.js';
 import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
+import redisService from './redis.service.js';
 
 /**
  * Get all products with optional filters
@@ -415,6 +416,15 @@ export const updateProduct = async (productId, updateData) => {
       throw new Error('Product not found');
     }
 
+    // Cache Invalidation
+    try {
+      await redisService.del(`product:details:${productId}`);
+      await redisService.clearPattern('products:list:*');
+      await redisService.clearPattern('products:recommended:*');
+    } catch (cacheError) {
+      console.error('Cache invalidation error (updateProduct):', cacheError);
+    }
+
     return updatedProduct;
   } catch (error) {
     if (error.name === 'CastError') {
@@ -452,6 +462,15 @@ export const deleteProduct = async (productId) => {
     } catch (cleanupError) {
       console.error('Failed to remove deleted product from carts/wishlists:', cleanupError);
       // Don't throw error here, as the main product is already deleted
+    }
+
+    // Cache Invalidation
+    try {
+      await redisService.del(`product:details:${productId}`);
+      await redisService.clearPattern('products:list:*');
+      await redisService.clearPattern('products:recommended:*');
+    } catch (cacheError) {
+      console.error('Cache invalidation error (deleteProduct):', cacheError);
     }
 
     return true;

@@ -1,4 +1,5 @@
 import Vendor from '../models/Vendor.model.js';
+import redisService from './redis.service.js';
 
 /**
  * Get all vendors with optional filters
@@ -174,6 +175,14 @@ export const toggleVendorActive = async (vendorId) => {
 
     vendor.isActive = !vendor.isActive;
     await vendor.save();
+
+    // Cache Invalidation
+    try {
+      await redisService.del(`vendor:details:${vendorId}`);
+      await redisService.clearPattern('home:featured_vendors:*');
+    } catch (cacheError) {
+      console.error('Cache invalidation error (toggleVendorActive):', cacheError);
+    }
 
     return vendor;
   } catch (error) {

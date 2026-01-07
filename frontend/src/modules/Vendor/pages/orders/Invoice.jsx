@@ -16,6 +16,9 @@ const VendorInvoice = () => {
     const { settings } = useSettingsStore();
     const storeLogo = settings?.general?.storeLogo || logoImage;
     const storeName = settings?.general?.storeName || "Appzeto E-commerce";
+    const storeAddress = settings?.general?.address || "";
+    const storePhone = settings?.general?.contactPhone || "";
+    const storeEmail = settings?.general?.contactEmail || "";
 
     useEffect(() => {
         const fetchOrder = async () => {
@@ -55,33 +58,20 @@ const VendorInvoice = () => {
         );
     }
 
-    // Get order items - filter for this vendor if needed, but getVendorOrderById likely returns only relevant items or all items if allowed
-    // Usually getVendorOrderById returns the order as seen by the vendor.
-    // Check AllOrders.jsx logic: it uses order.vendorItems[0] if available.
-    // I should check if I need to filter items.
-    // getVendorOrderById typically returns the order object.
-    // If the backend filters items, good.
-    // Let's assume for invoice we show what's in the order object.
+    // If vendorItems exists, it might contain vendor-specific breakdown
+    const vendorData = order.vendorItems && order.vendorItems.length > 0 ? order.vendorItems[0] : null;
 
-    // However, looking at AllOrders.jsx, it seems vendor orders might have `vendorItems`.
-    // Let's be safe: if `vendorItems` exists, use that to show only this vendor's items.
-    // But usually Invoice implies the customer's invoice.
-    // If this is a multi-vendor platform, the invoice might be split or combined.
-    // If "Split Orders" is enabled, each vendor has their own order ID.
-    // If "Combined", then `order.items` might contain other vendors' items.
-    // For safety, I'll filter items by the vendor's ID if possible, but I don't have vendorId easily available here (unless from store).
-    // But `getVendorOrderById` should check permissions.
+    // Get items - if vendorData exists use its items, otherwise use order.items
+    const items = vendorData ? vendorData.items : (Array.isArray(order.items) ? order.items : []);
 
-    // Let's use `items` from order directly for now.
-    const items = Array.isArray(order.items) ? order.items : [];
-
-    // Calculate totals from pricing object or fallback
+    // Calculate totals from pricing object or vendorData or fallback
     const pricing = order.pricing || {};
-    const subtotal = pricing.subtotal || order.subtotal || order.total * 0.95 || 0;
-    const tax = pricing.tax || order.tax || 0;
-    const discount = pricing.discount || order.discount || 0;
-    const shipping = pricing.shipping || order.shipping || 0;
-    const finalTotal = pricing.total || order.total || (subtotal + tax + shipping - discount);
+    const subtotal = vendorData ? vendorData.subtotal : (pricing.subtotal ?? (order.subtotal || 0));
+    const tax = vendorData ? vendorData.tax : (pricing.tax ?? (order.tax || 0));
+    const discount = vendorData ? vendorData.discount : (pricing.discount ?? (order.discount || 0));
+    const shipping = vendorData ? vendorData.shipping : (pricing.shipping ?? (order.shipping || 0));
+    const platformFee = pricing.platformFee ?? 0;
+    const finalTotal = vendorData ? (subtotal + tax + shipping - discount) : (pricing.total ?? (order.total || (subtotal + tax + shipping + platformFee - discount)));
 
     // Format payment method
     const formatPaymentMethod = (method) => {
@@ -160,22 +150,38 @@ const VendorInvoice = () => {
                             />
                         </div>
                         <div className="text-right">
-                            <p className="text-sm font-semibold text-gray-700 mb-1">Status</p>
-                            <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold capitalize">
+                            <p className="text-sm font-semibold text-gray-700 mb-1">Order Status</p>
+                            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-bold capitalize mb-3">
                                 {order.status}
+                            </span>
+                            <p className="text-sm font-semibold text-gray-700 mb-1">Payment Status</p>
+                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold capitalize ${order.paymentStatus === 'completed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {order.paymentStatus || 'pending'}
                             </span>
                         </div>
                     </div>
 
-                    {/* Invoice Title */}
-                    <div className="mt-6">
-                        <h2 className="text-3xl font-bold text-gray-800 mb-2">INVOICE</h2>
-                        <p className="text-gray-600">
-                            Order #<span className="font-semibold">{order.orderCode || order.id}</span>
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                            Date: {new Date(order.orderDate || order.createdAt || order.date).toLocaleString()}
-                        </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 items-start">
+                        {/* Store Information */}
+                        <div className="text-left">
+                            <h3 className="text-lg font-bold text-gray-800 mb-1">{storeName}</h3>
+                            <div className="text-sm text-gray-600 space-y-0.5">
+                                {storeAddress && <p>{storeAddress}</p>}
+                                {storePhone && <p>Phone: {storePhone}</p>}
+                                {storeEmail && <p>Email: {storeEmail}</p>}
+                            </div>
+                        </div>
+
+                        {/* Invoice Title */}
+                        <div className="mt-2 text-right">
+                            <h2 className="text-3xl font-bold text-gray-800 mb-2">INVOICE</h2>
+                            <p className="text-gray-600">
+                                Order #<span className="font-semibold">{order.orderCode || order.id}</span>
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Date: {new Date(order.orderDate || order.createdAt || order.date).toLocaleString()}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -306,6 +312,12 @@ const VendorInvoice = () => {
                             <div className="flex justify-between text-sm text-gray-700">
                                 <span>Shipping:</span>
                                 <span className="font-semibold">{formatPrice(shipping)}</span>
+                            </div>
+                        )}
+                        {platformFee > 0 && (
+                            <div className="flex justify-between text-sm text-gray-700">
+                                <span>Platform Fee:</span>
+                                <span className="font-semibold">{formatPrice(platformFee)}</span>
                             </div>
                         )}
                         <div className="flex justify-between text-lg font-bold text-gray-800 pt-3 border-t border-gray-200">

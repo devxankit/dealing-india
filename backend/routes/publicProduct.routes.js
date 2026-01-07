@@ -3,14 +3,16 @@ import { getProducts, getProduct } from '../controllers/public-controllers/publi
 import { getRecommended } from '../controllers/public-controllers/recommendedProducts.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
+import redisService from '../services/redis.service.js';
+
 const router = express.Router();
 
 // Public routes - no authentication required
-router.get('/', asyncHandler(getProducts));
+router.get('/', redisService.cacheMiddleware('products:list', 300), asyncHandler(getProducts));
 // Recommended products - authentication optional (better recommendations if logged in)
 // Route should be before /:id to avoid matching "recommended" as an ID
-router.get('/recommended', asyncHandler(getRecommended));
-router.get('/:id', asyncHandler(getProduct));
+router.get('/recommended', redisService.cacheMiddleware('products:recommended', 300), asyncHandler(getRecommended));
+router.get('/:id', redisService.cacheMiddleware('product:details', 180), asyncHandler(getProduct));
 
 export default router;
 

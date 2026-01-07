@@ -28,11 +28,11 @@ export const updateSettingsController = async (req, res, next) => {
     const categoryData = req.body;
 
     // Validate category
-    const validCategories = ['general', 'products', 'tax', 'banners', 'payment', 'shipping'];
+    const validCategories = ['general', 'products', 'tax', 'banners', 'payment', 'shipping', 'features', 'homepage', 'reviews'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid category. Valid categories are: general, products, tax, banners, payment, shipping',
+        message: 'Invalid category. Valid categories are: general, products, tax, banners, payment, shipping, features, homepage, reviews',
       });
     }
 

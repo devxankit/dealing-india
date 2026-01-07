@@ -1,4 +1,5 @@
 import Vendor from '../models/Vendor.model.js';
+import redisService from './redis.service.js';
 
 // Order model - handle gracefully if it doesn't exist
 let Order = null;
@@ -68,8 +69,9 @@ const getSingleVendorAnalytics = async (vendorId) => {
 
       if (vendorBreakdown) {
         const subtotal = vendorBreakdown.subtotal || 0;
+        const discount = vendorBreakdown.discount || 0;
         const commission = vendorBreakdown.commission || (subtotal * (vendor.commissionRate || 0.1));
-        const earnings = subtotal - commission;
+        const earnings = subtotal - discount - commission;
 
         totalRevenue += subtotal;
         totalCommission += commission;
@@ -83,6 +85,10 @@ const getSingleVendorAnalytics = async (vendorId) => {
         }
       }
     });
+
+    // Get Redis real-time stats
+    const viewCount = await redisService.get(`vendor:views:${vendorId}`) || 0;
+    const todayOrders = await redisService.get(`vendor:orders:today:${vendorId}`) || 0;
 
     return {
       vendor: {
@@ -100,6 +106,8 @@ const getSingleVendorAnalytics = async (vendorId) => {
         totalEarnings,
         pendingEarnings,
         paidEarnings,
+        todayOrders: parseInt(todayOrders) || 0,
+        viewCount: parseInt(viewCount) || 0,
       },
     };
   } catch (error) {
@@ -148,8 +156,9 @@ const getAllVendorsAnalytics = async () => {
 
         if (vendorBreakdown) {
           const subtotal = vendorBreakdown.subtotal || 0;
+          const discount = vendorBreakdown.discount || 0;
           const commission = vendorBreakdown.commission || (subtotal * (vendor.commissionRate || 0.1));
-          const earnings = subtotal - commission;
+          const earnings = subtotal - discount - commission;
 
           vendorRevenue += subtotal;
           vendorEarnings += earnings;

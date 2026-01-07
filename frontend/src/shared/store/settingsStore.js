@@ -94,11 +94,12 @@ const defaultSettings = {
   homepage: {
     heroBannerEnabled: true,
     sections: {
-      mostPopular: { enabled: true, order: 1 },
-      trending: { enabled: true, order: 2 },
-      flashSale: { enabled: true, order: 3 },
-      dailyDeals: { enabled: true, order: 4 },
-      recommended: { enabled: true, order: 5 },
+      featuredCategories: { enabled: true },
+      newArrivals: { enabled: true },
+      bestSellers: { enabled: true },
+      dealsOfTheDay: { enabled: false },
+      flashSale: { enabled: false },
+      topBrands: { enabled: true },
     },
   },
   reviews: {
@@ -160,13 +161,14 @@ export const useSettingsStore = create(
           if (response.success && response.data?.settings) {
             const apiSettings = response.data.settings;
             // Merge API settings with defaults to ensure all fields exist
-            // Merge API settings with defaults
             const mergedSettings = {
               ...defaultSettings,
               ...apiSettings,
               general: { ...defaultSettings.general, ...(apiSettings.general || {}) },
               products: { ...defaultSettings.products, ...(apiSettings.products || {}) },
-              // Explicitly ensure tax is effectively merged if present
+              features: { ...defaultSettings.features, ...(apiSettings.features || {}) },
+              homepage: { ...defaultSettings.homepage, ...(apiSettings.homepage || {}) },
+              reviews: { ...defaultSettings.reviews, ...(apiSettings.reviews || {}) },
               tax: apiSettings.tax || defaultSettings.tax || {},
             };
             set({ settings: mergedSettings, isLoading: false });

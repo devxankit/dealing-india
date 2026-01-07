@@ -1,67 +1,56 @@
 import OTP from '../models/OTP.model.js';
 import { isValidOTP } from '../utils/validators.util.js';
+import redisService from './redis.service.js';
 
-const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES) || 10;
-const RATE_LIMIT_REQUESTS = parseInt(process.env.OTP_RATE_LIMIT_REQUESTS) || 10; // Changed from 3 to 10
-const RATE_LIMIT_WINDOW = parseInt(process.env.OTP_RATE_LIMIT_WINDOW) || 15; // minutes
+const OTP_EXPIRY_SECONDS = (parseInt(process.env.OTP_EXPIRY_MINUTES) || 10) * 60;
+const RATE_LIMIT_REQUESTS = parseInt(process.env.OTP_RATE_LIMIT_REQUESTS) || 10;
+const RATE_LIMIT_WINDOW = (parseInt(process.env.OTP_RATE_LIMIT_WINDOW) || 15) * 60; // seconds
 
 /**
- * Generate a 4-digit OTP and store it in database
- * @param {String} identifier - Email or phone number
- * @param {String} type - 'email_verification' or 'password_reset'
- * @returns {Promise<String>} Generated OTP code
+ * Generate a 4-digit OTP and store it in Redis (Primary) or MongoDB (Fallback)
  */
 export const generateOTP = async (identifier, type) => {
   try {
-    if (!identifier || !type) {
-      throw new Error('Identifier and type are required');
-    }
+    if (!identifier || !type) throw new Error('Identifier and type are required');
 
-    // Normalize identifier (lowercase for email)
     const normalizedIdentifier = identifier.toLowerCase().trim();
+    const rateKey = `rate:otp:${type}:${normalizedIdentifier}`;
+    const otpKey = `otp:${type}:${normalizedIdentifier}`;
 
-    // Check rate limiting - count OTPs generated in the last RATE_LIMIT_WINDOW minutes
-    const rateLimitWindowStart = new Date(Date.now() - RATE_LIMIT_WINDOW * 60 * 1000);
-    const recentOTPs = await OTP.countDocuments({
-      identifier: normalizedIdentifier,
-      type,
-      createdAt: { $gte: rateLimitWindowStart },
-    });
-
-    if (recentOTPs >= RATE_LIMIT_REQUESTS) {
-      const error = new Error(
-        `Too many OTP requests. Please wait ${RATE_LIMIT_WINDOW} minutes before requesting again.`
-      );
-      error.statusCode = 429; // Too Many Requests
+    // 1. Check Rate Limiting using Redis
+    let currentRequests = await redisService.get(rateKey);
+    if (currentRequests && parseInt(currentRequests) >= RATE_LIMIT_REQUESTS) {
+      const error = new Error(`Too many OTP requests. Please wait before requesting again.`);
+      error.statusCode = 429;
       error.isRateLimitError = true;
       throw error;
     }
 
-    // Mark any existing unused OTPs as used (prevent multiple active OTPs)
-    await OTP.updateMany(
-      {
-        identifier: normalizedIdentifier,
-        type,
-        isUsed: false,
-        expiresAt: { $gt: new Date() },
-      },
-      { isUsed: true }
-    );
+    // 2. Increment Request Count
+    if (!currentRequests) {
+      await redisService.set(rateKey, 1, RATE_LIMIT_WINDOW);
+    } else {
+      await redisService.incr(rateKey);
+    }
 
-    // Generate 4-digit OTP
+    // 3. Generate 4-digit OTP
     const code = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Set expiration time
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+    // 4. Store in Redis
+    const success = await redisService.set(otpKey, { code, isUsed: false }, OTP_EXPIRY_SECONDS);
 
-    // Store OTP in database
-    await OTP.create({
-      identifier: normalizedIdentifier,
-      code,
-      type,
-      expiresAt,
-      isUsed: false,
-    });
+    // Fallback/Persistence to MongoDB (Optional based on user's architecture)
+    // We'll keep it as fallback for MongoDB SOURCE OF TRUTH rule
+    if (!success) {
+      const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
+      await OTP.create({
+        identifier: normalizedIdentifier,
+        code,
+        type,
+        expiresAt,
+        isUsed: false,
+      });
+    }
 
     return code;
   } catch (error) {
@@ -71,26 +60,28 @@ export const generateOTP = async (identifier, type) => {
 
 /**
  * Verify OTP code
- * @param {String} identifier - Email or phone number
- * @param {String} code - 4-digit OTP code
- * @param {String} type - 'email_verification' or 'password_reset'
- * @returns {Promise<Boolean>} True if OTP is valid
  */
 export const verifyOTP = async (identifier, code, type) => {
   try {
-    if (!identifier || !code || !type) {
-      throw new Error('Identifier, code, and type are required');
-    }
+    if (!identifier || !code || !type) throw new Error('Params missing');
+    if (!isValidOTP(code)) throw new Error('Invalid OTP format');
 
-    // Validate OTP format
-    if (!isValidOTP(code)) {
-      throw new Error('Invalid OTP format. Must be 4 digits.');
-    }
-
-    // Normalize identifier
     const normalizedIdentifier = identifier.toLowerCase().trim();
+    const otpKey = `otp:${type}:${normalizedIdentifier}`;
 
-    // Find the OTP
+    // 1. Try Redis
+    let otpData = await redisService.get(otpKey);
+
+    if (otpData) {
+      if (otpData.isUsed) throw new Error('OTP already used');
+      if (otpData.code !== code) throw new Error('Invalid OTP');
+
+      // Mark as used or delete
+      await redisService.del(otpKey);
+      return true;
+    }
+
+    // 2. Fallback to MongoDB
     const otp = await OTP.findOne({
       identifier: normalizedIdentifier,
       code,
@@ -99,11 +90,8 @@ export const verifyOTP = async (identifier, code, type) => {
       expiresAt: { $gt: new Date() },
     });
 
-    if (!otp) {
-      throw new Error('Invalid or expired OTP');
-    }
+    if (!otp) throw new Error('Invalid or expired OTP');
 
-    // Mark OTP as used
     otp.isUsed = true;
     await otp.save();
 
@@ -114,16 +102,9 @@ export const verifyOTP = async (identifier, code, type) => {
 };
 
 /**
- * Resend OTP (generates new OTP)
- * @param {String} identifier - Email or phone number
- * @param {String} type - 'email_verification' or 'password_reset'
- * @returns {Promise<String>} New OTP code
+ * Resend OTP
  */
 export const resendOTP = async (identifier, type) => {
-  try {
-    return await generateOTP(identifier, type);
-  } catch (error) {
-    throw error;
-  }
+  return await generateOTP(identifier, type);
 };
 

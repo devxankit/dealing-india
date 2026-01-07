@@ -11,7 +11,7 @@ try {
   useUIStore = require("./useStore").useUIStore;
 } catch (e) {
   // Fallback if circular dependency issue
-  useUIStore = { getState: () => ({ triggerCartAnimation: () => {} }) };
+  useUIStore = { getState: () => ({ triggerCartAnimation: () => { } }) };
 }
 
 // Cart Store
@@ -27,7 +27,7 @@ export const useCartStore = create(
         // Get fresh auth state
         const authState = useAuthStore.getState();
         const { isAuthenticated, token } = authState;
-        
+
         // Check if user is authenticated
         if (!isAuthenticated) {
           set({ items: [], isInitialized: true, isLoading: false });
@@ -48,7 +48,7 @@ export const useCartStore = create(
             const payload = JSON.parse(atob(tokenParts[1]));
             const exp = payload.exp;
             const now = Math.floor(Date.now() / 1000);
-            
+
             // If token is expired, don't make API call
             if (exp && exp <= now) {
               set({ items: [], isLoading: false, isInitialized: true });
@@ -68,7 +68,7 @@ export const useCartStore = create(
         try {
           set({ isLoading: true });
           const response = await api.get('/user/cart');
-          
+
           if (response.success && response.data?.items) {
             const items = response.data.items || [];
             set({
@@ -82,13 +82,13 @@ export const useCartStore = create(
         } catch (error) {
           // Handle 401 errors silently (user not authenticated)
           // Handle network errors silently - they're already handled by API interceptor
-          const isUnauthorized = error?.response?.status === 401 || 
-                                 error?.response?.statusCode === 401 ||
-                                 error?.message?.includes('401') ||
-                                 error?.message?.includes('Unauthorized');
-          
+          const isUnauthorized = error?.response?.status === 401 ||
+            error?.response?.statusCode === 401 ||
+            error?.message?.includes('401') ||
+            error?.message?.includes('Unauthorized');
+
           const isNetworkError = error?.isNetworkError || error?.isConnectionRefused;
-          
+
           if (isUnauthorized) {
             // User is not authenticated - clear cart and mark as initialized
             set({ items: [], isLoading: false, isInitialized: true });
@@ -105,7 +105,7 @@ export const useCartStore = create(
 
       addItem: async (item) => {
         const { isAuthenticated } = useAuthStore.getState();
-        
+
         // Normalize product ID for comparison
         const productId = item.id?.toString() || item._id?.toString();
         if (!productId) {
@@ -114,7 +114,7 @@ export const useCartStore = create(
         }
 
         // Optimistic update for better UX
-        const existingItem = get().items.find((i) => 
+        const existingItem = get().items.find((i) =>
           i.id?.toString() === productId || i._id?.toString() === productId
         );
         const quantityToAdd = item.quantity || 1;
@@ -183,6 +183,8 @@ export const useCartStore = create(
           vendor: product.vendor || null,
           stock: product.stock || 'in_stock',
           stockQuantity: product.stockQuantity || 0,
+          taxRate: product.taxRate || 0,
+          taxIncluded: product.taxIncluded || false,
         };
 
         // Update local state immediately
@@ -270,7 +272,7 @@ export const useCartStore = create(
 
       removeItem: async (id) => {
         const { isAuthenticated } = useAuthStore.getState();
-        
+
         // Optimistic update
         const itemToRemove = get().items.find((i) => i.id === id);
         set((state) => ({
@@ -295,7 +297,7 @@ export const useCartStore = create(
 
       updateQuantity: async (id, quantity) => {
         const { isAuthenticated } = useAuthStore.getState();
-        
+
         if (quantity <= 0) {
           await get().removeItem(id);
           return;
@@ -329,7 +331,7 @@ export const useCartStore = create(
 
       clearCart: async () => {
         const { isAuthenticated } = useAuthStore.getState();
-        
+
         // Optimistic update
         const previousItems = get().items;
         set({ items: [] });

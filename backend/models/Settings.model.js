@@ -56,6 +56,34 @@ const settingsSchema = new mongoose.Schema(
       taxValue: { type: Number, default: 0, min: 0 },
       isEnabled: { type: Boolean, default: false },
     },
+    features: {
+      wishlistEnabled: { type: Boolean, default: true },
+      reviewsEnabled: { type: Boolean, default: true },
+      flashSaleEnabled: { type: Boolean, default: false },
+      dailyDealsEnabled: { type: Boolean, default: false },
+      liveChatEnabled: { type: Boolean, default: false },
+      couponCodesEnabled: { type: Boolean, default: true },
+    },
+    homepage: {
+      heroBannerEnabled: { type: Boolean, default: true },
+      sections: {
+        featuredCategories: { enabled: { type: Boolean, default: true } },
+        newArrivals: { enabled: { type: Boolean, default: true } },
+        bestSellers: { enabled: { type: Boolean, default: true } },
+        dealsOfTheDay: { enabled: { type: Boolean, default: false } },
+        flashSale: { enabled: { type: Boolean, default: false } },
+        topBrands: { enabled: { type: Boolean, default: true } },
+      },
+    },
+    reviews: {
+      moderationMode: { type: String, enum: ['auto', 'manual'], default: 'manual' },
+      purchaseRequired: { type: Boolean, default: true },
+      displaySettings: {
+        showAll: { type: Boolean, default: true },
+        verifiedOnly: { type: Boolean, default: false },
+        withPhotosOnly: { type: Boolean, default: false },
+      },
+    },
   },
   {
     timestamps: true,

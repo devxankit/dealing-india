@@ -57,7 +57,13 @@ const MobileCheckout = () => {
   const itemsByVendor = useMemo(() => {
     if (buyNowItem) {
       const vendorId = buyNowItem.vendorId || 'default';
-      return { [vendorId]: [buyNowItem] };
+      const vendorName = buyNowItem.vendorName || "Unknown Vendor";
+      return [{
+        vendorId,
+        vendorName,
+        items: [buyNowItem],
+        subtotal: buyNowItem.price * buyNowItem.quantity
+      }];
     }
     return getItemsByVendor();
   }, [items, buyNowItem, getItemsByVendor]);
@@ -241,7 +247,7 @@ const MobileCheckout = () => {
     try {
       const response = await api.post('/public/promocodes/validate', {
         code: codeToApply,
-        cartTotal: total,
+        cartTotal: subtotal,
         cartItems: items.map(item => ({
           productId: item.productId || item.id, // Fixed: send productId instead of product
           price: item.price,
@@ -388,8 +394,9 @@ const MobileCheckout = () => {
         paymentMethod: formData.paymentMethod === 'card' ? 'creditCard' : formData.paymentMethod,
         subtotal: subtotal,
         shipping: shipping,
-        tax: tax,
+        tax: tax + platformTax,
         discount: discount,
+        platformFee: 0,
         total: finalTotal,
         couponCode: appliedCoupon ? couponCode : null,
       };
@@ -473,10 +480,11 @@ const MobileCheckout = () => {
           country: formData.country,
         },
         paymentMethod: formData.paymentMethod === 'cash' ? 'cod' : formData.paymentMethod,
-        subtotal: total,
+        subtotal: subtotal,
         shipping: shipping,
-        tax: tax,
+        tax: tax + platformTax,
         discount: discount,
+        platformFee: 0,
         total: finalTotal,
         couponCode: appliedCoupon ? couponCode : null,
       };
@@ -761,7 +769,7 @@ const MobileCheckout = () => {
                 </div>
 
                 {/* Shipping Options */}
-                {total < 100 && (
+                {subtotal < 100 && (
                   <div className="mb-5">
                     <h3 className="text-base font-semibold text-gray-800 mb-3">
                       Shipping Options
@@ -927,7 +935,7 @@ const MobileCheckout = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between text-gray-600">
                       <span>Subtotal</span>
-                      <span>{formatPrice(total)}</span>
+                      <span>{formatPrice(subtotal)}</span>
                     </div>
                     {discount > 0 && (
                       <div className="flex justify-between text-green-600">

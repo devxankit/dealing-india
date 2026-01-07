@@ -63,3 +63,10 @@ export const getDashboardSummary = async (req, res, next) => {
   }
 };
 
+/**
+ * Get order analytics for charts
+ * GET /api/admin/reports/order-analytics
+ */
+export { getOrderAnalytics } from './orderAnalytics.controller.js';
+export { getVendorRegistrationAnalytics } from './vendorRegistrationAnalytics.controller.js';
+

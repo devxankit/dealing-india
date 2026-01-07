@@ -442,3 +442,11 @@
 [2026-01-07T07:13:30.504Z] Found 2 products
 [2026-01-07T07:13:30.535Z] Found 1 orders in DB
 [2026-01-07T07:13:30.536Z] Final: Orders=1, Total=3840, Pending=0
+[2026-01-07T09:45:39.672Z] Vendor: 695cbfa6b0ae56e5cfb7db09
+[2026-01-07T09:45:39.675Z] Found 2 products
+[2026-01-07T09:45:39.722Z] Found 3 orders in DB
+[2026-01-07T09:45:39.723Z] Final: Orders=3, Total=5440, Pending=1600
+[2026-01-07T09:45:39.840Z] Vendor: 695cbfa6b0ae56e5cfb7db09
+[2026-01-07T09:45:39.841Z] Found 2 products
+[2026-01-07T09:45:39.869Z] Found 3 orders in DB
+[2026-01-07T09:45:39.870Z] Final: Orders=3, Total=5440, Pending=1600

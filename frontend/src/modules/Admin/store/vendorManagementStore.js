@@ -242,6 +242,31 @@ export const useVendorManagementStore = create((set, get) => ({
     }
   },
 
+  // Fetch vendor registration analytics (admin dashboard)
+  fetchVendorRegistrationAnalytics: async (filters = {}) => {
+    set({ isLoading: true });
+    try {
+      const { type, date, startDate, endDate } = filters;
+      const params = new URLSearchParams();
+      if (type) params.append('type', type);
+      if (date) params.append('date', date);
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+
+      const response = await api.get(`/admin/reports/vendor-registration-analytics?${params.toString()}`);
+
+      if (response.success) {
+        set({ isLoading: false });
+        return response;
+      } else {
+        throw new Error(response.message || 'Failed to fetch vendor registration analytics');
+      }
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
   // Fetch vendor orders
   fetchVendorOrders: async (vendorId, filters = {}) => {
     set({ isLoading: true });

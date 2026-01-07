@@ -173,20 +173,68 @@ const OrderDetail = () => {
                     {order.vendorItems?.[0] && (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                             <h2 className="font-semibold text-gray-800 mb-4">Order Summary</h2>
-                            <div className="space-y-2">
+                            <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Subtotal</span>
-                                    <span className="font-medium">{formatPrice(order.vendorItems[0].subtotal || 0)}</span>
+                                    <span className="font-medium text-gray-800">{formatPrice(order.vendorItems[0].subtotal || 0)}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Commission</span>
-                                    <span className="font-medium">{formatPrice(order.vendorItems[0].commission || 0)}</span>
-                                </div>
-                                <div className="flex justify-between pt-2 border-t">
-                                    <span className="font-semibold">Vendor Earnings</span>
-                                    <span className="font-bold text-green-600">
-                                        {formatPrice((order.vendorItems[0].subtotal || 0) - (order.vendorItems[0].commission || 0))}
+                                {(order.vendorItems[0].tax || 0) >= 0 && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Tax</span>
+                                        <span className="font-medium text-gray-800">{formatPrice(order.vendorItems[0].tax || 0)}</span>
+                                    </div>
+                                )}
+                                {(order.vendorItems[0].shipping || 0) >= 0 && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Shipping</span>
+                                        <span className="font-medium text-gray-800">{formatPrice(order.vendorItems[0].shipping || 0)}</span>
+                                    </div>
+                                )}
+                                {(order.pricing?.platformFee || 0) > 0 && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Platform Fee</span>
+                                        <span className="font-medium text-gray-800">{formatPrice(order.pricing.platformFee)}</span>
+                                    </div>
+                                )}
+                                {(order.vendorItems[0].discount || 0) > 0 && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Discount</span>
+                                        <span className="text-green-600 font-medium">-{formatPrice(order.vendorItems[0].discount)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between pt-2 border-t font-semibold">
+                                    <span className="text-gray-800">Total Payment</span>
+                                    <span className="text-gray-900">
+                                        {formatPrice(
+                                            (order.vendorItems[0].subtotal || 0) +
+                                            (order.vendorItems[0].tax || 0) +
+                                            (order.vendorItems[0].shipping || 0) +
+                                            (order.pricing?.platformFee || 0) -
+                                            (order.vendorItems[0].discount || 0)
+                                        )}
                                     </span>
+                                </div>
+                                <div className="flex justify-between pt-2 border-t italic">
+                                    <span className="text-gray-500 text-xs">Commission (Admin Share)</span>
+                                    <span className="text-red-500 text-xs text-right">-{formatPrice(order.vendorItems[0].commission || 0)}</span>
+                                </div>
+                                <div className="flex justify-between pt-1 font-bold bg-green-50 p-2 rounded-lg">
+                                    <div className="flex flex-col">
+                                        <span className="text-green-800">Your Earnings</span>
+                                        <span className="text-[10px] text-gray-500 font-normal">(Subtotal - Discount - Commission)</span>
+                                    </div>
+                                    <span className="text-green-700">
+                                        {formatPrice(
+                                            (order.vendorItems[0].subtotal || 0) -
+                                            (order.vendorItems[0].discount || 0) -
+                                            (order.vendorItems[0].commission || 0)
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                    <p className="text-xs text-blue-700 leading-tight">
+                                        * Note: Tax and Shipping charges are collected by the Admin. Vendor earnings are calculated based on the product subtotal minus any discounts and commissions.
+                                    </p>
                                 </div>
                             </div>
                         </div>

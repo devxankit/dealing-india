@@ -97,6 +97,12 @@ export const getPublicVendors = async (req, res, next) => {
  * Get public vendor by ID
  * GET /api/vendors/:id
  */
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Get single vendor details (public endpoint)
+ * GET /api/vendors/:id
+ */
 export const getPublicVendor = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -108,6 +114,9 @@ export const getPublicVendor = async (req, res, next) => {
         message: 'Vendor not found or inactive',
       });
     }
+
+    // Increment vendor views in Redis
+    const viewCount = await redisService.incr(`vendor:views:${id}`);
 
     // Get product count
     const productCount = await Product.countDocuments({
@@ -151,6 +160,7 @@ export const getPublicVendor = async (req, res, next) => {
       rating: Math.round(averageRating * 10) / 10,
       reviewCount: totalReviews,
       totalProducts: productCount,
+      viewCount: parseInt(viewCount) || 0,
       joinDate: vendor.createdAt,
       createdAt: vendor.createdAt,
       updatedAt: vendor.updatedAt,

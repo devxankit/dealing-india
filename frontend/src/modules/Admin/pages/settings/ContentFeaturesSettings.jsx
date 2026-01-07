@@ -7,84 +7,84 @@ import toast from 'react-hot-toast';
 
 const ContentFeaturesSettings = () => {
   const { settings, updateSettings, initialize } = useSettingsStore();
-  const [contentData, setContentData] = useState({});
   const [featuresData, setFeaturesData] = useState({});
   const [homepageData, setHomepageData] = useState({});
   const [reviewsData, setReviewsData] = useState({});
   const [activeSection, setActiveSection] = useState('features');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    initialize();
-    if (settings) {
-      if (settings.content) setContentData(settings.content);
-      if (settings.features) setFeaturesData(settings.features);
-      if (settings.homepage) setHomepageData(settings.homepage);
-      if (settings.reviews) setReviewsData(settings.reviews);
-    }
+    const load = async () => {
+      await initialize();
+    };
+    load();
   }, []);
 
   useEffect(() => {
     if (settings) {
-      if (settings.content) setContentData(settings.content);
       if (settings.features) setFeaturesData(settings.features);
       if (settings.homepage) setHomepageData(settings.homepage);
       if (settings.reviews) setReviewsData(settings.reviews);
     }
   }, [settings]);
 
-  const handleContentChange = (field, value) => {
-    setContentData({
-      ...contentData,
-      [field]: value,
-    });
-  };
-
   const handleFeatureToggle = (feature) => {
-    setFeaturesData({
-      ...featuresData,
-      [feature]: !featuresData[feature],
-    });
+    setFeaturesData(prev => ({
+      ...prev,
+      [feature]: !prev[feature],
+    }));
   };
 
   const handleHomepageSectionToggle = (section) => {
-    setHomepageData({
-      ...homepageData,
+    setHomepageData(prev => ({
+      ...prev,
       sections: {
-        ...homepageData.sections,
+        ...prev.sections,
         [section]: {
-          ...homepageData.sections[section],
-          enabled: !homepageData.sections[section]?.enabled,
+          ...prev.sections[section],
+          enabled: !prev.sections[section]?.enabled,
         },
       },
-    });
+    }));
   };
 
   const handleReviewsChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (name.startsWith('displaySettings.')) {
       const setting = name.replace('displaySettings.', '');
-      setReviewsData({
-        ...reviewsData,
+      setReviewsData(prev => ({
+        ...prev,
         displaySettings: {
-          ...reviewsData.displaySettings,
+          ...prev.displaySettings,
           [setting]: checked,
         },
-      });
+      }));
     } else {
-      setReviewsData({
-        ...reviewsData,
+      setReviewsData(prev => ({
+        ...prev,
         [name]: type === 'checkbox' ? checked : value,
-      });
+      }));
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    updateSettings('content', contentData);
-    updateSettings('features', featuresData);
-    updateSettings('homepage', homepageData);
-    updateSettings('reviews', reviewsData);
-    toast.success('Settings saved successfully');
+    setIsLoading(true);
+    try {
+      if (activeSection === 'features') {
+        await updateSettings('features', featuresData);
+      } else if (activeSection === 'homepage') {
+        await updateSettings('homepage', homepageData);
+      } else if (activeSection === 'reviews') {
+        await updateSettings('reviews', reviewsData);
+      }
+      toast.success('Settings updated successfully');
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      toast.error('Failed to update settings');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const sections = [
@@ -213,7 +213,7 @@ const ContentFeaturesSettings = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-gray-800">Coupon Codes</h4>
-                  <p className="text-xs text-gray-600">Allow customers to use coupon codes</p>
+                  <p className="text-xs text-gray-600">Enable coupon codes and discounts</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 sm:ml-4">
                   <input
@@ -240,7 +240,7 @@ const ContentFeaturesSettings = () => {
                   <input
                     type="checkbox"
                     checked={homepageData.heroBannerEnabled !== false}
-                    onChange={(e) => setHomepageData({ ...homepageData, heroBannerEnabled: e.target.checked })}
+                    onChange={(e) => setHomepageData(prev => ({ ...prev, heroBannerEnabled: e.target.checked }))}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
@@ -250,7 +250,7 @@ const ContentFeaturesSettings = () => {
               <div className="border-t border-gray-200 pt-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4">Homepage Sections</h3>
                 <div className="space-y-3">
-                  {Object.entries(homepageData.sections || {}).map(([key, section]) => (
+                  {homepageData.sections && Object.entries(homepageData.sections).map(([key, section]) => (
                     <div key={key} className="flex items-center justify-between gap-3 p-3 sm:p-4 border border-gray-200 rounded-lg">
                       <span className="text-sm font-semibold text-gray-700 capitalize flex-1 min-w-0">
                         {key.replace(/([A-Z])/g, ' $1').trim()}

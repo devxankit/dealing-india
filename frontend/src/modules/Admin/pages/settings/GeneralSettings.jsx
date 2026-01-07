@@ -28,23 +28,30 @@ const GeneralSettings = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({ ...formData, [name]: type === "checkbox" ? checked : value });
+    if (name.startsWith("socialMedia.")) {
+      const platform = name.split(".")[1];
+      setFormData((prev) => ({
+        ...prev,
+        socialMedia: {
+          ...prev.socialMedia,
+          [platform]: value,
+        },
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const {
-        storeDescription,
-        ...generalData
-      } = formData;
-
-      await updateSettings("general", {
-        ...generalData,
-        storeDescription: storeDescription || "",
-      });
+      await updateSettings("general", formData);
     } catch (error) {
       console.error("Failed to save settings:", error);
+      toast.error("Failed to save settings");
     }
   };
 

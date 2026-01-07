@@ -107,14 +107,22 @@ const AllOrders = () => {
       return {
         itemCount: vendorItem.items?.length || 0,
         subtotal: vendorItem.subtotal || 0,
+        tax: vendorItem.tax || 0,
+        shipping: vendorItem.shipping || 0,
+        discount: vendorItem.discount || 0,
         commission: vendorItem.commission || 0,
+        platformFee: order.pricing?.platformFee || 0,
       };
     }
     // Fallback
     return {
       itemCount: order.items?.length || 0,
-      subtotal: order.total || 0,
+      subtotal: order.pricing?.subtotal || order.subtotal || 0,
+      tax: order.pricing?.tax || order.tax || 0,
+      shipping: order.pricing?.shipping || order.shipping || 0,
+      discount: order.pricing?.discount || order.discount || 0,
       commission: 0,
+      platformFee: order.pricing?.platformFee || 0,
     };
   };
 
@@ -303,7 +311,6 @@ const AllOrders = () => {
             doc.setTextColor(0, 0, 0);
             doc.text(`Order #: ${order.orderCode || order.id || order._id}`, 140, 32);
             doc.text(`Date: ${new Date(order.orderDate || order.createdAt || order.date).toLocaleDateString()}`, 140, 37);
-            doc.text(`Status: ${order.status?.toUpperCase()}`, 140, 42);
 
             // Separator
             doc.setDrawColor(230, 230, 230);
@@ -430,11 +437,35 @@ const AllOrders = () => {
               doc.text(str, rightAlignX, y, { align: 'right' });
             };
 
-            textRight(`Subtotal: ${formatCurrency(vendorData.subtotal)}`, finalY);
+            let currentTotalsY = finalY;
+            textRight(`Subtotal: ${formatCurrency(vendorData.subtotal)}`, currentTotalsY);
+            currentTotalsY += 6;
+
+            if (vendorData.tax >= 0) {
+              textRight(`Tax: ${formatCurrency(vendorData.tax)}`, currentTotalsY);
+              currentTotalsY += 6;
+            }
+
+            if (vendorData.shipping >= 0) {
+              textRight(`Shipping: ${formatCurrency(vendorData.shipping)}`, currentTotalsY);
+              currentTotalsY += 6;
+            }
+
+            if (vendorData.platformFee > 0) {
+              textRight(`Platform Fee: ${formatCurrency(vendorData.platformFee)}`, currentTotalsY);
+              currentTotalsY += 6;
+            }
+
+            if (vendorData.discount > 0) {
+              textRight(`Discount: -${formatCurrency(vendorData.discount)}`, currentTotalsY);
+              currentTotalsY += 6;
+            }
+
+            const totalAmount = (vendorData.subtotal || 0) + (vendorData.tax || 0) + (vendorData.shipping || 0) + (vendorData.platformFee || 0) - (vendorData.discount || 0);
 
             doc.setFontSize(12);
             doc.setTextColor(...primaryColor);
-            textRight(`Total: ${formatCurrency(vendorData.subtotal)}`, finalY + 10, true);
+            textRight(`Total: ${formatCurrency(totalAmount)}`, currentTotalsY + 4, true);
 
             // --- Footer ---
             const pageHeight = doc.internal.pageSize.height || 297;
