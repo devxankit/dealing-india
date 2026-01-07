@@ -300,7 +300,7 @@ export const processRefund = async (orderId, refundAmount, refundTransactionId =
 export const getAdminOrderStats = async () => {
   try {
     const response = await api.get('/admin/orders/stats');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching admin order stats:', error);
     throw error;

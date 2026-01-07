@@ -30,7 +30,7 @@ const OrderDetailsModal = ({ order, isOpen, onClose }) => {
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
               <div>
                 <h2 className="text-xl font-bold text-gray-800">Order Details</h2>
-                <p className="text-sm text-gray-500 mt-1">ID: {order.id}</p>
+                <p className="text-sm text-gray-500 mt-1">ID: {order.orderCode || order.id || order._id}</p>
               </div>
               <button
                 onClick={onClose}
@@ -50,7 +50,7 @@ const OrderDetailsModal = ({ order, isOpen, onClose }) => {
                   </div>
                   <div>
                     <p className="text-xs text-blue-600 font-medium uppercase tracking-wider">Order Date</p>
-                    <p className="text-sm font-semibold text-gray-800">{formatDateTime(order.date)}</p>
+                    <p className="text-sm font-semibold text-gray-800">{formatDateTime(order.orderDate || order.date || order.createdAt)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -72,9 +72,9 @@ const OrderDetailsModal = ({ order, isOpen, onClose }) => {
                     Customer Information
                   </h3>
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-gray-800">{order.customer.name}</p>
-                    <p className="text-sm text-gray-600">{order.customer.email}</p>
-                    {order.customer.phone && <p className="text-sm text-gray-600">{order.customer.phone}</p>}
+                    <p className="text-sm font-semibold text-gray-800">{typeof order.customer === 'object' ? order.customer.name : order.customer}</p>
+                    {order.customer?.email && <p className="text-sm text-gray-600">{order.customer.email}</p>}
+                    {order.customer?.phone && <p className="text-sm text-gray-600">{order.customer.phone}</p>}
                   </div>
                 </div>
 
@@ -144,15 +144,15 @@ const OrderDetailsModal = ({ order, isOpen, onClose }) => {
                 <div className="w-full max-w-xs space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Subtotal</span>
-                    <span>{formatCurrency(order.total - (order.tax || 0) - (order.shippingFee || 0))}</span>
+                    <span>{formatCurrency(order.subtotal || (order.total - (order.tax || 0) - (order.shippingFee || 0)))}</span>
                   </div>
-                  {order.tax > 0 && (
+                  {(order.tax > 0) && (
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>Tax</span>
                       <span>{formatCurrency(order.tax)}</span>
                     </div>
                   )}
-                  {order.shippingFee > 0 && (
+                  {(order.shippingFee > 0) && (
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>Shipping</span>
                       <span>{formatCurrency(order.shippingFee)}</span>

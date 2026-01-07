@@ -48,7 +48,7 @@ export const getInventory = async (req, res, next) => {
 export const getDashboardSummary = async (req, res, next) => {
   try {
     const { period } = req.query;
-    const validPeriods = ['week', 'month', 'year'];
+    const validPeriods = ['today', 'week', 'month', 'year'];
     const selectedPeriod = validPeriods.includes(period) ? period : 'month';
 
     const result = await getAdminDashboardSummary(selectedPeriod);

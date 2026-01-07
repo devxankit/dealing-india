@@ -47,7 +47,8 @@
     "children": [
       "View Customers",
       "Addresses",
-      "Transactions"
+      "Transactions",
+      "Customer Analysis"
     ]
   },
   {

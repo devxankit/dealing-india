@@ -1115,9 +1115,13 @@ export const getAdminOrders = async (filters = {}) => {
     }
 
     if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
+      const dateQuery = {};
+      if (startDate) dateQuery.$gte = new Date(startDate);
+      if (endDate) dateQuery.$lte = new Date(endDate);
+      query.$or = [
+        { createdAt: dateQuery },
+        { orderDate: dateQuery }
+      ];
     }
 
     console.log('getAdminOrders - Query:', JSON.stringify(query, null, 2)); // Debug log

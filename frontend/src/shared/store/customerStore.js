@@ -37,6 +37,7 @@ export const useCustomerStore = create((set, get) => ({
 
   // Get customer by ID
   getCustomerById: async (id) => {
+    if (!id || id === 'analytics') return null;
     try {
       const response = await api.get(`/admin/customers/${id}`);
       if (response.success && response.data?.customer) {
@@ -44,10 +45,10 @@ export const useCustomerStore = create((set, get) => ({
         set({ currentCustomer: customer });
         return customer;
       }
-      throw new Error(response.message || 'Customer not found');
+      return null;
     } catch (error) {
       console.error('Failed to get customer:', error);
-      throw error;
+      return null;
     }
   },
 
@@ -127,5 +128,37 @@ export const useCustomerStore = create((set, get) => ({
         : customer
     );
     set({ customers: updatedCustomers });
+  },
+
+  // Fetch customer analytics
+  fetchCustomerAnalytics: async (id = null) => {
+    set({ isLoading: true });
+    try {
+      const url = id ? `/admin/customers/analytics/${id}` : '/admin/customers/analytics';
+      const response = await api.get(url);
+      if (response.success && response.data) {
+        set({ isLoading: false });
+        return response.data;
+      }
+      throw new Error(response.message || 'Failed to fetch customer analytics');
+    } catch (error) {
+      set({ isLoading: false });
+      console.error('Failed to fetch customer analytics:', error);
+      throw error;
+    }
+  },
+
+  // Fetch customer registration analytics
+  fetchCustomerRegistrationAnalytics: async (params = {}) => {
+    try {
+      const response = await api.get('/admin/customers/analytics/registration', { params });
+      if (response.success) {
+        return response;
+      }
+      throw new Error(response.message || 'Failed to fetch registration analytics');
+    } catch (error) {
+      console.error('Failed to fetch registration analytics:', error);
+      throw error;
+    }
   },
 }));

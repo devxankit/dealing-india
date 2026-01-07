@@ -74,6 +74,7 @@ import ViewCustomers from "./modules/Admin/pages/customers/ViewCustomers";
 import CustomerAddresses from "./modules/Admin/pages/customers/Addresses";
 import Transactions from "./modules/Admin/pages/customers/Transactions";
 import CustomerDetailPage from "./modules/Admin/pages/customers/CustomerDetailPage";
+import CustomerAnalytics from "./modules/Admin/pages/customers/CustomerAnalytics";
 // Vendors child pages
 import Vendors from "./modules/Admin/pages/Vendors";
 import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
@@ -446,6 +447,7 @@ const AppRoutes = () => {
           <Route path="customers/view-customers" element={<ViewCustomers />} />
           <Route path="customers/addresses" element={<CustomerAddresses />} />
           <Route path="customers/transactions" element={<Transactions />} />
+          <Route path="customers/analytics" element={<CustomerAnalytics />} />
           <Route path="customers/:id" element={<CustomerDetailPage />} />
           <Route path="stock" element={<Inventory />} />
           <Route path="inventory" element={<Inventory />} />

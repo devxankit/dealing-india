@@ -77,6 +77,7 @@ const getChildRoute = (parentRoute, childName) => {
       "View Customers": "/admin/customers/view-customers",
       Addresses: "/admin/customers/addresses",
       Transactions: "/admin/customers/transactions",
+      "Customer Analysis": "/admin/customers/analytics",
     },
     "/admin/vendors": {
       "Manage Vendors": "/admin/vendors/manage-vendors",

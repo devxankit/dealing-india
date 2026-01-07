@@ -10,9 +10,15 @@ import mongoose from 'mongoose';
  */
 const getDateRange = (period) => {
   const endDate = new Date();
+  endDate.setHours(23, 59, 59, 999);
+
   const startDate = new Date();
+  startDate.setHours(0, 0, 0, 0);
 
   switch (period) {
+    case 'today':
+      // Already set to start of today
+      break;
     case 'week':
       startDate.setDate(endDate.getDate() - 7);
       break;
@@ -122,11 +128,11 @@ export const getAdminChartData = async (period) => {
   };
 
   const chartData = await Order.aggregate([
-    { 
-      $match: { 
+    {
+      $match: {
         orderDate: { $gte: startDate, $lte: endDate },
         status: { $ne: 'cancelled' }
-      } 
+      }
     },
     {
       $group: {
@@ -169,7 +175,7 @@ export const getAdminFinanceSummary = async (period) => {
 
   const totalRevenue = revenueResult[0]?.total || 0;
   const totalCommission = commissionResult[0]?.total || 0;
-  
+
   // Simplified finance logic for a marketplace
   const costOfGoods = totalRevenue * 0.85; // Assume 85% goes to vendors
   const operatingExpenses = totalRevenue * 0.05; // Assume 5% operating cost
@@ -286,27 +292,24 @@ export const getTaxReports = async (period) => {
 export const getRefundReports = async (period) => {
   const { startDate, endDate } = getDateRange(period);
 
-  const refunds = await Order.aggregate([
-    {
-      $match: {
-        orderDate: { $gte: startDate, $lte: endDate },
-        status: 'returned'
-      }
-    },
-    {
-      $group: {
-        _id: { $dateToString: { format: "%Y-%m-%d", date: "$orderDate" } },
-        count: { $sum: 1 },
-        amount: { $sum: "$total" }
-      }
-    },
-    { $sort: { _id: 1 } }
-  ]);
+  const orders = await Order.find({
+    orderDate: { $gte: startDate, $lte: endDate },
+    $or: [
+      { status: { $in: ['returned', 'refunded'] } },
+      { 'cancellation.refundStatus': { $exists: true } },
+      { paymentStatus: 'refunded' }
+    ]
+  }).sort({ orderDate: -1 });
 
-  return refunds.map(r => ({
-    date: r._id,
-    count: r.count,
-    amount: r.amount
+  return orders.map(order => ({
+    id: order._id,
+    orderCode: order.orderCode,
+    customerName: order.customerSnapshot?.name || 'Customer',
+    amount: order.cancellation?.refundAmount || order.total || 0,
+    reason: order.cancellation?.reason || 'Order Returned/Cancelled',
+    status: order.cancellation?.refundStatus || (order.status === 'refunded' ? 'completed' : 'pending'),
+    requestedDate: order.cancellation?.cancelledAt || order.updatedAt,
+    processedDate: order.cancellation?.refundStatus === 'completed' ? order.updatedAt : null
   }));
 };
 
@@ -335,11 +338,11 @@ export const getVendorAnalyticsSummary = async (vendorId, period) => {
 
   // Pending earnings (orders not yet delivered)
   const pendingEarningsResult = await Order.aggregate([
-    { 
-      $match: { 
-        'vendorBreakdown.vendorId': vId, 
-        status: { $in: ['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped_seller', 'shipped'] } 
-      } 
+    {
+      $match: {
+        'vendorBreakdown.vendorId': vId,
+        status: { $in: ['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped_seller', 'shipped'] }
+      }
     },
     { $unwind: '$vendorBreakdown' },
     { $match: { 'vendorBreakdown.vendorId': vId } },
@@ -404,12 +407,12 @@ export const getVendorChartData = async (vendorId, period) => {
   };
 
   const chartData = await Order.aggregate([
-    { 
-      $match: { 
+    {
+      $match: {
         orderDate: { $gte: startDate, $lte: endDate },
         'vendorBreakdown.vendorId': vId,
         status: { $ne: 'cancelled' }
-      } 
+      }
     },
     { $unwind: '$vendorBreakdown' },
     { $match: { 'vendorBreakdown.vendorId': vId } },
@@ -457,11 +460,11 @@ export const getVendorDashboardData = async (vendorId, period) => {
     ]),
     // Pending Earnings (Not delivered, not cancelled)
     Order.aggregate([
-      { 
-        $match: { 
-          'vendorBreakdown.vendorId': vId, 
-          status: { $in: ['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped_seller', 'shipped'] } 
-        } 
+      {
+        $match: {
+          'vendorBreakdown.vendorId': vId,
+          status: { $in: ['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped_seller', 'shipped'] }
+        }
       },
       { $unwind: '$vendorBreakdown' },
       { $match: { 'vendorBreakdown.vendorId': vId } },
@@ -507,7 +510,7 @@ export const getVendorDashboardData = async (vendorId, period) => {
 
   const totalEarnings = totalEarningsResult[0]?.total || 0;
   const pendingEarnings = pendingEarningsResult[0]?.total || 0;
-  
+
   // 2. Revenue Data for Chart
   const revenueData = await getVendorChartData(vendorId, period);
 
