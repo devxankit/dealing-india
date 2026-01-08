@@ -3,6 +3,7 @@ import { verifyToken } from '../utils/jwt.util.js';
 import Admin from '../models/Admin.model.js';
 import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
+import Chat from '../models/Chat.model.js';
 
 let io;
 
@@ -25,7 +26,11 @@ export const setupSocketIO = (httpServer) => {
   const defaultOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://dealing-india.vercel.app'
+    'https://dealing-india.vercel.app',
+    'https://www.dealingindia.com',
+    'https://dealingindia.com',
+    'https://www.dealingindia.in',
+    'https://dealingindia.in'
   ];
 
   // Get origins from environment variable if set
@@ -107,11 +112,28 @@ export const setupSocketIO = (httpServer) => {
     // User/Vendor handlers
     if (userRole === 'user' || userRole === 'vendor') {
       // Chat event handlers
-      socket.on('join_chat_room', (data) => {
+      socket.on('join_chat_room', async (data) => {
         const { conversationId } = data;
         if (conversationId) {
-          socket.join(`chat_${conversationId}`);
-          socket.emit('joined_chat_room', { conversationId });
+          try {
+            // Security: Verify that the user is a participant of this conversation
+            const conversation = await Chat.findById(conversationId);
+            if (!conversation) return;
+
+            const isParticipant = conversation.participants.some(p =>
+              (p.userId._id || p.userId).toString() === userId.toString() && p.role === userRole
+            );
+
+            if (isParticipant) {
+              socket.join(`chat_${conversationId}`);
+              console.log(`Socket ${socket.id} (${userRole} ${userId}) joined chat room: chat_${conversationId}`);
+              socket.emit('joined_chat_room', { conversationId });
+            } else {
+              console.warn(`Unauthorized attempt to join chat ${conversationId} by ${userRole} ${userId}`);
+            }
+          } catch (error) {
+            console.error('Error joining chat room:', error);
+          }
         }
       });
 

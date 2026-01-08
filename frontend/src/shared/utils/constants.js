@@ -1,14 +1,16 @@
 // API Configuration
 // Auto-detect if running on Vercel or production
-const isVercel = typeof window !== 'undefined' && 
-  (window.location.hostname.includes('vercel.app') || 
-   window.location.hostname === 'dealing-india.vercel.app');
+const isVercel = typeof window !== 'undefined' &&
+  (window.location.hostname.includes('vercel.app') ||
+    window.location.hostname === 'dealing-india.vercel.app');
 
-const isProduction = typeof window !== 'undefined' && 
-  (window.location.hostname.includes('vercel.app') || 
-   window.location.hostname.includes('onrender.com') ||
-   window.location.hostname !== 'localhost' &&
-   window.location.hostname !== '127.0.0.1');
+const isProduction = typeof window !== 'undefined' &&
+  (window.location.hostname.includes('vercel.app') ||
+    window.location.hostname.includes('onrender.com') ||
+    window.location.hostname.includes('dealingindia.com') ||
+    window.location.hostname.includes('dealingindia.in') ||
+    (window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'));
 
 // Get backend URL - prioritize environment variable, then auto-detect production
 const getBackendURL = () => {
@@ -16,7 +18,7 @@ const getBackendURL = () => {
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  
+
   // Auto-detect production URL if on Vercel/production
   if (isProduction || isVercel) {
     // Default production backend URL
@@ -25,7 +27,7 @@ const getBackendURL = () => {
     console.warn('⚠️ Please set VITE_API_BASE_URL in Vercel environment variables for better control.');
     return productionURL;
   }
-  
+
   // For development, use localhost
   return 'http://localhost:5000/api';
 };
@@ -35,7 +37,7 @@ const getSocketURL = () => {
   if (import.meta.env.VITE_SOCKET_URL) {
     return import.meta.env.VITE_SOCKET_URL;
   }
-  
+
   // Auto-detect production URL if on Vercel/production
   if (isProduction || isVercel) {
     // Default production socket URL
@@ -43,7 +45,7 @@ const getSocketURL = () => {
     console.warn(`⚠️ VITE_SOCKET_URL not set. Using default production URL: ${productionSocketURL}`);
     return productionSocketURL;
   }
-  
+
   // For development, use localhost
   return 'http://localhost:5000';
 };
