@@ -24,10 +24,10 @@ export const useVendorWalletStore = create((set, get) => ({
     },
 
     // Request withdrawal (full balance)
-    requestWithdrawal: async () => {
+    requestWithdrawal: async (paymentDetails) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await api.post('/vendor/wallet/withdraw');
+            const response = await api.post('/vendor/wallet/withdraw', { paymentDetails });
             if (response.success) {
                 set({ isLoading: false });
                 // Refresh wallet and withdrawals after successful request

@@ -76,7 +76,7 @@ const MobileProfile = () => {
                 initial={{ scale: 0.98, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigate('/app/mega-reward')}
+                onClick={() => navigate('/app/mega-reward', { state: { scrollToTicket: isRewardEntered } })}
                 className="w-full bg-[#0A0A0A] rounded-xl p-4 text-white shadow-xl relative overflow-hidden cursor-pointer border border-yellow-500/20"
               >
                 {/* Subtle Glow */}

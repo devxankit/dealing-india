@@ -1073,11 +1073,14 @@ export const getAdminOrders = async (filters = {}) => {
 
     console.log('getAdminOrders - Filters:', filters); // Debug log
 
-    if (status) query.status = status;
-    if (paymentStatus) query.paymentStatus = paymentStatus;
-    if (customerId && mongoose.Types.ObjectId.isValid(customerId)) query.customerId = customerId;
+    // Helper to check if a value is valid (not undefined, null, 'undefined', 'null', or 'all')
+    const isValid = (val) => val !== undefined && val !== null && val !== 'undefined' && val !== 'null' && val !== '' && val !== 'all';
 
-    if (vendorId) {
+    if (isValid(status)) query.status = status;
+    if (isValid(paymentStatus)) query.paymentStatus = paymentStatus;
+    if (isValid(customerId) && mongoose.Types.ObjectId.isValid(customerId)) query.customerId = customerId;
+
+    if (isValid(vendorId)) {
       // Convert vendorId to ObjectId if needed
       let vendorIdQuery = vendorId;
       if (mongoose.Types.ObjectId.isValid(vendorId)) {
@@ -1100,7 +1103,7 @@ export const getAdminOrders = async (filters = {}) => {
       }
     }
 
-    if (search) {
+    if (isValid(search)) {
       const searchRegex = { $regex: search, $options: 'i' };
       const orderCodeMatches = await Order.find({ orderCode: searchRegex }).select('_id').lean();
       const customerMatches = await Order.find({
@@ -1114,14 +1117,25 @@ export const getAdminOrders = async (filters = {}) => {
       }
     }
 
-    if (startDate || endDate) {
+    if (isValid(startDate) || isValid(endDate)) {
       const dateQuery = {};
-      if (startDate) dateQuery.$gte = new Date(startDate);
-      if (endDate) dateQuery.$lte = new Date(endDate);
-      query.$or = [
-        { createdAt: dateQuery },
-        { orderDate: dateQuery }
-      ];
+      if (isValid(startDate)) {
+        const sDate = new Date(startDate);
+        if (!isNaN(sDate.getTime())) dateQuery.$gte = sDate;
+      }
+      if (isValid(endDate)) {
+        const eDate = new Date(endDate);
+        if (!isNaN(eDate.getTime())) {
+          eDate.setHours(23, 59, 59, 999);
+          dateQuery.$lte = eDate;
+        }
+      }
+      if (Object.keys(dateQuery).length > 0) {
+        query.$or = [
+          { createdAt: dateQuery },
+          { orderDate: dateQuery }
+        ];
+      }
     }
 
     console.log('getAdminOrders - Query:', JSON.stringify(query, null, 2)); // Debug log

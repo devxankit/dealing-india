@@ -4,9 +4,15 @@ const reelCommentSchema = new mongoose.Schema(
   {
     reelId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Reel',
+      refPath: 'reelModel',
       required: [true, 'Reel ID is required'],
       index: true,
+    },
+    reelModel: {
+      type: String,
+      required: true,
+      enum: ['Reel', 'PromotionalReel'],
+      default: 'Reel',
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,

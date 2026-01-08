@@ -44,8 +44,8 @@ const VendorWalletTab = () => {
         setShowConfirmDialog(true);
     };
 
-    const onConfirmWithdrawal = async () => {
-        const result = await requestWithdrawal();
+    const onConfirmWithdrawal = async (paymentDetails) => {
+        const result = await requestWithdrawal(paymentDetails);
         if (result.success) {
             toast.success(result.message);
             setShowConfirmDialog(false);

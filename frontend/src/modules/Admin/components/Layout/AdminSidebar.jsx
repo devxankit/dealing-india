@@ -133,6 +133,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Products & Inventory": "/admin/settings/products-inventory",
       "Content & Features": "/admin/settings/content-features",
       "Notifications & SEO": "/admin/settings/notifications-seo",
+      "Tax & Pricing": "/admin/settings/tax",
     },
     "/admin/policies": {
       "Privacy Policy": "/admin/policies/privacy-policy",

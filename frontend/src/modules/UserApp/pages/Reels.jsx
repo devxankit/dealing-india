@@ -42,10 +42,29 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
       let loadedReels = [];
 
       if (type === "promotional") {
-        // Promotional reels from localStorage (admin-created)
-        const promoReels = localStorage.getItem("promotional_reels");
-        if (promoReels) {
-          loadedReels = JSON.parse(promoReels);
+        try {
+          // Fetch active mega reward campaign which includes linked reels
+          const response = await api.get('/user/mega-reward/active');
+          if (response?.success && response?.data?.reels) {
+            loadedReels = response.data.reels.map(reel => ({
+              ...reel,
+              id: reel._id || reel.id,
+              isPromotional: true
+            }));
+          } else {
+            // Fallback to all promotional reels if no specific campaign is active
+            const allPromotionalResponse = await api.get('/user/promotional-reels');
+            if (allPromotionalResponse?.success && allPromotionalResponse?.data) {
+              loadedReels = allPromotionalResponse.data.map(reel => ({
+                ...reel,
+                id: reel._id || reel.id,
+                isPromotional: true
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Error loading promotional reels:', error);
+          toast.error('Failed to load promotional reels');
         }
       } else {
         // Fetch active reels from backend API
@@ -71,7 +90,9 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
               if (user._id || user.id) {
                 const reelIds = loadedReels.map(r => r._id || r.id).filter(Boolean);
                 if (reelIds.length > 0) {
-                  const likedResponse = await api.get('/user/reels/liked', {
+                  const currentType = defaultType || searchParams.get("type");
+                  const endpoint = currentType === "promotional" ? '/user/promotional-reels/liked' : '/user/reels/liked';
+                  const likedResponse = await api.get(endpoint, {
                     params: { reelIds: reelIds.join(',') }
                   });
                   if (likedResponse?.success && likedResponse?.data?.likedReelIds) {
@@ -98,7 +119,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
       // Check for specific reel query param
       const reelId = searchParams.get("reel");
       if (reelId && loadedReels.length > 0) {
-        const foundIndex = loadedReels.findIndex(r => 
+        const foundIndex = loadedReels.findIndex(r =>
           (r._id || r.id)?.toString() === reelId.toString()
         );
         if (foundIndex !== -1) {
@@ -115,10 +136,13 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
   // Load comments for a reel
   const loadComments = async (reelId) => {
     if (!reelId) return;
-    
+
     try {
       setLoadingComments(true);
-      const response = await api.get(`/user/reels/${reelId}/comments`, {
+      const reel = reels.find(r => (r._id || r.id) === reelId);
+      const endpoint = reel?.isPromotional ? `/user/promotional-reels/${reelId}/comments` : `/user/reels/${reelId}/comments`;
+
+      const response = await api.get(endpoint, {
         params: {
           page: 1,
           limit: 50,
@@ -145,7 +169,13 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
 
     try {
       setPostingComment(true);
-      const response = await api.post(`/user/reels/${reelId}/comments`, {
+      const reel = reels.find(r => (r._id || r.id) === reelId);
+      const currentType = searchParams.get("type") || (reel?.isPromotional ? "promotional" : "standard");
+      const endpoint = (currentType === "promotional" || reel?.isPromotional)
+        ? `/user/promotional-reels/${reelId}/comments`
+        : `/user/reels/${reelId}/comments`;
+
+      const response = await api.post(endpoint, {
         text,
       });
 
@@ -156,7 +186,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
           ...prev,
           [reelId]: [newComment, ...(prev[reelId] || [])],
         }));
-        
+
         // Update reel comment count
         setReels(prev => prev.map(reel => {
           const id = reel._id || reel.id;
@@ -173,7 +203,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
       console.error('Error posting comment:', error);
       const errorMessage = error.response?.data?.message || 'Failed to post comment';
       toast.error(errorMessage);
-      
+
       // If authentication error, prompt user to login
       if (error.response?.status === 401) {
         setTimeout(() => {
@@ -222,7 +252,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
   const handleLike = async (reel) => {
     const reelId = reel._id || reel.id;
     const isCurrentlyLiked = likedReels[reelId];
-    
+
     // Optimistic update
     setLikedReels(prev => {
       const newLiked = !prev[reelId];
@@ -238,9 +268,9 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
     setReels(prev => prev.map(r => {
       const id = r._id || r.id;
       if (id === reelId) {
-        return { 
-          ...r, 
-          likes: isCurrentlyLiked ? Math.max(0, (r.likes || 0) - 1) : (r.likes || 0) + 1 
+        return {
+          ...r,
+          likes: isCurrentlyLiked ? Math.max(0, (r.likes || 0) - 1) : (r.likes || 0) + 1
         };
       }
       return r;
@@ -248,7 +278,11 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
 
     // Call API to save like
     try {
-      const response = await api.post(`/user/reels/${reelId}/like`);
+      const currentType = searchParams.get("type") || (reel?.isPromotional ? "promotional" : "standard");
+      const endpoint = (currentType === "promotional" || reel?.isPromotional)
+        ? `/user/promotional-reels/${reelId}/like`
+        : `/user/reels/${reelId}/like`;
+      const response = await api.post(endpoint);
       if (response?.success && response?.data) {
         // Update with actual like count from server
         setReels(prev => prev.map(r => {
@@ -269,7 +303,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
         }
         return r;
       }));
-      
+
       if (error.response?.status === 401) {
         toast.error('Please login to like reels');
       } else {
@@ -284,9 +318,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
     const shareUrl = `${window.location.origin}/app/reels?reel=${reel._id || reel.id}`;
 
     if (isPromotional) {
-      // Increment share count for Mega Reward (only for promotional reels)
-      const currentShares = parseInt(localStorage.getItem('mega_reward_shares') || '0');
-      localStorage.setItem('mega_reward_shares', (currentShares + 1).toString());
+      // Real share tracking is handled within MegaRewardSheet
     }
 
     if (navigator.share) {
@@ -379,15 +411,15 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
               }}
               onEnded={(e) => {
                 e.target.currentTime = 0;
-                e.target.play().catch(() => {});
+                e.target.play().catch(() => { });
               }}
               onError={(e) => {
                 const video = e.target;
                 const src = video.getAttribute('src');
-                
+
                 // If src attribute is missing, empty, or hasn't been set yet, ignore the error
                 if (!src || src === "" || src === "undefined") return;
-                
+
                 // Check if it's a real error
                 const error = video.error;
                 if (error) {
@@ -470,7 +502,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                 </div>
                 <h3 className="text-white font-bold mb-2">Failed to Load Video</h3>
                 <p className="text-gray-400 text-sm mb-6">Something went wrong while trying to play this reel.</p>
-                <button 
+                <button
                   onClick={() => {
                     const reelId = reel._id || reel.id;
                     setVideoStatus(prev => ({ ...prev, [reelId]: { loading: true, error: false } }));
@@ -531,10 +563,10 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                       {reel.vendorLogo ? (
                         <img src={reel.vendorLogo} alt={reel.vendorName || "Vendor"} className="w-full h-full object-cover" />
                       ) : (
-                        <img 
-                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(reel.vendorName || "Vendor")}&background=random`} 
-                          alt={reel.vendorName || "Vendor"} 
-                          className="w-full h-full object-cover" 
+                        <img
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(reel.vendorName || "Vendor")}&background=random`}
+                          alt={reel.vendorName || "Vendor"}
+                          className="w-full h-full object-cover"
                         />
                       )}
                     </div>
@@ -551,10 +583,10 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                       onClick={(e) => {
                         e.stopPropagation();
                         // Handle productId whether it's an object or string
-                        const productId = typeof reel.productId === 'object' 
+                        const productId = typeof reel.productId === 'object'
                           ? (reel.productId._id || reel.productId.id)
                           : reel.productId;
-                        
+
                         if (productId) {
                           navigate(`/app/product/${productId}`);
                         } else {
@@ -598,20 +630,22 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                     <span className="text-white text-xs font-medium">{reel.comments || 0}</span>
                   </button>
 
-                  <button onClick={() => handleShare(reel)} className="flex flex-col items-center gap-1 group">
-                    <div className="p-3 rounded-full bg-white/10 backdrop-blur-md">
-                      <FiSend className="text-2xl text-white" />
-                    </div>
-                    <span className="text-white text-xs font-medium">Share</span>
-                  </button>
+                  {!reel.isPromotional && (
+                    <button onClick={() => handleShare(reel)} className="flex flex-col items-center gap-1 group">
+                      <div className="p-3 rounded-full bg-white/10 backdrop-blur-md">
+                        <FiSend className="text-2xl text-white" />
+                      </div>
+                      <span className="text-white text-xs font-medium">Share</span>
+                    </button>
+                  )}
 
                   {/* Mega Reward Promo Button */}
                   {reel.isPromotional && (
                     <button onClick={() => setShowRewardPopup(true)} className="flex flex-col items-center gap-1 animate-pulse">
-                      <div className="p-3 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/50">
+                      <div className="p-3 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 shadow-lg shadow-yellow-500/50">
                         <FiGift className="text-2xl text-white" />
                       </div>
-                      <span className="text-white text-[10px] font-bold">Win Big</span>
+                      <span className="text-white text-[10px] font-bold">Mega Reward</span>
                     </button>
                   )}
                 </div>
@@ -670,7 +704,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
                     const bgColors = ['bg-indigo-100', 'bg-pink-100', 'bg-green-100', 'bg-purple-100', 'bg-blue-100', 'bg-yellow-100'];
                     const textColors = ['text-indigo-600', 'text-pink-600', 'text-green-600', 'text-purple-600', 'text-blue-600', 'text-yellow-600'];
                     const colorIndex = comment.userName.charCodeAt(0) % bgColors.length;
-                    
+
                     return (
                       <div key={comment.id} className="flex gap-3">
                         <div className={`w-8 h-8 rounded-full ${bgColors[colorIndex]} flex items-center justify-center ${textColors[colorIndex]} font-bold text-xs shrink-0`}>
@@ -729,7 +763,8 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
       <MegaRewardSheet
         isOpen={showRewardPopup}
         onClose={() => setShowRewardPopup(false)}
-        reel={reels[currentIndex]}
+        reelId={reels[currentIndex]?._id || reels[currentIndex]?.id}
+        reelTitle={reels[currentIndex]?.title}
       />
     </div>
   );

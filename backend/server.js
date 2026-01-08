@@ -79,6 +79,14 @@ import adminReturnRoutes from './routes/adminReturn.routes.js';
 import userChatRoutes from './routes/userChat.routes.js';
 import vendorChatRoutes from './routes/vendorChat.routes.js';
 import userSupportTicketRoutes from './routes/userSupportTicket.routes.js';
+import adminPromotionalReelRoutes from './routes/adminPromotionalReel.routes.js';
+import userPromotionalReelRoutes from './routes/userPromotionalReel.routes.js';
+import adminMediaRoutes from './routes/admin-routes/media.routes.js';
+
+// Mega Reward routes
+import adminMegaRewardRoutes from './routes/adminMegaReward.routes.js';
+import userMegaRewardRoutes from './routes/userMegaReward.routes.js';
+import publicMegaRewardRoutes from './routes/publicMegaReward.routes.js';
 
 
 // Load environment variables
@@ -253,6 +261,7 @@ app.use('/api/campaigns', publicCampaignsRoutes);
 app.use('/api/public/promocodes', publicPromoCodeRoutes);
 app.use('/api/public/delivery', publicDeliveryRoutes);
 app.use('/api/settings', publicSettingsRoutes);
+app.use('/api/mega-reward', publicMegaRewardRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);
@@ -273,6 +282,9 @@ app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/admin/vendor-wallets', adminVendorWalletRoutes);
 app.use('/api/admin/returns', adminReturnRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
+app.use('/api/admin/promotional-reels', adminPromotionalReelRoutes);
+app.use('/api/admin/mega-reward', adminMegaRewardRoutes);
+app.use('/api/admin/media', adminMediaRoutes);
 
 
 // User management routes (require user authentication)
@@ -283,9 +295,11 @@ app.use('/api/user/addresses', addressRoutes);
 app.use('/api/user/wallet', walletRoutes);
 app.use('/api/user/notifications', userNotificationRoutes);
 app.use('/api/user/reels', userReelsRoutes);
+app.use('/api/user/promotional-reels', userPromotionalReelRoutes);
 app.use('/api/user/reels', reelCommentsRoutes);
 app.use('/api/user/chat', userChatRoutes);
 app.use('/api/user/support-tickets', userSupportTicketRoutes);
+app.use('/api/user/mega-reward', userMegaRewardRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/admin/support-tickets', adminSupportTicketRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
@@ -482,3 +496,4 @@ const startServer = async () => {
 };
 
 startServer();
+// Restart trigger

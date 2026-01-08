@@ -223,7 +223,7 @@ class VendorWalletService {
     /**
      * Request withdrawal (full balance only)
      */
-    async requestWithdrawal(vendorId) {
+    async requestWithdrawal(vendorId, paymentDetails = {}) {
         const wallet = await this.getOrCreateWallet(vendorId);
         if (wallet.balance <= 0) {
             throw new Error('Insufficient balance for withdrawal');
@@ -236,11 +236,14 @@ class VendorWalletService {
         }
 
         const amount = wallet.balance;
+        const paymentMethod = paymentDetails?.upiId ? 'upi' : 'bank_transfer';
 
         const request = await WithdrawalRequest.create({
             vendorId,
             amount,
             status: 'pending',
+            paymentDetails,
+            paymentMethod
         });
 
         return request;
