@@ -4,6 +4,7 @@ import { FiHeart, FiMessageCircle, FiSend, FiArrowLeft, FiGift, FiShoppingBag, F
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
+import { formatVideoUrl } from "../../../shared/utils/helpers";
 import MobileLayout from "../components/Layout/MobileLayout";
 import useMobileHeaderHeight from "../hooks/useMobileHeaderHeight";
 import MegaRewardSheet from "../components/MegaRewardSheet";
@@ -394,7 +395,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
             {/* Video Player */}
             <video
               ref={el => videoRefs.current[index] = el}
-              src={Math.abs(index - currentIndex) <= 1 ? reel.videoUrl : ""}
+              src={Math.abs(index - currentIndex) <= 1 ? formatVideoUrl(reel.videoUrl) : ""}
               poster={reel.thumbnail}
               className={`h-full w-full object-cover transition-opacity duration-300 ${videoStatus[reel.id]?.loading ? 'opacity-50' : 'opacity-100'}`}
               loop

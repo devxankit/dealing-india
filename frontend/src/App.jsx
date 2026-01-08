@@ -7,27 +7,10 @@ import {
 import React, { lazy, Suspense } from 'react';
 import { Toaster, useToasterStore, toast } from "react-hot-toast";
 import { useEffect } from 'react';
-import Home from "./modules/UserWeb/pages/Home";
-import ProductDetail from "./modules/UserWeb/pages/ProductDetail";
-import Checkout from "./modules/UserWeb/pages/Checkout";
-import Search from "./modules/UserWeb/pages/Search";
-import VendorStore from "./modules/UserWeb/pages/VendorStore";
-import Login from "./modules/UserWeb/pages/Login";
-import Register from "./modules/UserWeb/pages/Register";
-import Verification from "./modules/UserWeb/pages/Verification";
-import UserForgotPassword from "./modules/UserWeb/pages/ForgotPassword";
-import Profile from "./modules/UserWeb/pages/Profile";
-import Orders from "./modules/UserWeb/pages/Orders";
-import Addresses from "./modules/UserWeb/pages/Addresses";
-import Chat from "./modules/UserWeb/pages/Chat";
-import SupportTickets from "./modules/UserWeb/pages/SupportTickets";
+import Chat from "./shared/components/Chat/Chat";
+import SupportTickets from "./shared/components/Support/SupportTickets";
+import VendorStore from "./shared/components/Store/VendorStore";
 import AdminSupportTickets from "./modules/Admin/pages/supportTickets/SupportTickets";
-import Wishlist from "./modules/UserWeb/pages/Wishlist";
-import Offers from "./modules/UserWeb/pages/Offers";
-import DailyDeals from "./modules/UserWeb/pages/DailyDeals";
-import FlashSale from "./modules/UserWeb/pages/FlashSale";
-import CampaignPage from "./modules/UserWeb/pages/CampaignPage";
-import Category from "./modules/UserWeb/pages/Category";
 import CartDrawer from "./shared/components/Cart/CartDrawer";
 import ProtectedRoute from "./shared/components/Auth/ProtectedRoute";
 import ErrorBoundary from "./shared/components/ErrorBoundary/ErrorBoundary";
@@ -121,9 +104,6 @@ import Authentication from "./modules/Admin/pages/firebase/Authentication";
 import DeliveryRules from "./modules/Admin/pages/DeliveryRules";
 import RouteWrapper from "./shared/components/RouteWrapper";
 import ScrollToTop from "./shared/components/ScrollToTop";
-import OrderConfirmation from "./modules/UserWeb/pages/OrderConfirmation";
-import OrderDetailPage from "./modules/UserWeb/pages/OrderDetail";
-import TrackOrder from "./modules/UserWeb/pages/TrackOrder";
 // Mobile App Routes
 // Mobile App Routes (Eager Loaded for Instant Nav)
 import MobileHome from "./modules/UserApp/pages/Home";
@@ -156,6 +136,7 @@ const MobileContentPage = lazy(() => import("./modules/UserApp/pages/ContentPage
 const MobileWallet = lazy(() => import("./modules/UserApp/pages/Wallet"));
 const MobileReturnRequest = lazy(() => import("./modules/UserApp/pages/ReturnRequest"));
 const MobileMyReturns = lazy(() => import("./modules/UserApp/pages/MyReturns"));
+const MobileForgotPassword = lazy(() => import("./modules/UserApp/pages/ForgotPassword"));
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryProtectedRoute from "./modules/Delivery/components/DeliveryProtectedRoute";
@@ -226,188 +207,27 @@ const AppRoutes = () => {
   return (
     <>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <RouteWrapper>
-              <Home />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/product/:id"
-          element={
-            <RouteWrapper>
-              <ProductDetail />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/category/:id"
-          element={
-            <RouteWrapper>
-              <Category />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/vendor/:id"
-          element={
-            <RouteWrapper>
-              <VendorStore />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/checkout"
-          element={
-            <RouteWrapper>
-              <Checkout />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/search"
-          element={
-            <RouteWrapper>
-              <Search />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            <RouteWrapper>
-              <Login />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <RouteWrapper>
-              <Register />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/forgot-password"
-          element={
-            <RouteWrapper>
-              <UserForgotPassword />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/verification"
-          element={
-            <RouteWrapper>
-              <Verification />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/wishlist"
-          element={
-            <RouteWrapper>
-              <Wishlist />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/offers"
-          element={
-            <RouteWrapper>
-              <Offers />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/daily-deals"
-          element={
-            <RouteWrapper>
-              <DailyDeals />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/flash-sale"
-          element={
-            <RouteWrapper>
-              <FlashSale />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/sale/:slug"
-          element={
-            <RouteWrapper>
-              <CampaignPage />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/campaign/:id"
-          element={
-            <RouteWrapper>
-              <CampaignPage />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/order-confirmation/:orderId"
-          element={
-            <RouteWrapper>
-              <OrderConfirmation />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/orders/:orderId"
-          element={
-            <RouteWrapper>
-              <OrderDetailPage />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/track-order/:orderId"
-          element={
-            <RouteWrapper>
-              <TrackOrder />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/orders"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <Orders />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/addresses"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <Addresses />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
+        {/* Redirect old UserWeb routes to UserApp */}
+        <Route path="/" element={<Navigate to="/app" replace />} />
+        <Route path="/product/:id" element={<Navigate to="/app/product/:id" replace />} />
+        <Route path="/category/:id" element={<Navigate to="/app/category/:id" replace />} />
+        <Route path="/vendor/:id" element={<Navigate to="/app/vendor/:id" replace />} />
+        <Route path="/checkout" element={<Navigate to="/app/checkout" replace />} />
+        <Route path="/search" element={<Navigate to="/app/search" replace />} />
+        <Route path="/login" element={<Navigate to="/app/login" replace />} />
+        <Route path="/register" element={<Navigate to="/app/register" replace />} />
+        <Route path="/forgot-password" element={<Navigate to="/app/forgot-password" replace />} />
+        <Route path="/verification" element={<Navigate to="/app/verification" replace />} />
+        <Route path="/wishlist" element={<Navigate to="/app/wishlist" replace />} />
+        <Route path="/offers" element={<Navigate to="/app/offers" replace />} />
+        <Route path="/daily-deals" element={<Navigate to="/app/daily-deals" replace />} />
+        <Route path="/flash-sale" element={<Navigate to="/app/flash-sale" replace />} />
+        <Route path="/order-confirmation/:orderId" element={<Navigate to="/app/order-confirmation/:orderId" replace />} />
+        <Route path="/orders/:orderId" element={<Navigate to="/app/orders/:orderId" replace />} />
+        <Route path="/track-order/:orderId" element={<Navigate to="/app/track-order/:orderId" replace />} />
+        <Route path="/profile" element={<Navigate to="/app/profile" replace />} />
+        <Route path="/orders" element={<Navigate to="/app/orders" replace />} />
+        <Route path="/addresses" element={<Navigate to="/app/addresses" replace />} />
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
@@ -736,7 +556,7 @@ const AppRoutes = () => {
           path="/app/forgot-password"
           element={
             <RouteWrapper>
-              <UserForgotPassword />
+              <MobileForgotPassword />
             </RouteWrapper>
           }
         />

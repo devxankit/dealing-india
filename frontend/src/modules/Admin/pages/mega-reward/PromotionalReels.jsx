@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiPlus, FiTrash2, FiPlay, FiVideo, FiBarChart2, FiLoader, FiUpload, FiImage } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
+import { formatVideoUrl } from '../../../../shared/utils/helpers';
 
 const PromotionalReels = () => {
     // Track which reel is being hovered to load its video source lazily
@@ -399,7 +400,7 @@ const PromotionalReels = () => {
                             {previewVideo || formData.videoUrl ? (
                                 <video
                                     key={previewVideo || formData.videoUrl}
-                                    src={previewVideo || formData.videoUrl}
+                                    src={formatVideoUrl(previewVideo || formData.videoUrl)}
                                     className="w-full h-full object-cover"
                                     autoPlay
                                     muted
@@ -455,7 +456,7 @@ const PromotionalReels = () => {
                                 <div className="aspect-[9/16] relative bg-gray-100 overflow-hidden">
                                     {hoveredReelId === reel._id ? (
                                         <video
-                                            src={reel.videoUrl}
+                                            src={formatVideoUrl(reel.videoUrl)}
                                             className="w-full h-full object-cover"
                                             autoPlay
                                             muted

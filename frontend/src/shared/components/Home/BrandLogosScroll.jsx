@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useBrandStore } from '../../../../shared/store/brandStore';
-import LazyImage from '../../../../shared/components/LazyImage';
+import { useBrandStore } from '../../store/brandStore';
+import LazyImage from '../LazyImage';
 
 const BrandItem = ({ brand }) => {
   const [hasError, setHasError] = useState(false);

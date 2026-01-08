@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiX, FiCheckCircle, FiClock, FiXCircle, FiAlertCircle, FiCalendar, FiUser, FiMessageSquare, FiRefreshCw, FiSend } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '../../../shared/utils/api';
+import api from '../../utils/api';
 import toast from 'react-hot-toast';
-import { initializeSocket, getSocket } from '../../../shared/utils/socket';
+import { initializeSocket, getSocket } from '../../utils/socket';
 
 const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
   const [reply, setReply] = useState('');
@@ -15,7 +15,7 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
   useEffect(() => {
     if (isOpen && ticket) {
       setMessages(ticket.messages || []);
-      
+
       // Initialize socket and join ticket room
       const token = localStorage.getItem('token');
       if (token) {
@@ -40,7 +40,7 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
           });
         }
       }
-      
+
       setTimeout(scrollToBottom, 300);
     }
 
@@ -233,17 +233,15 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                   {messages.map((message, index) => (
                     <div
                       key={message._id || index}
-                      className={`p-4 rounded-lg ${
-                        message.senderRole === 'admin'
+                      className={`p-4 rounded-lg ${message.senderRole === 'admin'
                           ? 'bg-blue-50 border border-blue-200'
                           : 'bg-gray-50 border border-gray-200'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-semibold ${
-                            message.senderRole === 'admin' ? 'text-blue-700' : 'text-gray-700'
-                          }`}>
+                          <span className={`text-xs font-semibold ${message.senderRole === 'admin' ? 'text-blue-700' : 'text-gray-700'
+                            }`}>
                             {message.senderRole === 'admin' ? 'Admin' : 'You'}
                           </span>
                           {message.senderId?.name && (
@@ -277,12 +275,11 @@ const TicketDetailModal = ({ isOpen, onClose, ticket, onUpdate }) => {
                       key={index}
                       className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
                     >
-                      <div className={`w-2 h-2 rounded-full mt-2 ${
-                        history.status === 'open' ? 'bg-yellow-500' :
-                        history.status === 'in_progress' ? 'bg-blue-500' :
-                        history.status === 'resolved' ? 'bg-green-500' :
-                        'bg-gray-500'
-                      }`}></div>
+                      <div className={`w-2 h-2 rounded-full mt-2 ${history.status === 'open' ? 'bg-yellow-500' :
+                          history.status === 'in_progress' ? 'bg-blue-500' :
+                            history.status === 'resolved' ? 'bg-green-500' :
+                              'bg-gray-500'
+                        }`}></div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-800 capitalize">

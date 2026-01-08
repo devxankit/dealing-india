@@ -6,6 +6,7 @@ import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { getVendorReelById, updateVendorReel } from "../../services/reelService";
 import { getVendorProducts } from "../../services/productService";
 import AnimatedSelect from "../../../../modules/Admin/components/AnimatedSelect";
+import { formatVideoUrl } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 
 const EditReel = () => {
@@ -119,7 +120,7 @@ const EditReel = () => {
       const validTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/wmv', 'video/flv', 'video/webm', 'video/mkv'];
       const validExtensions = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv'];
       const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-      
+
       if (!validTypes.includes(file.type) && !validExtensions.includes(fileExtension)) {
         toast.error('Please select a valid video file (mp4, mov, avi, wmv, flv, webm, mkv)');
         return;
@@ -309,12 +310,12 @@ const EditReel = () => {
             )}
             {videoPreview && (
               <video
-                src={videoPreview}
+                src={formatVideoUrl(videoPreview)}
                 controls
                 loop
                 onEnded={(e) => {
                   e.target.currentTime = 0;
-                  e.target.play().catch(() => {});
+                  e.target.play().catch(() => { });
                 }}
                 className="mt-2 w-full max-w-md rounded-lg border border-gray-200 dark:border-gray-700"
                 onError={(e) => {
