@@ -34,7 +34,7 @@ class MegaRewardWinnerService {
                 throw new Error(`Prize rank "${prizeRank}" not found in campaign`);
             }
 
-            // Get already selected winner user IDs for this campaign
+            // Get already selected winner user IDs for this campaign (excluding range winners for now)
             const existingWinners = await MegaRewardWinner.find({ megaRewardId }).session(session);
             const winnerUserIds = existingWinners.map(w => w.userId.toString());
 
@@ -102,6 +102,167 @@ class MegaRewardWinnerService {
             await session.commitTransaction();
 
             return winner[0];
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    }
+
+    /**
+     * Declare a winner manually (for 1st, 2nd, 3rd)
+     */
+    async declareManualWinner(megaRewardId, entryId, prizeRank, adminId) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            const settings = await MegaRewardSettings.findById(megaRewardId).session(session);
+            if (!settings) throw new Error('Mega Reward campaign not found');
+
+            const prizeConfig = settings.prizes.find(p => p.rank === prizeRank);
+            if (!prizeConfig) throw new Error(`Prize rank "${prizeRank}" not found`);
+
+            const existingWinners = await MegaRewardWinner.find({ megaRewardId }).session(session);
+            if (existingWinners.some(w => w.prizeRank === prizeRank)) {
+                throw new Error(`Winner for "${prizeRank}" already declared`);
+            }
+
+            const entry = await MegaRewardEntry.findById(entryId).session(session);
+            if (!entry || entry.status !== 'active') throw new Error('Invalid or inactive entry');
+
+            if (existingWinners.some(w => w.userId.toString() === entry.userId.toString())) {
+                throw new Error('This user has already won a prize in this campaign');
+            }
+
+            // Mark entry as winner
+            await MegaRewardEntry.findByIdAndUpdate(entryId, { status: 'winner' }, { session });
+
+            // Credit wallet
+            const walletResult = await this.creditWallet(
+                entry.userId,
+                prizeConfig.amount,
+                megaRewardId,
+                prizeRank,
+                session
+            );
+
+            // Create winner record
+            const winner = await MegaRewardWinner.create([{
+                entryId: entry._id,
+                userId: entry.userId,
+                megaRewardId,
+                prizeRank,
+                prizeAmount: prizeConfig.amount,
+                prizeDescription: prizeConfig.description,
+                walletTransactionId: walletResult.transactionId,
+                declaredBy: adminId
+            }], { session });
+
+            // Send notification
+            await this.sendWinnerNotification(
+                entry.userId,
+                prizeRank,
+                prizeConfig.amount,
+                settings.prizeTitle,
+                entry.ticketId,
+                session
+            );
+
+            await session.commitTransaction();
+            return winner[0];
+        } catch (error) {
+            await session.abortTransaction();
+            throw error;
+        } finally {
+            session.endSession();
+        }
+    }
+
+    /**
+     * Declare winners for a range randomly
+     */
+    async declareRangeWinners(megaRewardId, rangeIndex, adminId) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            const settings = await MegaRewardSettings.findById(megaRewardId).session(session);
+            if (!settings) throw new Error('Mega Reward campaign not found');
+
+            const range = settings.customRanges[rangeIndex];
+            if (!range) throw new Error('Range configuration not found');
+
+            const numWinnersToSelect = range.endRank - range.startRank + 1;
+            const prizeRankBase = `${range.startRank}th-${range.endRank}th Prize`;
+
+            // Check existing winners for this range
+            const existingWinners = await MegaRewardWinner.find({
+                megaRewardId,
+                prizeRank: { $regex: new RegExp(`^${range.startRank}th-${range.endRank}th`) }
+            }).session(session);
+
+            if (existingWinners.length >= numWinnersToSelect) {
+                throw new Error('Winners for this range already declared');
+            }
+
+            const alreadyWinnerUserIds = (await MegaRewardWinner.find({ megaRewardId }).session(session)).map(w => w.userId);
+
+            const eligibleEntries = await MegaRewardEntry.find({
+                megaRewardId,
+                status: 'active',
+                userId: { $nin: alreadyWinnerUserIds }
+            }).session(session);
+
+            if (eligibleEntries.length < numWinnersToSelect) {
+                throw new Error(`Only ${eligibleEntries.length} eligible entries available, need ${numWinnersToSelect}`);
+            }
+
+            // Shuffle and pick winners
+            const shuffled = eligibleEntries.sort(() => 0.5 - Math.random());
+            const selectedWinners = shuffled.slice(0, numWinnersToSelect);
+
+            const results = [];
+            for (let i = 0; i < selectedWinners.length; i++) {
+                const entry = selectedWinners[i];
+                const rankDisplay = `${range.startRank + i}${getOrdinalSuffix(range.startRank + i)} Prize`;
+
+                await MegaRewardEntry.findByIdAndUpdate(entry._id, { status: 'winner' }, { session });
+
+                const walletResult = await this.creditWallet(
+                    entry.userId,
+                    range.prizeAmount,
+                    megaRewardId,
+                    rankDisplay,
+                    session
+                );
+
+                const winner = await MegaRewardWinner.create([{
+                    entryId: entry._id,
+                    userId: entry.userId,
+                    megaRewardId,
+                    prizeRank: rankDisplay,
+                    prizeAmount: range.prizeAmount,
+                    prizeDescription: range.description,
+                    walletTransactionId: walletResult.transactionId,
+                    declaredBy: adminId
+                }], { session });
+
+                await this.sendWinnerNotification(
+                    entry.userId,
+                    rankDisplay,
+                    range.prizeAmount,
+                    settings.prizeTitle,
+                    entry.ticketId,
+                    session
+                );
+
+                results.push(winner[0]);
+            }
+
+            await session.commitTransaction();
+            return results;
         } catch (error) {
             await session.abortTransaction();
             throw error;
@@ -191,7 +352,7 @@ class MegaRewardWinnerService {
      */
     async getWinnerStatus(megaRewardId) {
         const settings = await MegaRewardSettings.findById(megaRewardId);
-        const winners = await MegaRewardWinner.find({ megaRewardId });
+        const winners = await MegaRewardWinner.find({ megaRewardId }).populate('userId', 'name email').populate('entryId', 'ticketId');
 
         const status = settings.prizes.map(prize => {
             const prizeWinners = winners.filter(w => w.prizeRank === prize.rank);
@@ -205,8 +366,48 @@ class MegaRewardWinnerService {
             };
         });
 
-        return status;
+        // Add range status
+        const rangeStatus = settings.customRanges.map((range, index) => {
+            const rangePrefix = new RegExp(`^(\\d+)(st|nd|rd|th) Prize$`);
+            const rangeWinners = winners.filter(w => {
+                const match = w.prizeRank.match(rangePrefix);
+                if (match) {
+                    const rankNum = parseInt(match[1]);
+                    return rankNum >= range.startRank && rankNum <= range.endRank;
+                }
+                return false;
+            });
+
+            const totalSlots = range.endRank - range.startRank + 1;
+            return {
+                rank: `${range.startRank}th-${range.endRank}th Prize`,
+                amount: range.prizeAmount,
+                totalSlots,
+                declared: rangeWinners.length,
+                remaining: totalSlots - rangeWinners.length,
+                winners: rangeWinners,
+                isRange: true,
+                rangeIndex: index
+            };
+        });
+
+        return [...status, ...rangeStatus];
     }
+}
+
+function getOrdinalSuffix(i) {
+    var j = i % 10,
+        k = i % 100;
+    if (j == 1 && k != 11) {
+        return "st";
+    }
+    if (j == 2 && k != 12) {
+        return "nd";
+    }
+    if (j == 3 && k != 13) {
+        return "rd";
+    }
+    return "th";
 }
 
 export default new MegaRewardWinnerService();

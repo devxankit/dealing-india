@@ -9,7 +9,7 @@ import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
 // Declare a new winner
 export const declareWinner = asyncHandler(async (req, res) => {
     const adminId = req.user.adminId || req.user._id;
-    let { megaRewardId, prizeRank } = req.body;
+    let { megaRewardId, prizeRank, entryId, rangeIndex, type } = req.body;
 
     // If no megaRewardId, use active campaign
     if (!megaRewardId) {
@@ -23,19 +23,31 @@ export const declareWinner = asyncHandler(async (req, res) => {
         megaRewardId = activeSettings._id;
     }
 
-    if (!prizeRank) {
-        return res.status(400).json({
-            success: false,
-            message: 'Prize rank is required'
-        });
+    let result;
+    if (type === 'manual') {
+        if (!entryId || !prizeRank) {
+            return res.status(400).json({ success: false, message: 'Entry ID and Prize Rank are required for manual selection' });
+        }
+        result = await MegaRewardWinnerService.declareManualWinner(megaRewardId, entryId, prizeRank, adminId);
+    } else if (type === 'range') {
+        if (rangeIndex === undefined) {
+            return res.status(400).json({ success: false, message: 'Range index is required' });
+        }
+        result = await MegaRewardWinnerService.declareRangeWinners(megaRewardId, rangeIndex, adminId);
+    } else {
+        if (!prizeRank) {
+            return res.status(400).json({
+                success: false,
+                message: 'Prize rank is required'
+            });
+        }
+        result = await MegaRewardWinnerService.declareWinner(megaRewardId, prizeRank, adminId);
     }
-
-    const winner = await MegaRewardWinnerService.declareWinner(megaRewardId, prizeRank, adminId);
 
     res.status(201).json({
         success: true,
-        message: `${prizeRank} winner declared successfully!`,
-        data: winner
+        message: `Winner(s) declared successfully!`,
+        data: result
     });
 });
 

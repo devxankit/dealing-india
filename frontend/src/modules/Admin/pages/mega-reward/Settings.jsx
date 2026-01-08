@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSave, FiInfo, FiAlertCircle, FiSettings, FiCalendar, FiGift, FiLoader } from 'react-icons/fi';
+import { FiSave, FiInfo, FiAlertCircle, FiSettings, FiCalendar, FiGift, FiLoader, FiPlus, FiTrash2, FiSearch, FiX, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
 
@@ -9,9 +9,9 @@ const MegaRewardSettings = () => {
         prizes: [
             { id: 1, rank: '1st Prize', amount: 0, description: '', icon: '🏆', winnerCount: 1 },
             { id: 2, rank: '2nd Prize', amount: 0, description: '', icon: '🥈', winnerCount: 1 },
-            { id: 3, rank: '3rd Prize', amount: 0, description: '', icon: '🥉', winnerCount: 1 },
-            { id: 4, rank: 'Consolation', amount: 0, description: '', icon: '🎁', winnerCount: 1 }
+            { id: 3, rank: '3rd Prize', amount: 0, description: '', icon: '🥉', winnerCount: 1 }
         ],
+        customRanges: [],
         startDate: '',
         endDate: '',
         isActive: true,
@@ -21,6 +21,11 @@ const MegaRewardSettings = () => {
             facebook: 1
         }
     });
+    const [entries, setEntries] = useState([]);
+    const [showSelectionModal, setShowSelectionModal] = useState(false);
+    const [currentSelectingRank, setCurrentSelectingRank] = useState(null);
+    const [winnerStatus, setWinnerStatus] = useState([]);
+    const [searchEntry, setSearchEntry] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [settingsId, setSettingsId] = useState(null);
@@ -29,7 +34,31 @@ const MegaRewardSettings = () => {
     // Fetch active settings on mount
     useEffect(() => {
         fetchSettings();
+        fetchWinnerStatus();
+        fetchEntries();
     }, []);
+
+    const fetchEntries = async () => {
+        try {
+            const response = await api.get('/admin/mega-reward/entries?limit=1000');
+            if (response.success) {
+                setEntries(response.data.entries || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch entries:', error);
+        }
+    };
+
+    const fetchWinnerStatus = async () => {
+        try {
+            const response = await api.get('/admin/mega-reward/winners/status');
+            if (response.success) {
+                setWinnerStatus(response.data || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch winner status:', error);
+        }
+    };
 
     const fetchSettings = async () => {
         setLoading(true);
@@ -47,7 +76,11 @@ const MegaRewardSettings = () => {
                         description: p.description || '',
                         icon: p.icon || '🎁',
                         winnerCount: Number(p.winnerCount) || 1
-                    })) || settings.prizes,
+                    })).slice(0, 3) || settings.prizes,
+                    customRanges: data.customRanges?.map((r, idx) => ({
+                        ...r,
+                        id: idx + 100 // unique id for ranges
+                    })) || [],
                     startDate: data.startDate ? data.startDate.split('T')[0] : '',
                     endDate: data.endDate ? data.endDate.split('T')[0] : '',
                     isActive: data.isActive ?? true,
@@ -117,7 +150,14 @@ const MegaRewardSettings = () => {
                     amount: parseInt(p.amount),
                     description: p.description,
                     icon: p.icon,
-                    winnerCount: parseInt(p.winnerCount) || 1
+                    winnerCount: 1
+                })),
+                customRanges: settings.customRanges.map(r => ({
+                    startRank: parseInt(r.startRank),
+                    endRank: parseInt(r.endRank),
+                    prizeAmount: parseInt(r.prizeAmount),
+                    description: r.description,
+                    icon: r.icon || '🎁'
                 })),
                 startDate: settings.startDate,
                 endDate: settings.endDate,
@@ -127,10 +167,8 @@ const MegaRewardSettings = () => {
 
             let response;
             if (settingsId) {
-                // Update existing
                 response = await api.put(`/admin/mega-reward/settings/${settingsId}`, payload);
             } else {
-                // Create new
                 response = await api.post('/admin/mega-reward/settings', payload);
             }
 
@@ -145,6 +183,83 @@ const MegaRewardSettings = () => {
             toast.error(error.message || 'Failed to save settings');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleAddRange = () => {
+        if (settings.customRanges.length >= 5) {
+            toast.error('Maximum 5 ranges allowed');
+            return;
+        }
+        const lastEndRank = settings.customRanges.length > 0
+            ? settings.customRanges[settings.customRanges.length - 1].endRank
+            : 3;
+
+        setSettings(prev => ({
+            ...prev,
+            customRanges: [
+                ...prev.customRanges,
+                { id: Date.now(), startRank: lastEndRank + 1, endRank: lastEndRank + 10, prizeAmount: 0, description: '', icon: '🎁' }
+            ]
+        }));
+    };
+
+    const handleRemoveRange = (id) => {
+        setSettings(prev => ({
+            ...prev,
+            customRanges: prev.customRanges.filter(r => r.id !== id)
+        }));
+    };
+
+    const handleRangeChange = (id, field, value) => {
+        setSettings(prev => ({
+            ...prev,
+            customRanges: prev.customRanges.map(r => r.id === id ? { ...r, [field]: value } : r)
+        }));
+    };
+
+    const handleOpenSelectionModal = (rank) => {
+        setCurrentSelectingRank(rank);
+        setShowSelectionModal(true);
+    };
+
+    const handleSelectWinner = async (entryId) => {
+        if (!window.confirm(`Are you sure you want to select this user for ${currentSelectingRank}?`)) return;
+
+        try {
+            const response = await api.post('/admin/mega-reward/winners/declare', {
+                megaRewardId: settingsId,
+                prizeRank: currentSelectingRank,
+                entryId,
+                type: 'manual'
+            });
+
+            if (response.success) {
+                toast.success(`${currentSelectingRank} declared!`);
+                setShowSelectionModal(false);
+                fetchWinnerStatus();
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to declare winner');
+        }
+    };
+
+    const handleDeclareRange = async (index) => {
+        if (!window.confirm(`Are you sure you want to randomly declare winners for this range?`)) return;
+
+        try {
+            const response = await api.post('/admin/mega-reward/winners/declare', {
+                megaRewardId: settingsId,
+                rangeIndex: index,
+                type: 'range'
+            });
+
+            if (response.success) {
+                toast.success(`Winners declared for range!`);
+                fetchWinnerStatus();
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to declare winners');
         }
     };
 
@@ -207,73 +322,180 @@ const MegaRewardSettings = () => {
 
                 {/* Prize Configuration */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-50 flex items-center gap-2">
-                        <FiGift className="text-yellow-600" />
-                        <h2 className="font-bold text-gray-900">Prize Configuration (1st, 2nd, 3rd & Custom)</h2>
+                    <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FiGift className="text-yellow-600" />
+                            <h2 className="font-bold text-gray-900">Prize Configuration (1st, 2nd & 3rd)</h2>
+                        </div>
                     </div>
                     <div className="p-6 space-y-6">
-                        {settings.prizes.map((prize) => (
-                            <div key={prize.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-4">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">{prize.rank}</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2">{prize.icon}</span>
+                        {settings.prizes.map((prize) => {
+                            const status = winnerStatus.find(s => s.rank === prize.rank);
+                            const isDeclared = status && status.declared > 0;
+                            return (
+                                <div key={prize.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest">{prize.rank}</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2">{prize.icon}</span>
+                                                <input
+                                                    type="text"
+                                                    value={prize.rank}
+                                                    disabled
+                                                    className="w-full bg-white border border-gray-200 rounded-xl p-2 pl-10 text-sm font-bold text-gray-500"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Amount (₹)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
+                                                <input
+                                                    type="number"
+                                                    value={prize.amount || 0}
+                                                    onChange={(e) => handlePrizeChange(prize.id, 'amount', e.target.value)}
+                                                    disabled={isLocked}
+                                                    className={`w-full bg-white border border-gray-200 rounded-xl p-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/20 ${isLocked ? 'cursor-not-allowed opacity-75' : ''}`}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Description</label>
                                             <input
                                                 type="text"
-                                                value={prize.rank}
-                                                onChange={(e) => prize.id === 4 && handlePrizeChange(prize.id, 'rank', e.target.value)}
-                                                disabled={prize.id !== 4}
-                                                className={`w-full bg-white border border-gray-200 rounded-xl p-2 pl-10 text-sm font-bold ${prize.id === 4 ? 'text-gray-900' : 'text-gray-500'}`}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Amount (₹)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</span>
-                                            <input
-                                                type="number"
-                                                value={prize.amount || 0}
-                                                onChange={(e) => handlePrizeChange(prize.id, 'amount', e.target.value)}
+                                                value={prize.description}
+                                                onChange={(e) => handlePrizeChange(prize.id, 'description', e.target.value)}
                                                 disabled={isLocked}
-                                                className={`w-full bg-white border border-gray-200 rounded-xl p-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/20 ${isLocked ? 'cursor-not-allowed opacity-75' : ''}`}
+                                                className={`w-full bg-white border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/20 ${isLocked ? 'cursor-not-allowed opacity-75' : ''}`}
+                                                placeholder="e.g. Cash Prize"
                                             />
                                         </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest">Description</label>
-                                        <input
-                                            type="text"
-                                            value={prize.description}
-                                            onChange={(e) => handlePrizeChange(prize.id, 'description', e.target.value)}
-                                            disabled={isLocked}
-                                            className={`w-full bg-white border border-gray-200 rounded-xl p-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/20 ${isLocked ? 'cursor-not-allowed opacity-75' : ''}`}
-                                            placeholder="e.g. Cash Prize"
-                                        />
+                                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                                        <div className="text-xs text-gray-500 font-bold">
+                                            {isDeclared ? (
+                                                <span className="text-green-600 flex items-center gap-1">
+                                                    <FiCheck /> Winner: {status.winners[0]?.userId?.name || 'Unknown'} (Ticket: {status.winners[0]?.entryId?.ticketId})
+                                                </span>
+                                            ) : (
+                                                <span className="text-amber-600">No winner declared yet</span>
+                                            )}
+                                        </div>
+                                        {!isDeclared && settingsId && (
+                                            <button
+                                                onClick={() => handleOpenSelectionModal(prize.rank)}
+                                                className="px-4 py-1.5 bg-black text-white text-xs font-bold rounded-lg hover:bg-gray-800 transition-all flex items-center gap-2"
+                                            >
+                                                <FiPlus /> Select Winner
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
+                            );
+                        })}
+                    </div>
+                </div>
 
-                                {prize.id === 4 && (
-                                    <div className="pt-4 border-t border-gray-200 flex items-center gap-4">
-                                        <div className="space-y-2 flex-1">
-                                            <label className="text-xs font-black text-purple-600 uppercase tracking-widest">Number of Winners for this category</label>
+                {/* Range Configuration */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FiSettings className="text-purple-600" />
+                            <h2 className="font-bold text-gray-900">Custom Range-Based Prizes (4th Prize Onwards)</h2>
+                        </div>
+                        <button
+                            onClick={handleAddRange}
+                            disabled={isLocked || settings.customRanges.length >= 5}
+                            className="flex items-center gap-1 text-xs font-bold text-purple-600 hover:text-purple-700 disabled:opacity-50"
+                        >
+                            <FiPlus /> Add Range
+                        </button>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        {settings.customRanges.length === 0 && (
+                            <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                <p className="text-sm text-gray-500">No custom ranges configured yet. Max 5 ranges allowed.</p>
+                            </div>
+                        )}
+                        {settings.customRanges.map((range, index) => {
+                            const status = winnerStatus.find(s => s.rangeIndex === index);
+                            const isComplete = status && status.remaining === 0;
+                            return (
+                                <div key={range.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Range {index + 1}</h3>
+                                        {!isLocked && (
+                                            <button onClick={() => handleRemoveRange(range.id)} className="text-red-500 hover:text-red-600">
+                                                <FiTrash2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Start Rank</label>
                                             <input
                                                 type="number"
-                                                value={prize.winnerCount || 0}
-                                                onChange={(e) => handlePrizeChange(prize.id, 'winnerCount', e.target.value)}
+                                                value={range.startRank}
+                                                onChange={(e) => handleRangeChange(range.id, 'startRank', parseInt(e.target.value))}
                                                 disabled={isLocked}
-                                                className={`w-full max-w-[200px] bg-purple-50 border border-purple-100 rounded-xl p-2 text-sm font-bold text-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500/20 ${isLocked ? 'cursor-not-allowed opacity-75' : ''}`}
-                                                placeholder="e.g. 10"
+                                                className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm"
                                             />
                                         </div>
-                                        <div className="text-xs text-gray-400 italic">
-                                            * This prize will be given to {prize.winnerCount || 0} users after top 3.
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase">End Rank</label>
+                                            <input
+                                                type="number"
+                                                value={range.endRank}
+                                                onChange={(e) => handleRangeChange(range.id, 'endRank', parseInt(e.target.value))}
+                                                disabled={isLocked}
+                                                className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Prize Amount</label>
+                                            <input
+                                                type="number"
+                                                value={range.prizeAmount}
+                                                onChange={(e) => handleRangeChange(range.id, 'prizeAmount', parseInt(e.target.value))}
+                                                disabled={isLocked}
+                                                className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase">Description</label>
+                                            <input
+                                                type="text"
+                                                value={range.description}
+                                                onChange={(e) => handleRangeChange(range.id, 'description', e.target.value)}
+                                                disabled={isLocked}
+                                                className="w-full bg-white border border-gray-200 rounded-lg p-2 text-sm"
+                                                placeholder="e.g. Consolation"
+                                            />
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        ))}
+                                    <div className="flex items-center justify-between pt-2">
+                                        <div className="text-[10px] font-bold text-gray-500">
+                                            {status ? (
+                                                <span className={status.remaining === 0 ? 'text-green-600' : 'text-amber-600'}>
+                                                    {status.declared} / {status.totalSlots} winners declared
+                                                </span>
+                                            ) : (
+                                                <span>Save settings to enable declaration</span>
+                                            )}
+                                        </div>
+                                        {status && status.remaining > 0 && (
+                                            <button
+                                                onClick={() => handleDeclareRange(index)}
+                                                className="px-3 py-1 bg-purple-600 text-white text-[10px] font-bold rounded-lg hover:bg-purple-700"
+                                            >
+                                                Declare {status.remaining} Winners
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -392,19 +614,93 @@ const MegaRewardSettings = () => {
                     </div>
                 </div>
 
-                {/* Warning Area */}
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex gap-4">
-                    <FiAlertCircle className="text-amber-600 text-xl flex-shrink-0 mt-1" />
-                    <div>
-                        <h3 className="font-bold text-amber-900 text-sm">Important Note</h3>
-                        <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-                            Changes to the prize amount or end date will affect all current participants.
-                            If you disable the program, users will no longer be able to generate new tickets,
-                            but existing tickets will remain valid for the draw.
-                        </p>
+            </div>
+
+            {/* Winner Selection Modal */}
+            {showSelectionModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+                        <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+                            <div>
+                                <h2 className="text-2xl font-black text-gray-900">Select Winner</h2>
+                                <p className="text-sm font-bold text-purple-600 uppercase tracking-wider mt-1">{currentSelectingRank}</p>
+                            </div>
+                            <button
+                                onClick={() => setShowSelectionModal(false)}
+                                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-gray-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm"
+                            >
+                                <FiX size={24} />
+                            </button>
+                        </div>
+
+                        <div className="p-8">
+                            {/* Search bar */}
+                            <div className="relative mb-6">
+                                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by name, email or ticket ID..."
+                                    value={searchEntry}
+                                    onChange={(e) => setSearchEntry(e.target.value)}
+                                    className="w-full bg-gray-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                />
+                            </div>
+
+                            <div className="max-h-[400px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                                {entries
+                                    .filter(entry =>
+                                        entry.status === 'active' && !winnerStatus.some(s => s.winners.some(w => w.userId?._id === entry.userId?._id)) && (
+                                            entry.userId?.name?.toLowerCase().includes(searchEntry.toLowerCase()) ||
+                                            entry.userId?.email?.toLowerCase().includes(searchEntry.toLowerCase()) ||
+                                            entry.ticketId?.toLowerCase().includes(searchEntry.toLowerCase())
+                                        ))
+                                    .map((entry) => (
+                                        <div
+                                            key={entry._id}
+                                            className="group flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 hover:border-purple-200 hover:shadow-lg hover:shadow-purple-500/5 transition-all duration-300"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-xl font-black text-gray-400 group-hover:bg-purple-50 group-hover:text-purple-500 transition-colors">
+                                                    {entry.userId?.name?.charAt(0) || 'U'}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-gray-900 group-hover:text-purple-600 transition-colors">{entry.userId?.name || 'Unknown'}</h4>
+                                                    <p className="text-xs text-gray-400 font-medium">{entry.userId?.email || 'No email'}</p>
+                                                    <div className="mt-1 flex items-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                                            {entry.ticketId}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleSelectWinner(entry._id)}
+                                                className="px-6 py-2.5 bg-black text-white text-xs font-black rounded-xl hover:bg-purple-600 transition-all shadow-sm"
+                                            >
+                                                Select
+                                            </button>
+                                        </div>
+                                    ))}
+
+                                {entries.filter(entry =>
+                                    entry.status === 'active' && !winnerStatus.some(s => s.winners.some(w => w.userId?._id === entry.userId?._id)) && (
+                                        entry.userId?.name?.toLowerCase().includes(searchEntry.toLowerCase()) ||
+                                        entry.userId?.email?.toLowerCase().includes(searchEntry.toLowerCase()) ||
+                                        entry.ticketId?.toLowerCase().includes(searchEntry.toLowerCase())
+                                    )).length === 0 && (
+                                        <div className="text-center py-12">
+                                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <FiSearch className="text-2xl text-gray-300" />
+                                            </div>
+                                            <h3 className="text-lg font-bold text-gray-900">No Eligible Entries Found</h3>
+                                            <p className="text-sm text-gray-500">Try searching for something else or ensure entries are active.</p>
+                                        </div>
+                                    )}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

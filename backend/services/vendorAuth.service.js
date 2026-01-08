@@ -194,6 +194,7 @@ export const registerVendor = async (vendorData) => {
  */
 export const loginVendor = async (email, password) => {
   try {
+    console.log(`[Login Attempt] Email: ${email}`);
     if (!email || !password) {
       throw new Error('Email and password are required');
     }
@@ -204,10 +205,13 @@ export const loginVendor = async (email, password) => {
     }).select('+password'); // Include password field
 
     if (!vendor) {
+      console.log(`[Login Failed] Vendor not found: ${email}`);
       const error = new Error('Invalid email or password');
       error.statusCode = 401;
       throw error;
     }
+
+    console.log(`[Login Progress] Vendor found, status: ${vendor.status}, isActive: ${vendor.isActive}`);
 
     // Check if account is active
     if (!vendor.isActive) {

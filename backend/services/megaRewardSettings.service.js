@@ -9,6 +9,9 @@ class MegaRewardSettingsService {
      * Create a new Mega Reward campaign
      */
     async createSettings(data, adminId) {
+        // Validate ranges
+        this.validateRanges(data.customRanges);
+
         // If this campaign is active, deactivate others first
         if (data.isActive) {
             await MegaRewardSettings.updateMany(
@@ -53,6 +56,11 @@ class MegaRewardSettingsService {
             );
         }
 
+        // Validate ranges
+        if (data.customRanges) {
+            this.validateRanges(data.customRanges);
+        }
+
         const settings = await MegaRewardSettings.findByIdAndUpdate(
             id,
             data,
@@ -64,6 +72,32 @@ class MegaRewardSettingsService {
         }
 
         return settings;
+    }
+
+    /**
+     * Validate range configuration
+     */
+    validateRanges(ranges) {
+        if (!ranges || ranges.length === 0) return;
+        if (ranges.length > 5) throw new Error('Maximum 5 ranges allowed');
+
+        // Sort ranges by startRank to check overlapping
+        const sortedRanges = [...ranges].sort((a, b) => a.startRank - b.startRank);
+
+        for (let i = 0; i < sortedRanges.length; i++) {
+            const range = sortedRanges[i];
+
+            if (range.startRank < 4) throw new Error('Ranges must start from 4 or higher');
+            if (range.endRank < range.startRank) throw new Error('End rank cannot be less than start rank');
+
+            // Check overlap with next range
+            if (i < sortedRanges.length - 1) {
+                const nextRange = sortedRanges[i + 1];
+                if (range.endRank >= nextRange.startRank) {
+                    throw new Error(`Range Overlap: Range ${range.startRank}-${range.endRank} overlaps with ${nextRange.startRank}-${nextRange.endRank}`);
+                }
+            }
+        }
     }
 
     /**

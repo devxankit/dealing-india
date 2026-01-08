@@ -36,6 +36,31 @@ const megaRewardSettingsSchema = new mongoose.Schema({
             min: 1
         }
     }],
+    customRanges: [{
+        startRank: {
+            type: Number,
+            required: true,
+            min: 4
+        },
+        endRank: {
+            type: Number,
+            required: true,
+            min: 4
+        },
+        prizeAmount: {
+            type: Number,
+            required: true,
+            min: 0
+        },
+        description: {
+            type: String,
+            trim: true
+        },
+        icon: {
+            type: String,
+            default: '🎁'
+        }
+    }],
     startDate: {
         type: Date,
         required: [true, 'Start date is required']
