@@ -50,14 +50,6 @@ const Analytics = () => {
     fetchAnalytics();
   }, [period]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -70,7 +62,7 @@ const Analytics = () => {
           <p className="text-gray-600">Detailed analytics and performance metrics</p>
         </div>
         <div className="flex items-center gap-3">
-          <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} />
+          <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} isLoading={loading} />
           <ExportButton
             data={revenueData}
             headers={[
@@ -83,7 +75,12 @@ const Analytics = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
+        {loading && (
+            <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center rounded-xl backdrop-blur-[1px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+        )}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Revenue</p>
@@ -135,7 +132,12 @@ const Analytics = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
+        {loading && (
+            <div className="absolute inset-0 bg-white/50 z-10 flex items-center justify-center rounded-xl backdrop-blur-[1px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+        )}
         <RevenueChart data={revenueData} period={period} />
         <SalesChart data={revenueData} period={period} />
       </div>

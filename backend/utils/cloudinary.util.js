@@ -17,6 +17,7 @@ export const uploadToCloudinary = async (buffer, folderName, options = {}) => {
       const uploadOptions = {
         folder: folderName,
         resource_type: 'auto',
+        timeout: 120000, // 2 minutes timeout for communication with Cloudinary
         ...options,
       };
 

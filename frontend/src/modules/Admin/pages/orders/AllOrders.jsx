@@ -561,9 +561,21 @@ const AllOrders = () => {
       });
     }
 
-    // Status filtering is already handled by API
+    // Status filtering is already handled by API, but keep client-side filter for local state
     if (selectedStatus !== "all") {
-      filtered = filtered.filter((order) => order.status === selectedStatus);
+      filtered = filtered.filter((order) => {
+        const orderStatus = order.status?.toLowerCase();
+        if (selectedStatus === "pending") {
+          return orderStatus === "pending" || orderStatus === "awaiting";
+        }
+        if (selectedStatus === "processing") {
+          return orderStatus === "processing" || orderStatus === "processed";
+        }
+        if (selectedStatus === "cancelled") {
+          return orderStatus === "cancelled" || orderStatus === "canceled";
+        }
+        return orderStatus === selectedStatus;
+      });
     }
 
     // Filter by date range (also handled by API, but keep for local filtering)
@@ -611,6 +623,11 @@ const AllOrders = () => {
   };
 
   // Handler functions for order actions
+  const handleStatusFilterChange = (status) => {
+    setSelectedStatus(status);
+    setPagination({ ...pagination, page: 1 }); // Reset to first page when filter changes
+  };
+
   const handleOrderDetails = (orderId) => {
     navigate(`/admin/orders/${orderId}`);
   };
@@ -841,6 +858,7 @@ const AllOrders = () => {
   const statusCards = [
     {
       title: "Awaiting",
+      status: "pending",
       value: orderStats.awaiting,
       icon: FiClock,
       bgColor: "bg-gradient-to-br from-yellow-500 to-amber-600",
@@ -848,6 +866,7 @@ const AllOrders = () => {
     },
     {
       title: "Received",
+      status: "received",
       value: orderStats.received,
       icon: FiCheckCircle,
       bgColor: "bg-gradient-to-br from-blue-500 to-cyan-600",
@@ -855,6 +874,7 @@ const AllOrders = () => {
     },
     {
       title: "Processed",
+      status: "processing",
       value: orderStats.processed,
       icon: FiPackage,
       bgColor: "bg-gradient-to-br from-indigo-500 to-purple-600",
@@ -862,6 +882,7 @@ const AllOrders = () => {
     },
     {
       title: "Shipped",
+      status: "shipped",
       value: orderStats.shipped,
       icon: FiTruck,
       bgColor: "bg-gradient-to-br from-blue-500 to-indigo-600",
@@ -869,6 +890,7 @@ const AllOrders = () => {
     },
     {
       title: "Delivered",
+      status: "delivered",
       value: orderStats.delivered,
       icon: FiCheckCircle,
       bgColor: "bg-gradient-to-br from-green-500 to-emerald-600",
@@ -876,6 +898,7 @@ const AllOrders = () => {
     },
     {
       title: "Cancelled",
+      status: "cancelled",
       value: orderStats.cancelled,
       icon: FiXCircle,
       bgColor: "bg-gradient-to-br from-red-500 to-rose-600",
@@ -883,6 +906,7 @@ const AllOrders = () => {
     },
     {
       title: "Returned",
+      status: "returned",
       value: orderStats.returned,
       icon: FiRotateCw,
       bgColor: "bg-gradient-to-br from-orange-500 to-amber-600",
@@ -890,6 +914,7 @@ const AllOrders = () => {
     },
     {
       title: "Total Orders",
+      status: "all",
       value: orderStats.total,
       icon: FiShoppingBag,
       bgColor: "bg-gradient-to-br from-gray-600 to-gray-800",
@@ -924,13 +949,16 @@ const AllOrders = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3 sm:gap-4">
         {statusCards.map((card, index) => {
           const Icon = card.icon;
+          const isActive = selectedStatus === card.status;
           return (
             <motion.div
               key={card.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-300 relative overflow-hidden`}>
+              onClick={() => handleStatusFilterChange(card.status)}
+          className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-md border-2 ${isActive ? "border-primary-500 scale-[1.02] ring-2 ring-primary-200" : "border-transparent"
+            } hover:shadow-lg transition-all duration-300 relative overflow-hidden cursor-pointer`}>
               {/* Decorative gradient overlay */}
               <div
                 className={`absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 ${card.bgColor} opacity-10 rounded-full -mr-12 -mt-12 sm:-mr-16 sm:-mt-16`}></div>
@@ -940,6 +968,11 @@ const AllOrders = () => {
                   className={`${card.bgColor} bg-white/20 p-2 sm:p-2.5 rounded-lg shadow-md`}>
                   <Icon className="text-white text-base sm:text-lg" />
                 </div>
+                {isActive && (
+                  <div className="bg-primary-500 rounded-full p-1 shadow-sm">
+                    <FiCheckCircle className="text-white text-[10px]" />
+                  </div>
+                )}
               </div>
               <div className="relative z-10">
                 <h3 className="text-gray-600 text-xs sm:text-sm font-medium mb-1">

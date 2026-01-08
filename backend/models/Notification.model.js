@@ -40,6 +40,8 @@ const notificationSchema = new mongoose.Schema(
         'ticket_created',
         'ticket_replied',
         'ticket_status_changed',
+        'mega_reward_winner',
+        'mega_reward_ticket_generated',
       ],
     },
     title: {

@@ -19,7 +19,8 @@ export const getWallet = asyncHandler(async (req, res) => {
  */
 export const requestWithdrawal = asyncHandler(async (req, res) => {
     const vendorId = req.user.vendorId;
-    const request = await VendorWalletService.requestWithdrawal(vendorId);
+    const { paymentDetails } = req.body;
+    const request = await VendorWalletService.requestWithdrawal(vendorId, paymentDetails);
 
     res.status(201).json({
         success: true,

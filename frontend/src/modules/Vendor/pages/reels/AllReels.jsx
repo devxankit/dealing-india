@@ -11,6 +11,7 @@ import {
   deleteVendorReel as deleteVendorReelAPI,
 } from "../../services/reelService";
 import api from "../../../../shared/utils/api";
+import { formatVideoUrl } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 
 const AllReels = () => {
@@ -39,7 +40,7 @@ const AllReels = () => {
 
   const loadSubscription = async () => {
     if (!vendorId) return;
-    
+
     try {
       // Add cache-busting timestamp to ensure fresh data
       const timestamp = new Date().getTime();
@@ -161,17 +162,17 @@ const AllReels = () => {
         <div className="flex items-center gap-4">
           <div className="w-12 h-20 rounded-lg overflow-hidden relative bg-gray-100 shadow-sm group cursor-pointer" onClick={() => handleView(row)}>
             {row.videoUrl ? (
-              <video 
-                src={row.videoUrl} 
-                className="w-full h-full object-cover" 
-                 muted 
-                 loop
-                 preload="metadata"
-                 onEnded={(e) => {
-                   e.target.currentTime = 0;
-                   e.target.play().catch(() => {});
-                 }}
-                 onError={(e) => {
+              <video
+                src={formatVideoUrl(row.videoUrl)}
+                className="w-full h-full object-cover"
+                muted
+                loop
+                preload="metadata"
+                onEnded={(e) => {
+                  e.target.currentTime = 0;
+                  e.target.play().catch(() => { });
+                }}
+                onError={(e) => {
                   const video = e.target;
                   if (!video.getAttribute('src')) return;
                   if (video.error) {
@@ -288,7 +289,7 @@ const AllReels = () => {
                 <>
                   <FiCheckCircle className="text-green-600" />
                   <span className="text-gray-700">
-                    <span className="font-semibold">{subscription.tierName}</span> Plan • 
+                    <span className="font-semibold">{subscription.tierName}</span> Plan •
                     {subscription.usage.limit === -1 ? (
                       <span className="text-green-600"> Unlimited reels</span>
                     ) : (
@@ -300,9 +301,9 @@ const AllReels = () => {
                 <>
                   <FiAlertCircle className="text-red-600" />
                   <span className="text-red-700">
-                    {!subscription ? 'No active subscription' : 
-                     subscription.status !== 'active' ? `Subscription is ${subscription.status}` :
-                     'Subscription expired'}
+                    {!subscription ? 'No active subscription' :
+                      subscription.status !== 'active' ? `Subscription is ${subscription.status}` :
+                        'Subscription expired'}
                   </span>
                   <button
                     onClick={() => navigate('/vendor/subscription')}

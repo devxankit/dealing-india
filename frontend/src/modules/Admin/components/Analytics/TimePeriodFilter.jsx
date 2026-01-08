@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FiCalendar } from 'react-icons/fi';
 
-const TimePeriodFilter = ({ onPeriodChange, selectedPeriod = 'month' }) => {
+const TimePeriodFilter = ({ onPeriodChange, selectedPeriod = 'month', isLoading = false }) => {
   const periods = [
     { value: 'today', label: 'Today', shortLabel: 'Today' },
     { value: 'week', label: 'This Week', shortLabel: 'Week' },
@@ -16,12 +16,13 @@ const TimePeriodFilter = ({ onPeriodChange, selectedPeriod = 'month' }) => {
         {periods.map((period) => (
           <button
             key={period.value}
-            onClick={() => onPeriodChange(period.value)}
+            onClick={() => !isLoading && onPeriodChange(period.value)}
+            disabled={isLoading}
             className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
               selectedPeriod === period.value
                 ? 'bg-white text-gray-800 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
-            }`}
+            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <span className="sm:hidden">{period.shortLabel}</span>
             <span className="hidden sm:inline">{period.label}</span>

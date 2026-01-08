@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FiSearch,
   FiMapPin,
@@ -15,6 +15,9 @@ import toast from "react-hot-toast";
 
 const OrderTracking = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const orderIdFromUrl = searchParams.get("orderId");
+  
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,6 +53,19 @@ const OrderTracking = () => {
         console.log('Orders Data:', ordersData); // Debug log
         setOrders(ordersData);
         
+        // If orderId is provided in URL, select it automatically
+        if (orderIdFromUrl && ordersData.length > 0) {
+          const order = ordersData.find(o => 
+            o._id === orderIdFromUrl || 
+            o.id === orderIdFromUrl || 
+            o.orderCode === orderIdFromUrl
+          );
+          if (order) {
+            setSelectedOrder(order);
+            setSearchQuery(order.orderCode || order.id || '');
+          }
+        }
+
         if (ordersData.length === 0) {
           console.warn('No orders found in response');
         }
@@ -63,7 +79,7 @@ const OrderTracking = () => {
     };
 
     fetchOrders();
-  }, []);
+  }, [orderIdFromUrl]);
 
   const filteredOrders = orders.filter((order) => {
     const searchLower = searchQuery.toLowerCase();

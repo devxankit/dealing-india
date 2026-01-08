@@ -38,12 +38,12 @@ const videoFileFilter = (req, file, cb) => {
 const mediaFileFilter = (req, file, cb) => {
   const imageTypes = /jpeg|jpg|png|gif|webp/;
   const videoTypes = /mp4|mov|avi|wmv|flv|webm|mkv/;
-  const extname = imageTypes.test(path.extname(file.originalname).toLowerCase()) || 
-                  videoTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = imageTypes.test(file.mimetype) || 
-                   videoTypes.test(file.mimetype) || 
-                   file.mimetype.startsWith('image/') || 
-                   file.mimetype.startsWith('video/');
+  const extname = imageTypes.test(path.extname(file.originalname).toLowerCase()) ||
+    videoTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = imageTypes.test(file.mimetype) ||
+    videoTypes.test(file.mimetype) ||
+    file.mimetype.startsWith('image/') ||
+    file.mimetype.startsWith('video/');
 
   if (mimetype || extname) {
     return cb(null, true);

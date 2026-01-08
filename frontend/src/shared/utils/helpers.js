@@ -99,36 +99,36 @@ export const getPlaceholderImage = (
  * Calculate total stock quantity for a product
  * Aggregates main product stock and all variant stocks
  */
- export const calculateTotalStock = (product) => {
-   if (!product) return 0;
-   const mainStock = parseInt(product.stockQuantity) || 0;
-   const primaryColorName = (product.primaryColorName || product?.variants?.defaultVariant?.color || '').toString().trim().toLowerCase();
-   let variantSum = 0;
-   let primaryVariantSum = 0;
-   if (product.variants?.colorVariants && Array.isArray(product.variants.colorVariants)) {
-     product.variants.colorVariants.forEach((cv) => {
-       const cvColor = (cv.color || cv.colorName || '').toString().trim().toLowerCase();
-       const cvTotal = cv.sizeVariants?.reduce((sizeAcc, sv) => sizeAcc + (parseInt(sv.stockQuantity) || 0), 0) || 0;
-       variantSum += cvTotal;
-       if (!primaryVariantSum && primaryColorName && cvColor === primaryColorName) {
-         primaryVariantSum = cvTotal;
-       }
-     });
-     if (!primaryVariantSum && mainStock > 0) {
-       const candidateSum = product.variants.colorVariants.reduce((found, cv) => {
-         if (found) return found;
-         const sum = cv.sizeVariants?.reduce((acc, sv) => acc + (parseInt(sv.stockQuantity) || 0), 0) || 0;
-         return sum === mainStock ? sum : 0;
-       }, 0);
-       primaryVariantSum = candidateSum || 0;
-     }
-     // Guard: if variants sum equals main, treat as same entity
-     if (primaryVariantSum === 0 && variantSum === mainStock) {
-       return mainStock;
-     }
-   }
-   return mainStock + Math.max(variantSum - primaryVariantSum, 0);
- };
+export const calculateTotalStock = (product) => {
+  if (!product) return 0;
+  const mainStock = parseInt(product.stockQuantity) || 0;
+  const primaryColorName = (product.primaryColorName || product?.variants?.defaultVariant?.color || '').toString().trim().toLowerCase();
+  let variantSum = 0;
+  let primaryVariantSum = 0;
+  if (product.variants?.colorVariants && Array.isArray(product.variants.colorVariants)) {
+    product.variants.colorVariants.forEach((cv) => {
+      const cvColor = (cv.color || cv.colorName || '').toString().trim().toLowerCase();
+      const cvTotal = cv.sizeVariants?.reduce((sizeAcc, sv) => sizeAcc + (parseInt(sv.stockQuantity) || 0), 0) || 0;
+      variantSum += cvTotal;
+      if (!primaryVariantSum && primaryColorName && cvColor === primaryColorName) {
+        primaryVariantSum = cvTotal;
+      }
+    });
+    if (!primaryVariantSum && mainStock > 0) {
+      const candidateSum = product.variants.colorVariants.reduce((found, cv) => {
+        if (found) return found;
+        const sum = cv.sizeVariants?.reduce((acc, sv) => acc + (parseInt(sv.stockQuantity) || 0), 0) || 0;
+        return sum === mainStock ? sum : 0;
+      }, 0);
+      primaryVariantSum = candidateSum || 0;
+    }
+    // Guard: if variants sum equals main, treat as same entity
+    if (primaryVariantSum === 0 && variantSum === mainStock) {
+      return mainStock;
+    }
+  }
+  return mainStock + Math.max(variantSum - primaryVariantSum, 0);
+};
 
 /**
  * Format date
@@ -162,4 +162,22 @@ export const validateStockCalculation = (product) => {
     isConsistent = variantSum === mainStock ? total === mainStock : total === mainStock + variantSum;
   }
   return { mainStock, variantSum, total, isConsistent };
- };
+};
+
+/**
+ * Format video URL for better compatibility (Cloudinary specific)
+ */
+export const formatVideoUrl = (url) => {
+  if (!url) return "";
+  if (url.includes("cloudinary.com")) {
+    if (url.includes('/video/upload/')) {
+      let formattedUrl = url;
+      if (!url.includes('f_auto')) {
+        formattedUrl = url.replace('/video/upload/', '/video/upload/f_auto,q_auto/');
+      }
+      // Replace unsupported extensions with .mp4
+      return formattedUrl.replace(/\.(avi|mov|mkv|flv|wmv)$/i, '.mp4');
+    }
+  }
+  return url;
+};

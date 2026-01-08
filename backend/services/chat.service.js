@@ -94,11 +94,11 @@ class ChatService {
     try {
       console.log('--- ChatService.getUserConversations Debug ---');
       console.log('Original userId:', userId);
-      
-      const userObjectId = mongoose.isValidObjectId(userId) 
-        ? new mongoose.Types.ObjectId(userId) 
+
+      const userObjectId = mongoose.isValidObjectId(userId)
+        ? new mongoose.Types.ObjectId(userId)
         : null;
-      
+
       console.log('Converted userObjectId:', userObjectId);
 
       const query = {
@@ -109,7 +109,7 @@ class ChatService {
           }
         }
       };
-      
+
       console.log('Query:', JSON.stringify(query, null, 2));
 
       const conversations = await Chat.find(query)
@@ -122,7 +122,7 @@ class ChatService {
         .lean();
 
       console.log(`Found ${conversations.length} raw conversations for user ${userId}`);
-      
+
       // Deduplicate conversations by other participant ID
       const deduplicated = [];
       const seenParticipants = new Set();
@@ -131,12 +131,12 @@ class ChatService {
         const otherParticipant = conv.participants.find(
           (p) => p.userId && (p.userId._id || p.userId).toString() !== userId.toString()
         );
-        
+
         if (otherParticipant) {
           const otherId = (otherParticipant.userId._id || otherParticipant.userId).toString();
           if (!seenParticipants.has(otherId)) {
             seenParticipants.add(otherId);
-            
+
             // Transform and add
             let unreadCount = 0;
             if (conv.unreadCount) {
@@ -173,9 +173,9 @@ class ChatService {
     try {
       console.log('--- ChatService.getVendorConversations Debug ---');
       console.log('Original vendorId:', vendorId);
-      
-      const vendorObjectId = mongoose.isValidObjectId(vendorId) 
-        ? new mongoose.Types.ObjectId(vendorId) 
+
+      const vendorObjectId = mongoose.isValidObjectId(vendorId)
+        ? new mongoose.Types.ObjectId(vendorId)
         : null;
 
       console.log('Converted vendorObjectId:', vendorObjectId);
@@ -188,7 +188,7 @@ class ChatService {
           }
         }
       };
-      
+
       console.log('Query:', JSON.stringify(query, null, 2));
 
       const conversations = await Chat.find(query)
@@ -201,7 +201,7 @@ class ChatService {
         .lean();
 
       console.log(`Found ${conversations.length} raw conversations for vendor ${vendorId}`);
-      
+
       // Deduplicate conversations by other participant ID
       const deduplicated = [];
       const seenParticipants = new Set();
@@ -210,12 +210,12 @@ class ChatService {
         const otherParticipant = conv.participants.find(
           (p) => p.userId && (p.userId._id || p.userId).toString() !== vendorId.toString()
         );
-        
+
         if (otherParticipant) {
           const otherId = (otherParticipant.userId._id || otherParticipant.userId).toString();
           if (!seenParticipants.has(otherId)) {
             seenParticipants.add(otherId);
-            
+
             // Transform and add
             let unreadCount = 0;
             if (conv.unreadCount) {
@@ -298,26 +298,16 @@ class ChatService {
     }
   }
 
-  /**
-   * Send a message
-   * @param {String} conversationId - Conversation ID
-   * @param {String} senderId - Sender ID
-   * @param {String} senderRole - Sender role (user/vendor)
-   * @param {String} receiverId - Receiver ID
-   * @param {String} receiverRole - Receiver role (user/vendor)
-   * @param {String} message - Message text
-   * @returns {Promise<Object>} Created message
-   */
-  async sendMessage(conversationId, senderId, senderRole, receiverId, receiverRole, message) {
-    console.log('ChatService.sendMessage called with:', { conversationId, senderId, senderRole, receiverId, receiverRole });
+  async sendMessage(conversationId, senderId, senderRole, receiverIdParam, receiverRoleParam, message) {
+    console.log('ChatService.sendMessage called with:', { conversationId, senderId, senderRole });
     try {
       // Validate IDs
-      if (!mongoose.Types.ObjectId.isValid(senderId) || !mongoose.Types.ObjectId.isValid(receiverId)) {
-        console.error('Invalid sender or receiver ID format');
-        throw new Error('Invalid sender or receiver ID');
+      if (!mongoose.Types.ObjectId.isValid(senderId) || !mongoose.Types.ObjectId.isValid(conversationId)) {
+        console.error('Invalid sender or conversation ID format');
+        throw new Error('Invalid sender or conversation ID');
       }
 
-      // Verify conversation exists and user is participant
+      // Verify conversation exists
       const conversation = await Chat.findById(conversationId);
       if (!conversation) {
         console.error('Conversation not found:', conversationId);
@@ -326,23 +316,38 @@ class ChatService {
 
       console.log('Conversation found:', conversation._id);
 
-      const isParticipant = conversation.participants.some((p) => {
-        const pUserId = (p.userId._id || p.userId).toString();
-        const sId = senderId.toString();
-        const match = pUserId === sId && p.role === senderRole;
-        console.log(`Checking participant: ${pUserId} (${p.role}) vs ${sId} (${senderRole}) -> Match: ${match}`);
-        return match;
-      });
+      // Identify sender and receiver from participants to ensure security
+      const senderParticipant = conversation.participants.find(p =>
+        (p.userId._id || p.userId).toString() === senderId.toString() && p.role === senderRole
+      );
 
-      if (!isParticipant) {
-        console.error('Access denied. User not participant.', { senderId, senderRole, participants: conversation.participants });
-        throw new Error('Access denied');
+      if (!senderParticipant) {
+        console.error('Access denied. Sender not a participant of this conversation.', {
+          senderId,
+          senderRole,
+          participants: conversation.participants
+        });
+        throw new Error('Access denied: You are not a participant in this conversation');
       }
 
-      // Create message
-      const senderRoleModel = senderRole === 'user' ? 'User' : 'Vendor';
-      const receiverRoleModel = receiverRole === 'user' ? 'User' : 'Vendor';
+      // Automatically find the "other" participant as the receiver
+      const receiverParticipant = conversation.participants.find(p =>
+        (p.userId._id || p.userId).toString() !== senderId.toString() || p.role !== senderRole
+      );
 
+      if (!receiverParticipant) {
+        console.error('Receiver not found for conversation:', conversationId);
+        throw new Error('Receiver not found for this conversation');
+      }
+
+      const receiverId = receiverParticipant.userId._id || receiverParticipant.userId;
+      const receiverRole = receiverParticipant.role;
+      const receiverRoleModel = receiverParticipant.roleModel;
+      const senderRoleModel = senderParticipant.roleModel;
+
+      console.log('Receiver identified:', { receiverId, receiverRole });
+
+      // Create message document
       console.log('Creating message document...');
       const newMessage = await Message.create({
         conversationId,
@@ -355,14 +360,12 @@ class ChatService {
         message,
         readStatus: false,
       });
-      console.log('Message created:', newMessage._id);
+      console.log('Message created successfully:', newMessage._id);
 
       // Update conversation last message and timestamp
-      // Ensure unreadCount is initialized and usable as a Map
       if (!conversation.unreadCount) {
         conversation.unreadCount = new Map();
       } else if (!(conversation.unreadCount instanceof Map)) {
-        // If unreadCount exists but isn't a Map (e.g. plain object from lean or legacy), convert it
         try {
           const plainObj = conversation.unreadCount.toObject ? conversation.unreadCount.toObject() : conversation.unreadCount;
           conversation.unreadCount = new Map(Object.entries(plainObj));
@@ -372,7 +375,6 @@ class ChatService {
         }
       }
 
-      // Use string keys for the Map to avoid object reference issues
       const unreadKey = `${receiverRole}_${receiverId.toString()}`;
       const currentUnread = conversation.unreadCount.get(unreadKey) || 0;
       conversation.unreadCount.set(unreadKey, currentUnread + 1);
@@ -380,68 +382,27 @@ class ChatService {
       conversation.lastMessage = newMessage._id;
       conversation.lastMessageAt = new Date();
 
-      console.log('Saving conversation updates with unread key:', unreadKey);
+      console.log('Saving conversation update with unread key:', unreadKey);
       await conversation.save();
-      console.log('Conversation saved successfully');
 
       const populatedMessage = await Message.findById(newMessage._id)
         .populate('senderId', 'name email storeName')
         .populate('receiverId', 'name email storeName')
         .lean();
 
-      // Emit to socket rooms
+      // Socket Emit restricted to participants
       const io = getSocket();
       if (io) {
-        // 1. Emit to the specific chat room for participants currently in the chat
+        // Emit ONLY to the specific chat room
         const chatRoom = `chat_${conversationId}`;
-        console.log(`Emitting to chat room: ${chatRoom}`);
+        console.log(`Socket: Emitting to chat room: ${chatRoom}`);
         io.to(chatRoom).emit('receive_message', populatedMessage);
 
-        // 2. Emit to receiver's personal room to update their conversation list/notifications
+        // Emit to receiver's personal room for list updates
         const receiverRoom = `${receiverRole}_${receiverId}`;
-        console.log(`Emitting to receiver personal room: ${receiverRoom}`);
+        console.log(`Socket: Emitting to receiver room: ${receiverRoom}`);
         io.to(receiverRoom).emit('new_chat_message', populatedMessage);
-
-        // 3. Emit to receiver's notification room (Disabled for chat messages as per requirement)
-        /*
-        const notificationRoom = `notifications_${receiverId}_${receiverRole}`;
-        console.log(`Emitting to notification room: ${notificationRoom}`);
-        io.to(notificationRoom).emit('new_notification', {
-          type: 'chat_message',
-          title: 'New message',
-          message: `You have a new message from ${senderRole === 'user' ? 'User' : 'Vendor'}`,
-          metadata: {
-            conversationId: conversationId.toString(),
-            messageId: newMessage._id.toString(),
-            senderId: senderId.toString(),
-            senderRole,
-          }
-        });
-        */
       }
-
-      // Create notification for receiver (Disabled for chat messages as per requirement)
-      /*
-      try {
-        await notificationService.createNotification({
-          recipientId: receiverId,
-          recipientType: receiverRole,
-          type: 'chat_message',
-          title: `New message from ${senderRole === 'user' ? 'User' : 'Vendor'}`,
-          message: message.substring(0, 100),
-          actionUrl: senderRole === 'user' ? `/vendor/chat` : `/app/chat/${senderId}`,
-          metadata: {
-            conversationId: conversationId.toString(),
-            messageId: newMessage._id.toString(),
-            senderId: senderId.toString(),
-            senderRole,
-          },
-        });
-      } catch (notifError) {
-        // Don't fail message send if notification fails
-        console.error('Failed to create chat notification:', notifError);
-      }
-      */
 
       return populatedMessage;
     } catch (error) {

@@ -32,8 +32,17 @@ const VendorLogin = () => {
     if (localLoading || isLoading) {
       timeoutRef.current = setTimeout(() => {
         setLocalLoading(false);
-        toast.error('Request timeout. Please check your internet connection and try again.');
-      }, 35000);
+        // Special message for Render.com free tier sleep
+        const message = 'Server is taking longer than usual to respond. This might be because the server is starting up. Please wait a few more seconds or try again.';
+        toast.error(message, { duration: 6000 });
+        
+        // If it's still loading in store, force reset it after some more time
+        setTimeout(() => {
+          if (useVendorAuthStore.getState().isLoading) {
+            useVendorAuthStore.setState({ isLoading: false });
+          }
+        }, 5000);
+      }, 20000); // Reduced to 20 seconds for better UX
 
       return () => {
         if (timeoutRef.current) {
@@ -82,7 +91,9 @@ const VendorLogin = () => {
 
       setLocalLoading(true);
 
-      await login(formData.email, formData.password, rememberMe);
+      console.log('Dispatching login action...');
+      const result = await login(formData.email, formData.password, rememberMe);
+      console.log('Login action result:', result);
       
       setLocalLoading(false);
       if (timeoutRef.current) {

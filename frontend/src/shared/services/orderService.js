@@ -8,7 +8,7 @@ import api from '../utils/api';
 export const createOrder = async (orderData) => {
   try {
     const response = await api.post('/user/orders/create', orderData);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error creating order:', error);
     throw error;
@@ -30,7 +30,7 @@ export const verifyPayment = async (orderId, paymentData) => {
       orderId,
       ...paymentData,
     });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error verifying payment:', error);
     throw error;
@@ -45,7 +45,7 @@ export const verifyPayment = async (orderId, paymentData) => {
 export const getOrderById = async (orderId) => {
   try {
     const response = await api.get(`/user/orders/${orderId}`);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching order:', error);
     throw error;
@@ -70,7 +70,7 @@ export const getUserOrders = async (filters = {}) => {
     if (filters.limit) params.append('limit', filters.limit);
 
     const response = await api.get(`/user/orders?${params.toString()}`);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching orders:', error);
     throw error;
@@ -85,7 +85,7 @@ export const getUserOrders = async (filters = {}) => {
 export const cancelOrder = async (orderId) => {
   try {
     const response = await api.post(`/user/orders/${orderId}/cancel`);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error cancelling order:', error);
     throw error;
@@ -111,7 +111,7 @@ export const getVendorOrders = async (filters = {}) => {
     if (filters.search) params.append('search', filters.search);
 
     const response = await api.get(`/vendor/orders?${params.toString()}`);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching vendor orders:', error);
     throw error;
@@ -126,7 +126,7 @@ export const getVendorOrders = async (filters = {}) => {
 export const getVendorOrderById = async (orderId) => {
   try {
     const response = await api.get(`/vendor/orders/${orderId}`);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching vendor order:', error);
     throw error;
@@ -146,7 +146,7 @@ export const updateVendorOrderStatus = async (orderId, status, note = '') => {
       status,
       note,
     });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error updating vendor order status:', error);
     throw error;
@@ -160,7 +160,7 @@ export const updateVendorOrderStatus = async (orderId, status, note = '') => {
 export const getVendorOrderStats = async () => {
   try {
     const response = await api.get('/vendor/orders/stats');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching vendor order stats:', error);
     throw error;
@@ -174,7 +174,7 @@ export const getVendorOrderStats = async () => {
 export const getVendorEarningsStats = async () => {
   try {
     const response = await api.get('/vendor/orders/earnings');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching vendor earnings stats:', error);
     throw error;
@@ -200,18 +200,22 @@ export const getVendorEarningsStats = async () => {
 export const getAdminOrders = async (filters = {}) => {
   try {
     const params = new URLSearchParams();
-    if (filters.status) params.append('status', filters.status);
-    if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
-    if (filters.customerId) params.append('customerId', filters.customerId);
-    if (filters.vendorId) params.append('vendorId', filters.vendorId);
-    if (filters.search) params.append('search', filters.search);
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
-    if (filters.page) params.append('page', filters.page);
-    if (filters.limit) params.append('limit', filters.limit);
+    
+    // Helper to check if a value is worth sending
+    const isValuable = (val) => val !== undefined && val !== null && val !== 'undefined' && val !== 'null' && val !== '' && val !== 'all';
 
-    const response = await api.get(`/admin/orders?${params.toString()}`);
-    return response.data;
+    if (isValuable(filters.status)) params.append('status', filters.status);
+    if (isValuable(filters.paymentStatus)) params.append('paymentStatus', filters.paymentStatus);
+    if (isValuable(filters.customerId)) params.append('customerId', filters.customerId);
+    if (isValuable(filters.vendorId)) params.append('vendorId', filters.vendorId);
+    if (isValuable(filters.search)) params.append('search', filters.search);
+    if (isValuable(filters.startDate)) params.append('startDate', filters.startDate);
+    if (isValuable(filters.endDate)) params.append('endDate', filters.endDate);
+    if (isValuable(filters.page)) params.append('page', filters.page);
+    if (isValuable(filters.limit)) params.append('limit', filters.limit);
+
+    // api.js interceptor already returns response.data, so we just return the result
+    return await api.get(`/admin/orders?${params.toString()}`);
   } catch (error) {
     console.error('Error fetching admin orders:', error);
     throw error;
@@ -225,8 +229,8 @@ export const getAdminOrders = async (filters = {}) => {
  */
 export const getAdminOrderById = async (orderId) => {
   try {
-    const response = await api.get(`/admin/orders/${orderId}`);
-    return response.data;
+    // api.js interceptor already returns response.data
+    return await api.get(`/admin/orders/${orderId}`);
   } catch (error) {
     console.error('Error fetching admin order:', error);
     throw error;
@@ -246,7 +250,7 @@ export const updateAdminOrderStatus = async (orderId, status, note = '') => {
       status,
       note,
     });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error updating admin order status:', error);
     throw error;
@@ -264,7 +268,7 @@ export const cancelAdminOrder = async (orderId, reason = '') => {
     const response = await api.put(`/admin/orders/${orderId}/cancel`, {
       reason,
     });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error cancelling admin order:', error);
     throw error;
@@ -286,7 +290,7 @@ export const processRefund = async (orderId, refundAmount, refundTransactionId =
       refundTransactionId,
       note,
     });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error processing refund:', error);
     throw error;
@@ -300,12 +304,14 @@ export const processRefund = async (orderId, refundAmount, refundTransactionId =
 export const getAdminOrderStats = async () => {
   try {
     const response = await api.get('/admin/orders/stats');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching admin order stats:', error);
     throw error;
   }
-};/**
+};
+
+/**
  * Get admin order analytics for charts
  * @param {Object} params - { type, date }
  * @returns {Promise<Object>} Analytics data
@@ -317,7 +323,8 @@ export const getAdminOrderAnalytics = async (params = {}) => {
     if (params.date) queryParams.append('date', params.date);
 
     const response = await api.get(`/admin/reports/order-analytics?${queryParams.toString()}`);
-    return response.data;
+    // response is already unwrapped by axios interceptor, so it's the backend JSON: { success, data }
+    return response;
   } catch (error) {
     console.error('Error fetching order analytics:', error);
     throw error;

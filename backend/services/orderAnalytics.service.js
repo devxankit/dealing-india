@@ -15,15 +15,20 @@ export const getTodayOrdersAnalytics = async (date) => {
     const stats = await Order.aggregate([
         {
             $match: {
-                orderDate: { $gte: startOfDay, $lte: endOfDay },
-                status: { $nin: ['cancelled', 'refunded'] }
+                $or: [
+                    { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+                    { orderDate: { $gte: startOfDay, $lte: endOfDay } }
+                ],
+                status: { $nin: ['cancelled', 'canceled', 'refunded'] }
             }
         },
         {
             $group: {
-                _id: { $hour: '$orderDate' },
+                _id: { $hour: { $ifNull: ['$createdAt', '$orderDate'] } },
                 orders: { $sum: 1 },
-                revenue: { $sum: '$total' }
+                revenue: { 
+                    $sum: { $ifNull: ['$pricing.total', '$total', 0] } 
+                }
             }
         },
         { $sort: { _id: 1 } }
@@ -54,15 +59,25 @@ export const getWeeklyOrdersAnalytics = async () => {
     const stats = await Order.aggregate([
         {
             $match: {
-                orderDate: { $gte: startDate, $lte: endDate },
-                status: { $nin: ['cancelled', 'refunded'] }
+                $or: [
+                    { createdAt: { $gte: startDate, $lte: endDate } },
+                    { orderDate: { $gte: startDate, $lte: endDate } }
+                ],
+                status: { $nin: ['cancelled', 'canceled', 'refunded'] }
             }
         },
         {
             $group: {
-                _id: { $dateToString: { format: '%Y-%m-%d', date: '$orderDate' } },
+                _id: { 
+                    $dateToString: { 
+                        format: '%Y-%m-%d', 
+                        date: { $ifNull: ['$createdAt', '$orderDate'] } 
+                    } 
+                },
                 orders: { $sum: 1 },
-                revenue: { $sum: '$total' }
+                revenue: { 
+                    $sum: { $ifNull: ['$pricing.total', '$total', 0] } 
+                }
             }
         },
         { $sort: { _id: 1 } }
@@ -97,15 +112,25 @@ export const getMonthlyOrdersAnalytics = async () => {
     const stats = await Order.aggregate([
         {
             $match: {
-                orderDate: { $gte: startDate, $lte: endDate },
-                status: { $nin: ['cancelled', 'refunded'] }
+                $or: [
+                    { createdAt: { $gte: startDate, $lte: endDate } },
+                    { orderDate: { $gte: startDate, $lte: endDate } }
+                ],
+                status: { $nin: ['cancelled', 'canceled', 'refunded'] }
             }
         },
         {
             $group: {
-                _id: { $dateToString: { format: '%Y-%m-%d', date: '$orderDate' } },
+                _id: { 
+                    $dateToString: { 
+                        format: '%Y-%m-%d', 
+                        date: { $ifNull: ['$createdAt', '$orderDate'] } 
+                    } 
+                },
                 orders: { $sum: 1 },
-                revenue: { $sum: '$total' }
+                revenue: { 
+                    $sum: { $ifNull: ['$pricing.total', '$total', 0] } 
+                }
             }
         },
         { $sort: { _id: 1 } }
@@ -140,15 +165,25 @@ export const getYearlyOrdersAnalytics = async () => {
     const stats = await Order.aggregate([
         {
             $match: {
-                orderDate: { $gte: startDate, $lte: endDate },
-                status: { $nin: ['cancelled', 'refunded'] }
+                $or: [
+                    { createdAt: { $gte: startDate, $lte: endDate } },
+                    { orderDate: { $gte: startDate, $lte: endDate } }
+                ],
+                status: { $nin: ['cancelled', 'canceled', 'refunded'] }
             }
         },
         {
             $group: {
-                _id: { $dateToString: { format: '%Y-%m', date: '$orderDate' } },
+                _id: { 
+                    $dateToString: { 
+                        format: '%Y-%m', 
+                        date: { $ifNull: ['$createdAt', '$orderDate'] } 
+                    } 
+                },
                 orders: { $sum: 1 },
-                revenue: { $sum: '$total' }
+                revenue: { 
+                    $sum: { $ifNull: ['$pricing.total', '$total', 0] } 
+                }
             }
         },
         { $sort: { _id: 1 } }

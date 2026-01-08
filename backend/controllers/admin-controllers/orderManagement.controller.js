@@ -26,14 +26,22 @@ export const getOrders = async (req, res, next) => {
       limit,
     } = req.query;
 
+    // Helper to clean filter values
+    const cleanValue = (val) => {
+      if (val === 'undefined' || val === 'null' || val === 'all' || val === '') {
+        return undefined;
+      }
+      return val;
+    };
+
     const filters = {
-      status,
-      paymentStatus,
-      customerId,
-      vendorId,
-      search,
-      startDate,
-      endDate,
+      status: cleanValue(status),
+      paymentStatus: cleanValue(paymentStatus),
+      customerId: cleanValue(customerId),
+      vendorId: cleanValue(vendorId),
+      search: cleanValue(search),
+      startDate: cleanValue(startDate),
+      endDate: cleanValue(endDate),
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 50,
     };

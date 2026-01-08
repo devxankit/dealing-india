@@ -9,8 +9,8 @@ import NewArrivalsSection from "../components/Mobile/NewArrivalsSection";
 import DailyDealsSection from "../components/Mobile/DailyDealsSection";
 import RecommendedSection from "../components/Mobile/RecommendedSection";
 import FeaturedVendorsSection from "../components/Mobile/FeaturedVendorsSection";
-import BrandLogosScroll from "../../UserWeb/components/Home/BrandLogosScroll";
-import HeroBanner from "../../UserWeb/components/Home/HeroBanner";
+import BrandLogosScroll from "../../../shared/components/Home/BrandLogosScroll";
+import HeroBanner from "../../../shared/components/Home/HeroBanner";
 import LazyImage from "../../../shared/components/LazyImage";
 import { categories } from "../../../data/categories";
 import PageTransition from "../../../shared/components/PageTransition";
@@ -39,18 +39,18 @@ const MobileHome = () => {
     const vendor = product.vendorId;
     const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
       ? {
-          id: (vendor._id || vendor.id).toString(),
-          _id: vendor._id || vendor.id,
-          storeName: vendor.storeName || vendor.businessName || vendor.name,
-          businessName: vendor.businessName,
-          name: vendor.name,
-          storeLogo: vendor.storeLogo || vendor.logo,
-          isVerified: vendor.isVerified !== undefined 
-            ? vendor.isVerified 
-            : (vendor.status === 'approved' || vendor.isEmailVerified || false),
-        }
+        id: (vendor._id || vendor.id).toString(),
+        _id: vendor._id || vendor.id,
+        storeName: vendor.storeName || vendor.businessName || vendor.name,
+        businessName: vendor.businessName,
+        name: vendor.name,
+        storeLogo: vendor.storeLogo || vendor.logo,
+        isVerified: vendor.isVerified !== undefined
+          ? vendor.isVerified
+          : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+      }
       : null;
-    
+
     return {
       id: product._id || product.id,
       name: product.name,
@@ -78,7 +78,7 @@ const MobileHome = () => {
         setIsLoadingTrending(true);
         setIsLoadingFlashSale(true);
         setIsLoadingDailyDeals(true);
-        
+
         // Fetch all products and campaigns in PARALLEL for faster loading
         const [popularResponse, trendingResponse, flashSaleResponse, campaignData] = await Promise.allSettled([
           // Most popular products
@@ -207,7 +207,7 @@ const MobileHome = () => {
         if (campaignData.status === 'fulfilled') {
           try {
             const campaigns = campaignData.value || [];
-            
+
             // Filter only active campaigns (isActive = true and within date range)
             const now = new Date();
             const activeCampaigns = campaigns.filter(campaign => {
@@ -216,18 +216,18 @@ const MobileHome = () => {
               const endDate = new Date(campaign.endDate);
               return startDate <= now && endDate >= now;
             });
-            
+
             let dailyDealProducts = [];
             let dailyDealCampaign = null;
-            
+
             if (activeCampaigns.length > 0) {
               // Use the first active campaign for timer
               dailyDealCampaign = activeCampaigns[0];
-              
+
               // Collect products from all active daily_deal campaigns
               activeCampaigns.forEach((campaign) => {
                 const campaignProducts = campaign.products || [];
-                
+
                 if (campaignProducts.length > 0) {
                   const transformedCampaignProducts = campaignProducts
                     .filter(product => {
@@ -240,11 +240,11 @@ const MobileHome = () => {
                     .map(product => {
                       try {
                         const transformedProduct = transformProduct(product);
-                        
+
                         // Apply campaign discount
                         let discountedPrice = transformedProduct.price;
                         let originalPrice = transformedProduct.originalPrice || transformedProduct.price;
-                        
+
                         if (campaign.discountType === 'percentage' && campaign.discountValue) {
                           discountedPrice = transformedProduct.price * (1 - campaign.discountValue / 100);
                           originalPrice = transformedProduct.price;
@@ -256,7 +256,7 @@ const MobileHome = () => {
                           discountedPrice = transformedProduct.price * (1 - discountValue / 100);
                           originalPrice = transformedProduct.price;
                         }
-                        
+
                         return {
                           ...transformedProduct,
                           price: discountedPrice,
@@ -268,11 +268,11 @@ const MobileHome = () => {
                       }
                     })
                     .filter(product => product !== null);
-                  
+
                   dailyDealProducts = [...dailyDealProducts, ...transformedCampaignProducts];
                 }
               });
-              
+
               // Remove duplicates based on product ID and limit to 10 for home page
               const uniqueProducts = dailyDealProducts.reduce((acc, product) => {
                 if (product && !acc.find(p => p.id === product.id)) {
@@ -280,10 +280,10 @@ const MobileHome = () => {
                 }
                 return acc;
               }, []);
-              
+
               dailyDealProducts = uniqueProducts.slice(0, 10);
             }
-            
+
             setDailyDeals(dailyDealProducts);
             setDailyDealCampaign(dailyDealCampaign);
           } catch (error) {
@@ -297,7 +297,7 @@ const MobileHome = () => {
           setDailyDealCampaign(null);
         }
         setIsLoadingDailyDeals(false);
-        
+
       } catch (error) {
         console.error("Critical error fetching products:", error);
         // Only show toast for critical errors, individual failures are handled silently
@@ -468,9 +468,9 @@ const MobileHome = () => {
           ) : null}
 
           {/* Daily Deals */}
-          <DailyDealsSection 
-            products={dailyDeals} 
-            campaign={dailyDealCampaign} 
+          <DailyDealsSection
+            products={dailyDeals}
+            campaign={dailyDealCampaign}
             isLoading={isLoadingDailyDeals}
           />
 

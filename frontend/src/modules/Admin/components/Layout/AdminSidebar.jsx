@@ -77,6 +77,7 @@ const getChildRoute = (parentRoute, childName) => {
       "View Customers": "/admin/customers/view-customers",
       Addresses: "/admin/customers/addresses",
       Transactions: "/admin/customers/transactions",
+      "Customer Analysis": "/admin/customers/analytics",
     },
     "/admin/vendors": {
       "Manage Vendors": "/admin/vendors/manage-vendors",
@@ -132,6 +133,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Products & Inventory": "/admin/settings/products-inventory",
       "Content & Features": "/admin/settings/content-features",
       "Notifications & SEO": "/admin/settings/notifications-seo",
+      "Tax & Pricing": "/admin/settings/tax",
     },
     "/admin/policies": {
       "Privacy Policy": "/admin/policies/privacy-policy",

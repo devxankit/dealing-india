@@ -22,17 +22,9 @@ const RefundReports = () => {
       try {
         const res = await analyticsService.getRefundReports("month");
         if (res.success) {
-          // Mocking the detailed refund list since the API returns aggregated data
-          // In a real scenario, you'd have an API that returns individual refund records
-          setRefunds(res.data.map((r, index) => ({
-            id: `REF-${index + 1}`,
-            orderId: `ORD-${index + 100}`,
-            customerName: "System Record",
-            amount: r.amount,
-            reason: "Returned Item",
-            status: "completed",
-            requestedDate: r.date,
-            processedDate: r.date
+          setRefunds(res.data.map(r => ({
+            ...r,
+            orderId: r.orderCode // Map backend orderCode to UI orderId
           })));
         }
       } catch (error) {
@@ -51,9 +43,9 @@ const RefundReports = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
-   }
- 
-   const filteredRefunds = refunds.filter(
+  }
+
+  const filteredRefunds = refunds.filter(
     (refund) => statusFilter === "all" || refund.status === statusFilter
   );
 

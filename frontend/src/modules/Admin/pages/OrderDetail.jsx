@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { 
   FiArrowLeft, 
   FiEdit, 
@@ -13,7 +13,9 @@ import {
   FiTag,
   FiPackage,
   FiClock,
-  FiMail
+  FiMail,
+  FiUser,
+  FiFileText
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
@@ -27,7 +29,6 @@ const OrderDetail = () => {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState('');
 
   useEffect(() => {
@@ -42,12 +43,12 @@ const OrderDetail = () => {
           setStatus(response.data.order.status);
         } else {
           toast.error('Order not found');
-          navigate('/admin/orders');
+          navigate('/admin/orders/all-orders');
         }
       } catch (error) {
         console.error('Error fetching order:', error);
         toast.error('Failed to load order');
-        navigate('/admin/orders');
+        navigate('/admin/orders/all-orders');
       } finally {
         setLoading(false);
       }
@@ -56,473 +57,322 @@ const OrderDetail = () => {
     fetchOrder();
   }, [id, navigate]);
 
-  const handleStatusUpdate = async () => {
+  const handleStatusChange = async (newStatus) => {
     try {
-      const response = await updateAdminOrderStatus(id, status);
+      const response = await updateAdminOrderStatus(id, newStatus);
       if (response.success) {
-        setOrder(prev => prev ? { ...prev, status } : null);
-        setIsEditing(false);
-        toast.success('Order status updated successfully');
+        setOrder(prev => prev ? { ...prev, status: newStatus } : null);
+        setStatus(newStatus);
+        toast.success(`Order status updated to ${newStatus}`);
       } else {
-        toast.error('Failed to update order status');
+        toast.error('Failed to update status');
       }
     } catch (error) {
-      console.error('Error updating order status:', error);
-      toast.error(error.response?.data?.message || 'Failed to update order status');
+      console.error('Error updating status:', error);
+      toast.error(error.response?.data?.message || 'Failed to update status');
     }
   };
 
-  if (loading || !order) {
+  const formatPaymentMethod = (method) => {
+    if (!method) return 'N/A';
+    const methods = {
+      'creditCard': 'Credit Card',
+      'debitCard': 'Debit Card',
+      'upi': 'UPI',
+      'wallet': 'Wallet',
+      'cash': 'Cash on Delivery',
+      'cod': 'Cash on Delivery'
+    };
+    return methods[method] || method.charAt(0).toUpperCase() + method.slice(1);
+  };
+
+  if (loading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Loading...</p>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="text-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
+        <FiPackage className="mx-auto text-4xl text-gray-300 mb-4" />
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Order Not Found</h2>
+        <p className="text-gray-500 mb-6">The order you're looking for doesn't exist or has been removed.</p>
+        <Link 
+          to="/admin/orders/all-orders" 
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+        >
+          <FiArrowLeft />
+          Back to All Orders
+        </Link>
       </div>
     );
   }
 
   const statusOptions = [
-    { value: 'pending', label: 'Pending' },
-    { value: 'processing', label: 'Processing' },
-    { value: 'ready_to_ship', label: 'Ready to Ship' },
-    { value: 'dispatched', label: 'Dispatched' },
-    { value: 'shipped', label: 'Shipped' },
-    { value: 'shipped_seller', label: 'Shipped (Seller)' },
-    { value: 'delivered', label: 'Delivered' },
-    { value: 'cancelled', label: 'Cancelled' },
-    { value: 'on_hold', label: 'On Hold' },
+    { value: 'pending', label: 'Pending', color: 'yellow' },
+    { value: 'processing', label: 'Processing', color: 'blue' },
+    { value: 'ready_to_ship', label: 'Ready to Ship', color: 'indigo' },
+    { value: 'dispatched', label: 'Dispatched', color: 'purple' },
+    { value: 'shipped', label: 'Shipped', color: 'purple' },
+    { value: 'shipped_seller', label: 'Shipped (Seller)', color: 'purple' },
+    { value: 'delivered', label: 'Delivered', color: 'green' },
+    { value: 'cancelled', label: 'Cancelled', color: 'red' },
+    { value: 'on_hold', label: 'On Hold', color: 'orange' },
   ];
 
-  // Handle items - should be an array from API
-  const itemsArray = Array.isArray(order.items) ? order.items : [];
-  const itemsCount = itemsArray.length;
-
-  // Calculate order breakdown from pricing object or calculate
+  const items = Array.isArray(order.items) ? order.items : [];
   const pricing = order.pricing || {};
-  const orderTotal = pricing.total || order.total || 0;
-  const subtotal = pricing.subtotal || (orderTotal > 0 ? orderTotal * 0.95 : 0);
-  const shipping = pricing.shipping || (orderTotal > 0 ? orderTotal * 0.05 : 0);
-  const tax = pricing.tax || 0;
-  const discount = pricing.discount || 0;
-
-  // Get payment method display name
-  const getPaymentMethodName = (method) => {
-    if (!method) return 'N/A';
-    const methods = {
-      card: 'Credit/Debit Card',
-      cash: 'Cash on Delivery',
-      upi: 'UPI',
-      wallet: 'Digital Wallet',
-      bank: 'Bank Transfer'
-    };
-    return methods[method.toLowerCase()] || method;
-  };
-
-  // Get product image - try item.image, then productId populated image, then placeholder
-  const getProductImage = (item) => {
-    if (item.image) {
-      return item.image;
-    }
-    
-    // Try populated productId images
-    if (item.productId?.images && Array.isArray(item.productId.images) && item.productId.images.length > 0) {
-      return item.productId.images[0];
-    }
-    
-    // Return placeholder
-    return 'https://via.placeholder.com/100x100?text=Product';
-  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
-    >
-      {/* Compact Header */}
-      <div className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+    <div className="space-y-6 pb-12">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          <Link
+            to="/admin/orders/all-orders"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 bg-white shadow-sm"
           >
-            <FiArrowLeft className="text-lg text-gray-600" />
-          </button>
+            <FiArrowLeft className="text-gray-600" />
+          </Link>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Order #{order.orderCode || order.id || order._id}</h1>
-            <p className="text-xs text-gray-500">{formatDateTime(order.orderDate || order.createdAt || order.date)}</p>
+            <h1 className="text-2xl font-bold text-gray-800">Order #{order.orderCode || order.id}</h1>
+            <p className="text-sm text-gray-500 flex items-center gap-2">
+              <FiCalendar />
+              Placed on {new Date(order.date || order.createdAt || order.orderDate).toLocaleDateString()} at {new Date(order.date || order.createdAt || order.orderDate).toLocaleTimeString()}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {isEditing ? (
-            <>
-              <button
-                onClick={handleStatusUpdate}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
-              >
-                <FiCheck className="text-sm" />
-                Save
-              </button>
-              <button
-                onClick={() => {
-                  setIsEditing(false);
-                  setStatus(order.status);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-              >
-                <FiX className="text-sm" />
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              <Badge variant={order.status}>{order.status}</Badge>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm"
-              >
-                <FiEdit className="text-sm" />
-                Edit
-              </button>
-            </>
-          )}
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/admin/orders/${id}/invoice`)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-semibold shadow-sm"
+          >
+            <FiFileText />
+            Invoice
+          </button>
+          <AnimatedSelect
+            options={statusOptions}
+            value={status}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            color={statusOptions.find(opt => opt.value === status)?.color || 'gray'}
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Order Overview Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-            {isEditing ? (
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-2">
-                  Order Status
-                </label>
-                <AnimatedSelect
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  options={statusOptions.map((option) => ({
-                    value: option,
-                    label: option.charAt(0).toUpperCase() + option.slice(1),
-                  }))}
-                />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Total</p>
-                  <p className="font-bold text-gray-800 text-lg">{formatCurrency(order.pricing?.total || order.total || 0)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Items</p>
-                  <p className="font-semibold text-gray-800">{itemsCount}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Payment</p>
-                  <p className="text-xs font-semibold text-gray-800 capitalize">
-                    {getPaymentMethodName(order.paymentMethod)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-0.5">Payment Status</p>
-                  <Badge variant={order.paymentStatus === 'paid' ? 'delivered' : order.paymentStatus === 'pending' ? 'pending' : 'cancelled'} className="text-xs">
-                    {order.paymentStatus || (order.paymentMethod === 'cash' ? 'Pending' : 'Paid')}
-                  </Badge>
-                </div>
-              </div>
-            )}
-          </div>
-
+        <div className="lg:col-span-2 space-y-6">
           {/* Order Items */}
-          {itemsArray.length > 0 && (
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <FiPackage className="text-primary-600 text-base" />
-                Order Items ({itemsCount})
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+                <FiPackage />
+                Order Items ({items.length})
               </h2>
-              <div className="space-y-2">
-                {itemsArray.map((item, idx) => {
-                  const itemId = item._id || item.id || item.productId?._id || idx;
-                  const itemImage = getProductImage(item);
-                  const itemName = item.name || item.productId?.name || 'Unknown Product';
-                  const itemPrice = item.price || 0;
-                  const itemQuantity = item.quantity || 1;
-                  
-                  return (
-                    <div key={itemId} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+            </div>
+            <div className="divide-y divide-gray-200">
+              {items.length > 0 ? items.map((item, index) => {
+                const itemId = item._id || item.id || item.productId?._id || index;
+                const itemImage = item.image || item.productId?.images?.[0] || 'https://via.placeholder.com/100x100?text=Product';
+                const itemName = item.name || item.productId?.name || 'Product';
+                const itemPrice = item.price || 0;
+                const itemQuantity = item.quantity || 1;
+
+                return (
+                  <div key={itemId} className="p-4 flex gap-4 hover:bg-gray-50 transition-colors">
+                    <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
                       <img
                         src={itemImage}
                         alt={itemName}
-                        className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                        className="w-full h-full object-cover"
                         onError={(e) => {
                           e.target.src = 'https://via.placeholder.com/100x100?text=Product';
                         }}
                       />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-gray-800 truncate">{itemName}</p>
-                        <p className="text-xs text-gray-600">
-                          {formatCurrency(itemPrice)} × {itemQuantity}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h3 className="font-semibold text-gray-800 truncate">{itemName}</h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Unit Price: {formatCurrency(itemPrice)}
+                          </p>
+                          <p className="text-sm font-medium text-primary-600 mt-1">
+                            Qty: {itemQuantity}
+                          </p>
+                        </div>
+                        <p className="font-bold text-gray-900">
+                          {formatCurrency(itemPrice * itemQuantity)}
                         </p>
                       </div>
-                      <p className="font-bold text-sm text-gray-800">
-                        {formatCurrency(itemPrice * itemQuantity)}
-                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Customer & Shipping Combined Card */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Customer Info */}
-              <div>
-                <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
-                  <FiMail className="text-primary-600 text-base" />
-                  Customer
-                </h2>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-xs text-gray-500">Name</p>
-                    <p className="font-semibold text-sm text-gray-800">{order.customerSnapshot?.name || order.customerId?.name || order.customer?.name || order.shippingAddress?.name || 'N/A'}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Email</p>
-                    <p className="font-semibold text-xs text-gray-800 break-all">{order.customerSnapshot?.email || order.customerId?.email || order.customer?.email || order.shippingAddress?.email || 'N/A'}</p>
-                  </div>
-                  {(order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone) && (
-                    <div>
-                      <p className="text-xs text-gray-500 flex items-center gap-1">
-                        <FiPhone className="text-xs" />
-                        Phone
-                      </p>
-                      <p className="font-semibold text-sm text-gray-800">{order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Shipping Address */}
-              {order.shippingAddress && (
-                <div>
-                  <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
-                    <FiMapPin className="text-primary-600 text-base" />
-                    Shipping Address
-                  </h2>
-                  <div className="space-y-1.5 text-xs">
-                    <p className="font-semibold text-gray-800">{order.shippingAddress.name || 'N/A'}</p>
-                    {order.shippingAddress.address && (
-                      <p className="text-gray-700">{order.shippingAddress.address}</p>
-                    )}
-                    {(order.shippingAddress.city || order.shippingAddress.state || order.shippingAddress.zipCode) && (
-                      <p className="text-gray-700">
-                        {[
-                          order.shippingAddress.city,
-                          order.shippingAddress.state,
-                          order.shippingAddress.zipCode
-                        ].filter(Boolean).join(', ')}
-                      </p>
-                    )}
-                    {order.shippingAddress.country && (
-                      <p className="text-gray-700">{order.shippingAddress.country}</p>
-                    )}
-                  </div>
+                );
+              }) : (
+                <div className="p-8 text-center text-gray-500">
+                  <FiPackage className="mx-auto text-3xl mb-2 opacity-20" />
+                  <p>No items found in this order</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Tracking & Delivery Compact */}
-          {(order.tracking?.trackingNumber || order.trackingNumber || order.tracking?.estimatedDelivery || order.estimatedDelivery || order.tracking?.deliveredAt || order.deliveredDate) && (
-            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
-                <FiTruck className="text-primary-600 text-base" />
-                Tracking & Delivery
+          {/* Payment & Tracking */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <FiCreditCard className="text-primary-500" />
+                Payment Information
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {(order.tracking?.trackingNumber || order.trackingNumber) && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5">Tracking Number</p>
-                    <p className="font-semibold text-xs text-gray-800 font-mono">{order.tracking?.trackingNumber || order.trackingNumber}</p>
-                    {order.tracking?.carrier && (
-                      <p className="text-xs text-gray-400 mt-0.5">Carrier: {order.tracking.carrier}</p>
-                    )}
-                  </div>
-                )}
-                {(order.tracking?.estimatedDelivery || order.estimatedDelivery) && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
-                      <FiClock className="text-xs" />
-                      Est. Delivery
-                    </p>
-                    <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.tracking?.estimatedDelivery || order.estimatedDelivery)}</p>
-                  </div>
-                )}
-                {(order.tracking?.deliveredAt || order.deliveredDate) && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
-                      <FiPackage className="text-xs" />
-                      Delivered
-                    </p>
-                    <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.tracking?.deliveredAt || order.deliveredDate)}</p>
-                  </div>
-                )}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Method</span>
+                  <span className="font-semibold text-gray-800">{formatPaymentMethod(order.paymentMethod)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Payment Status</span>
+                  <Badge variant={order.paymentStatus === 'paid' || order.paymentStatus === 'completed' ? 'delivered' : order.paymentStatus === 'pending' ? 'pending' : 'cancelled'}>
+                    {order.paymentStatus || (order.paymentMethod === 'cash' || order.paymentMethod === 'cod' ? 'Pending' : 'Paid')}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-100">
+                  <span className="text-gray-500 font-medium">Transaction ID</span>
+                  <span className="font-mono text-xs text-gray-600">{order.razorpayPaymentId || order.paymentDetails?.transactionId || 'N/A'}</span>
+                </div>
               </div>
             </div>
-          )}
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <FiTruck className="text-primary-500" />
+                Shipping & Tracking
+              </h2>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Courier</span>
+                  <span className="font-semibold text-gray-800">{order.tracking?.carrier || 'Not Assigned'}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Tracking Number</span>
+                  <span className="font-mono text-xs text-primary-600 font-bold">{order.tracking?.trackingNumber || order.trackingNumber || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-100">
+                  <span className="text-gray-500 font-medium">Last Update</span>
+                  <span className="text-xs text-gray-600">{order.tracking?.lastUpdate ? new Date(order.tracking.lastUpdate).toLocaleString() : 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Order Summary */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-            <h2 className="text-sm font-bold text-gray-800 mb-3">Order Summary</h2>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-semibold">{formatCurrency(subtotal)}</span>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <h2 className="font-bold text-gray-800 mb-4 text-lg">Order Summary</h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-medium text-gray-800">{formatCurrency(pricing.subtotal || order.subtotal || 0)}</span>
               </div>
-              {discount > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span className="flex items-center gap-1">
-                    <FiTag className="text-xs" />
-                    Discount
-                    {order.couponCode && (
-                      <span className="text-xs bg-green-100 px-1.5 py-0.5 rounded">({order.couponCode})</span>
-                    )}
-                  </span>
-                  <span className="font-semibold">-{formatCurrency(discount)}</span>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Tax</span>
+                <span className="font-medium text-gray-800">{formatCurrency(pricing.tax || order.tax || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Shipping</span>
+                <span className="font-medium text-gray-800">{formatCurrency(pricing.shipping || order.shipping || 0)}</span>
+              </div>
+              {pricing.platformFee > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Platform Fee</span>
+                  <span className="font-medium text-gray-800">{formatCurrency(pricing.platformFee)}</span>
                 </div>
               )}
-              {tax > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax</span>
-                  <span className="font-semibold">{formatCurrency(tax)}</span>
+              {(pricing.discount > 0 || order.discount > 0) && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount</span>
+                  <span className="font-medium">-{formatCurrency(pricing.discount || order.discount || 0)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Shipping</span>
-                <span className="font-semibold">{formatCurrency(shipping)}</span>
-              </div>
-              <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between">
-                <span className="font-bold text-gray-800">Total</span>
-                <span className="font-bold text-lg text-gray-800">{formatCurrency(order.pricing?.total || order.total || 0)}</span>
+              <div className="flex justify-between pt-4 border-t border-gray-200">
+                <span className="text-base font-bold text-gray-800">Total</span>
+                <span className="text-xl font-extrabold text-primary-600">
+                  {formatCurrency(pricing.total || order.total || 0)}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Order Timeline */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-            <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
-              <FiCalendar className="text-primary-600 text-base" />
-              Timeline
+          {/* Customer Details */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <FiUser className="text-primary-500" />
+              Customer Details
             </h2>
-            <div className="space-y-2">
-              <div className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-800">Order Placed</p>
-                  <p className="text-xs text-gray-500">{formatDateTime(order.orderDate || order.createdAt || order.date)}</p>
-                  {order.statusHistory && order.statusHistory.length > 0 && (
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {order.statusHistory.find(h => h.status === 'pending')?.timestamp && 
-                        `Updated: ${formatDateTime(order.statusHistory.find(h => h.status === 'pending').timestamp)}`}
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-50 rounded-lg">
+                  <FiUser className="text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Name</p>
+                  <p className="font-medium text-gray-800">{order.customerSnapshot?.name || order.customerId?.name || order.customer?.name || 'Guest Customer'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-50 rounded-lg">
+                  <FiMail className="text-gray-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Email</p>
+                  <p className="font-medium text-gray-800 truncate">{order.customerSnapshot?.email || order.customerId?.email || order.customer?.email || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-50 rounded-lg">
+                  <FiPhone className="text-gray-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Phone</p>
+                  <p className="font-medium text-gray-800">{order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Shipping Address */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+            <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <FiMapPin className="text-primary-500" />
+              Shipping Address
+            </h2>
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+              {order.shippingAddress ? (
+                <div className="text-sm text-gray-700 space-y-1 leading-relaxed">
+                  <p className="font-bold text-gray-800">{order.shippingAddress.name || order.customerSnapshot?.name}</p>
+                  <p>{order.shippingAddress.address || order.shippingAddress.street}</p>
+                  <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
+                  <p className="font-medium">{order.shippingAddress.country || 'India'}</p>
+                  {order.shippingAddress.phone && (
+                    <p className="pt-2 flex items-center gap-2 text-gray-500">
+                      <FiPhone className="text-xs" />
+                      {order.shippingAddress.phone}
                     </p>
                   )}
                 </div>
-              </div>
-              {order.status === 'processing' && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800">Processing</p>
-                    <p className="text-xs text-gray-500">Being prepared</p>
-                  </div>
-                </div>
-              )}
-              {(order.status === 'shipped' || order.status === 'shipped_seller' || order.status === 'dispatched') && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800">Shipped</p>
-                    {(order.statusHistory?.find(h => ['shipped', 'shipped_seller', 'dispatched'].includes(h.status))?.timestamp || order.tracking?.estimatedDelivery) && (
-                      <p className="text-xs text-gray-500">
-                        {formatDateTime(order.statusHistory?.find(h => ['shipped', 'shipped_seller', 'dispatched'].includes(h.status))?.timestamp || order.tracking?.estimatedDelivery)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-              {order.status === 'delivered' && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800">Delivered</p>
-                    {(order.statusHistory?.find(h => h.status === 'delivered')?.timestamp || order.tracking?.deliveredAt || order.deliveredDate) && (
-                      <p className="text-xs text-gray-500">
-                        {formatDateTime(order.statusHistory?.find(h => h.status === 'delivered')?.timestamp || order.tracking?.deliveredAt || order.deliveredDate)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-              {order.status === 'cancelled' && (
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800">Cancelled</p>
-                    {(order.statusHistory?.find(h => h.status === 'cancelled')?.timestamp || order.cancellation?.cancelledAt || order.cancelledDate) && (
-                      <p className="text-xs text-gray-500">
-                        {formatDateTime(order.statusHistory?.find(h => h.status === 'cancelled')?.timestamp || order.cancellation?.cancelledAt || order.cancelledDate)}
-                      </p>
-                    )}
-                    {order.cancellation?.reason && (
-                      <p className="text-xs text-gray-400 mt-0.5">Reason: {order.cancellation.reason}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-            <h2 className="text-sm font-bold text-gray-800 mb-3">Quick Actions</h2>
-            <div className="space-y-1.5">
-              {(order.tracking?.trackingNumber || order.trackingNumber) && (
-                <button
-                  onClick={() => window.open(`/track-order/${order._id || order.id || order.orderCode}`, '_blank')}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-semibold"
-                >
-                  <FiTruck className="text-sm" />
-                  Track Order
-                </button>
-              )}
-              {(order.customerSnapshot?.email || order.customerId?.email || order.customer?.email) && (
-                <button
-                  onClick={() => window.location.href = `mailto:${order.customerSnapshot?.email || order.customerId?.email || order.customer?.email}`}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-semibold"
-                >
-                  <FiMail className="text-sm" />
-                  Email Customer
-                </button>
-              )}
-              {(order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone) && (
-                <button
-                  onClick={() => window.location.href = `tel:${order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone}`}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors text-xs font-semibold"
-                >
-                  <FiPhone className="text-sm" />
-                  Call Customer
-                </button>
+              ) : (
+                <p className="text-gray-500 text-sm italic">No shipping address provided</p>
               )}
             </div>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

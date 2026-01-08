@@ -18,7 +18,7 @@ export const toggleReelLike = async (reelId, userId) => {
     }
 
     // Check if user already liked this reel
-    const existingLike = await ReelLike.findOne({ reelId, userId });
+    const existingLike = await ReelLike.findOne({ reelId, userId, reelModel: 'Reel' });
 
     if (existingLike) {
       // Unlike - remove like and decrement count
@@ -28,7 +28,7 @@ export const toggleReelLike = async (reelId, userId) => {
       return { isLiked: false, likes: reel.likes };
     } else {
       // Like - add like and increment count
-      await ReelLike.create({ reelId, userId });
+      await ReelLike.create({ reelId, userId, reelModel: 'Reel' });
       reel.likes = (reel.likes || 0) + 1;
       await reel.save();
       return { isLiked: true, likes: reel.likes };
@@ -52,6 +52,7 @@ export const getLikedReels = async (userId, reelIds = []) => {
 
     const likes = await ReelLike.find({
       userId,
+      reelModel: 'Reel',
       reelId: { $in: reelIds },
     }).select('reelId');
 

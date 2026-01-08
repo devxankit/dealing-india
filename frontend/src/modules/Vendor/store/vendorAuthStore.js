@@ -14,7 +14,9 @@ export const useVendorAuthStore = create(
       login: async (email, password, rememberMe = false) => {
         set({ isLoading: true });
         try {
+          console.log('Attempting vendor login for:', email);
           const response = await api.post('/auth/vendor/login', { email, password });
+          console.log('Login response received:', response.success ? 'Success' : 'Failed');
 
           if (response.success && response.data) {
             const { vendor, token } = response.data;

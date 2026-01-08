@@ -15,12 +15,16 @@ const Invoice = () => {
   const [loading, setLoading] = useState(true);
   const { settings } = useSettingsStore();
   const storeLogo = settings?.general?.storeLogo || logoImage;
-  const storeName = settings?.general?.storeName || "Appzeto E-commerce";
+  // Force store name to Dealing India as requested
+  const storeName = "Dealing India";
   const storeAddress = settings?.general?.address || "";
   const storePhone = settings?.general?.contactPhone || "";
   const storeEmail = settings?.general?.contactEmail || "";
 
   useEffect(() => {
+    // Set document title for print header
+    document.title = "Invoice - Dealing India";
+
     const fetchOrder = async () => {
       if (!id) {
         navigate("/admin/orders/all-orders");
@@ -46,6 +50,11 @@ const Invoice = () => {
     };
 
     fetchOrder();
+
+    // Cleanup title on unmount
+    return () => {
+      document.title = "Dealing India Admin";
+    };
   }, [id, navigate]);
 
   if (loading || !order) {
@@ -85,54 +94,8 @@ const Invoice = () => {
   };
 
   const handleDownload = () => {
-    const invoiceText = `
-INVOICE
-Order #${order.orderCode || order.id}
-Date: ${new Date(order.orderDate || order.createdAt || order.date).toLocaleString()}
-
-Customer Information:
-${order.customerSnapshot?.name || order.customerId?.name || order.customer?.name || "N/A"}
-${order.customerSnapshot?.email || order.customerId?.email || order.customer?.email || "N/A"}
-${order.customerSnapshot?.phone || order.customerId?.phone || order.customer?.phone || order.shippingAddress?.phone || ""}
-
-Shipping Address:
-${order.shippingAddress?.name || order.customerSnapshot?.name || order.customerId?.name || "N/A"}
-${order.shippingAddress?.address || "N/A"}
-${order.shippingAddress?.city || ""}, ${order.shippingAddress?.state || ""} ${order.shippingAddress?.zipCode || ""
-      }
-${order.shippingAddress?.country || ""}
-
-Items:
-${items.length > 0 ? items
-        .map(
-          (item) =>
-            `- ${item.name || item.productId?.name || "Item"} x${item.quantity || 1} - ${formatPrice(
-              (item.price || 0) * (item.quantity || 1)
-            )}`
-        )
-        .join("\n") : "No items"}
-
-Subtotal: ${formatPrice(subtotal)}
-${discount > 0 ? `Discount: -${formatPrice(discount)}\n` : ""}
-${tax > 0 ? `Tax: ${formatPrice(tax)}\n` : ""}
-${shipping > 0 ? `Shipping: ${formatPrice(shipping)}\n` : ""}
-Total: ${formatPrice(finalTotal)}
-
-Payment Method: ${formatPaymentMethod(order.paymentMethod)}
-Status: ${order.status}
-${order.tracking?.trackingNumber || order.trackingNumber ? `Tracking Number: ${order.tracking?.trackingNumber || order.trackingNumber}` : ""}
-    `.trim();
-
-    const blob = new Blob([invoiceText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `invoice-${order.orderCode || order.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Invoice downloaded successfully!");
+    window.print();
+    toast.success("Preparing invoice for download...");
   };
 
   const handlePrint = () => {
@@ -232,7 +195,7 @@ ${order.tracking?.trackingNumber || order.trackingNumber ? `Tracking Number: ${o
         </div>
 
         {/* Customer & Shipping Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="address-grid grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div>
             <h3 className="text-sm font-bold text-gray-800 mb-3 uppercase">
               Bill To
@@ -342,16 +305,15 @@ ${order.tracking?.trackingNumber || order.trackingNumber ? `Tracking Number: ${o
               <span>Subtotal:</span>
               <span className="font-semibold">{formatPrice(subtotal)}</span>
             </div>
+            {/* Tax moved here and always visible */}
+            <div className="flex justify-between text-sm text-gray-700">
+              <span>Tax:</span>
+              <span className="font-semibold">{formatPrice(tax)}</span>
+            </div>
             {discount > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span>Discount:</span>
                 <span className="font-semibold">-{formatPrice(discount)}</span>
-              </div>
-            )}
-            {tax > 0 && (
-              <div className="flex justify-between text-sm text-gray-700">
-                <span>Tax:</span>
-                <span className="font-semibold">{formatPrice(tax)}</span>
               </div>
             )}
             {shipping > 0 && (
@@ -396,7 +358,7 @@ ${order.tracking?.trackingNumber || order.trackingNumber ? `Tracking Number: ${o
       <style>{`
         @media print {
           @page {
-            margin: 0.5in;
+            margin: 0.25in;
             size: A4;
           }
           
@@ -415,12 +377,19 @@ ${order.tracking?.trackingNumber || order.trackingNumber ? `Tracking Number: ${o
             top: 0;
             width: 100%;
             margin: 0 !important;
-            padding: 1.5rem !important;
+            padding: 1rem !important; /* Reduced padding */
             box-shadow: none !important;
             border: none !important;
             background: white !important;
           }
           
+          /* Force grid layout for address section in print */
+          .address-grid {
+             display: grid !important;
+             grid-template-columns: 1fr 1fr !important;
+             gap: 2rem !important;
+          }
+
           .no-print,
           .no-print * {
             display: none !important;

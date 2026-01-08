@@ -49,6 +49,10 @@ const withdrawalRequestSchema = new mongoose.Schema(
             type: String,
             default: 'bank_transfer',
         },
+        paymentDetails: {
+            type: Object,
+            default: {},
+        },
     },
     {
         timestamps: true,

@@ -24,13 +24,13 @@ export const getReelComments = async (reelId, options = {}) => {
 
     // Get comments
     const [comments, total] = await Promise.all([
-      ReelComment.find({ reelId, isActive: true })
+      ReelComment.find({ reelId, reelModel: 'Reel', isActive: true })
         .populate('userId', 'name email')
         .sort({ createdAt: -1 }) // Newest first
         .skip(skip)
         .limit(parseInt(limit))
         .lean(),
-      ReelComment.countDocuments({ reelId, isActive: true }),
+      ReelComment.countDocuments({ reelId, reelModel: 'Reel', isActive: true }),
     ]);
 
     // Format comments
@@ -99,6 +99,7 @@ export const addReelComment = async (reelId, userId, text) => {
       reelId,
       userId,
       text: text.trim(),
+      reelModel: 'Reel'
     });
 
     // Update reel comment count

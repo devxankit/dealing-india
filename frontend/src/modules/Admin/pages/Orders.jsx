@@ -165,7 +165,7 @@ const Orders = () => {
             >
               {/* Decorative gradient overlay */}
               <div className={`absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 ${card.bgColor} opacity-10 rounded-full -mr-12 -mt-12 sm:-mr-16 sm:-mt-16`}></div>
-              
+
               <div className="flex items-center justify-between mb-2 sm:mb-3 relative z-10">
                 <div className={`${card.bgColor} bg-white/20 p-2 sm:p-2.5 rounded-lg shadow-md`}>
                   <Icon className="text-white text-base sm:text-lg" />

@@ -138,7 +138,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <StatsCards stats={data.summary} />
+      <StatsCards stats={data.statsCards || data.summary} />
 
       {/* Main Charts Row - Revenue and Sales */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

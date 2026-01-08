@@ -10,7 +10,9 @@ import {
   getOrders,
   getTransactions,
   getAllCustomerTransactions,
+  getCustomerAnalytics,
 } from '../controllers/admin-controllers/customerManagement.controller.js';
+import { getCustomerRegistrationAnalytics } from '../controllers/admin-controllers/customerRegistrationAnalytics.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -25,6 +27,9 @@ router.use(authorize('admin'));
 router.get('/', asyncHandler(getCustomers));
 router.get('/addresses', asyncHandler(getAllCustomerAddresses));
 router.get('/transactions', asyncHandler(getAllCustomerTransactions));
+router.get('/analytics/registration', asyncHandler(getCustomerRegistrationAnalytics));
+router.get('/analytics', asyncHandler(getCustomerAnalytics));
+router.get('/analytics/:id', asyncHandler(getCustomerAnalytics));
 router.get('/:id', asyncHandler(getCustomer));
 router.patch('/:id', asyncHandler(updateCustomerProfile));
 router.patch('/:id/status', asyncHandler(updateCustomerStatus));

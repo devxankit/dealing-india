@@ -10,6 +10,7 @@ import {
   getCustomerTransactions,
   getAllTransactions,
 } from '../../services/customerManagement.service.js';
+import { getCustomerAnalytics as getAnalyticsService } from '../../services/customerAnalytics.service.js';
 
 /**
  * Get all customers with filters
@@ -211,6 +212,26 @@ export const deleteAddress = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Address deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get customer analytics
+ * GET /api/admin/customers/analytics
+ * GET /api/admin/customers/analytics/:id
+ */
+export const getCustomerAnalytics = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const analytics = await getAnalyticsService(id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Customer analytics retrieved successfully',
+      data: analytics,
     });
   } catch (error) {
     next(error);

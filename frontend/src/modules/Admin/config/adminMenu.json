@@ -47,7 +47,8 @@
     "children": [
       "View Customers",
       "Addresses",
-      "Transactions"
+      "Transactions",
+      "Customer Analysis"
     ]
   },
   {
@@ -143,7 +144,8 @@
       "Orders & Customers",
       "Products & Inventory",
       "Content & Features",
-      "Notifications & SEO"
+      "Notifications & SEO",
+      "Tax & Pricing"
     ]
   },
   {
