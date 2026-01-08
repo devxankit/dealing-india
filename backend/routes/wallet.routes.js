@@ -3,6 +3,8 @@ import {
   getWallet,
   getTransactions,
   addMoneyController,
+  initiateAddMoneyController,
+  verifyAddMoneyController,
 } from '../controllers/user-controllers/wallet.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -18,8 +20,13 @@ router.get('/', asyncHandler(getWallet));
 // Get wallet transactions
 router.get('/transactions', asyncHandler(getTransactions));
 
-// Add money to wallet
+// Add money to wallet (legacy - direct add)
 router.post('/add-money', asyncHandler(addMoneyController));
 
-export default router;
+// Initiate wallet recharge via Razorpay
+router.post('/initiate-add-money', asyncHandler(initiateAddMoneyController));
 
+// Verify wallet recharge payment
+router.post('/verify-add-money', asyncHandler(verifyAddMoneyController));
+
+export default router;

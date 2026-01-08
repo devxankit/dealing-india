@@ -50,6 +50,9 @@ const ProductCard = ({ product, hideRating = false }) => {
   const buttonRef = useRef(null);
   const cartIconRef = useRef(null);
 
+  // Check if product is out of stock
+  const isOutOfStock = (product.stockQuantity !== undefined && product.stockQuantity <= 0) || product.stock === "out_of_stock";
+
   const handleBuyNow = async (e) => {
     if (e) {
       e.preventDefault();
@@ -67,7 +70,7 @@ const ProductCard = ({ product, hideRating = false }) => {
         vendorId: product.vendorId || product.vendor?.id || product.vendor?._id,
         vendorName: product.vendorName || product.vendor?.storeName || product.vendor?.businessName,
       };
-      
+
       const checkoutPath = isMobileApp ? "/app/checkout" : "/checkout";
       navigate(checkoutPath, { state: { buyNowItem } });
     } catch (error) {
@@ -193,8 +196,8 @@ const ProductCard = ({ product, hideRating = false }) => {
               className="p-1 glass rounded-full shadow-lg transition-all duration-300 group">
               <FiHeart
                 className={`text-xs transition-all duration-300 ${isFavorite
-                    ? "text-red-500 fill-red-500 scale-110"
-                    : "text-gray-600"
+                  ? "text-red-500 fill-red-500 scale-110"
+                  : "text-gray-600"
                   }`}
               />
             </button>
@@ -244,8 +247,8 @@ const ProductCard = ({ product, hideRating = false }) => {
                   <FiStar
                     key={i}
                     className={`text-[8px] ${i < Math.floor(product.rating)
-                        ? "text-yellow-400 fill-yellow-400"
-                        : "text-gray-300"
+                      ? "text-yellow-400 fill-yellow-400"
+                      : "text-gray-300"
                       }`}
                   />
                 ))}
@@ -276,7 +279,7 @@ const ProductCard = ({ product, hideRating = false }) => {
             ref={buttonRef}
             onClick={handleBuyNow}
             data-no-navigate
-            disabled={product.stock === "out_of_stock" || isAdding}
+            disabled={isOutOfStock || isAdding}
             whileTap={{ scale: 0.95 }}
             animate={
               isAdding
@@ -286,9 +289,9 @@ const ProductCard = ({ product, hideRating = false }) => {
                 : {}
             }
             style={{ willChange: "transform", transform: "translateZ(0)" }}
-            className={`w-full py-1.5 rounded-md font-semibold text-[10px] transition-all duration-300 flex items-center justify-center gap-1 mt-auto ${product.stock === "out_of_stock"
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "gradient-green text-white group/btn"
+            className={`w-full py-1.5 rounded-md font-semibold text-[10px] transition-all duration-300 flex items-center justify-center gap-1 mt-auto ${isOutOfStock
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "gradient-green text-white group/btn"
               }`}>
             <motion.div
               animate={
@@ -302,7 +305,7 @@ const ProductCard = ({ product, hideRating = false }) => {
               <FiShoppingBag className="text-xs transition-transform" />
             </motion.div>
             <span>
-              {product.stock === "out_of_stock"
+              {isOutOfStock
                 ? "Out of Stock"
                 : isAdding
                   ? "Adding..."

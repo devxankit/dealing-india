@@ -501,7 +501,7 @@ export const createVendorProduct = async (productData, vendorId) => {
                 ? parseFloat(sizeVariant.originalPrice)
                 : null,
               stockQuantity: parseInt(sizeVariant.stockQuantity),
-              stockStatus: sizeVariant.stockStatus || sizeStockStatus,
+              // stockStatus is auto-calculated by Mongoose pre-save middleware
             });
           }
         }
@@ -640,7 +640,7 @@ export const createVendorProduct = async (productData, vendorId) => {
       brandId: brandId || null,
       brandName: productData.brandName || null,
 
-      stock: stock || stockStatus,
+      // stock status is auto-calculated by Mongoose pre-save middleware
       stockQuantity: parseInt(stockQuantity),
       totalAllowedQuantity: totalAllowedQuantity ? parseInt(totalAllowedQuantity) : null,
       minimumOrderQuantity: minimumOrderQuantity ? parseInt(minimumOrderQuantity) : null,
@@ -1062,7 +1062,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
                   ? parseFloat(sizeVariant.originalPrice)
                   : null,
                 stockQuantity: parseInt(sizeVariant.stockQuantity),
-                stockStatus: sizeVariant.stockStatus || sizeStockStatus,
+                // stockStatus is auto-calculated by Mongoose pre-save middleware
               });
             }
           }
@@ -1183,8 +1183,8 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ...(categoryId !== undefined && subcategoryId === undefined && { subcategoryId: null }),
         ...((brandId !== undefined || brandName !== undefined) && { brandId: finalBrandId || null }),
         ...(brandName !== undefined && { brandName: brandName || null }),
-        ...(stockQuantity !== undefined && { stockQuantity: finalStockQuantity, stock: stock || stockStatus }),
-        ...(stock !== undefined && stockQuantity === undefined && { stock }),
+        // stock status is auto-calculated by Mongoose pre-update middleware
+        ...(stockQuantity !== undefined && { stockQuantity: finalStockQuantity }),
         ...(totalAllowedQuantity !== undefined && { totalAllowedQuantity: totalAllowedQuantity ? parseInt(totalAllowedQuantity) : null }),
         ...(minimumOrderQuantity !== undefined && { minimumOrderQuantity: minimumOrderQuantity ? parseInt(minimumOrderQuantity) : null }),
         ...(warrantyPeriod !== undefined && { warrantyPeriod: warrantyPeriod || null }),

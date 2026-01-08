@@ -363,6 +363,72 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+// Pre-save middleware to automatically set stock status based on stockQuantity
+productSchema.pre('save', function (next) {
+  // Auto-calculate main product stock status based on stockQuantity
+  if (this.stockQuantity === 0) {
+    this.stock = 'out_of_stock';
+  } else if (this.stockQuantity <= 10) {
+    this.stock = 'low_stock';
+  } else {
+    this.stock = 'in_stock';
+  }
+
+  // Auto-calculate stock status for each size variant in color variants
+  if (this.variants?.colorVariants && this.variants.colorVariants.length > 0) {
+    this.variants.colorVariants.forEach(colorVariant => {
+      if (colorVariant.sizeVariants && colorVariant.sizeVariants.length > 0) {
+        colorVariant.sizeVariants.forEach(sizeVariant => {
+          if (sizeVariant.stockQuantity === 0) {
+            sizeVariant.stockStatus = 'out_of_stock';
+          } else if (sizeVariant.stockQuantity <= 10) {
+            sizeVariant.stockStatus = 'low_stock';
+          } else {
+            sizeVariant.stockStatus = 'in_stock';
+          }
+        });
+      }
+    });
+  }
+
+  next();
+});
+
+// Pre-update middleware for findOneAndUpdate operations
+productSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate();
+
+  // If stockQuantity is being updated, auto-set stock status
+  if (update.stockQuantity !== undefined) {
+    const stockQuantity = update.stockQuantity;
+    if (stockQuantity === 0) {
+      update.stock = 'out_of_stock';
+    } else if (stockQuantity <= 10) {
+      update.stock = 'low_stock';
+    } else {
+      update.stock = 'in_stock';
+    }
+    // Remove any manually set stock value that may conflict
+    if (update.$set && update.$set.stock !== undefined) {
+      delete update.$set.stock;
+    }
+  }
+
+  // Handle $set operations
+  if (update.$set && update.$set.stockQuantity !== undefined) {
+    const stockQuantity = update.$set.stockQuantity;
+    if (stockQuantity === 0) {
+      update.$set.stock = 'out_of_stock';
+    } else if (stockQuantity <= 10) {
+      update.$set.stock = 'low_stock';
+    } else {
+      update.$set.stock = 'in_stock';
+    }
+  }
+
+  next();
+});
+
 // Indexes (sku already has unique: true in field definition)
 productSchema.index({ name: 1 });
 productSchema.index({ vendorId: 1, isActive: 1 });

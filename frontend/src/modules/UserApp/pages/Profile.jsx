@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiUser, FiPackage, FiMapPin, FiCreditCard, FiGift,
   FiLogOut, FiChevronRight, FiEdit2, FiSettings, FiCamera,
-  FiShield, FiArrowLeft, FiMessageSquare, FiRotateCcw
+  FiShield, FiArrowLeft, FiMessageSquare, FiRotateCcw, FiShoppingBag
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -104,9 +104,48 @@ const MobileProfile = () => {
                     </p>
                   </div>
 
-                  {/* Subtle Arrow */}
                   <div className="text-yellow-500/50">
                     <FiArrowLeft className="rotate-180 text-lg" />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Become a Seller Banner */}
+              <motion.div
+                initial={{ scale: 0.98, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ delay: 0.1 }}
+                onClick={() => navigate('/vendor/register', {
+                  state: {
+                    userData: {
+                      name: user?.name,
+                      email: user?.email,
+                      phone: user?.phone
+                    },
+                    isUpgrade: true
+                  }
+                })}
+                className="w-full bg-gradient-to-r from-blue-900 to-indigo-900 rounded-xl p-4 text-white shadow-xl relative overflow-hidden cursor-pointer"
+              >
+                {/* Background Pattern */}
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-2xl" />
+                <div className="absolute bottom-0 left-0 w-20 h-20 bg-blue-500/10 rounded-full -ml-6 -mb-6 blur-xl" />
+
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10">
+                    <FiShoppingBag className="text-2xl text-blue-200" />
+                  </div>
+
+                  <div className="flex-1">
+                    <h3 className="font-bold text-sm text-blue-50 mb-0.5">Become a Seller</h3>
+                    <p className="text-[10px] text-blue-200 font-medium leading-tight">
+                      Start your business today & reach millions
+                    </p>
+                  </div>
+
+                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center backdrop-blur-sm">
+                    <FiArrowLeft className="rotate-180 text-blue-200" />
                   </div>
                 </div>
               </motion.div>

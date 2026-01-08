@@ -5,7 +5,7 @@ import User from '../models/User.model.js';
 import Product from '../models/Product.model.js';
 import Vendor from '../models/Vendor.model.js';
 import mongoose from 'mongoose';
-import { createWalletTransaction } from './wallet.service.js';
+import { createWalletTransaction, deductFromWallet } from './wallet.service.js';
 import { getVendorOrdersTransformed } from './vendorOrders.service.js';
 import vendorWalletService from './vendorWallet.service.js';
 import notificationService from './notification.service.js';
@@ -102,6 +102,7 @@ export const createOrder = async (orderData, io = null) => {
       discount = 0,
       platformFee = 0,
       couponCode = null,
+      walletAmount = 0,
     } = orderData;
 
     // Validate required fields
@@ -335,6 +336,29 @@ export const createOrder = async (orderData, io = null) => {
       return vb;
     });
 
+    // Deduct from wallet if walletAmount is provided
+    let walletDeductionResult = null;
+    if (walletAmount > 0 && customerId) {
+      try {
+        // Use a temporary order code since we haven't created the order yet
+        walletDeductionResult = await deductFromWallet(
+          customerId.toString(),
+          walletAmount,
+          orderCode, // Use order code as reference
+          session // PASS THE SESSION HERE
+        );
+        console.log('Wallet deduction successful:', walletDeductionResult);
+      } catch (walletError) {
+        console.error('Wallet deduction error:', walletError);
+        throw new Error(`Failed to process wallet payment: ${walletError.message}`);
+      }
+    }
+
+    // Determine payment status - if wallet covers full amount, mark as completed
+    const walletCoversFullAmount = walletAmount >= calculatedTotal;
+    const initialPaymentStatus = walletCoversFullAmount ? 'completed' : 'pending';
+    const initialOrderStatus = walletCoversFullAmount ? 'processing' : 'pending';
+
     // Create order with enhanced fields
     const newOrderData = {
       orderCode,
@@ -347,9 +371,9 @@ export const createOrder = async (orderData, io = null) => {
         image: item.image,
       })),
       total: calculatedTotal,
-      paymentMethod,
-      paymentStatus: paymentMethod === 'cod' || paymentMethod === 'cash' ? 'pending' : 'pending',
-      status: 'pending',
+      paymentMethod: walletCoversFullAmount ? 'wallet' : paymentMethod,
+      paymentStatus: initialPaymentStatus,
+      status: initialOrderStatus,
       shippingAddress: addressId,
       pricing: {
         subtotal: calculatedSubtotal,
@@ -359,15 +383,21 @@ export const createOrder = async (orderData, io = null) => {
         platformFee: platformFee || 0,
         total: calculatedTotal,
         couponCode: couponCode || null,
+        walletAmount: walletAmount || 0,
+        amountPaidViaRazorpay: calculatedTotal - walletAmount,
       },
       customerSnapshot,
       vendorBreakdown,
       statusHistory: [
         {
-          status: 'pending',
+          status: initialOrderStatus,
           changedByRole: 'user',
           timestamp: new Date(),
-          note: 'Order placed',
+          note: walletCoversFullAmount
+            ? 'Order placed and paid via wallet'
+            : walletAmount > 0
+              ? `Order placed (₹${walletAmount} paid via wallet)`
+              : 'Order placed',
         },
       ],
     };
@@ -775,7 +805,8 @@ export const cancelOrder = async (orderId, userId) => {
           order.total,
           `Order Refund - ${order.orderCode}`,
           order._id.toString(),
-          'refund'
+          'refund',
+          session // PASS THE SESSION HERE
         );
       } catch (walletError) {
         console.error('Error creating wallet refund transaction:', walletError);

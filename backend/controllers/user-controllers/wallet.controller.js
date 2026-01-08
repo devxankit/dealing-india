@@ -3,6 +3,8 @@ import {
   getWalletTransactions,
   addMoney,
   calculateStats,
+  initiateAddMoney,
+  completeAddMoney,
 } from '../../services/wallet.service.js';
 
 /**
@@ -35,7 +37,7 @@ export const getWallet = async (req, res, next) => {
  */
 export const getTransactions = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const { page, limit, type } = req.query;
 
     const filters = {
@@ -57,12 +59,12 @@ export const getTransactions = async (req, res, next) => {
 };
 
 /**
- * Add money to wallet (for future use)
+ * Add money to wallet (legacy - direct add without payment)
  * POST /api/user/wallet/add-money
  */
 export const addMoneyController = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const { amount, description } = req.body;
 
     if (!amount || amount <= 0) {
@@ -90,3 +92,62 @@ export const addMoneyController = async (req, res, next) => {
   }
 };
 
+/**
+ * Initiate wallet recharge via Razorpay
+ * POST /api/user/wallet/initiate-add-money
+ */
+export const initiateAddMoneyController = async (req, res, next) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid amount is required',
+      });
+    }
+
+    const result = await initiateAddMoney(userId, parseFloat(amount));
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment order created successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Verify wallet recharge payment and credit wallet
+ * POST /api/user/wallet/verify-add-money
+ */
+export const verifyAddMoneyController = async (req, res, next) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment data',
+      });
+    }
+
+    const result = await completeAddMoney(userId, {
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Wallet recharged successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -111,19 +111,15 @@ export const updateVendorStock = async (productId, stockQuantity, lowStockThresh
       throw err;
     }
 
-    // Calculate stock status
-    const stockStatus = newStockQuantity === 0 
-      ? 'out_of_stock' 
-      : newStockQuantity <= lowStockThreshold 
-        ? 'low_stock' 
-        : 'in_stock';
+    // Stock status is automatically calculated by Mongoose pre-update middleware
+    // based on stockQuantity value
 
-    // Update product stock
+    // Update product stock (stock status auto-calculated by middleware)
     const updatedProduct = await Product.findByIdAndUpdate(
       productId,
       {
         stockQuantity: newStockQuantity,
-        stock: stockStatus,
+        // stock field is auto-set by pre-findOneAndUpdate middleware
       },
       { new: true }
     )
@@ -152,20 +148,20 @@ export const getVendorStockStats = async (vendorId, lowStockThreshold = 10) => {
       .lean();
 
     const totalProducts = products.length;
-    
+
     // Calculate statistics
     const inStock = products.filter(
       (p) => p.stockQuantity > parseInt(lowStockThreshold)
     ).length;
-    
+
     const lowStock = products.filter(
       (p) => p.stockQuantity > 0 && p.stockQuantity <= parseInt(lowStockThreshold)
     ).length;
-    
+
     const outOfStock = products.filter(
       (p) => p.stockQuantity === 0
     ).length;
-    
+
     const totalValue = products.reduce(
       (sum, p) => sum + (p.price || 0) * (p.stockQuantity || 0),
       0

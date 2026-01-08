@@ -103,6 +103,7 @@ import OrderTrends from "./modules/Admin/pages/finance/OrderTrends";
 import PaymentBreakdown from "./modules/Admin/pages/finance/PaymentBreakdown";
 import TaxReports from "./modules/Admin/pages/finance/TaxReports";
 import RefundReports from "./modules/Admin/pages/finance/RefundReports";
+import WalletRecharges from "./modules/Admin/pages/finance/WalletRecharges";
 // Consolidated Settings pages
 import GeneralSettings from "./modules/Admin/pages/settings/GeneralSettings";
 import PaymentShippingSettings from "./modules/Admin/pages/settings/PaymentShippingSettings";
@@ -155,14 +156,6 @@ const MobileContentPage = lazy(() => import("./modules/UserApp/pages/ContentPage
 const MobileWallet = lazy(() => import("./modules/UserApp/pages/Wallet"));
 const MobileReturnRequest = lazy(() => import("./modules/UserApp/pages/ReturnRequest"));
 const MobileMyReturns = lazy(() => import("./modules/UserApp/pages/MyReturns"));
-// Delivery Routes
-import DeliveryLogin from "./modules/Delivery/pages/Login";
-import DeliveryProtectedRoute from "./modules/Delivery/components/DeliveryProtectedRoute";
-import DeliveryLayout from "./modules/Delivery/components/Layout/DeliveryLayout";
-import DeliveryDashboard from "./modules/Delivery/pages/Dashboard";
-import DeliveryOrders from "./modules/Delivery/pages/Orders";
-import DeliveryOrderDetail from "./modules/Delivery/pages/OrderDetail";
-import DeliveryProfile from "./modules/Delivery/pages/Profile";
 // Vendor Routes
 import VendorLogin from "./modules/Vendor/pages/Login";
 import VendorRegister from "./modules/Vendor/pages/Register";
@@ -499,6 +492,7 @@ const AppRoutes = () => {
           />
           <Route path="finance/tax-reports" element={<TaxReports />} />
           <Route path="finance/refund-reports" element={<RefundReports />} />
+          <Route path="finance/wallet-recharges" element={<WalletRecharges />} />
           <Route path="delivery-rules" element={<DeliveryRules />} />
           <Route path="analytics" element={<Analytics />} />
           <Route
@@ -529,21 +523,6 @@ const AppRoutes = () => {
           <Route path="banners" element={<Banners />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="content" element={<Content />} />
-        </Route>
-        {/* Delivery Routes */}
-        <Route path="/delivery/login" element={<DeliveryLogin />} />
-        <Route
-          path="/delivery"
-          element={
-            <DeliveryProtectedRoute>
-              <DeliveryLayout />
-            </DeliveryProtectedRoute>
-          }>
-          <Route index element={<Navigate to="/delivery/dashboard" replace />} />
-          <Route path="dashboard" element={<DeliveryDashboard />} />
-          <Route path="orders" element={<DeliveryOrders />} />
-          <Route path="orders/:id" element={<DeliveryOrderDetail />} />
-          <Route path="profile" element={<DeliveryProfile />} />
         </Route>
         {/* Vendor Routes */}
         <Route path="/vendor/login" element={<VendorLogin />} />

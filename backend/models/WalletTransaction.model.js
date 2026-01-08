@@ -33,7 +33,7 @@ const walletTransactionSchema = new mongoose.Schema(
     },
     referenceType: {
       type: String,
-      enum: ['order', 'refund', 'cashback', 'referral', 'manual'],
+      enum: ['order', 'refund', 'cashback', 'referral', 'manual', 'razorpay_recharge', 'order_payment'],
       default: 'order',
     },
     status: {

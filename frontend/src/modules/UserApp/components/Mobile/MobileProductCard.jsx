@@ -37,6 +37,9 @@ const MobileProductCard = ({ product }) => {
   });
   const buttonRef = useRef(null);
 
+  // Check if product is out of stock
+  const isOutOfStock = (product.stockQuantity !== undefined && product.stockQuantity <= 0) || product.stock === "out_of_stock";
+
   const handleBuyNow = (e) => {
     if (e) {
       e.preventDefault();
@@ -50,7 +53,7 @@ const MobileProductCard = ({ product }) => {
       image: product.image,
       quantity: 1,
     };
-    
+
     navigate("/app/checkout", { state: { buyNowItem } });
   };
 
@@ -177,9 +180,8 @@ const MobileProductCard = ({ product }) => {
                   onClick={handleFavorite}
                   className="flex-shrink-0 p-1.5 hover:bg-gray-100 rounded-full transition-colors">
                   <FiHeart
-                    className={`text-lg ${
-                      isFavorite ? "text-red-500 fill-red-500" : "text-gray-400"
-                    }`}
+                    className={`text-lg ${isFavorite ? "text-red-500 fill-red-500" : "text-gray-400"
+                      }`}
                   />
                 </button>
               </div>
@@ -205,11 +207,10 @@ const MobileProductCard = ({ product }) => {
                     {[...Array(5)].map((_, i) => (
                       <FiStar
                         key={i}
-                        className={`text-xs ${
-                          i < Math.floor(product.rating)
+                        className={`text-xs ${i < Math.floor(product.rating)
                             ? "text-yellow-400 fill-yellow-400"
                             : "text-gray-300"
-                        }`}
+                          }`}
                       />
                     ))}
                   </div>
@@ -235,16 +236,15 @@ const MobileProductCard = ({ product }) => {
               <motion.button
                 ref={buttonRef}
                 onClick={handleBuyNow}
-                disabled={product.stock === "out_of_stock"}
+                disabled={isOutOfStock}
                 whileTap={{ scale: 0.95 }}
-                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${
-                  product.stock === "out_of_stock"
+                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${isOutOfStock
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : "gradient-green text-white"
-                }`}>
+                  }`}>
                 <FiShoppingBag className="text-base" />
                 <span>
-                  {product.stock === "out_of_stock"
+                  {isOutOfStock
                     ? "Out of Stock"
                     : "Buy Now"}
                 </span>

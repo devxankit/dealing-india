@@ -139,3 +139,24 @@ export const authenticate = async (req, res, next) => {
 export const protect = authenticate;
 export const protectVendor = authenticate;
 export const protectAdmin = authenticate;
+
+/**
+ * Authorization middleware - allows only specific roles
+ * @param {...String} roles - Allowed roles
+ */
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You do not have permission to perform this action.',
+      });
+    }
+    next();
+  };
+};
+
+// Role-specific authorization middlewares
+export const adminOnly = authorize('admin');
+export const vendorOnly = authorize('vendor');
+export const userOnly = authorize('user');

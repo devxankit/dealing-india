@@ -43,6 +43,11 @@ const MobileProductDetail = () => {
   } = useWishlistStore();
   const isFavorite = product ? isInWishlist(product.id) : false;
 
+  // Check if product is out of stock (checks stockQuantity first, then falls back to stock string)
+  const isOutOfStock = product
+    ? ((product.stockQuantity !== undefined && product.stockQuantity <= 0) || product.stock === "out_of_stock")
+    : false;
+
   // Reviews state
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -743,27 +748,27 @@ const MobileProductDetail = () => {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleAddToCart}
-                    disabled={product.stock === "out_of_stock"}
-                    className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${product.stock === "out_of_stock"
+                    disabled={isOutOfStock}
+                    className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${isOutOfStock
                       ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                       : "bg-transparent border-2 border-primary-600 text-primary-600 hover:bg-primary-50"
                       }`}>
                     <FiShoppingBag className="text-base" />
                     <span>
-                      {product.stock === "out_of_stock"
+                      {isOutOfStock
                         ? "OUT OF STOCK"
                         : "ADD TO CART"}
                     </span>
                   </button>
                   <button
                     onClick={handleBuyNow}
-                    disabled={product.stock === "out_of_stock"}
-                    className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${product.stock === "out_of_stock"
+                    disabled={isOutOfStock}
+                    className={`flex-1 h-12 rounded-xl font-bold text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 active:scale-[0.98] ${isOutOfStock
                       ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                       : "gradient-green text-white"
                       }`}>
                     <span>
-                      {product.stock === "out_of_stock"
+                      {isOutOfStock
                         ? "OUT OF STOCK"
                         : "BUY NOW"}
                     </span>

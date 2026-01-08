@@ -10,6 +10,9 @@ import razorpayService from '../../services/razorpay.service.js';
 /**
  * Create a new order and initialize Razorpay payment (if online payment)
  * POST /api/user/orders/create
+ * 
+ * For ONLINE payments (card, upi): Only creates Razorpay order, does NOT create DB order
+ * For COD/Wallet-only: Creates order in DB immediately
  */
 export const createOrder = async (req, res, next) => {
   try {
@@ -24,6 +27,7 @@ export const createOrder = async (req, res, next) => {
       tax = 0,
       discount = 0,
       couponCode = null,
+      walletAmount = 0,
     } = req.body;
 
     // Validate required fields
@@ -48,133 +52,167 @@ export const createOrder = async (req, res, next) => {
       });
     }
 
-    // Check if payment method requires Razorpay
-    const onlinePaymentMethods = ['creditCard', 'debitCard', 'upi', 'wallet'];
+    // Check if payment method requires Razorpay (excluding wallet-only payments)
+    const onlinePaymentMethods = ['creditCard', 'debitCard', 'upi'];
     const requiresRazorpay = onlinePaymentMethods.includes(paymentMethod);
+
+    // Calculate amount to pay via Razorpay (after wallet deduction)
+    const amountToPayOnline = Math.max(0, total - walletAmount);
 
     // Get socket.io instance
     const io = req.app.get('io');
 
-    // Create order in database
-    const order = await createOrderService({
-      customerId: userId,
-      items,
-      total,
-      paymentMethod,
-      shippingAddress,
-      subtotal,
-      shipping,
-      tax,
-      discount,
-      couponCode,
-    }, io);
+    // If it's a COD order OR wallet covers full amount, create order immediately
+    if (!requiresRazorpay || amountToPayOnline <= 0) {
+      const order = await createOrderService({
+        customerId: userId,
+        items,
+        total,
+        paymentMethod: amountToPayOnline <= 0 ? 'wallet' : paymentMethod,
+        shippingAddress,
+        subtotal,
+        shipping,
+        tax,
+        discount,
+        couponCode,
+        walletAmount,
+      }, io);
 
-    let razorpayOrder = null;
-    let razorpayKeyId = null;
-
-    // If online payment, create Razorpay order
-    if (requiresRazorpay) {
-      try {
-        razorpayKeyId = process.env.RAZORPAY_KEY_ID;
-        if (!razorpayKeyId) {
-          throw new Error('Razorpay key ID not configured');
-        }
-
-        // Validate amount before creating Razorpay order
-        if (!total || total <= 0) {
-          throw new Error('Invalid order total amount for payment');
-        }
-
-        // Minimum amount for Razorpay is ₹1 (100 paise)
-        if (total < 1) {
-          throw new Error('Order amount must be at least ₹1');
-        }
-
-        razorpayOrder = await razorpayService.createOrder(
-          total,
-          'INR',
-          order.orderCode,
-          {
-            orderId: order._id.toString(),
-            customerId: userId,
-            couponCode: couponCode || '',
-          }
-        );
-
-        if (!razorpayOrder || !razorpayOrder.id) {
-          throw new Error('Failed to create Razorpay order - invalid response');
-        }
-
-        // Update order with Razorpay order ID
-        order.razorpayOrderId = razorpayOrder.id;
-        await order.save();
-      } catch (razorpayError) {
-        console.error('Razorpay order creation failed:', razorpayError);
-
-        // Provide more specific error message
-        let errorMessage = 'Failed to initialize payment gateway. Please try again.';
-        if (razorpayError.message.includes('authentication failed')) {
-          errorMessage = 'Payment gateway configuration error. Please contact support.';
-        } else if (razorpayError.message.includes('not configured')) {
-          errorMessage = 'Payment gateway is not configured. Please contact support.';
-        } else {
-          errorMessage = razorpayError.message || errorMessage;
-        }
-
-        // Order is created but Razorpay failed - user can retry payment
-        return res.status(500).json({
-          success: false,
-          message: errorMessage,
-          error: razorpayError.message,
-        });
-      }
+      return res.status(201).json({
+        success: true,
+        message: 'Order created successfully.',
+        data: {
+          order: {
+            id: order._id,
+            orderCode: order.orderCode,
+            total: order.total,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: order.paymentStatus,
+            status: order.status,
+            createdAt: order.createdAt,
+          },
+          razorpay: null,
+        },
+      });
     }
 
-    // Return order details with Razorpay info if applicable
-    res.status(201).json({
-      success: true,
-      message: requiresRazorpay
-        ? 'Order created. Please proceed with payment.'
-        : 'Order created successfully.',
-      data: {
-        order: {
-          id: order._id,
-          orderCode: order.orderCode,
-          total: order.total,
-          paymentMethod: order.paymentMethod,
-          paymentStatus: order.paymentStatus,
-          status: order.status,
-          createdAt: order.createdAt,
-        },
-        razorpay: requiresRazorpay && razorpayOrder
-          ? {
+    // For online payments: Only create Razorpay order (NO DB order yet)
+    // Order will be created after payment verification
+    try {
+      const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+      if (!razorpayKeyId) {
+        throw new Error('Razorpay key ID not configured');
+      }
+
+      // Validate amount before creating Razorpay order
+      if (amountToPayOnline <= 0) {
+        throw new Error('Invalid order total amount for payment');
+      }
+
+      // Minimum amount for Razorpay is ₹1 (100 paise)
+      if (amountToPayOnline < 1) {
+        throw new Error('Order amount must be at least ₹1');
+      }
+
+      // Generate a temporary order reference for Razorpay
+      const tempOrderRef = `TEMP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+      const razorpayOrder = await razorpayService.createOrder(
+        amountToPayOnline,
+        'INR',
+        tempOrderRef,
+        {
+          customerId: userId,
+          couponCode: couponCode || '',
+          isTemporary: true, // Mark as temporary until order is created
+        }
+      );
+
+      if (!razorpayOrder || !razorpayOrder.id) {
+        throw new Error('Failed to create Razorpay order - invalid response');
+      }
+
+      // Return Razorpay details WITHOUT creating DB order
+      // The order data will be sent again during payment verification
+      res.status(200).json({
+        success: true,
+        message: 'Payment initialized. Complete payment to place order.',
+        data: {
+          order: null, // No order created yet
+          razorpay: {
             orderId: razorpayOrder.id,
             amount: razorpayOrder.amount,
             currency: razorpayOrder.currency,
             keyId: razorpayKeyId,
-          }
-          : null,
-      },
-    });
+          },
+          // Send back order data for frontend to use during verification
+          pendingOrderData: {
+            items,
+            total,
+            paymentMethod,
+            shippingAddress,
+            subtotal,
+            shipping,
+            tax,
+            discount,
+            couponCode,
+            walletAmount,
+          },
+        },
+      });
+    } catch (razorpayError) {
+      console.error('Razorpay order creation failed:', razorpayError);
+
+      let errorMessage = 'Failed to initialize payment gateway. Please try again.';
+      if (razorpayError.message.includes('authentication failed')) {
+        errorMessage = 'Payment gateway configuration error. Please contact support.';
+      } else if (razorpayError.message.includes('not configured')) {
+        errorMessage = 'Payment gateway is not configured. Please contact support.';
+      } else {
+        errorMessage = razorpayError.message || errorMessage;
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: errorMessage,
+        error: razorpayError.message,
+      });
+    }
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Verify Razorpay payment and update order
+ * Verify Razorpay payment and CREATE order in database
  * POST /api/user/orders/verify-payment
+ * 
+ * This now creates the order after successful payment verification
  */
 export const verifyPayment = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id;
-    const { orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    const {
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+      // Order data (sent from frontend after payment success)
+      orderData
+    } = req.body;
 
-    // Validate required fields
-    if (!orderId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    // Validate required payment fields
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
       return res.status(400).json({
         success: false,
         message: 'Missing required payment verification fields',
+      });
+    }
+
+    // Validate order data
+    if (!orderData || !orderData.items || !orderData.total) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing order data for verification',
       });
     }
 
@@ -215,8 +253,27 @@ export const verifyPayment = async (req, res, next) => {
     // Get socket.io instance
     const io = req.app.get('io');
 
-    // Update order with payment details
-    const updatedOrder = await updateOrderPayment(orderId, {
+    // NOW create the order in database (payment is verified)
+    const order = await createOrderService({
+      customerId: userId,
+      items: orderData.items,
+      total: orderData.total,
+      paymentMethod: orderData.paymentMethod,
+      shippingAddress: orderData.shippingAddress,
+      subtotal: orderData.subtotal,
+      shipping: orderData.shipping || 0,
+      tax: orderData.tax || 0,
+      discount: orderData.discount || 0,
+      couponCode: orderData.couponCode,
+      walletAmount: orderData.walletAmount || 0,
+      // Payment is already completed
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    }, io);
+
+    // Update order payment status to completed
+    const updatedOrder = await updateOrderPayment(order._id.toString(), {
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
@@ -225,7 +282,7 @@ export const verifyPayment = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Payment verified and order confirmed successfully',
+      message: 'Payment verified and order created successfully',
       data: {
         order: {
           id: updatedOrder._id,
@@ -344,4 +401,3 @@ export const cancelOrder = async (req, res, next) => {
     next(error);
   }
 };
-

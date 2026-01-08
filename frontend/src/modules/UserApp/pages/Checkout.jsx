@@ -22,6 +22,7 @@ import { useSettingsStore } from "../../../shared/store/settingsStore";
 import { formatPrice } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import { initializeRazorpayCheckout, handlePaymentSuccess, handlePaymentError } from "../../../shared/services/paymentService";
+import { getWallet } from "../../../shared/services/walletService";
 import MobileLayout from "../components/Layout/MobileLayout";
 import MobileCheckoutSteps from "../components/Mobile/MobileCheckoutSteps";
 import PageTransition from "../../../shared/components/PageTransition";
@@ -43,7 +44,7 @@ const MobileCheckout = () => {
 
   const { user, isAuthenticated } = useAuthStore();
   const { addresses, getDefaultAddress, addAddress, fetchAddresses } = useAddressStore();
-  const { createOrderAPI, verifyPaymentAPI } = useOrderStore();
+  const { createOrderAPI, verifyPaymentAPI, cancelOrderAPI } = useOrderStore();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -91,6 +92,11 @@ const MobileCheckout = () => {
   const [loadingCoupons, setLoadingCoupons] = useState(false);
   const [deliveryData, setDeliveryData] = useState({ total: 0, breakdown: [] });
   const [calculatingDelivery, setCalculatingDelivery] = useState(false);
+
+  // Wallet state
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [useWallet, setUseWallet] = useState(false);
+  const [loadingWallet, setLoadingWallet] = useState(false);
 
   useEffect(() => {
     if (showCouponModal) {
@@ -224,6 +230,25 @@ const MobileCheckout = () => {
     initSettings();
   }, []);
 
+  // Fetch wallet balance
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      if (!isAuthenticated) return;
+      setLoadingWallet(true);
+      try {
+        const response = await getWallet();
+        const walletData = response.data || response;
+        setWalletBalance(walletData.balance || 0);
+      } catch (error) {
+        console.error('Error fetching wallet:', error);
+        setWalletBalance(0);
+      } finally {
+        setLoadingWallet(false);
+      }
+    };
+    fetchWalletBalance();
+  }, [isAuthenticated]);
+
   const platformTax = useMemo(() => {
     if (!settings?.tax?.isEnabled) return 0;
 
@@ -239,7 +264,18 @@ const MobileCheckout = () => {
       ? subtotal * (appliedCoupon.value / 100)
       : appliedCoupon.value
     : 0;
-  const finalTotal = Math.max(0, subtotal + shipping + tax + platformTax - discount);
+
+  // Calculate order total before wallet
+  const orderTotalBeforeWallet = Math.max(0, subtotal + shipping + tax + platformTax - discount);
+
+  // Calculate wallet amount to use (min of wallet balance and order total)
+  const walletAmountToUse = useWallet ? Math.min(walletBalance, orderTotalBeforeWallet) : 0;
+
+  // Calculate final total after wallet deduction
+  const finalTotal = Math.max(0, orderTotalBeforeWallet - walletAmountToUse);
+
+  // Check if wallet can cover full amount
+  const walletCoversFullAmount = useWallet && walletBalance >= orderTotalBeforeWallet;
 
   const validateCoupon = async (codeToApply) => {
     if (!codeToApply || !codeToApply.trim()) {
@@ -343,24 +379,31 @@ const MobileCheckout = () => {
       // Start animation
       setIsAnimating(true);
 
-      // Check if payment method requires Razorpay
-      const onlinePaymentMethods = ['card', 'creditCard', 'debitCard', 'upi', 'wallet'];
-      const requiresRazorpay = onlinePaymentMethods.includes(formData.paymentMethod);
-
-      if (requiresRazorpay && isAuthenticated) {
-        // For online payment, we start Razorpay after a short delay
-        setTimeout(async () => {
-          try {
-            await handleOnlinePayment();
-          } catch (error) {
-            setIsAnimating(false);
-          }
+      // If wallet covers full amount, treat as wallet-only payment (no Razorpay needed)
+      if (walletCoversFullAmount) {
+        setTimeout(() => {
+          handleCODOrder(); // Reuse COD flow for wallet-only payments
         }, 1500);
       } else {
-        // For COD, we place order after animation has run for a bit
-        setTimeout(() => {
-          handleCODOrder();
-        }, 1500);
+        // Check if payment method requires Razorpay
+        const onlinePaymentMethods = ['card', 'creditCard', 'debitCard', 'upi'];
+        const requiresRazorpay = onlinePaymentMethods.includes(formData.paymentMethod);
+
+        if (requiresRazorpay && isAuthenticated) {
+          // For online payment, we start Razorpay after a short delay
+          setTimeout(async () => {
+            try {
+              await handleOnlinePayment();
+            } catch (error) {
+              setIsAnimating(false);
+            }
+          }, 1500);
+        } else {
+          // For COD, we place order after animation has run for a bit
+          setTimeout(() => {
+            handleCODOrder();
+          }, 1500);
+        }
       }
 
       // Reset animation after 10s as per user request (regardless of success/fail)
@@ -373,7 +416,7 @@ const MobileCheckout = () => {
 
     setIsProcessingPayment(true);
     try {
-      // Create order via API
+      // Prepare order data
       const orderData = {
         userId: user?.id,
         items: items.map(item => ({
@@ -400,14 +443,25 @@ const MobileCheckout = () => {
         tax: tax + platformTax,
         discount: discount,
         platformFee: 0,
-        total: finalTotal,
+        total: orderTotalBeforeWallet,
+        walletAmount: walletAmountToUse,
         couponCode: appliedCoupon ? couponCode : null,
       };
 
+      // Create Razorpay order (NO DB order created yet for online payments)
       const result = await createOrderAPI(orderData);
-      const { order, razorpay } = result;
+      const { razorpay, pendingOrderData } = result;
 
       if (!razorpay || !razorpay.orderId) {
+        // If no razorpay, it means order was created directly (COD or wallet-only)
+        if (result.order) {
+          if (!buyNowItem) {
+            clearCart();
+          }
+          toast.success("Order placed successfully!");
+          navigate(`/app/order-confirmation/${result.order.id || result.order.orderCode}`);
+          return;
+        }
         throw new Error('Failed to initialize payment gateway');
       }
 
@@ -417,7 +471,7 @@ const MobileCheckout = () => {
         amount: finalTotal,
         currency: 'INR',
         name: 'Appzeto',
-        description: `Order ${order.orderCode}`,
+        description: 'Order Payment',
         orderId: razorpay.orderId,
         prefill: {
           name: formData.name,
@@ -426,15 +480,19 @@ const MobileCheckout = () => {
         },
         handler: async (paymentResponse) => {
           try {
-            // Verify payment
+            // Verify payment AND create order (new flow)
             const paymentData = handlePaymentSuccess(paymentResponse);
-            const verifyResult = await verifyPaymentAPI(order.id || order.orderCode, paymentData);
+            // Send orderData along with payment verification
+            const verifyResult = await verifyPaymentAPI(null, {
+              ...paymentData,
+              orderData: pendingOrderData || orderData, // Use pending data from backend or original
+            });
 
             if (!buyNowItem) {
               clearCart();
             }
             toast.success("Payment successful! Order placed.");
-            navigate(`/app/order-confirmation/${order.id || order.orderCode}`);
+            navigate(`/app/order-confirmation/${verifyResult.order?.id || verifyResult.order?.orderCode}`);
           } catch (error) {
             console.error('Payment verification error:', error);
             toast.error("Payment verification failed. Please contact support.");
@@ -446,6 +504,7 @@ const MobileCheckout = () => {
           ondismiss: () => {
             setIsProcessingPayment(false);
             toast.error("Payment cancelled");
+            // No need to cancel order - no order was created yet!
           },
         },
       });
@@ -482,13 +541,14 @@ const MobileCheckout = () => {
           state: formData.state,
           country: formData.country,
         },
-        paymentMethod: formData.paymentMethod === 'cash' ? 'cod' : formData.paymentMethod,
+        paymentMethod: walletCoversFullAmount ? 'wallet' : (formData.paymentMethod === 'cash' ? 'cod' : (formData.paymentMethod === 'card' ? 'creditCard' : formData.paymentMethod)),
         subtotal: subtotal,
         shipping: shipping,
         tax: tax + platformTax,
         discount: discount,
         platformFee: 0,
-        total: finalTotal,
+        total: orderTotalBeforeWallet, // Send original total so backend can calculate amountPaidViaRazorpay = total - walletAmount
+        walletAmount: walletAmountToUse,
         couponCode: appliedCoupon ? couponCode : null,
       };
 
@@ -739,37 +799,90 @@ const MobileCheckout = () => {
                   <FiCreditCard className="text-primary-600 text-xl" />
                   Payment Method
                 </h2>
-                <div className="space-y-3 mb-5">
-                  {[
-                    { value: "card", label: "Credit/Debit Card", online: true },
-                    { value: "upi", label: "UPI", online: true },
-                    { value: "wallet", label: "Wallet", online: true },
-                    { value: "cash", label: "Cash on Delivery", online: false },
-                  ].map((method) => (
-                    <label
-                      key={method.value}
-                      className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.paymentMethod === method.value
-                        ? "border-primary-500 bg-primary-50"
-                        : "border-gray-200"
-                        } ${!isAuthenticated && method.online ? "opacity-50 cursor-not-allowed" : ""}`}>
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value={method.value}
-                        checked={formData.paymentMethod === method.value}
-                        onChange={handleInputChange}
-                        disabled={!isAuthenticated && method.online}
-                        className="w-5 h-5 text-primary-500"
-                      />
-                      <span className="font-semibold text-gray-800 text-base">
-                        {method.label}
-                        {!isAuthenticated && method.online && (
-                          <span className="text-xs text-red-500 ml-2">(Login required)</span>
-                        )}
-                      </span>
-                    </label>
-                  ))}
-                </div>
+
+                {/* Wallet Balance Card */}
+                {isAuthenticated && walletBalance > 0 && (
+                  <div className="mb-5">
+                    <div className={`p-4 rounded-xl border-2 transition-all ${useWallet ? 'border-purple-500 bg-purple-50' : 'border-gray-200'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 flex items-center justify-center">
+                            <span className="text-white text-lg">💳</span>
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-800">Wallet Balance</p>
+                            <p className="text-lg font-bold text-purple-600">₹{walletBalance.toFixed(2)}</p>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={useWallet}
+                            onChange={(e) => setUseWallet(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                        </label>
+                      </div>
+                      {useWallet && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Using from wallet:</span>
+                            <span className="font-bold text-purple-600">-₹{walletAmountToUse.toFixed(2)}</span>
+                          </div>
+                          {!walletCoversFullAmount && (
+                            <div className="flex justify-between text-sm mt-1">
+                              <span className="text-gray-600">Amount to pay:</span>
+                              <span className="font-bold text-gray-800">₹{finalTotal.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {walletCoversFullAmount && (
+                            <p className="text-sm text-green-600 font-semibold mt-2">
+                              ✓ Wallet covers full amount - No additional payment needed!
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment Methods - Only show if wallet doesn't cover full amount */}
+                {(!useWallet || !walletCoversFullAmount) && (
+                  <div className="space-y-3 mb-5">
+                    {[
+                      { value: "card", label: "Credit/Debit Card", online: true },
+                      { value: "upi", label: "UPI", online: true },
+                      { value: "cash", label: "Cash on Delivery", online: false },
+                    ].map((method) => (
+                      <label
+                        key={method.value}
+                        className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.paymentMethod === method.value
+                          ? "border-primary-500 bg-primary-50"
+                          : "border-gray-200"
+                          } ${!isAuthenticated && method.online ? "opacity-50 cursor-not-allowed" : ""}`}>
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={method.value}
+                          checked={formData.paymentMethod === method.value}
+                          onChange={handleInputChange}
+                          disabled={!isAuthenticated && method.online}
+                          className="w-5 h-5 text-primary-500"
+                        />
+                        <span className="font-semibold text-gray-800 text-base">
+                          {method.label}
+                          {!isAuthenticated && method.online && (
+                            <span className="text-xs text-red-500 ml-2">(Login required)</span>
+                          )}
+                          {useWallet && finalTotal > 0 && (
+                            <span className="text-xs text-gray-500 ml-2">(for remaining ₹{finalTotal.toFixed(2)})</span>
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
 
                 {/* Shipping Options */}
                 {subtotal < 100 && (
@@ -970,10 +1083,16 @@ const MobileCheckout = () => {
                         <span>{formatPrice(platformTax)}</span>
                       </div>
                     )}
+                    {walletAmountToUse > 0 && (
+                      <div className="flex justify-between text-purple-600">
+                        <span>💳 Wallet Payment</span>
+                        <span>-{formatPrice(walletAmountToUse)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-lg font-bold text-gray-800 pt-3 border-t border-gray-200">
-                      <span>Total</span>
-                      <span className="text-primary-600">
-                        {formatPrice(finalTotal)}
+                      <span>{walletAmountToUse > 0 ? 'Amount to Pay' : 'Total'}</span>
+                      <span className={finalTotal === 0 ? "text-green-600" : "text-primary-600"}>
+                        {finalTotal === 0 ? 'FREE (Paid by Wallet)' : formatPrice(finalTotal)}
                       </span>
                     </div>
                   </div>

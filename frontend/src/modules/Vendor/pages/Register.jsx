@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiShoppingBag, FiMapPin, FiUpload, FiFile, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
@@ -7,14 +7,25 @@ import toast from 'react-hot-toast';
 
 const VendorRegister = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { register: registerVendor, isLoading } = useVendorAuthStore();
   const [localLoading, setLocalLoading] = useState(false);
   const timeoutRef = useRef(null);
 
+  // Get pre-filled data from navigation state (e.g. from "Become a Seller" button)
+  const preFilledData = location.state?.userData || {};
+  const isUpgrade = location.state?.isUpgrade || false;
+
+  useEffect(() => {
+    if (isUpgrade && preFilledData.name) {
+      toast.success(`Welcome ${preFilledData.name.split(' ')[0]}! Complete these details to start your business.`);
+    }
+  }, [isUpgrade, preFilledData.name]);
+
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: preFilledData.name || '',
+    email: preFilledData.email || '',
+    phone: preFilledData.phone || '',
     password: '',
     confirmPassword: '',
     storeName: '',
@@ -34,9 +45,9 @@ const VendorRegister = () => {
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 
   // Increased timeout for production (email sending can take up to 60s)
-  const isProduction = typeof window !== 'undefined' && 
-    (window.location.hostname.includes('vercel.app') || 
-     window.location.hostname.includes('onrender.com'));
+  const isProduction = typeof window !== 'undefined' &&
+    (window.location.hostname.includes('vercel.app') ||
+      window.location.hostname.includes('onrender.com'));
   const timeoutDuration = isProduction ? 95000 : 35000; // 95s in production, 35s in dev
 
   // Safety mechanism: Reset loading state if it's stuck
@@ -213,11 +224,11 @@ const VendorRegister = () => {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
+
       // Extract error message
-      const errorMessage = error?.message || 
-                         error?.response?.data?.message || 
-                         'Registration failed. Please check your information and try again.';
+      const errorMessage = error?.message ||
+        error?.response?.data?.message ||
+        'Registration failed. Please check your information and try again.';
       // Show error toast (API interceptor won't show for auth pages)
       toast.error(errorMessage);
     }

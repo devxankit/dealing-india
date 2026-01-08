@@ -12,14 +12,14 @@ export const useOrderStore = create(
       createOrder: (orderData) => {
         const orderId = `ORD-${Date.now()}`;
         const trackingNumber = `TRK${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
-        
+
         // Calculate estimated delivery (5-7 days from now)
         const estimatedDelivery = new Date();
         estimatedDelivery.setDate(estimatedDelivery.getDate() + Math.floor(Math.random() * 3) + 5);
-        
+
         // Group items by vendor and calculate vendor-specific totals
         const vendorItems = orderData.vendorItems || [];
-        
+
         // If vendorItems not provided, calculate from items
         let calculatedVendorItems = [];
         if (vendorItems.length === 0 && orderData.items) {
@@ -28,7 +28,7 @@ export const useOrderStore = create(
           orderData.items.forEach((item) => {
             const vendorId = item.vendorId || 1; // Default to vendor 1 if not specified
             const vendorName = item.vendorName || 'Unknown Vendor';
-            
+
             if (!vendorGroups[vendorId]) {
               vendorGroups[vendorId] = {
                 vendorId,
@@ -40,16 +40,16 @@ export const useOrderStore = create(
                 discount: 0,
               };
             }
-            
+
             const itemSubtotal = item.price * item.quantity;
             vendorGroups[vendorId].items.push(item);
             vendorGroups[vendorId].subtotal += itemSubtotal;
           });
-          
+
           // Calculate shipping per vendor (split equally or by subtotal ratio)
           const totalSubtotal = Object.values(vendorGroups).reduce((sum, v) => sum + v.subtotal, 0);
           const shippingPerVendor = orderData.shipping / Object.keys(vendorGroups).length;
-          
+
           calculatedVendorItems = Object.values(vendorGroups).map((vendorGroup) => ({
             ...vendorGroup,
             shipping: shippingPerVendor,
@@ -59,7 +59,7 @@ export const useOrderStore = create(
         } else {
           calculatedVendorItems = vendorItems;
         }
-        
+
         const newOrder = {
           id: orderId,
           userId: orderData.userId || null,
@@ -120,7 +120,7 @@ export const useOrderStore = create(
       getVendorOrderItems: (orderId, vendorId) => {
         const order = get().getOrder(orderId);
         if (!order || !order.vendorItems) return null;
-        
+
         const vendorItem = order.vendorItems.find((vi) => vi.vendorId === parseInt(vendorId));
         return vendorItem || null;
       },
@@ -144,14 +144,24 @@ export const useOrderStore = create(
       },
 
       // API Methods for backend integration
-      
+
       // Create order via API
       createOrderAPI: async (orderData) => {
         try {
           const response = await orderService.createOrder(orderData);
           const order = response.order;
-          
-          // Store order locally for backward compatibility
+
+          // For online payments, order may be null (created after payment verification)
+          if (!order) {
+            // Return razorpay details and pending order data for verification step
+            return {
+              order: null,
+              razorpay: response.razorpay,
+              pendingOrderData: response.pendingOrderData,
+            };
+          }
+
+          // Store order locally for backward compatibility (COD/wallet-only orders)
           const newOrder = {
             id: order.id || order.orderCode,
             orderCode: order.orderCode,
@@ -185,24 +195,35 @@ export const useOrderStore = create(
         }
       },
 
-      // Verify payment via API
+      // Verify payment via API (also creates order for online payments in new flow)
       verifyPaymentAPI: async (orderId, paymentData) => {
         try {
           const response = await orderService.verifyPayment(orderId, paymentData);
           const order = response.order;
-          
-          // Update local order
-          set((state) => ({
-            orders: state.orders.map((o) =>
-              o.id === orderId || o.orderCode === order.orderCode
-                ? {
-                    ...o,
-                    status: order.status,
-                    paymentStatus: order.paymentStatus,
-                  }
-                : o
-            ),
-          }));
+
+          // Add or update local order
+          set((state) => {
+            const existingIndex = state.orders.findIndex(
+              (o) => o.id === order.id || o.orderCode === order.orderCode
+            );
+
+            const formattedOrder = {
+              id: order.id || order._id || order.orderCode,
+              orderCode: order.orderCode,
+              status: order.status,
+              paymentStatus: order.paymentStatus,
+              total: order.total,
+            };
+
+            if (existingIndex >= 0) {
+              const updated = [...state.orders];
+              updated[existingIndex] = { ...updated[existingIndex], ...formattedOrder };
+              return { orders: updated };
+            } else {
+              // New order - add to list
+              return { orders: [formattedOrder, ...state.orders] };
+            }
+          });
 
           return response;
         } catch (error) {
@@ -216,13 +237,13 @@ export const useOrderStore = create(
         try {
           const response = await orderService.getOrderById(orderId);
           const order = response.order;
-          
+
           // Update or add order to local storage
           set((state) => {
             const existingIndex = state.orders.findIndex(
               (o) => o.id === orderId || o.orderCode === order.orderCode
             );
-            
+
             const formattedOrder = {
               id: order._id || order.orderCode,
               orderCode: order.orderCode,
@@ -257,7 +278,7 @@ export const useOrderStore = create(
         try {
           const response = await orderService.getUserOrders(filters);
           const orders = response.orders || [];
-          
+
           // Update local orders
           set((state) => {
             const existingIds = new Set(state.orders.map((o) => o.id || o.orderCode));
@@ -290,7 +311,7 @@ export const useOrderStore = create(
       cancelOrderAPI: async (orderId) => {
         try {
           const response = await orderService.cancelOrder(orderId);
-          
+
           // Update local order
           set((state) => ({
             orders: state.orders.map((order) =>

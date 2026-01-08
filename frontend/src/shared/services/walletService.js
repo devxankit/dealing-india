@@ -38,7 +38,7 @@ export const getWalletTransactions = async (filters = {}) => {
 };
 
 /**
- * Add money to wallet
+ * Add money to wallet (legacy - direct add)
  * @param {Number} amount - Amount to add
  * @param {String} description - Transaction description
  * @returns {Promise<Object>} Created transaction
@@ -56,3 +56,34 @@ export const addMoney = async (amount, description) => {
   }
 };
 
+/**
+ * Initiate wallet recharge via Razorpay
+ * @param {Number} amount - Amount to add in rupees
+ * @returns {Promise<Object>} Razorpay order details
+ */
+export const initiateAddMoney = async (amount) => {
+  try {
+    const response = await api.post('/user/wallet/initiate-add-money', {
+      amount,
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error initiating wallet recharge:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verify wallet recharge payment and credit wallet
+ * @param {Object} paymentData - Razorpay payment response
+ * @returns {Promise<Object>} Updated wallet details
+ */
+export const verifyAddMoney = async (paymentData) => {
+  try {
+    const response = await api.post('/user/wallet/verify-add-money', paymentData);
+    return response.data;
+  } catch (error) {
+    console.error('Error verifying wallet recharge:', error);
+    throw error;
+  }
+};

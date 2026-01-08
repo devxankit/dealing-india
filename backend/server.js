@@ -73,6 +73,7 @@ import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
 import adminNotificationRoutes from './routes/adminNotification.routes.js';
 import vendorWalletRoutes from './routes/vendorWallet.routes.js';
 import adminVendorWalletRoutes from './routes/adminVendorWallet.routes.js';
+import walletAdminRoutes from './routes/wallet.admin.routes.js';
 import returnRequestRoutes from './routes/returnRequest.routes.js';
 import vendorReturnRoutes from './routes/vendorReturn.routes.js';
 import adminReturnRoutes from './routes/adminReturn.routes.js';
@@ -273,6 +274,7 @@ app.use('/api/admin/notifications', adminNotificationRoutes);
 app.use('/api/admin/vendor-wallets', adminVendorWalletRoutes);
 app.use('/api/admin/returns', adminReturnRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
+app.use('/api/admin/wallet', walletAdminRoutes);
 
 
 // User management routes (require user authentication)
