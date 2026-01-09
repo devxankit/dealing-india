@@ -38,10 +38,34 @@ export const getReelById = async (req, res, next) => {
             });
         }
 
-        // 2. Not found
+        // 2. Try finding in Standard Reels
+        const standardReel = await Reel.findById(id)
+            .populate('vendorId', 'name storeLogo storeName')
+            .populate('productId', 'name price thumbnail description')
+            .lean();
+
+        if (standardReel) {
+            return res.status(200).json({
+                success: true,
+                message: 'Standard reel retrieved successfully',
+                data: {
+                    ...standardReel,
+                    id: standardReel._id,
+                    isPromotional: false,
+                    vendorName: standardReel.vendorId?.storeName || standardReel.vendorId?.name || 'Vendor',
+                    vendorLogo: standardReel.vendorId?.storeLogo,
+                    productName: standardReel.productId?.name,
+                    productPrice: standardReel.productId?.price,
+                    description: standardReel.productId?.description || '',
+                    thumbnail: standardReel.thumbnail || standardReel.productId?.thumbnail
+                }
+            });
+        }
+
+        // 3. Not found
         return res.status(404).json({
             success: false,
-            message: 'Promotional reel not found'
+            message: 'Reel not found'
         });
 
     } catch (error) {

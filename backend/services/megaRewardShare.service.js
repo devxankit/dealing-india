@@ -1,6 +1,8 @@
+import mongoose from 'mongoose';
 import MegaRewardShareLink from '../models/MegaRewardShareLink.model.js';
 import MegaRewardClickLog from '../models/MegaRewardClickLog.model.js';
 import MegaRewardSettings from '../models/MegaRewardSettings.model.js';
+import PromotionalReel from '../models/PromotionalReel.model.js';
 
 /**
  * MegaRewardShare Service
@@ -219,21 +221,21 @@ class MegaRewardShareService {
             try {
                 const encoded = linkCode.replace('lazy_', '');
                 const payload = Buffer.from(encoded, 'base64').toString('utf8');
-                const [userId, reelId] = payload.split(':');
+                const [userId, reelId, platform] = payload.split(':');
 
                 // Fetch reel to provide real metadata for OG tags even if record doesn't exist yet
-                // This prevents bots from triggering DB writes just to see OG tags
-                const PromotionalReel = mongoose.model('PromotionalReel');
                 const reel = await PromotionalReel.findById(reelId);
 
                 if (reel) {
                     return {
                         reelId: reel,
                         userId: { name: 'A friend' },
+                        platform: platform || 'share',
                         isLazy: true
                     };
                 }
             } catch (e) {
+                console.error('Lazy link decode error:', e);
                 return null;
             }
         }

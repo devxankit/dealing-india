@@ -17,8 +17,10 @@ export const useTimeWarpCheat = () => {
             // Clear existing timeout
             if (timeout.current) clearTimeout(timeout.current);
 
-            // Append key to sequence (case insensitive)
-            sequence.current += e.key.toUpperCase();
+            // Append key to sequence (case insensitive) if e.key exists
+            if (e.key) {
+                sequence.current += e.key.toUpperCase();
+            }
 
             // Reset sequence after 2 seconds of inactivity
             timeout.current = setTimeout(() => {
