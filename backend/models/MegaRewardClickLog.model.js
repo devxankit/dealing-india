@@ -41,7 +41,6 @@ megaRewardClickLogSchema.index(
     { shareLinkId: 1, ipAddress: 1, fingerprint: 1 },
     { unique: true }
 );
-megaRewardClickLogSchema.index({ shareLinkId: 1 });
 megaRewardClickLogSchema.index({ clickedAt: -1 });
 
 const MegaRewardClickLog = mongoose.model('MegaRewardClickLog', megaRewardClickLogSchema);

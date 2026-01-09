@@ -48,17 +48,29 @@ export const trackClick = asyncHandler(async (req, res) => {
 
     const userAgent = req.headers['user-agent'] || '';
 
-    try {
-        // Track the click (using the cookie fingerprint)
-        await MegaRewardShareService.trackClick(
-            linkCode,
-            ipAddress,
-            fingerprint,
-            userAgent
-        );
+    // Bot Detection (WhatsApp, Facebook, etc. preview crawlers)
+    const bots = [
+        'WhatsApp', 'facebookexternalhit', 'Facebot', 'Twitterbot',
+        'TelegramBot', 'Discordbot', 'Slackbot', 'Googlebot', 'Bingbot'
+    ];
+    const isBot = bots.some(bot => userAgent.includes(bot));
 
-        // Get the share link details to find the reel
-        const shareLink = await MegaRewardShareService.getShareLinkByCode(linkCode);
+    try {
+        let shareLink;
+
+        if (!isBot) {
+            // Human Click -> Track and get persistent link
+            const trackingResult = await MegaRewardShareService.trackClick(
+                linkCode,
+                ipAddress,
+                fingerprint,
+                userAgent
+            );
+            shareLink = trackingResult.shareLink;
+        } else {
+            // Bot Hit -> Just get metadata for OG tags, do not track/increment
+            shareLink = await MegaRewardShareService.getShareLinkByCode(linkCode);
+        }
 
         // Determine Redirect URL
         // Priority: Env Var > Request Host (if not local) > Production Default
@@ -120,13 +132,16 @@ export const trackClick = asyncHandler(async (req, res) => {
                 </style>
                 
                 <script>
-                    window.location.href = "${redirectUrl}";
+                    // Only redirect humans, bots just need the metadata
+                    if (!${isBot}) {
+                        window.location.href = "${redirectUrl}";
+                    }
                 </script>
             </head>
             <body>
                 <div class="content">
                     <div class="loader" style="margin: 0 auto 20px auto;"></div>
-                    <p>Opening Reel...</p>
+                    <p>${isBot ? 'Previewing Reel...' : 'Opening Reel...'}</p>
                     <a href="${redirectUrl}" style="color: #7c3aed; text-decoration: none; font-size: 14px;">Click here if not redirected</a>
                 </div>
             </body>

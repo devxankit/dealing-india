@@ -60,7 +60,6 @@ megaRewardShareLinkSchema.pre('validate', function (next) {
 
 // Compound unique index: one link per user + reel + platform
 megaRewardShareLinkSchema.index({ userId: 1, reelId: 1, platform: 1 }, { unique: true });
-megaRewardShareLinkSchema.index({ linkCode: 1 }, { unique: true });
 megaRewardShareLinkSchema.index({ megaRewardId: 1 });
 megaRewardShareLinkSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index
 

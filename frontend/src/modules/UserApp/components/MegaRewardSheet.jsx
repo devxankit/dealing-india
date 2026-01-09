@@ -53,8 +53,8 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
 
                 switch (platform) {
                     case 'whatsapp':
-                        // Use official API and ensure double newline for better link separation
-                        shareLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage + '\n\n' + shareUrl)}`;
+                        // Use wa.me for a cleaner sharing experience and better cross-device support
+                        shareLink = `https://wa.me/?text=${encodeURIComponent(shareMessage + '\n\n' + shareUrl)}`;
                         break;
                     case 'instagram':
                         // Instagram doesn't have a direct share URL, copy to clipboard
@@ -63,7 +63,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                         shareLink = 'https://www.instagram.com/';
                         break;
                     case 'facebook':
-                        shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareMessage)}`;
+                        shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
                         break;
                 }
 

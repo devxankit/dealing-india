@@ -73,7 +73,8 @@ class MegaRewardShareService {
                 }
 
                 // Double-check if persistent link was created in the meantime (Race condition)
-                shareLink = await MegaRewardShareLink.findOne({ userId, reelId, platform });
+                shareLink = await MegaRewardShareLink.findOne({ userId, reelId, platform })
+                    .populate('reelId', 'title description videoUrl thumbnail');
 
                 // If not, CREATE it now (The "Lazy Creation" step)
                 if (!shareLink) {
@@ -87,6 +88,9 @@ class MegaRewardShareService {
                         platform,
                         expiresAt: settings.endDate
                     });
+
+                    // Populate reelId for the newly created link
+                    await shareLink.populate('reelId', 'title description videoUrl thumbnail');
                 }
             } catch (err) {
                 console.error('Lazy link creation failed:', err);
@@ -94,7 +98,8 @@ class MegaRewardShareService {
             }
         } else {
             // 2. Normal Persistent Link
-            shareLink = await MegaRewardShareLink.findOne({ linkCode });
+            shareLink = await MegaRewardShareLink.findOne({ linkCode })
+                .populate('reelId', 'title description videoUrl thumbnail');
         }
 
         if (!shareLink) {
@@ -120,8 +125,6 @@ class MegaRewardShareService {
             shareLink.uniqueClickCount += 1;
 
             // Check if eligibility threshold is met
-            // Optimize: We already have settings ID, but need 'requiredClicks'. Fetch settings again or assume standard?
-            // Safer to fetch to respect dynamic config.
             const settings = await MegaRewardSettings.findById(shareLink.megaRewardId);
             if (settings) {
                 const requiredClicks = settings.requiredClicks[shareLink.platform];
@@ -132,11 +135,21 @@ class MegaRewardShareService {
 
             await shareLink.save();
 
-            return { success: true, isNewClick: true, uniqueClickCount: shareLink.uniqueClickCount };
+            return {
+                success: true,
+                isNewClick: true,
+                uniqueClickCount: shareLink.uniqueClickCount,
+                shareLink
+            };
         } catch (error) {
             // Duplicate click (same IP + fingerprint)
             if (error.code === 11000) {
-                return { success: true, isNewClick: false, message: 'Click already recorded' };
+                return {
+                    success: true,
+                    isNewClick: false,
+                    message: 'Click already recorded',
+                    shareLink
+                };
             }
             throw error;
         }
@@ -193,12 +206,39 @@ class MegaRewardShareService {
     }
 
     /**
-     * Get share link by link code
+     * Get share link by link code (Supports both short codes and lazy codes)
      */
     async getShareLinkByCode(linkCode) {
-        return await MegaRewardShareLink.findOne({ linkCode })
+        // 1. Check persistent link
+        let shareLink = await MegaRewardShareLink.findOne({ linkCode })
             .populate('userId', 'name email')
             .populate('reelId', 'title description videoUrl thumbnail');
+
+        // 2. If not found and is lazy, decode and return mock/temp info for OG tags
+        if (!shareLink && linkCode.startsWith('lazy_')) {
+            try {
+                const encoded = linkCode.replace('lazy_', '');
+                const payload = Buffer.from(encoded, 'base64').toString('utf8');
+                const [userId, reelId] = payload.split(':');
+
+                // Fetch reel to provide real metadata for OG tags even if record doesn't exist yet
+                // This prevents bots from triggering DB writes just to see OG tags
+                const PromotionalReel = mongoose.model('PromotionalReel');
+                const reel = await PromotionalReel.findById(reelId);
+
+                if (reel) {
+                    return {
+                        reelId: reel,
+                        userId: { name: 'A friend' },
+                        isLazy: true
+                    };
+                }
+            } catch (e) {
+                return null;
+            }
+        }
+
+        return shareLink;
     }
 }
 
