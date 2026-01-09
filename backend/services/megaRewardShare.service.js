@@ -1,6 +1,8 @@
+import mongoose from 'mongoose';
 import MegaRewardShareLink from '../models/MegaRewardShareLink.model.js';
 import MegaRewardClickLog from '../models/MegaRewardClickLog.model.js';
 import MegaRewardSettings from '../models/MegaRewardSettings.model.js';
+import PromotionalReel from '../models/PromotionalReel.model.js';
 
 /**
  * MegaRewardShare Service
@@ -36,20 +38,28 @@ class MegaRewardShareService {
             // Return the existing persistent short code
             return {
                 linkCode: shareLink.linkCode,
-                exists: true
+                exists: true,
+                uniqueClickCount: shareLink.uniqueClickCount,
+                isEligible: shareLink.isEligible
             };
         }
 
-        // 2. If NO link exists, generate a stateless "temporary" code
-        // Format: "lazy_<base64(userId:reelId:platform:campaignId)>"
-        // This avoids creating a DB record just for clicking the button
-        const payload = `${userId}:${reelId}:${platform}:${activeSettings._id}`;
-        const encoded = Buffer.from(payload).toString('base64');
-        const tempCode = `lazy_${encoded}`;
+        // 2. If NO link exists, CREATE it now (PERSISTENT)
+        console.log(`[MegaRewardShare] Creating new persistent share link for user ${userId}, reel ${reelId}, platform ${platform}`);
+
+        shareLink = await MegaRewardShareLink.create({
+            userId: new mongoose.Types.ObjectId(userId),
+            reelId: new mongoose.Types.ObjectId(reelId),
+            megaRewardId: activeSettings._id,
+            platform,
+            expiresAt: activeSettings.endDate
+        });
 
         return {
-            linkCode: tempCode,
-            exists: false
+            linkCode: shareLink.linkCode,
+            exists: true, // It exists now because we just created it
+            uniqueClickCount: 0,
+            isEligible: false
         };
     }
 
@@ -59,41 +69,52 @@ class MegaRewardShareService {
      */
     async trackClick(linkCode, ipAddress, fingerprint, userAgent) {
         let shareLink;
+        console.log(`[MegaRewardShare] Tracking click for code: ${linkCode.substring(0, 20)}... from IP: ${ipAddress}`);
 
         // 1. Check if this is a Lazy Link (Temporary)
         if (linkCode.startsWith('lazy_')) {
             try {
                 // Decode payload: "userId:reelId:platform:megaRewardId"
-                const encoded = linkCode.replace('lazy_', '');
+                const encoded = linkCode.substring(5); // Safer than replace
                 const payload = Buffer.from(encoded, 'base64').toString('utf8');
                 const [userId, reelId, platform, megaRewardId] = payload.split(':');
+
+                console.log(`[MegaRewardShare] Lazy link decoded: userId=${userId}, reelId=${reelId}, platform=${platform}`);
 
                 if (!userId || !reelId || !platform || !megaRewardId) {
                     throw new Error('Invalid temporary link format');
                 }
 
                 // Double-check if persistent link was created in the meantime (Race condition)
-                shareLink = await MegaRewardShareLink.findOne({ userId, reelId, platform })
-                    .populate('reelId', 'title description videoUrl thumbnail');
+                shareLink = await MegaRewardShareLink.findOne({
+                    userId: new mongoose.Types.ObjectId(userId),
+                    reelId: new mongoose.Types.ObjectId(reelId),
+                    platform
+                }).populate('reelId', 'title description videoUrl thumbnail');
 
                 // If not, CREATE it now (The "Lazy Creation" step)
                 if (!shareLink) {
+                    console.log(`[MegaRewardShare] Creating persistent share link...`);
                     const settings = await MegaRewardSettings.findById(megaRewardId);
-                    if (!settings) throw new Error('Campaign not found');
+                    if (!settings) {
+                        console.error(`[MegaRewardShare] Campaign ${megaRewardId} not found`);
+                        throw new Error('Campaign not found');
+                    }
 
                     shareLink = await MegaRewardShareLink.create({
-                        userId,
-                        reelId,
-                        megaRewardId,
+                        userId: new mongoose.Types.ObjectId(userId),
+                        reelId: new mongoose.Types.ObjectId(reelId),
+                        megaRewardId: new mongoose.Types.ObjectId(megaRewardId),
                         platform,
                         expiresAt: settings.endDate
                     });
 
                     // Populate reelId for the newly created link
                     await shareLink.populate('reelId', 'title description videoUrl thumbnail');
+                    console.log(`[MegaRewardShare] Persistent link created: ${shareLink._id}`);
                 }
             } catch (err) {
-                console.error('Lazy link creation failed:', err);
+                console.error('[MegaRewardShare] Lazy link track failed:', err.message);
                 throw new Error('Invalid or corrupted share link');
             }
         } else {
@@ -103,17 +124,30 @@ class MegaRewardShareService {
         }
 
         if (!shareLink) {
+            console.error(`[MegaRewardShare] Share link not found for code: ${linkCode}`);
             throw new Error('Invalid share link');
         }
 
         // Check if link has expired
         if (new Date() > shareLink.expiresAt) {
+            console.error(`[MegaRewardShare] Link expired:`, {
+                linkCode,
+                expiresAt: shareLink.expiresAt,
+                now: new Date()
+            });
             throw new Error('Share link has expired');
         }
 
         try {
+            console.log(`[MegaRewardShare] Creating click log:`, {
+                shareLinkId: shareLink._id,
+                ipAddress,
+                fingerprint: fingerprint || 'none',
+                platform: shareLink.platform
+            });
+
             // Try to create a new click log (will fail if duplicate due to unique index)
-            await MegaRewardClickLog.create({
+            const clickLog = await MegaRewardClickLog.create({
                 shareLinkId: shareLink._id,
                 ipAddress,
                 fingerprint: fingerprint || '',
@@ -121,19 +155,30 @@ class MegaRewardShareService {
                 platform: shareLink.platform
             });
 
+            console.log(`[MegaRewardShare] Click log created:`, clickLog._id);
+
             // Increment unique click count
             shareLink.uniqueClickCount += 1;
+            console.log(`[MegaRewardShare] Incremented click count to:`, shareLink.uniqueClickCount);
 
             // Check if eligibility threshold is met
             const settings = await MegaRewardSettings.findById(shareLink.megaRewardId);
             if (settings) {
                 const requiredClicks = settings.requiredClicks[shareLink.platform];
+                console.log(`[MegaRewardShare] Checking eligibility:`, {
+                    currentClicks: shareLink.uniqueClickCount,
+                    requiredClicks,
+                    platform: shareLink.platform
+                });
+
                 if (shareLink.uniqueClickCount >= requiredClicks) {
                     shareLink.isEligible = true;
+                    console.log(`[MegaRewardShare] Platform ${shareLink.platform} is now eligible!`);
                 }
             }
 
             await shareLink.save();
+            console.log(`[MegaRewardShare] ShareLink saved successfully`);
 
             return {
                 success: true,
@@ -144,6 +189,11 @@ class MegaRewardShareService {
         } catch (error) {
             // Duplicate click (same IP + fingerprint)
             if (error.code === 11000) {
+                console.log(`[MegaRewardShare] Duplicate click detected:`, {
+                    ipAddress,
+                    fingerprint,
+                    shareLinkId: shareLink._id
+                });
                 return {
                     success: true,
                     isNewClick: false,
@@ -151,6 +201,11 @@ class MegaRewardShareService {
                     shareLink
                 };
             }
+            console.error(`[MegaRewardShare] Error creating click log:`, {
+                error: error.message,
+                code: error.code,
+                stack: error.stack
+            });
             throw error;
         }
     }
@@ -219,21 +274,21 @@ class MegaRewardShareService {
             try {
                 const encoded = linkCode.replace('lazy_', '');
                 const payload = Buffer.from(encoded, 'base64').toString('utf8');
-                const [userId, reelId] = payload.split(':');
+                const [userId, reelId, platform] = payload.split(':');
 
                 // Fetch reel to provide real metadata for OG tags even if record doesn't exist yet
-                // This prevents bots from triggering DB writes just to see OG tags
-                const PromotionalReel = mongoose.model('PromotionalReel');
                 const reel = await PromotionalReel.findById(reelId);
 
                 if (reel) {
                     return {
                         reelId: reel,
                         userId: { name: 'A friend' },
+                        platform: platform || 'share',
                         isLazy: true
                     };
                 }
             } catch (e) {
+                console.error('Lazy link decode error:', e);
                 return null;
             }
         }

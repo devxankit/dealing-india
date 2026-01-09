@@ -98,6 +98,9 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
+// Trust proxy for Render/Vercel to get correct IP and protocol
+app.set('trust proxy', true);
+
 // Create HTTP server
 const httpServer = http.createServer(app);
 

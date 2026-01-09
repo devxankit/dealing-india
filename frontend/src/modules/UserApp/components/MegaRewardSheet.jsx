@@ -10,6 +10,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
     const [eligibility, setEligibility] = useState(null);
     const [sharingPlatform, setSharingPlatform] = useState(null);
     const [campaign, setCampaign] = useState(null);
+    const [showInstagramOptions, setShowInstagramOptions] = useState(false);
 
     useEffect(() => {
         if (isOpen && reelId) {
@@ -29,17 +30,31 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
         }
     };
 
-    const handleShare = async (platform) => {
+    const copyToClipboard = async (text, successMsg = 'Link copied!') => {
+        try {
+            await navigator.clipboard.writeText(text);
+            toast.success(successMsg);
+            return true;
+        } catch (err) {
+            console.error('Failed to copy:', err);
+            toast.error('Failed to copy link. Please manually copy.');
+            return false;
+        }
+    };
+
+    const handleShare = async (platform, subAction = null) => {
         if (!reelId) {
             toast.error('No reel selected');
             return;
         }
 
+        console.info(`[MegaRewardShare] Sharing to ${platform}${subAction ? ` (${subAction})` : ''}`, { reelId });
+
         setSharingPlatform(platform);
         setLoading(true);
 
         try {
-            // Generate share link from backend
+            // 1. Generate persistent share link from backend
             const response = await api.post('/user/mega-reward/share-link', {
                 reelId,
                 platform
@@ -48,87 +63,50 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
             if (response.success && response.data) {
                 const { shareUrl } = response.data;
                 const shareMessage = `Check out this amazing reel! 🎬 ${reelTitle || 'Watch Now'}`;
+                const fullText = `${shareMessage}\n\n${shareUrl}`;
 
-                // Prepare share data for Web Share API
-                const shareData = {
-                    title: reelTitle || 'Mega Reward Reel',
-                    text: shareMessage,
-                    url: shareUrl
-                };
-
-                // Try Web Share API first (native OS share sheet)
-                // This provides the best experience on mobile - opens native share picker
-                if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-                    try {
-                        await navigator.share(shareData);
-                        toast.success('Shared successfully!');
-                        // Refresh status after share
-                        setTimeout(() => fetchStatus(), 2000);
-                        return;
-                    } catch (err) {
-                        if (err.name === 'AbortError') {
-                            // User cancelled the share - don't fall through
-                            return;
-                        }
-                        // Web Share failed, fall through to platform-specific fallback
-                        console.log('Web Share failed, using fallback:', err.message);
-                    }
-                }
-
-                // Fallback to platform-specific sharing
-                let shareLink = '';
-
+                // 2. Platform-specific execution
                 switch (platform) {
                     case 'whatsapp':
-                        // Use wa.me for a cleaner sharing experience
-                        shareLink = `https://wa.me/?text=${encodeURIComponent(shareMessage + '\n\n' + shareUrl)}`;
-                        window.open(shareLink, '_blank');
+                        // Direct WhatsApp sharing
+                        const waUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
+                        window.open(waUrl, '_blank');
                         break;
 
                     case 'instagram':
-                        // Copy link to clipboard first
-                        await navigator.clipboard.writeText(shareMessage + '\n\n' + shareUrl);
-                        toast.success('Link copied! Paste it in your Instagram Story or DM');
+                        // Instagram always uses Copy + Deep Link pattern
+                        await copyToClipboard(fullText, 'Link copied! Opening Instagram...');
 
-                        // Try to open Instagram app via URL scheme
-                        // This works on mobile when the app is installed
-                        const instagramAppUrl = 'instagram://camera';
-                        const instagramWebUrl = 'https://www.instagram.com/';
+                        let igUrl = 'instagram://camera'; // Default to app
+                        if (subAction === 'story') igUrl = 'instagram://story-camera';
+                        if (subAction === 'message') igUrl = 'instagram://direct_v2';
 
-                        // Try app first, fallback to web
-                        const instagramOpened = window.open(instagramAppUrl, '_self');
+                        // Try app scheme, fallback to web
+                        const igWindow = window.open(igUrl, '_self');
                         setTimeout(() => {
-                            // If app didn't open (still on same page), open web
-                            window.open(instagramWebUrl, '_blank');
-                        }, 1000);
+                            if (!igWindow || igWindow.closed) {
+                                window.open('https://www.instagram.com/', '_blank');
+                            }
+                        }, 1200);
                         break;
 
                     case 'facebook':
-                        // Try Facebook app URL scheme first (mobile)
-                        const fbAppUrl = `fb://share?link=${encodeURIComponent(shareUrl)}`;
-                        const fbWebUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+                        // Facebook sharer
+                        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+                        window.open(fbUrl, '_blank');
+                        break;
 
-                        // On mobile, try app first
-                        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                            window.location.href = fbAppUrl;
-                            // Fallback to web after a short delay
-                            setTimeout(() => {
-                                window.open(fbWebUrl, '_blank');
-                            }, 1000);
-                        } else {
-                            // Desktop: Open web share dialog directly
-                            window.open(fbWebUrl, '_blank');
-                        }
+                    case 'copy':
+                        // Just copy the link
+                        await copyToClipboard(fullText, 'Share link copied to clipboard!');
                         break;
                 }
 
-                toast.success(`Opening ${platform.charAt(0).toUpperCase() + platform.slice(1)}...`);
-
-                // Refresh status after share
-                setTimeout(() => fetchStatus(), 2000);
+                // Refresh status after a short delay
+                setTimeout(() => fetchStatus(), 2500);
             }
         } catch (error) {
-            console.error('Share error:', error);
+            console.error('[MegaRewardShare] Share error:', error);
             toast.error(error.message || 'Failed to generate share link');
         } finally {
             setLoading(false);
@@ -254,14 +232,46 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                                     onShare={() => handleShare('whatsapp')}
                                 />
 
-                                <StepItem
-                                    icon={<FaInstagram className="text-pink-600 text-xl" />}
-                                    label="Instagram"
-                                    subLabel={`${stats.instagram?.clicks || 0}/${stats.instagram?.required || 1} unique opens`}
-                                    done={eligibility?.eligibility?.instagram}
-                                    loading={sharingPlatform === 'instagram'}
-                                    onShare={() => handleShare('instagram')}
-                                />
+                                <div className="space-y-2">
+                                    <StepItem
+                                        icon={<FaInstagram className="text-pink-600 text-xl" />}
+                                        label="Instagram"
+                                        subLabel={`${stats.instagram?.clicks || 0}/${stats.instagram?.required || 1} unique opens`}
+                                        done={eligibility?.eligibility?.instagram}
+                                        loading={sharingPlatform === 'instagram'}
+                                        onShare={() => setShowInstagramOptions(!showInstagramOptions)}
+                                    />
+
+                                    <AnimatePresence>
+                                        {showInstagramOptions && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="grid grid-cols-3 gap-2 px-2 overflow-hidden"
+                                            >
+                                                <button
+                                                    onClick={() => handleShare('instagram', 'app')}
+                                                    className="py-2 px-1 bg-pink-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1"
+                                                >
+                                                    <FaInstagram /> App
+                                                </button>
+                                                <button
+                                                    onClick={() => handleShare('instagram', 'story')}
+                                                    className="py-2 px-1 bg-pink-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1"
+                                                >
+                                                    <FaInstagram /> Story
+                                                </button>
+                                                <button
+                                                    onClick={() => handleShare('instagram', 'message')}
+                                                    className="py-2 px-1 bg-pink-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1"
+                                                >
+                                                    <FaInstagram /> Message
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
 
                                 <StepItem
                                     icon={<FaFacebook className="text-blue-600 text-xl" />}
@@ -271,6 +281,14 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                                     loading={sharingPlatform === 'facebook'}
                                     onShare={() => handleShare('facebook')}
                                 />
+
+                                <button
+                                    onClick={() => handleShare('copy')}
+                                    className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-500 font-bold hover:bg-gray-50 transition-colors"
+                                >
+                                    <FiShare2 className="text-sm" />
+                                    <span className="text-xs uppercase tracking-wider">Copy Share Link</span>
+                                </button>
                             </div>
 
                             {/* Generate Ticket Button */}

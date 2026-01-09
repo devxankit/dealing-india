@@ -92,7 +92,15 @@ export const generateShareLink = asyncHandler(async (req, res) => {
     const userId = req.user.userId || req.user._id;
     const { reelId, platform } = req.body;
 
+    console.log('[MegaReward] generateShareLink called:', {
+        userId,
+        reelId,
+        platform,
+        timestamp: new Date().toISOString()
+    });
+
     if (!reelId || !platform) {
+        console.error('[MegaReward] Missing required fields:', { reelId, platform });
         return res.status(400).json({
             success: false,
             message: 'Reel ID and platform are required'
@@ -100,39 +108,58 @@ export const generateShareLink = asyncHandler(async (req, res) => {
     }
 
     if (!['whatsapp', 'instagram', 'facebook'].includes(platform)) {
+        console.error('[MegaReward] Invalid platform:', platform);
         return res.status(400).json({
             success: false,
             message: 'Invalid platform. Must be whatsapp, instagram, or facebook'
         });
     }
 
-    const shareLink = await MegaRewardShareService.generateShareLink(userId, reelId, platform);
-
-    // Construct the full share URL
-    // Priority: Env Var > Request Host (if not local) > Production Default
-    let backendUrl = process.env.BACKEND_URL;
-
-    if (!backendUrl) {
-        const host = req.get('host') || '';
-        if (host.includes('dealingindia') || host.includes('onrender')) {
-            backendUrl = 'https://dealing-india.onrender.com';
-        } else {
-            backendUrl = `${req.protocol}://${host}`;
-        }
-    }
-
-    const shareUrl = `${backendUrl}/api/mega-reward/r/${shareLink.linkCode}`;
-
-    res.status(200).json({
-        success: true,
-        data: {
+    try {
+        console.log('[MegaReward] Calling MegaRewardShareService.generateShareLink...');
+        const shareLink = await MegaRewardShareService.generateShareLink(userId, reelId, platform);
+        console.log('[MegaReward] ShareLink generated:', {
             linkCode: shareLink.linkCode,
-            shareUrl,
-            platform,
-            uniqueClickCount: shareLink.uniqueClickCount,
-            isEligible: shareLink.isEligible
+            exists: shareLink.exists,
+            uniqueClickCount: shareLink.uniqueClickCount
+        });
+
+        // Construct the full share URL
+        // Priority: Env Var > Request Host (if not local) > Production Default
+        let backendUrl = process.env.BACKEND_URL;
+
+        if (!backendUrl) {
+            const host = req.get('host') || '';
+            if (host.includes('dealingindia') || host.includes('onrender')) {
+                backendUrl = 'https://dealing-india.onrender.com';
+            } else {
+                backendUrl = `${req.protocol}://${host}`;
+            }
         }
-    });
+
+        const shareUrl = `${backendUrl}/api/mega-reward/r/${shareLink.linkCode}`;
+        console.log('[MegaReward] Final shareUrl:', shareUrl);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                linkCode: shareLink.linkCode,
+                shareUrl,
+                platform,
+                uniqueClickCount: shareLink.uniqueClickCount || 0,
+                isEligible: shareLink.isEligible || false
+            }
+        });
+    } catch (error) {
+        console.error('[MegaReward] generateShareLink error:', {
+            message: error.message,
+            stack: error.stack,
+            userId,
+            reelId,
+            platform
+        });
+        throw error;
+    }
 });
 
 // Get user's current entry

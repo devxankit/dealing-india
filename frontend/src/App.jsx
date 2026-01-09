@@ -107,6 +107,8 @@ import DeliveryRules from "./modules/Admin/pages/DeliveryRules";
 import RouteWrapper from "./shared/components/RouteWrapper";
 import ScrollToTop from "./shared/components/ScrollToTop";
 // Mobile App Routes
+import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
+
 // Mobile App Routes (Eager Loaded for Instant Nav)
 import MobileHome from "./modules/UserApp/pages/Home";
 import MobileCategories from "./modules/UserApp/pages/categories";
@@ -115,31 +117,31 @@ import MobileReels from "./modules/UserApp/pages/Reels";
 import MobileProfile from "./modules/UserApp/pages/Profile";
 import MobileLogin from "./modules/UserApp/pages/Login";
 
-// Mobile App Routes (Lazy Loaded)
-const MobileProductDetail = lazy(() => import("./modules/UserApp/pages/ProductDetail"));
-const MobileCategory = lazy(() => import("./modules/UserApp/pages/Category"));
-const MobileCheckout = lazy(() => import("./modules/UserApp/pages/Checkout"));
-const MobileRegister = lazy(() => import("./modules/UserApp/pages/Register"));
-const MobileVerification = lazy(() => import("./modules/UserApp/pages/Verification"));
-const MobileOrders = lazy(() => import("./modules/UserApp/pages/Orders"));
-const MobileOrderDetail = lazy(() => import("./modules/UserApp/pages/OrderDetail"));
-const MobileAddresses = lazy(() => import("./modules/UserApp/pages/Addresses"));
-const MobileNotifications = lazy(() => import("./modules/UserApp/pages/Notifications"));
-const MobileWishlist = lazy(() => import("./modules/UserApp/pages/Wishlist"));
-const MobileOffers = lazy(() => import("./modules/UserApp/pages/Offers"));
-const MobileDailyDeals = lazy(() => import("./modules/UserApp/pages/DailyDeals"));
-const MobileFlashSale = lazy(() => import("./modules/UserApp/pages/FlashSale"));
-const MobileTrackOrder = lazy(() => import("./modules/UserApp/pages/TrackOrder"));
-const MobileOrderConfirmation = lazy(() => import("./modules/UserApp/pages/OrderConfirmation"));
-const MobileMegaReward = lazy(() => import("./modules/UserApp/pages/MegaReward"));
-const MobileSettings = lazy(() => import("./modules/UserApp/pages/Settings"));
-const MobileChangePassword = lazy(() => import("./modules/UserApp/pages/ChangePassword"));
-const MobileContentPage = lazy(() => import("./modules/UserApp/pages/ContentPage"));
-const MobileWallet = lazy(() => import("./modules/UserApp/pages/Wallet"));
-const MobileReturnRequest = lazy(() => import("./modules/UserApp/pages/ReturnRequest"));
-const MobileMyReturns = lazy(() => import("./modules/UserApp/pages/MyReturns"));
-const MobileForgotPassword = lazy(() => import("./modules/UserApp/pages/ForgotPassword"));
-const MobileSingleReel = lazy(() => import("./modules/UserApp/pages/SingleReel"));
+// Mobile App Routes (Lazy Loaded with Auto-Refresh on Fail)
+const MobileProductDetail = lazyWithRetry(() => import("./modules/UserApp/pages/ProductDetail"));
+const MobileCategory = lazyWithRetry(() => import("./modules/UserApp/pages/Category"));
+const MobileCheckout = lazyWithRetry(() => import("./modules/UserApp/pages/Checkout"));
+const MobileRegister = lazyWithRetry(() => import("./modules/UserApp/pages/Register"));
+const MobileVerification = lazyWithRetry(() => import("./modules/UserApp/pages/Verification"));
+const MobileOrders = lazyWithRetry(() => import("./modules/UserApp/pages/Orders"));
+const MobileOrderDetail = lazyWithRetry(() => import("./modules/UserApp/pages/OrderDetail"));
+const MobileAddresses = lazyWithRetry(() => import("./modules/UserApp/pages/Addresses"));
+const MobileNotifications = lazyWithRetry(() => import("./modules/UserApp/pages/Notifications"));
+const MobileWishlist = lazyWithRetry(() => import("./modules/UserApp/pages/Wishlist"));
+const MobileOffers = lazyWithRetry(() => import("./modules/UserApp/pages/Offers"));
+const MobileDailyDeals = lazyWithRetry(() => import("./modules/UserApp/pages/DailyDeals"));
+const MobileFlashSale = lazyWithRetry(() => import("./modules/UserApp/pages/FlashSale"));
+const MobileTrackOrder = lazyWithRetry(() => import("./modules/UserApp/pages/TrackOrder"));
+const MobileOrderConfirmation = lazyWithRetry(() => import("./modules/UserApp/pages/OrderConfirmation"));
+const MobileMegaReward = lazyWithRetry(() => import("./modules/UserApp/pages/MegaReward"));
+const MobileSettings = lazyWithRetry(() => import("./modules/UserApp/pages/Settings"));
+const MobileChangePassword = lazyWithRetry(() => import("./modules/UserApp/pages/ChangePassword"));
+const MobileContentPage = lazyWithRetry(() => import("./modules/UserApp/pages/ContentPage"));
+const MobileWallet = lazyWithRetry(() => import("./modules/UserApp/pages/Wallet"));
+const MobileReturnRequest = lazyWithRetry(() => import("./modules/UserApp/pages/ReturnRequest"));
+const MobileMyReturns = lazyWithRetry(() => import("./modules/UserApp/pages/MyReturns"));
+const MobileForgotPassword = lazyWithRetry(() => import("./modules/UserApp/pages/ForgotPassword"));
+const MobileSingleReel = lazyWithRetry(() => import("./modules/UserApp/pages/SingleReel"));
 
 // Vendor Routes
 import VendorLogin from "./modules/Vendor/pages/Login";

@@ -316,7 +316,7 @@ const MobileReels = ({ isEmbedded = false, defaultType = null }) => {
   const handleShare = (reel) => {
     // Only show mega reward message for promotional reels
     const isPromotional = reel.isPromotional || false;
-    const shareUrl = `${window.location.origin}/app/reels?reel=${reel._id || reel.id}`;
+    const shareUrl = `${window.location.origin}/app/reels/${reel._id || reel.id}`;
 
     if (isPromotional) {
       // Real share tracking is handled within MegaRewardSheet

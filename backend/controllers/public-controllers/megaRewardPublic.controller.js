@@ -94,7 +94,7 @@ export const trackClick = asyncHandler(async (req, res) => {
                             try {
                                 // Real human -> Securely log the click via API before redirecting
                                 // This filters out bots that don't execute JS
-                                await fetch('/api/mega-reward/track-log/' + linkCode, {
+                                await fetch('/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' }
                                 });
@@ -135,12 +135,15 @@ export const trackClick = asyncHandler(async (req, res) => {
 // Record the actual click (POST handler called by JS)
 export const recordClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
+    console.log(`[MegaRewardController] recordClick hit for code: ${linkCode.substring(0, 20)}...`);
 
     const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
         || req.headers['x-real-ip']
         || req.socket?.remoteAddress
         || req.ip
         || 'unknown';
+
+    console.log(`[MegaRewardController] Client IP: ${ipAddress}`);
 
     let fingerprint = null;
     if (req.headers.cookie) {
@@ -155,24 +158,44 @@ export const recordClick = asyncHandler(async (req, res) => {
     if (!fingerprint) {
         const randomPart = Math.random().toString(36).substring(2, 11);
         fingerprint = `fp_${Date.now()}_${randomPart}`;
+        console.log(`[MegaRewardController] Generated new fingerprint: ${fingerprint}`);
         res.cookie('mr_fp', fingerprint, {
             maxAge: 365 * 24 * 60 * 60 * 1000,
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax'
         });
+    } else {
+        console.log(`[MegaRewardController] Using existing fingerprint: ${fingerprint}`);
     }
 
     const userAgent = req.headers['user-agent'] || '';
 
-    const result = await MegaRewardShareService.trackClick(
-        linkCode,
-        ipAddress,
-        fingerprint,
-        userAgent
-    );
+    try {
+        console.log(`[MegaRewardController] Calling trackClick service...`);
+        const result = await MegaRewardShareService.trackClick(
+            linkCode,
+            ipAddress,
+            fingerprint,
+            userAgent
+        );
 
-    res.status(200).json(result);
+        console.log(`[MegaRewardController] trackClick result:`, {
+            success: result.success,
+            isNewClick: result.isNewClick,
+            uniqueClickCount: result.uniqueClickCount
+        });
+
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(`[MegaRewardController] recordClick error:`, {
+            message: error.message,
+            stack: error.stack,
+            linkCode,
+            ipAddress
+        });
+        throw error;
+    }
 });
 
 // Get link info (public, for preview)
