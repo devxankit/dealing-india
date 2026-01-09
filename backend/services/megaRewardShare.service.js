@@ -38,20 +38,28 @@ class MegaRewardShareService {
             // Return the existing persistent short code
             return {
                 linkCode: shareLink.linkCode,
-                exists: true
+                exists: true,
+                uniqueClickCount: shareLink.uniqueClickCount,
+                isEligible: shareLink.isEligible
             };
         }
 
-        // 2. If NO link exists, generate a stateless "temporary" code
-        // Format: "lazy_<base64(userId:reelId:platform:campaignId)>"
-        // This avoids creating a DB record just for clicking the button
-        const payload = `${userId}:${reelId}:${platform}:${activeSettings._id}`;
-        const encoded = Buffer.from(payload).toString('base64');
-        const tempCode = `lazy_${encoded}`;
+        // 2. If NO link exists, CREATE it now (PERSISTENT)
+        console.log(`[MegaRewardShare] Creating new persistent share link for user ${userId}, reel ${reelId}, platform ${platform}`);
+
+        shareLink = await MegaRewardShareLink.create({
+            userId: new mongoose.Types.ObjectId(userId),
+            reelId: new mongoose.Types.ObjectId(reelId),
+            megaRewardId: activeSettings._id,
+            platform,
+            expiresAt: activeSettings.endDate
+        });
 
         return {
-            linkCode: tempCode,
-            exists: false
+            linkCode: shareLink.linkCode,
+            exists: true, // It exists now because we just created it
+            uniqueClickCount: 0,
+            isEligible: false
         };
     }
 
