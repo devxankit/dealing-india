@@ -73,6 +73,7 @@ export const getMyStatus = asyncHandler(async (req, res) => {
             campaign: {
                 prizeTitle: settings.prizeTitle,
                 prizes: settings.prizes,
+                customRanges: settings.customRanges,
                 endDate: settings.endDate
             },
             entry: entry ? {
@@ -108,8 +109,9 @@ export const generateShareLink = asyncHandler(async (req, res) => {
     const shareLink = await MegaRewardShareService.generateShareLink(userId, reelId, platform);
 
     // Construct the full share URL
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const shareUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/mega-reward/r/${shareLink.linkCode}`;
+    // Use dynamic host if BACKEND_URL is not set (better for local network testing)
+    const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+    const shareUrl = `${backendUrl}/api/mega-reward/r/${shareLink.linkCode}`;
 
     res.status(200).json({
         success: true,

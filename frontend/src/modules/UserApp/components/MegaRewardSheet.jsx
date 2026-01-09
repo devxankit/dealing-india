@@ -53,11 +53,12 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
 
                 switch (platform) {
                     case 'whatsapp':
-                        shareLink = `https://wa.me/?text=${encodeURIComponent(shareMessage + '\n' + shareUrl)}`;
+                        // Use official API and ensure double newline for better link separation
+                        shareLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage + '\n\n' + shareUrl)}`;
                         break;
                     case 'instagram':
                         // Instagram doesn't have a direct share URL, copy to clipboard
-                        await navigator.clipboard.writeText(shareMessage + '\n' + shareUrl);
+                        await navigator.clipboard.writeText(shareMessage + '\n\n' + shareUrl);
                         toast.success('Link copied! Open Instagram and paste in your story');
                         shareLink = 'https://www.instagram.com/';
                         break;
@@ -172,6 +173,21 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                                             </div>
                                         ))}
                                     </div>
+
+                                    {/* Custom Ranges */}
+                                    {campaign.customRanges && campaign.customRanges.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-gray-200">
+                                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Additional Rewards</div>
+                                            <div className="space-y-2">
+                                                {campaign.customRanges.map((range, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center text-xs">
+                                                        <span className="font-bold text-gray-500">Rank {range.startRank}-{range.endRank}</span>
+                                                        <span className="font-black text-gray-900">₹{range.prizeAmount?.toLocaleString()}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

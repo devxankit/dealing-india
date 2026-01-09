@@ -9,6 +9,8 @@ import MegaRewardSettings from '../models/MegaRewardSettings.model.js';
 class MegaRewardShareService {
     /**
      * Generate a unique share link for a user + reel + platform
+     * Uses "Lazy Creation" - returns a temporary signed code if no DB record exists
+     * to prevent database bloat from unused share buttons.
      */
     async generateShareLink(userId, reelId, platform) {
         // Get active running campaign
@@ -23,7 +25,7 @@ class MegaRewardShareService {
             throw new Error('No active or running Mega Reward campaign found');
         }
 
-        // Check if link already exists
+        // 1. Check if a persistent link ALREADY exists
         let shareLink = await MegaRewardShareLink.findOne({
             userId,
             reelId,
@@ -31,19 +33,24 @@ class MegaRewardShareService {
         });
 
         if (shareLink) {
-            return shareLink;
+            // Return the existing persistent short code
+            return {
+                linkCode: shareLink.linkCode,
+                exists: true
+            };
         }
 
-        // Create new share link
-        shareLink = await MegaRewardShareLink.create({
-            userId,
-            reelId,
-            megaRewardId: activeSettings._id,
-            platform,
-            expiresAt: activeSettings.endDate
-        });
+        // 2. If NO link exists, generate a stateless "temporary" code
+        // Format: "lazy_<base64(userId:reelId:platform:campaignId)>"
+        // This avoids creating a DB record just for clicking the button
+        const payload = `${userId}:${reelId}:${platform}:${activeSettings._id}`;
+        const encoded = Buffer.from(payload).toString('base64');
+        const tempCode = `lazy_${encoded}`;
 
-        return shareLink;
+        return {
+            linkCode: tempCode,
+            exists: false
+        };
     }
 
     /**
@@ -51,7 +58,44 @@ class MegaRewardShareService {
      * Returns: { success: boolean, isNewClick: boolean }
      */
     async trackClick(linkCode, ipAddress, fingerprint, userAgent) {
-        const shareLink = await MegaRewardShareLink.findOne({ linkCode });
+        let shareLink;
+
+        // 1. Check if this is a Lazy Link (Temporary)
+        if (linkCode.startsWith('lazy_')) {
+            try {
+                // Decode payload: "userId:reelId:platform:megaRewardId"
+                const encoded = linkCode.replace('lazy_', '');
+                const payload = Buffer.from(encoded, 'base64').toString('utf8');
+                const [userId, reelId, platform, megaRewardId] = payload.split(':');
+
+                if (!userId || !reelId || !platform || !megaRewardId) {
+                    throw new Error('Invalid temporary link format');
+                }
+
+                // Double-check if persistent link was created in the meantime (Race condition)
+                shareLink = await MegaRewardShareLink.findOne({ userId, reelId, platform });
+
+                // If not, CREATE it now (The "Lazy Creation" step)
+                if (!shareLink) {
+                    const settings = await MegaRewardSettings.findById(megaRewardId);
+                    if (!settings) throw new Error('Campaign not found');
+
+                    shareLink = await MegaRewardShareLink.create({
+                        userId,
+                        reelId,
+                        megaRewardId,
+                        platform,
+                        expiresAt: settings.endDate
+                    });
+                }
+            } catch (err) {
+                console.error('Lazy link creation failed:', err);
+                throw new Error('Invalid or corrupted share link');
+            }
+        } else {
+            // 2. Normal Persistent Link
+            shareLink = await MegaRewardShareLink.findOne({ linkCode });
+        }
 
         if (!shareLink) {
             throw new Error('Invalid share link');
@@ -76,11 +120,14 @@ class MegaRewardShareService {
             shareLink.uniqueClickCount += 1;
 
             // Check if eligibility threshold is met
+            // Optimize: We already have settings ID, but need 'requiredClicks'. Fetch settings again or assume standard?
+            // Safer to fetch to respect dynamic config.
             const settings = await MegaRewardSettings.findById(shareLink.megaRewardId);
-            const requiredClicks = settings.requiredClicks[shareLink.platform];
-
-            if (shareLink.uniqueClickCount >= requiredClicks) {
-                shareLink.isEligible = true;
+            if (settings) {
+                const requiredClicks = settings.requiredClicks[shareLink.platform];
+                if (shareLink.uniqueClickCount >= requiredClicks) {
+                    shareLink.isEligible = true;
+                }
             }
 
             await shareLink.save();

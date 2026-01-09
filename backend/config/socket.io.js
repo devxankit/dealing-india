@@ -21,11 +21,13 @@ let io;
  * @param {http.Server} httpServer - HTTP server instance
  * @returns {Server} Socket.io server instance
  */
-export const setupSocketIO = (httpServer) => {
+export const setupSocketIO = (httpServer, allowedOrigins = []) => {
   // Default allowed origins (always included)
   const defaultOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
     'https://dealing-india.vercel.app',
     'https://www.dealingindia.com',
     'https://dealingindia.com',
@@ -33,13 +35,8 @@ export const setupSocketIO = (httpServer) => {
     'https://dealingindia.in'
   ];
 
-  // Get origins from environment variable if set
-  const envOrigins = process.env.SOCKET_CORS_ORIGIN
-    ? process.env.SOCKET_CORS_ORIGIN.split(',').map(origin => origin.trim())
-    : [];
-
-  // Merge and deduplicate origins (environment origins + defaults)
-  const corsOrigins = [...new Set([...envOrigins, ...defaultOrigins])];
+  // Merge and deduplicate origins (passed origins + defaults)
+  const corsOrigins = [...new Set([...allowedOrigins, ...defaultOrigins])];
 
   io = new Server(httpServer, {
     cors: {

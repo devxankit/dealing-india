@@ -304,6 +304,22 @@ const MegaReward = () => {
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Custom Range Prizes */}
+                            {campaign.customRanges && campaign.customRanges.map((range, idx) => (
+                                <div key={`range-${idx}`} className="flex justify-between items-center pt-2 border-t border-white/5">
+                                    <div className="flex flex-col">
+                                        <span className="text-gray-400 font-bold uppercase text-[10px]">Rank {range.startRank} - {range.endRank}</span>
+                                        <span className="text-[8px] text-purple-400 font-black uppercase italic">
+                                            {range.endRank - range.startRank + 1} Winners
+                                        </span>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-yellow-500 font-black text-xs">₹{range.prizeAmount?.toLocaleString()}</div>
+                                        <div className="text-[8px] text-gray-500 font-medium">{range.description || 'Consolation Prize'}</div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </motion.div>
 

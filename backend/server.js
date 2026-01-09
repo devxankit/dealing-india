@@ -104,6 +104,8 @@ const httpServer = http.createServer(app);
 const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
   'https://dealing-india.vercel.app',
   'https://dealing-india-*.vercel.app', // Allow all Vercel preview deployments
   'https://www.dealingindia.com',
@@ -449,7 +451,7 @@ const startServer = async () => {
     }
 
     // Setup Socket.io
-    const io = setupSocketIO(httpServer);
+    const io = setupSocketIO(httpServer, corsOrigins);
     // Make io instance available to routes/controllers
     app.set('io', io);
     console.log('✅ Socket.io initialized');

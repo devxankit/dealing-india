@@ -382,14 +382,7 @@ const MegaRewardSettings = () => {
                                                 <span className="text-amber-600">No winner declared yet</span>
                                             )}
                                         </div>
-                                        {!isDeclared && settingsId && (
-                                            <button
-                                                onClick={() => handleOpenSelectionModal(prize.rank)}
-                                                className="px-4 py-1.5 bg-black text-white text-xs font-bold rounded-lg hover:bg-gray-800 transition-all flex items-center gap-2"
-                                            >
-                                                <FiPlus /> Select Winner
-                                            </button>
-                                        )}
+                                        {/* Winner selection buttons removed as per requirement */}
                                     </div>
                                 </div>
                             );
@@ -484,14 +477,7 @@ const MegaRewardSettings = () => {
                                                 <span>Save settings to enable declaration</span>
                                             )}
                                         </div>
-                                        {status && status.remaining > 0 && (
-                                            <button
-                                                onClick={() => handleDeclareRange(index)}
-                                                className="px-3 py-1 bg-purple-600 text-white text-[10px] font-bold rounded-lg hover:bg-purple-700"
-                                            >
-                                                Declare {status.remaining} Winners
-                                            </button>
-                                        )}
+                                        {/* Winner declaration removed */}
                                     </div>
                                 </div>
                             );

@@ -8,48 +8,124 @@ import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
  */
 
 // Track click and redirect
+// Track click and redirect with Open Graph support
 export const trackClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
 
-    // Get client IP (handle proxies)
+    // Get client IP
     const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
         || req.headers['x-real-ip']
         || req.socket?.remoteAddress
         || req.ip
         || 'unknown';
 
-    // Get fingerprint from header or generate from user agent
-    const fingerprint = req.headers['x-fingerprint']
-        || req.query.fp
-        || Buffer.from(req.headers['user-agent'] || 'unknown').toString('base64').slice(0, 20);
+    // Cookie-based Fingerprinting (Robust against same-IP networks like WiFi)
+    let fingerprint = null;
+
+    // 1. Try to read existing fingerprint from cookie
+    if (req.headers.cookie) {
+        const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
+            const [name, value] = cookie.trim().split('=');
+            acc[name] = value;
+            return acc;
+        }, {});
+        fingerprint = cookies['mr_fp'];
+    }
+
+    // 2. If no cookie, generate a new persistent fingerprint
+    if (!fingerprint) {
+        const randomPart = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        fingerprint = `fp_${Date.now()}_${randomPart}`;
+
+        // Set long-lived cookie (1 year)
+        res.cookie('mr_fp', fingerprint, {
+            maxAge: 365 * 24 * 60 * 60 * 1000,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax'
+        });
+    }
 
     const userAgent = req.headers['user-agent'] || '';
 
     try {
-        // Track the click
-        const result = await MegaRewardShareService.trackClick(
+        // Track the click (using the cookie fingerprint)
+        await MegaRewardShareService.trackClick(
             linkCode,
             ipAddress,
             fingerprint,
             userAgent
         );
 
-        // Get the share link to find the reel
+        // Get the share link details to find the reel
         const shareLink = await MegaRewardShareService.getShareLinkByCode(linkCode);
 
-        if (!shareLink || !shareLink.reelId) {
-            return res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173');
+        // Determine Redirect URL
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        let redirectUrl = `${frontendUrl}/app/mega-reward`; // Default fallback
+
+        let ogTitle = 'Mega Reward';
+        let ogDescription = 'Check out this amazing reel and win prizes!';
+        let ogImage = '';
+
+        if (shareLink && shareLink.reelId) {
+            redirectUrl = `${frontendUrl}/app/reels?type=promotional&reel=${shareLink.reelId._id}&source=${shareLink.platform}`;
+            ogTitle = shareLink.reelId.title || 'Mega Reward Reel';
+            ogDescription = shareLink.reelId.description || 'Watch and share to win huge rewards!';
+            ogImage = shareLink.reelId.thumbnail || '';
         }
 
-        // Redirect to the reel/app
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        const redirectUrl = `${frontendUrl}/app/reels?type=promotional&reel=${shareLink.reelId._id}&source=${shareLink.platform}`;
+        // Return HTML with Open Graph tags + JS Redirect
+        // This ensures social platforms can scrape metadata for the "Link Form" (Preview Card)
+        const html = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>${ogTitle}</title>
+                
+                <!-- Open Graph / Facebook / WhatsApp -->
+                <meta property="og:type" content="website">
+                <meta property="og:url" content="${req.protocol}://${req.get('host')}${req.originalUrl}">
+                <meta property="og:title" content="${ogTitle}">
+                <meta property="og:description" content="${ogDescription}">
+                ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
 
-        res.redirect(302, redirectUrl);
+                <!-- Twitter -->
+                <meta property="twitter:card" content="summary_large_image">
+                <meta property="twitter:title" content="${ogTitle}">
+                <meta property="twitter:description" content="${ogDescription}">
+                ${ogImage ? `<meta property="twitter:image" content="${ogImage}">` : ''}
+
+                <style>
+                    body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f9fafb; color: #111; }
+                    .loader { border: 3px solid #f3f3f3; border-top: 3px solid #7c3aed; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                    .content { text-align: center; }
+                </style>
+                
+                <script>
+                    setTimeout(() => {
+                        window.location.href = "${redirectUrl}";
+                    }, 500); // Small delay to ensure scrapers read tags, though usually not needed
+                </script>
+            </head>
+            <body>
+                <div class="content">
+                    <div class="loader" style="margin: 0 auto 20px auto;"></div>
+                    <p>Redirecting to Mega Reward...</p>
+                    <a href="${redirectUrl}" style="color: #7c3aed; text-decoration: none; font-size: 14px;">Click here if not redirected</a>
+                </div>
+            </body>
+            </html>
+        `;
+
+        res.send(html);
+
     } catch (error) {
-        console.error('Click tracking error:', error.message);
-
-        // Still redirect even if tracking fails
+        console.error('Click tracking/redirect error:', error.message);
+        // Fallback hard redirect
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         res.redirect(302, `${frontendUrl}/app/mega-reward`);
     }

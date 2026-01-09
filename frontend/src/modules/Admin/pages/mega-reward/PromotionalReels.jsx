@@ -17,8 +17,7 @@ const PromotionalReels = () => {
     const [thumbnailFile, setThumbnailFile] = useState(null);
     const [previewVideo, setPreviewVideo] = useState('');
     const [previewThumbnail, setPreviewThumbnail] = useState('');
-    const [uploadingVideo, setUploadingVideo] = useState(false);
-    const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+
 
     const [formData, setFormData] = useState({
         title: '',
@@ -63,41 +62,20 @@ const PromotionalReels = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleFileChange = async (e, type) => {
+    const handleFileChange = (e, type) => {
         const file = e.target.files[0];
         if (!file) return;
 
         if (type === 'video') {
-            if (file.size > 100 * 1024 * 1024) { // Increased to 100MB
+            if (file.size > 100 * 1024 * 1024) { // 100MB Limit
                 toast.error('Video size should be less than 100MB');
                 return;
             }
             setVideoFile(file);
+            // Create local preview URL immediately
             setPreviewVideo(URL.createObjectURL(file));
-            setUploadingVideo(true);
-
-            try {
-                const data = new FormData();
-                data.append('file', file);
-                data.append('folder', 'promotional-reels/videos');
-                data.append('resourceType', 'video');
-
-                const response = await api.post('/admin/media/upload', data, {
-                    timeout: 0 // Disable timeout for large uploads
-                });
-
-                if (response.success) {
-                    setFormData(prev => ({ ...prev, videoUrl: response.data.secure_url }));
-                    toast.success('Video uploaded successfully');
-                }
-            } catch (error) {
-                console.error('Video upload error:', error);
-                toast.error('Video upload failed');
-                setVideoFile(null);
-                setPreviewVideo('');
-            } finally {
-                setUploadingVideo(false);
-            }
+            // Clear any manual URL if file is selected
+            setFormData(prev => ({ ...prev, videoUrl: '' }));
         } else if (type === 'thumbnail') {
             if (file.size > 10 * 1024 * 1024) {
                 toast.error('Thumbnail size should be less than 10MB');
@@ -105,27 +83,7 @@ const PromotionalReels = () => {
             }
             setThumbnailFile(file);
             setPreviewThumbnail(URL.createObjectURL(file));
-            setUploadingThumbnail(true);
-
-            try {
-                const data = new FormData();
-                data.append('file', file);
-                data.append('folder', 'promotional-reels/thumbnails');
-
-                const response = await api.post('/admin/media/upload', data);
-
-                if (response.success) {
-                    setFormData(prev => ({ ...prev, thumbnail: response.data.secure_url }));
-                    toast.success('Thumbnail uploaded');
-                }
-            } catch (error) {
-                console.error('Thumbnail upload error:', error);
-                toast.error('Thumbnail upload failed');
-                setThumbnailFile(null);
-                setPreviewThumbnail('');
-            } finally {
-                setUploadingThumbnail(false);
-            }
+            setFormData(prev => ({ ...prev, thumbnail: '' }));
         }
     };
 
@@ -147,11 +105,18 @@ const PromotionalReels = () => {
             data.append('title', formData.title);
             data.append('description', formData.description);
 
-            if (formData.videoUrl) {
+
+
+            // Append files if they exist
+            if (videoFile) {
+                data.append('video', videoFile);
+            } else if (formData.videoUrl) {
                 data.append('videoUrl', formData.videoUrl);
             }
 
-            if (formData.thumbnail) {
+            if (thumbnailFile) {
+                data.append('thumbnail', thumbnailFile);
+            } else if (formData.thumbnail) {
                 data.append('thumbnailUrl', formData.thumbnail);
             }
 
@@ -159,17 +124,10 @@ const PromotionalReels = () => {
                 data.append('megaRewardId', activeCampaign._id);
             }
 
-            // Note: If you have a specific endpoint or logic for multipart/form-data, ensure backend handles it.
-            // Our current backend setup might need adjustment to handle mulitpart/form-data if not already set up.
-            // Assuming we are sending this to an endpoint that supports file uploads or we need to convert to base64 frontend side first?
-            // The prompt says "store on Cloudinary", which is typically handled by backend.
-            // Let's assume the backend controller we set up calls a service that handles Cloudinary upload.
-            // Wait, looking at previous backend code, it expects JSON body provided to `create`.
-            // We need to update backend to support file upload or handle it here.
-            // BUT: The user asked to "write backend accordingly". 
-            // So we will send FormData and update backend to handle it.
-
-            const response = await api.post('/admin/promotional-reels', data);
+            const response = await api.post('/admin/promotional-reels', data, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                timeout: 300000 // 5 mins
+            });
 
             if (response.success) {
                 toast.success('Promotional Reel Added Successfully');
@@ -280,11 +238,11 @@ const PromotionalReels = () => {
                                                         onChange={(e) => handleFileChange(e, 'video')}
                                                     />
                                                     <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                                                        {uploadingVideo ? <FiLoader className="text-2xl text-purple-600 animate-spin" /> : <FiUpload className={`text-2xl ${videoFile ? 'text-purple-600' : 'text-gray-400'}`} />}
+                                                        <FiUpload className={`text-2xl ${videoFile ? 'text-purple-600' : 'text-gray-400'}`} />
                                                         <span className={`text-sm font-medium ${videoFile ? 'text-purple-700' : 'text-gray-500'}`}>
-                                                            {uploadingVideo ? 'Uploading to cloud...' : videoFile ? videoFile.name : 'Click to upload video file'}
+                                                            {videoFile ? videoFile.name : 'Click to upload video file'}
                                                         </span>
-                                                        {!videoFile && !uploadingVideo && <span className="text-xs text-gray-400">MP4, WebM (Max 100MB)</span>}
+                                                        {!videoFile && <span className="text-xs text-gray-400">MP4, WebM (Max 100MB)</span>}
                                                     </label>
                                                     {videoFile && (
                                                         <button
@@ -334,9 +292,9 @@ const PromotionalReels = () => {
                                                         onChange={(e) => handleFileChange(e, 'thumbnail')}
                                                     />
                                                     <label htmlFor="thumbnail-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                                                        {uploadingThumbnail ? <FiLoader className="text-2xl text-purple-600 animate-spin" /> : <FiImage className={`text-2xl ${thumbnailFile ? 'text-purple-600' : 'text-gray-400'}`} />}
+                                                        <FiImage className={`text-2xl ${thumbnailFile ? 'text-purple-600' : 'text-gray-400'}`} />
                                                         <span className={`text-sm font-medium ${thumbnailFile ? 'text-purple-700' : 'text-gray-500'}`}>
-                                                            {uploadingThumbnail ? 'Uploading...' : thumbnailFile ? thumbnailFile.name : 'Click to upload thumbnail'}
+                                                            {thumbnailFile ? thumbnailFile.name : 'Click to upload thumbnail'}
                                                         </span>
                                                     </label>
                                                     {thumbnailFile && (
@@ -376,11 +334,11 @@ const PromotionalReels = () => {
                                 <div className="flex justify-end">
                                     <button
                                         type="submit"
-                                        disabled={submitting || uploadingVideo || uploadingThumbnail}
+                                        disabled={submitting}
                                         className="px-8 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 hover:shadow-lg hover:shadow-purple-200 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
                                         {submitting ? <FiLoader className="animate-spin" /> : <FiPlus />}
-                                        {submitting ? 'Creating...' : (uploadingVideo || uploadingThumbnail) ? 'Please wait for upload...' : 'Create Promotional Reel'}
+                                        {submitting ? 'Creating & Uploading...' : 'Create Promotional Reel'}
                                     </button>
                                 </div>
                             </form>
