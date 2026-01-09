@@ -103,7 +103,7 @@ const MobileProductDetail = () => {
             primaryColorName: productData.primaryColorName,
             primaryColorCode: productData.primaryColorCode,
             brandName: productData.brandName || productData.brandId?.name || '',
-
+            sizeVariants: productData.sizeVariants || [],
           };
 
           setProduct(transformedProduct);
@@ -240,8 +240,16 @@ const MobileProductDetail = () => {
   const currentPrice = useMemo(() => {
     if (!product) return 0;
 
+    // Root sizeVariants structure
+    if (selectedVariant && selectedVariant.isRootSize && product.sizeVariants && product.sizeVariants[selectedVariant.sizeIndex]) {
+      const sizeVariant = product.sizeVariants[selectedVariant.sizeIndex];
+      if (sizeVariant.price !== null && sizeVariant.price !== undefined) {
+        return sizeVariant.price;
+      }
+    }
+
     // New colorVariants structure
-    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined && selectedVariant.colorIndex !== null) {
       const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
       if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
         const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
@@ -306,8 +314,16 @@ const MobileProductDetail = () => {
   }
 
   const handleBuyNow = () => {
+    // Check stock for root size variants
+    if (selectedVariant && selectedVariant.isRootSize && product.sizeVariants && product.sizeVariants[selectedVariant.sizeIndex]) {
+      const sizeVariant = product.sizeVariants[selectedVariant.sizeIndex];
+      if (sizeVariant.stockQuantity === 0 || sizeVariant.stockStatus === 'out_of_stock') {
+        toast.error("This size is out of stock");
+        return;
+      }
+    }
     // Check stock for variations
-    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+    else if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined && selectedVariant.colorIndex !== null) {
       const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
       if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
         const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
@@ -323,8 +339,15 @@ const MobileProductDetail = () => {
 
     let finalPrice = product.price;
 
+    // Root sizeVariants structure
+    if (selectedVariant && selectedVariant.isRootSize && product.sizeVariants && product.sizeVariants[selectedVariant.sizeIndex]) {
+      const sizeVariant = product.sizeVariants[selectedVariant.sizeIndex];
+      if (sizeVariant.price !== null && sizeVariant.price !== undefined) {
+        finalPrice = sizeVariant.price;
+      }
+    }
     // New colorVariants structure
-    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+    else if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined && selectedVariant.colorIndex !== null) {
       const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
       if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
         const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
@@ -361,8 +384,20 @@ const MobileProductDetail = () => {
   };
 
   const handleAddToCart = () => {
+    // Check stock for root size variants
+    if (selectedVariant && selectedVariant.isRootSize && product.sizeVariants && product.sizeVariants[selectedVariant.sizeIndex]) {
+      const sizeVariant = product.sizeVariants[selectedVariant.sizeIndex];
+      if (sizeVariant.stockQuantity === 0 || sizeVariant.stockStatus === 'out_of_stock') {
+        toast.error("This size is out of stock");
+        return;
+      }
+      if (quantity > sizeVariant.stockQuantity) {
+        toast.error(`Only ${sizeVariant.stockQuantity} items available for this size`);
+        return;
+      }
+    }
     // Check stock for new colorVariants structure
-    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+    else if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined && selectedVariant.colorIndex !== null) {
       const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
       if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
         const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
@@ -382,8 +417,15 @@ const MobileProductDetail = () => {
 
     let finalPrice = product.price;
 
+    // Root sizeVariants structure
+    if (selectedVariant && selectedVariant.isRootSize && product.sizeVariants && product.sizeVariants[selectedVariant.sizeIndex]) {
+      const sizeVariant = product.sizeVariants[selectedVariant.sizeIndex];
+      if (sizeVariant.price !== null && sizeVariant.price !== undefined) {
+        finalPrice = sizeVariant.price;
+      }
+    }
     // New colorVariants structure
-    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+    else if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined && selectedVariant.colorIndex !== null) {
       const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
       if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
         const sizeVariant = colorVariant.sizeVariants[selectedVariant.sizeIndex];
@@ -437,7 +479,9 @@ const MobileProductDetail = () => {
 
     // Get max quantity based on selected variant
     let maxQuantity = product?.stockQuantity || 10;
-    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined) {
+    if (selectedVariant && selectedVariant.isRootSize && product.sizeVariants && product.sizeVariants[selectedVariant.sizeIndex]) {
+      maxQuantity = product.sizeVariants[selectedVariant.sizeIndex].stockQuantity;
+    } else if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined && selectedVariant.colorIndex !== null) {
       const colorVariant = product.variants.colorVariants[selectedVariant.colorIndex];
       if (colorVariant && colorVariant.sizeVariants && colorVariant.sizeVariants[selectedVariant.sizeIndex]) {
         maxQuantity = colorVariant.sizeVariants[selectedVariant.sizeIndex].stockQuantity;
@@ -619,11 +663,16 @@ const MobileProductDetail = () => {
                     <span className="text-gray-900">
                       {(() => {
                         // Logic for Variant Stock
-                        if (selectedVariant?.colorIndex !== undefined && selectedVariant?.sizeIndex !== undefined) {
+                        // Logic for Root Size Variant Stock
+                        if (selectedVariant?.isRootSize && product.sizeVariants && selectedVariant.sizeIndex !== undefined) {
+                          return product.sizeVariants[selectedVariant.sizeIndex]?.stockQuantity ?? 0;
+                        }
+                        // Logic for Color Variant Stock
+                        if (selectedVariant?.colorIndex !== undefined && selectedVariant?.sizeIndex !== undefined && selectedVariant?.colorIndex !== null) {
                           return product.variants.colorVariants[selectedVariant.colorIndex]?.sizeVariants?.[selectedVariant.sizeIndex]?.stockQuantity ?? 0;
                         }
                         // Logic for Main Product Stock
-                        if (selectedVariant?.color === product.primaryColorName) {
+                        if (selectedVariant?.color === product.primaryColorName || selectedVariant?.colorIndex === null) {
                           return product.stockQuantity ?? 0;
                         }
                         return 0;
@@ -644,10 +693,11 @@ const MobileProductDetail = () => {
             </div>
 
             {/* Variant Selector */}
-            {product.variants && (
+            {(product.variants || (product.sizeVariants && product.sizeVariants.length > 0)) && (
               <div className="mb-6">
                 <VariantSelector
-                  variants={product.variants}
+                  variants={product.variants || {}}
+                  sizeVariants={product.sizeVariants}
                   onVariantChange={setSelectedVariant}
                   currentPrice={product.price}
                   primaryColorName={product.primaryColorName}
@@ -673,34 +723,22 @@ const MobileProductDetail = () => {
                 </span>
                 <button
                   onClick={() => handleQuantityChange(1)}
-                  disabled={
-                    selectedVariant && product.variants?.colorVariants && selectedVariant.sizeIndex !== undefined
-                      ? quantity >= (product.variants.colorVariants[selectedVariant.colorIndex]?.sizeVariants?.[selectedVariant.sizeIndex]?.stockQuantity || 0)
-                      : quantity >= (product.stockQuantity || 10)
-                  }
+                  disabled={(() => {
+                    if (selectedVariant?.isRootSize && product.sizeVariants && selectedVariant.sizeIndex !== undefined) {
+                      return quantity >= (product.sizeVariants[selectedVariant.sizeIndex]?.stockQuantity || 0);
+                    }
+                    if (selectedVariant && product.variants?.colorVariants && selectedVariant.colorIndex !== undefined && selectedVariant.sizeIndex !== undefined && selectedVariant.colorIndex !== null) {
+                      return quantity >= (product.variants.colorVariants[selectedVariant.colorIndex]?.sizeVariants?.[selectedVariant.sizeIndex]?.stockQuantity || 0);
+                    }
+                    return quantity >= (product.stockQuantity || 10);
+                  })()}
                   className="w-12 h-12 flex items-center justify-center rounded-xl bg-gray-100 border border-gray-300 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                   <FiPlus className="text-gray-600" />
                 </button>
               </div>
             </div>
 
-            {/* Sizes */}
-            {product.sizes && product.sizes.length > 0 && (
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-800 mb-3">
-                  Available Sizes
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {product.sizes.map((size, index) => (
-                    <span
-                      key={index}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm border border-gray-200">
-                      {size}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+
 
             {/* Attributes */}
             {product.attributes &&

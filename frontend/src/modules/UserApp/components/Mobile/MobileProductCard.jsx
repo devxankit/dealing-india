@@ -176,14 +176,6 @@ const MobileProductCard = ({ product }) => {
                 <h3 className="font-bold text-gray-800 text-sm line-clamp-2 flex-1">
                   {product.name}
                 </h3>
-                <button
-                  onClick={handleFavorite}
-                  className="flex-shrink-0 p-1.5 hover:bg-gray-100 rounded-full transition-colors">
-                  <FiHeart
-                    className={`text-lg ${isFavorite ? "text-red-500 fill-red-500" : "text-gray-400"
-                      }`}
-                  />
-                </button>
               </div>
 
               <p className="text-xs text-gray-500 mb-2">{product.unit}</p>
@@ -208,8 +200,8 @@ const MobileProductCard = ({ product }) => {
                       <FiStar
                         key={i}
                         className={`text-xs ${i < Math.floor(product.rating)
-                            ? "text-yellow-400 fill-yellow-400"
-                            : "text-gray-300"
+                          ? "text-yellow-400 fill-yellow-400"
+                          : "text-gray-300"
                           }`}
                       />
                     ))}
@@ -232,21 +224,35 @@ const MobileProductCard = ({ product }) => {
                 )}
               </div>
 
-              {/* Buy Now Button */}
+              {/* Wishlist Button */}
               <motion.button
                 ref={buttonRef}
-                onClick={handleBuyNow}
-                disabled={isOutOfStock}
+                onClick={handleFavorite}
                 whileTap={{ scale: 0.95 }}
-                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${isOutOfStock
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "gradient-green text-white"
+                animate={
+                  isFavorite
+                    ? {
+                      scale: [1, 1.05, 1],
+                    }
+                    : {}
+                }
+                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 ${isFavorite
+                  ? "bg-red-50 text-red-500 border-2 border-red-100"
+                  : "bg-gray-50 text-gray-700 border-2 border-gray-100 hover:bg-gray-100"
                   }`}>
-                <FiShoppingBag className="text-base" />
+                <motion.div
+                  animate={
+                    isFavorite
+                      ? {
+                        scale: [1, 1.2, 1],
+                      }
+                      : {}
+                  }
+                  transition={{ duration: 0.3 }}>
+                  <FiHeart className={`text-base ${isFavorite ? "fill-current" : ""}`} />
+                </motion.div>
                 <span>
-                  {isOutOfStock
-                    ? "Out of Stock"
-                    : "Buy Now"}
+                  {isFavorite ? "In Wishlist" : "Wishlist"}
                 </span>
               </motion.button>
             </div>

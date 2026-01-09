@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FiCheck } from 'react-icons/fi';
 import { formatPrice } from '../../utils/helpers';
 
-const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColorName, primaryColorCode }) => {
+const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColorName, primaryColorCode, sizeVariants = [] }) => {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedColorIndex, setSelectedColorIndex] = useState(null);
 
@@ -25,8 +25,13 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
 
   // Check if new colorVariants structure exists
   const hasColorVariants = variants?.colorVariants && variants.colorVariants.length > 0;
+  const hasRootSizeVariants = sizeVariants && sizeVariants.length > 0;
 
-  if (!variants || (!hasColorVariants && !variants.sizes && !variants.colors)) {
+  // Return null only if there are no variants at all
+  if (!variants && !hasRootSizeVariants) {
+    return null;
+  }
+  if (variants && !hasColorVariants && !variants.sizes && !variants.colors && !hasRootSizeVariants) {
     return null;
   }
 
@@ -83,6 +88,16 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
         size: sizeVariant.size,
         sizeIndex,
       });
+    } else if (sizeVariants && sizeVariants[sizeIndex]) {
+      // Root size selection
+      const sv = sizeVariants[sizeIndex];
+      setSelectedVariant({
+        size: sv.size,
+        sizeIndex,
+        isRootSize: true,
+        color: null,
+        colorIndex: null
+      });
     } else {
       // Legacy size selection
       setSelectedVariant((prev) => ({
@@ -104,6 +119,14 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
       }
     }
 
+    // Root sizeVariants structure
+    if (selectedVariant.isRootSize && sizeVariants[selectedVariant.sizeIndex]) {
+      const sv = sizeVariants[selectedVariant.sizeIndex];
+      if (sv.price !== null && sv.price !== undefined) {
+        return sv.price;
+      }
+    }
+
     // Legacy structure
     if (variants.prices) {
       if (selectedVariant.size && variants.prices[selectedVariant.size]) {
@@ -120,6 +143,9 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
   const getSelectedSizeVariants = () => {
     if (selectedColorIndex !== null && variants.colorVariants) {
       return variants.colorVariants[selectedColorIndex].sizeVariants || [];
+    }
+    if (sizeVariants && sizeVariants.length > 0) {
+      return sizeVariants;
     }
     return [];
   };
@@ -298,6 +324,60 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice, primaryColor
             </div>
           )}
         </>
+      )}
+
+      {/* Root Size Variants (When no color selected or no color variants exist) */}
+      {selectedColorIndex === null && sizeVariants && sizeVariants.length > 0 && (
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            Size: <span className="font-normal text-gray-600">
+              {selectedVariant?.size || 'Select size'}
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {sizeVariants.map((sv, index) => {
+              const isSelected = selectedVariant?.isRootSize && selectedVariant?.sizeIndex === index;
+              const isAvailable = isSizeAvailable(sv);
+
+              return (
+                <button
+                  key={index}
+                  onClick={() => handleSizeSelect(index)}
+                  disabled={!isAvailable}
+                  className={`relative px-6 py-3 rounded-xl font-semibold border-2 transition-all duration-300 ${isSelected
+                    ? 'border-primary-600 bg-primary-50 text-primary-700'
+                    : isAvailable
+                      ? 'border-gray-200 hover:border-primary-400 bg-white text-gray-700'
+                      : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                    }`}
+                  title={`Stock: ${sv.stockQuantity}`}
+                >
+                  {sv.size}
+                  {sv.stockQuantity <= 10 && sv.stockQuantity > 0 && (
+                    <span className="absolute -top-1 -left-1 text-xs bg-yellow-500 text-white px-1 rounded">
+                      Low
+                    </span>
+                  )}
+                  {isSelected && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
+                      <FiCheck className="text-white text-xs" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {selectedVariant?.isRootSize && selectedVariant?.sizeIndex !== undefined && (
+            <div className="mt-2">
+              <span className="text-xs font-semibold text-gray-700">
+                Available:{" "}
+                <span className="text-gray-900">
+                  {sizeVariants[selectedVariant.sizeIndex]?.stockQuantity ?? 0}
+                </span>
+              </span>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Legacy Size Variants */}

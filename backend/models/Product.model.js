@@ -356,6 +356,37 @@ const productSchema = new mongoose.Schema(
       default: [],
       trim: true,
     },
+    // Root level size variants for products without color variants
+    sizeVariants: [
+      {
+        size: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        price: {
+          type: Number,
+          min: 0,
+          default: null, // null means use base product price
+        },
+        originalPrice: {
+          type: Number,
+          min: 0,
+          default: null,
+        },
+        stockQuantity: {
+          type: Number,
+          required: true,
+          min: 0,
+          default: 0,
+        },
+        stockStatus: {
+          type: String,
+          enum: ['in_stock', 'low_stock', 'out_of_stock'],
+          default: 'in_stock',
+        },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -372,6 +403,19 @@ productSchema.pre('save', function (next) {
     this.stock = 'low_stock';
   } else {
     this.stock = 'in_stock';
+  }
+
+  // Auto-calculate stock status for root-level size variants
+  if (this.sizeVariants && this.sizeVariants.length > 0) {
+    this.sizeVariants.forEach(sizeVariant => {
+      if (sizeVariant.stockQuantity === 0) {
+        sizeVariant.stockStatus = 'out_of_stock';
+      } else if (sizeVariant.stockQuantity <= 10) {
+        sizeVariant.stockStatus = 'low_stock';
+      } else {
+        sizeVariant.stockStatus = 'in_stock';
+      }
+    });
   }
 
   // Auto-calculate stock status for each size variant in color variants
