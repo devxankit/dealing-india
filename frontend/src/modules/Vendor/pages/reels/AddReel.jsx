@@ -559,6 +559,7 @@ const AddReel = () => {
                     const value = e?.target?.value || e;
                     setFormData((prev) => ({ ...prev, productId: value }));
                   }}
+                  searchable={true}
                   options={[
                     { value: "", label: "Select a product to feature" },
                     ...vendorProducts.map((product) => ({

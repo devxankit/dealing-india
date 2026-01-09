@@ -43,7 +43,7 @@ const iconMap = {
   "Dispatch order": FiTruck,
   "Shipped seller": FiTruck,
   "Canceled order": FiX,
-  "Return Requests": FiRefreshCw,
+  Returns: FiRefreshCw,
   "Product Reviews": FiStar,
   "Stock Management": FiTrendingDown,
 
@@ -85,6 +85,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/vendor/reels": {
       "All Reels": "/vendor/reels/all-reels",
       "Add Reel": "/vendor/reels/add-reel",
+      Subscription: "/vendor/subscription",
     },
     "/vendor/earnings": {
       "Earnings Overview": "/vendor/earnings/overview",

@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { FiMenu, FiBell, FiLogOut, FiShoppingBag } from "react-icons/fi";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { FiMenu, FiBell, FiLogOut, FiShoppingBag, FiUser, FiSettings, FiChevronDown, FiCreditCard } from "react-icons/fi";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import Button from "../../../Admin/components/Button";
 import NotificationWindow from "../../../Admin/components/Layout/NotificationWindow";
@@ -11,6 +12,18 @@ const VendorHeader = ({ onMenuClick }) => {
   const navigate = useNavigate();
   const { vendor, logout } = useVendorAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -31,6 +44,7 @@ const VendorHeader = ({ onMenuClick }) => {
       orders: "Orders",
       analytics: "Analytics",
       earnings: "Earnings",
+      "return-requests": "Returns",
       settings: "Settings",
       profile: "Profile",
     };
@@ -68,20 +82,17 @@ const VendorHeader = ({ onMenuClick }) => {
           </div>
         </div>
 
-        {/* Right: Notifications & Logout */}
-        <div className="flex items-center gap-4">
+        {/* Right: Notifications & User Menu */}
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* Notifications */}
           <div className="relative">
             <Button
               data-notification-button
               onClick={toggleNotifications}
               variant="icon"
-              className="text-gray-700"
+              className="text-gray-700 hover:bg-gray-100"
               icon={FiBell}
             />
-            {/* Unread count badge - will be updated by NotificationWindow */}
-
-            {/* Notification Window - positioned relative to this container */}
             <NotificationWindow
               isOpen={showNotifications}
               onClose={() => setShowNotifications(false)}
@@ -89,15 +100,94 @@ const VendorHeader = ({ onMenuClick }) => {
             />
           </div>
 
-          {/* Logout Button */}
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            icon={FiLogOut}
-            size="sm"
-            className="text-gray-700 hover:bg-red-600 hover:text-white hover:border-red-600 border border-gray-300">
-            Logout
-          </Button>
+          {/* User Menu Dropdown */}
+          <div className="relative" ref={userMenuRef}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 p-1 sm:p-1.5 hover:bg-gray-100 rounded-xl transition-all duration-200 border border-transparent hover:border-gray-200">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center shadow-sm text-white font-bold text-sm sm:text-base">
+                {vendor?.storeName?.charAt(0).toUpperCase() || vendor?.name?.charAt(0).toUpperCase() || "V"}
+              </div>
+              <div className="hidden sm:block text-left mr-1">
+                <p className="text-sm font-bold text-gray-800 leading-none mb-0.5">
+                  {vendor?.storeName || vendor?.name || "Vendor"}
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium leading-none">
+                  Vendor Account
+                </p>
+              </div>
+              <FiChevronDown className={`text-gray-400 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {showUserMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-50 mb-1">
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {vendor?.name || "Vendor User"}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      {vendor?.email || "vendor@example.com"}
+                    </p>
+                  </div>
+
+                  <div className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+                    <Link
+                      to="/vendor/profile"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiUser className="text-lg" />
+                      <span className="font-medium">My Profile</span>
+                    </Link>
+
+                    <div className="h-px bg-gray-50 my-1 mx-4"></div>
+                    <p className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Store Settings</p>
+
+                    <Link
+                      to="/vendor/settings/store"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiSettings className="text-lg" />
+                      <span className="font-medium">General Settings</span>
+                    </Link>
+
+                    <Link
+                      to="/vendor/settings/payment"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiCreditCard className="text-lg" />
+                      <span className="font-medium">Payment Settings</span>
+                    </Link>
+
+                    <Link
+                      to="/vendor/settings/shipping"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiShoppingBag className="text-lg" />
+                      <span className="font-medium">Shipping Settings</span>
+                    </Link>
+                  </div>
+
+                  <div className="h-px bg-gray-50 my-1"></div>
+
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    <FiLogOut className="text-lg" />
+                    <span className="font-medium">Logout</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </header>

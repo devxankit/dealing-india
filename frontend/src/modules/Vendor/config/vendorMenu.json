@@ -5,15 +5,6 @@
     "children": []
   },
   {
-    "title": "Products",
-    "route": "/vendor/products",
-    "children": [
-      "Manage Products",
-      "Add Product",
-      "Product FAQs"
-    ]
-  },
-  {
     "title": "Orders",
     "route": "/vendor/orders",
     "children": [
@@ -27,31 +18,52 @@
     ]
   },
   {
-    "title": "Vendor Chat",
-    "route": "/vendor/chat",
-    "children": []
-  },
-  {
-    "title": "Support Tickets",
-    "route": "/vendor/support-tickets",
-    "children": []
+    "title": "Products",
+    "route": "/vendor/products",
+    "children": [
+      "Manage Products",
+      "Add Product",
+      "Product FAQs"
+    ]
   },
   {
     "title": "Reels",
     "route": "/vendor/reels",
     "children": [
       "All Reels",
-      "Add Reel"
+      "Add Reel",
+      "Subscription"
     ]
   },
   {
-    "title": "Return Requests",
+    "title": "Hero Banner Booking",
+    "route": "/vendor/hero-banner-booking",
+    "children": []
+  },
+  {
+    "title": "Returns",
     "route": "/vendor/return-requests",
     "children": []
   },
   {
-    "title": "Product Reviews",
-    "route": "/vendor/product-reviews",
+    "title": "Earnings",
+    "route": "/vendor/earnings",
+    "children": [
+      "Earnings Overview",
+      "Wallet",
+      "Commission History",
+      "Settlement History",
+      "Advertisement payment"
+    ]
+  },
+  {
+    "title": "Pickup Locations",
+    "route": "/vendor/pickup-locations",
+    "children": []
+  },
+  {
+    "title": "Shipping Management",
+    "route": "/vendor/shipping-management",
     "children": []
   },
   {
@@ -65,33 +77,8 @@
     ]
   },
   {
-    "title": "Pickup Locations",
-    "route": "/vendor/pickup-locations",
-    "children": []
-  },
-  {
-    "title": "Promotions",
-    "route": "/vendor/promotions",
-    "children": []
-  },
-  {
-    "title": "Hero Banner Booking",
-    "route": "/vendor/hero-banner-booking",
-    "children": []
-  },
-  {
-    "title": "Notifications",
-    "route": "/vendor/notifications",
-    "children": []
-  },
-  {
-    "title": "Shipping Management",
-    "route": "/vendor/shipping-management",
-    "children": []
-  },
-  {
-    "title": "Customers",
-    "route": "/vendor/customers",
+    "title": "Product Reviews",
+    "route": "/vendor/product-reviews",
     "children": []
   },
   {
@@ -110,33 +97,28 @@
     "children": []
   },
   {
-    "title": "Subscription",
-    "route": "/vendor/subscription",
+    "title": "Promotions",
+    "route": "/vendor/promotions",
     "children": []
   },
   {
-    "title": "Earnings",
-    "route": "/vendor/earnings",
-    "children": [
-      "Earnings Overview",
-      "Wallet",
-      "Commission History",
-      "Settlement History",
-      "Advertisement payment"
-    ]
+    "title": "Customers",
+    "route": "/vendor/customers",
+    "children": []
   },
   {
-    "title": "Settings",
-    "route": "/vendor/settings",
-    "children": [
-      "Store Settings",
-      "Payment Settings",
-      "Shipping Settings"
-    ]
+    "title": "Support Tickets",
+    "route": "/vendor/support-tickets",
+    "children": []
   },
   {
-    "title": "Profile",
-    "route": "/vendor/profile",
+    "title": "Notifications",
+    "route": "/vendor/notifications",
+    "children": []
+  },
+  {
+    "title": "Vendor Chat",
+    "route": "/vendor/chat",
     "children": []
   }
 ]

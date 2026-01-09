@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { FiMenu, FiBell, FiLogOut } from 'react-icons/fi';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { FiMenu, FiBell, FiLogOut, FiUser, FiSettings, FiChevronDown } from 'react-icons/fi';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAdminAuthStore } from '../../store/adminStore';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import Button from '../Button';
 import NotificationWindow from './NotificationWindow';
@@ -9,8 +10,20 @@ import NotificationWindow from './NotificationWindow';
 const AdminHeader = ({ onMenuClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAdminAuthStore();
+  const { admin, logout } = useAdminAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -30,8 +43,9 @@ const AdminHeader = ({ onMenuClick }) => {
       products: 'Products',
       categories: 'Categories',
       brands: 'Brands',
-      orders: 'Orders',
-      customers: 'Customers',
+      orders: "Orders",
+      customers: "Customers",
+      'return-requests': 'Returns',
       inventory: 'Inventory',
       campaigns: 'Campaigns',
       banners: 'Banners',
@@ -70,20 +84,17 @@ const AdminHeader = ({ onMenuClick }) => {
           </div>
         </div>
 
-        {/* Right: Notifications & Logout */}
-        <div className="flex items-center gap-4">
+        {/* Right: Notifications & User Menu */}
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* Notifications */}
           <div className="relative">
             <Button
               data-notification-button
               onClick={toggleNotifications}
               variant="icon"
-              className="text-gray-700"
+              className="text-gray-700 hover:bg-gray-100"
               icon={FiBell}
             />
-            {/* Unread count badge - will be updated by NotificationWindow */}
-            
-            {/* Notification Window - positioned relative to this container */}
             <NotificationWindow
               isOpen={showNotifications}
               onClose={() => setShowNotifications(false)}
@@ -91,16 +102,117 @@ const AdminHeader = ({ onMenuClick }) => {
             />
           </div>
 
-          {/* Logout Button */}
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            icon={FiLogOut}
-            size="sm"
-            className="text-gray-700 hover:bg-red-600 hover:text-white hover:border-red-600 border border-gray-300"
-          >
-            Logout
-          </Button>
+          {/* User Menu Dropdown */}
+          <div className="relative" ref={userMenuRef}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 p-1 sm:p-1.5 hover:bg-gray-100 rounded-xl transition-all duration-200 border border-transparent hover:border-gray-200">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center shadow-sm text-white font-bold text-sm sm:text-base">
+                {admin?.name?.charAt(0).toUpperCase() || "A"}
+              </div>
+              <div className="hidden sm:block text-left mr-1">
+                <p className="text-sm font-bold text-gray-800 leading-none mb-0.5">
+                  {admin?.name || "Admin"}
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium leading-none">
+                  Administrator
+                </p>
+              </div>
+              <FiChevronDown className={`text-gray-400 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {showUserMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-50 mb-1">
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {admin?.name || "Admin User"}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
+                      {admin?.email || "admin@admin.com"}
+                    </p>
+                  </div>
+
+                  <div className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
+                    <p className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Admin Settings</p>
+                    
+                    <Link
+                      to="/admin/settings/general"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiSettings className="text-lg" />
+                      <span className="font-medium">General Settings</span>
+                    </Link>
+
+                    <Link
+                      to="/admin/settings/payment-shipping"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiSettings className="text-lg" />
+                      <span className="font-medium">Payment & Shipping</span>
+                    </Link>
+
+                    <Link
+                      to="/admin/settings/orders-customers"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiSettings className="text-lg" />
+                      <span className="font-medium">Orders & Customers</span>
+                    </Link>
+
+                    <Link
+                      to="/admin/settings/products-inventory"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiSettings className="text-lg" />
+                      <span className="font-medium">Products & Inventory</span>
+                    </Link>
+
+                    <Link
+                      to="/admin/settings/content-features"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiSettings className="text-lg" />
+                      <span className="font-medium">Content & Features</span>
+                    </Link>
+
+                    <Link
+                      to="/admin/settings/notifications-seo"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiSettings className="text-lg" />
+                      <span className="font-medium">Notifications & SEO</span>
+                    </Link>
+
+                    <Link
+                      to="/admin/settings/tax"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiSettings className="text-lg" />
+                      <span className="font-medium">Tax & Pricing</span>
+                    </Link>
+                  </div>
+
+                  <div className="h-px bg-gray-50 my-1"></div>
+
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    <FiLogOut className="text-lg" />
+                    <span className="font-medium">Logout</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </header>

@@ -14,7 +14,7 @@
     ]
   },
   {
-    "title": "Return Requests",
+    "title": "Returns",
     "route": "/admin/return-requests",
     "children": []
   },
@@ -133,19 +133,6 @@
       "Tax Reports",
       "Refund Reports",
       "Wallet Recharges"
-    ]
-  },
-  {
-    "title": "Settings",
-    "route": "/admin/settings",
-    "children": [
-      "General",
-      "Payment & Shipping",
-      "Orders & Customers",
-      "Products & Inventory",
-      "Content & Features",
-      "Notifications & SEO",
-      "Tax & Pricing"
     ]
   },
   {

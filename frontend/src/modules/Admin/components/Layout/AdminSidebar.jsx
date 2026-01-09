@@ -34,7 +34,7 @@ import adminMenu from "../../config/adminMenu.json";
 const iconMap = {
   Dashboard: FiHome,
   Orders: FiShoppingBag,
-  "Return Requests": FiRotateCcw,
+  Returns: FiRotateCcw,
   Products: FiPackage,
   Categories: FiGrid,
   Brands: FiTag,
