@@ -11,6 +11,7 @@ import {
   FiShoppingBag,
   FiTrendingUp,
   FiFileText,
+  FiArrowRight,
 } from 'react-icons/fi';
 import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -22,7 +23,12 @@ import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { useVendorStore } from '../../store/vendorStore';
-import { getVendorOrders, getVendorOrderStats, getVendorOrderById } from '../../../../shared/services/orderService';
+import {
+  getVendorOrders,
+  getVendorOrderStats,
+  getVendorOrderById,
+  updateVendorOrderStatus
+} from '../../../../shared/services/orderService';
 import { useCommissionStore } from '../../../../shared/store/commissionStore';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -38,6 +44,7 @@ const AllOrders = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [refreshKey, setRefreshKey] = useState(0); // To trigger re-fetch
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalOrders: 0,
@@ -98,7 +105,7 @@ const AllOrders = () => {
     };
 
     fetchOrders();
-  }, [vendorId, selectedStatus]);
+  }, [vendorId, selectedStatus, refreshKey]);
 
   // Get vendor-specific order data
   const getVendorOrderData = (order) => {
@@ -197,6 +204,29 @@ const AllOrders = () => {
     return filtered;
   }, [vendorOrders, searchQuery, selectedStatus]);
 
+  const handleStatusUpdate = async (e, orderId, newStatus) => {
+    e.stopPropagation();
+    try {
+      const response = await updateVendorOrderStatus(orderId, newStatus);
+      if (response.success) {
+        toast.success(`Order status updated to ${newStatus}`);
+        setRefreshKey(prev => prev + 1); // Refresh list
+      }
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      toast.error(error.message || 'Failed to update status');
+    }
+  };
+
+  const nextStatusMap = {
+    'pending': 'processing',
+    'processing': 'ready_to_ship',
+    'ready_to_ship': 'shipped_seller',
+    'shipped_seller': 'delivered',
+    'dispatched': 'delivered',
+    'on_hold': 'processing',
+  };
+
   const columns = [
     {
       key: 'orderCode',
@@ -246,20 +276,40 @@ const AllOrders = () => {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value) => (
-        <Badge
-          variant={
-            value === 'delivered'
-              ? 'success'
-              : value === 'pending'
-                ? 'warning'
-                : value === 'cancelled' || value === 'canceled'
-                  ? 'error'
-                  : 'info'
-          }>
-          {value?.toUpperCase() || 'N/A'}
-        </Badge>
-      ),
+      render: (value, row) => {
+        const currentStatus = value?.toLowerCase();
+        const nextStatus = nextStatusMap[currentStatus];
+        const orderId = row._id || row.orderCode;
+
+        return (
+          <div className="flex items-center gap-2">
+            <Badge
+              className="w-fit whitespace-nowrap"
+              variant={
+                value === 'delivered'
+                  ? 'success'
+                  : value === 'pending'
+                    ? 'warning'
+                    : value === 'cancelled' || value === 'canceled'
+                      ? 'error'
+                      : 'info'
+              }>
+              {value?.toUpperCase() || 'N/A'}
+            </Badge>
+
+            {nextStatus && (
+              <button
+                onClick={(e) => handleStatusUpdate(e, orderId, nextStatus)}
+                title={`Mark as ${nextStatus.replace(/_/g, ' ')}`}
+                className="p-1.5 text-xs bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-md transition-colors flex items-center gap-1 border border-primary-200"
+              >
+                <span>To {nextStatus.replace(/_/g, ' ')}</span>
+                <FiArrowRight />
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'actions',

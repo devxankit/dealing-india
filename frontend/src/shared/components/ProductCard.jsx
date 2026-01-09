@@ -188,21 +188,6 @@ const ProductCard = ({ product, hideRating = false }) => {
         onClick={handleCardClick}
         {...longPressHandlers}>
         <div className="relative">
-          {/* Favorite Icon */}
-          <div className="absolute top-1.5 right-1.5 z-10">
-            <button
-              onClick={handleFavorite}
-              data-no-navigate
-              className="p-1 glass rounded-full shadow-lg transition-all duration-300 group">
-              <FiHeart
-                className={`text-xs transition-all duration-300 ${isFavorite
-                  ? "text-red-500 fill-red-500 scale-110"
-                  : "text-gray-600"
-                  }`}
-              />
-            </button>
-          </div>
-
           {/* Product Image */}
           <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden relative">
             <LazyImage
@@ -274,44 +259,42 @@ const ProductCard = ({ product, hideRating = false }) => {
             )}
           </div>
 
-          {/* Buy Now Button */}
-          <motion.button
-            ref={buttonRef}
-            onClick={handleBuyNow}
-            data-no-navigate
-            disabled={isOutOfStock || isAdding}
-            whileTap={{ scale: 0.95 }}
-            animate={
-              isAdding
-                ? {
-                  scale: [1, 1.1, 1],
-                }
-                : {}
-            }
-            style={{ willChange: "transform", transform: "translateZ(0)" }}
-            className={`w-full py-1.5 rounded-md font-semibold text-[10px] transition-all duration-300 flex items-center justify-center gap-1 mt-auto ${isOutOfStock
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "gradient-green text-white group/btn"
-              }`}>
-            <motion.div
+          {/* Button Group */}
+          <div className="mt-auto flex gap-2">
+            {/* Wishlist Button */}
+            <motion.button
+              ref={buttonRef}
+              onClick={handleFavorite}
+              data-no-navigate
+              whileTap={{ scale: 0.95 }}
               animate={
-                isAdding
+                isFavorite
                   ? {
-                    rotate: [0, -10, 10, -10, 0],
+                    scale: [1, 1.1, 1],
                   }
                   : {}
               }
-              transition={{ duration: 0.5 }}>
-              <FiShoppingBag className="text-xs transition-transform" />
-            </motion.div>
-            <span>
-              {isOutOfStock
-                ? "Out of Stock"
-                : isAdding
-                  ? "Adding..."
-                  : "Buy Now"}
-            </span>
-          </motion.button>
+              style={{ willChange: "transform", transform: "translateZ(0)" }}
+              className={`flex-1 py-1.5 rounded-md font-semibold text-[10px] transition-all duration-300 flex items-center justify-center gap-1 ${isFavorite
+                ? "bg-red-50 text-red-500 border border-red-200"
+                : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:border-gray-300"
+                }`}>
+              <motion.div
+                animate={
+                  isFavorite
+                    ? {
+                      scale: [1, 1.2, 1],
+                    }
+                    : {}
+                }
+                transition={{ duration: 0.3 }}>
+                <FiHeart className={`text-xs ${isFavorite ? "fill-current" : ""}`} />
+              </motion.div>
+              <span>
+                {isFavorite ? "In Wishlist" : "Wishlist"}
+              </span>
+            </motion.button>
+          </div>
         </div>
       </motion.div>
 

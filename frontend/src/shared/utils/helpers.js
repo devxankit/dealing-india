@@ -105,6 +105,7 @@ export const calculateTotalStock = (product) => {
   const primaryColorName = (product.primaryColorName || product?.variants?.defaultVariant?.color || '').toString().trim().toLowerCase();
   let variantSum = 0;
   let primaryVariantSum = 0;
+
   if (product.variants?.colorVariants && Array.isArray(product.variants.colorVariants)) {
     product.variants.colorVariants.forEach((cv) => {
       const cvColor = (cv.color || cv.colorName || '').toString().trim().toLowerCase();
@@ -114,20 +115,18 @@ export const calculateTotalStock = (product) => {
         primaryVariantSum = cvTotal;
       }
     });
-    if (!primaryVariantSum && mainStock > 0) {
-      const candidateSum = product.variants.colorVariants.reduce((found, cv) => {
-        if (found) return found;
-        const sum = cv.sizeVariants?.reduce((acc, sv) => acc + (parseInt(sv.stockQuantity) || 0), 0) || 0;
-        return sum === mainStock ? sum : 0;
-      }, 0);
-      primaryVariantSum = candidateSum || 0;
-    }
-    // Guard: if variants sum equals main, treat as same entity
-    if (primaryVariantSum === 0 && variantSum === mainStock) {
-      return mainStock;
-    }
   }
-  return mainStock + Math.max(variantSum - primaryVariantSum, 0);
+
+  // Add root-level sizeVariants stock if present
+  let rootSizeVariantSum = 0;
+  if (product.sizeVariants && Array.isArray(product.sizeVariants)) {
+    rootSizeVariantSum = product.sizeVariants.reduce((acc, sv) => acc + (parseInt(sv.stockQuantity) || 0), 0);
+  }
+
+  // If root size variants exist, they represent the main stock
+  const effectiveMainStock = rootSizeVariantSum > 0 ? rootSizeVariantSum : mainStock;
+
+  return effectiveMainStock + Math.max(variantSum - primaryVariantSum, 0);
 };
 
 /**

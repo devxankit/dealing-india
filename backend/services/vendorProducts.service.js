@@ -217,6 +217,7 @@ export const createVendorProduct = async (productData, vendorId) => {
       productType,
       isCouponEligible,
       applicableCoupons,
+      sizeVariants = [],
     } = productData;
 
     // Validate required fields
@@ -439,6 +440,22 @@ export const createVendorProduct = async (productData, vendorId) => {
       }
     }
 
+    // Process root-level size variants if provided
+    const processedRootSizeVariants = [];
+    if (sizeVariants && Array.isArray(sizeVariants)) {
+      for (const sv of sizeVariants) {
+        if (!sv.size || sv.stockQuantity === undefined) {
+          continue;
+        }
+        processedRootSizeVariants.push({
+          size: sv.size.trim(),
+          price: (sv.price !== undefined && sv.price !== null && sv.price !== '') ? parseFloat(sv.price) : null,
+          originalPrice: (sv.originalPrice !== undefined && sv.originalPrice !== null && sv.originalPrice !== '') ? parseFloat(sv.originalPrice) : null,
+          stockQuantity: parseInt(sv.stockQuantity) || 0
+        });
+      }
+    }
+
     // Process color variants if provided
     let processedColorVariants = [];
     if (variants && variants.colorVariants && Array.isArray(variants.colorVariants)) {
@@ -586,6 +603,11 @@ export const createVendorProduct = async (productData, vendorId) => {
         });
       });
 
+      // Add root-level size variant stock
+      processedRootSizeVariants.forEach(sv => {
+        totalVariantStock += sv.stockQuantity;
+      });
+
       // If variants are provided, use variant stock as base stock
       if (stockQuantity === undefined || stockQuantity === null) {
         stockQuantity = totalVariantStock;
@@ -639,6 +661,7 @@ export const createVendorProduct = async (productData, vendorId) => {
         : null,
       brandId: brandId || null,
       brandName: productData.brandName || null,
+      sizeVariants: processedRootSizeVariants,
 
       // stock status is auto-calculated by Mongoose pre-save middleware
       stockQuantity: parseInt(stockQuantity),
@@ -747,6 +770,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       applicableCoupons,
       primaryColorName,
       primaryColorCode,
+      sizeVariants,
     } = productData;
 
     // Validate category if provided
@@ -1140,6 +1164,23 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       }
     }
 
+    // Process root-level size variants if provided
+    let processedRootSizeVariants = existingProduct.sizeVariants || [];
+    if (sizeVariants !== undefined && Array.isArray(sizeVariants)) {
+      processedRootSizeVariants = [];
+      for (const sv of sizeVariants) {
+        if (!sv.size || sv.stockQuantity === undefined) {
+          continue;
+        }
+        processedRootSizeVariants.push({
+          size: sv.size.trim(),
+          price: (sv.price !== undefined && sv.price !== null && sv.price !== '') ? parseFloat(sv.price) : null,
+          originalPrice: (sv.originalPrice !== undefined && sv.originalPrice !== null && sv.originalPrice !== '') ? parseFloat(sv.originalPrice) : null,
+          stockQuantity: parseInt(sv.stockQuantity) || 0
+        });
+      }
+    }
+
     // Calculate stock status if stockQuantity changed
     const finalStockQuantity = stockQuantity !== undefined
       ? parseInt(stockQuantity)
@@ -1201,6 +1242,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
         ...(taxIncluded !== undefined && { taxIncluded }),
         ...(hasSizes !== undefined && { hasSizes }),
         ...(productType !== undefined && { productType }),
+        ...(sizeVariants !== undefined && { sizeVariants: processedRootSizeVariants }),
         ...(variants !== undefined && {
           variants: {
             ...(variants.sizes !== undefined && { sizes: variants.sizes }),

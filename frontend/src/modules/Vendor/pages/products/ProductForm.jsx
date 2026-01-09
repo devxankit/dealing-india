@@ -71,6 +71,7 @@ const ProductForm = () => {
     isCouponEligible: false,
     isManualBrand: false,
     brandName: "",
+    sizeVariants: [],
   });
 
   const [colorVariants, setColorVariants] = useState([]);
@@ -266,6 +267,7 @@ const ProductForm = () => {
         relatedProducts: product.relatedProducts || [],
         brandName: product.brandName || "",
         isManualBrand: !!product.brandName && !product.brandId,
+        sizeVariants: product.sizeVariants || [],
       });
 
       // Initialize color variants
@@ -427,6 +429,40 @@ const ProductForm = () => {
     setFormData({
       ...formData,
       images: formData.images.filter((_, i) => i !== index),
+    });
+  };
+
+  // Root Size Variant management functions
+  const addRootSizeVariant = () => {
+    setFormData((prev) => ({
+      ...prev,
+      sizeVariants: [
+        ...prev.sizeVariants,
+        {
+          size: "",
+          price: null,
+          originalPrice: null,
+          stockQuantity: 0,
+        },
+      ],
+    }));
+  };
+
+  const removeRootSizeVariant = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      sizeVariants: prev.sizeVariants.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateRootSizeVariant = (index, field, value) => {
+    setFormData((prev) => {
+      const updated = [...prev.sizeVariants];
+      updated[index] = {
+        ...updated[index],
+        [field]: field === "size" ? value : value === "" ? null : parseFloat(value),
+      };
+      return { ...prev, sizeVariants: updated };
     });
   };
 
@@ -704,12 +740,24 @@ const ProductForm = () => {
         minimumOrderQuantity: formData.minimumOrderQuantity && String(formData.minimumOrderQuantity).trim()
           ? (isNaN(parseInt(formData.minimumOrderQuantity)) ? 1 : parseInt(formData.minimumOrderQuantity))
           : 1,
-        // Always send category fields explicitly (even if null) so backend knows to update them
         categoryId: getCategoryId(formData.categoryId),
         subcategoryId: getCategoryId(formData.subcategoryId),
         subSubCategoryId: getCategoryId(formData.subSubCategoryId),
         brandId: getCategoryId(formData.brandId),
         brandName: formData.brandName ? formData.brandName : null,
+        sizes: formData.hasSizes
+          ? (formData.sizeVariants && formData.sizeVariants.length > 0
+            ? formData.sizeVariants.map(sv => sv.size)
+            : (formData.sizes || []))
+          : [],
+        sizeVariants: formData.hasSizes && formData.sizeVariants && formData.sizeVariants.length > 0
+          ? formData.sizeVariants.map(sv => ({
+            ...sv,
+            price: sv.price ? parseFloat(sv.price) : null,
+            originalPrice: sv.originalPrice ? parseFloat(sv.originalPrice) : null,
+            stockQuantity: parseInt(sv.stockQuantity) || 0
+          }))
+          : [],
 
         variants: {
           ...formData.variants,
@@ -1226,11 +1274,94 @@ const ProductForm = () => {
           )}
         </div>
 
-        {/* Product Sizes */}
+        {/* Main Product Sizes - Size Based Pricing */}
+        {formData.hasSizes && (
+          <div className="bg-white p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-gray-800">Main Product Sizes</h2>
+                <p className="text-xs text-gray-500">Add different sizes with individual pricing and stock for the main product.</p>
+              </div>
+              <button
+                type="button"
+                onClick={addRootSizeVariant}
+                className="flex items-center gap-2 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold text-xs"
+              >
+                <FiPlus />
+                Add Size
+              </button>
+            </div>
+
+            {formData.sizeVariants.length === 0 ? (
+              <div className="text-center py-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
+                <p className="text-xs text-gray-500 italic text-center">No sizes added yet. Click "Add Size" to configure size-based pricing.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {formData.sizeVariants.map((sv, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg items-end">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Size Name</label>
+                      <input
+                        type="text"
+                        value={sv.size}
+                        onChange={(e) => updateRootSizeVariant(index, 'size', e.target.value)}
+                        placeholder="e.g. S, 32, 100ml"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Price (₹)</label>
+                      <input
+                        type="number"
+                        value={sv.price || ''}
+                        onChange={(e) => updateRootSizeVariant(index, 'price', e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Orig. Price</label>
+                      <input
+                        type="number"
+                        value={sv.originalPrice || ''}
+                        onChange={(e) => updateRootSizeVariant(index, 'originalPrice', e.target.value)}
+                        placeholder="0.00"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Stock</label>
+                      <input
+                        type="number"
+                        value={sv.stockQuantity}
+                        onChange={(e) => updateRootSizeVariant(index, 'stockQuantity', e.target.value)}
+                        placeholder="0"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeRootSizeVariant(index)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        title="Remove size"
+                      >
+                        <FiTrash2 className="text-sm" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Product Sizes Tags */}
         {formData.hasSizes && (
           <div>
             <h2 className="text-base font-bold text-gray-800 mb-2">
-              Product Sizes
+              Available Sizes List
             </h2>
             <p className="text-sm text-gray-600 mb-3">
               Add available sizes for this product (e.g., S, M, L, XL). Type and press Enter to add each size.

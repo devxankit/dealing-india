@@ -8,18 +8,6 @@ import Order from '../../models/Order.model.js';
 import Product from '../../models/Product.model.js';
 import Vendor from '../../models/Vendor.model.js';
 import mongoose from 'mongoose';
-import fs from 'fs';
-import path from 'path';
-
-const logDebug = (message) => {
-  try {
-    const logFile = path.join(process.cwd(), 'debug_earnings.log');
-    const timestamp = new Date().toISOString();
-    fs.appendFileSync(logFile, `[${timestamp}] ${message}\n`);
-  } catch (err) {
-    console.error('Failed to write to debug log:', err);
-  }
-};
 
 /**
  * Get vendor orders
@@ -298,12 +286,11 @@ export const getStats = async (req, res, next) => {
 export const getEarningsStats = async (req, res, next) => {
   try {
     const rawVendorId = req.user.vendorId || req.user.id;
-
-    // Ensure vendorId is an ObjectId for comparison
     let vendorId;
     try {
       vendorId = new mongoose.Types.ObjectId(rawVendorId);
     } catch (err) {
+      // If conversion fails, maybe it's already an objectId or invalid string
       vendorId = rawVendorId;
     }
 
@@ -311,117 +298,139 @@ export const getEarningsStats = async (req, res, next) => {
     const vendor = await Vendor.findById(vendorId);
     const defaultCommissionRate = vendor?.commissionRate || 0.1;
 
-    // Get vendor's product IDs (ACTIVE AND INACTIVE) to find relevant orders
+    // Get vendor products IDs to match items
     const vendorProducts = await Product.find({ vendorId }).select('_id').lean();
     const vendorProductObjectIds = vendorProducts.map(p => p._id);
-    const vendorProductIdStrings = vendorProducts.map(p => p._id.toString());
 
-    // console.log('DEBUG: vendorId', vendorId);
-    // console.log('DEBUG: vendorProductIds count', vendorProducts.length);
-    logDebug(`Vendor: ${vendorId}`);
-    logDebug(`Found ${vendorProducts.length} products`);
+    // If no products, return 0
+    // (Unless vendor has orders via vendorBreakdown even without products now?)
+    // But usually vendor needs products.
+    // Let's proceed even if 0 products if there are breakdown entries.
 
-    if (vendorProductIdStrings.length === 0) {
-      logDebug('No products found associated with this vendor');
-      return res.status(200).json({
-        success: true,
-        data: { pendingEarnings: 0, totalOrderEarnings: 0, totalOrders: 0 }
-      });
-    }
-
-    // Fetch all relevant orders
-    const orders = await Order.find({
-      $or: [
-        { 'vendorBreakdown.vendorId': vendorId },
-        { 'items.productId': { $in: vendorProductObjectIds } }
-      ],
-      status: { $nin: ['cancelled', 'returned', 'refunded'] }
-    })
-      .select('items status vendorBreakdown total orderCode createdAt')
-      .lean();
-
-    // console.log('DEBUG: orders found', orders.length);
-
-    if (orders.length === 0) {
-      return res.status(200).json({
-        success: true,
-        data: { pendingEarnings: 0, totalOrderEarnings: 0, totalOrders: 0 }
-      });
-    }
-    logDebug(`Found ${orders.length} orders in DB`);
-
-    let pendingEarnings = 0;
-    let totalOrderEarnings = 0;
-
-    const vendorIdStr = vendorId.toString();
-    let activeOrdersCount = 0;
-
-    orders.forEach(order => {
-      let orderSubtotal = 0;
-      let orderCommission = 0;
-      let foundInBreakdown = false;
-      let hasVendorItems = false;
-
-      // Check items to see if this order really belongs to this vendor
-      order.items.forEach(item => {
-        const pId = item.productId?.toString() || item.productId;
-        if (vendorProductIdStrings.includes(pId)) {
-          hasVendorItems = true;
+    const pipeline = [
+      {
+        $match: {
+          $or: [
+            { 'vendorBreakdown.vendorId': vendorId },
+            { 'items.productId': { $in: vendorProductObjectIds } }
+          ],
+          status: { $nin: ['cancelled', 'returned', 'refunded'] }
         }
-      });
-
-      if (hasVendorItems) {
-        activeOrdersCount++;
-
-        // 1. Try to find in vendorBreakdown first (best accuracy)
-        if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
-          const vb = order.vendorBreakdown.find(v =>
-            v.vendorId && (v.vendorId.toString() === vendorId.toString())
-          );
-          if (vb) {
-            orderSubtotal = vb.subtotal || 0;
-            orderCommission = vb.commission || 0;
-            foundInBreakdown = true;
-          }
+      },
+      {
+        $project: {
+          orderCode: 1,
+          status: 1,
+          items: 1,
+          vendorBreakdown: 1,
+          createdAt: 1
         }
-
-        // 2. If not in breakdown, calculate manually from items
-        if (!foundInBreakdown && order.items) {
-          order.items.forEach(item => {
-            const pId = item.productId?.toString() || item.productId;
-            if (vendorProductIdStrings.includes(pId)) {
-              orderSubtotal += (item.price || 0) * (item.quantity || 1);
+      },
+      // We need to calculate earnings per order
+      {
+        $addFields: {
+          // Check if we have a direct breakdown entry
+          breakdownEntry: {
+            $filter: {
+              input: { $ifNull: ["$vendorBreakdown", []] },
+              as: "vb",
+              cond: { $eq: ["$$vb.vendorId", vendorId] }
             }
-          });
-          orderCommission = orderSubtotal * defaultCommissionRate;
-        }
-
-        const earnings = orderSubtotal - orderCommission;
-
-        if (earnings > 0) {
-          totalOrderEarnings += earnings;
-          // Check availability logic (Delivered/Completed = Realized)
-          // If not delivered/completed, it's pending
-          if (order.status !== 'delivered' && order.status !== 'completed') {
-            pendingEarnings += earnings;
           }
-        } else {
-          logDebug(`Order ${order.orderCode} earnings 0. Subtotal: ${orderSubtotal}, Commission: ${orderCommission}`);
+        }
+      },
+      {
+        $addFields: {
+          matchedBreakdown: { $arrayElemAt: ["$breakdownEntry", 0] }
+        }
+      },
+      // Calculate from items if no breakdown
+      {
+        $addFields: {
+          calculatedFromItems: {
+            $reduce: {
+              input: "$items",
+              initialValue: { subtotal: 0, count: 0 },
+              in: {
+                $cond: {
+                  if: { $in: ["$$this.productId", vendorProductObjectIds] },
+                  then: {
+                    subtotal: { $add: ["$$value.subtotal", { $multiply: [{ $ifNull: ["$$this.price", 0] }, { $ifNull: ["$$this.quantity", 1] }] }] },
+                    count: { $add: ["$$value.count", 1] }
+                  },
+                  else: "$$value"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          finalSubtotal: {
+            $cond: {
+              if: { $gt: [{ $ifNull: ["$matchedBreakdown.subtotal", 0] }, 0] },
+              then: "$matchedBreakdown.subtotal",
+              else: "$calculatedFromItems.subtotal"
+            }
+          },
+          finalCommission: {
+            $cond: {
+              if: { $gt: [{ $ifNull: ["$matchedBreakdown.commission", -1] }, -1] },
+              then: "$matchedBreakdown.commission",
+              else: { $multiply: ["$calculatedFromItems.subtotal", defaultCommissionRate] }
+            }
+          },
+          isVendorOrder: {
+            $or: [
+              { $gt: [{ $ifNull: ["$matchedBreakdown.subtotal", 0] }, 0] },
+              { $gt: ["$calculatedFromItems.count", 0] }
+            ]
+          }
+        }
+      },
+      {
+        $match: {
+          isVendorOrder: true
+        }
+      },
+      {
+        $addFields: {
+          earnings: { $subtract: ["$finalSubtotal", "$finalCommission"] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalOrderEarnings: { $sum: "$earnings" },
+          pendingEarnings: {
+            $sum: {
+              $cond: {
+                if: { $in: ["$status", ['delivered', 'completed']] },
+                then: 0,
+                else: "$earnings"
+              }
+            }
+          }
         }
       }
-    });
+    ];
 
-    logDebug(`Final: Orders=${activeOrdersCount}, Total=${totalOrderEarnings}, Pending=${pendingEarnings}`);
+    const result = await Order.aggregate(pipeline);
+    const stats = result[0] || { totalOrders: 0, totalOrderEarnings: 0, pendingEarnings: 0 };
+
+    // Log the result to console for debugging
+    console.log(`[Earnings Aggregation] Vendor: ${vendorId}, Found:`, stats);
 
     res.status(200).json({
       success: true,
       data: {
-        pendingEarnings: Math.round(pendingEarnings * 100) / 100,
-        totalOrderEarnings: Math.round(totalOrderEarnings * 100) / 100,
-        totalOrders: activeOrdersCount
+        pendingEarnings: Math.round(stats.pendingEarnings * 100) / 100,
+        totalOrderEarnings: Math.round(stats.totalOrderEarnings * 100) / 100,
+        totalOrders: stats.totalOrders
       }
     });
-
 
   } catch (error) {
     console.error('Error fetching earnings stats:', error);
