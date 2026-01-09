@@ -139,6 +139,7 @@ const MobileWallet = lazy(() => import("./modules/UserApp/pages/Wallet"));
 const MobileReturnRequest = lazy(() => import("./modules/UserApp/pages/ReturnRequest"));
 const MobileMyReturns = lazy(() => import("./modules/UserApp/pages/MyReturns"));
 const MobileForgotPassword = lazy(() => import("./modules/UserApp/pages/ForgotPassword"));
+const MobileSingleReel = lazy(() => import("./modules/UserApp/pages/SingleReel"));
 
 // Vendor Routes
 import VendorLogin from "./modules/Vendor/pages/Login";
@@ -517,6 +518,14 @@ const AppRoutes = () => {
           element={
             <RouteWrapper>
               <MobileReels />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/reels/:id"
+          element={
+            <RouteWrapper>
+              <MobileSingleReel />
             </RouteWrapper>
           }
         />

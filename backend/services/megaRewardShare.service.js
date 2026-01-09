@@ -198,7 +198,7 @@ class MegaRewardShareService {
     async getShareLinkByCode(linkCode) {
         return await MegaRewardShareLink.findOne({ linkCode })
             .populate('userId', 'name email')
-            .populate('reelId', 'title videoUrl');
+            .populate('reelId', 'title description videoUrl thumbnail');
     }
 }
 

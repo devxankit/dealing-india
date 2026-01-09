@@ -89,6 +89,7 @@ import timeWarpRoutes from './routes/timeWarp.routes.js';
 import adminMegaRewardRoutes from './routes/adminMegaReward.routes.js';
 import userMegaRewardRoutes from './routes/userMegaReward.routes.js';
 import publicMegaRewardRoutes from './routes/publicMegaReward.routes.js';
+import publicReelRoutes from './routes/publicReel.routes.js';
 
 
 // Load environment variables
@@ -270,6 +271,7 @@ app.use('/api/public/promocodes', publicPromoCodeRoutes);
 app.use('/api/public/delivery', publicDeliveryRoutes);
 app.use('/api/settings', publicSettingsRoutes);
 app.use('/api/mega-reward', publicMegaRewardRoutes);
+app.use('/api/public/reels', publicReelRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);

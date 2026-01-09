@@ -109,8 +109,18 @@ export const generateShareLink = asyncHandler(async (req, res) => {
     const shareLink = await MegaRewardShareService.generateShareLink(userId, reelId, platform);
 
     // Construct the full share URL
-    // Use dynamic host if BACKEND_URL is not set (better for local network testing)
-    const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+    // Priority: Env Var > Request Host (if not local) > Production Default
+    let backendUrl = process.env.BACKEND_URL;
+
+    if (!backendUrl) {
+        const host = req.get('host') || '';
+        if (host.includes('dealingindia') || host.includes('onrender')) {
+            backendUrl = 'https://dealing-india.onrender.com';
+        } else {
+            backendUrl = `${req.protocol}://${host}`;
+        }
+    }
+
     const shareUrl = `${backendUrl}/api/mega-reward/r/${shareLink.linkCode}`;
 
     res.status(200).json({

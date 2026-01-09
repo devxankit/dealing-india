@@ -61,15 +61,29 @@ export const trackClick = asyncHandler(async (req, res) => {
         const shareLink = await MegaRewardShareService.getShareLinkByCode(linkCode);
 
         // Determine Redirect URL
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        let redirectUrl = `${frontendUrl}/app/mega-reward`; // Default fallback
+        // Priority: Env Var > Request Host (if not local) > Production Default
+        let frontendUrl = process.env.FRONTEND_URL;
+
+        if (!frontendUrl) {
+            const host = req.get('host') || '';
+            if (host.includes('dealingindia') || host.includes('onrender')) {
+                // If backend is on production-like host, use production frontend
+                frontendUrl = 'https://www.dealingindia.com';
+            } else {
+                // Local development fallback
+                frontendUrl = 'http://localhost:5173';
+            }
+        }
+
+        let redirectUrl = `${frontendUrl}/app/reels`; // Default fallback
 
         let ogTitle = 'Mega Reward';
         let ogDescription = 'Check out this amazing reel and win prizes!';
         let ogImage = '';
 
         if (shareLink && shareLink.reelId) {
-            redirectUrl = `${frontendUrl}/app/reels?type=promotional&reel=${shareLink.reelId._id}&source=${shareLink.platform}`;
+            // Redirect to the dedicated single reel page
+            redirectUrl = `${frontendUrl}/app/reels/${shareLink.reelId._id}?source=${shareLink.platform || 'share'}`;
             ogTitle = shareLink.reelId.title || 'Mega Reward Reel';
             ogDescription = shareLink.reelId.description || 'Watch and share to win huge rewards!';
             ogImage = shareLink.reelId.thumbnail || '';
@@ -99,22 +113,20 @@ export const trackClick = asyncHandler(async (req, res) => {
                 ${ogImage ? `<meta property="twitter:image" content="${ogImage}">` : ''}
 
                 <style>
-                    body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f9fafb; color: #111; }
-                    .loader { border: 3px solid #f3f3f3; border-top: 3px solid #7c3aed; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+                    body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #000; color: #fff; }
+                    .loader { border: 3px solid #333; border-top: 3px solid #7c3aed; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
                     .content { text-align: center; }
                 </style>
                 
                 <script>
-                    setTimeout(() => {
-                        window.location.href = "${redirectUrl}";
-                    }, 500); // Small delay to ensure scrapers read tags, though usually not needed
+                    window.location.href = "${redirectUrl}";
                 </script>
             </head>
             <body>
                 <div class="content">
                     <div class="loader" style="margin: 0 auto 20px auto;"></div>
-                    <p>Redirecting to Mega Reward...</p>
+                    <p>Opening Reel...</p>
                     <a href="${redirectUrl}" style="color: #7c3aed; text-decoration: none; font-size: 14px;">Click here if not redirected</a>
                 </div>
             </body>
@@ -126,8 +138,8 @@ export const trackClick = asyncHandler(async (req, res) => {
     } catch (error) {
         console.error('Click tracking/redirect error:', error.message);
         // Fallback hard redirect
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-        res.redirect(302, `${frontendUrl}/app/mega-reward`);
+        const frontendUrl = process.env.FRONTEND_URL || 'https://www.dealingindia.com';
+        res.redirect(302, `${frontendUrl}/app/reels`);
     }
 });
 
