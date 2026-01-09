@@ -1,26 +1,60 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSend, FiMessageSquare, FiUser } from 'react-icons/fi';
+import { FiArrowLeft, FiSend, FiMessageSquare, FiUser, FiSearch } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import PageTransition from '../../../shared/components/PageTransition';
 import chatService from '../../../shared/services/chatService';
 import { initializeSocket } from '../../../shared/utils/socket';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
 import toast from 'react-hot-toast';
+import api from '../../../shared/utils/api';
 
 const VendorChat = () => {
-  const { userId } = useParams();
+  const { vendorId } = useParams();
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
 
+  const [allVendors, setAllVendors] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
+  const [selectedVendor, setSelectedVendor] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
+
+  // Load all verified vendors
+  useEffect(() => {
+    const loadVendors = async () => {
+      try {
+        const response = await api.get('/vendors', {
+          params: {
+            isVerified: true,
+            limit: 1000
+          }
+        });
+
+        if (response.success) {
+          const vendors = response.data.vendors || [];
+          // Filter out current vendor
+          const otherVendors = vendors.filter(v =>
+            (v._id || v.id) !== (vendor?._id || vendor?.id)
+          );
+          setAllVendors(otherVendors);
+          console.log('Loaded vendors:', otherVendors.length);
+        }
+      } catch (error) {
+        console.error('Error loading vendors:', error);
+      }
+    };
+
+    if (vendor) {
+      loadVendors();
+    }
+  }, [vendor]);
 
   useEffect(() => {
     const initChat = async () => {
@@ -28,12 +62,12 @@ const VendorChat = () => {
         setLoading(true);
         const currentVendorId = vendor?._id || vendor?.id;
         console.log('Initializing vendor chat for vendor:', currentVendorId);
-        
+
         // Initialize socket
         const token = localStorage.getItem('vendor-token');
         if (token) {
           socketRef.current = initializeSocket(token);
-          
+
           socketRef.current.on('new_chat_message', (message) => {
             console.log('Vendor received global new message:', message);
             loadConversations();
@@ -48,21 +82,26 @@ const VendorChat = () => {
           console.log('Loaded conversations:', loadedConvs.length);
         }
 
-        // Handle direct chat from URL if userId is present
-        if (userId && loadedConvs.length > 0) {
-          const conv = loadedConvs.find(
-            (c) => {
-              const otherId = c.otherParticipant?.userId?._id || c.otherParticipant?.userId;
-              return otherId === userId;
+        // Handle direct chat from URL if vendorId is present
+        if (vendorId) {
+          // Check if conversation exists
+          const existingConv = loadedConvs.find(c => {
+            const otherId = c.otherParticipant?.vendorId?._id || c.otherParticipant?.vendorId;
+            return otherId === vendorId;
+          });
+
+          if (existingConv) {
+            selectConversation(existingConv);
+          } else {
+            // Find vendor and create conversation
+            const targetVendor = allVendors.find(v => (v._id || v.id) === vendorId);
+            if (targetVendor) {
+              await startNewConversation(targetVendor);
             }
-          );
-          if (conv) {
-            selectConversation(conv);
           }
         }
       } catch (error) {
         console.error('Error initializing chat:', error);
-        // Don't show toast error if it's just a 401/404 during init
       } finally {
         setLoading(false);
       }
@@ -78,7 +117,7 @@ const VendorChat = () => {
         socketRef.current.off('new_chat_message');
       }
     };
-  }, [userId, vendor?._id]);
+  }, [vendorId, vendor?._id, allVendors]);
 
   // Handle socket listeners when selectedConversation changes
   useEffect(() => {
@@ -88,8 +127,7 @@ const VendorChat = () => {
 
       const handleNewMessage = (message) => {
         console.log('Vendor received message:', message);
-        
-        // If it's for the currently selected conversation, add to messages
+
         if (selectedConversation && message.conversationId === selectedConversation._id) {
           setMessages((prev) => {
             const exists = prev.find(m => m._id === message._id);
@@ -97,11 +135,9 @@ const VendorChat = () => {
             return [...prev, message];
           });
           scrollToBottom();
-          // Mark as read when receiving in open chat
           chatService.markVendorAllAsRead(selectedConversation._id).catch(console.error);
         }
-        
-        // Always refresh conversations list to update last message/unread count
+
         loadConversations();
       };
 
@@ -112,18 +148,6 @@ const VendorChat = () => {
           socketRef.current.emit('leave_chat_room', { conversationId: selectedConversation._id });
         }
         socketRef.current.off('receive_message', handleNewMessage);
-      };
-    } else if (socketRef.current) {
-      // If no conversation selected, still listen for new messages to update list
-      const handleNewMessageForList = (message) => {
-        console.log('Vendor received message for list update:', message);
-        loadConversations();
-      };
-      
-      socketRef.current.on('new_chat_message', handleNewMessageForList);
-      
-      return () => {
-        socketRef.current.off('new_chat_message', handleNewMessageForList);
       };
     }
   }, [selectedConversation?._id]);
@@ -143,10 +167,41 @@ const VendorChat = () => {
     }
   };
 
+  const startNewConversation = async (targetVendor) => {
+    try {
+      setLoading(true);
+      const targetVendorId = targetVendor._id || targetVendor.id;
+
+      // Create or get conversation
+      const response = await chatService.createVendorConversation(targetVendorId);
+
+      if (response.success) {
+        const conversation = response.data;
+        setSelectedConversation(conversation);
+        setSelectedVendor(targetVendor);
+
+        // Load messages
+        const messagesResponse = await chatService.getVendorMessages(conversation._id);
+        if (messagesResponse.success) {
+          setMessages(messagesResponse.data.messages || []);
+        }
+
+        // Reload conversations list
+        await loadConversations();
+      }
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      toast.error('Failed to start conversation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const selectConversation = async (conversation) => {
     try {
       setSelectedConversation(conversation);
-      
+      setSelectedVendor(conversation.otherParticipant?.vendorId);
+
       // Leave previous room
       if (selectedConversation?._id && socketRef.current) {
         socketRef.current.emit('leave_chat_room', { conversationId: selectedConversation._id });
@@ -180,13 +235,13 @@ const VendorChat = () => {
 
     try {
       setSending(true);
-      const userParticipant = selectedConversation.participants.find(p => p.role === 'user');
-      if (!userParticipant) {
-        toast.error('User not found');
+      const otherVendor = selectedConversation.otherParticipant?.vendorId;
+      if (!otherVendor) {
+        toast.error('Vendor not found');
         return;
       }
 
-      const receiverId = userParticipant.userId._id || userParticipant.userId;
+      const receiverId = otherVendor._id || otherVendor.id;
       const response = await chatService.sendVendorMessage(
         selectedConversation._id,
         receiverId,
@@ -219,6 +274,32 @@ const VendorChat = () => {
     }
   };
 
+  // Filter vendors based on search
+  const filteredVendors = allVendors.filter(v =>
+    v.storeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    v.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Combine conversations and vendors for display
+  const displayList = [...conversations];
+
+  // Add vendors that don't have conversations yet
+  filteredVendors.forEach(vendor => {
+    const hasConversation = conversations.some(conv => {
+      const otherId = conv.otherParticipant?.vendorId?._id || conv.otherParticipant?.vendorId;
+      return otherId === (vendor._id || vendor.id);
+    });
+
+    if (!hasConversation) {
+      displayList.push({
+        _id: `vendor_${vendor._id || vendor.id}`,
+        isNewVendor: true,
+        vendorData: vendor,
+        unreadCount: 0
+      });
+    }
+  });
+
   if (loading) {
     return (
       <PageTransition>
@@ -232,44 +313,69 @@ const VendorChat = () => {
     );
   }
 
-  const userInfo = selectedConversation?.otherParticipant?.userId;
-  const userName = userInfo?.name || 'User';
+  const currentVendorInfo = selectedVendor || selectedConversation?.otherParticipant?.vendorId;
+  const vendorName = currentVendorInfo?.storeName || 'Vendor';
 
   return (
     <PageTransition className="h-full">
       <div className="h-full flex bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
-        {/* Conversations List */}
+        {/* Vendors/Conversations List */}
         <div className={`${selectedConversation ? 'hidden sm:flex' : 'flex'} w-full sm:w-80 border-r border-gray-200 bg-white flex-col h-full relative`}>
           <div className="sticky top-0 p-5 border-b border-gray-200 bg-white z-20 shrink-0">
-            <h2 className="text-lg font-bold text-gray-800">User Chats</h2>
+            <h2 className="text-lg font-bold text-gray-800 mb-3">Vendor Chat</h2>
+            {/* Search Bar */}
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search vendors..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              />
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {conversations.length === 0 ? (
+            {displayList.length === 0 ? (
               <div className="p-4 text-center text-gray-500">
                 <FiMessageSquare className="text-4xl mx-auto mb-2 text-gray-400" />
-                <p>No conversations yet</p>
+                <p>No vendors found</p>
               </div>
             ) : (
-              conversations.map((conv) => {
-                const otherUser = conv.otherParticipant?.userId;
-                const unreadCount = conv.unreadCount || 0;
-                const isSelected = selectedConversation?._id === conv._id;
-                
+              displayList.map((item) => {
+                const isNewVendor = item.isNewVendor;
+                const vendorData = isNewVendor ? item.vendorData : item.otherParticipant?.vendorId;
+                const unreadCount = item.unreadCount || 0;
+                const isSelected = selectedConversation?._id === item._id;
+
                 return (
                   <div
-                    key={conv._id}
-                    onClick={() => selectConversation(conv)}
-                    className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      isSelected ? 'bg-primary-50 border-l-4 border-l-primary-600' : ''
-                    }`}>
+                    key={item._id}
+                    onClick={() => {
+                      if (isNewVendor) {
+                        startNewConversation(item.vendorData);
+                      } else {
+                        selectConversation(item);
+                      }
+                    }}
+                    className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-primary-50 border-l-4 border-l-primary-600' : ''
+                      }`}>
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                        <FiUser className="text-primary-600 text-xl" />
+                        {vendorData?.storeLogo ? (
+                          <img
+                            src={vendorData.storeLogo}
+                            alt={vendorData.storeName}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <FiUser className="text-primary-600 text-xl" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="font-semibold text-gray-800 truncate">
-                            {otherUser?.name || 'User'}
+                            {vendorData?.storeName || 'Vendor'}
                           </h3>
                           {unreadCount > 0 && (
                             <span className="bg-primary-600 text-white text-xs rounded-full px-2 py-0.5">
@@ -277,10 +383,13 @@ const VendorChat = () => {
                             </span>
                           )}
                         </div>
-                        {conv.lastMessage && (
+                        {!isNewVendor && item.lastMessage && (
                           <p className="text-sm text-gray-600 truncate">
-                            {conv.lastMessage.message}
+                            {item.lastMessage.message}
                           </p>
+                        )}
+                        {isNewVendor && (
+                          <p className="text-xs text-gray-500">Click to start chat</p>
                         )}
                       </div>
                     </div>
@@ -303,11 +412,19 @@ const VendorChat = () => {
                   <FiArrowLeft className="text-xl" />
                 </button>
                 <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-                  <FiUser className="text-primary-600" />
+                  {currentVendorInfo?.storeLogo ? (
+                    <img
+                      src={currentVendorInfo.storeLogo}
+                      alt={vendorName}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <FiUser className="text-primary-600" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h1 className="font-semibold text-gray-800 truncate">{userName}</h1>
-                  <p className="text-sm text-gray-500">User</p>
+                  <h1 className="font-semibold text-gray-800 truncate">{vendorName}</h1>
+                  <p className="text-sm text-gray-500">Vendor</p>
                 </div>
               </div>
 
@@ -319,7 +436,7 @@ const VendorChat = () => {
                   </div>
                 ) : (
                   messages.map((message) => {
-                    const isSender = message.senderRole === 'vendor';
+                    const isSender = message.senderId === (vendor?._id || vendor?.id);
                     return (
                       <motion.div
                         key={message._id}
@@ -327,16 +444,14 @@ const VendorChat = () => {
                         animate={{ opacity: 1, y: 0 }}
                         className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
                         <div
-                          className={`max-w-[75%] rounded-lg px-4 py-2 ${
-                            isSender
+                          className={`max-w-[75%] rounded-lg px-4 py-2 ${isSender
                               ? 'bg-primary-600 text-white'
                               : 'bg-white text-gray-800 border border-gray-200'
-                          }`}>
+                            }`}>
                           <p className="text-sm">{message.message}</p>
                           <p
-                            className={`text-xs mt-1 ${
-                              isSender ? 'text-primary-100' : 'text-gray-500'
-                            }`}>
+                            className={`text-xs mt-1 ${isSender ? 'text-primary-100' : 'text-gray-500'
+                              }`}>
                             {new Date(message.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -375,7 +490,7 @@ const VendorChat = () => {
             <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center">
                 <FiMessageSquare className="text-6xl text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Select a conversation to start chatting</p>
+                <p className="text-gray-600">Select a vendor to start chatting</p>
               </div>
             </div>
           )}
@@ -386,4 +501,3 @@ const VendorChat = () => {
 };
 
 export default VendorChat;
-

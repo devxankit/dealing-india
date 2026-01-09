@@ -27,7 +27,7 @@
     ]
   },
   {
-    "title": "User Chat",
+    "title": "Vendor Chat",
     "route": "/vendor/chat",
     "children": []
   },

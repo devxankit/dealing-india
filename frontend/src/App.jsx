@@ -7,7 +7,6 @@ import {
 import React, { lazy, Suspense } from 'react';
 import { Toaster, useToasterStore, toast } from "react-hot-toast";
 import { useEffect } from 'react';
-import Chat from "./shared/components/Chat/Chat";
 import SupportTickets from "./shared/components/Support/SupportTickets";
 import VendorStore from "./shared/components/Store/VendorStore";
 import AdminSupportTickets from "./modules/Admin/pages/supportTickets/SupportTickets";
@@ -625,16 +624,6 @@ const AppRoutes = () => {
             <RouteWrapper>
               <ProtectedRoute>
                 <MobileProfile />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/chat/:vendorId?"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <Chat />
               </ProtectedRoute>
             </RouteWrapper>
           }

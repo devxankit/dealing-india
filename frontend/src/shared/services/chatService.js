@@ -92,6 +92,18 @@ class ChatService {
   }
 
   /**
+   * Create or get conversation with another vendor
+   */
+  async createVendorConversation(vendorId) {
+    try {
+      const response = await api.post('/vendor/chat/conversations', { vendorId });
+      return response;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  }
+
+  /**
    * Get messages for a conversation (vendor)
    */
   async getVendorMessages(conversationId, page = 1, limit = 50) {

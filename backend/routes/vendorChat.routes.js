@@ -9,6 +9,7 @@ const router = express.Router();
 router.use(authenticate);
 router.use(authorize('vendor'));
 
+router.post('/conversations', VendorChatController.createOrGetConversation);
 router.get('/conversations', VendorChatController.getConversations);
 router.get('/conversations/:id/messages', VendorChatController.getMessages);
 router.post('/messages', VendorChatController.sendMessage);

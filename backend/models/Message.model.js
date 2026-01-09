@@ -10,32 +10,12 @@ const messageSchema = new mongoose.Schema(
     },
     senderId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      refPath: 'senderRoleModel',
-    },
-    senderRole: {
-      type: String,
-      enum: ['user', 'vendor'],
-      required: true,
-    },
-    senderRoleModel: {
-      type: String,
-      enum: ['User', 'Vendor'],
+      ref: 'Vendor',
       required: true,
     },
     receiverId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      refPath: 'receiverRoleModel',
-    },
-    receiverRole: {
-      type: String,
-      enum: ['user', 'vendor'],
-      required: true,
-    },
-    receiverRoleModel: {
-      type: String,
-      enum: ['User', 'Vendor'],
+      ref: 'Vendor',
       required: true,
     },
     message: {
@@ -58,8 +38,8 @@ const messageSchema = new mongoose.Schema(
 
 // Indexes for efficient queries
 messageSchema.index({ conversationId: 1, createdAt: -1 });
-messageSchema.index({ senderId: 1, senderRole: 1, createdAt: -1 });
-messageSchema.index({ receiverId: 1, receiverRole: 1, readStatus: 1 });
+messageSchema.index({ senderId: 1, createdAt: -1 });
+messageSchema.index({ receiverId: 1, readStatus: 1 });
 
 const Message = mongoose.model('Message', messageSchema);
 

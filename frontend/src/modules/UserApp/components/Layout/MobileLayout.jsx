@@ -44,8 +44,6 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, full
     !location.pathname.startsWith('/app/track-order') &&
     // Hide header for Support Tickets
     !location.pathname.startsWith('/app/support-tickets') &&
-    // Hide header for Chat
-    !location.pathname.startsWith('/app/chat') &&
     // Hide header for Vendor Store
     !location.pathname.startsWith('/app/vendor/') &&
     !location.pathname.startsWith('/app/track-order') &&

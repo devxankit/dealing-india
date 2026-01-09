@@ -4,19 +4,9 @@ const chatSchema = new mongoose.Schema(
   {
     participants: [
       {
-        userId: {
+        vendorId: {
           type: mongoose.Schema.Types.ObjectId,
-          required: true,
-          refPath: 'participants.roleModel',
-        },
-        role: {
-          type: String,
-          enum: ['user', 'vendor'],
-          required: true,
-        },
-        roleModel: {
-          type: String,
-          enum: ['User', 'Vendor'],
+          ref: 'Vendor',
           required: true,
         },
       },
@@ -39,12 +29,17 @@ const chatSchema = new mongoose.Schema(
   }
 );
 
-// Compound index for efficient conversation lookup
-chatSchema.index({ 'participants.userId': 1, 'participants.role': 1 });
+// Compound index for efficient conversation lookup between two vendors
+chatSchema.index({ 'participants.vendorId': 1 });
 chatSchema.index({ lastMessageAt: -1 });
 
-// Note: Unique constraint removed to allow multiple conversations
-// The service layer ensures one conversation per user-vendor pair
+// Ensure exactly 2 participants (vendor-to-vendor)
+chatSchema.pre('save', function (next) {
+  if (this.participants.length !== 2) {
+    next(new Error('Chat must have exactly 2 vendor participants'));
+  }
+  next();
+});
 
 const Chat = mongoose.model('Chat', chatSchema);
 

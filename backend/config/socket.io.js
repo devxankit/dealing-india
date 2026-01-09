@@ -117,9 +117,20 @@ export const setupSocketIO = (httpServer, allowedOrigins = []) => {
             const conversation = await Chat.findById(conversationId);
             if (!conversation) return;
 
-            const isParticipant = conversation.participants.some(p =>
-              (p.userId._id || p.userId).toString() === userId.toString() && p.role === userRole
-            );
+            let isParticipant = false;
+
+            // Check if this is vendor-to-vendor chat (new schema)
+            if (userRole === 'vendor' && conversation.participants[0]?.vendorId) {
+              isParticipant = conversation.participants.some(p =>
+                (p.vendorId._id || p.vendorId).toString() === userId.toString()
+              );
+            }
+            // Check if this is old user-vendor chat (old schema - for backward compatibility)
+            else if (conversation.participants[0]?.userId) {
+              isParticipant = conversation.participants.some(p =>
+                (p.userId._id || p.userId).toString() === userId.toString() && p.role === userRole
+              );
+            }
 
             if (isParticipant) {
               socket.join(`chat_${conversationId}`);

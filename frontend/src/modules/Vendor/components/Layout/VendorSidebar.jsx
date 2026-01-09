@@ -49,6 +49,7 @@ const iconMap = {
 
   "Pickup Locations": FiMapPin,
   Chat: FiMessageCircle,
+  "Vendor Chat": FiMessageCircle,
   Reels: FiVideo,
   Promotions: FiTag,
   Notifications: FiBell,
