@@ -12,97 +12,50 @@ import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
 export const trackClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
 
-    // Get client IP
-    const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-        || req.headers['x-real-ip']
-        || req.socket?.remoteAddress
-        || req.ip
-        || 'unknown';
-
-    // Cookie-based Fingerprinting (Robust against same-IP networks like WiFi)
-    let fingerprint = null;
-
-    // 1. Try to read existing fingerprint from cookie
-    if (req.headers.cookie) {
-        const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
-            const [name, value] = cookie.trim().split('=');
-            acc[name] = value;
-            return acc;
-        }, {});
-        fingerprint = cookies['mr_fp'];
-    }
-
-    // 2. If no cookie, generate a new persistent fingerprint
-    if (!fingerprint) {
-        const randomPart = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        fingerprint = `fp_${Date.now()}_${randomPart}`;
-
-        // Set long-lived cookie (1 year)
-        res.cookie('mr_fp', fingerprint, {
-            maxAge: 365 * 24 * 60 * 60 * 1000,
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax'
-        });
-    }
-
+    // Determine Client Info
     const userAgent = req.headers['user-agent'] || '';
 
-    // Bot Detection (WhatsApp, Facebook, etc. preview crawlers)
+    // Advanced Bot Detection (Extended List)
     const bots = [
         'WhatsApp', 'facebookexternalhit', 'Facebot', 'Twitterbot',
-        'TelegramBot', 'Discordbot', 'Slackbot', 'Googlebot', 'Bingbot'
+        'TelegramBot', 'Discordbot', 'Slackbot', 'Googlebot', 'Bingbot',
+        'Baiduspider', 'yandex', 'embedly', 'quora-bot', 'linkedinbot',
+        'Pinterest', 'VisionUtils', 'criteo', 'outbrain',
+        'slack-imgProxy', 'vkShare', 'W3C_Validator', 'Redditbot',
+        'HeadlessChrome', 'PhantomJS', 'Centroid', 'spider', 'crawler', 'scraper'
     ];
-    const isBot = bots.some(bot => userAgent.includes(bot));
+    const isBot = bots.some(bot => userAgent.toLowerCase().includes(bot.toLowerCase())) || !userAgent;
 
     try {
-        let shareLink;
-
-        if (!isBot) {
-            // Human Click -> Track and get persistent link
-            const trackingResult = await MegaRewardShareService.trackClick(
-                linkCode,
-                ipAddress,
-                fingerprint,
-                userAgent
-            );
-            shareLink = trackingResult.shareLink;
-        } else {
-            // Bot Hit -> Just get metadata for OG tags, do not track/increment
-            shareLink = await MegaRewardShareService.getShareLinkByCode(linkCode);
-        }
+        // Just get metadata for OG tags, do not track/increment yet on the initial GET request
+        // This prevents social media preview-bots from triggering counts
+        const shareLink = await MegaRewardShareService.getShareLinkByCode(linkCode);
 
         // Determine Redirect URL
-        // Priority: Env Var > Request Host (if not local) > Production Default
         let frontendUrl = process.env.FRONTEND_URL;
-
         if (!frontendUrl) {
             const host = req.get('host') || '';
             if (host.includes('dealingindia') || host.includes('onrender')) {
-                // If backend is on production-like host, use production frontend
                 frontendUrl = 'https://www.dealingindia.com';
             } else {
-                // Local development fallback
                 frontendUrl = 'http://localhost:5173';
             }
         }
 
-        let redirectUrl = `${frontendUrl}/app/reels`; // Default fallback
-
+        let redirectUrl = `${frontendUrl}/app/reels`;
         let ogTitle = 'Mega Reward';
         let ogDescription = 'Check out this amazing reel and win prizes!';
         let ogImage = '';
 
         if (shareLink && shareLink.reelId) {
-            // Redirect to the dedicated single reel page
-            redirectUrl = `${frontendUrl}/app/reels/${shareLink.reelId._id}?source=${shareLink.platform || 'share'}`;
+            const reelId = shareLink.reelId._id || shareLink.reelId;
+            redirectUrl = `${frontendUrl}/app/reels/${reelId}?source=${shareLink.platform || 'share'}`;
             ogTitle = shareLink.reelId.title || 'Mega Reward Reel';
             ogDescription = shareLink.reelId.description || 'Watch and share to win huge rewards!';
             ogImage = shareLink.reelId.thumbnail || '';
         }
 
-        // Return HTML with Open Graph tags + JS Redirect
-        // This ensures social platforms can scrape metadata for the "Link Form" (Preview Card)
+        // Return HTML with Open Graph tags + JS Logic
         const html = `
             <!DOCTYPE html>
             <html lang="en">
@@ -111,7 +64,7 @@ export const trackClick = asyncHandler(async (req, res) => {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>${ogTitle}</title>
                 
-                <!-- Open Graph / Facebook / WhatsApp -->
+                <!-- Open Graph / Social Previews -->
                 <meta property="og:type" content="website">
                 <meta property="og:url" content="${req.protocol}://${req.get('host')}${req.originalUrl}">
                 <meta property="og:title" content="${ogTitle}">
@@ -132,10 +85,32 @@ export const trackClick = asyncHandler(async (req, res) => {
                 </style>
                 
                 <script>
-                    // Only redirect humans, bots just need the metadata
-                    if (!${isBot}) {
-                        window.location.href = "${redirectUrl}";
+                    async function completeRedirect() {
+                        const isBot = ${isBot};
+                        const redirectUrl = "${redirectUrl}";
+                        const linkCode = "${linkCode}";
+
+                        if (!isBot) {
+                            try {
+                                // Real human -> Securely log the click via API before redirecting
+                                // This filters out bots that don't execute JS
+                                await fetch('/api/mega-reward/track-log/' + linkCode, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+                            } catch (e) {
+                                console.error('Tracking error:', e);
+                            }
+                        }
+                        
+                        // Proceed to final destination
+                        if (!isBot) {
+                            window.location.href = redirectUrl;
+                        }
                     }
+                    
+                    // Small delay for smooth transition
+                    setTimeout(completeRedirect, 800);
                 </script>
             </head>
             <body>
@@ -151,11 +126,53 @@ export const trackClick = asyncHandler(async (req, res) => {
         res.send(html);
 
     } catch (error) {
-        console.error('Click tracking/redirect error:', error.message);
-        // Fallback hard redirect
+        console.error('Click tracking error:', error.message);
         const frontendUrl = process.env.FRONTEND_URL || 'https://www.dealingindia.com';
         res.redirect(302, `${frontendUrl}/app/reels`);
     }
+});
+
+// Record the actual click (POST handler called by JS)
+export const recordClick = asyncHandler(async (req, res) => {
+    const { linkCode } = req.params;
+
+    const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+        || req.headers['x-real-ip']
+        || req.socket?.remoteAddress
+        || req.ip
+        || 'unknown';
+
+    let fingerprint = null;
+    if (req.headers.cookie) {
+        const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
+            const [name, value] = cookie.trim().split('=');
+            acc[name] = value;
+            return acc;
+        }, {});
+        fingerprint = cookies['mr_fp'];
+    }
+
+    if (!fingerprint) {
+        const randomPart = Math.random().toString(36).substring(2, 11);
+        fingerprint = `fp_${Date.now()}_${randomPart}`;
+        res.cookie('mr_fp', fingerprint, {
+            maxAge: 365 * 24 * 60 * 60 * 1000,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax'
+        });
+    }
+
+    const userAgent = req.headers['user-agent'] || '';
+
+    const result = await MegaRewardShareService.trackClick(
+        linkCode,
+        ipAddress,
+        fingerprint,
+        userAgent
+    );
+
+    res.status(200).json(result);
 });
 
 // Get link info (public, for preview)

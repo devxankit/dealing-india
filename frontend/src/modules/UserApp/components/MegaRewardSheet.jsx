@@ -49,33 +49,83 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                 const { shareUrl } = response.data;
                 const shareMessage = `Check out this amazing reel! 🎬 ${reelTitle || 'Watch Now'}`;
 
+                // Prepare share data for Web Share API
+                const shareData = {
+                    title: reelTitle || 'Mega Reward Reel',
+                    text: shareMessage,
+                    url: shareUrl
+                };
+
+                // Try Web Share API first (native OS share sheet)
+                // This provides the best experience on mobile - opens native share picker
+                if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                    try {
+                        await navigator.share(shareData);
+                        toast.success('Shared successfully!');
+                        // Refresh status after share
+                        setTimeout(() => fetchStatus(), 2000);
+                        return;
+                    } catch (err) {
+                        if (err.name === 'AbortError') {
+                            // User cancelled the share - don't fall through
+                            return;
+                        }
+                        // Web Share failed, fall through to platform-specific fallback
+                        console.log('Web Share failed, using fallback:', err.message);
+                    }
+                }
+
+                // Fallback to platform-specific sharing
                 let shareLink = '';
 
                 switch (platform) {
                     case 'whatsapp':
-                        // Use wa.me for a cleaner sharing experience and better cross-device support
+                        // Use wa.me for a cleaner sharing experience
                         shareLink = `https://wa.me/?text=${encodeURIComponent(shareMessage + '\n\n' + shareUrl)}`;
+                        window.open(shareLink, '_blank');
                         break;
+
                     case 'instagram':
-                        // Instagram doesn't have a direct share URL, copy to clipboard
+                        // Copy link to clipboard first
                         await navigator.clipboard.writeText(shareMessage + '\n\n' + shareUrl);
-                        toast.success('Link copied! Open Instagram and paste in your story');
-                        shareLink = 'https://www.instagram.com/';
+                        toast.success('Link copied! Paste it in your Instagram Story or DM');
+
+                        // Try to open Instagram app via URL scheme
+                        // This works on mobile when the app is installed
+                        const instagramAppUrl = 'instagram://camera';
+                        const instagramWebUrl = 'https://www.instagram.com/';
+
+                        // Try app first, fallback to web
+                        const instagramOpened = window.open(instagramAppUrl, '_self');
+                        setTimeout(() => {
+                            // If app didn't open (still on same page), open web
+                            window.open(instagramWebUrl, '_blank');
+                        }, 1000);
                         break;
+
                     case 'facebook':
-                        shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+                        // Try Facebook app URL scheme first (mobile)
+                        const fbAppUrl = `fb://share?link=${encodeURIComponent(shareUrl)}`;
+                        const fbWebUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+
+                        // On mobile, try app first
+                        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                            window.location.href = fbAppUrl;
+                            // Fallback to web after a short delay
+                            setTimeout(() => {
+                                window.open(fbWebUrl, '_blank');
+                            }, 1000);
+                        } else {
+                            // Desktop: Open web share dialog directly
+                            window.open(fbWebUrl, '_blank');
+                        }
                         break;
                 }
 
-                // Open share dialog
-                window.open(shareLink, '_blank');
-
-                toast.success(`Shared on ${platform.charAt(0).toUpperCase() + platform.slice(1)}!`);
+                toast.success(`Opening ${platform.charAt(0).toUpperCase() + platform.slice(1)}...`);
 
                 // Refresh status after share
-                setTimeout(() => {
-                    fetchStatus();
-                }, 2000);
+                setTimeout(() => fetchStatus(), 2000);
             }
         } catch (error) {
             console.error('Share error:', error);

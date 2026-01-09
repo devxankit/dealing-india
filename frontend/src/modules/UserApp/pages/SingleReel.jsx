@@ -214,14 +214,16 @@ const SingleReel = () => {
                                 </button>
                             )}
 
-                            {/* Watch More Button */}
-                            <button
-                                onClick={() => navigate('/app/reels')}
-                                className="flex items-center gap-2 text-white/70 text-sm font-medium hover:text-white transition-colors"
-                            >
-                                <FiVideo />
-                                <span>Watch More Reels</span>
-                            </button>
+                            {/* Watch More Button - Hidden if from share */}
+                            {!isFromShare && (
+                                <button
+                                    onClick={() => navigate('/app/reels')}
+                                    className="flex items-center gap-2 text-white/70 text-sm font-medium hover:text-white transition-colors"
+                                >
+                                    <FiVideo />
+                                    <span>Watch More Reels</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Actions */}
