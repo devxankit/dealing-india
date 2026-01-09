@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { FiHeart, FiMessageCircle, FiSend, FiArrowLeft, FiGift, FiShoppingBag, FiVolume2, FiVolumeX, FiX, FiVideo } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -10,6 +10,13 @@ import MegaRewardSheet from "../components/MegaRewardSheet";
 const SingleReel = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Check if opened from a share link
+    const queryParams = new URLSearchParams(location.search);
+    const source = queryParams.get('source');
+    const isFromShare = !!source;
+
     const [reel, setReel] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -127,7 +134,7 @@ const SingleReel = () => {
                     <FiArrowLeft className="text-2xl" />
                 </button>
                 <div className="flex flex-col items-center">
-                    <span className="text-white font-bold tracking-wide">Video</span>
+                    <span className="text-white font-bold tracking-wide uppercase text-xs">Reels</span>
                 </div>
                 <div className="w-10"></div>
             </div>
@@ -233,12 +240,14 @@ const SingleReel = () => {
                                 <span className="text-white text-xs font-bold drop-shadow-md">{reel.comments || 0}</span>
                             </button>
 
-                            <button onClick={handleShare} className="flex flex-col items-center gap-1 group">
-                                <div className="p-3.5 rounded-full bg-white/10 backdrop-blur-md group-active:scale-90 transition-transform">
-                                    <FiSend className="text-2xl text-white" />
-                                </div>
-                                <span className="text-white text-xs font-bold drop-shadow-md">Share</span>
-                            </button>
+                            {!isFromShare && (
+                                <button onClick={handleShare} className="flex flex-col items-center gap-1 group">
+                                    <div className="p-3.5 rounded-full bg-white/10 backdrop-blur-md group-active:scale-90 transition-transform">
+                                        <FiSend className="text-2xl text-white" />
+                                    </div>
+                                    <span className="text-white text-xs font-bold drop-shadow-md">Share</span>
+                                </button>
+                            )}
 
                             {reel.isPromotional && (
                                 <button onClick={() => setShowRewardPopup(true)} className="flex flex-col items-center gap-1 animate-bounce">

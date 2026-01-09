@@ -31,8 +31,9 @@ export const getReelById = async (req, res, next) => {
                     ...reel,
                     id: reel._id,
                     isPromotional: true,
-                    vendorName: reel.uploadedBy?.name || 'Dealing India',
-                    vendorLogo: reel.uploadedBy?.logo,
+                    // Use consistent brand identity for all promotional reels
+                    vendorName: 'Dealing India',
+                    vendorLogo: null, // Triggers initials-based avatar on frontend
                 }
             });
         }
