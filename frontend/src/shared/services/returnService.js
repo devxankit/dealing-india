@@ -4,8 +4,11 @@ import { API_BASE_URL as API_URL } from '../utils/constants';
 // User API
 export const checkReturnEligibility = async (orderId) => {
     try {
+        // axiosInstance interceptor already returns response.data
+        // which is { success: true, data: { eligible: true/false } }
         const response = await axiosInstance.get(`/user/returns/eligibility/${orderId}`);
-        return response.data;
+        // Return the data portion directly: { eligible: true/false }
+        return response.data || response;
     } catch (error) {
         throw error;
     }
@@ -13,8 +16,11 @@ export const checkReturnEligibility = async (orderId) => {
 
 export const createReturnRequest = async (returnData) => {
     try {
+        // axiosInstance interceptor already returns response.data
+        // which is { success: true, message: '...', data: returnRequest }
         const response = await axiosInstance.post(`/user/returns`, returnData);
-        return response.data;
+        // Return full response so component can check response.success
+        return response;
     } catch (error) {
         throw error;
     }
@@ -45,6 +51,20 @@ export const updateReturnStatusVendor = async (id, data) => {
     try {
         const response = await axiosInstance.put(`/vendor/returns/${id}/status`, data);
         return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Mark return as received - triggers refund to customer wallet
+ * @param {string} id - Return request ID
+ * @param {string} note - Optional note
+ */
+export const markReturnAsReceived = async (id, note = '') => {
+    try {
+        const response = await axiosInstance.put(`/vendor/returns/${id}/received`, { note });
+        return response;
     } catch (error) {
         throw error;
     }

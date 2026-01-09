@@ -76,7 +76,7 @@ const returnRequestSchema = new mongoose.Schema(
         }],
         status: {
             type: String,
-            enum: ['pending', 'approved', 'rejected', 'processing', 'completed', 'cancelled'],
+            enum: ['pending', 'approved', 'received', 'rejected', 'processing', 'completed', 'cancelled'],
             default: 'pending',
         },
         refundAmount: {
@@ -122,6 +122,9 @@ const returnRequestSchema = new mongoose.Schema(
         adminNotes: String,
         vendorNotes: String,
         rejectionReason: String,
+        receivedAt: {
+            type: Date,
+        },
     },
     {
         timestamps: true,

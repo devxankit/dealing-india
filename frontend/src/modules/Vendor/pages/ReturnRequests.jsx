@@ -9,7 +9,7 @@ import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { useOrderStore } from "../../../shared/store/orderStore";
-import { getVendorReturns, updateReturnStatusVendor } from "../../../shared/services/returnService";
+import { getVendorReturns, updateReturnStatusVendor, markReturnAsReceived } from "../../../shared/services/returnService";
 import toast from "react-hot-toast";
 
 const ReturnRequests = () => {
@@ -128,11 +128,25 @@ const ReturnRequests = () => {
     }
   };
 
-  // Get status badge variant
+  // Handle marking return as received (triggers refund)
+  const handleMarkAsReceived = async (requestId) => {
+    try {
+      const response = await markReturnAsReceived(requestId);
+      if (response.success) {
+        toast.success("Return marked as received. Refund processed to customer wallet!");
+        fetchReturnRequests();
+      }
+    } catch (error) {
+      console.error("Error marking as received:", error);
+      toast.error(error.response?.data?.message || error.message || "Failed to process");
+    }
+  };
+
   const getStatusVariant = (status) => {
     const statusMap = {
       pending: "warning",
-      approved: "success",
+      approved: "info",
+      received: "success",
       rejected: "error",
       processing: "info",
       completed: "success",
@@ -256,28 +270,17 @@ const ReturnRequests = () => {
               </button>
             </>
           )}
-          {row.status === "approved" && row.refundStatus === "pending" && (
+          {row.status === "approved" && (
             <button
-              onClick={() => {
-                if (window.confirm("Confirm receipt of return items? This will mark status as Processing.")) {
-                  handleStatusUpdate(row._id, "processing", "process-item");
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm("Confirm you have received the returned product? This will process refund to customer wallet.")) {
+                  handleMarkAsReceived(row._id);
                 }
               }}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Mark as Processing (Item Received)">
+              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              title="Mark as Received (Process Refund)">
               <FiPackage />
-            </button>
-          )}
-          {row.status === "processing" && row.refundStatus === "pending" && (
-            <button
-              onClick={() => {
-                if (window.confirm("Process refund for this return request?")) {
-                  handleStatusUpdate(row._id, "completed", "process-refund");
-                }
-              }}
-              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-              title="Process Refund">
-              <FiRefreshCw />
             </button>
           )}
         </div>
@@ -285,14 +288,12 @@ const ReturnRequests = () => {
     },
   ];
 
-  // Get status counts for stats
   const statusCounts = useMemo(() => {
     return {
       all: returnRequests.length,
       pending: returnRequests.filter((r) => r.status === "pending").length,
       approved: returnRequests.filter((r) => r.status === "approved").length,
-      processing: returnRequests.filter((r) => r.status === "processing")
-        .length,
+      received: returnRequests.filter((r) => r.status === "received").length,
       completed: returnRequests.filter((r) => r.status === "completed").length,
       rejected: returnRequests.filter((r) => r.status === "rejected").length,
     };
