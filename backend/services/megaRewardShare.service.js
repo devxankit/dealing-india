@@ -61,41 +61,52 @@ class MegaRewardShareService {
      */
     async trackClick(linkCode, ipAddress, fingerprint, userAgent) {
         let shareLink;
+        console.log(`[MegaRewardShare] Tracking click for code: ${linkCode.substring(0, 20)}... from IP: ${ipAddress}`);
 
         // 1. Check if this is a Lazy Link (Temporary)
         if (linkCode.startsWith('lazy_')) {
             try {
                 // Decode payload: "userId:reelId:platform:megaRewardId"
-                const encoded = linkCode.replace('lazy_', '');
+                const encoded = linkCode.substring(5); // Safer than replace
                 const payload = Buffer.from(encoded, 'base64').toString('utf8');
                 const [userId, reelId, platform, megaRewardId] = payload.split(':');
+
+                console.log(`[MegaRewardShare] Lazy link decoded: userId=${userId}, reelId=${reelId}, platform=${platform}`);
 
                 if (!userId || !reelId || !platform || !megaRewardId) {
                     throw new Error('Invalid temporary link format');
                 }
 
                 // Double-check if persistent link was created in the meantime (Race condition)
-                shareLink = await MegaRewardShareLink.findOne({ userId, reelId, platform })
-                    .populate('reelId', 'title description videoUrl thumbnail');
+                shareLink = await MegaRewardShareLink.findOne({
+                    userId: new mongoose.Types.ObjectId(userId),
+                    reelId: new mongoose.Types.ObjectId(reelId),
+                    platform
+                }).populate('reelId', 'title description videoUrl thumbnail');
 
                 // If not, CREATE it now (The "Lazy Creation" step)
                 if (!shareLink) {
+                    console.log(`[MegaRewardShare] Creating persistent share link...`);
                     const settings = await MegaRewardSettings.findById(megaRewardId);
-                    if (!settings) throw new Error('Campaign not found');
+                    if (!settings) {
+                        console.error(`[MegaRewardShare] Campaign ${megaRewardId} not found`);
+                        throw new Error('Campaign not found');
+                    }
 
                     shareLink = await MegaRewardShareLink.create({
-                        userId,
-                        reelId,
-                        megaRewardId,
+                        userId: new mongoose.Types.ObjectId(userId),
+                        reelId: new mongoose.Types.ObjectId(reelId),
+                        megaRewardId: new mongoose.Types.ObjectId(megaRewardId),
                         platform,
                         expiresAt: settings.endDate
                     });
 
                     // Populate reelId for the newly created link
                     await shareLink.populate('reelId', 'title description videoUrl thumbnail');
+                    console.log(`[MegaRewardShare] Persistent link created: ${shareLink._id}`);
                 }
             } catch (err) {
-                console.error('Lazy link creation failed:', err);
+                console.error('[MegaRewardShare] Lazy link track failed:', err.message);
                 throw new Error('Invalid or corrupted share link');
             }
         } else {
@@ -105,6 +116,7 @@ class MegaRewardShareService {
         }
 
         if (!shareLink) {
+            console.error(`[MegaRewardShare] Share link not found for code: ${linkCode}`);
             throw new Error('Invalid share link');
         }
 

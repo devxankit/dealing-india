@@ -13,6 +13,15 @@ const ErrorFallback = ({ error, errorInfo, onReset, fallback }) => {
     window.location.href = '/';
   };
 
+  const isChunkError = error?.name === 'ChunkLoadError' ||
+    error?.message?.includes('Failed to fetch dynamically imported module') ||
+    error?.message?.includes('MIME type');
+
+  const h1Text = isChunkError ? 'App Update Required' : 'Oops! Something went wrong';
+  const pText = isChunkError
+    ? 'A new version of the app is available. Please update to continue.'
+    : "We're sorry for the inconvenience. An unexpected error has occurred.";
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 flex items-center justify-center p-4">
       <motion.div
@@ -30,10 +39,10 @@ const ErrorFallback = ({ error, errorInfo, onReset, fallback }) => {
         </motion.div>
 
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-          Oops! Something went wrong
+          {h1Text}
         </h1>
         <p className="text-gray-600 mb-8">
-          We're sorry for the inconvenience. An unexpected error has occurred.
+          {pText}
         </p>
 
         {isDevelopment && error && (
@@ -57,8 +66,8 @@ const ErrorFallback = ({ error, errorInfo, onReset, fallback }) => {
             onClick={onReset}
             className="flex items-center justify-center gap-2 px-6 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300"
           >
-            <FiRefreshCw />
-            Try Again
+            <FiRefreshCw className={isChunkError ? 'animate-spin' : ''} />
+            {isChunkError ? 'Update Now' : 'Try Again'}
           </button>
           <button
             onClick={handleGoHome}

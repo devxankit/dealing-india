@@ -94,7 +94,7 @@ export const trackClick = asyncHandler(async (req, res) => {
                             try {
                                 // Real human -> Securely log the click via API before redirecting
                                 // This filters out bots that don't execute JS
-                                await fetch('/api/mega-reward/track-log/' + linkCode, {
+                                await fetch('/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' }
                                 });
@@ -135,6 +135,7 @@ export const trackClick = asyncHandler(async (req, res) => {
 // Record the actual click (POST handler called by JS)
 export const recordClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
+    console.log(`[MegaRewardController] recordClick hit for code: ${linkCode.substring(0, 20)}...`);
 
     const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
         || req.headers['x-real-ip']
