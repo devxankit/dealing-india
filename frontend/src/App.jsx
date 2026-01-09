@@ -12,6 +12,7 @@ import SupportTickets from "./shared/components/Support/SupportTickets";
 import VendorStore from "./shared/components/Store/VendorStore";
 import AdminSupportTickets from "./modules/Admin/pages/supportTickets/SupportTickets";
 import CartDrawer from "./shared/components/Cart/CartDrawer";
+import { useTimeWarpCheat } from "./shared/hooks/useTimeWarpCheat";
 import ProtectedRoute from "./shared/components/Auth/ProtectedRoute";
 import ErrorBoundary from "./shared/components/ErrorBoundary/ErrorBoundary";
 import AdminLogin from "./modules/Admin/pages/Login";
@@ -190,6 +191,9 @@ import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics"
 // Inner component that has access to useLocation
 const AppRoutes = () => {
   const { toasts } = useToasterStore();
+
+  // Initialize time warp testing cheat
+  useTimeWarpCheat();
 
   useEffect(() => {
     toasts

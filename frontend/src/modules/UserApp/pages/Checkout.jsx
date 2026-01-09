@@ -492,7 +492,18 @@ const MobileCheckout = () => {
               clearCart();
             }
             toast.success("Payment successful! Order placed.");
-            navigate(`/app/order-confirmation/${verifyResult.order?.id || verifyResult.order?.orderCode}`);
+
+            // Extract order from nested response
+            const order = verifyResult.data?.order || verifyResult.order;
+            const orderId = order?.id || order?.orderCode || order?._id;
+
+            if (orderId) {
+              navigate(`/app/order-confirmation/${orderId}`);
+            } else {
+              console.error('Missing order ID in verify response:', verifyResult);
+              toast.error("Order placed but could not redirect. Please check My Orders.");
+              navigate('/app/orders');
+            }
           } catch (error) {
             console.error('Payment verification error:', error);
             toast.error("Payment verification failed. Please contact support.");

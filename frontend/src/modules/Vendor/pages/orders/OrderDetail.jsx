@@ -25,7 +25,9 @@ const OrderDetail = () => {
             try {
                 setLoading(true);
                 const data = await getVendorOrderById(id);
-                if (data?.order) {
+                if (data?.data?.order) {
+                    setOrder(data.data.order);
+                } else if (data?.order) {
                     setOrder(data.order);
                 } else {
                     toast.error('Order not found');
@@ -47,7 +49,10 @@ const OrderDetail = () => {
         try {
             const data = await updateVendorOrderStatus(id, newStatus);
             // Service returns unpacked data, so we check if we got an order object back
-            if (data?.order) {
+            if (data?.data?.order) {
+                setOrder(prev => prev ? { ...prev, status: newStatus } : null);
+                toast.success(`Order status updated to ${newStatus}`);
+            } else if (data?.order) {
                 setOrder(prev => prev ? { ...prev, status: newStatus } : null);
                 toast.success(`Order status updated to ${newStatus}`);
             } else {

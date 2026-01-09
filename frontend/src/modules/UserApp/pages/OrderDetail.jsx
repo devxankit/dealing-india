@@ -38,11 +38,15 @@ const MobileOrderDetail = () => {
       try {
         setIsLoading(true);
         const data = await getOrderById(orderId);
-        if (data?.order) {
+        if (data?.data?.order) {
+          setOrder(data.data.order);
+        } else if (data?.order) {
           setOrder(data.order);
 
           // Check Return Eligibility if order is delivered
-          if (data.order.status === 'delivered') {
+          // Use the sourced order object which we just set (but state update is async, so use local var)
+          const fetchedOrder = data?.data?.order || data?.order;
+          if (fetchedOrder.status === 'delivered') {
             import('../../../shared/services/returnService').then(async ({ checkReturnEligibility }) => {
               try {
                 const eligResponse = await checkReturnEligibility(orderId);
@@ -456,7 +460,8 @@ const MobileOrderDetail = () => {
 
               {/* Actions */}
               <div className="space-y-2">
-                {['pending', 'processing'].includes(order.status) && (
+                {/* Cancel button for all pre-delivery statuses */}
+                {['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped', 'shipped_seller', 'on_hold'].includes(order.status) && (
                   <button
                     onClick={handleCancel}
                     className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-colors"

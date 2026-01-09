@@ -43,19 +43,20 @@ const Orders = () => {
 
       try {
         setLoading(true);
-        const data = await getVendorOrderStats();
-        if (data) {
+        const response = await getVendorOrderStats();
+        if (response && response.data) {
+          const stats = response.data;
           setOrderStats({
-            pending: data.pending || 0,
-            processing: data.processing || 0,
-            shipped: data.shipped || 0,
-            delivered: data.delivered || 0,
-            cancelled: data.cancelled || 0,
-            total: data.total || 0,
-            ready_to_ship: data.ready_to_ship || 0,
-            dispatched: data.dispatched || 0,
-            shipped_seller: data.shipped_seller || 0,
-            on_hold: data.on_hold || 0,
+            pending: stats.pending || 0,
+            processing: stats.processing || 0,
+            shipped: stats.shipped || 0,
+            delivered: stats.delivered || 0,
+            cancelled: stats.cancelled || 0,
+            total: stats.total || 0,
+            ready_to_ship: stats.ready_to_ship || 0,
+            dispatched: stats.dispatched || 0,
+            shipped_seller: stats.shipped_seller || 0,
+            on_hold: stats.on_hold || 0,
           });
         }
       } catch (error) {

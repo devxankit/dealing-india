@@ -738,8 +738,9 @@ export const cancelOrder = async (orderId, userId) => {
       throw new Error('Order not found');
     }
 
-    // Only allow cancellation if order is pending or processing
-    if (order.status !== 'pending' && order.status !== 'processing') {
+    // Allow cancellation for all statuses before 'delivered'
+    const cancellableStatuses = ['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped', 'shipped_seller', 'on_hold'];
+    if (!cancellableStatuses.includes(order.status)) {
       throw new Error('Order cannot be cancelled at this stage');
     }
 
@@ -798,20 +799,18 @@ export const cancelOrder = async (orderId, userId) => {
       );
 
       // Create wallet transaction for refund (credit) - ALL prepaid cancelled orders get wallet credit
-      try {
-        await createWalletTransaction(
-          order.customerId.toString(),
-          'credit',
-          order.total,
-          `Order Refund - ${order.orderCode}`,
-          order._id.toString(),
-          'refund',
-          session // PASS THE SESSION HERE
-        );
-      } catch (walletError) {
-        console.error('Error creating wallet refund transaction:', walletError);
-        // Don't fail the order cancellation if wallet transaction fails
-      }
+      // This MUST succeed for the cancellation to complete
+      await createWalletTransaction(
+        order.customerId.toString(),
+        'credit',
+        order.total,
+        `Order Refund - ${order.orderCode}`,
+        order._id.toString(),
+        'refund',
+        session // PASS THE SESSION HERE
+      );
+
+      console.log(`Wallet refund of ${order.total} credited for cancelled order ${order.orderCode}`);
     }
 
     await session.commitTransaction();

@@ -46,8 +46,10 @@ const MobileOrders = () => {
         limit: 1000,
       });
 
-      // orderService returns the data object directly (unwrapped)
-      if (data?.orders) {
+      // orderService returns the response object { success: true, data: { orders: ... } }
+      if (data?.data?.orders) {
+        setOrders(Array.isArray(data.data.orders) ? data.data.orders : []);
+      } else if (data?.orders) {
         setOrders(Array.isArray(data.orders) ? data.orders : []);
       } else {
         setOrders([]);
@@ -74,7 +76,9 @@ const MobileOrders = () => {
           limit: 1000,
         });
 
-        if (data?.orders) {
+        if (data?.data?.orders) {
+          setOrders(Array.isArray(data.data.orders) ? data.data.orders : []);
+        } else if (data?.orders) {
           setOrders(Array.isArray(data.orders) ? data.orders : []);
         } else {
           setOrders([]); // Fallback if format is unexpected

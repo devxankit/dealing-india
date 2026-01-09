@@ -83,6 +83,7 @@ import userSupportTicketRoutes from './routes/userSupportTicket.routes.js';
 import adminPromotionalReelRoutes from './routes/adminPromotionalReel.routes.js';
 import userPromotionalReelRoutes from './routes/userPromotionalReel.routes.js';
 import adminMediaRoutes from './routes/admin-routes/media.routes.js';
+import timeWarpRoutes from './routes/timeWarp.routes.js';
 
 // Mega Reward routes
 import adminMegaRewardRoutes from './routes/adminMegaReward.routes.js';
@@ -293,6 +294,7 @@ app.use('/api/admin/wallet', walletAdminRoutes);
 app.use('/api/admin/promotional-reels', adminPromotionalReelRoutes);
 app.use('/api/admin/mega-reward', adminMegaRewardRoutes);
 app.use('/api/admin/media', adminMediaRoutes);
+app.use('/api/dev/time', timeWarpRoutes);
 
 
 // User management routes (require user authentication)

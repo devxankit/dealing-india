@@ -76,7 +76,7 @@ export const getOrder = async (req, res, next) => {
     }
 
     // Verify order contains vendor's products
-    const vendorProductIds = await Product.find({ vendorId, isActive: true })
+    const vendorProductIds = await Product.find({ vendorId })
       .select('_id')
       .lean();
     const vendorProductIdStrings = vendorProductIds.map((p) => p._id.toString());
@@ -147,7 +147,7 @@ export const updateStatus = async (req, res, next) => {
       });
     }
 
-    const vendorProductIds = await Product.find({ vendorId, isActive: true })
+    const vendorProductIds = await Product.find({ vendorId })
       .select('_id')
       .lean();
     const vendorProductIdStrings = vendorProductIds.map((p) => p._id.toString());
@@ -209,7 +209,7 @@ export const getStats = async (req, res, next) => {
     const vendorId = req.user.vendorId || req.user.id;
 
     // Get vendor's product IDs
-    const vendorProductIds = await Product.find({ vendorId, isActive: true })
+    const vendorProductIds = await Product.find({ vendorId })
       .select('_id')
       .lean();
     const vendorProductIdStrings = vendorProductIds.map((p) => p._id.toString());
@@ -243,14 +243,16 @@ export const getStats = async (req, res, next) => {
     });
 
     // Build aggregation pipeline
+    const matchStage = {
+      $or: [
+        { 'vendorBreakdown.vendorId': new mongoose.Types.ObjectId(vendorId.toString()) },
+        { 'items.productId': { $in: vendorProductObjectIds } }
+      ]
+    };
+
     const stats = await Order.aggregate([
       {
-        $match: {
-          $or: [
-            { 'vendorBreakdown.vendorId': new mongoose.Types.ObjectId(vendorId.toString()) },
-            { 'items.productId': { $in: vendorProductObjectIds } }
-          ]
-        },
+        $match: matchStage,
       },
       {
         $group: {
@@ -296,7 +298,7 @@ export const getStats = async (req, res, next) => {
 export const getEarningsStats = async (req, res, next) => {
   try {
     const rawVendorId = req.user.vendorId || req.user.id;
-    
+
     // Ensure vendorId is an ObjectId for comparison
     let vendorId;
     try {
