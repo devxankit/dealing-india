@@ -35,19 +35,34 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
             return;
         }
 
+        console.log('[MegaRewardSheet] Starting share process:', {
+            reelId,
+            platform,
+            timestamp: new Date().toISOString()
+        });
+
         setSharingPlatform(platform);
         setLoading(true);
 
         try {
             // Generate share link from backend
+            console.log('[MegaRewardSheet] Requesting share link from backend...');
             const response = await api.post('/user/mega-reward/share-link', {
                 reelId,
                 platform
             });
 
+            console.log('[MegaRewardSheet] Share link response:', {
+                success: response.success,
+                hasData: !!response.data,
+                linkCode: response.data?.linkCode?.substring(0, 20) + '...'
+            });
+
             if (response.success && response.data) {
                 const { shareUrl } = response.data;
                 const shareMessage = `Check out this amazing reel! 🎬 ${reelTitle || 'Watch Now'}`;
+
+                console.log('[MegaRewardSheet] Share URL generated:', shareUrl);
 
                 // Prepare share data for Web Share API
                 const shareData = {
@@ -60,6 +75,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                 // This provides the best experience on mobile - opens native share picker
                 if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
                     try {
+                        console.log('[MegaRewardSheet] Using Web Share API');
                         await navigator.share(shareData);
                         toast.success('Shared successfully!');
                         // Refresh status after share
@@ -68,10 +84,11 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                     } catch (err) {
                         if (err.name === 'AbortError') {
                             // User cancelled the share - don't fall through
+                            console.log('[MegaRewardSheet] User cancelled share');
                             return;
                         }
                         // Web Share failed, fall through to platform-specific fallback
-                        console.log('Web Share failed, using fallback:', err.message);
+                        console.log('[MegaRewardSheet] Web Share failed, using fallback:', err.message);
                     }
                 }
 
@@ -82,6 +99,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                     case 'whatsapp':
                         // Use wa.me for a cleaner sharing experience
                         shareLink = `https://wa.me/?text=${encodeURIComponent(shareMessage + '\n\n' + shareUrl)}`;
+                        console.log('[MegaRewardSheet] Opening WhatsApp...');
                         window.open(shareLink, '_blank');
                         break;
 
@@ -89,6 +107,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                         // Copy link to clipboard first
                         await navigator.clipboard.writeText(shareMessage + '\n\n' + shareUrl);
                         toast.success('Link copied! Paste it in your Instagram Story or DM');
+                        console.log('[MegaRewardSheet] Opening Instagram...');
 
                         // Try to open Instagram app via URL scheme
                         // This works on mobile when the app is installed
@@ -107,6 +126,8 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                         // Try Facebook app URL scheme first (mobile)
                         const fbAppUrl = `fb://share?link=${encodeURIComponent(shareUrl)}`;
                         const fbWebUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+
+                        console.log('[MegaRewardSheet] Opening Facebook...');
 
                         // On mobile, try app first
                         if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
@@ -128,7 +149,11 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                 setTimeout(() => fetchStatus(), 2000);
             }
         } catch (error) {
-            console.error('Share error:', error);
+            console.error('[MegaRewardSheet] Share error:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
             toast.error(error.message || 'Failed to generate share link');
         } finally {
             setLoading(false);

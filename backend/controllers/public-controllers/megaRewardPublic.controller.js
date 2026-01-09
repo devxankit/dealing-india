@@ -143,6 +143,8 @@ export const recordClick = asyncHandler(async (req, res) => {
         || req.ip
         || 'unknown';
 
+    console.log(`[MegaRewardController] Client IP: ${ipAddress}`);
+
     let fingerprint = null;
     if (req.headers.cookie) {
         const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
@@ -156,24 +158,44 @@ export const recordClick = asyncHandler(async (req, res) => {
     if (!fingerprint) {
         const randomPart = Math.random().toString(36).substring(2, 11);
         fingerprint = `fp_${Date.now()}_${randomPart}`;
+        console.log(`[MegaRewardController] Generated new fingerprint: ${fingerprint}`);
         res.cookie('mr_fp', fingerprint, {
             maxAge: 365 * 24 * 60 * 60 * 1000,
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax'
         });
+    } else {
+        console.log(`[MegaRewardController] Using existing fingerprint: ${fingerprint}`);
     }
 
     const userAgent = req.headers['user-agent'] || '';
 
-    const result = await MegaRewardShareService.trackClick(
-        linkCode,
-        ipAddress,
-        fingerprint,
-        userAgent
-    );
+    try {
+        console.log(`[MegaRewardController] Calling trackClick service...`);
+        const result = await MegaRewardShareService.trackClick(
+            linkCode,
+            ipAddress,
+            fingerprint,
+            userAgent
+        );
 
-    res.status(200).json(result);
+        console.log(`[MegaRewardController] trackClick result:`, {
+            success: result.success,
+            isNewClick: result.isNewClick,
+            uniqueClickCount: result.uniqueClickCount
+        });
+
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(`[MegaRewardController] recordClick error:`, {
+            message: error.message,
+            stack: error.stack,
+            linkCode,
+            ipAddress
+        });
+        throw error;
+    }
 });
 
 // Get link info (public, for preview)

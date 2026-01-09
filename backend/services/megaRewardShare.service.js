@@ -122,12 +122,24 @@ class MegaRewardShareService {
 
         // Check if link has expired
         if (new Date() > shareLink.expiresAt) {
+            console.error(`[MegaRewardShare] Link expired:`, {
+                linkCode,
+                expiresAt: shareLink.expiresAt,
+                now: new Date()
+            });
             throw new Error('Share link has expired');
         }
 
         try {
+            console.log(`[MegaRewardShare] Creating click log:`, {
+                shareLinkId: shareLink._id,
+                ipAddress,
+                fingerprint: fingerprint || 'none',
+                platform: shareLink.platform
+            });
+
             // Try to create a new click log (will fail if duplicate due to unique index)
-            await MegaRewardClickLog.create({
+            const clickLog = await MegaRewardClickLog.create({
                 shareLinkId: shareLink._id,
                 ipAddress,
                 fingerprint: fingerprint || '',
@@ -135,19 +147,30 @@ class MegaRewardShareService {
                 platform: shareLink.platform
             });
 
+            console.log(`[MegaRewardShare] Click log created:`, clickLog._id);
+
             // Increment unique click count
             shareLink.uniqueClickCount += 1;
+            console.log(`[MegaRewardShare] Incremented click count to:`, shareLink.uniqueClickCount);
 
             // Check if eligibility threshold is met
             const settings = await MegaRewardSettings.findById(shareLink.megaRewardId);
             if (settings) {
                 const requiredClicks = settings.requiredClicks[shareLink.platform];
+                console.log(`[MegaRewardShare] Checking eligibility:`, {
+                    currentClicks: shareLink.uniqueClickCount,
+                    requiredClicks,
+                    platform: shareLink.platform
+                });
+
                 if (shareLink.uniqueClickCount >= requiredClicks) {
                     shareLink.isEligible = true;
+                    console.log(`[MegaRewardShare] Platform ${shareLink.platform} is now eligible!`);
                 }
             }
 
             await shareLink.save();
+            console.log(`[MegaRewardShare] ShareLink saved successfully`);
 
             return {
                 success: true,
@@ -158,6 +181,11 @@ class MegaRewardShareService {
         } catch (error) {
             // Duplicate click (same IP + fingerprint)
             if (error.code === 11000) {
+                console.log(`[MegaRewardShare] Duplicate click detected:`, {
+                    ipAddress,
+                    fingerprint,
+                    shareLinkId: shareLink._id
+                });
                 return {
                     success: true,
                     isNewClick: false,
@@ -165,6 +193,11 @@ class MegaRewardShareService {
                     shareLink
                 };
             }
+            console.error(`[MegaRewardShare] Error creating click log:`, {
+                error: error.message,
+                code: error.code,
+                stack: error.stack
+            });
             throw error;
         }
     }
