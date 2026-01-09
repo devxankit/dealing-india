@@ -149,15 +149,18 @@ export const useOrderStore = create(
       createOrderAPI: async (orderData) => {
         try {
           const response = await orderService.createOrder(orderData);
-          const order = response.order;
+          const order = response.data?.order;
 
           // For online payments, order may be null (created after payment verification)
           if (!order) {
             // Return razorpay details and pending order data for verification step
+            const razorpay = response.data?.razorpay;
+            const pendingOrderData = response.data?.pendingOrderData;
+
             return {
               order: null,
-              razorpay: response.razorpay,
-              pendingOrderData: response.pendingOrderData,
+              razorpay: razorpay,
+              pendingOrderData: pendingOrderData,
             };
           }
 
@@ -177,8 +180,9 @@ export const useOrderStore = create(
             tax: orderData.tax || 0,
             discount: orderData.discount || 0,
             total: order.total,
+            total: order.total,
             couponCode: orderData.couponCode || null,
-            razorpay: response.razorpay,
+            razorpay: response.data?.razorpay,
           };
 
           set((state) => ({
@@ -187,7 +191,7 @@ export const useOrderStore = create(
 
           return {
             order: newOrder,
-            razorpay: response.razorpay,
+            razorpay: response.data?.razorpay,
           };
         } catch (error) {
           console.error('Error creating order via API:', error);
@@ -199,7 +203,7 @@ export const useOrderStore = create(
       verifyPaymentAPI: async (orderId, paymentData) => {
         try {
           const response = await orderService.verifyPayment(orderId, paymentData);
-          const order = response.order;
+          const order = response.data?.order;
 
           // Add or update local order
           set((state) => {
@@ -236,7 +240,7 @@ export const useOrderStore = create(
       fetchOrderById: async (orderId) => {
         try {
           const response = await orderService.getOrderById(orderId);
-          const order = response.order;
+          const order = response.data?.order || response.order;
 
           // Update or add order to local storage
           set((state) => {
@@ -277,7 +281,7 @@ export const useOrderStore = create(
       fetchUserOrders: async (filters = {}) => {
         try {
           const response = await orderService.getUserOrders(filters);
-          const orders = response.orders || [];
+          const orders = response.data?.orders || response.orders || [];
 
           // Update local orders
           set((state) => {
@@ -313,9 +317,10 @@ export const useOrderStore = create(
           const response = await orderService.cancelOrder(orderId);
 
           // Update local order
+          const cancelledOrder = response.data?.order || response.order;
           set((state) => ({
             orders: state.orders.map((order) =>
-              order.id === orderId || order.orderCode === response.order.orderCode
+              order.id === orderId || order.orderCode === cancelledOrder?.orderCode
                 ? { ...order, status: 'cancelled' }
                 : order
             ),

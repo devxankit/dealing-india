@@ -9,6 +9,8 @@ import mongoose from 'mongoose';
 
 import Product from '../models/Product.model.js';
 
+import { getWarpedDate } from '../utils/timeWarp.util.js';
+
 class ReturnService {
     /**
      * Generate unique return code
@@ -108,7 +110,7 @@ class ReturnService {
 
         // Check return window (e.g., 7 days)
         const deliveryDate = new Date(order.statusHistory.find(h => h.status === 'delivered')?.date || order.updatedAt);
-        const now = new Date();
+        const now = getWarpedDate();
         const diffDays = Math.ceil((now - deliveryDate) / (1000 * 60 * 60 * 24));
 
         if (diffDays > 7) {
