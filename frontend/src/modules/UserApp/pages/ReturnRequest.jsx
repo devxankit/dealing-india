@@ -320,24 +320,26 @@ const ReturnRequest = () => {
                                         className="fixed inset-0 bg-black/60 z-[9999]"
                                     />
                                     <motion.div
-                                        initial={{ opacity: 0, scale: 0.9, y: "50%" }}
-                                        animate={{ opacity: 1, scale: 1, y: "-50%" }}
-                                        exit={{ opacity: 0, scale: 0.9, y: "50%" }}
-                                        className="fixed top-1/2 left-1/2 -translate-x-1/2 w-[85%] max-w-sm bg-white rounded-3xl p-8 z-[10000] text-center shadow-2xl"
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        className="fixed inset-0 flex items-center justify-center z-[10000] p-4"
                                     >
-                                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                            <FiCheckCircle className="text-5xl text-green-500" />
+                                        <div className="w-full max-w-sm bg-white rounded-3xl p-8 text-center shadow-2xl">
+                                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                                <FiCheckCircle className="text-5xl text-green-500" />
+                                            </div>
+                                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Return Requested!</h2>
+                                            <p className="text-gray-500 mb-8">
+                                                Your return request has been submitted successfully. You can track its status in "My Returns".
+                                            </p>
+                                            <button
+                                                onClick={() => navigate('/app/returns')}
+                                                className="w-full py-3.5 bg-green-500 text-white font-bold rounded-xl shadow-lg shadow-green-200 hover:bg-green-600 transition-colors"
+                                            >
+                                                Go to My Returns
+                                            </button>
                                         </div>
-                                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Return Requested!</h2>
-                                        <p className="text-gray-500 mb-8">
-                                            Your return request has been submitted successfully. You can track its status in "My Returns".
-                                        </p>
-                                        <button
-                                            onClick={() => navigate('/app/returns')}
-                                            className="w-full py-3.5 bg-green-500 text-white font-bold rounded-xl shadow-lg shadow-green-200 hover:bg-green-600 transition-colors"
-                                        >
-                                            Go to My Returns
-                                        </button>
                                     </motion.div>
                                 </>
                             )}

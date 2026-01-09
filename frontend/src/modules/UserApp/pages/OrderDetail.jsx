@@ -38,25 +38,26 @@ const MobileOrderDetail = () => {
       try {
         setIsLoading(true);
         const data = await getOrderById(orderId);
-        if (data?.data?.order) {
-          setOrder(data.data.order);
-        } else if (data?.order) {
-          setOrder(data.order);
+
+        // Extract order from nested or direct response
+        const fetchedOrder = data?.data?.order || data?.order;
+
+        if (fetchedOrder) {
+          setOrder(fetchedOrder);
 
           // Check Return Eligibility if order is delivered
-          // Use the sourced order object which we just set (but state update is async, so use local var)
-          const fetchedOrder = data?.data?.order || data?.order;
           if (fetchedOrder.status === 'delivered') {
             import('../../../shared/services/returnService').then(async ({ checkReturnEligibility }) => {
               try {
                 const eligResponse = await checkReturnEligibility(orderId);
-                // eligResponse might need checking too depending on returnService
-                if (eligResponse?.data?.eligible !== undefined) {
+                console.log('Eligibility response:', eligResponse);
+                // Handle various response formats
+                if (eligResponse?.data?.data?.eligible !== undefined) {
+                  setEligibility(eligResponse.data.data);
+                } else if (eligResponse?.data?.eligible !== undefined) {
                   setEligibility(eligResponse.data);
                 } else if (eligResponse?.eligible !== undefined) {
                   setEligibility(eligResponse);
-                } else if (eligResponse?.success && eligResponse?.data) {
-                  setEligibility(eligResponse.data);
                 }
               } catch (e) {
                 console.error("Eligibility check failed", e);

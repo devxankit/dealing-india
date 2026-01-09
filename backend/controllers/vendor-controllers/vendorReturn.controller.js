@@ -69,3 +69,32 @@ export const updateReturnStatus = async (req, res) => {
         });
     }
 };
+
+/**
+ * Mark return as received - triggers refund to customer
+ * PUT /vendor/returns/:id/received
+ */
+export const markReturnReceived = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { note } = req.body;
+        const vendorId = req.user.vendorId || req.user.id || req.user.userId || req.user._id;
+
+        if (!vendorId) {
+            return res.status(401).json({ success: false, message: 'Vendor ID could not be determined' });
+        }
+
+        const updatedReturn = await returnService.markAsReceived(id, vendorId, note);
+
+        res.status(200).json({
+            success: true,
+            message: 'Return marked as received. Refund has been processed to customer wallet.',
+            data: updatedReturn,
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};

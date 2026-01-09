@@ -183,7 +183,8 @@ class ReturnService {
         const config = await this.getPolicyConfig();
         // Force auto-approve regardless of config/amount
         let initialStatus = 'approved';
-        let refundStatus = 'processing';
+        // Refund will be processed when vendor marks as received
+        let refundStatus = 'pending';
 
         // Determine Vendor
         let vendorId = null;
@@ -241,17 +242,8 @@ class ReturnService {
             });
         }
 
-        // 6. Trigger Immediate Refund
-        try {
-            // Use 'System' as the processor since it's automatic
-            await this.processRefund(returnRequest._id, null, 'System');
-            // Refresh with latest status if needed, though processRefund updates it
-        } catch (err) {
-            console.error('Auto-refund failed:', err);
-            // Don't fail the request creation, but log it. Admin can retry.
-            returnRequest.refundStatus = 'failed';
-            await returnRequest.save();
-        }
+        // NOTE: Refund is NOT processed here. It will be processed when vendor marks return as 'received'
+        // This ensures user actually returns the product before getting refunded
 
         return returnRequest;
     }
@@ -295,6 +287,60 @@ class ReturnService {
     }
 
     /**
+     * Mark return as received by vendor and process refund
+     * Called when vendor confirms they received the returned product
+     */
+    async markAsReceived(requestId, vendorId, note = '') {
+        const returnRequest = await ReturnRequest.findById(requestId);
+        if (!returnRequest) throw new Error('Return request not found');
+
+        // Verify vendor owns this return
+        if (returnRequest.vendorId.toString() !== vendorId.toString()) {
+            throw new Error('Unauthorized: This return does not belong to your store');
+        }
+
+        // Only allow marking as received if status is 'approved'
+        if (returnRequest.status !== 'approved') {
+            throw new Error(`Cannot mark as received. Current status: ${returnRequest.status}`);
+        }
+
+        // Update status to 'received'
+        returnRequest.status = 'received';
+        returnRequest.receivedAt = new Date();
+        returnRequest.statusHistory.push({
+            status: 'received',
+            changedBy: vendorId,
+            changedByModel: 'Vendor',
+            note: note || 'Return product received by vendor'
+        });
+        await returnRequest.save();
+
+        // Notify customer that product was received
+        await notificationService.createNotification({
+            recipientId: returnRequest.customerId,
+            recipientType: 'user',
+            title: 'Return Received',
+            message: `Your returned product for ${returnRequest.returnCode} has been received. Refund is being processed.`,
+            type: 'return_request',
+            relatedId: returnRequest._id,
+            onModel: 'ReturnRequest'
+        });
+
+        // Process refund immediately after marking as received
+        try {
+            await this.processRefund(returnRequest._id, vendorId, 'Vendor');
+            console.log(`Refund processed for return ${returnRequest.returnCode}`);
+        } catch (err) {
+            console.error('Refund processing failed after marking received:', err);
+            returnRequest.refundStatus = 'failed';
+            await returnRequest.save();
+            throw new Error('Product received but refund processing failed. Admin will retry.');
+        }
+
+        return returnRequest;
+    }
+
+    /**
      * Process Refund
      */
     async processRefund(requestId, processedBy, processedByModel) {
@@ -306,14 +352,15 @@ class ReturnService {
             if (!returnRequest) throw new Error('Return request not found');
 
             if (returnRequest.refundStatus === 'processed') throw new Error('Refund already processed');
-            if (returnRequest.status !== 'approved' && returnRequest.status !== 'completed') {
-                returnRequest.status = 'completed';
+
+            // Allow processing if status is approved, received, or completed
+            if (!['approved', 'received', 'completed'].includes(returnRequest.status)) {
+                throw new Error(`Cannot process refund. Current status: ${returnRequest.status}`);
             }
 
             const refundCode = await this.generateRefundCode();
 
-            await session.abortTransaction();
-
+            // Credit user wallet
             const walletTx = await createWalletTransaction(
                 returnRequest.customerId,
                 'credit',
