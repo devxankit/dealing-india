@@ -1,5 +1,6 @@
 import MegaRewardShareService from '../../services/megaRewardShare.service.js';
 import PromotionalReel from '../../models/PromotionalReel.model.js';
+import MegaRewardShareLink from '../../models/MegaRewardShareLink.model.js';
 import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
 
 /**
@@ -10,33 +11,29 @@ import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
 // Track click and redirect with Open Graph support
 export const trackClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
-
-    // Determine Client Info
     const userAgent = req.headers['user-agent'] || '';
 
-    // Advanced Bot Detection (More lenient for testing)
-    const bots = [
-        'WhatsApp', 'facebookexternalhit', 'Facebot', 'Twitterbot',
-        'TelegramBot', 'Discordbot', 'Slackbot', 'Googlebot', 'Bingbot',
-        'Baiduspider', 'yandex', 'linkedinbot', 'Pinterest'
-    ];
-    // Don't flag as bot if it contains common mobile browser strings even if bot names are present
+    // Advanced Bot Detection
+    const bots = ['googlebot', 'facebookexternalhit', 'twitterbot', 'whatsapp', 'linkedinbot', 'bingbot'];
     const isMobileBrowser = /Mobi|Android|iPhone|iPad/i.test(userAgent);
     const isBot = !isMobileBrowser && bots.some(bot => userAgent.toLowerCase().includes(bot.toLowerCase()));
 
     try {
-        // Just get metadata for OG tags
-        // Case-insensitive lookup here as well
+        // 1. Get metadata for OG tags
         const shareLink = await MegaRewardShareLink.findOne({
             linkCode: { $regex: new RegExp(`^${linkCode}$`, 'i') }
-        }).populate('reelId', 'title description videoUrl thumbnail');
+        }).populate('reelId');
 
-        // Determine Redirect URL
+        // 2. Determine base URLs
         let frontendUrl = process.env.FRONTEND_URL;
+        const requestHost = req.get('host') || '';
+        const requestOrigin = req.get('origin') || req.get('referer') || '';
+
         if (!frontendUrl) {
-            const host = req.get('host') || '';
-            if (host.includes('dealingindia') || host.includes('onrender')) {
+            if (requestHost.includes('dealingindia') || requestHost.includes('onrender')) {
                 frontendUrl = 'https://www.dealingindia.com';
+            } else if (requestOrigin.includes(':3000')) {
+                frontendUrl = 'http://localhost:3000';
             } else {
                 frontendUrl = 'http://localhost:5173';
             }
@@ -46,124 +43,107 @@ export const trackClick = asyncHandler(async (req, res) => {
         let ogTitle = 'Mega Reward';
         let ogDescription = 'Check out this amazing reel and win prizes!';
         let ogImage = '';
-        let linkOwnerId = null;
+        let platform = 'share';
 
-        if (shareLink && shareLink.reelId) {
-            const reelId = shareLink.reelId._id || shareLink.reelId;
-            redirectUrl = `${frontendUrl}/app/reels/${reelId}?source=${shareLink.platform || 'share'}`;
-            ogTitle = shareLink.reelId.title || 'Mega Reward Reel';
-            ogDescription = shareLink.reelId.description || 'Watch and share to win huge rewards!';
-            ogImage = shareLink.reelId.thumbnail || '';
-            linkOwnerId = shareLink.userId?.toString() || null;
+        if (shareLink) {
+            platform = shareLink.platform || 'share';
+            if (shareLink.reelId) {
+                const reelId = shareLink.reelId._id || shareLink.reelId;
+                redirectUrl = `${frontendUrl}/app/reels/${reelId}?source=${platform}`;
+                ogTitle = shareLink.reelId.title || 'Mega Reward Reel';
+                ogDescription = shareLink.reelId.description || 'Watch and share to win huge rewards!';
+                ogImage = shareLink.reelId.thumbnail || '';
+            }
         }
 
-        // Return HTML with Open Graph tags + JS Logic
-        const html = `
+        const metaTags = `
+            <meta property="og:type" content="website">
+            <meta property="og:url" content="${req.protocol}://${requestHost}${req.originalUrl}">
+            <meta property="og:title" content="${ogTitle}">
+            <meta property="og:description" content="${ogDescription}">
+            ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
+            <meta property="twitter:card" content="summary_large_image">
+            <meta property="twitter:title" content="${ogTitle}">
+            <meta property="twitter:description" content="${ogDescription}">
+            ${ogImage ? `<meta property="twitter:image" content="${ogImage}">` : ''}
+        `;
+
+        // Bot Response
+        if (isBot) {
+            return res.send(`
+                <!DOCTYPE html>
+                <html>
+                    <head>${metaTags}<meta http-equiv="refresh" content="0;url=${redirectUrl}"></head>
+                    <body>Redirecting to Dealing India...</body>
+                </html>
+            `);
+        }
+
+        // Real User Response
+        const apiHost = `${req.protocol}://${requestHost}`;
+        return res.send(`
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>${ogTitle}</title>
-                
-                <!-- Open Graph / Social Previews -->
-                <meta property="og:type" content="website">
-                <meta property="og:url" content="${req.protocol}://${req.get('host')}${req.originalUrl}">
-                <meta property="og:title" content="${ogTitle}">
-                <meta property="og:description" content="${ogDescription}">
-                ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
-
-                <!-- Twitter -->
-                <meta property="twitter:card" content="summary_large_image">
-                <meta property="twitter:title" content="${ogTitle}">
-                <meta property="twitter:description" content="${ogDescription}">
-                ${ogImage ? `<meta property="twitter:image" content="${ogImage}">` : ''}
-
+                ${metaTags}
+                <title>Redirecting...</title>
                 <style>
-                    body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fafafa; color: #333; }
-                    .loader { border: 3px solid #eee; border-top: 3px solid #7c3aed; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                    .content { text-align: center; }
-                    .status { font-size: 12px; color: #999; margin-top: 10px; }
+                    body { font-family: -apple-system, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f9fafb; color: #1f2937; }
+                    .loader { width: 48px; height: 48px; border: 4px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 24px; }
+                    @keyframes spin { to { transform: rotate(360deg); } }
+                    h1 { font-size: 1.25rem; margin-bottom: 8px; }
+                    p { font-size: 0.875rem; color: #6b7280; }
+                    .btn { margin-top: 32px; padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 0.875rem; cursor: pointer; }
                 </style>
-                
-                <script>
-                    function getUserIdFromToken() {
-                        try {
-                            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-                            if (!token) return null;
-                            const payload = token.split('.')[1];
-                            if (!payload) return null;
-                            const decoded = JSON.parse(atob(payload));
-                            return decoded.userId || decoded._id || decoded.id || null;
-                        } catch (e) { return null; }
-                    }
-                    
-                    async function completeRedirect() {
-                        const isBot = ${isBot};
-                        const redirectUrl = "${redirectUrl}";
-                        const linkCode = "${linkCode}";
-                        const linkOwnerId = "${linkOwnerId}";
-                        const apiHost = window.location.origin;
-
-                        console.log('[MegaReward] Tracking click for:', linkCode);
-
-                        if (!isBot) {
-                            try {
-                                const viewerUserId = getUserIdFromToken();
-                                console.log('[MegaReward] Viewer ID:', viewerUserId);
-                                
-                                if (viewerUserId && viewerUserId === linkOwnerId) {
-                                  console.warn('[MegaReward] Owner self-click detected. Will not count but redirecting...');
-                                }
-
-                                // Securely log the click via API
-                                const response = await fetch(apiHost + '/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ viewerUserId: viewerUserId })
-                                });
-                                
-                                const result = await response.json();
-                                console.log('[MegaReward] Tracking response:', result);
-                            } catch (e) {
-                                console.error('[MegaReward] Tracking failed:', e);
-                            }
-                        } else {
-                            console.log('[MegaReward] Bot detected or preview mode. Skipping track.');
-                        }
-                        
-                        // Final destination
-                        setTimeout(() => {
-                            window.location.href = redirectUrl;
-                        }, 500);
-                    }
-                    
-                    // Start process
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', completeRedirect);
-                    } else {
-                        completeRedirect();
-                    }
-                </script>
             </head>
             <body>
-                <div class="content">
-                    <div class="loader" style="margin: 0 auto 20px auto;"></div>
-                    <p>${isBot ? 'Previewing Reel...' : 'Opening Reel...'}</p>
-                    <div class="status" id="track-status">Wait a moment while we redirect you...</div>
-                    <a href="${redirectUrl}" style="color: #7c3aed; text-decoration: none; font-size: 14px; display: block; mt-4: 20px;">Click here if not redirected</a>
-                </div>
+                <div class="loader"></div>
+                <h1>Opening Reel...</h1>
+                <p id="status">Verifying your unique click...</p>
+                <a href="${redirectUrl}" class="btn" id="skipBtn">Click here if not redirected</a>
+
+                <script>
+                    const linkCode = "${linkCode}";
+                    const redirectUrl = "${redirectUrl}";
+                    const apiHost = "${apiHost}";
+                    
+                    async function track() {
+                        try {
+                            const viewerUserId = (function() {
+                                try {
+                                    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                                    if (!token) return null;
+                                    return JSON.parse(atob(token.split('.')[1])).userId;
+                                } catch(e) { return null; }
+                            })();
+
+                            await fetch(apiHost + '/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ viewerUserId }),
+                                keepalive: true
+                            });
+                        } catch (err) {
+                            console.error('[MegaReward] Tracking error:', err);
+                        } finally {
+                            setTimeout(() => { window.location.href = redirectUrl; }, 300);
+                        }
+                    }
+                    
+                    document.getElementById('skipBtn').onclick = () => { window.location.href = redirectUrl; };
+                    track();
+                    setTimeout(() => { if(window.location.href !== redirectUrl) window.location.href = redirectUrl; }, 3000);
+                </script>
             </body>
             </html>
-        `;
-
-        res.send(html);
+        `);
 
     } catch (error) {
-        console.error('Click tracking error:', error.message);
-        const frontendUrl = process.env.FRONTEND_URL || 'https://www.dealingindia.com';
-        res.redirect(302, `${frontendUrl}/app/reels`);
+        console.error('[MegaReward] Controller Error:', error);
+        const fbUrl = process.env.FRONTEND_URL || 'https://www.dealingindia.com';
+        res.redirect(`${fbUrl}/app/reels`);
     }
 });
 
