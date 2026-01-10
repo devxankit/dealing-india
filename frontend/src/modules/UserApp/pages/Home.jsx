@@ -188,7 +188,10 @@ const MobileHome = () => {
             const response = flashSaleResponse.value;
             const products = extractProducts(response);
             if (products.length > 0) {
-              const flashSaleProducts = products.map(transformProduct).filter(p => p && p.id);
+              const flashSaleProducts = products.map(p => ({
+                ...transformProduct(p),
+                isFlashSale: true
+              })).filter(p => p && p.id);
               setFlashSale(flashSaleProducts);
             } else {
               setFlashSale([]);
@@ -387,10 +390,10 @@ const MobileHome = () => {
               </Link>
             </div>
             {isLoadingPopular ? (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
                 {[...Array(6)].map((_, index) => (
                   <div key={index} className="glass-card rounded-lg overflow-hidden animate-pulse">
-                    <div className="w-full h-32 bg-gray-200"></div>
+                    <div className="w-full h-32 md:h-48 lg:h-56 bg-gray-200"></div>
                     <div className="p-2">
                       <div className="h-4 bg-gray-200 rounded mb-2"></div>
                       <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
@@ -400,7 +403,7 @@ const MobileHome = () => {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
                 {mostPopular.slice(0, 6).map((product, index) => (
                   <motion.div
                     key={product.id}
@@ -425,10 +428,10 @@ const MobileHome = () => {
                   <p className="text-xs text-gray-600">Limited time offers</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[...Array(4)].map((_, index) => (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
+                {[...Array(6)].map((_, index) => (
                   <div key={index} className="glass-card rounded-lg overflow-hidden animate-pulse">
-                    <div className="w-full h-32 bg-gray-200"></div>
+                    <div className="w-full h-32 md:h-48 lg:h-56 bg-gray-200"></div>
                     <div className="p-2">
                       <div className="h-4 bg-gray-200 rounded mb-2"></div>
                       <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
@@ -453,8 +456,8 @@ const MobileHome = () => {
                   See All
                 </Link>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                {flashSale.slice(0, 4).map((product, index) => (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
+                {flashSale.slice(0, 6).map((product, index) => (
                   <motion.div
                     key={product.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -485,10 +488,10 @@ const MobileHome = () => {
               </Link>
             </div>
             {isLoadingTrending ? (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
                 {[...Array(6)].map((_, index) => (
                   <div key={index} className="glass-card rounded-lg overflow-hidden animate-pulse">
-                    <div className="w-full h-32 bg-gray-200"></div>
+                    <div className="w-full h-32 md:h-48 lg:h-56 bg-gray-200"></div>
                     <div className="p-2">
                       <div className="h-4 bg-gray-200 rounded mb-2"></div>
                       <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
@@ -498,7 +501,7 @@ const MobileHome = () => {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
                 {trending.slice(0, 6).map((product, index) => (
                   <motion.div
                     key={product.id}

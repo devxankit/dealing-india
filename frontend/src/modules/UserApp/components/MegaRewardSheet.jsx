@@ -18,8 +18,9 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
     }, [isOpen, reelId]);
 
     const fetchStatus = async () => {
+        if (!reelId) return;
         try {
-            const response = await api.get('/user/mega-reward/my-status');
+            const response = await api.get(`/user/mega-reward/my-status?reelId=${reelId}`);
             if (response.success && response.data) {
                 setEligibility(response.data.eligibility || null);
                 setCampaign(response.data.campaign || null);
@@ -250,9 +251,14 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                                 </div>
                             )}
 
-                            <p className="text-center text-[10px] text-gray-400 mt-6 leading-relaxed max-w-[80%] mx-auto">
-                                Link count increases when <span className="text-gray-600 font-bold">other unique users</span> open your link. Self-clicks are not counted.
-                            </p>
+                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mt-6">
+                                <p className="text-[10px] text-blue-700 leading-relaxed text-center font-medium">
+                                    <span className="font-black block mb-1">💡 HOW IT WORKS:</span>
+                                    Only clicks from <span className="font-black">other unique users</span> are counted.
+                                    Self-clicks or clicks from the same device/network will not increase your count.
+                                    If you are logged in, your own clicks are ignored.
+                                </p>
+                            </div>
                         </div>
                     </motion.div>
                 </>

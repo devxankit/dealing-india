@@ -32,6 +32,16 @@ export const getAllBrands = async (filters = {}) => {
       query.isActive = isActive === 'true' || isActive === true;
     }
 
+    // Custom brand filter
+    if (filters.isCustom !== undefined && filters.isCustom !== null) {
+      query.isCustom = filters.isCustom === 'true' || filters.isCustom === true;
+    }
+
+    // Featured brand filter
+    if (filters.isFeatured !== undefined && filters.isFeatured !== null) {
+      query.isFeatured = filters.isFeatured === 'true' || filters.isFeatured === true;
+    }
+
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 

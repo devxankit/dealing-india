@@ -71,7 +71,10 @@ const MobileFlashSale = () => {
           sortOrder: 'desc',
         });
 
-        const products = (response.data?.products || response.products || []).map(transformProduct);
+        const products = (response.data?.products || response.products || []).map(p => ({
+          ...transformProduct(p),
+          isFlashSale: true
+        }));
         setFlashSaleProducts(products);
       } catch (error) {
         console.error('Error fetching flash sale products:', error);
@@ -232,7 +235,7 @@ const MobileFlashSale = () => {
               </div>
             ) : viewMode === 'grid' ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
                   {displayedItems.map((product, index) => (
                     <motion.div
                       key={product.id}

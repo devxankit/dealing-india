@@ -35,35 +35,28 @@ const RecommendedSection = () => {
   }
 
   return (
-    <div className="px-4 py-5 bg-gradient-to-br from-green-50/70 via-white to-green-100/50 rounded-2xl mx-2">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-md">
-            <FiThumbsUp className="text-white text-lg" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-800 leading-tight">
-              Recommended for You
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">Curated just for you</p>
-          </div>
+    <div className="px-4 py-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">
+            Recommended for You
+          </h2>
+          <p className="text-xs text-gray-600 mt-0.5">Curated just for you</p>
         </div>
         <Link
           to="/app/search"
-          className="flex items-center gap-1 text-sm text-green-600 font-semibold hover:text-green-700 transition-colors active:scale-95">
+          className="flex items-center gap-1 text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
           <span>See All</span>
           <FiArrowRight className="text-sm" />
         </Link>
       </div>
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
-        {recommended.map((product, index) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
+        {recommended.slice(0, 6).map((product, index) => (
           <motion.div
             key={product.id}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="flex-shrink-0 w-36"
-            style={{ minWidth: "144px" }}
           >
             <ProductCard product={product} />
           </motion.div>

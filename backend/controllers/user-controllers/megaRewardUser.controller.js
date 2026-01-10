@@ -60,10 +60,17 @@ export const getMyStatus = asyncHandler(async (req, res) => {
         isActive: true
     }).select('_id title likes comments shares');
 
-    // Get eligibility status for the first reel (main tracking)
+    // Get eligibility status for a specific reel or the first reel
+    const { reelId } = req.query;
     let eligibility = null;
-    if (reels.length > 0) {
-        eligibility = await MegaRewardShareService.checkEligibility(userId, reels[0]._id);
+    let targetReelId = reelId;
+
+    if (!targetReelId && reels.length > 0) {
+        targetReelId = reels[0]._id;
+    }
+
+    if (targetReelId) {
+        eligibility = await MegaRewardShareService.checkEligibility(userId, targetReelId);
     }
 
     res.status(200).json({

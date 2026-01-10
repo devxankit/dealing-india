@@ -1,4 +1,4 @@
-import { FiHeart, FiShoppingBag, FiStar } from "react-icons/fi";
+import { FiHeart, FiShoppingBag, FiStar, FiZap } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCartStore, useUIStore } from "../store/useStore";
@@ -188,12 +188,21 @@ const ProductCard = ({ product, hideRating = false }) => {
         onClick={handleCardClick}
         {...longPressHandlers}>
         <div className="relative">
+          {/* Flash Sale Badge */}
+          {product.isFlashSale === true && (
+            <div className="absolute top-2 left-2 z-10">
+              <div className="bg-red-500 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
+                <FiZap className="fill-current" />
+                <span>FLASH SALE</span>
+              </div>
+            </div>
+          )}
           {/* Product Image */}
-          <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden relative">
-            <LazyImage
-              src={product.image || (product.images && product.images.length > 0 ? product.images[0] : getPlaceholderImage(300, 300, "Product Image"))}
-              alt={product.name}
-              className="w-full h-full object-cover"
+          <div className="w-full h-32 md:h-48 lg:h-56 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden relative">
+        <LazyImage
+          src={product.image || (product.images && product.images.length > 0 ? product.images[0] : getPlaceholderImage(300, 300, "Product Image"))}
+          alt={product.name}
+          className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
               style={{ willChange: "transform", transform: "translateZ(0)" }}
               context="product-listing"
               onError={(e) => {

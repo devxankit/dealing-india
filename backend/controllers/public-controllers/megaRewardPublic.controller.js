@@ -7,7 +7,6 @@ import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
  * Handles share link click tracking (no auth required)
  */
 
-// Track click and redirect
 // Track click and redirect with Open Graph support
 export const trackClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
@@ -15,21 +14,22 @@ export const trackClick = asyncHandler(async (req, res) => {
     // Determine Client Info
     const userAgent = req.headers['user-agent'] || '';
 
-    // Advanced Bot Detection (Extended List)
+    // Advanced Bot Detection (More lenient for testing)
     const bots = [
         'WhatsApp', 'facebookexternalhit', 'Facebot', 'Twitterbot',
         'TelegramBot', 'Discordbot', 'Slackbot', 'Googlebot', 'Bingbot',
-        'Baiduspider', 'yandex', 'embedly', 'quora-bot', 'linkedinbot',
-        'Pinterest', 'VisionUtils', 'criteo', 'outbrain',
-        'slack-imgProxy', 'vkShare', 'W3C_Validator', 'Redditbot',
-        'HeadlessChrome', 'PhantomJS', 'Centroid', 'spider', 'crawler', 'scraper'
+        'Baiduspider', 'yandex', 'linkedinbot', 'Pinterest'
     ];
-    const isBot = bots.some(bot => userAgent.toLowerCase().includes(bot.toLowerCase())) || !userAgent;
+    // Don't flag as bot if it contains common mobile browser strings even if bot names are present
+    const isMobileBrowser = /Mobi|Android|iPhone|iPad/i.test(userAgent);
+    const isBot = !isMobileBrowser && bots.some(bot => userAgent.toLowerCase().includes(bot.toLowerCase()));
 
     try {
-        // Just get metadata for OG tags, do not track/increment yet on the initial GET request
-        // This prevents social media preview-bots from triggering counts
-        const shareLink = await MegaRewardShareService.getShareLinkByCode(linkCode);
+        // Just get metadata for OG tags
+        // Case-insensitive lookup here as well
+        const shareLink = await MegaRewardShareLink.findOne({
+            linkCode: { $regex: new RegExp(`^${linkCode}$`, 'i') }
+        }).populate('reelId', 'title description videoUrl thumbnail');
 
         // Determine Redirect URL
         let frontendUrl = process.env.FRONTEND_URL;
@@ -46,6 +46,7 @@ export const trackClick = asyncHandler(async (req, res) => {
         let ogTitle = 'Mega Reward';
         let ogDescription = 'Check out this amazing reel and win prizes!';
         let ogImage = '';
+        let linkOwnerId = null;
 
         if (shareLink && shareLink.reelId) {
             const reelId = shareLink.reelId._id || shareLink.reelId;
@@ -53,6 +54,7 @@ export const trackClick = asyncHandler(async (req, res) => {
             ogTitle = shareLink.reelId.title || 'Mega Reward Reel';
             ogDescription = shareLink.reelId.description || 'Watch and share to win huge rewards!';
             ogImage = shareLink.reelId.thumbnail || '';
+            linkOwnerId = shareLink.userId?.toString() || null;
         }
 
         // Return HTML with Open Graph tags + JS Logic
@@ -78,14 +80,14 @@ export const trackClick = asyncHandler(async (req, res) => {
                 ${ogImage ? `<meta property="twitter:image" content="${ogImage}">` : ''}
 
                 <style>
-                    body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #000; color: #fff; }
-                    .loader { border: 3px solid #333; border-top: 3px solid #7c3aed; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+                    body { font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fafafa; color: #333; }
+                    .loader { border: 3px solid #eee; border-top: 3px solid #7c3aed; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
                     .content { text-align: center; }
+                    .status { font-size: 12px; color: #999; margin-top: 10px; }
                 </style>
                 
                 <script>
-                    // Helper to decode JWT and get user ID
                     function getUserIdFromToken() {
                         try {
                             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -101,36 +103,56 @@ export const trackClick = asyncHandler(async (req, res) => {
                         const isBot = ${isBot};
                         const redirectUrl = "${redirectUrl}";
                         const linkCode = "${linkCode}";
+                        const linkOwnerId = "${linkOwnerId}";
                         const apiHost = window.location.origin;
+
+                        console.log('[MegaReward] Tracking click for:', linkCode);
 
                         if (!isBot) {
                             try {
                                 const viewerUserId = getUserIdFromToken();
-                                // Ensure tracking completes before redirecting
+                                console.log('[MegaReward] Viewer ID:', viewerUserId);
+                                
+                                if (viewerUserId && viewerUserId === linkOwnerId) {
+                                  console.warn('[MegaReward] Owner self-click detected. Will not count but redirecting...');
+                                }
+
+                                // Securely log the click via API
                                 const response = await fetch(apiHost + '/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ viewerUserId: viewerUserId })
                                 });
-                                console.log('Tracking status:', response.status);
+                                
+                                const result = await response.json();
+                                console.log('[MegaReward] Tracking response:', result);
                             } catch (e) {
-                                console.error('Tracking error:', e);
+                                console.error('[MegaReward] Tracking failed:', e);
                             }
+                        } else {
+                            console.log('[MegaReward] Bot detected or preview mode. Skipping track.');
                         }
                         
-                        // Final safety redirect
-                        window.location.href = redirectUrl;
+                        // Final destination
+                        setTimeout(() => {
+                            window.location.href = redirectUrl;
+                        }, 500);
                     }
                     
-                    // Slightly longer timeout to ensure JS executes and fetch starts
-                    setTimeout(completeRedirect, 1000);
+                    // Start process
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', completeRedirect);
+                    } else {
+                        completeRedirect();
+                    }
                 </script>
             </head>
             <body>
                 <div class="content">
                     <div class="loader" style="margin: 0 auto 20px auto;"></div>
                     <p>${isBot ? 'Previewing Reel...' : 'Opening Reel...'}</p>
-                    <a href="${redirectUrl}" style="color: #7c3aed; text-decoration: none; font-size: 14px;">Click here if not redirected</a>
+                    <div class="status" id="track-status">Wait a moment while we redirect you...</div>
+                    <a href="${redirectUrl}" style="color: #7c3aed; text-decoration: none; font-size: 14px; display: block; mt-4: 20px;">Click here if not redirected</a>
                 </div>
             </body>
             </html>
@@ -148,9 +170,9 @@ export const trackClick = asyncHandler(async (req, res) => {
 // Record the actual click (POST handler called by JS)
 export const recordClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
-    const { viewerUserId } = req.body; // Optional: passed from frontend if user is logged in
+    const { viewerUserId } = req.body;
 
-    console.log(`[MegaRewardController] recordClick hit for code: ${linkCode.substring(0, 20)}...${viewerUserId ? ` viewer: ${viewerUserId}` : ''}`);
+    console.info(`[MegaRewardController] recordClick: code=${linkCode}, viewer=${viewerUserId || 'Guest'}`);
 
     const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
         || req.headers['x-real-ip']
@@ -158,59 +180,45 @@ export const recordClick = asyncHandler(async (req, res) => {
         || req.ip
         || 'unknown';
 
-    console.log(`[MegaRewardController] Client IP: ${ipAddress}`);
-
     let fingerprint = null;
     if (req.headers.cookie) {
         const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
             const [name, value] = cookie.trim().split('=');
-            acc[name] = value;
+            if (name === 'mr_fp') acc[name] = value;
             return acc;
         }, {});
         fingerprint = cookies['mr_fp'];
     }
 
     if (!fingerprint) {
-        const randomPart = Math.random().toString(36).substring(2, 11);
-        fingerprint = `fp_${Date.now()}_${randomPart}`;
-        console.log(`[MegaRewardController] Generated new fingerprint: ${fingerprint}`);
+        fingerprint = `fp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         res.cookie('mr_fp', fingerprint, {
             maxAge: 365 * 24 * 60 * 60 * 1000,
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax'
+            secure: true,
+            sameSite: 'none' // Better for in-app browser POSTs
         });
-    } else {
-        console.log(`[MegaRewardController] Using existing fingerprint: ${fingerprint}`);
     }
 
     const userAgent = req.headers['user-agent'] || '';
 
     try {
-        console.log(`[MegaRewardController] Calling trackClick service...`);
         const result = await MegaRewardShareService.trackClick(
             linkCode,
             ipAddress,
             fingerprint,
             userAgent,
-            viewerUserId || null // Pass viewerUserId for logged-in user duplicate check
+            viewerUserId
         );
-
-        console.log(`[MegaRewardController] trackClick result:`, {
-            success: result.success,
-            isNewClick: result.isNewClick,
-            uniqueClickCount: result.uniqueClickCount
-        });
 
         res.status(200).json(result);
     } catch (error) {
-        console.error(`[MegaRewardController] recordClick error:`, {
+        console.error(`[MegaRewardController] Tracking failed for ${linkCode}:`, error.message);
+        res.status(500).json({
+            success: false,
             message: error.message,
-            stack: error.stack,
-            linkCode,
-            ipAddress
+            error: true
         });
-        throw error;
     }
 });
 

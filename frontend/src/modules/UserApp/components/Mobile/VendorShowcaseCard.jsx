@@ -18,11 +18,11 @@ const VendorShowcaseCard = ({ vendor, index = 0 }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.1 }}
         whileTap={{ scale: 0.98 }}
-        className="glass-card rounded-xl p-4 flex flex-col items-center text-center min-w-[140px] max-w-[160px] h-full"
+        className="glass-card rounded-xl p-3 flex flex-col items-center text-center min-w-[130px] md:min-w-0 max-w-[140px] md:max-w-none h-full"
       >
         {/* Vendor Logo/Avatar */}
-        <div className="relative mb-3">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center overflow-hidden shadow-lg">
+        <div className="relative mb-2">
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center overflow-hidden shadow-lg">
             {vendor.storeLogo ? (
               <LazyImage
                 src={vendor.storeLogo}

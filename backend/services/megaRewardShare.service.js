@@ -74,37 +74,29 @@ class MegaRewardShareService {
      */
     async trackClick(linkCode, ipAddress, fingerprint, userAgent, viewerUserId = null) {
         let shareLink;
-        console.log(`[MegaRewardShare] Tracking click for code: ${linkCode.substring(0, 20)}... from IP: ${ipAddress}${viewerUserId ? `, viewerUserId: ${viewerUserId}` : ''}`);
+        const logPrefix = `[MegaRewardShare][trackClick][${linkCode}]`;
+        console.info(`${logPrefix} Start tracking click. IP: ${ipAddress}, Viewer: ${viewerUserId || 'Guest'}`);
 
-        // 1. Check if this is a Lazy Link (Temporary)
-        if (linkCode.startsWith('lazy_')) {
-            try {
-                // Decode payload: "userId:reelId:platform:megaRewardId"
-                const encoded = linkCode.substring(5); // Safer than replace
+        // 1. Find the link (Case-insensitive)
+        try {
+            if (linkCode.startsWith('lazy_')) {
+                // ... (Lazy link logic remains same but with more logging)
+                const encoded = linkCode.substring(5);
                 const payload = Buffer.from(encoded, 'base64').toString('utf8');
                 const [userId, reelId, platform, megaRewardId] = payload.split(':');
 
-                console.log(`[MegaRewardShare] Lazy link decoded: userId=${userId}, reelId=${reelId}, platform=${platform}`);
+                console.info(`${logPrefix} Lazy link decoded: user=${userId}, platform=${platform}`);
 
-                if (!userId || !reelId || !platform || !megaRewardId) {
-                    throw new Error('Invalid temporary link format');
-                }
-
-                // Double-check if persistent link was created in the meantime (Race condition)
                 shareLink = await MegaRewardShareLink.findOne({
                     userId: new mongoose.Types.ObjectId(userId),
                     reelId: new mongoose.Types.ObjectId(reelId),
                     platform
-                }).populate('reelId', 'title description videoUrl thumbnail');
+                }).populate('reelId');
 
-                // If not, CREATE it now (The "Lazy Creation" step)
                 if (!shareLink) {
-                    console.log(`[MegaRewardShare] Creating persistent share link...`);
+                    console.info(`${logPrefix} Lazy link: Creating persistent link...`);
                     const settings = await MegaRewardSettings.findById(megaRewardId);
-                    if (!settings) {
-                        console.error(`[MegaRewardShare] Campaign ${megaRewardId} not found`);
-                        throw new Error('Campaign not found');
-                    }
+                    if (!settings) throw new Error('Campaign settings not found');
 
                     shareLink = await MegaRewardShareLink.create({
                         userId: new mongoose.Types.ObjectId(userId),
@@ -113,86 +105,69 @@ class MegaRewardShareService {
                         platform,
                         expiresAt: settings.endDate
                     });
-
-                    // Populate reelId for the newly created link
-                    await shareLink.populate('reelId', 'title description videoUrl thumbnail');
-                    console.log(`[MegaRewardShare] Persistent link created: ${shareLink._id}`);
+                    console.info(`${logPrefix} Lazy link: Persistent link created: ${shareLink._id}`);
                 }
-            } catch (err) {
-                console.error('[MegaRewardShare] Lazy link track failed:', err.message);
-                throw new Error('Invalid or corrupted share link');
+            } else {
+                shareLink = await MegaRewardShareLink.findOne({
+                    linkCode: { $regex: new RegExp(`^${linkCode}$`, 'i') }
+                }).populate('reelId');
             }
-        } else {
-            // 2. Normal Persistent Link - Case-insensitive match for robustness
-            shareLink = await MegaRewardShareLink.findOne({
-                linkCode: { $regex: new RegExp(`^${linkCode}$`, 'i') }
-            }).populate('reelId', 'title description videoUrl thumbnail');
+        } catch (err) {
+            console.error(`${logPrefix} DB Error during link lookup:`, err.message);
+            throw err;
         }
 
         if (!shareLink) {
-            console.error(`[MegaRewardShare] Share link NOT FOUND for code: ${linkCode}`);
-            // List some recent links to help debug if possible
-            const recentLinks = await MegaRewardShareLink.find().sort({ createdAt: -1 }).limit(3);
-            console.log(`[MegaRewardShare] Recent link codes in DB:`, recentLinks.map(l => l.linkCode));
-            throw new Error('Invalid share link');
+            console.error(`${logPrefix} Link lookup failed - Link not found in DB`);
+            throw new Error('Link not found');
         }
 
-        // Check if link has expired
+        console.info(`${logPrefix} Link found: ID=${shareLink._id}, Platform=${shareLink.platform}, Current Clicks=${shareLink.uniqueClickCount}`);
+
+        // 2. Expiry Check
         if (new Date() > shareLink.expiresAt) {
-            console.error(`[MegaRewardShare] Link expired:`, {
-                linkCode,
-                expiresAt: shareLink.expiresAt,
-                now: new Date()
-            });
-            throw new Error('Share link has expired');
+            console.warn(`${logPrefix} Link expired on ${shareLink.expiresAt}`);
+            throw new Error('Link expired');
         }
 
-        // CRITICAL: Prevent link owner from clicking their own link
-        // Handle potential string "null" from frontend
+        // 3. Normalization & Duplicate Checks
         const normalizedViewerId = (viewerUserId && viewerUserId !== 'null' && mongoose.Types.ObjectId.isValid(viewerUserId))
             ? viewerUserId.toString()
             : null;
 
+        // Owner check
         if (normalizedViewerId && shareLink.userId.toString() === normalizedViewerId) {
-            console.log(`[MegaRewardShare] Link owner tried to click own link - not counting`);
-            return {
-                success: true,
-                isNewClick: false,
-                message: 'Link owners cannot count their own clicks',
-                shareLink
-            };
+            console.info(`${logPrefix} Owner ignore: Link owner clicked their own link`);
+            return { success: true, isNewClick: false, message: 'Your own clicks are not counted', shareLink };
         }
 
-        // CHECK 1: If normalizedViewerId is provided, check if this user already clicked
+        // Logged-in user duplicate check
         if (normalizedViewerId) {
-            const existingUserClick = await MegaRewardClickLog.findOne({
+            const hasClicked = await MegaRewardClickLog.findOne({
                 shareLinkId: shareLink._id,
                 viewerUserId: new mongoose.Types.ObjectId(normalizedViewerId)
             });
-
-            if (existingUserClick) {
-                console.log(`[MegaRewardShare] User ${viewerUserId} already clicked this link`);
-                return {
-                    success: true,
-                    isNewClick: false,
-                    message: 'You have already clicked this link',
-                    shareLink
-                };
+            if (hasClicked) {
+                console.info(`${logPrefix} User duplicate: Already clicked by user ${normalizedViewerId}`);
+                return { success: true, isNewClick: false, message: 'You have already clicked this', shareLink };
             }
         }
 
-        try {
-            console.log(`[MegaRewardShare] Creating click log:`, {
-                shareLinkId: shareLink._id,
-                linkOwnerUserId: shareLink.userId,
-                viewerUserId: viewerUserId || 'guest',
-                ipAddress,
-                fingerprint: fingerprint || 'none',
-                platform: shareLink.platform
-            });
+        // Guest duplicate check (manual lookup before attempt to be safe)
+        const hasGuestClicked = await MegaRewardClickLog.findOne({
+            shareLinkId: shareLink._id,
+            ipAddress,
+            fingerprint: fingerprint || ''
+        });
+        if (hasGuestClicked) {
+            console.info(`${logPrefix} Guest duplicate: Already clicked from IP ${ipAddress}`);
+            return { success: true, isNewClick: false, message: 'Already clicked from this browser', shareLink };
+        }
 
-            // Try to create a new click log (will fail if duplicate due to unique index on IP+fingerprint)
-            const clickLog = await MegaRewardClickLog.create({
+        // 4. Record Click & Increment
+        try {
+            console.info(`${logPrefix} Recording new unique click...`);
+            await MegaRewardClickLog.create({
                 shareLinkId: shareLink._id,
                 linkOwnerUserId: shareLink.userId,
                 viewerUserId: normalizedViewerId ? new mongoose.Types.ObjectId(normalizedViewerId) : null,
@@ -203,30 +178,20 @@ class MegaRewardShareService {
                 counted: true
             });
 
-            console.log(`[MegaRewardShare] Click log created:`, clickLog._id);
+            shareLink.uniqueClickCount = (shareLink.uniqueClickCount || 0) + 1;
 
-            // Increment unique click count
-            shareLink.uniqueClickCount += 1;
-            console.log(`[MegaRewardShare] Incremented click count to:`, shareLink.uniqueClickCount);
-
-            // Check if eligibility threshold is met
+            // Eligibility logic
             const settings = await MegaRewardSettings.findById(shareLink.megaRewardId);
             if (settings) {
-                const requiredClicks = settings.requiredClicks[shareLink.platform];
-                console.log(`[MegaRewardShare] Checking eligibility:`, {
-                    currentClicks: shareLink.uniqueClickCount,
-                    requiredClicks,
-                    platform: shareLink.platform
-                });
-
-                if (shareLink.uniqueClickCount >= requiredClicks) {
+                const reqClicks = settings.requiredClicks?.[shareLink.platform] || 1;
+                if (shareLink.uniqueClickCount >= reqClicks) {
                     shareLink.isEligible = true;
-                    console.log(`[MegaRewardShare] Platform ${shareLink.platform} is now eligible!`);
+                    console.info(`${logPrefix} Target reached! Platform ${shareLink.platform} is now eligible.`);
                 }
             }
 
             await shareLink.save();
-            console.log(`[MegaRewardShare] ShareLink saved successfully`);
+            console.info(`${logPrefix} Success! Count saved: ${shareLink.uniqueClickCount}`);
 
             return {
                 success: true,
@@ -234,26 +199,13 @@ class MegaRewardShareService {
                 uniqueClickCount: shareLink.uniqueClickCount,
                 shareLink
             };
+
         } catch (error) {
-            // Duplicate click (same IP + fingerprint)
             if (error.code === 11000) {
-                console.log(`[MegaRewardShare] Duplicate click detected:`, {
-                    ipAddress,
-                    fingerprint,
-                    shareLinkId: shareLink._id
-                });
-                return {
-                    success: true,
-                    isNewClick: false,
-                    message: 'Click already recorded',
-                    shareLink
-                };
+                console.info(`${logPrefix} Duplicate caught by DB index`);
+                return { success: true, isNewClick: false, message: 'Duplicate click', shareLink };
             }
-            console.error(`[MegaRewardShare] Error creating click log:`, {
-                error: error.message,
-                code: error.code,
-                stack: error.stack
-            });
+            console.error(`${logPrefix} Error saving click:`, error.message);
             throw error;
         }
     }
@@ -312,8 +264,10 @@ class MegaRewardShareService {
      * Get share link by link code (Supports both short codes and lazy codes)
      */
     async getShareLinkByCode(linkCode) {
-        // 1. Check persistent link
-        let shareLink = await MegaRewardShareLink.findOne({ linkCode })
+        // 1. Check persistent link - Case-insensitive lookup
+        let shareLink = await MegaRewardShareLink.findOne({
+            linkCode: { $regex: new RegExp(`^${linkCode}$`, 'i') }
+        })
             .populate('userId', 'name email')
             .populate('reelId', 'title description videoUrl thumbnail');
 

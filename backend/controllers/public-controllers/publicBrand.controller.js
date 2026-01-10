@@ -17,6 +17,8 @@ export const getPublicBrands = async (req, res, next) => {
     const result = await getAllBrands({
       search: '',
       isActive: true, // Only active brands
+      isCustom: req.query.isCustom,
+      isFeatured: req.query.isFeatured,
       page: parseInt(page),
       limit: parseInt(limit),
       sortBy,

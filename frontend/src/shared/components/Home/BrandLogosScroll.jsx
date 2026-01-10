@@ -45,7 +45,13 @@ const BrandLogosScroll = () => {
   useEffect(() => {
     const loadBrands = async () => {
       await initialize();
-      const activeBrands = brands.filter(brand => brand.isActive !== false);
+      // Only show official brands with logos in the marquee
+      // This filters out manually added vendor brands which typically don't have logos
+      const activeBrands = brands.filter(brand =>
+        brand.isActive !== false &&
+        brand.logo &&
+        brand.logo.trim() !== ''
+      );
       setDisplayBrands(activeBrands);
     };
     loadBrands();
@@ -55,7 +61,11 @@ const BrandLogosScroll = () => {
       if (refreshBrands) {
         await refreshBrands();
         const updatedBrands = useBrandStore.getState().brands;
-        const activeBrands = updatedBrands.filter(brand => brand.isActive !== false);
+        const activeBrands = updatedBrands.filter(brand =>
+          brand.isActive !== false &&
+          brand.logo &&
+          brand.logo.trim() !== ''
+        );
         setDisplayBrands(activeBrands);
       }
     }, 30000);

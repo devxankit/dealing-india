@@ -58,9 +58,9 @@ const FeaturedVendorsSection = () => {
             <p className="text-xs text-gray-600 mt-0.5">Shop from trusted stores</p>
           </div>
         </div>
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
-          {[...Array(3)].map((_, index) => (
-            <div key={index} className="glass-card rounded-xl p-4 min-w-[140px] max-w-[160px] h-[200px] animate-pulse bg-gray-200" />
+        <div className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto md:overflow-x-visible scrollbar-hide pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="glass-card rounded-xl p-3 min-w-[130px] md:min-w-0 h-[180px] animate-pulse bg-gray-200" />
           ))}
         </div>
       </div>
@@ -85,7 +85,7 @@ const FeaturedVendorsSection = () => {
         </Link>
       </div>
       
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+      <div className="flex md:grid md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto md:overflow-x-visible scrollbar-hide pb-2 -mx-4 px-4 md:mx-0 md:px-0">
         {featuredVendors.map((vendor, index) => (
           <VendorShowcaseCard key={vendor.id} vendor={vendor} index={index} />
         ))}

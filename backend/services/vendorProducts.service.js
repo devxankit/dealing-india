@@ -333,7 +333,8 @@ export const createVendorProduct = async (productData, vendorId) => {
         brand = await BrandModel.create({
           name: productData.brandName.trim(),
           isActive: true, // Automatically active
-          isFeatured: false
+          isFeatured: false,
+          isCustom: true // Mark as custom brand added by vendor
         });
       }
       brandId = brand._id;

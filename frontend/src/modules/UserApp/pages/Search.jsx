@@ -556,7 +556,7 @@ const MobileSearch = () => {
               </div>
             ) : viewMode === 'grid' ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
                   {displayedItems.map((product, index) => (
                     <motion.div
                       key={product.id}
