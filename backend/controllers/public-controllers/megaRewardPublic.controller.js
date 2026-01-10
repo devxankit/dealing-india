@@ -90,49 +90,40 @@ export const trackClick = asyncHandler(async (req, res) => {
                         try {
                             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
                             if (!token) return null;
-                            
-                            // Decode JWT payload (middle part)
                             const payload = token.split('.')[1];
                             if (!payload) return null;
-                            
                             const decoded = JSON.parse(atob(payload));
                             return decoded.userId || decoded._id || decoded.id || null;
-                        } catch (e) {
-                            console.log('No valid token found');
-                            return null;
-                        }
+                        } catch (e) { return null; }
                     }
                     
                     async function completeRedirect() {
                         const isBot = ${isBot};
                         const redirectUrl = "${redirectUrl}";
                         const linkCode = "${linkCode}";
+                        const apiHost = window.location.origin;
 
                         if (!isBot) {
                             try {
-                                // Get viewer user ID if logged in
                                 const viewerUserId = getUserIdFromToken();
-                                
-                                // Real human -> Securely log the click via API before redirecting
-                                // This filters out bots that don't execute JS
-                                await fetch('/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
+                                // Ensure tracking completes before redirecting
+                                const response = await fetch(apiHost + '/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ viewerUserId: viewerUserId })
                                 });
+                                console.log('Tracking status:', response.status);
                             } catch (e) {
                                 console.error('Tracking error:', e);
                             }
                         }
                         
-                        // Proceed to final destination
-                        if (!isBot) {
-                            window.location.href = redirectUrl;
-                        }
+                        // Final safety redirect
+                        window.location.href = redirectUrl;
                     }
                     
-                    // Small delay for smooth transition
-                    setTimeout(completeRedirect, 800);
+                    // Slightly longer timeout to ensure JS executes and fetch starts
+                    setTimeout(completeRedirect, 1000);
                 </script>
             </head>
             <body>

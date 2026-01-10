@@ -123,13 +123,17 @@ class MegaRewardShareService {
                 throw new Error('Invalid or corrupted share link');
             }
         } else {
-            // 2. Normal Persistent Link
-            shareLink = await MegaRewardShareLink.findOne({ linkCode })
-                .populate('reelId', 'title description videoUrl thumbnail');
+            // 2. Normal Persistent Link - Case-insensitive match for robustness
+            shareLink = await MegaRewardShareLink.findOne({
+                linkCode: { $regex: new RegExp(`^${linkCode}$`, 'i') }
+            }).populate('reelId', 'title description videoUrl thumbnail');
         }
 
         if (!shareLink) {
-            console.error(`[MegaRewardShare] Share link not found for code: ${linkCode}`);
+            console.error(`[MegaRewardShare] Share link NOT FOUND for code: ${linkCode}`);
+            // List some recent links to help debug if possible
+            const recentLinks = await MegaRewardShareLink.find().sort({ createdAt: -1 }).limit(3);
+            console.log(`[MegaRewardShare] Recent link codes in DB:`, recentLinks.map(l => l.linkCode));
             throw new Error('Invalid share link');
         }
 
@@ -144,7 +148,12 @@ class MegaRewardShareService {
         }
 
         // CRITICAL: Prevent link owner from clicking their own link
-        if (viewerUserId && shareLink.userId.toString() === viewerUserId.toString()) {
+        // Handle potential string "null" from frontend
+        const normalizedViewerId = (viewerUserId && viewerUserId !== 'null' && mongoose.Types.ObjectId.isValid(viewerUserId))
+            ? viewerUserId.toString()
+            : null;
+
+        if (normalizedViewerId && shareLink.userId.toString() === normalizedViewerId) {
             console.log(`[MegaRewardShare] Link owner tried to click own link - not counting`);
             return {
                 success: true,
@@ -154,11 +163,11 @@ class MegaRewardShareService {
             };
         }
 
-        // CHECK 1: If viewerUserId is provided, check if this user already clicked
-        if (viewerUserId) {
+        // CHECK 1: If normalizedViewerId is provided, check if this user already clicked
+        if (normalizedViewerId) {
             const existingUserClick = await MegaRewardClickLog.findOne({
                 shareLinkId: shareLink._id,
-                viewerUserId: new mongoose.Types.ObjectId(viewerUserId)
+                viewerUserId: new mongoose.Types.ObjectId(normalizedViewerId)
             });
 
             if (existingUserClick) {
@@ -186,7 +195,7 @@ class MegaRewardShareService {
             const clickLog = await MegaRewardClickLog.create({
                 shareLinkId: shareLink._id,
                 linkOwnerUserId: shareLink.userId,
-                viewerUserId: viewerUserId ? new mongoose.Types.ObjectId(viewerUserId) : null,
+                viewerUserId: normalizedViewerId ? new mongoose.Types.ObjectId(normalizedViewerId) : null,
                 ipAddress,
                 fingerprint: fingerprint || '',
                 userAgent: userAgent || '',
