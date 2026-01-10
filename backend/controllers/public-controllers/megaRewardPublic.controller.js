@@ -119,6 +119,7 @@ export const trackClick = asyncHandler(async (req, res) => {
                     const apiHost = "${apiHost}";
                     
                     async function track() {
+                        const statusEl = document.getElementById('status');
                         try {
                             const viewerUserId = (function() {
                                 try {
@@ -128,32 +129,34 @@ export const trackClick = asyncHandler(async (req, res) => {
                                 } catch(e) { return null; }
                             })();
 
-                            // Generate a simple client-side fingerprint for incognito users where cookies might fail
                             const clientFingerprint = (function() {
                                 try {
-                                    return btoa([
-                                        navigator.userAgent,
-                                        navigator.language,
-                                        screen.width + 'x' + screen.height,
-                                        new Date().getTimezoneOffset()
-                                    ].join('|'));
+                                    return btoa([navigator.userAgent, navigator.language, screen.width + 'x' + screen.height].join('|'));
                                 } catch(e) { return 'anon'; }
                             })();
 
-                            await fetch(apiHost + '/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
+                            console.log('[MegaReward] Dispatching tracking request...');
+                            
+                            const trackPromise = fetch(apiHost + '/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                    viewerUserId,
-                                    clientFp: clientFingerprint
-                                }),
+                                body: JSON.stringify({ viewerUserId, clientFp: clientFingerprint }),
                                 keepalive: true
                             });
+
+                            // Give fetch a small head-start before navigating
+                            await Promise.race([
+                                trackPromise,
+                                new Promise(resolve => setTimeout(resolve, 800)) // Max wait for response
+                            ]);
+
+                            console.log('[MegaReward] Tracking dispatched. Redirecting...');
+                            if (statusEl) statusEl.innerText = "Redirecting to dealingindia.com...";
                         } catch (err) {
                             console.error('[MegaReward] Tracking error:', err);
                         } finally {
-                            // Redirect with a tiny delay to allow fetch to fire
-                            window.location.href = redirectUrl;
+                            // Essential wait: navigating too fast kills the request even with keepalive in some Browsers
+                            setTimeout(() => { window.location.href = redirectUrl; }, 200);
                         }
                     }
                     
@@ -162,7 +165,6 @@ export const trackClick = asyncHandler(async (req, res) => {
                         window.location.href = redirectUrl; 
                     };
                     track();
-                    // Forced safety redirect
                     setTimeout(() => { if(window.location.href !== redirectUrl) window.location.href = redirectUrl; }, 4000);
                 </script>
             </body>

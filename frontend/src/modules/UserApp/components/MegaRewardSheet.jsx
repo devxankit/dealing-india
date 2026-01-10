@@ -36,7 +36,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
             return;
         }
 
-        console.info(`[MegaRewardShare] Sharing to ${platform}`, { reelId });
+        console.info(`[MegaRewardShare] Initializing share for ${platform}`, { reelId });
         setSharingPlatform(platform);
         setLoading(true);
 
@@ -49,47 +49,41 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
 
             if (response.success && response.data) {
                 const { shareUrl } = response.data;
-                const shareMessage = `Check out this amazing reel on Dealing India! 🎬 ${reelTitle || 'Watch Now'}`;
+                const shareMessage = `Check out this amazing reel on Dealing India! 🎬`;
                 const fullText = `${shareMessage}\n\n${shareUrl}`;
 
-                // 2. Platform-specific execution
-                if (platform === 'whatsapp') {
-                    const waUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
-                    window.open(waUrl, '_blank');
-                } else if (platform === 'facebook') {
-                    if (navigator.share) {
-                        await navigator.share({ title: reelTitle, text: shareMessage, url: shareUrl });
-                    } else {
-                        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-                        window.open(fbUrl, '_blank', 'width=600,height=400');
+                // 2. Sharing Logic
+                // Priority 1: Use Native Web Share API (Best for Mobile options)
+                if (navigator.share) {
+                    try {
+                        console.info('[MegaRewardShare] Attempting native share...');
+                        await navigator.share({
+                            title: reelTitle || 'Mega Reward Reel',
+                            text: shareMessage,
+                            url: shareUrl
+                        });
+                        toast.success('Sharing options opened!');
+                    } catch (err) {
+                        // If user cancelled, don't show error, just a hint
+                        if (err.name === 'AbortError') {
+                            console.info('[MegaRewardShare] User closed native share sheet');
+                            toast('Share manually if needed', { icon: 'ℹ️' });
+                        } else {
+                            console.error('[MegaRewardShare] Native share failed:', err);
+                            // Fallback to manual methods
+                            await handlePlatformFallback(platform, shareUrl, fullText);
+                        }
                     }
-                } else if (platform === 'instagram') {
-                    // Instagram doesn't have a direct web sharer for messages/posts
-                    // Best approach: Copy link and try to open app or redirect to direct
-                    await copyToClipboard(fullText);
-                    toast.success('Link copied! Please paste it in Instagram.');
-
-                    // Try to open Instagram app if on mobile
-                    setTimeout(() => {
-                        window.location.href = 'instagram://library?AssetPath='; // Or just open app
-                        setTimeout(() => {
-                            window.open('https://www.instagram.com/direct/inbox/', '_blank');
-                        }, 500);
-                    }, 1000);
-                } else if (navigator.share) {
-                    await navigator.share({ title: reelTitle, text: shareMessage, url: shareUrl });
                 } else {
-                    await copyToClipboard(fullText);
+                    // Priority 2: Platform Specific Web Fallbacks (Desktop/Incompatible mobile)
+                    await handlePlatformFallback(platform, shareUrl, fullText);
                 }
-
-                // Show localized success to hint progress
-                toast.success('Waiting for your friend to click...');
 
                 // Refresh status after a short delay
                 setTimeout(() => fetchStatus(), 3000);
             }
         } catch (error) {
-            console.error('[MegaRewardShare] Share error:', error);
+            console.error('[MegaRewardShare] Share process failed:', error);
             toast.error(error.message || 'Failed to generate share link');
         } finally {
             setLoading(false);
@@ -97,12 +91,34 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
         }
     };
 
+    const handlePlatformFallback = async (platform, shareUrl, fullText) => {
+        console.info(`[MegaRewardShare] Using fallback for ${platform}`);
+        if (platform === 'whatsapp') {
+            const waUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
+            window.open(waUrl, '_blank');
+        } else if (platform === 'facebook') {
+            const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+            window.open(fbUrl, '_blank', 'width=600,height=400');
+        } else {
+            // Instagram / General Fallback
+            await copyToClipboard(fullText);
+            if (platform === 'instagram') {
+                toast.success('Link copied! Please paste it in Instagram Direct.');
+            }
+        }
+    };
+
     const copyToClipboard = async (text) => {
         try {
-            await navigator.clipboard.writeText(text);
-            toast.success('Link copied! Please share it manually.');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                toast.success('Link copied to clipboard!');
+            } else {
+                throw new Error('Clipboard API unavailable');
+            }
         } catch (err) {
-            toast.error('Failed to copy. Please copy link manually.');
+            console.error('Copy failed:', err);
+            toast.error('Could not copy link. Please share manually.');
         }
     };
 
