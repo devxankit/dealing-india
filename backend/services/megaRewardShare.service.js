@@ -66,10 +66,15 @@ class MegaRewardShareService {
     /**
      * Track a click on a share link
      * Returns: { success: boolean, isNewClick: boolean }
+     * 
+     * Enhanced logic:
+     * - Checks IP + fingerprint for guest uniqueness
+     * - Checks viewerUserId for logged-in user uniqueness
+     * - A single user can only count once per link regardless of IP/device changes
      */
-    async trackClick(linkCode, ipAddress, fingerprint, userAgent) {
+    async trackClick(linkCode, ipAddress, fingerprint, userAgent, viewerUserId = null) {
         let shareLink;
-        console.log(`[MegaRewardShare] Tracking click for code: ${linkCode.substring(0, 20)}... from IP: ${ipAddress}`);
+        console.log(`[MegaRewardShare] Tracking click for code: ${linkCode.substring(0, 20)}... from IP: ${ipAddress}${viewerUserId ? `, viewerUserId: ${viewerUserId}` : ''}`);
 
         // 1. Check if this is a Lazy Link (Temporary)
         if (linkCode.startsWith('lazy_')) {
@@ -138,21 +143,55 @@ class MegaRewardShareService {
             throw new Error('Share link has expired');
         }
 
+        // CRITICAL: Prevent link owner from clicking their own link
+        if (viewerUserId && shareLink.userId.toString() === viewerUserId.toString()) {
+            console.log(`[MegaRewardShare] Link owner tried to click own link - not counting`);
+            return {
+                success: true,
+                isNewClick: false,
+                message: 'Link owners cannot count their own clicks',
+                shareLink
+            };
+        }
+
+        // CHECK 1: If viewerUserId is provided, check if this user already clicked
+        if (viewerUserId) {
+            const existingUserClick = await MegaRewardClickLog.findOne({
+                shareLinkId: shareLink._id,
+                viewerUserId: new mongoose.Types.ObjectId(viewerUserId)
+            });
+
+            if (existingUserClick) {
+                console.log(`[MegaRewardShare] User ${viewerUserId} already clicked this link`);
+                return {
+                    success: true,
+                    isNewClick: false,
+                    message: 'You have already clicked this link',
+                    shareLink
+                };
+            }
+        }
+
         try {
             console.log(`[MegaRewardShare] Creating click log:`, {
                 shareLinkId: shareLink._id,
+                linkOwnerUserId: shareLink.userId,
+                viewerUserId: viewerUserId || 'guest',
                 ipAddress,
                 fingerprint: fingerprint || 'none',
                 platform: shareLink.platform
             });
 
-            // Try to create a new click log (will fail if duplicate due to unique index)
+            // Try to create a new click log (will fail if duplicate due to unique index on IP+fingerprint)
             const clickLog = await MegaRewardClickLog.create({
                 shareLinkId: shareLink._id,
+                linkOwnerUserId: shareLink.userId,
+                viewerUserId: viewerUserId ? new mongoose.Types.ObjectId(viewerUserId) : null,
                 ipAddress,
                 fingerprint: fingerprint || '',
                 userAgent: userAgent || '',
-                platform: shareLink.platform
+                platform: shareLink.platform,
+                counted: true
             });
 
             console.log(`[MegaRewardShare] Click log created:`, clickLog._id);

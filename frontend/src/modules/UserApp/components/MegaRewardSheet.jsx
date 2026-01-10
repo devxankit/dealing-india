@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiCheckCircle, FiShare2, FiLoader, FiGift, FiExternalLink } from 'react-icons/fi';
+import { FiX, FiCheckCircle, FiShare2, FiLoader, FiGift, FiExternalLink, FiCopy, FiMessageCircle, FiCamera } from 'react-icons/fi';
 import { FaInstagram, FaFacebook, FaWhatsapp } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
@@ -11,6 +11,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
     const [sharingPlatform, setSharingPlatform] = useState(null);
     const [campaign, setCampaign] = useState(null);
     const [showInstagramOptions, setShowInstagramOptions] = useState(false);
+    const [showFacebookOptions, setShowFacebookOptions] = useState(false);
 
     useEffect(() => {
         if (isOpen && reelId) {
@@ -42,6 +43,11 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
         }
     };
 
+    // Check if device is mobile
+    const isMobile = () => {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    };
+
     const handleShare = async (platform, subAction = null) => {
         if (!reelId) {
             toast.error('No reel selected');
@@ -50,7 +56,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
 
         console.info(`[MegaRewardShare] Sharing to ${platform}${subAction ? ` (${subAction})` : ''}`, { reelId });
 
-        setSharingPlatform(platform);
+        setSharingPlatform(`${platform}${subAction ? `-${subAction}` : ''}`);
         setLoading(true);
 
         try {
@@ -74,26 +80,99 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                         break;
 
                     case 'instagram':
-                        // Instagram always uses Copy + Deep Link pattern
+                        // Copy link first
                         await copyToClipboard(fullText, 'Link copied! Opening Instagram...');
 
-                        let igUrl = 'instagram://camera'; // Default to app
-                        if (subAction === 'story') igUrl = 'instagram://story-camera';
-                        if (subAction === 'message') igUrl = 'instagram://direct_v2';
-
-                        // Try app scheme, fallback to web
-                        const igWindow = window.open(igUrl, '_self');
-                        setTimeout(() => {
-                            if (!igWindow || igWindow.closed) {
-                                window.open('https://www.instagram.com/', '_blank');
+                        if (isMobile()) {
+                            let igUrl;
+                            switch (subAction) {
+                                case 'app':
+                                    // Open Instagram app home - user is at top of app with link copied
+                                    igUrl = 'instagram://app';
+                                    break;
+                                case 'story':
+                                    // Open Instagram story camera - user can paste link as sticker
+                                    igUrl = 'instagram://story-camera';
+                                    break;
+                                case 'message':
+                                    // Open Instagram DMs - user can paste and send
+                                    igUrl = 'instagram://direct-inbox';
+                                    break;
+                                default:
+                                    igUrl = 'instagram://app';
                             }
-                        }, 1200);
+
+                            // Try deep link, fallback to web
+                            const startTime = Date.now();
+                            window.location.href = igUrl;
+
+                            setTimeout(() => {
+                                // If still on this page after 1.5s, app is not installed
+                                if (Date.now() - startTime < 2000) {
+                                    const webFallbacks = {
+                                        'app': 'https://www.instagram.com/',
+                                        'story': 'https://www.instagram.com/create/story/',
+                                        'message': 'https://www.instagram.com/direct/inbox/'
+                                    };
+                                    window.open(webFallbacks[subAction] || 'https://www.instagram.com/', '_blank');
+                                }
+                            }, 1500);
+                        } else {
+                            // Desktop - open web version
+                            const webUrls = {
+                                'app': 'https://www.instagram.com/',
+                                'story': 'https://www.instagram.com/create/story/',
+                                'message': 'https://www.instagram.com/direct/inbox/'
+                            };
+                            window.open(webUrls[subAction] || 'https://www.instagram.com/', '_blank');
+                        }
                         break;
 
                     case 'facebook':
-                        // Facebook sharer
-                        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-                        window.open(fbUrl, '_blank');
+                        // Copy link first
+                        await copyToClipboard(fullText, 'Link copied! Opening Facebook...');
+
+                        if (isMobile()) {
+                            let fbUrl;
+                            switch (subAction) {
+                                case 'app':
+                                    // Open Facebook app home - user can create post
+                                    fbUrl = 'fb://';
+                                    break;
+                                case 'story':
+                                    // Open Facebook story camera
+                                    fbUrl = 'fb://story';
+                                    break;
+                                case 'message':
+                                    // Open Messenger
+                                    fbUrl = 'fb-messenger://';
+                                    break;
+                                default:
+                                    fbUrl = 'fb://';
+                            }
+
+                            const startTime = Date.now();
+                            window.location.href = fbUrl;
+
+                            setTimeout(() => {
+                                if (Date.now() - startTime < 2000) {
+                                    const webFallbacks = {
+                                        'app': 'https://www.facebook.com/',
+                                        'story': 'https://www.facebook.com/stories/create',
+                                        'message': 'https://www.messenger.com/'
+                                    };
+                                    window.open(webFallbacks[subAction] || 'https://www.facebook.com/', '_blank');
+                                }
+                            }, 1500);
+                        } else {
+                            // Desktop - open web version
+                            const webUrls = {
+                                'app': 'https://www.facebook.com/',
+                                'story': 'https://www.facebook.com/stories/create',
+                                'message': 'https://www.messenger.com/'
+                            };
+                            window.open(webUrls[subAction] || 'https://www.facebook.com/', '_blank');
+                        }
                         break;
 
                     case 'copy':
@@ -223,6 +302,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                             <div className="space-y-3 mb-6">
                                 <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Complete All Shares</div>
 
+                                {/* WhatsApp - Direct share */}
                                 <StepItem
                                     icon={<FaWhatsapp className="text-green-600 text-xl" />}
                                     label="WhatsApp"
@@ -232,14 +312,16 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                                     onShare={() => handleShare('whatsapp')}
                                 />
 
+                                {/* Instagram - with sub-options */}
                                 <div className="space-y-2">
                                     <StepItem
                                         icon={<FaInstagram className="text-pink-600 text-xl" />}
                                         label="Instagram"
                                         subLabel={`${stats.instagram?.clicks || 0}/${stats.instagram?.required || 1} unique opens`}
                                         done={eligibility?.eligibility?.instagram}
-                                        loading={sharingPlatform === 'instagram'}
+                                        loading={sharingPlatform?.startsWith('instagram')}
                                         onShare={() => setShowInstagramOptions(!showInstagramOptions)}
+                                        isExpanded={showInstagramOptions}
                                     />
 
                                     <AnimatePresence>
@@ -248,45 +330,101 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                                                 initial={{ height: 0, opacity: 0 }}
                                                 animate={{ height: 'auto', opacity: 1 }}
                                                 exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
                                                 className="grid grid-cols-3 gap-2 px-2 overflow-hidden"
                                             >
                                                 <button
                                                     onClick={() => handleShare('instagram', 'app')}
-                                                    className="py-2 px-1 bg-pink-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1"
+                                                    disabled={loading}
+                                                    className="py-3 px-2 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1 border border-pink-100 hover:shadow-md transition-all active:scale-95"
                                                 >
-                                                    <FaInstagram /> App
+                                                    <FaInstagram className="text-lg" />
+                                                    <span>App</span>
+                                                    <span className="text-[8px] text-gray-400">Open & Paste</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleShare('instagram', 'story')}
-                                                    className="py-2 px-1 bg-pink-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1"
+                                                    disabled={loading}
+                                                    className="py-3 px-2 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1 border border-pink-100 hover:shadow-md transition-all active:scale-95"
                                                 >
-                                                    <FaInstagram /> Story
+                                                    <FiCamera className="text-lg" />
+                                                    <span>Story</span>
+                                                    <span className="text-[8px] text-gray-400">Add to Story</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleShare('instagram', 'message')}
-                                                    className="py-2 px-1 bg-pink-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1"
+                                                    disabled={loading}
+                                                    className="py-3 px-2 bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl text-[10px] font-bold text-pink-600 flex flex-col items-center gap-1 border border-pink-100 hover:shadow-md transition-all active:scale-95"
                                                 >
-                                                    <FaInstagram /> Message
+                                                    <FiMessageCircle className="text-lg" />
+                                                    <span>Message</span>
+                                                    <span className="text-[8px] text-gray-400">Send to Friends</span>
                                                 </button>
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
                                 </div>
 
-                                <StepItem
-                                    icon={<FaFacebook className="text-blue-600 text-xl" />}
-                                    label="Facebook"
-                                    subLabel={`${stats.facebook?.clicks || 0}/${stats.facebook?.required || 1} unique opens`}
-                                    done={eligibility?.eligibility?.facebook}
-                                    loading={sharingPlatform === 'facebook'}
-                                    onShare={() => handleShare('facebook')}
-                                />
+                                {/* Facebook - with sub-options (same as Instagram) */}
+                                <div className="space-y-2">
+                                    <StepItem
+                                        icon={<FaFacebook className="text-blue-600 text-xl" />}
+                                        label="Facebook"
+                                        subLabel={`${stats.facebook?.clicks || 0}/${stats.facebook?.required || 1} unique opens`}
+                                        done={eligibility?.eligibility?.facebook}
+                                        loading={sharingPlatform?.startsWith('facebook')}
+                                        onShare={() => setShowFacebookOptions(!showFacebookOptions)}
+                                        isExpanded={showFacebookOptions}
+                                    />
 
+                                    <AnimatePresence>
+                                        {showFacebookOptions && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="grid grid-cols-3 gap-2 px-2 overflow-hidden"
+                                            >
+                                                <button
+                                                    onClick={() => handleShare('facebook', 'app')}
+                                                    disabled={loading}
+                                                    className="py-3 px-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl text-[10px] font-bold text-blue-600 flex flex-col items-center gap-1 border border-blue-100 hover:shadow-md transition-all active:scale-95"
+                                                >
+                                                    <FaFacebook className="text-lg" />
+                                                    <span>App</span>
+                                                    <span className="text-[8px] text-gray-400">Open & Paste</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleShare('facebook', 'story')}
+                                                    disabled={loading}
+                                                    className="py-3 px-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl text-[10px] font-bold text-blue-600 flex flex-col items-center gap-1 border border-blue-100 hover:shadow-md transition-all active:scale-95"
+                                                >
+                                                    <FiCamera className="text-lg" />
+                                                    <span>Story</span>
+                                                    <span className="text-[8px] text-gray-400">Add to Story</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleShare('facebook', 'message')}
+                                                    disabled={loading}
+                                                    className="py-3 px-2 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl text-[10px] font-bold text-blue-600 flex flex-col items-center gap-1 border border-blue-100 hover:shadow-md transition-all active:scale-95"
+                                                >
+                                                    <FiMessageCircle className="text-lg" />
+                                                    <span>Message</span>
+                                                    <span className="text-[8px] text-gray-400">Send to Friends</span>
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                {/* Copy Share Link */}
                                 <button
                                     onClick={() => handleShare('copy')}
-                                    className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-500 font-bold hover:bg-gray-50 transition-colors"
+                                    disabled={loading}
+                                    className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-gray-500 font-bold hover:bg-gray-50 transition-colors disabled:opacity-50"
                                 >
-                                    <FiShare2 className="text-sm" />
+                                    <FiCopy className="text-sm" />
                                     <span className="text-xs uppercase tracking-wider">Copy Share Link</span>
                                 </button>
                             </div>
@@ -319,8 +457,8 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
     );
 };
 
-const StepItem = ({ icon, label, subLabel, done, loading, onShare }) => (
-    <div className={`flex items-center p-4 rounded-xl border ${done ? 'border-green-100 bg-green-50' : 'border-gray-100 bg-gray-50'}`}>
+const StepItem = ({ icon, label, subLabel, done, loading, onShare, isExpanded = false }) => (
+    <div className={`flex items-center p-4 rounded-xl border transition-all ${done ? 'border-green-100 bg-green-50' : 'border-gray-100 bg-gray-50'} ${isExpanded ? 'border-b-0 rounded-b-none' : ''}`}>
         <div className="mr-4">{icon}</div>
         <div className="flex-1">
             <div className={`font-bold text-sm ${done ? 'text-gray-900' : 'text-gray-500'}`}>{label}</div>
@@ -334,10 +472,10 @@ const StepItem = ({ icon, label, subLabel, done, loading, onShare }) => (
             <button
                 onClick={onShare}
                 disabled={loading}
-                className="px-4 py-2 bg-black text-white text-xs font-bold rounded-lg flex items-center gap-1 disabled:opacity-50"
+                className={`px-4 py-2 text-white text-xs font-bold rounded-lg flex items-center gap-1 disabled:opacity-50 transition-all ${isExpanded ? 'bg-gray-600' : 'bg-black'}`}
             >
                 {loading ? <FiLoader className="animate-spin" /> : <FiExternalLink />}
-                {loading ? '...' : 'Share'}
+                {loading ? '...' : isExpanded ? 'Close' : 'Share'}
             </button>
         )}
     </div>

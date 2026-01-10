@@ -85,6 +85,24 @@ export const trackClick = asyncHandler(async (req, res) => {
                 </style>
                 
                 <script>
+                    // Helper to decode JWT and get user ID
+                    function getUserIdFromToken() {
+                        try {
+                            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                            if (!token) return null;
+                            
+                            // Decode JWT payload (middle part)
+                            const payload = token.split('.')[1];
+                            if (!payload) return null;
+                            
+                            const decoded = JSON.parse(atob(payload));
+                            return decoded.userId || decoded._id || decoded.id || null;
+                        } catch (e) {
+                            console.log('No valid token found');
+                            return null;
+                        }
+                    }
+                    
                     async function completeRedirect() {
                         const isBot = ${isBot};
                         const redirectUrl = "${redirectUrl}";
@@ -92,11 +110,15 @@ export const trackClick = asyncHandler(async (req, res) => {
 
                         if (!isBot) {
                             try {
+                                // Get viewer user ID if logged in
+                                const viewerUserId = getUserIdFromToken();
+                                
                                 // Real human -> Securely log the click via API before redirecting
                                 // This filters out bots that don't execute JS
                                 await fetch('/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
                                     method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' }
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ viewerUserId: viewerUserId })
                                 });
                             } catch (e) {
                                 console.error('Tracking error:', e);
@@ -135,7 +157,9 @@ export const trackClick = asyncHandler(async (req, res) => {
 // Record the actual click (POST handler called by JS)
 export const recordClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
-    console.log(`[MegaRewardController] recordClick hit for code: ${linkCode.substring(0, 20)}...`);
+    const { viewerUserId } = req.body; // Optional: passed from frontend if user is logged in
+
+    console.log(`[MegaRewardController] recordClick hit for code: ${linkCode.substring(0, 20)}...${viewerUserId ? ` viewer: ${viewerUserId}` : ''}`);
 
     const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
         || req.headers['x-real-ip']
@@ -177,7 +201,8 @@ export const recordClick = asyncHandler(async (req, res) => {
             linkCode,
             ipAddress,
             fingerprint,
-            userAgent
+            userAgent,
+            viewerUserId || null // Pass viewerUserId for logged-in user duplicate check
         );
 
         console.log(`[MegaRewardController] trackClick result:`, {
