@@ -24,7 +24,9 @@ export const trackClick = asyncHandler(async (req, res) => {
             linkCode: { $regex: new RegExp(`^${linkCode}$`, 'i') }
         }).populate('reelId');
 
-        // 2. Determine base URLs
+        console.info(`[MegaReward] Tracking landing: code=${linkCode}, found=${!!shareLink}`);
+
+        // 2. Determine base URLs (more robust detection)
         let frontendUrl = process.env.FRONTEND_URL;
         const requestHost = req.get('host') || '';
         const requestOrigin = req.get('origin') || req.get('referer') || '';
@@ -32,7 +34,7 @@ export const trackClick = asyncHandler(async (req, res) => {
         if (!frontendUrl) {
             if (requestHost.includes('dealingindia') || requestHost.includes('onrender')) {
                 frontendUrl = 'https://www.dealingindia.com';
-            } else if (requestOrigin.includes(':3000')) {
+            } else if (requestOrigin.includes(':3000') || requestHost.includes(':3000')) {
                 frontendUrl = 'http://localhost:3000';
             } else {
                 frontendUrl = 'http://localhost:5173';
@@ -47,14 +49,21 @@ export const trackClick = asyncHandler(async (req, res) => {
 
         if (shareLink) {
             platform = shareLink.platform || 'share';
-            if (shareLink.reelId) {
-                const reelId = shareLink.reelId._id || shareLink.reelId;
-                redirectUrl = `${frontendUrl}/app/reels/${reelId}?source=${platform}`;
-                ogTitle = shareLink.reelId.title || 'Mega Reward Reel';
-                ogDescription = shareLink.reelId.description || 'Watch and share to win huge rewards!';
-                ogImage = shareLink.reelId.thumbnail || '';
+            // Use the stored reelId directly if populate failed (e.g. reel was deleted but link exists)
+            const reelId = shareLink.reelId?._id || shareLink.reelId;
+
+            if (reelId) {
+                redirectUrl = `${frontendUrl}/app/reels/${reelId}?source=${platform}&lc=${linkCode}`;
+
+                if (shareLink.reelId && typeof shareLink.reelId === 'object') {
+                    ogTitle = shareLink.reelId.title || 'Mega Reward Reel';
+                    ogDescription = shareLink.reelId.description || 'Watch and share to win huge rewards!';
+                    ogImage = shareLink.reelId.thumbnail || '';
+                }
             }
         }
+
+        console.info(`[MegaReward] Redirect will go to: ${redirectUrl}`);
 
         const metaTags = `
             <meta property="og:type" content="website">
@@ -119,22 +128,42 @@ export const trackClick = asyncHandler(async (req, res) => {
                                 } catch(e) { return null; }
                             })();
 
+                            // Generate a simple client-side fingerprint for incognito users where cookies might fail
+                            const clientFingerprint = (function() {
+                                try {
+                                    return btoa([
+                                        navigator.userAgent,
+                                        navigator.language,
+                                        screen.width + 'x' + screen.height,
+                                        new Date().getTimezoneOffset()
+                                    ].join('|'));
+                                } catch(e) { return 'anon'; }
+                            })();
+
                             await fetch(apiHost + '/api/mega-reward/track-log/' + encodeURIComponent(linkCode), {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ viewerUserId }),
+                                body: JSON.stringify({ 
+                                    viewerUserId,
+                                    clientFp: clientFingerprint
+                                }),
                                 keepalive: true
                             });
                         } catch (err) {
                             console.error('[MegaReward] Tracking error:', err);
                         } finally {
-                            setTimeout(() => { window.location.href = redirectUrl; }, 300);
+                            // Redirect with a tiny delay to allow fetch to fire
+                            window.location.href = redirectUrl;
                         }
                     }
                     
-                    document.getElementById('skipBtn').onclick = () => { window.location.href = redirectUrl; };
+                    document.getElementById('skipBtn').onclick = (e) => { 
+                        e.preventDefault();
+                        window.location.href = redirectUrl; 
+                    };
                     track();
-                    setTimeout(() => { if(window.location.href !== redirectUrl) window.location.href = redirectUrl; }, 3000);
+                    // Forced safety redirect
+                    setTimeout(() => { if(window.location.href !== redirectUrl) window.location.href = redirectUrl; }, 4000);
                 </script>
             </body>
             </html>
@@ -150,9 +179,9 @@ export const trackClick = asyncHandler(async (req, res) => {
 // Record the actual click (POST handler called by JS)
 export const recordClick = asyncHandler(async (req, res) => {
     const { linkCode } = req.params;
-    const { viewerUserId } = req.body;
+    const { viewerUserId, clientFp } = req.body;
 
-    console.info(`[MegaRewardController] recordClick: code=${linkCode}, viewer=${viewerUserId || 'Guest'}`);
+    console.info(`[MegaReward] recordClick: code=${linkCode}, viewer=${viewerUserId || 'Guest'}, clientFp=${!!clientFp}`);
 
     const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
         || req.headers['x-real-ip']
@@ -161,24 +190,35 @@ export const recordClick = asyncHandler(async (req, res) => {
         || 'unknown';
 
     let fingerprint = null;
+
+    // 1. Try cookie fingerprint
     if (req.headers.cookie) {
         const cookies = req.headers.cookie.split(';').reduce((acc, cookie) => {
-            const [name, value] = cookie.trim().split('=');
-            if (name === 'mr_fp') acc[name] = value;
+            const parts = cookie.trim().split('=');
+            if (parts[0] === 'mr_fp') acc[parts[0]] = parts[1];
             return acc;
         }, {});
         fingerprint = cookies['mr_fp'];
     }
 
+    // 2. Fallback to client-side fingerprint if cookie fails (common in incognito)
+    if (!fingerprint && clientFp) {
+        console.info(`[MegaReward] Using client-side FP for code=${linkCode}`);
+        fingerprint = clientFp;
+    }
+
+    // 3. Last resort - Generate and set cookie for next time
     if (!fingerprint) {
         fingerprint = `fp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        res.cookie('mr_fp', fingerprint, {
-            maxAge: 365 * 24 * 60 * 60 * 1000,
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none' // Better for in-app browser POSTs
-        });
     }
+
+    // Always try to set/refresh the cookie
+    res.cookie('mr_fp', fingerprint, {
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none'
+    });
 
     const userAgent = req.headers['user-agent'] || '';
 
@@ -193,7 +233,7 @@ export const recordClick = asyncHandler(async (req, res) => {
 
         res.status(200).json(result);
     } catch (error) {
-        console.error(`[MegaRewardController] Tracking failed for ${linkCode}:`, error.message);
+        console.error(`[MegaReward] Tracking failed for ${linkCode}:`, error.message);
         res.status(500).json({
             success: false,
             message: error.message,

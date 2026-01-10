@@ -118,28 +118,31 @@ class MegaRewardShareService {
         }
 
         if (!shareLink) {
-            console.error(`${logPrefix} Link lookup failed - Link not found in DB`);
-            throw new Error('Link not found');
+            console.warn(`${logPrefix} Link not found: ${linkCode}`);
+            return { success: false, message: 'Invalid or expired share link' };
         }
 
         console.info(`${logPrefix} Link found: ID=${shareLink._id}, Platform=${shareLink.platform}, Current Clicks=${shareLink.uniqueClickCount}`);
 
-        // 2. Expiry Check
-        if (new Date() > shareLink.expiresAt) {
-            console.warn(`${logPrefix} Link expired on ${shareLink.expiresAt}`);
-            throw new Error('Link expired');
+        // 2. Security Check: Link Expiry
+        if (shareLink.expiresAt && new Date() > shareLink.expiresAt) {
+            console.warn(`${logPrefix} Link expired: ${linkCode} on ${shareLink.expiresAt}`);
+            return { success: false, message: 'Link has expired', shareLink };
         }
 
-        // 3. Normalization & Duplicate Checks
+        // 3. Duplicate Prevention (Fraud Prevention)
         const normalizedViewerId = (viewerUserId && viewerUserId !== 'null' && mongoose.Types.ObjectId.isValid(viewerUserId))
             ? viewerUserId.toString()
             : null;
 
-        // Owner check
-        if (normalizedViewerId && shareLink.userId.toString() === normalizedViewerId) {
-            console.info(`${logPrefix} Owner ignore: Link owner clicked their own link`);
-            return { success: true, isNewClick: false, message: 'Your own clicks are not counted', shareLink };
+        // Owner Self-Click Check
+        if (normalizedViewerId && shareLink.userId?.toString() === normalizedViewerId) {
+            console.info(`${logPrefix} Owner self-click detected. Not counting but allowing redirect.`);
+            return { success: true, isNewClick: false, message: 'Owner self-click', shareLink };
         }
+
+        // Log the attempt
+        console.info(`${logPrefix} Tracking attempt: IP=${ipAddress}, Fingerprint=${fingerprint ? fingerprint.substring(0, 10) + '...' : 'None'}, ViewerID=${normalizedViewerId || 'Guest'}`);
 
         // Logged-in user duplicate check
         if (normalizedViewerId) {

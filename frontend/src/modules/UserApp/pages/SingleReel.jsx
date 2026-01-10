@@ -15,7 +15,17 @@ const SingleReel = () => {
     // Check if opened from a share link
     const queryParams = new URLSearchParams(location.search);
     const source = queryParams.get('source');
+    const linkCode = queryParams.get('lc');
     const isFromShare = !!source;
+
+    useEffect(() => {
+        if (linkCode) {
+            toast.success("Welcome! Your click has been recorded.", {
+                icon: '🎁',
+                duration: 5000
+            });
+        }
+    }, [linkCode]);
 
     const [reel, setReel] = useState(null);
     const [loading, setLoading] = useState(true);

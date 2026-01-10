@@ -54,32 +54,38 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
 
                 // 2. Platform-specific execution
                 if (platform === 'whatsapp') {
-                    // Direct WhatsApp sharing
                     const waUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
                     window.open(waUrl, '_blank');
-                } else if (navigator.share) {
-                    // Use Native Web Share API for Instagram, Facebook and others
-                    // This opens the native mobile share menu with multiple options
-                    try {
-                        await navigator.share({
-                            title: reelTitle || 'Mega Reward Reel',
-                            text: shareMessage,
-                            url: shareUrl
-                        });
-                        toast.success(`Opening ${platform} share...`);
-                    } catch (err) {
-                        if (err.name !== 'AbortError') {
-                            console.error('Native share failed:', err);
-                            // Fallback to clipboard if share fails
-                            await copyToClipboard(fullText);
-                        }
+                } else if (platform === 'facebook') {
+                    if (navigator.share) {
+                        await navigator.share({ title: reelTitle, text: shareMessage, url: shareUrl });
+                    } else {
+                        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+                        window.open(fbUrl, '_blank', 'width=600,height=400');
                     }
+                } else if (platform === 'instagram') {
+                    // Instagram doesn't have a direct web sharer for messages/posts
+                    // Best approach: Copy link and try to open app or redirect to direct
+                    await copyToClipboard(fullText);
+                    toast.success('Link copied! Please paste it in Instagram.');
+
+                    // Try to open Instagram app if on mobile
+                    setTimeout(() => {
+                        window.location.href = 'instagram://library?AssetPath='; // Or just open app
+                        setTimeout(() => {
+                            window.open('https://www.instagram.com/direct/inbox/', '_blank');
+                        }, 500);
+                    }, 1000);
+                } else if (navigator.share) {
+                    await navigator.share({ title: reelTitle, text: shareMessage, url: shareUrl });
                 } else {
-                    // Fallback for browsers that don't support navigator.share
                     await copyToClipboard(fullText);
                 }
 
-                // Refresh status after a short delay to account for network/DB updates
+                // Show localized success to hint progress
+                toast.success('Waiting for your friend to click...');
+
+                // Refresh status after a short delay
                 setTimeout(() => fetchStatus(), 3000);
             }
         } catch (error) {
