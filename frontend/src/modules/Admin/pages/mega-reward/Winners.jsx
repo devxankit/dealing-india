@@ -20,7 +20,15 @@ const MegaRewardWinners = () => {
         try {
             const response = await api.get('/admin/mega-reward/winners');
             if (response.success) {
-                setWinners(response.data || []);
+                // Sort winners by rank (1st, 2nd, 3rd, etc.)
+                const sortedWinners = (response.data || []).sort((a, b) => {
+                    const getRank = (str) => {
+                        const match = str.match(/(\d+)/);
+                        return match ? parseInt(match[1]) : 999;
+                    };
+                    return getRank(a.prizeRank) - getRank(b.prizeRank);
+                });
+                setWinners(sortedWinners);
             }
         } catch (error) {
             console.error('Failed to fetch winners:', error);

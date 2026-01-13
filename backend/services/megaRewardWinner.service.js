@@ -364,7 +364,7 @@ class MegaRewardWinnerService {
             .populate('userId', 'name email phone')
             .populate('entryId', 'ticketId')
             .populate('declaredBy', 'name')
-            .sort({ declaredAt: -1 });
+            .sort({ prizeAmount: -1 });
     }
 
     /**
