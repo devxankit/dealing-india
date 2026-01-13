@@ -60,8 +60,8 @@ const MegaRewardSettings = () => {
         }
     };
 
-    const fetchSettings = async () => {
-        setLoading(true);
+    const fetchSettings = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const response = await api.get('/admin/mega-reward/settings/active');
             if (response.success && response.data) {
@@ -179,6 +179,8 @@ const MegaRewardSettings = () => {
                     setSettingsId(response.data._id);
                 }
                 toast.success('Settings saved successfully!');
+                // Refresh settings to update lock status and other UI elements
+                await fetchSettings(true);
             }
         } catch (error) {
             console.error('Save error:', error);

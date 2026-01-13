@@ -37,7 +37,7 @@ export const trackClick = asyncHandler(async (req, res) => {
             } else if (requestOrigin.includes(':3000') || requestHost.includes(':3000')) {
                 frontendUrl = 'http://localhost:3000';
             } else {
-                frontendUrl = 'http://localhost:5173';
+                frontendUrl = 'http://localhost:3000';
             }
         }
 
