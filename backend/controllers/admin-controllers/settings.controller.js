@@ -28,7 +28,7 @@ export const updateSettingsController = async (req, res, next) => {
     const categoryData = req.body;
 
     // Validate category
-    const validCategories = ['general', 'products', 'tax', 'banners', 'payment', 'shipping', 'features', 'homepage', 'reviews'];
+    const validCategories = ['general', 'products', 'tax', 'banners', 'payment', 'shipping', 'features', 'homepage', 'reviews', 'notifications', 'seo', 'email'];
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,

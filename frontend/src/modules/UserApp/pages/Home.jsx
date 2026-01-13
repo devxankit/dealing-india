@@ -19,6 +19,7 @@ import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
 import { getProducts } from "../../../shared/services/productService";
 import { useCampaignStore } from "../../../shared/store/campaignStore";
+import { useSettingsStore } from "../../../shared/store/settingsStore";
 
 const MobileHome = () => {
   const [mostPopular, setMostPopular] = useState([]);
@@ -329,6 +330,14 @@ const MobileHome = () => {
   }, []);
 
 
+  const { settings, initialize: initializeSettings } = useSettingsStore();
+
+  useEffect(() => {
+    initializeSettings();
+  }, []);
+
+  const homepageSections = settings?.homepage?.sections || {};
+
   // Pull to refresh handler
   const handleRefresh = async () => {
     return new Promise((resolve) => {
@@ -357,14 +366,18 @@ const MobileHome = () => {
             transition: isPulling ? "none" : "transform 0.3s ease-out",
           }}>
           {/* Hero Banner */}
-          <div className="px-4 py-4">
-            <HeroBanner />
-          </div>
+          {settings?.homepage?.heroBannerEnabled !== false && (
+            <div className="px-4 py-4">
+              <HeroBanner />
+            </div>
+          )}
 
           {/* Brand Logos Scroll */}
-          <div className="bg-white py-2 shadow-sm mb-4">
-            <BrandLogosScroll />
-          </div>
+          {homepageSections.topBrands?.enabled !== false && (
+            <div className="bg-white py-2 shadow-sm mb-4">
+              <BrandLogosScroll />
+            </div>
+          )}
 
           {/* Featured Vendors Section */}
           <FeaturedVendorsSection />
@@ -375,107 +388,117 @@ const MobileHome = () => {
           </div>
 
           {/* New Arrivals */}
-          <div className="px-2">
-            <NewArrivalsSection />
-          </div>
+          {homepageSections.newArrivals?.enabled !== false && (
+            <div className="px-2">
+              <NewArrivalsSection />
+            </div>
+          )}
 
           {/* Most Popular */}
-          <div className="px-4 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Most Popular</h2>
-              <Link
-                to="/app/search"
-                className="text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
-                See All
-              </Link>
-            </div>
-            {isLoadingPopular ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
-                {[...Array(6)].map((_, index) => (
-                  <div key={index} className="glass-card rounded-lg overflow-hidden animate-pulse">
-                    <div className="w-full h-32 md:h-48 lg:h-56 bg-gray-200"></div>
-                    <div className="p-2">
-                      <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
-                {mostPopular.slice(0, 6).map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}>
-                    <ProductCard product={product} />
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Flash Sale */}
-          {isLoadingFlashSale ? (
-            <div className="px-4 py-4 bg-gradient-to-br from-red-50 to-orange-50">
+          {homepageSections.bestSellers?.enabled !== false && (
+            <div className="px-4 py-4">
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                    Flash Sale
-                  </h2>
-                  <p className="text-xs text-gray-600">Limited time offers</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
-                {[...Array(6)].map((_, index) => (
-                  <div key={index} className="glass-card rounded-lg overflow-hidden animate-pulse">
-                    <div className="w-full h-32 md:h-48 lg:h-56 bg-gray-200"></div>
-                    <div className="p-2">
-                      <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : flashSale.length > 0 ? (
-            <div className="px-4 py-4 bg-gradient-to-br from-red-50 to-orange-50">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                    Flash Sale
-                  </h2>
-                  <p className="text-xs text-gray-600">Limited time offers</p>
-                </div>
+                <h2 className="text-xl font-bold text-gray-800">Most Popular</h2>
                 <Link
-                  to="/app/flash-sale"
-                  className="text-sm text-primary-600 font-semibold hover:text-primary-700 transition-colors">
+                  to="/app/search"
+                  className="text-sm text-green-600 font-semibold hover:text-green-700 transition-colors">
                   See All
                 </Link>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
-                {flashSale.slice(0, 6).map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}>
-                    <ProductCard product={product} />
-                  </motion.div>
-                ))}
-              </div>
+              {isLoadingPopular ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
+                  {[...Array(6)].map((_, index) => (
+                    <div key={index} className="glass-card rounded-lg overflow-hidden animate-pulse">
+                      <div className="w-full h-32 md:h-48 lg:h-56 bg-gray-200"></div>
+                      <div className="p-2">
+                        <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-6">
+                  {mostPopular.slice(0, 6).map((product, index) => (
+                    <motion.div
+                      key={product.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}>
+                      <ProductCard product={product} />
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </div>
-          ) : null}
+          )}
+
+          {/* Flash Sale */}
+          {homepageSections.flashSale?.enabled !== false && (
+            <>
+              {isLoadingFlashSale ? (
+                <div className="px-4 py-4 bg-gradient-to-br from-red-50 to-orange-50">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-800">
+                        Flash Sale
+                      </h2>
+                      <p className="text-xs text-gray-600">Limited time offers</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
+                    {[...Array(6)].map((_, index) => (
+                      <div key={index} className="glass-card rounded-lg overflow-hidden animate-pulse">
+                        <div className="w-full h-32 md:h-48 lg:h-56 bg-gray-200"></div>
+                        <div className="p-2">
+                          <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-2/3 mb-2"></div>
+                          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : flashSale.length > 0 ? (
+                <div className="px-4 py-4 bg-gradient-to-br from-red-50 to-orange-50">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-800">
+                        Flash Sale
+                      </h2>
+                      <p className="text-xs text-gray-600">Limited time offers</p>
+                    </div>
+                    <Link
+                      to="/app/flash-sale"
+                      className="text-sm text-primary-600 font-semibold hover:text-primary-700 transition-colors">
+                      See All
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
+                    {flashSale.slice(0, 6).map((product, index) => (
+                      <motion.div
+                        key={product.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}>
+                        <ProductCard product={product} />
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
 
           {/* Daily Deals */}
-          <DailyDealsSection
-            products={dailyDeals}
-            campaign={dailyDealCampaign}
-            isLoading={isLoadingDailyDeals}
-          />
+          {homepageSections.dealsOfTheDay?.enabled !== false && (
+            <DailyDealsSection
+              products={dailyDeals}
+              campaign={dailyDealCampaign}
+              isLoading={isLoadingDailyDeals}
+            />
+          )}
 
           {/* Trending Items */}
           <div className="px-4 py-4">

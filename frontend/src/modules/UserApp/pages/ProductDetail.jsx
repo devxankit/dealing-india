@@ -13,6 +13,7 @@ import {
 import { motion } from "framer-motion";
 import { useCartStore } from "../../../shared/store/useStore";
 import { useWishlistStore } from "../../../shared/store/wishlistStore";
+import { useSettingsStore } from "../../../shared/store/settingsStore";
 
 import { getProductReviews } from "../../../shared/services/reviewService";
 import { getProductById as getProductByIdAPI, getProducts } from "../../../shared/services/productService";
@@ -187,11 +188,18 @@ const MobileProductDetail = () => {
         setIsLoading(false);
       }
     };
-
     if (id) {
       fetchProduct();
     }
   }, [id]);
+
+  const { settings, initialize: initializeSettings } = useSettingsStore();
+
+  useEffect(() => {
+    initializeSettings();
+  }, []);
+
+  const features = settings?.features || {};
 
   useEffect(() => {
     if (product?.variants?.defaultVariant) {
@@ -460,6 +468,10 @@ const MobileProductDetail = () => {
   };
 
   const handleFavorite = () => {
+    if (features.wishlistEnabled === false) {
+      toast.error("Wishlist is currently disabled");
+      return;
+    }
     if (isFavorite) {
       removeFromWishlist(product.id);
       toast.success("Removed from wishlist");
@@ -498,19 +510,26 @@ const MobileProductDetail = () => {
       <MobileLayout showBottomNav={false} showCartBar={true}>
         <div className="w-full pb-24">
           {/* Back Button */}
-          <div className="px-4 pt-4">
+          <div className="px-4 pt-4 flex items-center justify-between">
             <button
               onClick={() => navigate(-1)}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors">
               <FiArrowLeft className="text-xl" />
               <span className="font-medium">Back</span>
             </button>
+            {features.wishlistEnabled !== false && (
+              <button
+                onClick={handleFavorite}
+                className={`p-2 rounded-full shadow-md transition-all ${isFavorite ? "bg-red-50 text-red-500" : "bg-white text-gray-400"}`}>
+                <FiHeart className={`text-xl ${isFavorite ? "fill-current" : ""}`} />
+              </button>
+            )}
           </div>
 
           {/* Product Image */}
           <div className="px-4 py-4">
             <ImageGallery images={productImages} productName={product.name} />
-            {product.flashSale && (
+            {product.flashSale && features.flashSaleEnabled !== false && (
               <div className="mt-3">
                 <Badge variant="flash">Flash Sale</Badge>
               </div>
@@ -584,7 +603,7 @@ const MobileProductDetail = () => {
             )}
 
             {/* Rating */}
-            {product.rating > 0 && (
+            {product.rating > 0 && features.reviewsEnabled !== false && (
               <div className="flex items-center gap-2 mb-3">
                 <div className="flex items-center">
                   {[...Array(5)].map((_, i) => (

@@ -18,6 +18,11 @@ router.get('/public', asyncHandler(async (req, res) => {
         tax: settings.tax,
         shipping: settings.shipping,
         banners: settings.banners,
+        features: settings.features,
+        homepage: settings.homepage,
+        reviews: settings.reviews,
+        seo: settings.seo,
+        notifications: settings.notifications,
     };
 
     res.status(200).json({

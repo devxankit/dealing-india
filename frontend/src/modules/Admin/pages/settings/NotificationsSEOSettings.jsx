@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FiSave, FiBell, FiSearch, FiMail } from "react-icons/fi";
+import { FiSave, FiBell, FiSearch } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import AnimatedSelect from "../../components/AnimatedSelect";
@@ -7,15 +7,13 @@ import toast from "react-hot-toast";
 
 const NotificationsSEOSettings = () => {
   const { settings, updateSettings, initialize } = useSettingsStore();
-  const [emailData, setEmailData] = useState({});
   const [notificationsData, setNotificationsData] = useState({});
   const [seoData, setSeoData] = useState({});
-  const [activeSection, setActiveSection] = useState("email");
+  const [activeSection, setActiveSection] = useState("notifications");
 
   useEffect(() => {
     initialize();
     if (settings) {
-      if (settings.email) setEmailData(settings.email);
       if (settings.notifications) setNotificationsData(settings.notifications);
       if (settings.seo) setSeoData(settings.seo);
     }
@@ -23,19 +21,10 @@ const NotificationsSEOSettings = () => {
 
   useEffect(() => {
     if (settings) {
-      if (settings.email) setEmailData(settings.email);
       if (settings.notifications) setNotificationsData(settings.notifications);
       if (settings.seo) setSeoData(settings.seo);
     }
   }, [settings]);
-
-  const handleEmailChange = (e) => {
-    const { name, value } = e.target;
-    setEmailData({
-      ...emailData,
-      [name]: value,
-    });
-  };
 
   const handleNotificationToggle = (category, setting) => {
     setNotificationsData({
@@ -55,16 +44,19 @@ const NotificationsSEOSettings = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    updateSettings("email", emailData);
-    updateSettings("notifications", notificationsData);
-    updateSettings("seo", seoData);
-    toast.success("Settings saved successfully");
+    try {
+      await updateSettings("notifications", notificationsData);
+      await updateSettings("seo", seoData);
+      toast.success("Settings saved successfully");
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      toast.error("Failed to save settings");
+    }
   };
 
   const sections = [
-    { id: "email", label: "Email Settings", icon: FiMail },
     { id: "notifications", label: "Notifications", icon: FiBell },
     { id: "seo", label: "SEO Settings", icon: FiSearch },
   ];
@@ -79,7 +71,7 @@ const NotificationsSEOSettings = () => {
           Notifications & SEO
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Configure email, notifications, and SEO settings
+          Configure notifications and SEO settings
         </p>
       </div>
 
@@ -92,11 +84,10 @@ const NotificationsSEOSettings = () => {
                 <button
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${
-                    activeSection === section.id
-                      ? "border-primary-600 text-primary-600 font-semibold"
-                      : "border-transparent text-gray-600 hover:text-gray-800"
-                  }`}>
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${activeSection === section.id
+                    ? "border-primary-600 text-primary-600 font-semibold"
+                    : "border-transparent text-gray-600 hover:text-gray-800"
+                    }`}>
                   <Icon className="text-base sm:text-lg" />
                   <span>{section.label}</span>
                 </button>
@@ -106,91 +97,6 @@ const NotificationsSEOSettings = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-3 sm:p-4 md:p-6">
-          {/* Email Section */}
-          {activeSection === "email" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    SMTP Host
-                  </label>
-                  <input
-                    type="text"
-                    name="smtpHost"
-                    value={emailData.smtpHost || ""}
-                    onChange={handleEmailChange}
-                    placeholder="smtp.gmail.com"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    SMTP Port
-                  </label>
-                  <input
-                    type="number"
-                    name="smtpPort"
-                    value={emailData.smtpPort || 587}
-                    onChange={handleEmailChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    SMTP Username
-                  </label>
-                  <input
-                    type="text"
-                    name="smtpUser"
-                    value={emailData.smtpUser || ""}
-                    onChange={handleEmailChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    SMTP Password
-                  </label>
-                  <input
-                    type="password"
-                    name="smtpPassword"
-                    value={emailData.smtpPassword || ""}
-                    onChange={handleEmailChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    From Email
-                  </label>
-                  <input
-                    type="email"
-                    name="fromEmail"
-                    value={emailData.fromEmail || ""}
-                    onChange={handleEmailChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    From Name
-                  </label>
-                  <input
-                    type="text"
-                    name="fromName"
-                    value={emailData.fromName || ""}
-                    onChange={handleEmailChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Notifications Section */}
           {activeSection === "notifications" && (

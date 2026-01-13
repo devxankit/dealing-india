@@ -22,7 +22,7 @@ export const updateSettings = async (updateData) => {
   try {
     // Get existing settings or create new one
     let settings = await Settings.findOne();
-    
+
     if (!settings) {
       settings = new Settings();
     }
@@ -59,25 +59,22 @@ export const updateSettings = async (updateData) => {
 export const updateCategorySettings = async (category, categoryData) => {
   try {
     let settings = await Settings.findOne();
-    
+
     if (!settings) {
       settings = new Settings();
     }
 
     // Update the specific category
-    if (category === 'general' && settings.general) {
-      settings.general = {
-        ...settings.general,
+    if (settings[category] !== undefined || category) {
+      // Use a more robust merging for nested objects if needed, 
+      // but for now, spread is better than direct assignment to preserve other fields if schema allows
+      settings[category] = {
+        ...(settings[category] || {}),
         ...categoryData,
       };
-    } else if (category === 'products' && settings.products) {
-      settings.products = {
-        ...settings.products,
-        ...categoryData,
-      };
-    } else {
-      // If category doesn't exist, set it
-      settings[category] = categoryData;
+
+      // Explicitly mark as modified for Mongoose dynamic fields/Mixed types
+      settings.markModified(category);
     }
 
     await settings.save();

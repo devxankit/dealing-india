@@ -169,6 +169,8 @@ export const useSettingsStore = create(
               features: { ...defaultSettings.features, ...(apiSettings.features || {}) },
               homepage: { ...defaultSettings.homepage, ...(apiSettings.homepage || {}) },
               reviews: { ...defaultSettings.reviews, ...(apiSettings.reviews || {}) },
+              notifications: { ...defaultSettings.notifications, ...(apiSettings.notifications || {}) },
+              seo: { ...defaultSettings.seo, ...(apiSettings.seo || {}) },
               tax: apiSettings.tax || defaultSettings.tax || {},
             };
             set({ settings: mergedSettings, isLoading: false });

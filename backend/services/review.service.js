@@ -1,6 +1,7 @@
 import Review from '../models/Review.model.js';
 import Order from '../models/Order.model.js';
 import Product from '../models/Product.model.js';
+import Settings from '../models/Settings.model.js';
 import mongoose from 'mongoose';
 
 /**
@@ -10,33 +11,31 @@ import mongoose from 'mongoose';
 export const createReview = async (data) => {
     const { userId, productId, orderId, rating, comment, review, images } = data; // use review field
 
-    // 1. Verify Verification
+    // Get settings to check policies
+    const settings = await Settings.getSettings();
+    const purchaseRequired = settings.reviews?.purchaseRequired !== false;
+    const moderationMode = settings.reviews?.moderationMode || 'manual';
 
-    const order = await Order.findOne({
-        _id: orderId,
-        customerId: userId,
-        status: 'delivered',
-    });
+    // 1. Verify Purchase if required
+    let verifiedPurchase = false;
+    let order = null;
 
+    if (purchaseRequired) {
+        order = await Order.findOne({
+            _id: orderId,
+            customerId: userId,
+            status: 'delivered',
+            'items.productId': productId
+        });
 
-    if (!order) {
-
-        throw new Error('You can only review products from delivered orders.');
-    }
-
-    // 2. Verify Product is in Order
-    const productInOrder = order.items.some(
-        (item) => item.productId.toString() === productId.toString()
-    );
-
-
-    if (!productInOrder) {
-        throw new Error('This product is not part of the order.');
+        if (!order) {
+            throw new Error('You can only review products from delivered orders containing this item.');
+        }
+        verifiedPurchase = true;
     }
 
     // 3. Create Review
     const finalReviewText = review || comment || '';
-
 
     const reviewDoc = await Review.create({
         userId,
@@ -46,8 +45,8 @@ export const createReview = async (data) => {
         review: finalReviewText,
         comment: finalReviewText, // Backward compatibility if model has both
         images,
-        status: 'approved', // Auto-approve for now
-        customerName: order.shippingAddress?.name || 'Customer'
+        status: moderationMode === 'auto' ? 'approved' : 'pending',
+        customerName: order?.shippingAddress?.name || 'Customer'
     });
 
 

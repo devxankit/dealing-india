@@ -114,8 +114,8 @@ const ContentFeaturesSettings = () => {
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${activeSection === section.id
-                      ? 'border-primary-600 text-primary-600 font-semibold'
-                      : 'border-transparent text-gray-600 hover:text-gray-800'
+                    ? 'border-primary-600 text-primary-600 font-semibold'
+                    : 'border-transparent text-gray-600 hover:text-gray-800'
                     }`}
                 >
                   <Icon className="text-base sm:text-lg" />
@@ -188,22 +188,6 @@ const ContentFeaturesSettings = () => {
                     type="checkbox"
                     checked={featuresData.dailyDealsEnabled !== false}
                     onChange={() => handleFeatureToggle('dailyDealsEnabled')}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-gray-800">Live Chat</h4>
-                  <p className="text-xs text-gray-600">Enable live chat support</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 sm:ml-4">
-                  <input
-                    type="checkbox"
-                    checked={featuresData.liveChatEnabled || false}
-                    onChange={() => handleFeatureToggle('liveChatEnabled')}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>

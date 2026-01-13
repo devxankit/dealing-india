@@ -84,6 +84,34 @@ const settingsSchema = new mongoose.Schema(
         withPhotosOnly: { type: Boolean, default: false },
       },
     },
+    email: {
+      smtpHost: { type: String, default: '' },
+      smtpPort: { type: Number, default: 587 },
+      smtpUser: { type: String, default: '' },
+      smtpPassword: { type: String, default: '' },
+      fromEmail: { type: String, default: 'noreply@example.com' },
+      fromName: { type: String, default: 'Appzeto Store' },
+    },
+    notifications: {
+      email: {
+        orderConfirmation: { type: Boolean, default: true },
+        shippingUpdate: { type: Boolean, default: true },
+        deliveryUpdate: { type: Boolean, default: true },
+      },
+      smsEnabled: { type: Boolean, default: false },
+      pushEnabled: { type: Boolean, default: false },
+      admin: {
+        newOrders: { type: Boolean, default: true },
+        lowStock: { type: Boolean, default: true },
+      },
+    },
+    seo: {
+      metaTitle: { type: String, default: 'Appzeto E-commerce - Shop Online' },
+      metaDescription: { type: String, default: 'Shop the latest trends and products' },
+      metaKeywords: { type: String, default: 'ecommerce, shopping, online store' },
+      ogImage: { type: String, default: '' },
+      canonicalUrl: { type: String, default: '' },
+    },
   },
   {
     timestamps: true,

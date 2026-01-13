@@ -961,56 +961,58 @@ const MobileCheckout = () => {
                 )}
 
                 {/* Coupon Code */}
-                <div className="mb-5">
-                  <h3 className="text-base font-semibold text-gray-800 mb-3">
-                    Coupon Code
-                  </h3>
-                  {!appliedCoupon ? (
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value)}
-                        placeholder="Enter code"
-                        className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleApplyCoupon}
-                        className="px-5 py-3 gradient-green text-white rounded-xl font-semibold text-base hover:shadow-glow-green transition-all">
-                        Apply
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
-                      <div>
-                        <p className="text-sm font-semibold text-green-800">
-                          {appliedCoupon.name} Applied
-                        </p>
-                        <p className="text-sm text-green-600">
-                          Code: {couponCode}
-                        </p>
+                {settings?.features?.couponCodesEnabled !== false && (
+                  <div className="mb-5">
+                    <h3 className="text-base font-semibold text-gray-800 mb-3">
+                      Coupon Code
+                    </h3>
+                    {!appliedCoupon ? (
+                      <div className="flex gap-3">
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value)}
+                          placeholder="Enter code"
+                          className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 text-base"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          className="px-5 py-3 gradient-green text-white rounded-xl font-semibold text-base hover:shadow-glow-green transition-all">
+                          Apply
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAppliedCoupon(null);
-                          setCouponCode("");
-                        }}
-                        className="text-red-600 hover:text-red-700">
-                        <FiX className="text-xl" />
-                      </button>
-                    </div>
-                  )}
-                  {/* View Available Coupons Link */}
-                  <button
-                    type="button"
-                    onClick={() => setShowCouponModal(true)}
-                    className="mt-2 text-sm text-primary-600 font-medium hover:text-primary-700 flex items-center gap-1"
-                  >
-                    <FiTag className="w-4 h-4" /> View Available Coupons
-                  </button>
-                </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
+                        <div>
+                          <p className="text-sm font-semibold text-green-800">
+                            {appliedCoupon.name} Applied
+                          </p>
+                          <p className="text-sm text-green-600">
+                            Code: {couponCode}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAppliedCoupon(null);
+                            setCouponCode("");
+                          }}
+                          className="text-red-600 hover:text-red-700">
+                          <FiX className="text-xl" />
+                        </button>
+                      </div>
+                    )}
+                    {/* View Available Coupons Link */}
+                    <button
+                      type="button"
+                      onClick={() => setShowCouponModal(true)}
+                      className="mt-2 text-sm text-primary-600 font-medium hover:text-primary-700 flex items-center gap-1"
+                    >
+                      <FiTag className="w-4 h-4" /> View Available Coupons
+                    </button>
+                  </div>
+                )}
 
                 {/* Order Summary */}
                 <div className="glass-card rounded-xl p-4">
