@@ -53,8 +53,12 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                 const fullText = `${shareMessage}\n\n${shareUrl}`;
 
                 // 2. Sharing Logic
-                // Priority 1: Use Native Web Share API (Best for Mobile options)
-                if (navigator.share) {
+                // For Instagram, we use direct link + clipboard for better UX
+                if (platform === 'instagram') {
+                    await handlePlatformFallback(platform, shareUrl, fullText);
+                }
+                // Priority 1: Use Native Web Share API (for others)
+                else if (navigator.share) {
                     try {
                         console.info('[MegaRewardShare] Attempting native share...');
                         await navigator.share({
@@ -99,12 +103,16 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
         } else if (platform === 'facebook') {
             const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
             window.open(fbUrl, '_blank', 'width=600,height=400');
-        } else {
-            // Instagram / General Fallback
+        } else if (platform === 'instagram') {
+            // Instagram / Direct Link Logic
             await copyToClipboard(fullText);
-            if (platform === 'instagram') {
-                toast.success('Link copied! Please paste it in Instagram Direct.');
-            }
+            toast.success('Link copied! Opening Instagram Direct...', { icon: '📸' });
+            setTimeout(() => {
+                window.open('https://www.instagram.com/direct/inbox/', '_blank');
+            }, 1000);
+        } else {
+            // General Fallback
+            await copyToClipboard(fullText);
         }
     };
 
