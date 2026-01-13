@@ -11,13 +11,21 @@ export const declareWinner = asyncHandler(async (req, res) => {
     const adminId = req.user.adminId || req.user._id;
     let { megaRewardId, prizeRank, entryId, rangeIndex, type } = req.body;
 
-    // If no megaRewardId, use active campaign
+    // If no megaRewardId, use active campaign or the most recent one
     if (!megaRewardId) {
-        const activeSettings = await MegaRewardSettingsService.getActiveSettings();
+        let activeSettings = await MegaRewardSettingsService.getActiveSettings();
+        if (!activeSettings) {
+            // If no active campaign, get the most recent one (even if inactive)
+            const allSettings = await MegaRewardSettingsService.getAllSettings();
+            if (allSettings && allSettings.length > 0) {
+                activeSettings = allSettings[0];
+            }
+        }
+        
         if (!activeSettings) {
             return res.status(400).json({
                 success: false,
-                message: 'No active Mega Reward campaign'
+                message: 'No Mega Reward campaign found'
             });
         }
         megaRewardId = activeSettings._id;
@@ -79,7 +87,15 @@ export const getWinnerStatus = asyncHandler(async (req, res) => {
     let megaRewardId = req.query.megaRewardId;
 
     if (!megaRewardId) {
-        const activeSettings = await MegaRewardSettingsService.getActiveSettings();
+        let activeSettings = await MegaRewardSettingsService.getActiveSettings();
+        if (!activeSettings) {
+            // If no active campaign, get the most recent one (even if inactive)
+            const allSettings = await MegaRewardSettingsService.getAllSettings();
+            if (allSettings && allSettings.length > 0) {
+                activeSettings = allSettings[0];
+            }
+        }
+
         if (!activeSettings) {
             return res.status(200).json({
                 success: true,

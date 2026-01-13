@@ -87,10 +87,12 @@ const MegaRewardSettings = () => {
                     requiredClicks: data.requiredClicks || { whatsapp: 5, instagram: 1, facebook: 1 }
                 });
 
-                // Check if campaign has already started
+                // Check if campaign is currently running
                 const now = new Date();
                 const startDate = data.startDate ? new Date(data.startDate) : null;
-                if (data.isActive && startDate && startDate <= now) {
+                const endDate = data.endDate ? new Date(data.endDate) : null;
+
+                if (data.isActive && startDate && startDate <= now && endDate && endDate >= now) {
                     setIsLocked(true);
                 } else {
                     setIsLocked(false);
@@ -280,11 +282,11 @@ const MegaRewardSettings = () => {
                 </div>
                 <button
                     onClick={handleSave}
-                    disabled={saving || isLocked}
+                    disabled={saving || (isLocked && settings.isActive)}
                     className="flex items-center gap-2 px-6 py-2 bg-black text-white rounded-xl hover:bg-gray-800 transition-all text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {saving ? <FiLoader className="animate-spin" /> : <FiSave />}
-                    {saving ? 'Saving...' : isLocked ? 'Settings Locked' : 'Save Changes'}
+                    {saving ? 'Saving...' : (isLocked && settings.isActive) ? 'Settings Locked' : 'Save Changes'}
                 </button>
             </div>
 
@@ -292,7 +294,9 @@ const MegaRewardSettings = () => {
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-700">
                     <FiAlertCircle className="flex-shrink-0" />
                     <p className="text-sm font-bold">
-                        Editing is disabled because this campaign is currently active/started.
+                        {settings.isActive
+                            ? "Editing is disabled because this campaign is currently running. You can only deactivate it to stop the campaign."
+                            : "Deactivating the campaign... Click 'Save Changes' to apply."}
                     </p>
                 </div>
             )}

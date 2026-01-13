@@ -10,9 +10,17 @@ import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
 export const getEntries = asyncHandler(async (req, res) => {
     let megaRewardId = req.query.megaRewardId;
 
-    // If no ID provided, use active campaign
+    // If no ID provided, use active campaign or the most recent one
     if (!megaRewardId) {
-        const activeSettings = await MegaRewardSettingsService.getActiveSettings();
+        let activeSettings = await MegaRewardSettingsService.getActiveSettings();
+        if (!activeSettings) {
+            // If no active campaign, get the most recent one
+            const allSettings = await MegaRewardSettingsService.getAllSettings();
+            if (allSettings && allSettings.length > 0) {
+                activeSettings = allSettings[0];
+            }
+        }
+
         if (!activeSettings) {
             return res.status(200).json({
                 success: true,
@@ -42,7 +50,15 @@ export const getEntryStats = asyncHandler(async (req, res) => {
     let megaRewardId = req.query.megaRewardId;
 
     if (!megaRewardId) {
-        const activeSettings = await MegaRewardSettingsService.getActiveSettings();
+        let activeSettings = await MegaRewardSettingsService.getActiveSettings();
+        if (!activeSettings) {
+            // If no active campaign, get the most recent one
+            const allSettings = await MegaRewardSettingsService.getAllSettings();
+            if (allSettings && allSettings.length > 0) {
+                activeSettings = allSettings[0];
+            }
+        }
+
         if (!activeSettings) {
             return res.status(200).json({
                 success: true,

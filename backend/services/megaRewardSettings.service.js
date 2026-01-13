@@ -37,15 +37,20 @@ class MegaRewardSettingsService {
             throw new Error('Mega Reward settings not found');
         }
 
-        // Restriction: If campaign status is active and it has already started, block updates
+        // Restriction: If campaign status is active and it is currently running, block updates
+        // EXCEPT for deactivating the campaign
         const now = new Date();
-        if (existing.isActive && existing.startDate <= now) {
-            // Check if they are trying to change anything other than deactivating it
-            // Actually, user said block all updates. Let's see if we should allow deactivation.
-            // If they only change isActive to false, maybe it's okay? 
-            // But user said "change nhi kar skta update nhi kar skt h".
-            // Let's stick to the user's request: Block if started.
-            throw new Error('Campaign has already started. Editing is disabled to ensure fairness.');
+        if (existing.isActive && existing.startDate <= now && existing.endDate >= now) {
+            // If the user is trying to deactivate, only allow that field to change
+            if (data.isActive === false) {
+                const settings = await MegaRewardSettings.findByIdAndUpdate(
+                    id,
+                    { isActive: false },
+                    { new: true, runValidators: true }
+                );
+                return settings;
+            }
+            throw new Error('Campaign is currently running. Editing is disabled to ensure fairness.');
         }
 
         // If activating this campaign, deactivate others
@@ -106,6 +111,16 @@ class MegaRewardSettingsService {
     async getActiveSettings() {
         const settings = await MegaRewardSettings.findOne({ isActive: true })
             .populate('createdBy', 'name email');
+
+        if (settings) {
+            const now = new Date();
+            // If the campaign has ended, automatically deactivate it
+            if (settings.endDate < now) {
+                settings.isActive = false;
+                await settings.save();
+                return null; // Return null as there is no longer an "active" campaign
+            }
+        }
 
         return settings;
     }
