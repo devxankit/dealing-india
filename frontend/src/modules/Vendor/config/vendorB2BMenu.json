@@ -1,0 +1,27 @@
+[
+    {
+        "title": "B2B Dashboard",
+        "route": "/vendor/b2b",
+        "children": []
+    },
+    {
+        "title": "Browse Wholesalers",
+        "route": "/vendor/b2b/wholesalers",
+        "children": []
+    },
+    {
+        "title": "My Inquiries",
+        "route": "/vendor/b2b/inquiries",
+        "children": []
+    },
+    {
+        "title": "B2B Messages",
+        "route": "/vendor/b2b/messages",
+        "children": []
+    },
+    {
+        "title": "Price Requests",
+        "route": "/vendor/b2b/price-requests",
+        "children": []
+    }
+]

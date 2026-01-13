@@ -29,6 +29,8 @@ import {
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
+import vendorB2BMenu from "../../config/vendorB2BMenu.json";
+import { useB2BModeStore } from "../../store/b2bModeStore";
 import { IndianRupee } from "lucide-react";
 
 // Icon mapping for menu items
@@ -62,6 +64,12 @@ const iconMap = {
   Earnings: IndianRupee,
   Settings: FiSettings,
   Profile: FiUser,
+  // B2B Icons
+  "B2B Dashboard": FiHome,
+  "Browse Wholesalers": FiUsers,
+  "My Inquiries": FiLayers,
+  "B2B Messages": FiMessageCircle,
+  "Price Requests": FiTag,
 };
 
 // Helper function to convert child name to route path
@@ -114,6 +122,7 @@ const VendorSidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
+  const { isB2BMode } = useB2BModeStore();
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
 
@@ -156,7 +165,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
         };
       });
     }
-  }, [location.pathname]);
+  }, [location.pathname, isB2BMode]);
+
+  const currentMenu = isB2BMode ? vendorB2BMenu : vendorMenu;
 
   // Check if a menu item is active
   const isActive = (route) => {
@@ -311,7 +322,7 @@ const VendorSidebar = ({ isOpen, onClose }) => {
 
       {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin lg:pb-3">
-        {vendorMenu.map((item) => renderMenuItem(item))}
+        {currentMenu.map((item) => renderMenuItem(item))}
       </nav>
     </div>
   );

@@ -1,0 +1,180 @@
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import {
+    FiPackage,
+    FiMessageCircle,
+    FiTrendingUp,
+    FiArrowRight,
+    FiUsers,
+    FiBriefcase
+} from "react-icons/fi";
+import { useWholesalerAuthStore } from "../store/wholesalerAuthStore";
+import TimePeriodFilter from "../../Admin/components/Analytics/TimePeriodFilter";
+
+const WholesalerDashboard = () => {
+    const navigate = useNavigate();
+    const { wholesaler } = useWholesalerAuthStore();
+    const [period, setPeriod] = useState('month');
+    const [loading, setLoading] = useState(false);
+
+    // Mock data for wholesaler dashboard
+    const [data] = useState({
+        metrics: {
+            totalProducts: 124,
+            totalInquiries: 45,
+            activeConversations: 12,
+            totalVendors: 28,
+        },
+        recentInquiries: [
+            { id: 'INQ001', vendor: 'Urban Fashion Store', product: 'Cotton T-Shirts Bulk', date: new Date().toISOString(), status: 'new' },
+            { id: 'INQ002', vendor: 'Tech Hub', product: 'Wireless Earbuds', date: new Date().toISOString(), status: 'responded' },
+            { id: 'INQ003', vendor: 'Home Comforts', product: 'Bedsheet Sets', date: new Date().toISOString(), status: 'new' },
+        ],
+        topProducts: [
+            { id: 'P001', name: 'Cotton T-Shirts Bulk', inquiries: 15, visibility: 'High' },
+            { id: 'P002', name: 'Wireless Earbuds', inquiries: 12, visibility: 'Medium' },
+        ]
+    });
+
+    const statCards = [
+        {
+            icon: FiPackage,
+            label: "Total Products",
+            value: data.metrics.totalProducts,
+            color: "bg-blue-500",
+            bgColor: "bg-blue-50",
+            textColor: "text-blue-700",
+            link: "/wholesaler/products",
+        },
+        {
+            icon: FiMessageCircle,
+            label: "Vendor Inquiries",
+            value: data.metrics.totalInquiries,
+            color: "bg-green-500",
+            bgColor: "bg-green-50",
+            textColor: "text-green-700",
+            link: "/wholesaler/messages",
+        },
+        {
+            icon: FiUsers,
+            label: "Reach (Vendors)",
+            value: data.metrics.totalVendors,
+            color: "bg-purple-500",
+            bgColor: "bg-purple-50",
+            textColor: "text-purple-700",
+            link: "/wholesaler/vendors",
+        },
+        {
+            icon: FiTrendingUp,
+            label: "Active Chats",
+            value: data.metrics.activeConversations,
+            color: "bg-orange-500",
+            bgColor: "bg-orange-50",
+            textColor: "text-orange-700",
+            link: "/wholesaler/messages",
+        },
+    ];
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+        >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">Wholesaler Dashboard</h1>
+                    <p className="text-sm sm:text-base text-gray-600">
+                        Welcome, {wholesaler?.name}! Manage your B2B listings and vendor relations.
+                    </p>
+                </div>
+                <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {statCards.map((stat, index) => (
+                    <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        onClick={() => navigate(stat.link)}
+                        className={`${stat.bgColor} rounded-xl p-6 cursor-pointer hover:shadow-lg transition-all border border-transparent hover:border-${stat.textColor.split('-')[1]}-200`}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <div className={`${stat.color} p-3 rounded-lg shadow-md`}>
+                                <stat.icon className="text-white text-xl" />
+                            </div>
+                            <FiArrowRight className={`${stat.textColor} text-lg`} />
+                        </div>
+                        <h3 className={`${stat.textColor} text-sm font-bold uppercase tracking-wider mb-1`}>{stat.label}</h3>
+                        <p className={`${stat.textColor} text-3xl font-extrabold`}>{stat.value}</p>
+                    </motion.div>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-lg font-bold text-gray-800">Recent Vendor Inquiries</h2>
+                            <button onClick={() => navigate("/wholesaler/messages")} className="text-sm text-primary-600 font-bold hover:underline">View All</button>
+                        </div>
+                        <div className="space-y-4">
+                            {data.recentInquiries.map((inq) => (
+                                <div key={inq.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-gray-200">
+                                            <FiUsers className="text-primary-500" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-800">{inq.vendor}</p>
+                                            <p className="text-xs text-gray-500">{inq.product}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-gray-400 mb-1">{new Date(inq.date).toLocaleDateString()}</p>
+                                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${inq.status === 'new' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                            {inq.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <h2 className="text-lg font-bold text-gray-800 mb-6">Top Listed Products</h2>
+                        <div className="space-y-4">
+                            {data.topProducts.map((prod) => (
+                                <div key={prod.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                    <p className="font-bold text-gray-800 mb-1">{prod.name}</p>
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-500">{prod.inquiries} Inquiries</span>
+                                        <span className="text-primary-600 font-bold">Visibility: {prod.visibility}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={() => navigate("/wholesaler/products")} className="w-full mt-6 py-3 bg-slate-50 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all border border-slate-200">
+                            Manage Catalog
+                        </button>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl p-6 shadow-lg text-white">
+                        <h3 className="text-lg font-bold mb-2">Need Assistance?</h3>
+                        <p className="text-sm text-primary-100 mb-4">Contact our B2B support team for any wholesaler queries.</p>
+                        <button className="w-full py-3 bg-white text-primary-600 font-bold rounded-xl hover:bg-primary-50 transition-all">
+                            Go to Support
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
+export default WholesalerDashboard;

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import Button from "../../../Admin/components/Button";
 import NotificationWindow from "../../../Admin/components/Layout/NotificationWindow";
+import B2BModeToggle from "../B2BModeToggle";
 
 const VendorHeader = ({ onMenuClick }) => {
   const location = useLocation();
@@ -79,6 +80,11 @@ const VendorHeader = ({ onMenuClick }) => {
               <FiShoppingBag className="text-primary-500" />
               {storeName}
             </p>
+          </div>
+
+          {/* B2B Mode Toggle */}
+          <div className="ml-4">
+            <B2BModeToggle />
           </div>
         </div>
 
