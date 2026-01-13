@@ -106,10 +106,8 @@ const httpServer = http.createServer(app);
 // Middleware
 // Default allowed origins (always included)
 const defaultOrigins = [
-  'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5000',
-  'http://127.0.0.1:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5000',
   'https://dealing-india.vercel.app',
@@ -118,6 +116,7 @@ const defaultOrigins = [
   'https://dealingindia.com',
   'https://www.dealingindia.in',
   'https://dealingindia.in',
+  'https://dealing-india.onrender.com',
 ];
 
 // Get origins from environment variable if set
@@ -139,8 +138,8 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // Allow Vercel preview deployments (wildcard matching)
-    if (origin.includes('vercel.app')) {
+    // Allow Vercel and Render preview/backend deployments
+    if (origin.includes('vercel.app') || origin.includes('onrender.com')) {
       return callback(null, true);
     }
 
