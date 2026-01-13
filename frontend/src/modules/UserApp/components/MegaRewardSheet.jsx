@@ -52,12 +52,12 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                 const shareMessage = `Check out this amazing reel on Dealing India! 🎬`;
                 const fullText = `${shareMessage}\n\n${shareUrl}`;
 
-                // 2. Sharing Logic
-                // For Instagram, we use direct link + clipboard for better UX
-                if (platform === 'instagram') {
+                // 2. Sharing Logic - Direct Platform Access
+                // We bypass the native share sheet to provide a faster, more consistent experience
+                if (['whatsapp', 'facebook', 'instagram'].includes(platform)) {
                     await handlePlatformFallback(platform, shareUrl, fullText);
                 }
-                // Priority 1: Use Native Web Share API (for others)
+                // Priority 1: Use Native Web Share API (only for generic/unspecified platforms)
                 else if (navigator.share) {
                     try {
                         console.info('[MegaRewardShare] Attempting native share...');
@@ -79,7 +79,7 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
                         }
                     }
                 } else {
-                    // Priority 2: Platform Specific Web Fallbacks (Desktop/Incompatible mobile)
+                    // Priority 2: Generic Fallback
                     await handlePlatformFallback(platform, shareUrl, fullText);
                 }
 
@@ -97,22 +97,31 @@ const MegaRewardSheet = ({ isOpen, onClose, reelId, reelTitle, onComplete }) => 
 
     const handlePlatformFallback = async (platform, shareUrl, fullText) => {
         console.info(`[MegaRewardShare] Using fallback for ${platform}`);
+
+        // Ensure content is copied for all specific platforms
+        await copyToClipboard(fullText);
+
         if (platform === 'whatsapp') {
             const waUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
-            window.open(waUrl, '_blank');
+            toast.success('Link copied! Opening WhatsApp...', { icon: '🟢' });
+            setTimeout(() => {
+                window.open(waUrl, '_blank');
+            }, 800);
         } else if (platform === 'facebook') {
-            const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-            window.open(fbUrl, '_blank', 'width=600,height=400');
+            const fbUrl = `https://www.facebook.com/messages/t/`;
+            toast.success('Link copied! Opening Facebook Messenger...', { icon: '🔵' });
+            setTimeout(() => {
+                window.open(fbUrl, '_blank');
+            }, 800);
         } else if (platform === 'instagram') {
             // Instagram / Direct Link Logic
-            await copyToClipboard(fullText);
             toast.success('Link copied! Opening Instagram Direct...', { icon: '📸' });
             setTimeout(() => {
                 window.open('https://www.instagram.com/direct/inbox/', '_blank');
-            }, 1000);
+            }, 800);
         } else {
             // General Fallback
-            await copyToClipboard(fullText);
+            toast.success('Link copied to clipboard!');
         }
     };
 
