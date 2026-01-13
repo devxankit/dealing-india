@@ -1,6 +1,7 @@
 import MegaRewardEntry from '../models/MegaRewardEntry.model.js';
 import MegaRewardSettings from '../models/MegaRewardSettings.model.js';
 import MegaRewardShareLink from '../models/MegaRewardShareLink.model.js';
+import MegaRewardWinner from '../models/MegaRewardWinner.model.js';
 import Notification from '../models/Notification.model.js';
 
 /**
@@ -110,7 +111,31 @@ class MegaRewardEntryService {
             .populate('reelId', 'title')
             .sort({ generatedAt: -1 })
             .skip((page - 1) * limit)
-            .limit(limit);
+            .limit(limit)
+            .lean();
+
+        // Get winner details for these entries
+        const winnerEntryIds = entries.filter(e => e.status === 'winner').map(e => e._id);
+        if (winnerEntryIds.length > 0) {
+            const winners = await MegaRewardWinner.find({
+                entryId: { $in: winnerEntryIds }
+            }).select('entryId prizeRank prizeAmount').lean();
+
+            const winnerMap = winners.reduce((acc, w) => {
+                acc[w.entryId.toString()] = w;
+                return acc;
+            }, {});
+
+            entries = entries.map(entry => {
+                if (entry.status === 'winner') {
+                    return {
+                        ...entry,
+                        winnerDetails: winnerMap[entry._id.toString()] || null
+                    };
+                }
+                return entry;
+            });
+        }
 
         // Filter by search if provided
         if (search) {
@@ -152,10 +177,21 @@ class MegaRewardEntryService {
      * Get a single entry by ID
      */
     async getEntryById(id) {
-        return await MegaRewardEntry.findById(id)
+        const entry = await MegaRewardEntry.findById(id)
             .populate('userId', 'name email phone')
             .populate('reelId', 'title')
-            .populate('megaRewardId', 'prizeTitle');
+            .populate('megaRewardId', 'prizeTitle')
+            .lean();
+
+        if (entry && entry.status === 'winner') {
+            const winnerDetails = await MegaRewardWinner.findOne({ entryId: entry._id })
+                .select('prizeRank prizeAmount prizeDescription declaredAt declaredBy')
+                .populate('declaredBy', 'name')
+                .lean();
+            entry.winnerDetails = winnerDetails;
+        }
+
+        return entry;
     }
 
     /**

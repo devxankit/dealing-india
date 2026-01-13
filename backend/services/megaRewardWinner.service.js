@@ -16,10 +16,20 @@ class MegaRewardWinnerService {
      * Uses MongoDB transactions for safety
      */
     async declareWinner(megaRewardId, prizeRank, adminId) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
+        let session = null;
         try {
+            // Attempt to start a session if possible (may fail on standalone DB)
+            try {
+                session = await mongoose.startSession();
+                session.startTransaction();
+                console.log('[MegaRewardWinnerService] Transaction started');
+            } catch (sessionError) {
+                console.warn('[MegaRewardWinnerService] Transactions not supported, proceeding without transaction');
+                session = null;
+            }
+
+            const options = session ? { session } : {};
+
             // Get the campaign settings
             const settings = await MegaRewardSettings.findById(megaRewardId).session(session);
 
@@ -57,6 +67,8 @@ class MegaRewardWinnerService {
                 throw new Error('No eligible entries available for winner selection');
             }
 
+            console.log(`[MegaRewardWinnerService] Found ${eligibleEntries.length} eligible entries`);
+
             // Randomly select a winner
             const randomIndex = Math.floor(Math.random() * eligibleEntries.length);
             const selectedEntry = eligibleEntries[randomIndex];
@@ -65,7 +77,7 @@ class MegaRewardWinnerService {
             await MegaRewardEntry.findByIdAndUpdate(
                 selectedEntry._id,
                 { status: 'winner' },
-                { session }
+                options
             );
 
             // Credit wallet
@@ -87,7 +99,7 @@ class MegaRewardWinnerService {
                 prizeDescription: prizeConfig.description,
                 walletTransactionId: walletResult.transactionId,
                 declaredBy: adminId
-            }], { session });
+            }], options);
 
             // Send notification
             await this.sendWinnerNotification(
@@ -99,14 +111,18 @@ class MegaRewardWinnerService {
                 session
             );
 
-            await session.commitTransaction();
+            if (session) {
+                await session.commitTransaction();
+                console.log('[MegaRewardWinnerService] Transaction committed');
+            }
 
             return winner[0];
         } catch (error) {
-            await session.abortTransaction();
+            console.error('[MegaRewardWinnerService] declareWinner Error:', error);
+            if (session) await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            if (session) session.endSession();
         }
     }
 
@@ -114,10 +130,17 @@ class MegaRewardWinnerService {
      * Declare a winner manually (for 1st, 2nd, 3rd)
      */
     async declareManualWinner(megaRewardId, entryId, prizeRank, adminId) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
+        let session = null;
         try {
+            try {
+                session = await mongoose.startSession();
+                session.startTransaction();
+            } catch (sessionError) {
+                session = null;
+            }
+
+            const options = session ? { session } : {};
+
             const settings = await MegaRewardSettings.findById(megaRewardId).session(session);
             if (!settings) throw new Error('Mega Reward campaign not found');
 
@@ -137,7 +160,7 @@ class MegaRewardWinnerService {
             }
 
             // Mark entry as winner
-            await MegaRewardEntry.findByIdAndUpdate(entryId, { status: 'winner' }, { session });
+            await MegaRewardEntry.findByIdAndUpdate(entryId, { status: 'winner' }, options);
 
             // Credit wallet
             const walletResult = await this.creditWallet(
@@ -158,7 +181,7 @@ class MegaRewardWinnerService {
                 prizeDescription: prizeConfig.description,
                 walletTransactionId: walletResult.transactionId,
                 declaredBy: adminId
-            }], { session });
+            }], options);
 
             // Send notification
             await this.sendWinnerNotification(
@@ -170,13 +193,14 @@ class MegaRewardWinnerService {
                 session
             );
 
-            await session.commitTransaction();
+            if (session) await session.commitTransaction();
             return winner[0];
         } catch (error) {
-            await session.abortTransaction();
+            console.error('[MegaRewardWinnerService] declareManualWinner Error:', error);
+            if (session) await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            if (session) session.endSession();
         }
     }
 
@@ -184,10 +208,17 @@ class MegaRewardWinnerService {
      * Declare winners for a range randomly
      */
     async declareRangeWinners(megaRewardId, rangeIndex, adminId) {
-        const session = await mongoose.startSession();
-        session.startTransaction();
-
+        let session = null;
         try {
+            try {
+                session = await mongoose.startSession();
+                session.startTransaction();
+            } catch (sessionError) {
+                session = null;
+            }
+
+            const options = session ? { session } : {};
+
             const settings = await MegaRewardSettings.findById(megaRewardId).session(session);
             if (!settings) throw new Error('Mega Reward campaign not found');
 
@@ -228,7 +259,7 @@ class MegaRewardWinnerService {
                 const entry = selectedWinners[i];
                 const rankDisplay = `${range.startRank + i}${getOrdinalSuffix(range.startRank + i)} Prize`;
 
-                await MegaRewardEntry.findByIdAndUpdate(entry._id, { status: 'winner' }, { session });
+                await MegaRewardEntry.findByIdAndUpdate(entry._id, { status: 'winner' }, options);
 
                 const walletResult = await this.creditWallet(
                     entry.userId,
@@ -247,7 +278,7 @@ class MegaRewardWinnerService {
                     prizeDescription: range.description,
                     walletTransactionId: walletResult.transactionId,
                     declaredBy: adminId
-                }], { session });
+                }], options);
 
                 await this.sendWinnerNotification(
                     entry.userId,
@@ -261,13 +292,14 @@ class MegaRewardWinnerService {
                 results.push(winner[0]);
             }
 
-            await session.commitTransaction();
+            if (session) await session.commitTransaction();
             return results;
         } catch (error) {
-            await session.abortTransaction();
+            console.error('[MegaRewardWinnerService] declareRangeWinners Error:', error);
+            if (session) await session.abortTransaction();
             throw error;
         } finally {
-            session.endSession();
+            if (session) session.endSession();
         }
     }
 

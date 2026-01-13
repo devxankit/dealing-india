@@ -159,7 +159,7 @@ const MegaRewardEntries = () => {
                                         <td className="px-6 py-4">
                                             {entry.status === 'winner' ? (
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100">
-                                                    🏆 Winner
+                                                    🏆 {entry.winnerDetails?.prizeRank || 'Winner'}
                                                 </span>
                                             ) : entry.status === 'active' ? (
                                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-100">
@@ -270,7 +270,7 @@ const MegaRewardEntries = () => {
                                         <div>
                                             {selectedEntry.status === 'winner' ? (
                                                 <span className="inline-flex items-center gap-1.5 text-purple-600 font-black uppercase text-[10px] tracking-widest">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse" /> Winner
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse" /> {selectedEntry.winnerDetails?.prizeRank || 'Winner'}
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1.5 text-green-600 font-black uppercase text-[10px] tracking-widest">

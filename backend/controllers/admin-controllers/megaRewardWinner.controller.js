@@ -8,8 +8,15 @@ import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
 
 // Declare a new winner
 export const declareWinner = asyncHandler(async (req, res) => {
-    const adminId = req.user.adminId || req.user._id;
+    const adminId = req.user.adminId || req.user._id || req.user.userId;
     let { megaRewardId, prizeRank, entryId, rangeIndex, type } = req.body;
+
+    if (!adminId) {
+        return res.status(401).json({
+            success: false,
+            message: 'Admin ID not found in session'
+        });
+    }
 
     // If no megaRewardId, use active campaign or the most recent one
     if (!megaRewardId) {
@@ -21,7 +28,7 @@ export const declareWinner = asyncHandler(async (req, res) => {
                 activeSettings = allSettings[0];
             }
         }
-        
+
         if (!activeSettings) {
             return res.status(400).json({
                 success: false,
@@ -31,32 +38,40 @@ export const declareWinner = asyncHandler(async (req, res) => {
         megaRewardId = activeSettings._id;
     }
 
-    let result;
-    if (type === 'manual') {
-        if (!entryId || !prizeRank) {
-            return res.status(400).json({ success: false, message: 'Entry ID and Prize Rank are required for manual selection' });
+    try {
+        let result;
+        if (type === 'manual') {
+            if (!entryId || !prizeRank) {
+                return res.status(400).json({ success: false, message: 'Entry ID and Prize Rank are required for manual selection' });
+            }
+            result = await MegaRewardWinnerService.declareManualWinner(megaRewardId, entryId, prizeRank, adminId);
+        } else if (type === 'range') {
+            if (rangeIndex === undefined) {
+                return res.status(400).json({ success: false, message: 'Range index is required' });
+            }
+            result = await MegaRewardWinnerService.declareRangeWinners(megaRewardId, rangeIndex, adminId);
+        } else {
+            if (!prizeRank) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Prize rank is required'
+                });
+            }
+            result = await MegaRewardWinnerService.declareWinner(megaRewardId, prizeRank, adminId);
         }
-        result = await MegaRewardWinnerService.declareManualWinner(megaRewardId, entryId, prizeRank, adminId);
-    } else if (type === 'range') {
-        if (rangeIndex === undefined) {
-            return res.status(400).json({ success: false, message: 'Range index is required' });
-        }
-        result = await MegaRewardWinnerService.declareRangeWinners(megaRewardId, rangeIndex, adminId);
-    } else {
-        if (!prizeRank) {
-            return res.status(400).json({
-                success: false,
-                message: 'Prize rank is required'
-            });
-        }
-        result = await MegaRewardWinnerService.declareWinner(megaRewardId, prizeRank, adminId);
-    }
 
-    res.status(201).json({
-        success: true,
-        message: `Winner(s) declared successfully!`,
-        data: result
-    });
+        res.status(201).json({
+            success: true,
+            message: `Winner(s) declared successfully!`,
+            data: result
+        });
+    } catch (error) {
+        console.error('❌ Declare Winner error detail:', error);
+        res.status(error.status || 500).json({
+            success: false,
+            message: error.message || 'Internal Server Error during winner declaration'
+        });
+    }
 });
 
 // Get all winners for a campaign
