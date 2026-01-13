@@ -103,6 +103,15 @@ import TermsConditions from "./modules/Admin/pages/policies/TermsConditions";
 import PushConfig from "./modules/Admin/pages/firebase/PushConfig";
 import Authentication from "./modules/Admin/pages/firebase/Authentication";
 import DeliveryRules from "./modules/Admin/pages/DeliveryRules";
+
+// Admin Wholesaler Routes
+import AdminWholesalers from "./modules/Admin/pages/Wholesalers";
+import AdminManageWholesalers from "./modules/Admin/pages/wholesalers/ManageWholesalers";
+import AdminWholesalerPendingApprovals from "./modules/Admin/pages/wholesalers/PendingApprovals";
+import AdminWholesalerProductListings from "./modules/Admin/pages/wholesalers/ProductListings";
+import AdminWholesalerCommunicationLogs from "./modules/Admin/pages/wholesalers/CommunicationLogs";
+import AdminWholesalerAnalyticsPage from "./modules/Admin/pages/wholesalers/WholesalerAnalytics";
+import AdminDisputeResolution from "./modules/Admin/pages/wholesalers/DisputeResolution";
 import RouteWrapper from "./shared/components/RouteWrapper";
 import ScrollToTop from "./shared/components/ScrollToTop";
 // Mobile App Routes
@@ -189,6 +198,31 @@ import VendorAttributeValues from "./modules/Vendor/pages/attributes/AttributeVa
 import VendorAttributeSets from "./modules/Vendor/pages/attributes/AttributeSets";
 import VendorInventoryReports from "./modules/Vendor/pages/InventoryReports";
 import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics";
+
+// Vendor B2B Routes
+import B2BMode from "./modules/Vendor/pages/B2BMode";
+import WholesalerProductsBrowse from "./modules/Vendor/pages/b2b/WholesalerProducts";
+import WholesalerDetail from "./modules/Vendor/pages/b2b/WholesalerDetail";
+import B2BMessages from "./modules/Vendor/pages/b2b/B2BMessages";
+import B2BInquiries from "./modules/Vendor/pages/b2b/B2BInquiries";
+import B2BPriceRequests from "./modules/Vendor/pages/b2b/PriceRequests";
+
+// Wholesaler Routes
+import WholesalerLogin from "./modules/Wholesaler/pages/Login";
+import WholesalerRegister from "./modules/Wholesaler/pages/Register";
+import WholesalerVerification from "./modules/Wholesaler/pages/Verification";
+import WholesalerProtectedRoute from "./modules/Wholesaler/components/WholesalerProtectedRoute";
+import WholesalerLayout from "./modules/Wholesaler/components/Layout/WholesalerLayout";
+import WholesalerDashboard from "./modules/Wholesaler/pages/Dashboard";
+import WholesalerProducts from "./modules/Wholesaler/pages/Products";
+import WholesalerManageProducts from "./modules/Wholesaler/pages/products/ManageProducts";
+import WholesalerAddProduct from "./modules/Wholesaler/pages/products/AddProduct";
+import WholesalerEditProduct from "./modules/Wholesaler/pages/products/EditProduct";
+import WholesalerMessages from "./modules/Wholesaler/pages/Messages";
+import WholesalerVendors from "./modules/Wholesaler/pages/Vendors";
+import WholesalerAnalytics from "./modules/Wholesaler/pages/Analytics";
+import WholesalerSettings from "./modules/Wholesaler/pages/Settings";
+import WholesalerProfile from "./modules/Wholesaler/pages/Profile";
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -291,6 +325,17 @@ const AppRoutes = () => {
             element={<Subscriptions />}
           />
           <Route path="vendors/:id" element={<VendorDetail />} />
+
+          {/* Admin Wholesaler Routes */}
+          <Route path="wholesalers" element={<AdminWholesalers />} />
+          <Route path="wholesalers/manage-wholesalers" element={<AdminManageWholesalers />} />
+          <Route path="wholesalers/pending-approvals" element={<AdminWholesalerPendingApprovals />} />
+          <Route path="wholesalers/product-listings" element={<AdminWholesalerProductListings />} />
+          <Route path="wholesalers/communication-logs" element={<AdminWholesalerCommunicationLogs />} />
+          <Route path="wholesalers/analytics" element={<AdminWholesalerAnalyticsPage />} />
+          <Route path="wholesalers/dispute-resolution" element={<AdminDisputeResolution />} />
+          <Route path="wholesalers/:id" element={<VendorDetail />} /> {/* Reusing VendorDetail for now */}
+
           <Route path="offers/festival-offers" element={<FestivalOffers />} />
           {/* Mega Reward Routes */}
           <Route path="mega-reward" element={<MegaRewardEntries />} />
@@ -456,6 +501,40 @@ const AppRoutes = () => {
           <Route path="settings/shipping" element={<VendorSettings />} />
           <Route path="settings/shipping-settings" element={<VendorSettings />} />
           <Route path="profile" element={<VendorSettings />} />
+
+          {/* Vendor B2B Routes */}
+          <Route path="b2b" element={<B2BMode />} />
+          <Route path="b2b/wholesalers" element={<WholesalerProductsBrowse />} />
+          <Route path="b2b/product/:id" element={<WholesalerDetail />} />
+          <Route path="b2b/messages" element={<B2BMessages />} />
+          <Route path="b2b/inquiries" element={<B2BInquiries />} />
+          <Route path="b2b/price-requests" element={<B2BPriceRequests />} />
+        </Route>
+        {/* Wholesaler Routes */}
+        <Route path="/wholesaler/login" element={<WholesalerLogin />} />
+        <Route path="/wholesaler/register" element={<WholesalerRegister />} />
+        <Route path="/wholesaler/verification" element={<WholesalerVerification />} />
+        <Route
+          path="/wholesaler"
+          element={
+            <WholesalerProtectedRoute>
+              <WholesalerLayout />
+            </WholesalerProtectedRoute>
+          }>
+          <Route index element={<Navigate to="/wholesaler/dashboard" replace />} />
+          <Route path="dashboard" element={<WholesalerDashboard />} />
+          <Route path="products" element={<WholesalerProducts />} />
+          <Route path="products/manage-products" element={<WholesalerManageProducts />} />
+          <Route path="products/add-product" element={<WholesalerAddProduct />} />
+          <Route path="products/edit/:id" element={<WholesalerEditProduct />} />
+          <Route path="messages" element={<WholesalerMessages />} />
+          <Route path="vendors" element={<WholesalerVendors />} />
+          <Route path="analytics" element={<WholesalerAnalytics />} />
+          <Route path="settings" element={<WholesalerSettings />} />
+          <Route path="settings/profile" element={<WholesalerSettings />} />
+          <Route path="settings/business" element={<WholesalerSettings />} />
+          <Route path="settings/security" element={<WholesalerSettings />} />
+          <Route path="profile" element={<WholesalerProfile />} />
         </Route>
         {/* Mobile App Routes */}
         <Route

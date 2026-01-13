@@ -1,0 +1,39 @@
+[
+    {
+        "title": "Dashboard",
+        "route": "/wholesaler/dashboard",
+        "children": []
+    },
+    {
+        "title": "Product Listings",
+        "route": "/wholesaler/products",
+        "children": [
+            "Manage Products",
+            "Add Product"
+        ]
+    },
+    {
+        "title": "Wholesale Inquiries",
+        "route": "/wholesaler/messages",
+        "children": []
+    },
+    {
+        "title": "Vendors",
+        "route": "/wholesaler/vendors",
+        "children": []
+    },
+    {
+        "title": "Analytics",
+        "route": "/wholesaler/analytics",
+        "children": []
+    },
+    {
+        "title": "Account Settings",
+        "route": "/wholesaler/settings",
+        "children": [
+            "Profile",
+            "Business Details",
+            "Security"
+        ]
+    }
+]

@@ -73,6 +73,18 @@
     ]
   },
   {
+    "title": "Wholesalers",
+    "route": "/admin/wholesalers",
+    "children": [
+      "Manage Wholesalers",
+      "Pending Approvals",
+      "Product Listings",
+      "Communication Logs",
+      "Wholesaler Analytics",
+      "Dispute Resolution"
+    ]
+  },
+  {
     "title": "Offers & Sliders",
     "route": "/admin/offers",
     "children": [
