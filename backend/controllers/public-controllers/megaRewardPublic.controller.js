@@ -29,19 +29,19 @@ export const trackClick = asyncHandler(async (req, res) => {
         // 2. Determine base URLs (more robust detection)
         let frontendUrl = process.env.FRONTEND_URL;
         const requestHost = req.get('host') || '';
-        const requestOrigin = req.get('origin') || req.get('referer') || '';
+        const isProductionHost = requestHost.includes('dealingindia') || requestHost.includes('onrender');
 
-        if (!frontendUrl) {
-            if (requestHost.includes('dealingindia') || requestHost.includes('onrender')) {
+        // Logic: If on production host but frontendUrl points to localhost, or if frontendUrl is missing, auto-detect.
+        if (!frontendUrl || (isProductionHost && frontendUrl.includes('localhost'))) {
+            if (isProductionHost) {
+                // Production preference: Use main domain or Vercel
                 frontendUrl = 'https://www.dealingindia.com';
-            } else if (requestOrigin.includes(':3000') || requestHost.includes(':3000')) {
-                frontendUrl = 'http://localhost:3000';
             } else {
                 frontendUrl = 'http://localhost:3000';
             }
         }
 
-        let redirectUrl = `${frontendUrl}/app/reels`;
+        let redirectUrl = `${frontendUrl}/app`;
         let ogTitle = 'Mega Reward';
         let ogDescription = 'Check out this amazing reel and win prizes!';
         let ogImage = '';
@@ -173,8 +173,12 @@ export const trackClick = asyncHandler(async (req, res) => {
 
     } catch (error) {
         console.error('[MegaReward] Controller Error:', error);
-        const fbUrl = process.env.FRONTEND_URL || 'https://www.dealingindia.com';
-        res.redirect(`${fbUrl}/app/reels`);
+        const currentHost = req.get('host') || '';
+        const isProd = currentHost.includes('dealingindia') || currentHost.includes('onrender');
+        const fbUrl = (isProd && process.env.FRONTEND_URL?.includes('localhost'))
+            ? 'https://www.dealingindia.com'
+            : (process.env.FRONTEND_URL || 'https://www.dealingindia.com');
+        res.redirect(`${fbUrl}/app`);
     }
 });
 
