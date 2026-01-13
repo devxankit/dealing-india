@@ -41,7 +41,15 @@ const MegaRewardWinners = () => {
     };
 
     const handleDeclareWinner = async (prizeRank) => {
-        if (!window.confirm(`Are you sure you want to declare a ${prizeRank} winner? This will randomly select one eligible entry and credit the prize to their wallet.`)) {
+        const prizeInfo = winnerStatus.find(s => s.rank === prizeRank);
+        const isRange = prizeInfo?.isRange;
+        const rangeIndex = prizeInfo?.rangeIndex;
+
+        const confirmMessage = isRange
+            ? `Are you sure you want to declare winners for ${prizeRank}? This will randomly select ${prizeInfo.totalSlots} eligible entries and credit the prizes to their wallets.`
+            : `Are you sure you want to declare a ${prizeRank} winner? This will randomly select one eligible entry and credit the prize to their wallet.`;
+
+        if (!window.confirm(confirmMessage)) {
             return;
         }
 
@@ -49,9 +57,13 @@ const MegaRewardWinners = () => {
         setSelectedPrizeRank(prizeRank);
 
         try {
-            const response = await api.post('/admin/mega-reward/winners/declare', { prizeRank });
+            const payload = isRange
+                ? { type: 'range', rangeIndex, prizeRank }
+                : { prizeRank };
+
+            const response = await api.post('/admin/mega-reward/winners/declare', payload);
             if (response.success) {
-                toast.success(`${prizeRank} winner declared! 🏆`);
+                toast.success(`${prizeRank} winner(s) declared! 🏆`);
                 fetchWinners();
                 fetchWinnerStatus();
             }
