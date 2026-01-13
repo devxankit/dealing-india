@@ -167,7 +167,29 @@ class MegaRewardShareService {
             return { success: true, isNewClick: false, message: 'Already clicked from this browser', shareLink };
         }
 
-        // 4. Record Click & Increment
+        // 4. Eligibility & Limit Check
+        const settings = await MegaRewardSettings.findById(shareLink.megaRewardId);
+        const reqClicks = settings?.requiredClicks?.[shareLink.platform] || 1;
+
+        if (shareLink.uniqueClickCount >= reqClicks) {
+            console.info(`${logPrefix} Target already reached (${shareLink.uniqueClickCount}/${reqClicks}). Not counting further.`);
+
+            // Ensure isEligible is true if not already set (safety)
+            if (!shareLink.isEligible) {
+                shareLink.isEligible = true;
+                await shareLink.save();
+            }
+
+            return {
+                success: true,
+                isNewClick: false,
+                message: 'Target already reached',
+                uniqueClickCount: shareLink.uniqueClickCount,
+                shareLink
+            };
+        }
+
+        // 5. Record Click & Increment
         try {
             console.info(`${logPrefix} Recording new unique click...`);
             await MegaRewardClickLog.create({
@@ -183,14 +205,10 @@ class MegaRewardShareService {
 
             shareLink.uniqueClickCount = (shareLink.uniqueClickCount || 0) + 1;
 
-            // Eligibility logic
-            const settings = await MegaRewardSettings.findById(shareLink.megaRewardId);
-            if (settings) {
-                const reqClicks = settings.requiredClicks?.[shareLink.platform] || 1;
-                if (shareLink.uniqueClickCount >= reqClicks) {
-                    shareLink.isEligible = true;
-                    console.info(`${logPrefix} Target reached! Platform ${shareLink.platform} is now eligible.`);
-                }
+            // Update eligibility status
+            if (shareLink.uniqueClickCount >= reqClicks) {
+                shareLink.isEligible = true;
+                console.info(`${logPrefix} Target reached! Platform ${shareLink.platform} is now eligible.`);
             }
 
             await shareLink.save();
