@@ -15,7 +15,7 @@ import {
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, phone, password, storeName, storeDescription, address, documents } = req.body;
+    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType } = req.body;
 
     const result = await registerVendor({
       name,
@@ -76,7 +76,7 @@ export const login = async (req, res, next) => {
     // Preserve status code from service
     const statusCode = error.statusCode || error.status || 500;
     const message = error.message || 'Login failed. Please check your credentials.';
-    
+
     // Don't pass to next() if we can handle it here
     return res.status(statusCode).json({
       success: false,

@@ -16,7 +16,7 @@ import {
 import { motion } from "framer-motion";
 import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
-import { formatPrice } from "../../../../shared/utils/helpers";
+import { formatPrice, getPlaceholderImage } from "../../../../shared/utils/helpers";
 import { IndianRupee } from "lucide-react";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { getVendorReturns, updateReturnStatusVendor } from "../../../../shared/services/returnService";
@@ -311,8 +311,7 @@ const ReturnRequestDetail = () => {
                       alt={item.productId.name || "Product"}
                       className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                       onError={(e) => {
-                        e.target.src =
-                          "https://via.placeholder.com/100x100?text=Product";
+                        e.target.src = getPlaceholderImage(100, 100, "Product");
                       }}
                     />
                   )}

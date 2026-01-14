@@ -29,18 +29,18 @@ const MobileDailyDeals = () => {
     const vendor = product.vendorId;
     const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
       ? {
-          id: (vendor._id || vendor.id).toString(),
-          _id: vendor._id || vendor.id,
-          storeName: vendor.storeName || vendor.businessName || vendor.name,
-          businessName: vendor.businessName,
-          name: vendor.name,
-          storeLogo: vendor.storeLogo || vendor.logo,
-          isVerified: vendor.isVerified !== undefined 
-            ? vendor.isVerified 
-            : (vendor.status === 'approved' || vendor.isEmailVerified || false),
-        }
+        id: (vendor._id || vendor.id).toString(),
+        _id: vendor._id || vendor.id,
+        storeName: vendor.storeName || vendor.businessName || vendor.name,
+        businessName: vendor.businessName,
+        name: vendor.name,
+        storeLogo: vendor.storeLogo || vendor.logo,
+        isVerified: vendor.isVerified !== undefined
+          ? vendor.isVerified
+          : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+      }
       : null;
-    
+
     return {
       id: product._id || product.id,
       name: product.name,
@@ -56,6 +56,10 @@ const MobileDailyDeals = () => {
       vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
       vendor: vendorData,
       flashSale: product.flashSale || false,
+      variants: product.variants || {},
+      sizeVariants: product.sizeVariants || [],
+      primaryColorName: product.primaryColorName,
+      primaryColorCode: product.primaryColorCode,
     };
   };
 
@@ -65,11 +69,11 @@ const MobileDailyDeals = () => {
       try {
         setIsLoadingProducts(true);
         const campaignStore = useCampaignStore.getState();
-        
+
         // Fetch daily_deal campaigns
         await campaignStore.initializePublic({ type: 'daily_deal', limit: 100 });
         const campaigns = campaignStore.getPublicCampaignsByType('daily_deal');
-        
+
         // Collect all products from all daily deal campaigns
         let allProducts = [];
         campaigns.forEach(campaign => {
@@ -77,11 +81,11 @@ const MobileDailyDeals = () => {
             const campaignProducts = campaign.products.map(product => {
               // First transform the product to ensure proper format
               const transformedProduct = transformProduct(product);
-              
+
               // Apply campaign discount
               let discountedPrice = transformedProduct.price;
               let originalPrice = transformedProduct.originalPrice || transformedProduct.price;
-              
+
               if (campaign.discountType === 'percentage' && campaign.discountValue) {
                 discountedPrice = transformedProduct.price * (1 - campaign.discountValue / 100);
                 originalPrice = transformedProduct.price;
@@ -94,7 +98,7 @@ const MobileDailyDeals = () => {
                 discountedPrice = transformedProduct.price * (1 - discountValue / 100);
                 originalPrice = transformedProduct.price;
               }
-              
+
               return {
                 ...transformedProduct,
                 price: discountedPrice,
@@ -104,7 +108,7 @@ const MobileDailyDeals = () => {
             allProducts = [...allProducts, ...campaignProducts];
           }
         });
-        
+
         // Remove duplicates based on product ID
         const uniqueProducts = allProducts.reduce((acc, product) => {
           if (!acc.find(p => p.id === product.id)) {
@@ -112,7 +116,7 @@ const MobileDailyDeals = () => {
           }
           return acc;
         }, []);
-        
+
         setAllDeals(uniqueProducts);
       } catch (error) {
         console.error('Error fetching daily deals from campaigns:', error);

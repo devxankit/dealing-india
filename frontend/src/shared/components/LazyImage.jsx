@@ -20,35 +20,32 @@ const LazyImage = ({
   context = 'listing', // 'hero', 'product-detail', 'product-listing', 'thumbnail'
   ...props
 }) => {
-  // If no src or src is null/empty, use placeholder immediately
-  if (!src || src === null || src.trim() === '') {
-    const placeholder = getPlaceholderImage(placeholderWidth, placeholderHeight, placeholderText || alt || "Image");
-    return (
-      <div className={`relative overflow-hidden ${className || ""}`}>
-        <img
-          src={placeholder}
-          alt={alt || "Placeholder"}
-          className={className || ""}
-        />
-      </div>
-    );
-  }
+  // Get placeholder as local SVG data URI
+  const getLocalPlaceholder = () => getPlaceholderImage(
+    placeholderWidth,
+    placeholderHeight,
+    placeholderText || alt || "Image"
+  );
 
-  // Get optimized image path and loading strategy
-  const optimizedSrc = getOptimizedImagePath(src, context);
+  // Get initial optimized source
+  const optimizedSrc = src ? getOptimizedImagePath(src, context) : null;
   const loadingStrategy = getImageLoadingStrategy(context);
   const isPriority = loadingStrategy.fetchpriority === 'high';
-  const isCached = loadedImages.has(optimizedSrc);
+  const isCached = optimizedSrc ? loadedImages.has(optimizedSrc) : false;
 
-  const [imageSrc, setImageSrc] = useState(isPriority || isCached ? optimizedSrc : null);
-  const [isLoaded, setIsLoaded] = useState(isCached);
+  const [imageSrc, setImageSrc] = useState(() => {
+    if (!optimizedSrc) return getLocalPlaceholder();
+    return (isPriority || isCached) ? optimizedSrc : null;
+  });
+
+  const [isLoaded, setIsLoaded] = useState(isCached || !optimizedSrc);
   const [hasError, setHasError] = useState(false);
-  const [fallbackSrc, setFallbackSrc] = useState(null);
+  const [errorCount, setErrorCount] = useState(0);
   const imgRef = useRef(null);
 
   useEffect(() => {
-    // If already set (from cache or priority), skip observer
-    if (imageSrc === optimizedSrc) return;
+    // If no optimizedSrc or already loaded/errored, skip
+    if (!optimizedSrc || imageSrc === optimizedSrc || hasError) return;
 
     // For low-priority images that aren't cached, use lazy loading
     const observer = new IntersectionObserver(
@@ -61,7 +58,7 @@ const LazyImage = ({
         });
       },
       {
-        rootMargin: "200px", // Increased margin to load earlier
+        rootMargin: "200px",
         threshold: 0.01,
       }
     );
@@ -71,61 +68,58 @@ const LazyImage = ({
     }
 
     return () => {
-      if (imgRef.current) {
-        observer.unobserve(imgRef.current);
-      }
       observer.disconnect();
     };
-  }, [optimizedSrc, imageSrc]);
+  }, [optimizedSrc, imageSrc, hasError]);
 
   const handleLoad = () => {
-    // Mark as loaded in global cache
-    if (optimizedSrc) loadedImages.add(optimizedSrc);
+    if (optimizedSrc && imageSrc === optimizedSrc) {
+      loadedImages.add(optimizedSrc);
+    }
     setIsLoaded(true);
     setHasError(false);
   };
 
   const handleError = (e) => {
-    // Prevent error from bubbling up and showing in console
-    e.preventDefault?.();
-    e.stopPropagation?.();
-    
-    // If we haven't tried a fallback yet, use the placeholder
-    if (!fallbackSrc) {
-      const placeholder = getPlaceholderImage(
-        placeholderWidth,
-        placeholderHeight,
-        placeholderText || alt || "Image"
-      );
-      setFallbackSrc(placeholder);
-      setImageSrc(placeholder);
-      setHasError(false);
-      setIsLoaded(false);
+    // Increment error count to prevent infinite loops
+    const nextErrorCount = errorCount + 1;
+    setErrorCount(nextErrorCount);
+
+    // If first error, try the local SVG placeholder
+    if (nextErrorCount === 1) {
+      const fallback = getLocalPlaceholder();
+      setImageSrc(fallback);
+      // Don't set hasError yet, as the placeholder might load fine
       return;
     }
 
-    // If fallback also failed, show error state
+    // If even the local placeholder failed (rare) or we already tried it
     setHasError(true);
     setIsLoaded(false);
+
     if (onError) {
-      onError(e);
+      // Pass the event but prevent default to stop further DOM error noise
+      try {
+        onError(e);
+      } catch (err) {
+        console.error("Error in LazyImage custom onError:", err);
+      }
     }
   };
 
   return (
     <div className={`relative overflow-hidden ${className || ""}`} ref={imgRef}>
-      {/* Placeholder/Blur effect - Only show if not loaded */}
-      {!isLoaded && !hasError && (
+      {/* Loading Shimmer - Only show if trying to load a remote image */}
+      {!isLoaded && !hasError && imageSrc !== null && !imageSrc.startsWith('data:') && (
         <div className="absolute inset-0 bg-gray-100 animate-pulse" />
       )}
 
       {/* Actual Image */}
-      {imageSrc && (
+      {imageSrc && !hasError && (
         <img
           src={imageSrc}
           alt={alt}
-          className={`transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"
-            } ${className || ""}`}
+          className={`transition-opacity duration-300 ${isLoaded ? "opacity-100" : "opacity-0"} ${className || ""}`}
           onLoad={handleLoad}
           onError={handleError}
           loading={isPriority ? "eager" : "lazy"}
@@ -133,10 +127,12 @@ const LazyImage = ({
         />
       )}
 
-      {/* Error Fallback - Only show if both original and placeholder failed */}
-      {hasError && fallbackSrc && (
-        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-          <span className="text-gray-400 text-xs">Failed</span>
+      {/* Final Error Fallback UI */}
+      {hasError && (
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center p-2">
+          <div className="text-center">
+            <span className="text-gray-400 text-[10px] md:text-xs block">Image Unavailable</span>
+          </div>
         </div>
       )}
     </div>

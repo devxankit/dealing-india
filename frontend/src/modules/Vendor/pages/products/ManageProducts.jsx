@@ -57,7 +57,7 @@ const ManageProducts = () => {
       // { success, message, data: { products }, pagination }
       const productsData = response.data?.products || [];
       const paginationData = response.pagination || {};
-      
+
       setProducts(productsData);
       setTotalPages(paginationData.pages || 1);
       setTotal(paginationData.total || 0);
@@ -87,7 +87,7 @@ const ManageProducts = () => {
   // Debounce search query changes only
   useEffect(() => {
     if (!vendorId) return;
-    
+
     const timer = setTimeout(() => {
       loadProducts();
       isResettingPageRef.current = false;
@@ -141,7 +141,7 @@ const ManageProducts = () => {
             alt={value}
             className="w-10 h-10 object-cover rounded-lg"
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/50x50?text=Product";
+              e.target.src = getPlaceholderImage(50, 50, "Product");
             }}
           />
           <span className="font-medium">{value}</span>

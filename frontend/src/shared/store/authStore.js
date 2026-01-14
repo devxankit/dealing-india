@@ -9,19 +9,21 @@ export const useAuthStore = create(
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      userType: null, // 'b2c' or 'b2b'
 
       // Login action
-      login: async (identifier, password, rememberMe = false) => {
+      login: async (identifier, password, rememberMe = false, userType = 'b2c') => {
         set({ isLoading: true });
         try {
-          const response = await api.post('/auth/user/login', { 
-            identifier, 
-            password 
+          const response = await api.post('/auth/user/login', {
+            identifier,
+            password,
+            userType
           });
 
           if (response.success && response.data) {
             const { user, token } = response.data;
-            
+
             // Transform backend user object to frontend format
             const userData = {
               id: user._id || user.id,
@@ -39,10 +41,11 @@ export const useAuthStore = create(
               token: token,
               isAuthenticated: true,
               isLoading: false,
+              userType: userType,
             });
 
             localStorage.setItem('token', token);
-            
+
             return { success: true, user: userData };
           } else {
             throw new Error(response.message || 'Login failed');
@@ -50,47 +53,48 @@ export const useAuthStore = create(
         } catch (error) {
           // Always reset loading state, even on error
           set({ isLoading: false });
-          
+
           // Extract error message properly
           // The API interceptor returns error.response.data, so check multiple places
           let errorMessage = error?.message;
-          
+
           // Check if error has response data (from axios)
           if (!errorMessage && error?.response?.data?.message) {
             errorMessage = error.response.data.message;
           }
-          
+
           // Check if error.response.data is the message itself (from API interceptor)
           if (!errorMessage && typeof error?.response?.data === 'string') {
             errorMessage = error.response.data;
           }
-          
+
           // Fallback message
           if (!errorMessage) {
             errorMessage = 'Invalid email/phone or password. Please check your credentials and try again.';
           }
-          
+
           throw new Error(errorMessage);
         }
       },
 
       // Register action (now only initiates registration, doesn't create user)
-      register: async (name, email, password, phone) => {
+      register: async (name, email, password, phone, userType = 'b2c') => {
         set({ isLoading: true });
         try {
-          const response = await api.post('/auth/user/register', { 
-            name, 
-            email, 
-            password, 
-            phone 
+          const response = await api.post('/auth/user/register', {
+            name,
+            email,
+            password,
+            phone,
+            userType
           });
 
           if (response.success && response.data) {
             // Registration only returns email now - user will be created after email verification
             set({ isLoading: false });
-            
-            return { 
-              success: true, 
+
+            return {
+              success: true,
               email: response.data.email,
               message: response.message || 'Registration initiated. Please verify your email.'
             };
@@ -100,11 +104,11 @@ export const useAuthStore = create(
         } catch (error) {
           // Always reset loading state, even on error
           set({ isLoading: false });
-          
+
           // Ensure error has a message
-          const errorMessage = error?.message || 
-                               error?.response?.data?.message || 
-                               'Registration failed. Please check your internet connection and try again.';
+          const errorMessage = error?.message ||
+            error?.response?.data?.message ||
+            'Registration failed. Please check your internet connection and try again.';
           throw new Error(errorMessage);
         }
       },
@@ -123,7 +127,7 @@ export const useAuthStore = create(
                   const payload = JSON.parse(atob(tokenParts[1]));
                   const exp = payload.exp;
                   const now = Math.floor(Date.now() / 1000);
-                  
+
                   // Only call logout API if token is not expired
                   if (exp && exp > now) {
                     await api.post('/auth/user/logout');
@@ -144,9 +148,10 @@ export const useAuthStore = create(
             user: null,
             token: null,
             isAuthenticated: false,
+            userType: null,
           });
           localStorage.removeItem('token');
-          
+
           // Reset cart store when user logs out
           try {
             // Dynamic import to avoid circular dependency
@@ -171,7 +176,7 @@ export const useAuthStore = create(
 
           if (response.success && response.data) {
             const user = response.data.user;
-            
+
             // Transform backend user object to frontend format
             const updatedUser = {
               id: user._id || user.id,
@@ -183,12 +188,12 @@ export const useAuthStore = create(
               isEmailVerified: user.isEmailVerified || false,
               role: user.role || 'user',
             };
-            
+
             set({
               user: updatedUser,
               isLoading: false,
             });
-            
+
             return { success: true, user: updatedUser };
           } else {
             throw new Error(response.message || 'Profile update failed');
@@ -203,9 +208,9 @@ export const useAuthStore = create(
       changePassword: async (currentPassword, newPassword) => {
         set({ isLoading: true });
         try {
-          const response = await api.put('/auth/user/change-password', { 
-            currentPassword, 
-            newPassword 
+          const response = await api.put('/auth/user/change-password', {
+            currentPassword,
+            newPassword
           });
 
           if (response.success) {
@@ -228,7 +233,7 @@ export const useAuthStore = create(
 
           if (response.success && response.data) {
             const { user, token } = response.data;
-            
+
             // Transform backend user object to frontend format
             const userData = {
               id: user._id || user.id,
@@ -246,10 +251,11 @@ export const useAuthStore = create(
               token: token,
               isAuthenticated: true,
               isLoading: false,
+              userType: user.userType || 'b2c',
             });
 
             localStorage.setItem('token', token);
-            
+
             return { success: true, user: userData, message: response.message };
           } else {
             throw new Error(response.message || 'Email verification failed');
@@ -300,10 +306,10 @@ export const useAuthStore = create(
       resetPassword: async (email, otp, newPassword) => {
         set({ isLoading: true });
         try {
-          const response = await api.post('/auth/user/reset-password', { 
-            email, 
-            otp, 
-            newPassword 
+          const response = await api.post('/auth/user/reset-password', {
+            email,
+            otp,
+            newPassword
           });
 
           if (response.success) {
@@ -329,7 +335,7 @@ export const useAuthStore = create(
               const payload = JSON.parse(atob(tokenParts[1]));
               const exp = payload.exp;
               const now = Math.floor(Date.now() / 1000);
-              
+
               // If token is expired, clear storage immediately
               if (exp && exp <= now) {
                 set({
@@ -345,14 +351,14 @@ export const useAuthStore = create(
             // Token parsing failed, might be invalid format
             // Continue to API validation
           }
-          
+
           try {
             // Validate token with backend
             const response = await api.get('/auth/user/me');
-            
+
             if (response.success && response.data) {
               const user = response.data.user;
-              
+
               // Transform backend user object to frontend format
               const userData = {
                 id: user._id || user.id,
@@ -398,6 +404,7 @@ export const useAuthStore = create(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
+        userType: state.userType,
         // Exclude isLoading from persistence - it's a transient UI state
       }),
     }

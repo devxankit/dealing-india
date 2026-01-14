@@ -18,7 +18,7 @@ import { generateSlug } from "../../../../shared/store/campaignStore";
 import api from "../../../../shared/utils/api";
 import { createCampaignBanner } from "../../utils/campaignHelpers";
 import AnimatedSelect from "../AnimatedSelect";
-import { formatPrice } from "../../../../shared/utils/helpers";
+import { formatPrice, getPlaceholderImage } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import Button from "../Button";
 
@@ -97,7 +97,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
           sortOrder: "asc",
         },
       });
-      
+
       if (response.success && response.data && response.data.products) {
         // Transform products to match expected format
         // Backend already filters visible and active products, so use all returned products
@@ -106,15 +106,15 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
           // Backend model: image (String) = main image, images ([String]) = gallery images
           // We should NEVER use gallery images if main image exists (same as home page)
           let mainImage = product.image;
-          
+
           // Only use gallery image if main image doesn't exist
           if (!mainImage && product.images && product.images.length > 0) {
             mainImage = product.images[0];
           }
-          
+
           // Fallback to placeholder if no image
           if (!mainImage) {
-            mainImage = "https://via.placeholder.com/200?text=Product";
+            mainImage = getPlaceholderImage(200, 200, "Product");
           }
 
           return {
@@ -189,8 +189,8 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
         type: "daily_deal", // Always set to daily_deal
         description: campaign.description || "",
         discountType: campaign.discountType || "percentage",
-        discountValue: campaign.discountValue !== undefined && campaign.discountValue !== null 
-          ? String(campaign.discountValue) 
+        discountValue: campaign.discountValue !== undefined && campaign.discountValue !== null
+          ? String(campaign.discountValue)
           : "",
         startDate: campaign.startDate ? new Date(campaign.startDate).toISOString().split("T")[0] : "",
         endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().split("T")[0] : "",
@@ -213,22 +213,22 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
         },
         bannerConfig: campaign.bannerConfig
           ? {
-              title: campaign.bannerConfig.title || "",
-              subtitle: campaign.bannerConfig.subtitle || "",
-              image: campaign.bannerConfig.imageUrl || campaign.bannerConfig.image || "",
-              // Detect if image is base64 (custom uploaded image)
-              customImage:
-                campaign.bannerConfig.image &&
+            title: campaign.bannerConfig.title || "",
+            subtitle: campaign.bannerConfig.subtitle || "",
+            image: campaign.bannerConfig.imageUrl || campaign.bannerConfig.image || "",
+            // Detect if image is base64 (custom uploaded image)
+            customImage:
+              campaign.bannerConfig.image &&
                 campaign.bannerConfig.image.startsWith("data:image/")
-                  ? true
-                  : campaign.bannerConfig.customImage || false,
-            }
+                ? true
+                : campaign.bannerConfig.customImage || false,
+          }
           : {
-              title: "",
-              subtitle: "",
-              image: "",
-              customImage: false,
-            },
+            title: "",
+            subtitle: "",
+            image: "",
+            customImage: false,
+          },
       });
     } else {
       // Set default dates
@@ -257,8 +257,8 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
             type === "checkbox"
               ? checked
               : type === "number"
-              ? (value === "" ? (configKey === "productsPerPage" ? 12 : 0) : (parseInt(value) || (configKey === "productsPerPage" ? 12 : 0)))
-              : value,
+                ? (value === "" ? (configKey === "productsPerPage" ? 12 : 0) : (parseInt(value) || (configKey === "productsPerPage" ? 12 : 0)))
+                : value,
         },
       });
     }
@@ -293,8 +293,8 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
           type === "checkbox"
             ? checked
             : type === "number"
-            ? (value === "" ? "" : (isNaN(parseFloat(value)) ? "" : parseFloat(value)))
-            : value,
+              ? (value === "" ? "" : (isNaN(parseFloat(value)) ? "" : parseFloat(value)))
+              : value,
       });
     }
   };
@@ -506,9 +506,8 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={`fixed inset-0 z-[10001] flex ${
-            isAppRoute ? "items-start pt-[10px]" : "items-end"
-          } sm:items-center justify-center p-4 pointer-events-none`}
+          className={`fixed inset-0 z-[10001] flex ${isAppRoute ? "items-start pt-[10px]" : "items-end"
+            } sm:items-center justify-center p-4 pointer-events-none`}
           style={{ zIndex: 10001 }}>
           <motion.div
             variants={{
@@ -543,9 +542,8 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
             animate="visible"
             exit="exit"
             onClick={(e) => e.stopPropagation()}
-            className={`bg-white ${
-              isAppRoute ? "rounded-b-3xl" : "rounded-t-3xl"
-            } sm:rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto scrollbar-admin pointer-events-auto pb-20 sm:pb-6 -mb-[30px] sm:mb-0`}
+            className={`bg-white ${isAppRoute ? "rounded-b-3xl" : "rounded-t-3xl"
+              } sm:rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto scrollbar-admin pointer-events-auto pb-20 sm:pb-6 -mb-[30px] sm:mb-0`}
             style={{ willChange: "transform", zIndex: 10001 }}>
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
               <h2 className="text-2xl font-bold text-gray-800">
@@ -792,14 +790,14 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                     selectedProductCategory !== "all" ||
                     selectedProductBrand !== "all" ||
                     selectedProductStock !== "all") && (
-                    <button
-                      type="button"
-                      onClick={handleClearFilters}
-                      className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800">
-                      <FiXCircle className="text-xs" />
-                      <span>Clear all filters</span>
-                    </button>
-                  )}
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800">
+                        <FiXCircle className="text-xs" />
+                        <span>Clear all filters</span>
+                      </button>
+                    )}
 
                   {/* Results Count */}
                   <div className="text-sm text-gray-600">
@@ -821,7 +819,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                     <div className="text-center py-8">
                       <FiSearch className="text-4xl text-gray-300 mx-auto mb-2" />
                       <p className="text-gray-500">
-                        {products.length === 0 
+                        {products.length === 0
                           ? "No products available. Please add products first."
                           : "No products found"}
                       </p>
@@ -829,13 +827,13 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                         selectedProductCategory !== "all" ||
                         selectedProductBrand !== "all" ||
                         selectedProductStock !== "all") && (
-                        <button
-                          type="button"
-                          onClick={handleClearFilters}
-                          className="mt-2 text-sm text-primary-600 hover:text-primary-700">
-                          Clear filters to see all products
-                        </button>
-                      )}
+                          <button
+                            type="button"
+                            onClick={handleClearFilters}
+                            className="mt-2 text-sm text-primary-600 hover:text-primary-700">
+                            Clear filters to see all products
+                          </button>
+                        )}
                     </div>
                   ) : (
                     <>
@@ -855,8 +853,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                               alt={product.name}
                               className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
                               onError={(e) => {
-                                e.target.src =
-                                  "https://via.placeholder.com/48x48?text=Product";
+                                e.target.src = getPlaceholderImage(48, 48, "Product");
                               }}
                             />
                             <div className="flex-1 min-w-0">
@@ -875,13 +872,12 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                                   )}
                                 {product.stock && (
                                   <span
-                                    className={`text-xs px-2 py-0.5 rounded ${
-                                      product.stock === "in_stock"
-                                        ? "bg-green-100 text-green-700"
-                                        : product.stock === "low_stock"
+                                    className={`text-xs px-2 py-0.5 rounded ${product.stock === "in_stock"
+                                      ? "bg-green-100 text-green-700"
+                                      : product.stock === "low_stock"
                                         ? "bg-yellow-100 text-yellow-700"
                                         : "bg-red-100 text-red-700"
-                                    }`}>
+                                      }`}>
                                     {product.stock.replace("_", " ")}
                                   </span>
                                 )}

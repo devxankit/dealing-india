@@ -16,6 +16,7 @@ const SearchBar = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [isFocused, setIsFocused] = useState(false);
   const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
+  const [recentSearches, setRecentSearches] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -38,21 +39,28 @@ const SearchBar = () => {
   ];
 
   // Get recent searches from localStorage
-  const getRecentSearches = () => {
-    try {
-      const recent = localStorage.getItem(RECENT_SEARCHES_KEY);
-      return recent ? JSON.parse(recent) : [];
-    } catch {
-      return [];
+  useEffect(() => {
+    const recent = localStorage.getItem(RECENT_SEARCHES_KEY);
+    if (recent) {
+      try {
+        setRecentSearches(JSON.parse(recent));
+      } catch (e) {
+        setRecentSearches([]);
+      }
     }
-  };
+  }, []);
 
   // Save search to recent searches
   const saveRecentSearch = (query) => {
     if (!query.trim()) return;
-    const recent = getRecentSearches();
-    const updated = [query.trim(), ...recent.filter((s) => s !== query.trim())].slice(0, MAX_RECENT_SEARCHES);
+    const updated = [query.trim(), ...recentSearches.filter((s) => s !== query.trim())].slice(0, MAX_RECENT_SEARCHES);
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+    setRecentSearches(updated);
+  };
+
+  const clearRecentSearches = () => {
+    localStorage.removeItem(RECENT_SEARCHES_KEY);
+    setRecentSearches([]);
   };
 
   // Get product suggestions based on query
@@ -107,7 +115,6 @@ const SearchBar = () => {
       return;
     }
 
-    const recentSearches = getRecentSearches();
     const totalItems = suggestions.length + (searchQuery.trim() ? 0 : recentSearches.length) + (searchQuery.trim() ? 0 : popularSearches.length);
 
     if (e.key === 'ArrowDown') {
@@ -142,7 +149,6 @@ const SearchBar = () => {
   };
 
   const handleSuggestionSelect = (index) => {
-    const recentSearches = getRecentSearches();
     let selectedItem;
 
     if (searchQuery.trim()) {
@@ -208,7 +214,6 @@ const SearchBar = () => {
     }
   }, [isFocused, searchQuery, placeholderTexts.length]);
 
-  const recentSearches = getRecentSearches();
   const hasSuggestions = suggestions.length > 0 || recentSearches.length > 0 || popularSearches.length > 0;
 
   return (
@@ -247,86 +252,136 @@ const SearchBar = () => {
       </form>
 
       {/* Autocomplete Dropdown */}
-      {showSuggestions && hasSuggestions && (
-        <div
-          ref={suggestionsRef}
-          className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 max-h-96 overflow-y-auto"
-        >
-          {/* Product Suggestions */}
-          {searchQuery.trim() && suggestions.length > 0 && (
-            <div className="p-2">
-              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Products</div>
-              {suggestions.map((suggestion, index) => (
-                <button
-                  key={suggestion.id}
-                  onClick={() => handleSuggestionSelect(index)}
-                  className={`w - full flex items - center gap - 3 px - 3 py - 2 rounded - lg hover: bg - gray - 50 transition - colors ${selectedIndex === index ? 'bg-primary-50' : ''
-                    } `}
-                >
-                  <img
-                    src={suggestion.image}
-                    alt={suggestion.name}
-                    className="w-10 h-10 rounded-lg object-cover"
-                  />
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-semibold text-gray-800">{suggestion.name}</p>
-                    <p className="text-xs text-gray-600">${suggestion.price.toFixed(2)}</p>
+      <AnimatePresence>
+        {showSuggestions && hasSuggestions && (
+          <motion.div
+            ref={suggestionsRef}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute top-full left-0 right-0 mt-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-100 z-50 max-h-[80vh] overflow-y-auto scrollbar-hide"
+          >
+            {/* Recent Searches */}
+            {!searchQuery.trim() && recentSearches.length > 0 && (
+              <div className="p-4 border-b border-gray-50">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-gray-400 uppercase">
+                    <FiClock className="text-sm" />
+                    RECENT SEARCHES
                   </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Recent Searches */}
-          {!searchQuery.trim() && recentSearches.length > 0 && (
-            <div className="p-2 border-t border-gray-200">
-              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
-                <FiClock className="text-xs" />
-                Recent Searches
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearRecentSearches();
+                    }}
+                    className="text-[10px] font-bold text-primary-600 hover:text-primary-700 transition-colors"
+                  >
+                    CLEAR ALL
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {recentSearches.map((search, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestionSelect(index)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-left group ${selectedIndex === index ? "bg-primary-50 translate-x-1" : "hover:bg-gray-50 hover:translate-x-1"
+                        }`}
+                    >
+                      <FiClock className="text-gray-300 group-hover:text-primary-400 transition-colors" />
+                      <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                        {search}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              {recentSearches.map((search, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSuggestionSelect(index)}
-                  className={`w - full flex items - center gap - 2 px - 3 py - 2 rounded - lg hover: bg - gray - 50 transition - colors text - left ${selectedIndex === index ? 'bg-primary-50' : ''
-                    } `}
-                >
-                  <FiClock className="text-gray-400" />
-                  <span className="text-sm text-gray-700">{search}</span>
-                </button>
-              ))}
-            </div>
-          )}
+            )}
 
-          {/* Popular Searches */}
-          {!searchQuery.trim() && popularSearches.length > 0 && (
-            <div className="p-2 border-t border-gray-200">
-              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase flex items-center gap-2">
-                <FiTrendingUp className="text-xs" />
-                Popular Searches
+            {/* Popular Searches - Modern Chips Layout */}
+            {!searchQuery.trim() && popularSearches.length > 0 && (
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-4 px-1 text-[10px] font-black tracking-widest text-gray-400 uppercase">
+                  <FiTrendingUp className="text-sm" />
+                  POPULAR SEARCHES
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {popularSearches.map((search, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestionSelect(recentSearches.length + index)}
+                      className={`px-4 py-2 rounded-full border text-sm font-semibold transition-all duration-300 ${selectedIndex === recentSearches.length + index
+                        ? "bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-200"
+                        : "bg-gray-50 border-gray-100 text-gray-600 hover:bg-white hover:border-primary-500 hover:text-primary-600 hover:shadow-sm"
+                        }`}
+                    >
+                      {search}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {popularSearches.map((search, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSuggestionSelect(recentSearches.length + index)}
-                  className={`w - full flex items - center gap - 2 px - 3 py - 2 rounded - lg hover: bg - gray - 50 transition - colors text - left ${selectedIndex === recentSearches.length + index ? 'bg-primary-50' : ''
-                    } `}
-                >
-                  <FiTrendingUp className="text-gray-400" />
-                  <span className="text-sm text-gray-700">{search}</span>
-                </button>
-              ))}
-            </div>
-          )}
+            )}
 
-          {/* No Results */}
-          {searchQuery.trim() && suggestions.length === 0 && (
-            <div className="p-4 text-center text-gray-500 text-sm">
-              No products found for "{searchQuery}"
-            </div>
-          )}
-        </div>
-      )}
+            {/* Product Suggestions */}
+            {searchQuery.trim() && suggestions.length > 0 && (
+              <div className="p-2">
+                <div className="px-3 py-2 text-[10px] font-black tracking-widest text-gray-400 uppercase mb-1">
+                  PRODUCT RESULTS
+                </div>
+                <div className="space-y-1">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={suggestion.id}
+                      onClick={() => handleSuggestionSelect(index)}
+                      className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group ${selectedIndex === index ? "bg-primary-50 translate-x-1" : "hover:bg-gray-50 hover:translate-x-1"
+                        }`}
+                    >
+                      <div className="relative w-12 h-12 flex-shrink-0">
+                        <img
+                          src={suggestion.image}
+                          alt={suggestion.name}
+                          className="w-full h-full rounded-lg object-cover shadow-sm group-hover:shadow-md transition-shadow"
+                        />
+                        <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-lg" />
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-sm font-bold text-gray-800 truncate group-hover:text-primary-700 transition-colors">
+                          {suggestion.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-sm font-black text-primary-600">
+                            ₹{suggestion.price}
+                          </p>
+                          <span className="text-[10px] font-bold text-gray-400 px-1.5 py-0.5 bg-gray-100 rounded">
+                            FAST DELIVERY
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-2 rounded-full bg-gray-100 text-gray-400 group-hover:bg-primary-100 group-hover:text-primary-600 transition-all opacity-0 group-hover:opacity-100">
+                        <FiSearch className="text-sm" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No Results */}
+            {searchQuery.trim() && suggestions.length === 0 && (
+              <div className="p-8 text-center bg-gray-50/50">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FiSearch className="text-2xl text-gray-400" />
+                </div>
+                <p className="text-sm font-bold text-gray-800 mb-1">No results found</p>
+                <p className="text-xs text-gray-500">
+                  We couldn't find any products matching "{searchQuery}"
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -180,3 +180,82 @@ export const formatVideoUrl = (url) => {
   }
   return url;
 };
+
+/**
+ * Find the main representative variant of a product
+ */
+export const getMainProductVariant = (product) => {
+  if (!product) return null;
+
+  const allVariants = [];
+
+  // 1. Collect root sizeVariants
+  if (product.sizeVariants && product.sizeVariants.length > 0) {
+    product.sizeVariants.forEach((sv, idx) => {
+      allVariants.push({
+        ...sv,
+        sizeIndex: idx,
+        colorIndex: null,
+        color: null,
+        isRootSize: true,
+        priority: 1 // Higher priority for root sizes
+      });
+    });
+  }
+
+  // 2. Collect sizeVariants from colorVariants
+  if (product.variants?.colorVariants && product.variants.colorVariants.length > 0) {
+    const primaryColor = (product.primaryColorName || '').toLowerCase().trim();
+    product.variants.colorVariants.forEach((cv, cIdx) => {
+      const isPrimary = (cv.colorName || cv.color || '').toLowerCase().trim() === primaryColor;
+      if (cv.sizeVariants && cv.sizeVariants.length > 0) {
+        cv.sizeVariants.forEach((sv, sIdx) => {
+          allVariants.push({
+            ...sv,
+            color: cv.colorName || cv.color,
+            colorIndex: cIdx,
+            sizeIndex: sIdx,
+            isRootSize: false,
+            priority: isPrimary ? 2 : 3 // Primary color is next in priority
+          });
+        });
+      } else {
+        // Color variant with no sizes
+        allVariants.push({
+          price: product.price,
+          originalPrice: product.originalPrice,
+          color: cv.colorName || cv.color,
+          colorIndex: cIdx,
+          size: null,
+          sizeIndex: null,
+          isRootSize: false,
+          priority: isPrimary ? 2 : 3
+        });
+      }
+    });
+  }
+
+  if (allVariants.length === 0) {
+    return {
+      price: product.price,
+      originalPrice: product.originalPrice,
+      size: null,
+      color: null,
+      isRootSize: true
+    };
+  }
+
+  // 3. Sort by price (ASC), then by priority (ASC), then by original order
+  allVariants.sort((a, b) => {
+    const priceA = Number(a.price || product.price);
+    const priceB = Number(b.price || product.price);
+    if (priceA !== priceB) return priceA - priceB;
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    if (a.colorIndex !== b.colorIndex) return (a.colorIndex ?? -1) - (b.colorIndex ?? -1);
+    return (a.sizeIndex ?? -1) - (b.sizeIndex ?? -1);
+  });
+
+  // 4. Fallback/Default tie-breaker: if the chosen one is more expensive than default, reconsider
+  // But usually we want absolute lowest price as per user request
+  return allVariants[0];
+};

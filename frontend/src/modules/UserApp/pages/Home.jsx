@@ -67,6 +67,10 @@ const MobileHome = () => {
       vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
       vendor: vendorData,
       flashSale: product.flashSale || false,
+      variants: product.variants || {},
+      sizeVariants: product.sizeVariants || [],
+      primaryColorName: product.primaryColorName,
+      primaryColorCode: product.primaryColorCode,
     };
   };
 
@@ -88,6 +92,7 @@ const MobileHome = () => {
             sortBy: 'rating',
             sortOrder: 'desc',
             minReviewCount: 1,
+            vendorType: 'b2c',
           }),
           // Trending products
           getProducts({
@@ -95,6 +100,7 @@ const MobileHome = () => {
             sortBy: 'rating',
             sortOrder: 'desc',
             isTrending: true,
+            vendorType: 'b2c',
           }),
           // Flash Sale products
           getProducts({
@@ -102,6 +108,7 @@ const MobileHome = () => {
             sortBy: 'createdAt',
             sortOrder: 'desc',
             flashSale: true,
+            vendorType: 'b2c',
           }),
           // Daily Deals campaigns - force refresh to get latest data
           (async () => {

@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { 
-  FiArrowLeft, 
-  FiEdit, 
-  FiCheck, 
-  FiX, 
-  FiPhone, 
-  FiMapPin, 
-  FiCreditCard, 
-  FiTruck, 
-  FiCalendar, 
+import {
+  FiArrowLeft,
+  FiEdit,
+  FiCheck,
+  FiX,
+  FiPhone,
+  FiMapPin,
+  FiCreditCard,
+  FiTruck,
+  FiCalendar,
   FiTag,
   FiPackage,
   FiClock,
@@ -17,6 +17,7 @@ import {
   FiUser,
   FiFileText
 } from 'react-icons/fi';
+import { getPlaceholderImage } from '../../../shared/utils/helpers';
 import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
@@ -34,7 +35,7 @@ const OrderDetail = () => {
   useEffect(() => {
     const fetchOrder = async () => {
       if (!id) return;
-      
+
       try {
         setLoading(true);
         const response = await getAdminOrderById(id);
@@ -100,8 +101,8 @@ const OrderDetail = () => {
         <FiPackage className="mx-auto text-4xl text-gray-300 mb-4" />
         <h2 className="text-xl font-bold text-gray-800 mb-2">Order Not Found</h2>
         <p className="text-gray-500 mb-6">The order you're looking for doesn't exist or has been removed.</p>
-        <Link 
-          to="/admin/orders/all-orders" 
+        <Link
+          to="/admin/orders/all-orders"
           className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
         >
           <FiArrowLeft />
@@ -177,7 +178,7 @@ const OrderDetail = () => {
             <div className="divide-y divide-gray-200">
               {items.length > 0 ? items.map((item, index) => {
                 const itemId = item._id || item.id || item.productId?._id || index;
-                const itemImage = item.image || item.productId?.images?.[0] || 'https://via.placeholder.com/100x100?text=Product';
+                const itemImage = item.image || item.productId?.images?.[0] || getPlaceholderImage(100, 100, 'Product');
                 const itemName = item.name || item.productId?.name || 'Product';
                 const itemPrice = item.price || 0;
                 const itemQuantity = item.quantity || 1;
@@ -190,7 +191,7 @@ const OrderDetail = () => {
                         alt={itemName}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.target.src = 'https://via.placeholder.com/100x100?text=Product';
+                          e.target.src = getPlaceholderImage(100, 100, 'Product');
                         }}
                       />
                     </div>

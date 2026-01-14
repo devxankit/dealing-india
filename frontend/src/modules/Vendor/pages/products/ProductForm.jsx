@@ -638,7 +638,11 @@ const ProductForm = () => {
     }
 
     // Validation
-    if (!formData.name || !formData.price || !formData.stockQuantity) {
+    const hasSizeVariants = formData.sizeVariants && formData.sizeVariants.length > 0;
+    const hasColorVariants = colorVariants && colorVariants.length > 0;
+    const isPriceRequired = !hasSizeVariants && !hasColorVariants;
+
+    if (!formData.name || (isPriceRequired && !formData.price) || (isPriceRequired && !formData.stockQuantity)) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -677,32 +681,45 @@ const ProductForm = () => {
     }
 
     try {
-      // Validate required fields before submitting
-      if (!formData.name || !formData.name.trim()) {
-        toast.error('Product name is required');
-        return;
+      const hasSizeVariants = formData.sizeVariants && formData.sizeVariants.length > 0;
+      const hasColorVariants = colorVariants && colorVariants.length > 0;
+      const requiresMainPrice = !hasSizeVariants && !hasColorVariants;
+
+      if (requiresMainPrice) {
+        if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
+          toast.error('Valid price is required');
+          return;
+        }
+        if (formData.stockQuantity === '' || formData.stockQuantity === null || formData.stockQuantity === undefined) {
+          toast.error('Stock quantity is required');
+          return;
+        }
       }
 
-      if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
-        toast.error('Valid price is required');
-        return;
+      let parsedPrice = formData.price ? parseFloat(formData.price) : 0;
+      let parsedStockQuantity = formData.stockQuantity ? parseInt(formData.stockQuantity) : 0;
+
+      // Deriving price and stock from variants if they exist
+      if (hasSizeVariants) {
+        const prices = formData.sizeVariants.map(sv => parseFloat(sv.price)).filter(p => !isNaN(p));
+        if (prices.length > 0) {
+          parsedPrice = Math.min(...prices); // Use lowest price as representative
+        }
+        parsedStockQuantity = formData.sizeVariants.reduce((sum, sv) => sum + (parseInt(sv.stockQuantity) || 0), 0);
+      } else if (hasColorVariants) {
+        let allSizeVariants = [];
+        colorVariants.forEach(cv => {
+          if (cv.sizeVariants) allSizeVariants.push(...cv.sizeVariants);
+        });
+        const prices = allSizeVariants.map(sv => parseFloat(sv.price)).filter(p => !isNaN(p));
+        if (prices.length > 0) {
+          parsedPrice = Math.min(...prices);
+        }
+        parsedStockQuantity = allSizeVariants.reduce((sum, sv) => sum + (parseInt(sv.stockQuantity) || 0), 0);
       }
 
-      if (formData.stockQuantity === '' || formData.stockQuantity === null || formData.stockQuantity === undefined) {
-        toast.error('Stock quantity is required');
-        return;
-      }
-
-      const parsedPrice = parseFloat(formData.price);
-      const parsedStockQuantity = parseInt(formData.stockQuantity);
-
-      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      if (requiresMainPrice && isNaN(parsedPrice)) {
         toast.error('Price must be a valid positive number');
-        return;
-      }
-
-      if (isNaN(parsedStockQuantity) || parsedStockQuantity < 0) {
-        toast.error('Stock quantity must be a valid non-negative number');
         return;
       }
 
@@ -997,44 +1014,7 @@ const ProductForm = () => {
           </div>
         </div>
 
-        {/* Pricing */}
-        <div>
-          <h2 className="text-base font-bold text-gray-800 mb-2">Pricing</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Price <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleChange}
-                required
-                min="0"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Original Price (for discount)
-              </label>
-              <input
-                type="number"
-                name="originalPrice"
-                value={formData.originalPrice}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-        </div>
+        {/* Pricing removed as per user request - prices now managed via sizes */}
 
         {/* Product Media */}
         <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-3 sm:p-4 border-2 border-primary-200 shadow-lg">

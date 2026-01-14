@@ -440,6 +440,7 @@ const MobileCategory = () => {
         sortOrder: filters.sortBy === 'price_high' ? 'desc' : (filters.sortBy === 'price_low' ? 'asc' : 'desc'),
         discount: filters.discount || undefined,
         brands: filters.brand && filters.brand.length > 0 ? filters.brand.join(',') : undefined,
+        vendorType: 'b2c',
         page: 1,
         limit: 100, // Get more products for better UX
       });
@@ -489,6 +490,10 @@ const MobileCategory = () => {
           vendor: vendorData,
           isNew: product.isNew,
           flashSale: product.flashSale,
+          variants: product.variants || {},
+          sizeVariants: product.sizeVariants || [],
+          primaryColorName: product.primaryColorName,
+          primaryColorCode: product.primaryColorCode,
         };
       });
 

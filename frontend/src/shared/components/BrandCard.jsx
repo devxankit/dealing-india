@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import LazyImage from './LazyImage';
 
 const BrandCard = ({ brand }) => {
   return (
@@ -7,13 +8,14 @@ const BrandCard = ({ brand }) => {
       className="glass-card rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover-lift group h-full"
     >
       <div className="w-full h-20 flex items-center justify-center mb-2">
-        <img
+        <LazyImage
           src={brand.logo}
           alt={brand.name}
           className="max-w-full max-h-full object-contain scale-60 group-hover:scale-75 transition-transform duration-300 filter group-hover:brightness-110"
-          onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/150x80?text=Brand';
-          }}
+          placeholderWidth={150}
+          placeholderHeight={80}
+          placeholderText="Brand"
+          context="thumbnail"
         />
       </div>
       <p className="text-xs font-bold text-gray-800 text-center group-hover:text-gradient transition-colors">{brand.name}</p>

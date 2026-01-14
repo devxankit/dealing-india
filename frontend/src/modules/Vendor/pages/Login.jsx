@@ -35,7 +35,7 @@ const VendorLogin = () => {
         // Special message for Render.com free tier sleep
         const message = 'Server is taking longer than usual to respond. This might be because the server is starting up. Please wait a few more seconds or try again.';
         toast.error(message, { duration: 6000 });
-        
+
         // If it's still loading in store, force reset it after some more time
         setTimeout(() => {
           if (useVendorAuthStore.getState().isLoading) {
@@ -94,13 +94,13 @@ const VendorLogin = () => {
       console.log('Dispatching login action...');
       const result = await login(formData.email, formData.password, rememberMe);
       console.log('Login action result:', result);
-      
+
       setLocalLoading(false);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
+
       toast.success('Login successful!');
       const from = location.state?.from?.pathname || '/vendor/dashboard';
       navigate(from, { replace: true });
@@ -110,7 +110,7 @@ const VendorLogin = () => {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
+
       // Show error toast with the message from store/interceptor
       toast.error(error.message || 'Invalid credentials. Please try again.');
     }
@@ -220,6 +220,12 @@ const VendorLogin = () => {
                 Register as Vendor
               </Link>
             </p>
+            <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-2">
+              <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Wholesale Vendor?</span>
+              <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">
+                Switch to B2B Vendor Portal
+              </Link>
+            </div>
           </div>
         </form>
       </motion.div>

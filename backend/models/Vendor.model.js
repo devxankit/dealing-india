@@ -84,6 +84,11 @@ const vendorSchema = new mongoose.Schema(
       enum: ['vendor'],
       default: 'vendor',
     },
+    vendorType: {
+      type: String,
+      enum: ['b2c', 'b2b'],
+      default: 'b2c',
+    },
     documents: [{
       name: { type: String, required: true },
       url: { type: String, required: true },

@@ -73,15 +73,16 @@
     ]
   },
   {
-    "title": "Wholesalers",
-    "route": "/admin/wholesalers",
+    "title": "B2B Vendors",
+    "route": "/admin/b2b-vendors",
     "children": [
-      "Manage Wholesalers",
-      "Pending Approvals",
-      "Product Listings",
-      "Communication Logs",
-      "Wholesaler Analytics",
-      "Dispute Resolution"
+      "Manage",
+      "Pending",
+      "Products",
+      "Logs",
+      "Analytics",
+      "Disputes",
+      "Subscriptions"
     ]
   },
   {

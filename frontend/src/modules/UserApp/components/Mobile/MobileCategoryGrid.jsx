@@ -25,10 +25,6 @@ const MobileCategoryGrid = () => {
                   src={category.image}
                   alt={category.name}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src =
-                      "https://via.placeholder.com/64x64?text=Category";
-                  }}
                 />
               </div>
               <span className="text-xs font-semibold text-gray-700 text-center line-clamp-2">

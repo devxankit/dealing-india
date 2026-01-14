@@ -1,0 +1,44 @@
+[
+    {
+        "title": "Dashboard",
+        "route": "/b2b-vendor/dashboard",
+        "children": []
+    },
+    {
+        "title": "Product Listings",
+        "route": "/b2b-vendor/products",
+        "children": [
+            "Manage Products",
+            "Add Product"
+        ]
+    },
+    {
+        "title": "B2B Inquiries",
+        "route": "/b2b-vendor/messages",
+        "children": []
+    },
+    {
+        "title": "Vendors",
+        "route": "/b2b-vendor/vendors",
+        "children": []
+    },
+    {
+        "title": "Analytics",
+        "route": "/b2b-vendor/analytics",
+        "children": []
+    },
+    {
+        "title": "Subscription",
+        "route": "/b2b-vendor/subscription",
+        "children": []
+    },
+    {
+        "title": "Account Settings",
+        "route": "/b2b-vendor/settings",
+        "children": [
+            "Profile",
+            "Business Details",
+            "Security"
+        ]
+    }
+]

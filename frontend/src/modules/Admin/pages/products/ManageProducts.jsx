@@ -21,7 +21,7 @@ const ManageProducts = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { categories, initialize: initCategories } = useCategoryStore();
   const { vendors, fetchVendors } = useVendorManagementStore();
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -89,7 +89,7 @@ const ManageProducts = () => {
       const findChildIds = (catId) => {
         const ids = [catId];
         const category = categories.find(c => String(c.id || c._id) === String(catId));
-        
+
         if (category?.subcategories) {
           category.subcategories.forEach(sub => {
             ids.push(String(sub.id || sub._id));
@@ -109,10 +109,10 @@ const ManageProducts = () => {
         const prodCatId = String(product.categoryId || "");
         const prodSubCatId = String(product.subcategoryId || "");
         const prodSubSubCatId = String(product.subSubCategoryId || "");
-        
-        return allowedCategoryIds.includes(prodCatId) || 
-               allowedCategoryIds.includes(prodSubCatId) || 
-               allowedCategoryIds.includes(prodSubSubCatId);
+
+        return allowedCategoryIds.includes(prodCatId) ||
+          allowedCategoryIds.includes(prodSubCatId) ||
+          allowedCategoryIds.includes(prodSubSubCatId);
       });
     }
 
@@ -129,16 +129,16 @@ const ManageProducts = () => {
   // Calculate product statistics based on filtered results
   const productStats = useMemo(() => {
     const totalProducts = filteredProducts.length;
-    
+
     // Calculate total quantities based on stock status
     const inStockProducts = filteredProducts
       .filter((p) => p.stock === "in_stock")
       .reduce((sum, p) => sum + (Number(p.stockQuantity) || 0), 0);
-      
+
     const lowStockProducts = filteredProducts
       .filter((p) => p.stock === "low_stock")
       .reduce((sum, p) => sum + (Number(p.stockQuantity) || 0), 0);
-      
+
     const outOfStockProducts = filteredProducts
       .filter((p) => p.stock === "out_of_stock")
       .reduce((sum, p) => sum + (Number(p.stockQuantity) || 0), 0);
@@ -174,7 +174,7 @@ const ManageProducts = () => {
             alt={value}
             className="w-10 h-10 object-cover rounded-lg"
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/50x50?text=Product";
+              e.target.src = getPlaceholderImage(50, 50, "Product");
             }}
           />
           <span className="font-medium">{value}</span>

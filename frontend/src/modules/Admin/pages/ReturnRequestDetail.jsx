@@ -13,6 +13,7 @@ import {
   FiAlertCircle,
   FiEdit
 } from 'react-icons/fi';
+import { getPlaceholderImage } from '../../../shared/utils/helpers';
 import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
@@ -324,7 +325,7 @@ const ReturnRequestDetail = () => {
                       alt={item.productId.name || 'Product'}
                       className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/100x100?text=Product';
+                        e.target.src = getPlaceholderImage(100, 100, 'Product');
                       }}
                     />
                   )}

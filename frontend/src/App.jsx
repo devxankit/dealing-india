@@ -104,14 +104,15 @@ import PushConfig from "./modules/Admin/pages/firebase/PushConfig";
 import Authentication from "./modules/Admin/pages/firebase/Authentication";
 import DeliveryRules from "./modules/Admin/pages/DeliveryRules";
 
-// Admin Wholesaler Routes
-import AdminWholesalers from "./modules/Admin/pages/Wholesalers";
-import AdminManageWholesalers from "./modules/Admin/pages/wholesalers/ManageWholesalers";
-import AdminWholesalerPendingApprovals from "./modules/Admin/pages/wholesalers/PendingApprovals";
-import AdminWholesalerProductListings from "./modules/Admin/pages/wholesalers/ProductListings";
-import AdminWholesalerCommunicationLogs from "./modules/Admin/pages/wholesalers/CommunicationLogs";
-import AdminWholesalerAnalyticsPage from "./modules/Admin/pages/wholesalers/WholesalerAnalytics";
-import AdminDisputeResolution from "./modules/Admin/pages/wholesalers/DisputeResolution";
+// Admin B2B Vendor Routes
+import AdminB2BVendors from "./modules/Admin/pages/B2BVendors";
+import AdminManageB2BVendors from "./modules/Admin/pages/b2b-vendors/ManageB2BVendors";
+import AdminB2BVendorPendingApprovals from "./modules/Admin/pages/b2b-vendors/PendingApprovals";
+import AdminB2BVendorProductListings from "./modules/Admin/pages/b2b-vendors/ProductListings";
+import AdminB2BVendorCommunicationLogs from "./modules/Admin/pages/b2b-vendors/CommunicationLogs";
+import AdminB2BVendorAnalyticsPage from "./modules/Admin/pages/b2b-vendors/B2BVendorAnalytics";
+import AdminB2BDisputeResolution from "./modules/Admin/pages/b2b-vendors/DisputeResolution";
+import AdminB2BSubscriptions from "./modules/Admin/pages/b2b-vendors/Subscriptions";
 import RouteWrapper from "./shared/components/RouteWrapper";
 import ScrollToTop from "./shared/components/ScrollToTop";
 // Mobile App Routes
@@ -199,30 +200,32 @@ import VendorAttributeSets from "./modules/Vendor/pages/attributes/AttributeSets
 import VendorInventoryReports from "./modules/Vendor/pages/InventoryReports";
 import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics";
 
-// Vendor B2B Routes
-import B2BMode from "./modules/Vendor/pages/B2BMode";
-import WholesalerProductsBrowse from "./modules/Vendor/pages/b2b/WholesalerProducts";
-import WholesalerDetail from "./modules/Vendor/pages/b2b/WholesalerDetail";
-import B2BMessages from "./modules/Vendor/pages/b2b/B2BMessages";
-import B2BInquiries from "./modules/Vendor/pages/b2b/B2BInquiries";
-import B2BPriceRequests from "./modules/Vendor/pages/b2b/PriceRequests";
+// B2B Vendor Routes
+import B2BVendorLogin from "./modules/B2BVendor/pages/Login";
+import B2BVendorRegister from "./modules/B2BVendor/pages/Register";
+import B2BVendorVerification from "./modules/B2BVendor/pages/Verification";
+import B2BVendorProtectedRoute from "./modules/B2BVendor/components/B2BVendorProtectedRoute";
+import B2BVendorLayout from "./modules/B2BVendor/components/Layout/B2BVendorLayout";
+import B2BVendorDashboard from "./modules/B2BVendor/pages/Dashboard";
+import B2BVendorProducts from "./modules/B2BVendor/pages/Products";
+import B2BVendorManageProducts from "./modules/B2BVendor/pages/products/ManageProducts";
+import B2BVendorAddProduct from "./modules/B2BVendor/pages/products/AddProduct";
+import B2BVendorEditProduct from "./modules/B2BVendor/pages/products/EditProduct";
+import B2BVendorMessages from "./modules/B2BVendor/pages/Messages";
+import B2BVendorVendors from "./modules/B2BVendor/pages/Vendors";
+import B2BVendorAnalytics from "./modules/B2BVendor/pages/Analytics";
+import B2BVendorSettings from "./modules/B2BVendor/pages/Settings";
+import B2BVendorProfile from "./modules/B2BVendor/pages/Profile";
+import B2BVendorSubscription from "./modules/B2BVendor/pages/Subscription";
 
-// Wholesaler Routes
-import WholesalerLogin from "./modules/Wholesaler/pages/Login";
-import WholesalerRegister from "./modules/Wholesaler/pages/Register";
-import WholesalerVerification from "./modules/Wholesaler/pages/Verification";
-import WholesalerProtectedRoute from "./modules/Wholesaler/components/WholesalerProtectedRoute";
-import WholesalerLayout from "./modules/Wholesaler/components/Layout/WholesalerLayout";
-import WholesalerDashboard from "./modules/Wholesaler/pages/Dashboard";
-import WholesalerProducts from "./modules/Wholesaler/pages/Products";
-import WholesalerManageProducts from "./modules/Wholesaler/pages/products/ManageProducts";
-import WholesalerAddProduct from "./modules/Wholesaler/pages/products/AddProduct";
-import WholesalerEditProduct from "./modules/Wholesaler/pages/products/EditProduct";
-import WholesalerMessages from "./modules/Wholesaler/pages/Messages";
-import WholesalerVendors from "./modules/Wholesaler/pages/Vendors";
-import WholesalerAnalytics from "./modules/Wholesaler/pages/Analytics";
-import WholesalerSettings from "./modules/Wholesaler/pages/Settings";
-import WholesalerProfile from "./modules/Wholesaler/pages/Profile";
+// B2B User App Routes
+import B2BUserLogin from "./modules/B2BUserApp/pages/Login";
+import B2BUserRegister from "./modules/B2BUserApp/pages/Register";
+import B2BUserVerification from "./modules/B2BUserApp/pages/Verification";
+import B2BUserDashboard from "./modules/B2BUserApp/pages/Dashboard";
+import B2BProductCatalog from "./modules/B2BUserApp/pages/ProductCatalog";
+import B2BInquiries from "./modules/B2BUserApp/pages/Inquiries";
+import B2BUserProfile from "./modules/B2BUserApp/pages/Profile";
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -262,6 +265,8 @@ const AppRoutes = () => {
         <Route path="/profile" element={<Navigate to="/app/profile" replace />} />
         <Route path="/orders" element={<Navigate to="/app/orders" replace />} />
         <Route path="/addresses" element={<Navigate to="/app/addresses" replace />} />
+        <Route path="/b2b-vendors" element={<Navigate to="/admin/b2b-vendors" replace />} />
+        <Route path="/wholesalers" element={<Navigate to="/admin/b2b-vendors" replace />} />
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
@@ -326,15 +331,18 @@ const AppRoutes = () => {
           />
           <Route path="vendors/:id" element={<VendorDetail />} />
 
-          {/* Admin Wholesaler Routes */}
-          <Route path="wholesalers" element={<AdminWholesalers />} />
-          <Route path="wholesalers/manage-wholesalers" element={<AdminManageWholesalers />} />
-          <Route path="wholesalers/pending-approvals" element={<AdminWholesalerPendingApprovals />} />
-          <Route path="wholesalers/product-listings" element={<AdminWholesalerProductListings />} />
-          <Route path="wholesalers/communication-logs" element={<AdminWholesalerCommunicationLogs />} />
-          <Route path="wholesalers/analytics" element={<AdminWholesalerAnalyticsPage />} />
-          <Route path="wholesalers/dispute-resolution" element={<AdminDisputeResolution />} />
-          <Route path="wholesalers/:id" element={<VendorDetail />} /> {/* Reusing VendorDetail for now */}
+          {/* Admin B2B Vendor Routes */}
+          <Route path="b2b-vendors">
+            <Route index element={<AdminB2BVendors />} />
+            <Route path="manage" element={<AdminManageB2BVendors />} />
+            <Route path="pending" element={<AdminB2BVendorPendingApprovals />} />
+            <Route path="products" element={<AdminB2BVendorProductListings />} />
+            <Route path="logs" element={<AdminB2BVendorCommunicationLogs />} />
+            <Route path="analytics" element={<AdminB2BVendorAnalyticsPage />} />
+            <Route path="disputes" element={<AdminB2BDisputeResolution />} />
+            <Route path="subscriptions" element={<AdminB2BSubscriptions />} />
+            <Route path=":id" element={<VendorDetail />} />
+          </Route>
 
           <Route path="offers/festival-offers" element={<FestivalOffers />} />
           {/* Mega Reward Routes */}
@@ -398,6 +406,16 @@ const AppRoutes = () => {
           <Route path="reviews" element={<Reviews />} />
           <Route path="content" element={<Content />} />
         </Route>
+
+        {/* B2B User App Routes */}
+        <Route path="/b2b/login" element={<B2BUserLogin />} />
+        <Route path="/b2b/register" element={<B2BUserRegister />} />
+        <Route path="/b2b/verification" element={<B2BUserVerification />} />
+        <Route path="/b2b" element={<B2BUserDashboard />} />
+        <Route path="/b2b/catalog" element={<B2BProductCatalog />} />
+        <Route path="/b2b/inquiries" element={<B2BInquiries />} />
+        <Route path="/b2b/profile" element={<B2BUserProfile />} />
+
         {/* Vendor Routes */}
         <Route path="/vendor/login" element={<VendorLogin />} />
         <Route path="/vendor/register" element={<VendorRegister />} />
@@ -502,39 +520,34 @@ const AppRoutes = () => {
           <Route path="settings/shipping-settings" element={<VendorSettings />} />
           <Route path="profile" element={<VendorSettings />} />
 
-          {/* Vendor B2B Routes */}
-          <Route path="b2b" element={<B2BMode />} />
-          <Route path="b2b/wholesalers" element={<WholesalerProductsBrowse />} />
-          <Route path="b2b/product/:id" element={<WholesalerDetail />} />
-          <Route path="b2b/messages" element={<B2BMessages />} />
-          <Route path="b2b/inquiries" element={<B2BInquiries />} />
-          <Route path="b2b/price-requests" element={<B2BPriceRequests />} />
+          <Route path="profile" element={<VendorSettings />} />
         </Route>
-        {/* Wholesaler Routes */}
-        <Route path="/wholesaler/login" element={<WholesalerLogin />} />
-        <Route path="/wholesaler/register" element={<WholesalerRegister />} />
-        <Route path="/wholesaler/verification" element={<WholesalerVerification />} />
+        {/* B2B Vendor Routes */}
+        <Route path="/b2b-vendor/login" element={<B2BVendorLogin />} />
+        <Route path="/b2b-vendor/register" element={<B2BVendorRegister />} />
+        <Route path="/b2b-vendor/verification" element={<B2BVendorVerification />} />
         <Route
-          path="/wholesaler"
+          path="/b2b-vendor"
           element={
-            <WholesalerProtectedRoute>
-              <WholesalerLayout />
-            </WholesalerProtectedRoute>
+            <B2BVendorProtectedRoute>
+              <B2BVendorLayout />
+            </B2BVendorProtectedRoute>
           }>
-          <Route index element={<Navigate to="/wholesaler/dashboard" replace />} />
-          <Route path="dashboard" element={<WholesalerDashboard />} />
-          <Route path="products" element={<WholesalerProducts />} />
-          <Route path="products/manage-products" element={<WholesalerManageProducts />} />
-          <Route path="products/add-product" element={<WholesalerAddProduct />} />
-          <Route path="products/edit/:id" element={<WholesalerEditProduct />} />
-          <Route path="messages" element={<WholesalerMessages />} />
-          <Route path="vendors" element={<WholesalerVendors />} />
-          <Route path="analytics" element={<WholesalerAnalytics />} />
-          <Route path="settings" element={<WholesalerSettings />} />
-          <Route path="settings/profile" element={<WholesalerSettings />} />
-          <Route path="settings/business" element={<WholesalerSettings />} />
-          <Route path="settings/security" element={<WholesalerSettings />} />
-          <Route path="profile" element={<WholesalerProfile />} />
+          <Route index element={<Navigate to="/b2b-vendor/dashboard" replace />} />
+          <Route path="dashboard" element={<B2BVendorDashboard />} />
+          <Route path="products" element={<B2BVendorProducts />} />
+          <Route path="products/manage-products" element={<B2BVendorManageProducts />} />
+          <Route path="products/add-product" element={<B2BVendorAddProduct />} />
+          <Route path="products/edit/:id" element={<B2BVendorEditProduct />} />
+          <Route path="messages" element={<B2BVendorMessages />} />
+          <Route path="vendors" element={<B2BVendorVendors />} />
+          <Route path="analytics" element={<B2BVendorAnalytics />} />
+          <Route path="settings" element={<B2BVendorSettings />} />
+          <Route path="settings/profile" element={<B2BVendorSettings />} />
+          <Route path="settings/business" element={<B2BVendorSettings />} />
+          <Route path="settings/security" element={<B2BVendorSettings />} />
+          <Route path="subscription" element={<B2BVendorSubscription />} />
+          <Route path="profile" element={<B2BVendorProfile />} />
         </Route>
         {/* Mobile App Routes */}
         <Route

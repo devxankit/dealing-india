@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiShoppingBag, FiHeart } from "react-icons/fi";
 import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
-import { formatPrice } from "../../../../shared/utils/helpers";
+import { formatPrice, getMainProductVariant } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import LazyImage from '../../../../shared/components/LazyImage';
 import VendorBadge from "../../../Vendor/components/VendorBadge";
@@ -16,6 +17,10 @@ const ProductListItem = ({ product, index }) => {
   const productLink = isMobileApp
     ? `/app/product/${product.id}`
     : `/product/${product.id}`;
+
+  const mainVariant = useMemo(() => getMainProductVariant(product), [product]);
+  const displayPrice = mainVariant?.price || product.price;
+  const displayOriginalPrice = mainVariant?.originalPrice || product.originalPrice;
   const addItem = useCartStore((state) => state.addItem);
   const triggerCartAnimation = useUIStore(
     (state) => state.triggerCartAnimation
@@ -36,13 +41,14 @@ const ProductListItem = ({ product, index }) => {
     const buyNowItem = {
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: displayPrice,
       image: product.image,
       quantity: 1,
+      variant: mainVariant,
     };
-    
+
     const checkoutPath = isMobileApp ? "/app/checkout" : "/checkout";
-    navigate(checkoutPath, { state: { buyNowItem } });
+    navigate(checkoutPath, { state: { buyNowItem, preSelectedVariant: mainVariant } });
   };
 
   const handleAddToCart = (e) => {
@@ -54,9 +60,10 @@ const ProductListItem = ({ product, index }) => {
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: displayPrice,
       image: product.image,
       quantity: 1,
+      variant: mainVariant,
     });
     triggerCartAnimation();
   };
@@ -73,7 +80,7 @@ const ProductListItem = ({ product, index }) => {
       addToWishlist({
         id: product.id,
         name: product.name,
-        price: product.price,
+        price: displayPrice,
         image: product.image,
       });
       toast.success("Added to wishlist");
@@ -94,10 +101,6 @@ const ProductListItem = ({ product, index }) => {
               src={product.image}
               alt={product.name}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.src =
-                  "https://via.placeholder.com/200x200?text=Product";
-              }}
             />
           </div>
         </Link>
@@ -153,11 +156,11 @@ const ProductListItem = ({ product, index }) => {
           {/* Price Row */}
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-sm font-bold text-gray-800">
-              {formatPrice(product.price)}
+              {formatPrice(displayPrice)}
             </span>
-            {product.originalPrice && (
+            {displayOriginalPrice && (
               <span className="text-[10px] text-gray-400 line-through font-medium">
-                {formatPrice(product.originalPrice)}
+                {formatPrice(displayOriginalPrice)}
               </span>
             )}
           </div>

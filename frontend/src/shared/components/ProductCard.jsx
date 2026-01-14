@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCartStore, useUIStore } from "../store/useStore";
 import { useWishlistStore } from "../store/wishlistStore";
-import { formatPrice, getPlaceholderImage } from "../utils/helpers";
+import { formatPrice, getPlaceholderImage, getMainProductVariant } from "../utils/helpers";
 import toast from "react-hot-toast";
 import LazyImage from "./LazyImage";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import useLongPress from "../../modules/UserApp/hooks/useLongPress";
 import LongPressMenu from "../../modules/UserApp/components/Mobile/LongPressMenu";
 import FlyingItem from "../../modules/UserApp/components/Mobile/FlyingItem";
@@ -16,6 +16,12 @@ import { getVendorById } from "../../data/vendors";
 const ProductCard = ({ product, hideRating = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Find main representative variant for display and pre-selection
+  const mainVariant = useMemo(() => getMainProductVariant(product), [product]);
+  const displayPrice = mainVariant?.price || product.price;
+  const displayOriginalPrice = mainVariant?.originalPrice || product.originalPrice;
+
   // Check if we're in the mobile app section
   const isMobileApp = location.pathname.startsWith("/app");
   const productLink = isMobileApp
@@ -27,7 +33,7 @@ const ProductCard = ({ product, hideRating = false }) => {
     if (e.target.closest('button') || e.target.closest('[data-no-navigate]')) {
       return;
     }
-    navigate(productLink);
+    navigate(productLink, { state: { preSelectedVariant: mainVariant } });
   };
   const addItem = useCartStore((state) => state.addItem);
   const triggerCartAnimation = useUIStore(
@@ -64,9 +70,10 @@ const ProductCard = ({ product, hideRating = false }) => {
       const buyNowItem = {
         id: product.id || product._id,
         name: product.name,
-        price: product.price,
+        price: displayPrice,
         image: product.image || product.images?.[0],
         quantity: 1,
+        variant: mainVariant,
         vendorId: product.vendorId || product.vendor?.id || product.vendor?._id,
         vendorName: product.vendorName || product.vendor?.storeName || product.vendor?.businessName,
       };
@@ -123,9 +130,10 @@ const ProductCard = ({ product, hideRating = false }) => {
       await addItem({
         id: product.id || product._id,
         name: product.name,
-        price: product.price,
+        price: displayPrice,
         image: product.image || product.images?.[0],
         quantity: 1,
+        variant: mainVariant,
         vendorId: product.vendorId || product.vendor?.id || product.vendor?._id,
         vendorName: product.vendorName || product.vendor?.storeName || product.vendor?.businessName,
       });
@@ -172,7 +180,7 @@ const ProductCard = ({ product, hideRating = false }) => {
       addToWishlist({
         id: product.id,
         name: product.name,
-        price: product.price,
+        price: displayPrice,
         image: product.image,
       });
       toast.success("Added to wishlist");
@@ -199,10 +207,10 @@ const ProductCard = ({ product, hideRating = false }) => {
           )}
           {/* Product Image */}
           <div className="w-full h-32 md:h-48 lg:h-56 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden relative">
-        <LazyImage
-          src={product.image || (product.images && product.images.length > 0 ? product.images[0] : getPlaceholderImage(300, 300, "Product Image"))}
-          alt={product.name}
-          className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+            <LazyImage
+              src={product.image || (product.images && product.images.length > 0 ? product.images[0] : getPlaceholderImage(300, 300, "Product Image"))}
+              alt={product.name}
+              className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
               style={{ willChange: "transform", transform: "translateZ(0)" }}
               context="product-listing"
               onError={(e) => {
@@ -259,11 +267,11 @@ const ProductCard = ({ product, hideRating = false }) => {
           {/* Price */}
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-xs font-bold text-gray-800">
-              {formatPrice(product.price)}
+              {formatPrice(displayPrice)}
             </span>
-            {product.originalPrice && (
+            {displayOriginalPrice && (
               <span className="text-[9px] text-gray-400 line-through font-medium">
-                {formatPrice(product.originalPrice)}
+                {formatPrice(displayOriginalPrice)}
               </span>
             )}
           </div>

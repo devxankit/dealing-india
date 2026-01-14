@@ -92,6 +92,15 @@ const getChildRoute = (parentRoute, childName) => {
       "Monitoring": "/admin/subscriptions?tab=monitoring",
       "Support Tools": "/admin/subscriptions?tab=support",
     },
+    "/admin/b2b-vendors": {
+      "Manage": "/admin/b2b-vendors/manage",
+      "Pending": "/admin/b2b-vendors/pending",
+      "Products": "/admin/b2b-vendors/products",
+      "Logs": "/admin/b2b-vendors/logs",
+      "Analytics": "/admin/b2b-vendors/analytics",
+      "Disputes": "/admin/b2b-vendors/disputes",
+      "Subscriptions": "/admin/b2b-vendors/subscriptions",
+    },
     "/admin/locations": {
       Cities: "/admin/locations/cities",
       Zipcodes: "/admin/locations/zipcodes",

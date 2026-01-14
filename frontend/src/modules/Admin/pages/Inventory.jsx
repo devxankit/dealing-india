@@ -9,6 +9,7 @@ import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency } from '../utils/adminHelpers';
 import toast from 'react-hot-toast';
+import { getPlaceholderImage } from '../../../shared/utils/helpers';
 
 const Inventory = () => {
   const location = useLocation();
@@ -161,7 +162,7 @@ const Inventory = () => {
             alt={value}
             className="w-10 h-10 object-cover rounded-lg"
             onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/50x50?text=Product';
+              e.target.src = getPlaceholderImage(50, 50, 'Product');
             }}
           />
           <span className="font-medium">{value}</span>
@@ -562,7 +563,7 @@ const StockManagementModal = ({ isOpen, product, lowStockThreshold, isAppRoute, 
                     alt={product.name}
                     className="w-16 h-16 object-cover rounded-lg"
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/64x64?text=Product';
+                      e.target.src = getPlaceholderImage(64, 64, 'Product');
                     }}
                   />
                   <div className="flex-1 min-w-0">
@@ -609,8 +610,8 @@ const StockManagementModal = ({ isOpen, product, lowStockThreshold, isAppRoute, 
                       type="button"
                       onClick={() => setAdjustmentType('set')}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${adjustmentType === 'set'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       Set
@@ -619,8 +620,8 @@ const StockManagementModal = ({ isOpen, product, lowStockThreshold, isAppRoute, 
                       type="button"
                       onClick={() => setAdjustmentType('add')}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${adjustmentType === 'add'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       Add
@@ -629,8 +630,8 @@ const StockManagementModal = ({ isOpen, product, lowStockThreshold, isAppRoute, 
                       type="button"
                       onClick={() => setAdjustmentType('subtract')}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${adjustmentType === 'subtract'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                     >
                       Subtract
@@ -732,8 +733,8 @@ const StockManagementModal = ({ isOpen, product, lowStockThreshold, isAppRoute, 
                       <span className="text-sm text-gray-600">Change:</span>
                       <span
                         className={`text-sm font-bold ${(stockQuantity || 0) - (product.stockQuantity || 0) >= 0
-                            ? 'text-green-600'
-                            : 'text-red-600'
+                          ? 'text-green-600'
+                          : 'text-red-600'
                           }`}
                       >
                         {(stockQuantity || 0) - (product.stockQuantity || 0) >= 0 ? '+' : ''}

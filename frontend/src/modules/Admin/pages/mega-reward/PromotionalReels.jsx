@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiPlus, FiTrash2, FiPlay, FiVideo, FiBarChart2, FiLoader, FiUpload, FiImage } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
-import { formatVideoUrl } from '../../../../shared/utils/helpers';
+import { formatVideoUrl, getPlaceholderImage } from '../../../../shared/utils/helpers';
 
 const PromotionalReels = () => {
     // Track which reel is being hovered to load its video source lazily
@@ -421,7 +421,7 @@ const PromotionalReels = () => {
                                             loop
                                         />
                                     ) : (
-                                        <img src={reel.thumbnail || 'https://via.placeholder.com/400x700?text=No+Thumbnail'} alt={reel.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                        <img src={reel.thumbnail || getPlaceholderImage(400, 700, 'No Thumbnail')} alt={reel.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                     )}
                                     <div className="absolute top-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[10px] font-bold text-white flex items-center gap-1">
                                         <FiPlay className="text-[8px]" /> {reel.shares || 0} Shares

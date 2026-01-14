@@ -29,8 +29,6 @@ import {
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
-import vendorB2BMenu from "../../config/vendorB2BMenu.json";
-import { useB2BModeStore } from "../../store/b2bModeStore";
 import { IndianRupee } from "lucide-react";
 
 // Icon mapping for menu items
@@ -66,7 +64,7 @@ const iconMap = {
   Profile: FiUser,
   // B2B Icons
   "B2B Dashboard": FiHome,
-  "Browse Wholesalers": FiUsers,
+  "Browse B2B Vendors": FiUsers,
   "My Inquiries": FiLayers,
   "B2B Messages": FiMessageCircle,
   "Price Requests": FiTag,
@@ -122,7 +120,6 @@ const VendorSidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const { isB2BMode } = useB2BModeStore();
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
 
@@ -165,9 +162,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
         };
       });
     }
-  }, [location.pathname, isB2BMode]);
+  }, [location.pathname]);
 
-  const currentMenu = isB2BMode ? vendorB2BMenu : vendorMenu;
+  const currentMenu = vendorMenu;
 
   // Check if a menu item is active
   const isActive = (route) => {

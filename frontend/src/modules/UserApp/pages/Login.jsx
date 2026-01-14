@@ -85,18 +85,18 @@ const MobileLogin = () => {
       setLocalLoading(true);
 
       // If using phone, combine country code with phone number
-      const identifier = loginMethod === 'phone' 
+      const identifier = loginMethod === 'phone'
         ? (data.countryCode ? `${data.countryCode}${data.phone}` : data.phone)
         : data.email;
-      
+
       await login(identifier, data.password, rememberMe);
-      
+
       setLocalLoading(false);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
+
       toast.success('Login successful!');
       navigate(from, { replace: true });
     } catch (error) {
@@ -105,7 +105,7 @@ const MobileLogin = () => {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
+
       // Show error toast with the message from store/interceptor
       toast.error(error.message || 'Login failed. Please try again.');
     }
@@ -136,22 +136,20 @@ const MobileLogin = () => {
                   <button
                     type="button"
                     onClick={() => setLoginMethod('phone')}
-                    className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
-                      loginMethod === 'phone'
-                        ? 'bg-primary-500 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${loginMethod === 'phone'
+                      ? 'bg-primary-500 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     Phone Number
                   </button>
                   <button
                     type="button"
                     onClick={() => setLoginMethod('email')}
-                    className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
-                      loginMethod === 'email'
-                        ? 'bg-primary-500 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${loginMethod === 'email'
+                      ? 'bg-primary-500 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     Email
                   </button>
@@ -193,11 +191,10 @@ const MobileLogin = () => {
                           onInput={(e) => {
                             e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
                           }}
-                          className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${
-                            errors.phone
-                              ? 'border-red-300 focus:border-red-500'
-                              : 'border-gray-200 focus:border-primary-500'
-                          } focus:outline-none transition-colors text-base`}
+                          className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.phone
+                            ? 'border-red-300 focus:border-red-500'
+                            : 'border-gray-200 focus:border-primary-500'
+                            } focus:outline-none transition-colors text-base`}
                           placeholder="1775472701"
                         />
                       </div>
@@ -220,11 +217,10 @@ const MobileLogin = () => {
                           validate: (value) =>
                             !value || isValidEmail(value) || 'Please enter a valid email',
                         })}
-                        className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${
-                          errors.email
-                            ? 'border-red-300 focus:border-red-500'
-                            : 'border-gray-200 focus:border-primary-500'
-                        } focus:outline-none transition-colors text-base`}
+                        className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.email
+                          ? 'border-red-300 focus:border-red-500'
+                          : 'border-gray-200 focus:border-primary-500'
+                          } focus:outline-none transition-colors text-base`}
                         placeholder="your.email@example.com"
                       />
                     </div>
@@ -250,11 +246,10 @@ const MobileLogin = () => {
                           message: 'Password must be at least 6 characters',
                         },
                       })}
-                      className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 bg-white text-gray-900 ${
-                        errors.password
-                          ? 'border-red-300 focus:border-red-500'
-                          : 'border-gray-200 focus:border-primary-500'
-                      } focus:outline-none transition-colors text-base`}
+                      className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.password
+                        ? 'border-red-300 focus:border-red-500'
+                        : 'border-gray-200 focus:border-primary-500'
+                        } focus:outline-none transition-colors text-base`}
                       placeholder="Enter your password"
                     />
                     <button
@@ -295,12 +290,12 @@ const MobileLogin = () => {
                   disabled={isButtonLoading}
                   className="w-full bg-primary-500 hover:bg-primary-600 text-white py-3.5 rounded-xl font-semibold text-base transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isButtonLoading ? 'Logging in...' : 'Log In'}
+                  {isButtonLoading ? 'Logging in...' : 'Log In'}
                 </button>
               </form>
 
               {/* Sign Up Link */}
-              <div className="mt-6 text-center">
+              <div className="mt-6 text-center space-y-4">
                 <p className="text-sm text-gray-600">
                   Don't have an account?{' '}
                   <Link
@@ -310,6 +305,23 @@ const MobileLogin = () => {
                     Sign Up
                   </Link>
                 </p>
+                <div className="pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">Business User?</p>
+                  <Link
+                    to="/b2b/login"
+                    className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-bold"
+                  >
+                    Switch to Bulk Marketplace
+                  </Link>
+                </div>
+                <div className="pt-2">
+                  <Link
+                    to="/b2b-vendor/login"
+                    className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-bold"
+                  >
+                    B2B Vendor Portal
+                  </Link>
+                </div>
               </div>
             </div>
           </motion.div>

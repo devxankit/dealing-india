@@ -12,7 +12,7 @@ const VendorVerification = () => {
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef([]);
   const { verifyEmail, resendOTP } = useVendorAuthStore();
-  
+
   const email = location.state?.email || 'your email';
 
   // Focus first input on mount
@@ -25,7 +25,7 @@ const VendorVerification = () => {
   const handleChange = (index, value) => {
     // Only allow single digit
     if (value.length > 1) return;
-    
+
     const newCodes = [...codes];
     newCodes[index] = value;
     setCodes(newCodes);
@@ -56,15 +56,17 @@ const VendorVerification = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const verificationCode = codes.join('');
-    
+
     if (verificationCode.length !== 4) {
       toast.error('Please enter the complete verification code');
       return;
     }
 
+    const vendorType = location.state?.vendorType || 'b2c';
+
     if (!email || email === 'your email') {
       toast.error('Email not found. Please register again.');
-      navigate('/vendor/register');
+      navigate(vendorType === 'b2b' ? '/b2b-vendor/register' : '/vendor/register');
       return;
     }
 
@@ -73,8 +75,11 @@ const VendorVerification = () => {
       const result = await verifyEmail(email, verificationCode);
       if (result.success) {
         // Show registration successful message after OTP verification
-        toast.success('Registration successful! Your account has been created and is pending admin approval.');
-        navigate('/vendor/login');
+        const successMsg = vendorType === 'b2b'
+          ? 'B2B Registration successful! Your application is pending admin approval. You will be notified via email.'
+          : 'Registration successful! Your account has been created and is pending admin approval.';
+        toast.success(successMsg);
+        navigate(vendorType === 'b2b' ? '/b2b-vendor/login' : '/vendor/login');
       }
     } catch (error) {
       // Error toast is already shown by API interceptor
@@ -85,7 +90,9 @@ const VendorVerification = () => {
 
   const handleResend = async () => {
     if (!email || email === 'your email') {
+      const vendorType = location.state?.vendorType || 'b2c';
       toast.error('Email not found. Please register again.');
+      navigate(vendorType === 'b2b' ? '/b2b-vendor/register' : '/vendor/register');
       return;
     }
 
@@ -168,7 +175,7 @@ const VendorVerification = () => {
           {/* Back to Login */}
           <div className="text-center pt-4">
             <Link
-              to="/vendor/login"
+              to={location.state?.vendorType === 'b2b' ? "/b2b-vendor/login" : "/vendor/login"}
               className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
             >
               <FiArrowLeft />

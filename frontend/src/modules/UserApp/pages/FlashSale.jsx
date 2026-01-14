@@ -29,18 +29,18 @@ const MobileFlashSale = () => {
     const vendor = product.vendorId;
     const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
       ? {
-          id: (vendor._id || vendor.id).toString(),
-          _id: vendor._id || vendor.id,
-          storeName: vendor.storeName || vendor.businessName || vendor.name,
-          businessName: vendor.businessName,
-          name: vendor.name,
-          storeLogo: vendor.storeLogo || vendor.logo,
-          isVerified: vendor.isVerified !== undefined 
-            ? vendor.isVerified 
-            : (vendor.status === 'approved' || vendor.isEmailVerified || false),
-        }
+        id: (vendor._id || vendor.id).toString(),
+        _id: vendor._id || vendor.id,
+        storeName: vendor.storeName || vendor.businessName || vendor.name,
+        businessName: vendor.businessName,
+        name: vendor.name,
+        storeLogo: vendor.storeLogo || vendor.logo,
+        isVerified: vendor.isVerified !== undefined
+          ? vendor.isVerified
+          : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+      }
       : null;
-    
+
     return {
       id: product._id || product.id,
       name: product.name,
@@ -56,6 +56,10 @@ const MobileFlashSale = () => {
       vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
       vendor: vendorData,
       flashSale: product.flashSale || false,
+      variants: product.variants || {},
+      sizeVariants: product.sizeVariants || [],
+      primaryColorName: product.primaryColorName,
+      primaryColorCode: product.primaryColorCode,
     };
   };
 

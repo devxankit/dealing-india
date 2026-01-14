@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiX, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import LazyImage from "../LazyImage";
@@ -7,6 +7,11 @@ import useSwipeGesture from "../../../modules/UserApp/hooks/useSwipeGesture";
 const ImageGallery = ({ images, productName = "Product" }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  // Reset selected image index when images change (e.g., variant change)
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [images]);
 
   // Ensure images is an array
   const imageArray =
@@ -65,10 +70,6 @@ const ImageGallery = ({ images, productName = "Product" }) => {
               src={imageArray[selectedIndex]}
               alt={`${productName} - Image ${selectedIndex + 1}`}
               className="w-full h-full object-contain"
-              onError={(e) => {
-                e.target.src =
-                  "https://via.placeholder.com/500x500?text=Product+Image";
-              }}
             />
           </motion.div>
 
@@ -96,19 +97,14 @@ const ImageGallery = ({ images, productName = "Product" }) => {
               <button
                 key={index}
                 onClick={() => handleThumbnailClick(index)}
-                className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
-                  selectedIndex === index
-                    ? "border-primary-600 scale-105"
-                    : "border-gray-200"
-                }`}>
+                className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${selectedIndex === index
+                  ? "border-primary-600 scale-105"
+                  : "border-gray-200"
+                  }`}>
                 <LazyImage
                   src={image}
                   alt={`${productName} thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src =
-                      "https://via.placeholder.com/100x100?text=Thumbnail";
-                  }}
                 />
               </button>
             ))}
@@ -141,10 +137,6 @@ const ImageGallery = ({ images, productName = "Product" }) => {
                 src={imageArray[selectedIndex]}
                 alt={`${productName} - Full view`}
                 className="w-full h-full object-contain max-h-[90vh] rounded-lg"
-                onError={(e) => {
-                  e.target.src =
-                    "https://via.placeholder.com/800x800?text=Product+Image";
-                }}
               />
 
               {/* Navigation in Lightbox */}

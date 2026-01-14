@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiShoppingBag, FiMapPin, FiUpload, FiFile, FiX } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiShoppingBag, FiMapPin, FiUpload, FiFile, FiX, FiBriefcase } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import toast from 'react-hot-toast';
+
+import VendorTypeSelector from '../components/VendorTypeSelector';
+import SubscriptionPlanSelector from '../components/SubscriptionPlanSelector';
 
 const VendorRegister = () => {
   const navigate = useNavigate();
@@ -15,6 +18,9 @@ const VendorRegister = () => {
   // Get pre-filled data from navigation state (e.g. from "Become a Seller" button)
   const preFilledData = location.state?.userData || {};
   const isUpgrade = location.state?.isUpgrade || false;
+
+  const [vendorType, setVendorType] = useState('b2c'); // 'b2c' or 'b2b'
+  const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
 
   useEffect(() => {
     if (isUpgrade && preFilledData.name) {
@@ -35,7 +41,7 @@ const VendorRegister = () => {
       city: '',
       state: '',
       zipCode: '',
-      country: 'USA',
+      country: 'India',
     },
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -185,6 +191,11 @@ const VendorRegister = () => {
       return;
     }
 
+    if (vendorType === 'b2b' && !subscriptionPlan) {
+      toast.error('Please select a subscription plan for B2B registration');
+      return;
+    }
+
     try {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -205,7 +216,9 @@ const VendorRegister = () => {
         storeName: formData.storeName,
         storeDescription: formData.storeDescription,
         address: formData.address,
-        documents: documents, // Include documents array
+        documents: documents,
+        vendorType,
+        subscriptionPlan: vendorType === 'b2b' ? subscriptionPlan : null,
       });
 
       setLocalLoading(false);
@@ -217,7 +230,7 @@ const VendorRegister = () => {
       // Show message that OTP has been sent (not registration successful yet)
       toast.success('Verification code sent to your email. Please verify to complete registration.');
       // Navigate to verification page
-      navigate('/vendor/verification', { state: { email: formData.email } });
+      navigate('/vendor/verification', { state: { email: formData.email, vendorType } });
     } catch (error) {
       setLocalLoading(false);
       if (timeoutRef.current) {
@@ -253,366 +266,388 @@ const VendorRegister = () => {
         </div>
 
         {/* Registration Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Personal Information */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <FiUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder="John Doe"
-                    className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="vendor@example.com"
-                    className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <FiPhone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="+1234567890"
-                    className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-10">
+          {/* Vendor Type Selection */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <FiBriefcase className="text-primary-500" />
+              Choose Your Vendor Type
+            </h3>
+            <VendorTypeSelector selected={vendorType} onSelect={setVendorType} />
           </div>
 
-          {/* Store Information */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Store Information</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Store Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <FiShoppingBag className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    name="storeName"
-                    value={formData.storeName}
-                    onChange={handleChange}
-                    placeholder="My Awesome Store"
-                    className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                    required
-                  />
-                </div>
-              </div>
+          {/* Subscription Section for B2B */}
+          {vendorType === 'b2b' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="pt-4 border-t border-gray-100"
+            >
+              <SubscriptionPlanSelector selected={subscriptionPlan} onSelect={setSubscriptionPlan} />
+            </motion.div>
+          )}
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Store Description
-                </label>
-                <textarea
-                  name="storeDescription"
-                  value={formData.storeDescription}
-                  onChange={handleChange}
-                  placeholder="Describe your store and products..."
-                  rows={3}
-                  className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Address Information */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Address</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Street Address
-                </label>
-                <div className="relative">
-                  <FiMapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    name="address.street"
-                    value={formData.address.street}
-                    onChange={handleChange}
-                    placeholder="123 Main Street"
-                    className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
-                <input
-                  type="text"
-                  name="address.city"
-                  value={formData.address.city}
-                  onChange={handleChange}
-                  placeholder="New York"
-                  className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">State</label>
-                <input
-                  type="text"
-                  name="address.state"
-                  value={formData.address.state}
-                  onChange={handleChange}
-                  placeholder="NY"
-                  className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Zip Code</label>
-                <input
-                  type="text"
-                  name="address.zipCode"
-                  value={formData.address.zipCode}
-                  onChange={handleChange}
-                  placeholder="10001"
-                  className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Country</label>
-                <input
-                  type="text"
-                  name="address.country"
-                  value={formData.address.country}
-                  onChange={handleChange}
-                  placeholder="USA"
-                  className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Password */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Account Security</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Minimum 6 characters"
-                    className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Confirm Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="Re-enter password"
-                    className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Document Upload Section */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Documents</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              Upload your PAN Card and Business License for verification (PDF or Images, max 5MB each)
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* PAN Card Upload */}
-              <div className="space-y-3">
-                <label className="block text-sm font-semibold text-gray-700">
-                  PAN Card <span className="text-red-500">*</span>
-                </label>
-                {!panCard ? (
+          <div className="pt-6 border-t border-gray-100">
+            {/* Personal Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
+                    <FiUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
-                      type="file"
-                      accept=".pdf,application/pdf,image/*"
-                      onChange={(e) => handleDocumentUpload(e, 'pan')}
-                      className="hidden"
-                      id="pan-upload"
-                      disabled={isUploadingDocs}
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="John Doe"
+                      className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                      required
                     />
-                    <label
-                      htmlFor="pan-upload"
-                      className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-all ${isUploadingDocs ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <FiUpload className="text-2xl text-gray-400" />
-                      <span className="text-sm text-gray-500 font-medium">Upload PAN Card</span>
-                      <span className="text-xs text-gray-400">PDF or Image (max 5MB)</span>
-                    </label>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 bg-primary-50 rounded-2xl border-2 border-primary-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                        <FiFile className="text-primary-600 text-lg" />
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="text-sm font-semibold text-gray-800 truncate max-w-[150px]">
-                          {panCard.fileName}
-                        </p>
-                        <p className="text-xs text-primary-600">PAN Card</p>
-                      </div>
-                    </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="vendor@example.com"
+                      className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <FiPhone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="+1234567890"
+                      className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Store Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Store Information</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Store Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <FiShoppingBag className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      name="storeName"
+                      value={formData.storeName}
+                      onChange={handleChange}
+                      placeholder="My Awesome Store"
+                      className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Store Description
+                  </label>
+                  <textarea
+                    name="storeDescription"
+                    value={formData.storeDescription}
+                    onChange={handleChange}
+                    placeholder="Describe your store and products..."
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Address Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Address</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Street Address
+                  </label>
+                  <div className="relative">
+                    <FiMapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      name="address.street"
+                      value={formData.address.street}
+                      onChange={handleChange}
+                      placeholder="123 Main Street"
+                      className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                  <input
+                    type="text"
+                    name="address.city"
+                    value={formData.address.city}
+                    onChange={handleChange}
+                    placeholder="New York"
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">State</label>
+                  <input
+                    type="text"
+                    name="address.state"
+                    value={formData.address.state}
+                    onChange={handleChange}
+                    placeholder="NY"
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Zip Code</label>
+                  <input
+                    type="text"
+                    name="address.zipCode"
+                    value={formData.address.zipCode}
+                    onChange={handleChange}
+                    placeholder="10001"
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Country</label>
+                  <input
+                    type="text"
+                    name="address.country"
+                    value={formData.address.country}
+                    onChange={handleChange}
+                    placeholder="USA"
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Account Security</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Minimum 6 characters"
+                      className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                      required
+                    />
                     <button
                       type="button"
-                      onClick={() => removeDocument('pan')}
-                      className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      <FiX />
+                      {showPassword ? <FiEyeOff /> : <FiEye />}
                     </button>
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* Business License Upload */}
-              <div className="space-y-3">
-                <label className="block text-sm font-semibold text-gray-700">
-                  Business License <span className="text-red-500">*</span>
-                </label>
-                {!businessLicense ? (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Confirm Password <span className="text-red-500">*</span>
+                  </label>
                   <div className="relative">
+                    <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
-                      type="file"
-                      accept=".pdf,application/pdf,image/*"
-                      onChange={(e) => handleDocumentUpload(e, 'license')}
-                      className="hidden"
-                      id="license-upload"
-                      disabled={isUploadingDocs}
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="Re-enter password"
+                      className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                      required
                     />
-                    <label
-                      htmlFor="license-upload"
-                      className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-all ${isUploadingDocs ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <FiUpload className="text-2xl text-gray-400" />
-                      <span className="text-sm text-gray-500 font-medium">Upload License</span>
-                      <span className="text-xs text-gray-400">PDF or Image (max 5MB)</span>
-                    </label>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between p-4 bg-primary-50 rounded-2xl border-2 border-primary-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                        <FiFile className="text-primary-600 text-lg" />
-                      </div>
-                      <div className="overflow-hidden">
-                        <p className="text-sm font-semibold text-gray-800 truncate max-w-[150px]">
-                          {businessLicense.fileName}
-                        </p>
-                        <p className="text-xs text-primary-600">Business License</p>
-                      </div>
-                    </div>
                     <button
                       type="button"
-                      onClick={() => removeDocument('license')}
-                      className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      <FiX />
+                      {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
                     </button>
                   </div>
-                )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Info Message */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Your registration will be reviewed by our admin team.
-              You'll receive an email once your account is approved.
-            </p>
-          </div>
+            {/* Document Upload Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Documents</h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Upload your PAN Card and Business License for verification (PDF or Images, max 5MB each)
+              </p>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isButtonLoading}
-            className="w-full gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isButtonLoading ? 'Registering...' : 'Register as Vendor'}
-          </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* PAN Card Upload */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    PAN Card <span className="text-red-500">*</span>
+                  </label>
+                  {!panCard ? (
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf,image/*"
+                        onChange={(e) => handleDocumentUpload(e, 'pan')}
+                        className="hidden"
+                        id="pan-upload"
+                        disabled={isUploadingDocs}
+                      />
+                      <label
+                        htmlFor="pan-upload"
+                        className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-all ${isUploadingDocs ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <FiUpload className="text-2xl text-gray-400" />
+                        <span className="text-sm text-gray-500 font-medium">Upload PAN Card</span>
+                        <span className="text-xs text-gray-400">PDF or Image (max 5MB)</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-4 bg-primary-50 rounded-2xl border-2 border-primary-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                          <FiFile className="text-primary-600 text-lg" />
+                        </div>
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-semibold text-gray-800 truncate max-w-[150px]">
+                            {panCard.fileName}
+                          </p>
+                          <p className="text-xs text-primary-600">PAN Card</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDocument('pan')}
+                        className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-          {/* Login Link */}
-          <div className="text-center pt-4">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link
-                to="/vendor/login"
-                className="text-primary-600 hover:text-primary-700 font-semibold"
-              >
-                Login
-              </Link>
-            </p>
+                {/* Business License Upload */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Business License <span className="text-red-500">*</span>
+                  </label>
+                  {!businessLicense ? (
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf,image/*"
+                        onChange={(e) => handleDocumentUpload(e, 'license')}
+                        className="hidden"
+                        id="license-upload"
+                        disabled={isUploadingDocs}
+                      />
+                      <label
+                        htmlFor="license-upload"
+                        className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-6 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-all ${isUploadingDocs ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <FiUpload className="text-2xl text-gray-400" />
+                        <span className="text-sm text-gray-500 font-medium">Upload License</span>
+                        <span className="text-xs text-gray-400">PDF or Image (max 5MB)</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-4 bg-primary-50 rounded-2xl border-2 border-primary-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                          <FiFile className="text-primary-600 text-lg" />
+                        </div>
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-semibold text-gray-800 truncate max-w-[150px]">
+                            {businessLicense.fileName}
+                          </p>
+                          <p className="text-xs text-primary-600">Business License</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDocument('license')}
+                        className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Info Message */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Your registration will be reviewed by our admin team.
+                You'll receive an email once your account is approved.
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isButtonLoading}
+              className="w-full gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isButtonLoading ? 'Registering...' : 'Register as Vendor'}
+            </button>
+
+            {/* Login Link */}
+            <div className="text-center pt-4">
+              <p className="text-sm text-gray-600">
+                Already have an account?{' '}
+                <Link
+                  to="/vendor/login"
+                  className="text-primary-600 hover:text-primary-700 font-semibold"
+                >
+                  Login
+                </Link>
+              </p>
+            </div>
           </div>
         </form>
       </motion.div>

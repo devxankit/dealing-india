@@ -75,6 +75,7 @@ const MobileSearch = () => {
         minRating: filters.minRating || undefined,
         isNew: filters.isNew ? true : undefined, // Only pass if true
         isTrending: filters.isTrending ? true : undefined, // Only pass if true
+        vendorType: 'b2c',
         page: 1,
         limit: 100, // Get more products for better UX
         sortBy: 'createdAt',
@@ -87,29 +88,29 @@ const MobileSearch = () => {
         const vendor = product.vendorId;
         const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
           ? {
-              id: (vendor._id || vendor.id).toString(),
-              _id: vendor._id || vendor.id,
-              storeName: vendor.storeName || vendor.businessName || vendor.name,
-              businessName: vendor.businessName,
-              name: vendor.name,
-              storeLogo: vendor.storeLogo || vendor.logo,
-              isVerified: vendor.isVerified !== undefined 
-                ? vendor.isVerified 
-                : (vendor.status === 'approved' || vendor.isEmailVerified || false),
-            }
+            id: (vendor._id || vendor.id).toString(),
+            _id: vendor._id || vendor.id,
+            storeName: vendor.storeName || vendor.businessName || vendor.name,
+            businessName: vendor.businessName,
+            name: vendor.name,
+            storeLogo: vendor.storeLogo || vendor.logo,
+            isVerified: vendor.isVerified !== undefined
+              ? vendor.isVerified
+              : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+          }
           : null;
 
         // Get main image - ALWAYS prioritize product.image (main image) over gallery images
         // Backend model: image (String) = main image, images ([String]) = gallery images
         // We should NEVER use gallery images if main image exists
         let mainImage = product.image;
-        
+
         // Debug: Log if we're using gallery image instead of main
         if (!mainImage && product.images && product.images.length > 0) {
           console.warn(`Product ${product.name} has no main image, using gallery image:`, product.images[0]);
           mainImage = product.images[0];
         }
-        
+
         // Ensure we're using the main image, not gallery
         if (product.image && product.images && product.images.includes(product.image)) {
           // Main image is also in gallery, that's fine - use main image
@@ -133,6 +134,9 @@ const MobileSearch = () => {
           vendorName: vendorData?.storeName || product.vendorName || 'Unknown Vendor',
           flashSale: product.flashSale || false,
           variants: product.variants || {},
+          sizeVariants: product.sizeVariants || [],
+          primaryColorName: product.primaryColorName,
+          primaryColorCode: product.primaryColorCode,
         };
       });
 

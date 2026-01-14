@@ -22,7 +22,7 @@ const NewArrivalsSection = () => {
           sortBy: 'createdAt',
           sortOrder: 'desc',
         });
-        
+
         // Transform products to match frontend format
         const transformedProducts = (response.products || []).map((product) => ({
           id: product._id || product.id,
@@ -30,7 +30,7 @@ const NewArrivalsSection = () => {
           image: product.image,
           images: product.images || [],
         }));
-        
+
         setNewArrivals(transformedProducts);
       } catch (error) {
         console.error('Error fetching new arrivals:', error);
@@ -207,10 +207,6 @@ const NewArrivalsSection = () => {
                         src={product.image}
                         alt={product.name}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src =
-                            "https://via.placeholder.com/300x300?text=Product+Image";
-                        }}
                       />
                     </div>
                   </Link>

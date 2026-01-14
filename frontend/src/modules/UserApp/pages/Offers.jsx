@@ -29,18 +29,18 @@ const MobileOffers = () => {
     const vendor = product.vendorId;
     const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
       ? {
-          id: (vendor._id || vendor.id).toString(),
-          _id: vendor._id || vendor.id,
-          storeName: vendor.storeName || vendor.businessName || vendor.name,
-          businessName: vendor.businessName,
-          name: vendor.name,
-          storeLogo: vendor.storeLogo || vendor.logo,
-          isVerified: vendor.isVerified !== undefined 
-            ? vendor.isVerified 
-            : (vendor.status === 'approved' || vendor.isEmailVerified || false),
-        }
+        id: (vendor._id || vendor.id).toString(),
+        _id: vendor._id || vendor.id,
+        storeName: vendor.storeName || vendor.businessName || vendor.name,
+        businessName: vendor.businessName,
+        name: vendor.name,
+        storeLogo: vendor.storeLogo || vendor.logo,
+        isVerified: vendor.isVerified !== undefined
+          ? vendor.isVerified
+          : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+      }
       : null;
-    
+
     return {
       id: product._id || product.id,
       name: product.name,
@@ -56,6 +56,10 @@ const MobileOffers = () => {
       vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
       vendor: vendorData,
       flashSale: product.flashSale || false,
+      variants: product.variants || {},
+      sizeVariants: product.sizeVariants || [],
+      primaryColorName: product.primaryColorName,
+      primaryColorCode: product.primaryColorCode,
     };
   };
 
@@ -65,17 +69,17 @@ const MobileOffers = () => {
       try {
         setIsLoadingProducts(true);
         const campaignStore = useCampaignStore.getState();
-        
+
         // Fetch both special_offer and festival campaigns
         await campaignStore.initializePublic({ type: 'special_offer', limit: 100 });
         await campaignStore.initializePublic({ type: 'festival', limit: 100 });
-        
+
         const specialOfferCampaigns = campaignStore.getPublicCampaignsByType('special_offer');
         const festivalCampaigns = campaignStore.getPublicCampaignsByType('festival');
-        
+
         // Combine all campaigns
         const allCampaigns = [...specialOfferCampaigns, ...festivalCampaigns];
-        
+
         // Collect all products from all campaigns
         let allProducts = [];
         allCampaigns.forEach(campaign => {
@@ -84,7 +88,7 @@ const MobileOffers = () => {
               // Apply campaign discount
               let discountedPrice = product.price;
               let originalPrice = product.originalPrice || product.price;
-              
+
               if (campaign.discountType === 'percentage' && campaign.discountValue) {
                 discountedPrice = product.price * (1 - campaign.discountValue / 100);
                 originalPrice = product.price;
@@ -92,7 +96,7 @@ const MobileOffers = () => {
                 discountedPrice = Math.max(0, product.price - campaign.discountValue);
                 originalPrice = product.price;
               }
-              
+
               return {
                 ...transformProduct(product),
                 price: discountedPrice,
@@ -102,7 +106,7 @@ const MobileOffers = () => {
             allProducts = [...allProducts, ...campaignProducts];
           }
         });
-        
+
         // Remove duplicates based on product ID
         const uniqueProducts = allProducts.reduce((acc, product) => {
           if (!acc.find(p => p.id === product.id)) {
@@ -110,7 +114,7 @@ const MobileOffers = () => {
           }
           return acc;
         }, []);
-        
+
         setAllOffers(uniqueProducts);
       } catch (error) {
         console.error('Error fetching special offers from campaigns:', error);

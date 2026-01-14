@@ -11,7 +11,7 @@ import {
   deleteVendorReel as deleteVendorReelAPI,
 } from "../../services/reelService";
 import api from "../../../../shared/utils/api";
-import { formatVideoUrl } from "../../../../shared/utils/helpers";
+import { formatVideoUrl, getPlaceholderImage } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 
 const AllReels = () => {
@@ -182,7 +182,7 @@ const AllReels = () => {
                 }}
               />
             ) : (
-              <img src={row.thumbnail || row.productId?.image} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src = "https://via.placeholder.com/64"; }} />
+              <img src={row.thumbnail || row.productId?.image} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src = getPlaceholderImage(64, 64, "Reel"); }} />
             )}
             <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
               <FiPlay className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />

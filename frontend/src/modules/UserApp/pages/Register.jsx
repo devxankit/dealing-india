@@ -18,9 +18,9 @@ const MobileRegister = () => {
   const timeoutRef = useRef(null);
 
   // Increased timeout for production (email sending can take up to 60s)
-  const isProduction = typeof window !== 'undefined' && 
-    (window.location.hostname.includes('vercel.app') || 
-     window.location.hostname.includes('onrender.com'));
+  const isProduction = typeof window !== 'undefined' &&
+    (window.location.hostname.includes('vercel.app') ||
+      window.location.hostname.includes('onrender.com'));
   const timeoutDuration = isProduction ? 95000 : 35000; // 95s in production, 35s in dev
 
   const {
@@ -102,13 +102,13 @@ const MobileRegister = () => {
       const phone = data.countryCode ? `${data.countryCode}${data.phone}` : data.phone;
 
       const result = await registerUser(fullName, data.email, data.password, phone);
-      
+
       setLocalLoading(false);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
+
       // Show message that OTP has been sent (not registration successful yet)
       toast.success('Verification code sent to your email. Please verify to complete registration.');
       // Navigate to verification page
@@ -119,11 +119,11 @@ const MobileRegister = () => {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
+
       // Extract error message
-      const errorMessage = error?.message || 
-                         error?.response?.data?.message || 
-                         'Registration failed. Please check your information and try again.';
+      const errorMessage = error?.message ||
+        error?.response?.data?.message ||
+        'Registration failed. Please check your information and try again.';
       // Show error toast (API interceptor won't show for auth pages)
       toast.error(errorMessage);
     }
@@ -155,8 +155,8 @@ const MobileRegister = () => {
                     type="button"
                     onClick={() => handleModeChange('signup')}
                     className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${formMode === 'signup'
-                        ? 'bg-primary-500 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-primary-500 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
                       }`}
                   >
                     Sign Up
@@ -165,8 +165,8 @@ const MobileRegister = () => {
                     type="button"
                     onClick={() => handleModeChange('login')}
                     className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${formMode === 'login'
-                        ? 'bg-primary-500 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-primary-500 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
                       }`}
                   >
                     Log In
@@ -193,8 +193,8 @@ const MobileRegister = () => {
                         },
                       })}
                       className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.firstName
-                          ? 'border-red-300 focus:border-red-500'
-                          : 'border-gray-200 focus:border-primary-500'
+                        ? 'border-red-300 focus:border-red-500'
+                        : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
                       placeholder="Raj"
                     />
@@ -221,8 +221,8 @@ const MobileRegister = () => {
                         },
                       })}
                       className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.lastName
-                          ? 'border-red-300 focus:border-red-500'
-                          : 'border-gray-200 focus:border-primary-500'
+                        ? 'border-red-300 focus:border-red-500'
+                        : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
                       placeholder="Sarkar"
                     />
@@ -247,8 +247,8 @@ const MobileRegister = () => {
                           isValidEmail(value) || 'Please enter a valid email',
                       })}
                       className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.email
-                          ? 'border-red-300 focus:border-red-500'
-                          : 'border-gray-200 focus:border-primary-500'
+                        ? 'border-red-300 focus:border-red-500'
+                        : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
                       placeholder="sarkarraj0766@gmail.com"
                     />
@@ -271,8 +271,8 @@ const MobileRegister = () => {
                         required: 'Birth date is required',
                       })}
                       className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.birthDate
-                          ? 'border-red-300 focus:border-red-500'
-                          : 'border-gray-200 focus:border-primary-500'
+                        ? 'border-red-300 focus:border-red-500'
+                        : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
                     />
                   </div>
@@ -314,8 +314,8 @@ const MobileRegister = () => {
                           e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
                         }}
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.phone
-                            ? 'border-red-300 focus:border-red-500'
-                            : 'border-gray-200 focus:border-primary-500'
+                          ? 'border-red-300 focus:border-red-500'
+                          : 'border-gray-200 focus:border-primary-500'
                           } focus:outline-none transition-colors text-base`}
                         placeholder="4547260592"
                       />
@@ -343,8 +343,8 @@ const MobileRegister = () => {
                         },
                       })}
                       className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 bg-white text-gray-900 ${errors.password
-                          ? 'border-red-300 focus:border-red-500'
-                          : 'border-gray-200 focus:border-primary-500'
+                        ? 'border-red-300 focus:border-red-500'
+                        : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
                       placeholder="Create a password"
                     />
@@ -365,14 +365,14 @@ const MobileRegister = () => {
                 <button
                   type="submit"
                   disabled={isButtonLoading}
-                    className="w-full bg-primary-500 hover:bg-primary-600 text-white py-3.5 rounded-xl font-semibold text-base transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isButtonLoading ? 'Creating Account...' : 'Sign Up'}
+                  className="w-full bg-primary-500 hover:bg-primary-600 text-white py-3.5 rounded-xl font-semibold text-base transition-all duration-300 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isButtonLoading ? 'Creating Account...' : 'Sign Up'}
                 </button>
               </form>
 
               {/* Sign In Link */}
-              <div className="mt-6 text-center">
+              <div className="mt-6 text-center space-y-4">
                 <p className="text-sm text-gray-600">
                   Already have an account?{' '}
                   <Link
@@ -382,6 +382,15 @@ const MobileRegister = () => {
                     Sign In
                   </Link>
                 </p>
+                <div className="pt-4 border-t border-gray-100 text-center">
+                  <p className="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">Are you a Wholesaler / Bulk Buyer?</p>
+                  <Link
+                    to="/b2b/register"
+                    className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-bold"
+                  >
+                    Create a Business Account
+                  </Link>
+                </div>
               </div>
             </div>
           </motion.div>

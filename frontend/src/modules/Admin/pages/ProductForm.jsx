@@ -164,17 +164,36 @@ const ProductForm = () => {
     e.preventDefault();
 
     // Validation
-    if (!formData.name || !formData.price || !formData.stockQuantity) {
+    const hasSizeVariants = formData.variants?.sizes && formData.variants.sizes.length > 0;
+    const hasPriceVariants = formData.variants?.prices && Object.keys(formData.variants.prices).length > 0;
+    const isPriceRequired = !hasSizeVariants && !hasPriceVariants;
+
+    if (!formData.name || (isPriceRequired && !formData.price) || (isPriceRequired && !formData.stockQuantity)) {
       toast.error("Please fill in all required fields");
       return;
     }
 
     try {
+      const hasSizeVariants = formData.variants?.sizes && formData.variants.sizes.length > 0;
+      const hasPriceVariants = formData.variants?.prices && Object.keys(formData.variants.prices).length > 0;
+      const isPriceRequired = !hasSizeVariants && !hasPriceVariants;
+
+      let parsedPrice = formData.price ? parseFloat(formData.price) : 0;
+      let parsedStockQuantity = formData.stockQuantity ? parseInt(formData.stockQuantity) : 0;
+
+      // Handle variants if they exist
+      if (hasPriceVariants) {
+        const prices = Object.values(formData.variants.prices).map(p => parseFloat(p)).filter(p => !isNaN(p));
+        if (prices.length > 0) {
+          parsedPrice = Math.min(...prices);
+        }
+      }
+
       // Prepare payload
       const payload = {
         name: formData.name,
         unit: formData.unit || "",
-        price: parseFloat(formData.price),
+        price: parsedPrice,
         originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
         image: formData.image || null,
         images: formData.images || [],
@@ -184,7 +203,7 @@ const ProductForm = () => {
         subSubCategoryId: formData.subSubCategoryId || null,
         brandId: formData.brandId || null,
         stock: formData.stock || "in_stock",
-        stockQuantity: parseInt(formData.stockQuantity),
+        stockQuantity: parsedStockQuantity,
         totalAllowedQuantity: formData.totalAllowedQuantity ? parseInt(formData.totalAllowedQuantity) : null,
         minimumOrderQuantity: formData.minimumOrderQuantity ? parseInt(formData.minimumOrderQuantity) : null,
         warrantyPeriod: formData.warrantyPeriod || null,
@@ -337,42 +356,7 @@ const ProductForm = () => {
           </div>
         </div>
 
-        {/* Pricing */}
-        <div>
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Pricing</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Price <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleChange}
-                required
-                min="0"
-                step="0.01"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Original Price (for discount)
-              </label>
-              <input
-                type="number"
-                name="originalPrice"
-                value={formData.originalPrice}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-          </div>
-        </div>
+        {/* Pricing removed as per user request - prices now managed via sizes */}
 
         {/* Image */}
         <div>

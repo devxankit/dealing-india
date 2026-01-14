@@ -31,10 +31,15 @@ export const getPublicProducts = async (filters = {}) => {
       limit = 20,
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      vendorType,
     } = filters;
 
-    // Get active and approved vendors
-    const activeVendors = await Vendor.find({ isActive: true, status: 'approved' }).select('_id');
+    // Get active and approved vendors with optional vendorType filter
+    const vendorQuery = { isActive: true, status: 'approved' };
+    if (vendorType) {
+      vendorQuery.vendorType = vendorType;
+    }
+    const activeVendors = await Vendor.find(vendorQuery).select('_id');
     const activeVendorIds = activeVendors.map(v => v._id);
 
     // Build query - only visible products from active vendors

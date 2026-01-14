@@ -6,10 +6,11 @@ import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import {
   formatPrice,
   getPlaceholderImage,
+  getMainProductVariant,
 } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import LazyImage from "../../../../shared/components/LazyImage";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import useLongPress from "../../hooks/useLongPress";
 import LongPressMenu from "./LongPressMenu";
 import FlyingItem from "./FlyingItem";
@@ -18,6 +19,11 @@ import { getVendorById } from "../../../../data/vendors";
 
 const MobileProductCard = ({ product }) => {
   const navigate = useNavigate();
+
+  // Find main representative variant for display and pre-selection
+  const mainVariant = useMemo(() => getMainProductVariant(product), [product]);
+  const displayPrice = mainVariant?.price || product.price;
+  const displayOriginalPrice = mainVariant?.originalPrice || product.originalPrice;
   const addItem = useCartStore((state) => state.addItem);
   const triggerCartAnimation = useUIStore(
     (state) => state.triggerCartAnimation
@@ -49,9 +55,10 @@ const MobileProductCard = ({ product }) => {
     const buyNowItem = {
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: displayPrice,
       image: product.image,
       quantity: 1,
+      variant: mainVariant,
     };
 
     navigate("/app/checkout", { state: { buyNowItem } });
@@ -98,9 +105,10 @@ const MobileProductCard = ({ product }) => {
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: displayPrice,
       image: product.image,
       quantity: 1,
+      variant: mainVariant,
     });
     triggerCartAnimation();
   };
@@ -117,7 +125,7 @@ const MobileProductCard = ({ product }) => {
       addToWishlist({
         id: product.id,
         name: product.name,
-        price: product.price,
+        price: displayPrice,
         image: product.image,
       });
       toast.success("Added to wishlist");
@@ -152,7 +160,7 @@ const MobileProductCard = ({ product }) => {
 
   return (
     <>
-      <Link to={`/app/product/${product.id}`} className="block">
+      <Link to={`/app/product/${product.id}`} state={{ preSelectedVariant: mainVariant }} className="block">
         <motion.div
           whileTap={{ scale: 0.98 }}
           className="glass-card rounded-2xl overflow-hidden mb-4"
@@ -215,11 +223,11 @@ const MobileProductCard = ({ product }) => {
               {/* Price */}
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-lg font-bold text-gray-800">
-                  {formatPrice(product.price)}
+                  {formatPrice(displayPrice)}
                 </span>
-                {product.originalPrice && (
+                {displayOriginalPrice && (
                   <span className="text-xs text-gray-400 line-through font-medium">
-                    {formatPrice(product.originalPrice)}
+                    {formatPrice(displayOriginalPrice)}
                   </span>
                 )}
               </div>

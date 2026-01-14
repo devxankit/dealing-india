@@ -8,7 +8,7 @@ import api from '../utils/api';
 export const getProducts = async (filters = {}) => {
   try {
     const params = new URLSearchParams();
-    
+
     if (filters.search) params.append('search', filters.search);
     if (filters.categoryId) params.append('categoryId', filters.categoryId);
     if (filters.subcategoryId) params.append('subcategoryId', filters.subcategoryId);
@@ -25,19 +25,20 @@ export const getProducts = async (filters = {}) => {
     if (filters.limit) params.append('limit', filters.limit);
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+    if (filters.vendorType) params.append('vendorType', filters.vendorType);
 
     // API interceptor returns response.data, so response is already the data object
     // Backend returns: { success: true, message: "...", data: { products, total, page, totalPages } }
     // After interceptor: response = { success: true, message: "...", data: { products, total, page, totalPages } }
     const response = await api.get(`/products?${params.toString()}`);
-    
+
     // Extract the inner data object which contains products array
     if (response && response.data && Array.isArray(response.data.products)) {
       return response.data; // Return { products, total, page, totalPages }
     } else if (response && Array.isArray(response.products)) {
       return response; // Already in correct format
     }
-    
+
     console.warn('Unexpected API response structure:', response);
     return { products: [], total: 0, page: 1, totalPages: 0 };
   } catch (error) {
@@ -102,14 +103,14 @@ export const getRecommendedProducts = async (limit = 6) => {
     // API interceptor returns response.data, so response is already the data object
     // Backend returns: { success, message, data: { products, total } }
     const response = await api.get(`/products/recommended?${params.toString()}`);
-    
+
     // Extract products array
     if (response && response.data && Array.isArray(response.data.products)) {
       return response.data.products;
     } else if (response && Array.isArray(response.products)) {
       return response.products;
     }
-    
+
     console.warn('Unexpected API response structure for recommended products:', response);
     return [];
   } catch (error) {

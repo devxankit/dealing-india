@@ -56,26 +56,26 @@ export const useVendorAuthStore = create(
         } catch (error) {
           // Always reset loading state, even on error
           set({ isLoading: false });
-          
+
           // Extract error message properly
           // The API interceptor returns error.response.data, so check multiple places
           let errorMessage = error?.message;
-          
+
           // Check if error has response data (from axios)
           if (!errorMessage && error?.response?.data?.message) {
             errorMessage = error.response.data.message;
           }
-          
+
           // Check if error.response.data is the message itself (from API interceptor)
           if (!errorMessage && typeof error?.response?.data === 'string') {
             errorMessage = error.response.data;
           }
-          
+
           // Fallback message
           if (!errorMessage) {
             errorMessage = 'Invalid email or password. Please check your credentials and try again.';
           }
-          
+
           throw new Error(errorMessage);
         }
       },
@@ -92,7 +92,9 @@ export const useVendorAuthStore = create(
             storeName: vendorData.storeName,
             storeDescription: vendorData.storeDescription || '',
             address: vendorData.address || {},
-            documents: vendorData.documents || [], // Include documents array
+            documents: vendorData.documents || [],
+            vendorType: vendorData.vendorType || 'b2c',
+            subscriptionPlan: vendorData.subscriptionPlan || null,
           });
 
           if (response.success && response.data) {
@@ -110,11 +112,11 @@ export const useVendorAuthStore = create(
         } catch (error) {
           // Always reset loading state, even on error
           set({ isLoading: false });
-          
+
           // Ensure error has a message
-          const errorMessage = error?.message || 
-                               error?.response?.data?.message || 
-                               'Registration failed. Please check your internet connection and try again.';
+          const errorMessage = error?.message ||
+            error?.response?.data?.message ||
+            'Registration failed. Please check your internet connection and try again.';
           throw new Error(errorMessage);
         }
       },
@@ -133,7 +135,7 @@ export const useVendorAuthStore = create(
                   const payload = JSON.parse(atob(tokenParts[1]));
                   const exp = payload.exp;
                   const now = Math.floor(Date.now() / 1000);
-                  
+
                   // Only call logout API if token is not expired
                   if (exp && exp > now) {
                     await api.post('/auth/vendor/logout');
@@ -211,7 +213,7 @@ export const useVendorAuthStore = create(
 
           if (response.success && response.data) {
             const { vendor, token } = response.data;
-            
+
             // Transform backend vendor object to frontend format
             const vendorDataFormatted = {
               id: vendor._id || vendor.id,
@@ -231,19 +233,19 @@ export const useVendorAuthStore = create(
               commissionRate: vendor.commissionRate ?? 0.1,
             };
 
-              set({
+            set({
               vendor: vendorDataFormatted,
               token: token,
               isAuthenticated: false, // Not authenticated until admin approval
-                isLoading: false,
-              });
+              isLoading: false,
+            });
 
             localStorage.setItem("vendor-token", token);
-            
-            return { 
-              success: true, 
-              vendor: vendorDataFormatted, 
-              message: response.message 
+
+            return {
+              success: true,
+              vendor: vendorDataFormatted,
+              message: response.message
             };
           } else {
             throw new Error(response.message || 'Email verification failed');
@@ -323,7 +325,7 @@ export const useVendorAuthStore = create(
               const payload = JSON.parse(atob(tokenParts[1]));
               const exp = payload.exp;
               const now = Math.floor(Date.now() / 1000);
-              
+
               // If token is expired, clear storage immediately
               if (exp && exp <= now) {
                 set({
@@ -339,7 +341,7 @@ export const useVendorAuthStore = create(
             // Token parsing failed, might be invalid format
             // Continue to API validation
           }
-          
+
           try {
             // Validate token with backend
             const response = await api.get('/auth/vendor/me');

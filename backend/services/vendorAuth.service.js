@@ -14,7 +14,7 @@ import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
  */
 export const registerVendor = async (vendorData) => {
   try {
-    const { name, email, phone, password, storeName, storeDescription, address, documents } = vendorData;
+    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType } = vendorData;
 
     // Validate inputs
     if (!name || !email || !phone || !password || !storeName) {
@@ -130,6 +130,7 @@ export const registerVendor = async (vendorData) => {
         storeDescription: storeDescription ? storeDescription.trim() : undefined,
         address: address || {},
         documents: processedDocuments, // Store processed documents
+        vendorType: vendorType || 'b2c',
       },
       expiresAt,
       isVerified: false,
@@ -149,20 +150,20 @@ export const registerVendor = async (vendorData) => {
       otpError.status = 400;
       throw otpError;
     }
-    
+
     const emailResult = await sendVerificationEmail(email, otp);
 
     if (!emailResult.success) {
       // If email fails, don't delete temporary registration if it's likely due to missing config
       // Instead, log the OTP for manual verification during development/setup
       console.error(`❌ Failed to send verification email to ${email}:`, emailResult.error);
-      
+
       const isConfigMissing = !process.env.EMAIL_USER || !process.env.EMAIL_PASS;
-      
+
       if (isConfigMissing) {
         console.warn('⚠️  EMAIL_USER or EMAIL_PASS missing. Registration allowed to proceed for setup purposes.');
         console.warn(`🔑 VERIFICATION OTP FOR ${email}: ${otp}`);
-        
+
         return {
           message: 'Registration initiated. (EMAIL CONFIG MISSING - check server logs for OTP)',
           email: email.toLowerCase(),
@@ -385,6 +386,7 @@ export const verifyVendorEmail = async (email, otp) => {
       isEmailVerified: true, // Set to true since OTP is verified
       isActive: true,
       role: 'vendor',
+      vendorType: tempRegistration.registrationData.vendorType || 'b2c',
     });
 
     // Mark temporary registration as verified and delete it
@@ -447,7 +449,7 @@ export const resendVendorVerificationOTP = async (email) => {
 
     // Generate and send OTP (async, don't block response)
     const otp = await resendOTP(email, 'email_verification');
-    
+
     // Send email asynchronously to avoid blocking
     sendVerificationEmail(email, otp)
       .then(result => {
@@ -518,7 +520,7 @@ export const forgotVendorPassword = async (email) => {
       otpError.status = 400;
       throw otpError;
     }
-    
+
     await sendPasswordResetEmail(email, otp);
 
     return { success: true, message: 'Password reset OTP has been sent to your email' };

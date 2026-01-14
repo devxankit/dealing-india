@@ -23,6 +23,7 @@ export const getProducts = async (req, res, next) => {
       limit = 20,
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      vendorType,
     } = req.query;
 
     const result = await getPublicProducts({
@@ -42,6 +43,7 @@ export const getProducts = async (req, res, next) => {
       limit,
       sortBy,
       sortOrder,
+      vendorType,
     });
 
     res.status(200).json({

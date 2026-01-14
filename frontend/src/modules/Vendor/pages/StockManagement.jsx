@@ -15,7 +15,7 @@ import DataTable from "../../Admin/components/DataTable";
 import ExportButton from "../../Admin/components/ExportButton";
 import Badge from "../../../shared/components/Badge";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
-import { formatPrice } from "../../../shared/utils/helpers";
+import { formatPrice, getPlaceholderImage } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { getVendorStock, updateVendorStock, getVendorStockStats } from "../services/stockService";
 import toast from "react-hot-toast";
@@ -156,7 +156,7 @@ const StockManagement = () => {
             alt={value}
             className="w-10 h-10 object-cover rounded-lg"
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/50x50?text=Product";
+              e.target.src = getPlaceholderImage(50, 50, "Product");
             }}
           />
           <span className="font-medium">{value}</span>
@@ -459,6 +459,9 @@ const StockUpdateModal = ({
                     src={product.image}
                     alt={product.name}
                     className="w-16 h-16 object-cover rounded-lg"
+                    onError={(e) => {
+                      e.target.src = getPlaceholderImage(64, 64, "Product");
+                    }}
                   />
                   <div>
                     <h3 className="font-semibold text-gray-800">
