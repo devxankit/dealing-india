@@ -8,6 +8,7 @@ import { initializeSocket } from '../../../shared/utils/socket';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
+import { getImageUrl } from '../../../shared/utils/helpers';
 
 const VendorChat = () => {
   const { vendorId } = useParams();
@@ -86,8 +87,9 @@ const VendorChat = () => {
         if (vendorId) {
           // Check if conversation exists
           const existingConv = loadedConvs.find(c => {
-            const otherId = c.otherParticipant?.vendorId?._id || c.otherParticipant?.vendorId;
-            return otherId === vendorId;
+            const other = c.otherParticipant?.userId;
+            const otherId = other?._id || other;
+            return otherId === (vendorId?._id || vendorId);
           });
 
           if (existingConv) {
@@ -200,7 +202,7 @@ const VendorChat = () => {
   const selectConversation = async (conversation) => {
     try {
       setSelectedConversation(conversation);
-      setSelectedVendor(conversation.otherParticipant?.vendorId);
+      setSelectedVendor(conversation.otherParticipant?.userId);
 
       // Leave previous room
       if (selectedConversation?._id && socketRef.current) {
@@ -235,17 +237,21 @@ const VendorChat = () => {
 
     try {
       setSending(true);
-      const otherVendor = selectedConversation.otherParticipant?.vendorId;
-      if (!otherVendor) {
-        toast.error('Vendor not found');
+      const otherParticipant = selectedConversation.otherParticipant?.userId;
+      if (!otherParticipant) {
+        toast.error('Recipient not found');
         return;
       }
 
-      const receiverId = otherVendor._id || otherVendor.id;
+      const receiverId = otherParticipant._id || otherParticipant;
+      const receiverRole = selectedConversation.otherParticipant?.role || 'user';
+
       const response = await chatService.sendVendorMessage(
         selectedConversation._id,
         receiverId,
-        messageText
+        messageText,
+        'text',
+        null
       );
 
       if (response.success) {
@@ -313,8 +319,9 @@ const VendorChat = () => {
     );
   }
 
-  const currentVendorInfo = selectedVendor || selectedConversation?.otherParticipant?.vendorId;
-  const vendorName = currentVendorInfo?.storeName || 'Vendor';
+  const currentOtherInfo = selectedVendor || selectedConversation?.otherParticipant?.userId;
+  const displayName = currentOtherInfo?.name || currentOtherInfo?.storeName || 'Chat';
+  const displayRole = selectedConversation?.otherParticipant?.role === 'user' ? 'Buyer' : 'Vendor';
 
   return (
     <PageTransition className="h-full">
@@ -344,9 +351,10 @@ const VendorChat = () => {
             ) : (
               displayList.map((item) => {
                 const isNewVendor = item.isNewVendor;
-                const vendorData = isNewVendor ? item.vendorData : item.otherParticipant?.vendorId;
+                const otherData = isNewVendor ? item.vendorData : item.otherParticipant?.userId;
                 const unreadCount = item.unreadCount || 0;
                 const isSelected = selectedConversation?._id === item._id;
+                const role = isNewVendor ? 'vendor' : (item.otherParticipant?.role || 'user');
 
                 return (
                   <div
@@ -361,21 +369,21 @@ const VendorChat = () => {
                     className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-primary-50 border-l-4 border-l-primary-600' : ''
                       }`}>
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                        {vendorData?.storeLogo ? (
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${role === 'user' ? 'bg-blue-100' : 'bg-primary-100'}`}>
+                        {otherData?.storeLogo || otherData?.image || otherData?.avatar ? (
                           <img
-                            src={vendorData.storeLogo}
-                            alt={vendorData.storeName}
+                            src={otherData.storeLogo || otherData.image || otherData.avatar}
+                            alt={otherData.storeName || otherData.name}
                             className="w-full h-full rounded-full object-cover"
                           />
                         ) : (
-                          <FiUser className="text-primary-600 text-xl" />
+                          role === 'user' ? <FiUser className="text-blue-600 text-xl" /> : <FiUser className="text-primary-600 text-xl" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="font-semibold text-gray-800 truncate">
-                            {vendorData?.storeName || 'Vendor'}
+                            {otherData?.storeName || otherData?.name || 'User'}
                           </h3>
                           {unreadCount > 0 && (
                             <span className="bg-primary-600 text-white text-xs rounded-full px-2 py-0.5">
@@ -384,8 +392,8 @@ const VendorChat = () => {
                           )}
                         </div>
                         {!isNewVendor && item.lastMessage && (
-                          <p className="text-sm text-gray-600 truncate">
-                            {item.lastMessage.message}
+                          <p className="text-sm text-gray-600 truncate italic">
+                            {item.lastMessage.messageType === 'inquiry' ? '📦 Premium Inquiry Received' : item.lastMessage.message}
                           </p>
                         )}
                         {isNewVendor && (
@@ -411,20 +419,20 @@ const VendorChat = () => {
                   className="sm:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
                   <FiArrowLeft className="text-xl" />
                 </button>
-                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-                  {currentVendorInfo?.storeLogo ? (
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${displayRole === 'Buyer' ? 'bg-blue-100' : 'bg-primary-100'}`}>
+                  {currentOtherInfo?.storeLogo || currentOtherInfo?.image || currentOtherInfo?.avatar ? (
                     <img
-                      src={currentVendorInfo.storeLogo}
-                      alt={vendorName}
+                      src={currentOtherInfo.storeLogo || currentOtherInfo.image || currentOtherInfo.avatar}
+                      alt={displayName}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <FiUser className="text-primary-600" />
+                    <FiUser className={displayRole === 'Buyer' ? 'text-blue-600' : 'text-primary-600'} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h1 className="font-semibold text-gray-800 truncate">{vendorName}</h1>
-                  <p className="text-sm text-gray-500">Vendor</p>
+                  <h1 className="font-semibold text-gray-800 truncate">{displayName}</h1>
+                  <p className="text-sm text-gray-500">{displayRole}</p>
                 </div>
               </div>
 
@@ -436,7 +444,10 @@ const VendorChat = () => {
                   </div>
                 ) : (
                   messages.map((message) => {
-                    const isSender = message.senderId === (vendor?._id || vendor?.id);
+                    const isSender = (message.senderId?._id || message.senderId) === (vendor?._id || vendor?.id);
+                    const isInquiry = message.messageType === 'inquiry' || (message.message && message.message.includes('📦 *INQUIRY FOR:'));
+                    const metadata = message.metadata || {};
+
                     return (
                       <motion.div
                         key={message._id}
@@ -444,19 +455,83 @@ const VendorChat = () => {
                         animate={{ opacity: 1, y: 0 }}
                         className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
                         <div
-                          className={`max-w-[75%] rounded-lg px-4 py-2 ${isSender
-                              ? 'bg-primary-600 text-white'
-                              : 'bg-white text-gray-800 border border-gray-200'
+                          className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${isSender
+                            ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white rounded-tr-none'
+                            : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
                             }`}>
-                          <p className="text-sm">{message.message}</p>
-                          <p
-                            className={`text-xs mt-1 ${isSender ? 'text-primary-100' : 'text-gray-500'
-                              }`}>
-                            {new Date(message.createdAt).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
+
+                          {isInquiry ? (
+                            <div className="flex flex-col gap-3 min-w-[260px]">
+                              {/* Premium Header */}
+                              <div className={`flex items-center justify-between pb-2 border-b ${isSender ? 'border-white/20' : 'border-gray-100'}`}>
+                                <div className={`flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-extrabold ${isSender ? 'text-primary-100' : 'text-amber-700'}`}>
+                                  <FiBox className="text-xs" />
+                                  Wholesale Inquiry
+                                </div>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isSender ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                  #{message._id.slice(-4).toUpperCase()}
+                                </span>
+                              </div>
+
+                              {/* Product Card */}
+                              <div className={`flex items-center gap-3 p-2.5 rounded-2xl ${isSender ? 'bg-white/10 shadow-inner' : 'bg-amber-50/50 border border-amber-100'}`}>
+                                <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white shadow-sm border border-gray-200">
+                                  {metadata.productImage ? (
+                                    <img
+                                      src={getImageUrl(metadata.productImage)}
+                                      alt={metadata.productName}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                      <FiBox className="text-gray-300 text-xl" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`font-black text-[14px] leading-tight truncate-2-lines ${isSender ? 'text-white' : 'text-gray-900'}`}>
+                                    {metadata.productName || (message.message.match(/\*INQUIRY FOR: (.*?)\*/)?.[1]) || 'Product Inquiry'}
+                                  </p>
+                                  <p className={`text-[11px] mt-1 font-bold ${isSender ? 'text-primary-100' : 'text-amber-700'}`}>
+                                    Rate: ₹{metadata.productPrice || 'N/A'}/unit
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Order Parameters */}
+                              <div className="grid grid-cols-2 gap-2.5">
+                                <div className={`p-3 rounded-2xl ${isSender ? 'bg-white/10' : 'bg-gray-50'}`}>
+                                  <p className={`text-[9px] uppercase font-bold opacity-60 ${isSender ? 'text-white' : 'text-gray-500'}`}>Order Quantity</p>
+                                  <p className={`text-md font-black mt-0.5 ${isSender ? 'text-white' : 'text-primary-700'}`}>
+                                    {metadata.quantity || (message.message.match(/\*Quantity:\* (.*?) units/)?.[1]) || '---'}
+                                    <span className="text-[10px] font-normal ml-1">Units</span>
+                                  </p>
+                                </div>
+                                <div className={`p-3 rounded-2xl ${isSender ? 'bg-white/10' : 'bg-green-50'}`}>
+                                  <p className={`text-[9px] uppercase font-bold opacity-60 ${isSender ? 'text-white' : 'text-green-700'}`}>Type</p>
+                                  <p className={`text-xs font-bold mt-1.5 ${isSender ? 'text-white' : 'text-green-900'}`}>Bulk Order</p>
+                                </div>
+                              </div>
+
+                              {/* User Message */}
+                              {(metadata.clientMessage || message.message.includes('💬 *Message:*')) && (
+                                <div className={`relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed italic ${isSender ? 'bg-black/15 text-primary-50 shadow-inner' : 'bg-white/70 text-gray-700 border border-gray-100'}`}>
+                                  "{metadata.clientMessage || (message.message.match(/💬 \*Message:\*\n(.*?)$/s)?.[1]) || 'Interested in this product.'}"
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-[15px] leading-relaxed">{message.message}</p>
+                          )}
+
+                          <div className={`flex items-center justify-end gap-1.5 mt-2 ${isSender ? 'text-primary-100' : 'text-gray-400'}`}>
+                            <span className="text-[10px]">
+                              {new Date(message.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
                         </div>
                       </motion.div>
                     );

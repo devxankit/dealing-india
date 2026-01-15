@@ -137,7 +137,9 @@ class VendorChatController {
         conversationId,
         senderId,
         receiverId,
-        message
+        message,
+        req.body.messageType || 'text',
+        req.body.metadata || null
       );
 
       res.status(201).json({

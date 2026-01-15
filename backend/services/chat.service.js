@@ -15,9 +15,20 @@ class ChatService {
     console.log('ChatService.createOrGetConversation called with:', { userId, vendorId });
     try {
       // Validate IDs
-      if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(vendorId)) {
-        console.error('Invalid ID format in createOrGetConversation:', { userId, vendorId });
-        throw new Error('Invalid user or vendor ID');
+      // Validate IDs
+      const isUserValid = mongoose.Types.ObjectId.isValid(userId);
+      const isVendorValid = mongoose.Types.ObjectId.isValid(vendorId);
+
+      if (!isUserValid || !isVendorValid) {
+        console.error('Invalid ID format in createOrGetConversation:', {
+          userId,
+          vendorId,
+          isUserValid,
+          isVendorValid,
+          userIdType: typeof userId,
+          vendorIdType: typeof vendorId
+        });
+        throw new Error(`Invalid user or vendor ID: User(${isUserValid ? 'valid' : 'invalid'}), Vendor(${isVendorValid ? 'valid' : 'invalid'})`);
       }
 
       const userObjectId = new mongoose.Types.ObjectId(userId);
@@ -298,8 +309,8 @@ class ChatService {
     }
   }
 
-  async sendMessage(conversationId, senderId, senderRole, receiverIdParam, receiverRoleParam, message) {
-    console.log('ChatService.sendMessage called with:', { conversationId, senderId, senderRole });
+  async sendMessage(conversationId, senderId, senderRole, receiverIdParam, receiverRoleParam, message, messageType = 'text', metadata = null) {
+    console.log('ChatService.sendMessage called with:', { conversationId, senderId, senderRole, messageType });
     try {
       // Validate IDs
       if (!mongoose.Types.ObjectId.isValid(senderId) || !mongoose.Types.ObjectId.isValid(conversationId)) {
@@ -357,7 +368,9 @@ class ChatService {
         receiverId: new mongoose.Types.ObjectId(receiverId),
         receiverRole,
         receiverRoleModel,
-        message,
+        message: message || '', // Allow empty message for specific types if metadata exists
+        messageType,
+        metadata,
         readStatus: false,
       });
       console.log('Message created successfully:', newMessage._id);

@@ -12,13 +12,13 @@ const ProtectedRoute = ({ children }) => {
     const checkDesktop = () => {
       setIsDesktop(window.innerWidth >= 1024);
     };
-    
+
     // Initial check
     checkDesktop();
-    
+
     // Listen for resize events
     window.addEventListener('resize', checkDesktop);
-    
+
     return () => {
       window.removeEventListener('resize', checkDesktop);
     };
@@ -27,17 +27,23 @@ const ProtectedRoute = ({ children }) => {
   if (!isAuthenticated) {
     // If accessing /app/* route on desktop view, redirect to desktop login
     const isAppRoute = location.pathname.startsWith('/app');
-    
+
     if (isAppRoute && isDesktop) {
       // Redirect to desktop login page when accessing /app/* routes on desktop
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
-    
+
     if (isAppRoute) {
       // Redirect to mobile app login for /app/* routes on mobile
       return <Navigate to="/app/login" state={{ from: location }} replace />;
     }
-    
+
+    const isB2BRoute = location.pathname.startsWith('/b2b');
+    if (isB2BRoute) {
+      // Redirect to B2B login for /b2b/* routes
+      return <Navigate to="/b2b/login" state={{ from: location }} replace />;
+    }
+
     // Default redirect to desktop login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }

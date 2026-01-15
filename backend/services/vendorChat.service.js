@@ -28,11 +28,11 @@ class VendorChatService {
             // Check if conversation already exists (order-independent)
             const existingChat = await Chat.findOne({
                 $and: [
-                    { 'participants.vendorId': vendor1ObjectId },
-                    { 'participants.vendorId': vendor2ObjectId }
+                    { 'participants.userId': vendor1ObjectId },
+                    { 'participants.userId': vendor2ObjectId }
                 ]
             })
-                .populate('participants.vendorId', 'storeName email phone storeLogo')
+                .populate('participants.userId', 'storeName email phone storeLogo')
                 .populate('lastMessage')
                 .lean();
 
@@ -45,18 +45,18 @@ class VendorChatService {
             // Create new conversation
             const newChat = await Chat.create({
                 participants: [
-                    { vendorId: vendor1ObjectId },
-                    { vendorId: vendor2ObjectId }
+                    { userId: vendor1ObjectId, role: 'vendor', roleModel: 'Vendor' },
+                    { userId: vendor2ObjectId, role: 'vendor', roleModel: 'Vendor' }
                 ],
                 unreadCount: new Map([
-                    [vendor1Id.toString(), 0],
-                    [vendor2Id.toString(), 0]
+                    [`vendor_${vendor1Id.toString()}`, 0],
+                    [`vendor_${vendor2Id.toString()}`, 0]
                 ])
             });
 
             console.log('[VendorChatService] New conversation created:', newChat._id);
             return await Chat.findById(newChat._id)
-                .populate('participants.vendorId', 'storeName email phone storeLogo')
+                .populate('participants.userId', 'storeName email phone storeLogo')
                 .lean();
         } catch (error) {
             console.error('[VendorChatService] Error in createOrGetConversation:', error);
@@ -76,11 +76,11 @@ class VendorChatService {
             const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
 
             const conversations = await Chat.find({
-                'participants.vendorId': vendorObjectId
+                'participants.userId': vendorObjectId
             })
                 .populate({
-                    path: 'participants.vendorId',
-                    select: 'storeName email phone storeLogo'
+                    path: 'participants.userId',
+                    select: 'storeName email phone storeLogo name avatar'
                 })
                 .populate('lastMessage')
                 .sort({ lastMessageAt: -1, updatedAt: -1 })
@@ -91,15 +91,16 @@ class VendorChatService {
             // Transform conversations to include other participant info
             const transformed = conversations.map(conv => {
                 const otherParticipant = conv.participants.find(
-                    p => p.vendorId._id.toString() !== vendorId.toString()
+                    p => p.userId._id.toString() !== vendorId.toString()
                 );
 
                 let unreadCount = 0;
                 if (conv.unreadCount) {
+                    const key = `vendor_${vendorId.toString()}`;
                     if (conv.unreadCount instanceof Map) {
-                        unreadCount = conv.unreadCount.get(vendorId.toString()) || 0;
+                        unreadCount = conv.unreadCount.get(key) || 0;
                     } else {
-                        unreadCount = conv.unreadCount[vendorId.toString()] || 0;
+                        unreadCount = conv.unreadCount[key] || 0;
                     }
                 }
 
@@ -134,7 +135,7 @@ class VendorChatService {
             }
 
             const isParticipant = conversation.participants.some(
-                p => p.vendorId.toString() === vendorId.toString()
+                p => p.userId.toString() === vendorId.toString()
             );
 
             if (!isParticipant) {
@@ -169,16 +170,8 @@ class VendorChatService {
         }
     }
 
-    /**
-     * Send a message
-     * @param {String} conversationId - Conversation ID
-     * @param {String} senderId - Sender vendor ID
-     * @param {String} receiverId - Receiver vendor ID
-     * @param {String} message - Message text
-     * @returns {Promise<Object>} Created message
-     */
-    async sendMessage(conversationId, senderId, receiverId, message) {
-        console.log('[VendorChatService] sendMessage:', { conversationId, senderId, receiverId });
+    async sendMessage(conversationId, senderId, receiverId, message, messageType = 'text', metadata = null) {
+        console.log('[VendorChatService] sendMessage:', { conversationId, senderId, receiverId, messageType });
         try {
             // Validate IDs
             if (!mongoose.Types.ObjectId.isValid(senderId) ||
@@ -194,23 +187,32 @@ class VendorChatService {
             }
 
             const senderIsParticipant = conversation.participants.some(
-                p => p.vendorId.toString() === senderId.toString()
+                p => p.userId.toString() === senderId.toString() && p.role === 'vendor'
             );
 
             const receiverIsParticipant = conversation.participants.some(
-                p => p.vendorId.toString() === receiverId.toString()
+                p => p.userId.toString() === receiverId.toString() && (p.role === 'vendor' || p.role === 'user')
             );
 
             if (!senderIsParticipant || !receiverIsParticipant) {
+                console.error('[VendorChatService] Participant validation failed:', {
+                    senderId, senderIsParticipant,
+                    receiverId, receiverIsParticipant
+                });
                 throw new Error('Access denied: Invalid participants');
             }
 
-            // Create message
             const newMessage = await Message.create({
                 conversationId,
                 senderId: new mongoose.Types.ObjectId(senderId),
+                senderRole: 'vendor',
+                senderRoleModel: 'Vendor',
                 receiverId: new mongoose.Types.ObjectId(receiverId),
+                receiverRole: receiverIsParticipant ? 'vendor' : 'user', // Determine receiver role
+                receiverRoleModel: receiverIsParticipant ? 'Vendor' : 'User',
                 message,
+                messageType,
+                metadata,
                 readStatus: false
             });
 
@@ -225,8 +227,9 @@ class VendorChatService {
                 conversation.unreadCount = new Map(Object.entries(plainObj));
             }
 
-            const currentUnread = conversation.unreadCount.get(receiverId.toString()) || 0;
-            conversation.unreadCount.set(receiverId.toString(), currentUnread + 1);
+            const unreadKey = `vendor_${receiverId.toString()}`;
+            const currentUnread = conversation.unreadCount.get(unreadKey) || 0;
+            conversation.unreadCount.set(unreadKey, currentUnread + 1);
 
             conversation.lastMessage = newMessage._id;
             conversation.lastMessageAt = new Date();
@@ -281,9 +284,10 @@ class VendorChatService {
                 // Update unread count
                 const conversation = await Chat.findById(message.conversationId);
                 if (conversation) {
-                    const currentUnread = conversation.unreadCount?.get(vendorId.toString()) || 0;
+                    const unreadKey = `vendor_${vendorId.toString()}`;
+                    const currentUnread = conversation.unreadCount?.get(unreadKey) || 0;
                     if (currentUnread > 0) {
-                        conversation.unreadCount.set(vendorId.toString(), currentUnread - 1);
+                        conversation.unreadCount.set(unreadKey, currentUnread - 1);
                         await conversation.save();
                     }
                 }
@@ -323,7 +327,7 @@ class VendorChatService {
             }
 
             const isParticipant = conversation.participants.some(
-                p => p.vendorId.toString() === vendorId.toString()
+                p => p.userId.toString() === vendorId.toString()
             );
 
             if (!isParticipant) {
@@ -335,6 +339,7 @@ class VendorChatService {
                 {
                     conversationId,
                     receiverId: new mongoose.Types.ObjectId(vendorId),
+                    receiverRole: 'vendor',
                     readStatus: false
                 },
                 {
@@ -346,7 +351,8 @@ class VendorChatService {
             );
 
             // Reset unread count
-            conversation.unreadCount.set(vendorId.toString(), 0);
+            const unreadKey = `vendor_${vendorId.toString()}`;
+            conversation.unreadCount.set(unreadKey, 0);
             await conversation.save();
 
             // Socket emit

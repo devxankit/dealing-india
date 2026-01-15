@@ -13,11 +13,19 @@ export const getPublicVendors = async (req, res, next) => {
       limit = 20,
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      vendorType, // Extract vendorType
     } = req.query;
+
+    // TEMPORARY: Restrict B2B to only 'mockb2bvendor@example.com' as per user request
+    let effectiveSearch = search;
+    if (vendorType === 'b2b') {
+      effectiveSearch = 'mockb2bvendor@example.com';
+    }
 
     // Get approved and active vendors
     const result = await getApprovedVendors({
-      search,
+      search: effectiveSearch,
+      vendorType,
       isActive: true, // Only show active vendors
       page: parseInt(page),
       limit: parseInt(limit),

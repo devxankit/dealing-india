@@ -4,10 +4,20 @@ const chatSchema = new mongoose.Schema(
   {
     participants: [
       {
-        vendorId: {
+        userId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: 'Vendor',
           required: true,
+          refPath: 'participants.roleModel',
+        },
+        role: {
+          type: String,
+          required: true,
+          enum: ['user', 'vendor'],
+        },
+        roleModel: {
+          type: String,
+          required: true,
+          enum: ['User', 'Vendor'],
         },
       },
     ],
@@ -29,14 +39,14 @@ const chatSchema = new mongoose.Schema(
   }
 );
 
-// Compound index for efficient conversation lookup between two vendors
-chatSchema.index({ 'participants.vendorId': 1 });
+// Compound index for efficient conversation lookup
+chatSchema.index({ 'participants.userId': 1 });
 chatSchema.index({ lastMessageAt: -1 });
 
-// Ensure exactly 2 participants (vendor-to-vendor)
+// Ensure exactly 2 participants
 chatSchema.pre('save', function (next) {
   if (this.participants.length !== 2) {
-    next(new Error('Chat must have exactly 2 vendor participants'));
+    next(new Error('Chat must have exactly 2 participants'));
   }
   next();
 });
@@ -44,4 +54,3 @@ chatSchema.pre('save', function (next) {
 const Chat = mongoose.model('Chat', chatSchema);
 
 export default Chat;
-

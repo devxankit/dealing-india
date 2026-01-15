@@ -58,6 +58,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    currentMarketplace: {
+      type: String,
+      enum: ['b2c', 'b2b'],
+      default: 'b2c',
+    },
+    businessInfo: {
+      companyName: String,
+      gstNumber: String,
+      address: {
+        city: String,
+        state: String,
+      },
+    },
   },
   {
     timestamps: true,

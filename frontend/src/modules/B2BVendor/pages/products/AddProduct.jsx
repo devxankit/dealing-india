@@ -1,4 +1,5 @@
 import B2BVendorProductForm from "../../components/ProductForm";
+import { motion } from 'framer-motion';
 
 const AddProduct = () => {
     return (

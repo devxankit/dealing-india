@@ -82,6 +82,7 @@ import userSupportTicketRoutes from './routes/userSupportTicket.routes.js';
 import adminPromotionalReelRoutes from './routes/adminPromotionalReel.routes.js';
 import userPromotionalReelRoutes from './routes/userPromotionalReel.routes.js';
 import adminMediaRoutes from './routes/admin-routes/media.routes.js';
+import userChatRoutes from './routes/userChat.routes.js';
 import timeWarpRoutes from './routes/timeWarp.routes.js';
 
 // Mega Reward routes
@@ -319,6 +320,7 @@ app.use('/api/admin/support-tickets', adminSupportTicketRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 app.use('/api/vendor/support-tickets', vendorSupportTicketRoutes);
 app.use('/api/vendor/chat', vendorChatRoutes);
+app.use('/api/user/chat', userChatRoutes);
 app.use('/api/user/returns', returnRequestRoutes);
 
 // Vendor management routes (require vendor authentication)

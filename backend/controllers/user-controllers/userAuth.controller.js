@@ -8,6 +8,7 @@ import {
   resendUserVerificationOTP,
   forgotUserPassword,
   resetUserPassword,
+  switchUserMarketplace,
 } from '../../services/userAuth.service.js';
 
 /**
@@ -16,7 +17,7 @@ import {
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, businessInfo, userType } = req.body;
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -26,7 +27,7 @@ export const register = async (req, res, next) => {
       });
     }
 
-    const result = await registerUser({ name, email, password, phone });
+    const result = await registerUser({ name, email, password, phone, businessInfo, userType });
 
     res.status(201).json({
       success: true,
@@ -43,7 +44,7 @@ export const register = async (req, res, next) => {
         message: error.message || 'Too many OTP requests. Please wait before trying again.',
       });
     }
-    
+
     // Log detailed error for production debugging
     console.error('❌ Error in register controller:', {
       message: error.message,
@@ -51,18 +52,18 @@ export const register = async (req, res, next) => {
       code: error.code,
       status: error.status || error.statusCode,
       stack: error.stack, // Always log stack for production debugging
-      body: req.body ? { 
-        name: req.body.name, 
+      body: req.body ? {
+        name: req.body.name,
         email: req.body.email,
-        hasPhone: !!req.body.phone 
+        hasPhone: !!req.body.phone
       } : undefined,
       timestamp: new Date().toISOString(),
     });
-    
+
     // Provide user-friendly error messages
     let userMessage = error.message || 'Registration failed. Please try again.';
     let statusCode = error.status || error.statusCode || 500;
-    
+
     // Map common errors to user-friendly messages
     if (error.message?.includes('Database connection')) {
       userMessage = 'Service temporarily unavailable. Please try again in a moment.';
@@ -75,7 +76,7 @@ export const register = async (req, res, next) => {
     } else if (error.message?.includes('Invalid email') || error.message?.includes('Invalid phone')) {
       statusCode = 400; // Bad Request
     }
-    
+
     // Return error with appropriate status code
     return res.status(statusCode).json({
       success: false,
@@ -90,7 +91,7 @@ export const register = async (req, res, next) => {
  */
 export const login = async (req, res, next) => {
   try {
-    const { identifier, password } = req.body; // identifier can be email or phone
+    const { identifier, password, userType } = req.body; // identifier can be email or phone, userType is marketplace preference
 
     if (!identifier || !password) {
       return res.status(400).json({
@@ -99,7 +100,7 @@ export const login = async (req, res, next) => {
       });
     }
 
-    const result = await loginUser(identifier, password);
+    const result = await loginUser(identifier, password, userType);
 
     res.status(200).json({
       success: true,
@@ -113,7 +114,7 @@ export const login = async (req, res, next) => {
     // Preserve status code from service
     const statusCode = error.statusCode || error.status || 500;
     const message = error.message || 'Login failed. Please check your credentials.';
-    
+
     // Don't pass to next() if we can handle it here
     return res.status(statusCode).json({
       success: false,
@@ -273,6 +274,34 @@ export const resetPassword = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Password reset successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Switch user marketplace (B2C or B2B)
+ * PUT /api/auth/user/switch-marketplace
+ */
+export const switchMarketplace = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const { marketplace } = req.body;
+
+    if (!marketplace) {
+      return res.status(400).json({
+        success: false,
+        message: 'Marketplace type is required',
+      });
+    }
+
+    const updatedUser = await switchUserMarketplace(userId, marketplace);
+
+    res.status(200).json({
+      success: true,
+      message: `Switched to ${marketplace.toUpperCase()} marketplace`,
+      data: { user: updatedUser },
     });
   } catch (error) {
     next(error);

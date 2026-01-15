@@ -38,6 +38,15 @@ export const getPublicProducts = async (filters = {}) => {
     const vendorQuery = { isActive: true, status: 'approved' };
     if (vendorType) {
       vendorQuery.vendorType = vendorType;
+
+      // TEMPORARY: Restrict B2B to only 'mockb2bvendor@example.com' as per user request
+      if (vendorType === 'b2b') {
+        const targetB2BVendor = await Vendor.findOne({ email: 'mockb2bvendor@example.com' });
+        if (targetB2BVendor) {
+          // Force filter to this vendor only
+          vendorQuery._id = targetB2BVendor._id;
+        }
+      }
     }
     const activeVendors = await Vendor.find(vendorQuery).select('_id');
     const activeVendorIds = activeVendors.map(v => v._id);

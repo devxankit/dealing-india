@@ -1,29 +1,49 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import api from '../../../shared/utils/api';
+import chatService from '../../../shared/services/chatService';
+import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 
 const ProductCatalog = () => {
-    const [products, setProducts] = useState([
-        { _id: '1', name: 'Cotton T-Shirts Bulk', price: 250, stockQuantity: 500, category: 'Textiles', visibility: 'Visible' },
-        { _id: '2', name: 'Wireless Earbuds X10', price: 800, stockQuantity: 200, category: 'Electronics', visibility: 'Visible' },
-        { _id: '3', name: 'Industrial Safety Gloves', price: 120, stockQuantity: 1000, category: 'Industrial', visibility: 'Visible' },
-        { _id: '4', name: 'Premium Leather Wallets', price: 450, stockQuantity: 150, category: 'Handicrafts', visibility: 'Visible' },
-        { _id: '5', name: 'Organic Cotton Bed Sheets', price: 1200, stockQuantity: 300, category: 'Textiles', visibility: 'Visible' },
-        { _id: '6', name: 'Steel Cutlery Set (50pc)', price: 3500, stockQuantity: 50, category: 'Industrial', visibility: 'Visible' },
-    ]);
+    const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStore();
+    const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [showInquiryModal, setShowInquiryModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [b2bVendors, setB2bVendors] = useState([]);
 
     useEffect(() => {
-        fetchB2BProducts();
+        const init = async () => {
+            await fetchB2BVendors();
+            await fetchB2BProducts();
+        };
+        init();
     }, []);
+
+    const fetchB2BVendors = async () => {
+        try {
+            const response = await api.get('/vendors', {
+                params: {
+                    vendorType: 'b2b',
+                    status: 'approved',
+                    limit: 10
+                }
+            });
+            if (response.success) {
+                setB2bVendors(response.data.vendors || []);
+            }
+        } catch (error) {
+            console.error('Error fetching B2B vendors:', error);
+        }
+    };
 
     const fetchB2BProducts = async () => {
         setLoading(true);
@@ -36,6 +56,11 @@ const ProductCatalog = () => {
 
                 // FALLBACK MOCK DATA IF API IS EMPTY
                 if (productsData.length === 0) {
+                    // Seek the specific mock B2B vendor if available in fetched vendors, 
+                    // otherwise use the hardcoded ID we just created for 'mockb2bvendor@example.com'
+                    const specificB2BVendor = b2bVendors.find(v => v.email === 'mockb2bvendor@example.com');
+                    const targetVendorId = specificB2BVendor?._id || '65a1234567890abcdefb2b01';
+
                     setProducts([
                         {
                             _id: 'm1',
@@ -43,7 +68,8 @@ const ProductCatalog = () => {
                             description: 'Pure Banarasi silk sarees for showrooms and boutique owners. Direct from manufacturer.',
                             price: 4500,
                             images: ['https://images.unsplash.com/photo-1610030469668-935142b96fe4?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Textiles' }
+                            categoryId: { name: 'Textiles' },
+                            vendorId: targetVendorId
                         },
                         {
                             _id: 'm2',
@@ -51,7 +77,8 @@ const ProductCatalog = () => {
                             description: 'Bulk quantity smart watches with heart rate monitor, GPS and waterproof design.',
                             price: 1200,
                             images: ['https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Electronics' }
+                            categoryId: { name: 'Electronics' },
+                            vendorId: targetVendorId
                         },
                         {
                             _id: 'm3',
@@ -59,7 +86,8 @@ const ProductCatalog = () => {
                             description: 'Professional grade drill machines for construction and industrial use.',
                             price: 8500,
                             images: ['https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Industrial' }
+                            categoryId: { name: 'Industrial' },
+                            vendorId: targetVendorId
                         },
                         {
                             _id: 'm4',
@@ -67,7 +95,8 @@ const ProductCatalog = () => {
                             description: 'Eco-friendly bamboo lamps made by local artisans. Great for home decor stores.',
                             price: 650,
                             images: ['https://images.unsplash.com/photo-1542736667-069246bdbc6d?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Handicrafts' }
+                            categoryId: { name: 'Handicrafts' },
+                            vendorId: targetVendorId
                         },
                         {
                             _id: 'm5',
@@ -75,7 +104,8 @@ const ProductCatalog = () => {
                             description: 'Set of 12 therapeutic grade essential oils for wellness and spa businesses.',
                             price: 2800,
                             images: ['https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Chemicals' }
+                            categoryId: { name: 'Chemicals' },
+                            vendorId: targetVendorId
                         },
                         {
                             _id: 'm6',
@@ -83,7 +113,8 @@ const ProductCatalog = () => {
                             description: 'Reusable eco-friendly tote bags. Customizable for branding.',
                             price: 85,
                             images: ['https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Textiles' }
+                            categoryId: { name: 'Textiles' },
+                            vendorId: targetVendorId
                         },
                         {
                             _id: 'm7',
@@ -91,7 +122,8 @@ const ProductCatalog = () => {
                             description: 'High efficiency solar panels for residential and commercial installation.',
                             price: 12500,
                             images: ['https://images.unsplash.com/photo-1508514177221-18d14de6d62d?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Electronics' }
+                            categoryId: { name: 'Electronics' },
+                            vendorId: targetVendorId
                         },
                         {
                             _id: 'm8',
@@ -99,10 +131,12 @@ const ProductCatalog = () => {
                             description: 'Modern ceramic vases in various sizes. Perfect for interior design shops.',
                             price: 1800,
                             images: ['https://images.unsplash.com/photo-1581783898377-1c85bc937427?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Handicrafts' }
+                            categoryId: { name: 'Handicrafts' },
+                            vendorId: targetVendorId
                         }
                     ]);
-                } else {
+                }
+                else {
                     setProducts(productsData);
                 }
             }
@@ -125,8 +159,33 @@ const ProductCatalog = () => {
     });
 
     const openInquiry = (product) => {
+        if (!isAuthenticated) {
+            toast.error('Please login to send inquiries');
+            navigate('/b2b/login');
+            return;
+        }
         setSelectedProduct(product);
         setShowInquiryModal(true);
+    };
+
+    const handleChatDirect = (product) => {
+        if (!isAuthenticated) {
+            toast.error('Please login to chat with vendors');
+            navigate('/b2b/login');
+            return;
+        }
+
+        const vId = product.vendorId?._id || product.vendorId;
+
+        // Validate ID format (24 char hex string)
+        const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(vId);
+
+        if (vId && isValidObjectId) {
+            navigate(`/app/chat/${vId}`);
+        } else {
+            console.error('Invalid vendor ID:', vId);
+            toast.error('Cannot start chat: Invalid Vendor ID');
+        }
     };
 
     return (
@@ -214,14 +273,25 @@ const ProductCatalog = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-50">
+                                    <div className="flex items-center justify-between mb-4">
                                         <div className="flex flex-col">
                                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">MOQ Price</span>
-                                            <span className="text-lg font-extrabold text-primary-600">₹{product.price} <span className="text-xs text-gray-400 font-medium">/ unit</span></span>
+                                            <span className="text-xl font-extrabold text-primary-600">₹{product.price} <span className="text-xs text-gray-400 font-medium">/ unit</span></span>
                                         </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-2 pt-4 border-t border-gray-100">
                                         <button
                                             onClick={() => openInquiry(product)}
+                                            className="flex-1 py-3 bg-white border-2 border-primary-600 text-primary-600 rounded-2xl hover:bg-primary-50 transition-all font-bold text-sm flex items-center justify-center gap-2"
+                                        >
+                                            <FiSend className="text-xs" />
+                                            Inquiry
+                                        </button>
+                                        <button
+                                            onClick={() => handleChatDirect(product)}
                                             className="p-3 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all font-bold"
+                                            title="Chat with Seller"
                                         >
                                             <FiMessageSquare />
                                         </button>
@@ -268,10 +338,46 @@ const ProductCatalog = () => {
                                     </button>
                                 </div>
 
-                                <form className="space-y-6" onSubmit={(e) => {
+                                <form className="space-y-6" onSubmit={async (e) => {
                                     e.preventDefault();
-                                    toast.success('Inquiry sent successfully! The vendor will contact you soon.');
-                                    setShowInquiryModal(false);
+                                    const quantity = e.target.elements[0].value;
+                                    const message = e.target.elements[1].value;
+
+                                    try {
+                                        const vendorId = selectedProduct.vendorId?._id || selectedProduct.vendorId;
+                                        if (!vendorId) throw new Error('Vendor ID missing');
+
+                                        // Validate ID format
+                                        if (!/^[0-9a-fA-F]{24}$/.test(vendorId)) {
+                                            throw new Error('Invalid Vendor ID format');
+                                        }
+
+                                        const convResponse = await chatService.createOrGetConversation(vendorId);
+                                        const conversation = convResponse.data || convResponse;
+                                        const conversationId = conversation._id;
+
+                                        const metadata = {
+                                            productId: selectedProduct._id,
+                                            productName: selectedProduct.name,
+                                            productImage: selectedProduct.images?.[0] || selectedProduct.image,
+                                            productPrice: selectedProduct.price,
+                                            quantity: quantity,
+                                            clientMessage: message
+                                        };
+
+                                        const inquiryMessage = `📦 *INQUIRY FOR: ${selectedProduct.name}*\n` +
+                                            `🔢 *Quantity:* ${quantity} units\n` +
+                                            `💬 *Message:* ${message}`;
+
+                                        await chatService.sendMessage(conversationId, vendorId, inquiryMessage, 'inquiry', metadata);
+
+                                        toast.success('Inquiry sent via chat!');
+                                        setShowInquiryModal(false);
+                                        navigate(`/app/chat/${vendorId}`);
+                                    } catch (err) {
+                                        console.error('Inquiry failed:', err);
+                                        toast.error('Failed to send inquiry via chat');
+                                    }
                                 }}>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Quantity Needed</label>

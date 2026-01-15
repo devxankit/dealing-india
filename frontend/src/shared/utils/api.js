@@ -72,7 +72,12 @@ api.interceptors.request.use(
     // Vendor routes: /auth/vendor, or /vendor/* (but NOT /admin/vendors)
     else if (url.startsWith('/auth/vendor') ||
       (url.startsWith('/vendor/') && !url.startsWith('/admin/vendors'))) {
-      token = localStorage.getItem('vendor-token');
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+      if (currentPath.startsWith('/b2b-vendor')) {
+        token = localStorage.getItem('b2b-vendor-token');
+      } else {
+        token = localStorage.getItem('vendor-token');
+      }
     }
     // Default to user token for all other requests
     else {
@@ -82,6 +87,9 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+
+
     return config;
   },
   (error) => {
@@ -208,11 +216,21 @@ api.interceptors.response.use(
       // Check for vendor routes (but NOT admin vendor management)
       else if (url.startsWith('/auth/vendor') ||
         (url.startsWith('/vendor/') && !url.startsWith('/admin/vendors'))) {
-        localStorage.removeItem('vendor-token');
-        // Only redirect if on vendor pages and not already on login
-        if (currentPath.startsWith('/vendor') && !currentPath.includes('/login')) {
-          shouldRedirect = true;
-          redirectPath = '/vendor/login';
+
+        if (currentPath.startsWith('/b2b-vendor')) {
+          localStorage.removeItem('b2b-vendor-token');
+          // Only redirect if on b2b vendor pages and not already on login
+          if (!currentPath.includes('/login')) {
+            shouldRedirect = true;
+            redirectPath = '/b2b-vendor/login';
+          }
+        } else {
+          localStorage.removeItem('vendor-token');
+          // Only redirect if on vendor pages and not already on login
+          if (currentPath.startsWith('/vendor') && !currentPath.includes('/login')) {
+            shouldRedirect = true;
+            redirectPath = '/vendor/login';
+          }
         }
       }
       // Default to user token

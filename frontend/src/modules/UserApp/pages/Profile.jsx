@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FiUser, FiPackage, FiMapPin, FiCreditCard, FiGift,
   FiLogOut, FiChevronRight, FiEdit2, FiSettings, FiCamera,
-  FiShield, FiArrowLeft, FiMessageSquare, FiRotateCcw, FiShoppingBag
+  FiShield, FiArrowLeft, FiMessageSquare, FiRotateCcw, FiShoppingBag, FiBriefcase
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -14,7 +14,8 @@ import toast from 'react-hot-toast';
 
 const MobileProfile = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
+  const { user, logout, switchMarketplace } = useAuthStore();
+  const [isSwitching, setIsSwitching] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
 
   // Check Mega Reward Status
@@ -35,6 +36,22 @@ const MobileProfile = () => {
     logout();
     navigate('/app/login');
     toast.success('Logged out successfully');
+  };
+
+  const handleSwitchMarketplace = async () => {
+    setIsSwitching(true);
+    try {
+      const targetMarketplace = user?.currentMarketplace === 'b2c' ? 'b2b' : 'b2c';
+      const result = await switchMarketplace(targetMarketplace);
+      if (result.success) {
+        toast.success(`Switched to ${targetMarketplace === 'b2b' ? 'Bulk' : 'Retail'} Marketplace`);
+        navigate(targetMarketplace === 'b2b' ? '/b2b' : '/app');
+      }
+    } catch (error) {
+      toast.error('Failed to switch marketplace');
+    } finally {
+      setIsSwitching(false);
+    }
   };
 
   const menuItems = [
@@ -106,6 +123,37 @@ const MobileProfile = () => {
 
                   <div className="text-yellow-500/50">
                     <FiArrowLeft className="rotate-180 text-lg" />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Marketplace Switcher Card */}
+              <motion.div
+                initial={{ scale: 0.98, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ delay: 0.05 }}
+                onClick={handleSwitchMarketplace}
+                className="w-full bg-gradient-to-r from-emerald-600 to-teal-700 rounded-xl p-4 text-white shadow-xl relative overflow-hidden cursor-pointer"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-2xl" />
+
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10">
+                    <FiBriefcase className="text-2xl text-emerald-100" />
+                  </div>
+
+                  <div className="flex-1">
+                    <h3 className="font-bold text-sm text-emerald-50 mb-0.5">
+                      {isSwitching ? "Switching..." : "Switch to Bulk Marketplace"}
+                    </h3>
+                    <p className="text-[10px] text-emerald-100 font-medium leading-tight">
+                      Access wholesale prices & bulk inquiry
+                    </p>
+                  </div>
+
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center backdrop-blur-sm">
+                    <FiArrowLeft className="rotate-180 text-emerald-100" />
                   </div>
                 </div>
               </motion.div>

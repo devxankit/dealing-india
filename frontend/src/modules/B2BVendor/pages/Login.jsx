@@ -19,12 +19,15 @@ const B2BVendorLogin = () => {
     const [localLoading, setLocalLoading] = useState(false);
 
     useEffect(() => {
-        if (isAuthenticated) {
+        const token = localStorage.getItem('b2b-vendor-token');
+        if (isAuthenticated && token) {
             const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
             navigate(from, { replace: true });
+        } else if (isAuthenticated && !token) {
+            // Store state is stale (token removed by api interceptor), force logout
+            useB2BVendorAuthStore.getState().logout();
         }
     }, [isAuthenticated, navigate, location]);
-
     const handleChange = (e) => {
         setFormData({
             ...formData,

@@ -89,7 +89,7 @@ const MobileLogin = () => {
         ? (data.countryCode ? `${data.countryCode}${data.phone}` : data.phone)
         : data.email;
 
-      await login(identifier, data.password, rememberMe);
+      await login(identifier, data.password, rememberMe, 'b2c');
 
       setLocalLoading(false);
       if (timeoutRef.current) {
@@ -314,20 +314,12 @@ const MobileLogin = () => {
                     Switch to Bulk Marketplace
                   </Link>
                 </div>
-                <div className="pt-2">
-                  <Link
-                    to="/b2b-vendor/login"
-                    className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-bold"
-                  >
-                    B2B Vendor Portal
-                  </Link>
-                </div>
               </div>
             </div>
           </motion.div>
         </div>
-      </MobileLayout>
-    </PageTransition>
+      </MobileLayout >
+    </PageTransition >
   );
 };
 

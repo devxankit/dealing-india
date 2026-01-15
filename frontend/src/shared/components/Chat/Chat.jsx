@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSend, FiMessageSquare } from 'react-icons/fi';
+import { FiArrowLeft, FiSend, FiMessageSquare, FiBox } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import MobileLayout from '../../../modules/UserApp/components/Layout/MobileLayout';
 import PageTransition from '../PageTransition';
@@ -9,6 +9,7 @@ import chatService from '../../services/chatService';
 import { initializeSocket, getSocket } from '../../utils/socket';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '../../utils/helpers';
 
 const Chat = () => {
     const { vendorId } = useParams();
@@ -275,6 +276,9 @@ const Chat = () => {
                             ) : (
                                 messages.map((message) => {
                                     const isSender = message.senderRole === 'user';
+                                    const isInquiry = message.messageType === 'inquiry' || (message.message && message.message.includes('📦 *INQUIRY FOR:'));
+                                    const metadata = message.metadata || {};
+
                                     return (
                                         <motion.div
                                             key={message._id}
@@ -282,19 +286,93 @@ const Chat = () => {
                                             animate={{ opacity: 1, y: 0 }}
                                             className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
                                             <div
-                                                className={`max-w-[75%] rounded-lg px-4 py-2 ${isSender
-                                                    ? 'bg-primary-600 text-white'
-                                                    : 'bg-white text-gray-800 border border-gray-200'
+                                                className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${isSender
+                                                    ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white rounded-tr-none'
+                                                    : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
                                                     }`}>
-                                                <p className="text-sm">{message.message}</p>
-                                                <p
-                                                    className={`text-xs mt-1 ${isSender ? 'text-primary-100' : 'text-gray-500'
-                                                        }`}>
-                                                    {new Date(message.createdAt).toLocaleTimeString([], {
-                                                        hour: '2-digit',
-                                                        minute: '2-digit',
-                                                    })}
-                                                </p>
+
+                                                {isInquiry ? (
+                                                    <div className="flex flex-col gap-3 min-w-[260px]">
+                                                        {/* Premium Header */}
+                                                        <div className={`flex items-center justify-between pb-2 border-b ${isSender ? 'border-white/20' : 'border-gray-100'}`}>
+                                                            <div className={`flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-extrabold ${isSender ? 'text-primary-100' : 'text-primary-700'}`}>
+                                                                <FiBox className="text-xs" />
+                                                                Wholesale Inquiry
+                                                            </div>
+                                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${isSender ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                                                                #{message._id.slice(-4).toUpperCase()}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Product Card */}
+                                                        <div className={`flex items-center gap-3 p-2.5 rounded-2xl ${isSender ? 'bg-white/10 shadow-inner' : 'bg-gray-50 border border-gray-100'}`}>
+                                                            <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white shadow-sm border border-gray-200">
+                                                                {metadata.productImage ? (
+                                                                    <img
+                                                                        src={getImageUrl(metadata.productImage)}
+                                                                        alt={metadata.productName}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                                                        <FiBox className="text-gray-300 text-xl" />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className={`font-black text-[14px] leading-tight truncate-2-lines ${isSender ? 'text-white' : 'text-gray-900'}`}>
+                                                                    {metadata.productName || (message.message.match(/\*INQUIRY FOR: (.*?)\*/)?.[1]) || 'Product Inquiry'}
+                                                                </p>
+                                                                <p className={`text-[11px] mt-1 font-bold ${isSender ? 'text-primary-100' : 'text-primary-600'}`}>
+                                                                    Rate: ₹{metadata.productPrice || 'N/A'}/unit
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Order Analytics */}
+                                                        <div className="grid grid-cols-2 gap-2.5">
+                                                            <div className={`p-3 rounded-2xl ${isSender ? 'bg-white/10' : 'bg-primary-50'}`}>
+                                                                <p className={`text-[9px] uppercase font-bold opacity-60 ${isSender ? 'text-white' : 'text-primary-700'}`}>Quantity</p>
+                                                                <p className={`text-md font-black mt-0.5 ${isSender ? 'text-white' : 'text-primary-900'}`}>
+                                                                    {metadata.quantity || (message.message.match(/\*Quantity:\* (.*?) units/)?.[1]) || '---'}
+                                                                    <span className="text-[10px] font-normal ml-1">Units</span>
+                                                                </p>
+                                                            </div>
+                                                            <div className={`p-3 rounded-2xl ${isSender ? 'bg-white/10' : 'bg-green-50'}`}>
+                                                                <p className={`text-[9px] uppercase font-bold opacity-60 ${isSender ? 'text-white' : 'text-green-700'}`}>Order Status</p>
+                                                                <p className={`text-xs font-bold mt-1.5 ${isSender ? 'text-white' : 'text-green-900'}`}>Open for Quote</p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Quote Message */}
+                                                        {(metadata.clientMessage || message.message.includes('💬 *Message:*')) && (
+                                                            <div className={`relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed italic ${isSender ? 'bg-black/15 text-primary-50 shadow-inner' : 'bg-gray-100 text-gray-700'}`}>
+                                                                <div className={`absolute top-0 left-0 w-1 h-full rounded-l-2xl ${isSender ? 'bg-primary-300' : 'bg-primary-500'}`}></div>
+                                                                "{metadata.clientMessage || (message.message.match(/💬 \*Message:\*\n(.*?)$/s)?.[1]) || 'Interested in this product.'}"
+                                                            </div>
+                                                        )}
+
+                                                        <div className={`text-[10px] text-center italic mt-1 opacity-50 ${isSender ? 'text-white' : 'text-gray-400'}`}>
+                                                            B2B Marketplace Verified Order Path
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-[15px] leading-relaxed">{message.message}</p>
+                                                )}
+
+                                                <div className={`flex items-center justify-end gap-1.5 mt-2 ${isSender ? 'text-primary-100' : 'text-gray-400'}`}>
+                                                    <span className="text-[10px]">
+                                                        {new Date(message.createdAt).toLocaleTimeString([], {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                        })}
+                                                    </span>
+                                                    {isSender && (
+                                                        <span className="text-[10px] opacity-80 decoration-0">
+                                                            {message.readStatus ? 'Read' : 'Sent'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </motion.div>
                                     );

@@ -9,7 +9,7 @@ import { isValidEmail, isValidPhone, validatePassword } from '../utils/validator
 
 /**
  * Register a new user (temporary - only creates record after email verification)
- * @param {Object} userData - { name, email, password, phone }
+ * @param {Object} userData - { name, email, password, phone, businessInfo, userType }
  * @returns {Promise<Object>} { message, email }
  */
 export const registerUser = async (userData) => {
@@ -32,13 +32,14 @@ export const registerUser = async (userData) => {
       console.error('❌ TemporaryRegistration model is null or undefined');
       throw new Error('Registration service unavailable. Please try again later.');
     }
-    
+
     if (typeof TemporaryRegistration.create !== 'function') {
       console.error('❌ TemporaryRegistration.create is not a function');
       throw new Error('Registration service unavailable. Please try again later.');
     }
 
-    const { name, email, password, phone } = userData;
+    const { name, email, password, phone, businessInfo, userType } = userData;
+    const currentMarketplace = userType || 'b2c';
 
     // Validate inputs
     if (!name || !email || !password) {
@@ -93,7 +94,7 @@ export const registerUser = async (userData) => {
       if (!TemporaryRegistration) {
         throw new Error('TemporaryRegistration model is not available');
       }
-      
+
       existingTempReg = await TemporaryRegistration.findOne({
         email: email.toLowerCase(),
         registrationType: 'user',
@@ -108,9 +109,9 @@ export const registerUser = async (userData) => {
         stack: process.env.NODE_ENV === 'development' ? tempRegError.stack : undefined,
       });
       // If it's a critical error (not just "not found"), throw it
-      if (tempRegError.message.includes('model is not available') || 
-          tempRegError.message.includes('Cannot read property') ||
-          tempRegError.name === 'TypeError') {
+      if (tempRegError.message.includes('model is not available') ||
+        tempRegError.message.includes('Cannot read property') ||
+        tempRegError.name === 'TypeError') {
         throw new Error('Database service unavailable. Please try again later.');
       }
       // Continue - might be first time or collection doesn't exist yet
@@ -150,6 +151,8 @@ export const registerUser = async (userData) => {
           email: email.toLowerCase().trim(),
           password: hashedPassword, // Store hashed password
           phone: phone ? phone.trim() : undefined,
+          businessInfo,
+          currentMarketplace,
         },
         expiresAt,
         isVerified: false,
@@ -166,7 +169,7 @@ export const registerUser = async (userData) => {
       }
 
       tempReg = await TemporaryRegistration.create(tempRegData);
-      
+
       if (!tempReg || !tempReg._id) {
         throw new Error('Failed to create temporary registration record');
       }
@@ -179,7 +182,7 @@ export const registerUser = async (userData) => {
         keyValue: createError.keyValue,
         stack: process.env.NODE_ENV === 'development' ? createError.stack : undefined,
       });
-      
+
       // Provide more specific error messages
       if (createError.name === 'ValidationError') {
         const validationErrors = Object.values(createError.errors || {}).map(e => e.message).join(', ');
@@ -208,7 +211,7 @@ export const registerUser = async (userData) => {
       otpError.status = 400;
       throw otpError;
     }
-    
+
     // Send verification email
     let emailResult;
     try {
@@ -219,7 +222,7 @@ export const registerUser = async (userData) => {
         name: emailError.name,
         stack: emailError.stack,
       });
-      
+
       // If email fails, delete temporary registration
       try {
         if (tempReg && tempReg._id) {
@@ -230,31 +233,31 @@ export const registerUser = async (userData) => {
       } catch (deleteError) {
         console.error('Error deleting temporary registration after email failure:', deleteError.message);
       }
-      
+
       // If email service is not configured, still allow registration but log OTP
       if (emailError.message?.includes('not configured') || emailError.message?.includes('EMAIL_SERVICE_NOT_CONFIGURED')) {
         console.error(`🚨 CRITICAL: Email service not configured. OTP for ${email}: ${otp}`);
         throw new Error('Email service not configured. Please contact support.');
       }
-      
+
       throw new Error('Failed to send verification email. Please try again.');
     }
 
     if (!emailResult || !emailResult.success) {
       // Check if it's a timeout error - in production, allow registration to proceed
       // but log the OTP for manual verification
-      const isTimeoutError = emailResult?.error === 'EMAIL_TIMEOUT' || 
-                            emailResult?.code === 'TIMEOUT' ||
-                            emailResult?.message?.includes('timeout') ||
-                            emailResult?.message?.includes('Connection timeout');
-      
+      const isTimeoutError = emailResult?.error === 'EMAIL_TIMEOUT' ||
+        emailResult?.code === 'TIMEOUT' ||
+        emailResult?.message?.includes('timeout') ||
+        emailResult?.message?.includes('Connection timeout');
+
       // In production, if email times out, log OTP and allow registration to proceed
       // This is better than failing registration completely
       if (isTimeoutError) {
         console.error(`🚨 CRITICAL: Email timeout during registration for ${email}`);
         console.error(`🚨 OTP for manual verification: ${otp}`);
         console.error('⚠️  Registration proceeding despite email timeout. User can verify using OTP from logs.');
-        
+
         // Don't delete temporary registration - allow user to verify later
         // Return success but with warning message
         return {
@@ -263,7 +266,7 @@ export const registerUser = async (userData) => {
           warning: 'Email service timeout - OTP logged in server',
         };
       }
-      
+
       // For other email errors, delete temporary registration
       try {
         if (tempReg && tempReg._id) {
@@ -274,7 +277,7 @@ export const registerUser = async (userData) => {
       } catch (deleteError) {
         console.error('Error deleting temporary registration after email failure:', deleteError.message);
       }
-      
+
       const errorMessage = emailResult?.message || 'Failed to send verification email. Please try again.';
       throw new Error(errorMessage);
     }
@@ -298,12 +301,12 @@ export const registerUser = async (userData) => {
       hasTempRegModel: !!TemporaryRegistration,
       stack: error.stack, // Always log stack in production for debugging
     });
-    
+
     // Preserve status codes for rate limiting
     if (error.statusCode === 429 || error.isRateLimitError) {
       error.status = 429;
     }
-    
+
     throw error;
   }
 };
@@ -312,9 +315,10 @@ export const registerUser = async (userData) => {
  * Login user with email/phone and password
  * @param {String} identifier - Email or phone number
  * @param {String} password - Plain text password
+ * @param {String} [marketplacePreference] - 'b2c' or 'b2b'
  * @returns {Promise<Object>} { user, token }
  */
-export const loginUser = async (identifier, password) => {
+export const loginUser = async (identifier, password, marketplacePreference) => {
   try {
     if (!identifier || !password) {
       throw new Error('Email/phone and password are required');
@@ -347,6 +351,12 @@ export const loginUser = async (identifier, password) => {
       const error = new Error('Invalid email/phone or password');
       error.statusCode = 401;
       throw error;
+    }
+
+    // Update marketplace preference if provided
+    if (marketplacePreference && ['b2c', 'b2b'].includes(marketplacePreference)) {
+      user.currentMarketplace = marketplacePreference;
+      await user.save();
     }
 
     // Generate token
@@ -522,6 +532,8 @@ export const verifyUserEmail = async (email, otp) => {
       email: tempRegistration.registrationData.email,
       password: tempRegistration.registrationData.password, // Already hashed
       phone: tempRegistration.registrationData.phone,
+      businessInfo: tempRegistration.registrationData.businessInfo,
+      currentMarketplace: tempRegistration.registrationData.currentMarketplace || 'b2c',
       isEmailVerified: true, // Set to true since OTP is verified
       isActive: true,
       role: 'user',
@@ -585,7 +597,7 @@ export const resendUserVerificationOTP = async (email) => {
 
     // Generate and send OTP (async, don't block response)
     const otp = await resendOTP(email, 'email_verification');
-    
+
     // Send email asynchronously to avoid blocking
     sendVerificationEmail(email, otp)
       .then(result => {
@@ -649,7 +661,7 @@ export const forgotUserPassword = async (email) => {
       otpError.status = 400;
       throw otpError;
     }
-    
+
     await sendPasswordResetEmail(email, otp);
 
     return { success: true, message: 'Password reset OTP has been sent to your email' };
@@ -697,6 +709,34 @@ export const resetUserPassword = async (email, otp, newPassword) => {
     await user.save();
 
     return true;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Switch user marketplace (B2C or B2B)
+ * @param {String} userId - User ID
+ * @param {String} marketplace - 'b2c' or 'b2b'
+ * @returns {Promise<Object>} Updated user
+ */
+export const switchUserMarketplace = async (userId, marketplace) => {
+  try {
+    if (!['b2c', 'b2b'].includes(marketplace)) {
+      throw new Error('Invalid marketplace type');
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: { currentMarketplace: marketplace } },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return user;
   } catch (error) {
     throw error;
   }

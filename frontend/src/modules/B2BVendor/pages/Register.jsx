@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiMapPin, FiBriefcase, FiUpload, FiFile, FiX } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import api from '../../../shared/utils/api';
 
 const B2BVendorRegister = () => {
     const navigate = useNavigate();
@@ -80,12 +81,31 @@ const B2BVendorRegister = () => {
 
         setLocalLoading(true);
         try {
-            // Mock registration logic
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            toast.success('Registration request submitted! Please verify your email.');
-            navigate('/b2b-vendor/verification', { state: { email: formData.email } });
+            const registrationData = {
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                password: formData.password,
+                storeName: formData.companyName,
+                storeDescription: `B2B ${formData.businessType} Vendor`,
+                vendorType: 'b2b',
+                address: formData.address,
+                documents: businessLicense ? {
+                    businessLicense: businessLicense.data
+                } : {}
+            };
+
+            const response = await api.post('/auth/vendor/register', registrationData);
+
+            if (response.success) {
+                toast.success('Registration request submitted! Please verify your email.');
+                navigate('/b2b-vendor/verification', { state: { email: formData.email } });
+            } else {
+                toast.error(response.message || 'Registration failed');
+            }
         } catch (error) {
-            toast.error('Registration failed. Please try again.');
+            const message = error.response?.data?.message || 'Registration failed. Please try again.';
+            toast.error(message);
         } finally {
             setLocalLoading(false);
         }

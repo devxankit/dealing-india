@@ -10,6 +10,7 @@ import {
   resendOTP,
   forgotPassword,
   resetPassword,
+  switchMarketplace,
 } from '../controllers/user-controllers/userAuth.controller.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -32,6 +33,6 @@ router.post('/logout', optionalAuthenticate, asyncHandler(logout));
 router.get('/me', authenticate, asyncHandler(getMe));
 router.put('/profile', authenticate, asyncHandler(updateProfile));
 router.put('/change-password', authenticate, asyncHandler(changePassword));
+router.put('/switch-marketplace', authenticate, asyncHandler(switchMarketplace));
 
 export default router;
-

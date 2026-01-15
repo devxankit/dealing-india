@@ -114,9 +114,10 @@ import AdminB2BVendorAnalyticsPage from "./modules/Admin/pages/b2b-vendors/B2BVe
 import AdminB2BDisputeResolution from "./modules/Admin/pages/b2b-vendors/DisputeResolution";
 import AdminB2BSubscriptions from "./modules/Admin/pages/b2b-vendors/Subscriptions";
 import RouteWrapper from "./shared/components/RouteWrapper";
-import ScrollToTop from "./shared/components/ScrollToTop";
 // Mobile App Routes
 import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
+const Chat = lazyWithRetry(() => import("./shared/components/Chat/Chat"));
+import ScrollToTop from "./shared/components/ScrollToTop";
 
 // Mobile App Routes (Eager Loaded for Instant Nav)
 import MobileHome from "./modules/UserApp/pages/Home";
@@ -226,6 +227,11 @@ import B2BUserDashboard from "./modules/B2BUserApp/pages/Dashboard";
 import B2BProductCatalog from "./modules/B2BUserApp/pages/ProductCatalog";
 import B2BInquiries from "./modules/B2BUserApp/pages/Inquiries";
 import B2BUserProfile from "./modules/B2BUserApp/pages/Profile";
+import B2BCompanyProfile from "./modules/B2BUserApp/pages/CompanyProfile";
+import B2BNotifications from "./modules/B2BUserApp/pages/Notifications";
+import B2BSecurity from "./modules/B2BUserApp/pages/Security";
+import B2BPayments from "./modules/B2BUserApp/pages/Payments";
+import B2BSupport from "./modules/B2BUserApp/pages/Support";
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -411,10 +417,16 @@ const AppRoutes = () => {
         <Route path="/b2b/login" element={<B2BUserLogin />} />
         <Route path="/b2b/register" element={<B2BUserRegister />} />
         <Route path="/b2b/verification" element={<B2BUserVerification />} />
-        <Route path="/b2b" element={<B2BUserDashboard />} />
-        <Route path="/b2b/catalog" element={<B2BProductCatalog />} />
-        <Route path="/b2b/inquiries" element={<B2BInquiries />} />
-        <Route path="/b2b/profile" element={<B2BUserProfile />} />
+
+        <Route path="/b2b" element={<ProtectedRoute><B2BUserDashboard /></ProtectedRoute>} />
+        <Route path="/b2b/catalog" element={<ProtectedRoute><B2BProductCatalog /></ProtectedRoute>} />
+        <Route path="/b2b/inquiries" element={<ProtectedRoute><B2BInquiries /></ProtectedRoute>} />
+        <Route path="/b2b/profile" element={<ProtectedRoute><B2BUserProfile /></ProtectedRoute>} />
+        <Route path="/b2b/company" element={<ProtectedRoute><B2BCompanyProfile /></ProtectedRoute>} />
+        <Route path="/b2b/notifications" element={<ProtectedRoute><B2BNotifications /></ProtectedRoute>} />
+        <Route path="/b2b/security" element={<ProtectedRoute><B2BSecurity /></ProtectedRoute>} />
+        <Route path="/b2b/payments" element={<ProtectedRoute><B2BPayments /></ProtectedRoute>} />
+        <Route path="/b2b/support" element={<ProtectedRoute><B2BSupport /></ProtectedRoute>} />
 
         {/* Vendor Routes */}
         <Route path="/vendor/login" element={<VendorLogin />} />
@@ -550,6 +562,22 @@ const AppRoutes = () => {
           <Route path="profile" element={<B2BVendorProfile />} />
         </Route>
         {/* Mobile App Routes */}
+        <Route
+          path="/app/chat"
+          element={
+            <RouteWrapper>
+              <Chat />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/chat/:vendorId"
+          element={
+            <RouteWrapper>
+              <Chat />
+            </RouteWrapper>
+          }
+        />
         <Route
           path="/app"
           element={
@@ -843,6 +871,10 @@ const AppRoutes = () => {
               </ProtectedRoute>
             </RouteWrapper>
           }
+        />
+        <Route
+          path="*"
+          element={<Navigate to="/app" replace />}
         />
       </Routes>
     </>

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiBriefcase, FiMapPin, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { useB2BUserAuthStore } from '../store/b2bUserAuthStore';
+import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 
 const B2BUserRegister = () => {
     const navigate = useNavigate();
-    const { register } = useB2BUserAuthStore();
+    const { register } = useAuthStore();
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -41,7 +41,35 @@ const B2BUserRegister = () => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const result = await register(formData);
+            const payload = {
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                password: formData.password,
+                businessInfo: {
+                    companyName: formData.companyName,
+                    gstNumber: formData.gstNumber,
+                    address: {
+                        city: formData.address.city,
+                        state: formData.address.state
+                    }
+                },
+                userType: 'b2b'
+            };
+
+            const result = await register(
+                payload.name,
+                payload.email,
+                payload.password,
+                payload.phone,
+                payload.userType,
+                payload.businessInfo
+            );
+
+            // Note: Currently the register action in authStore doesn't handle businessInfo.
+            // I should update the authStore's register action to accept an optional data object or handle additional fields.
+            // But for now, I'll update the store's register action to be more flexible.
+
             if (result.success) {
                 toast.success('Registration successful! Please verify your email.');
                 navigate('/b2b/verification', { state: { email: formData.email } });
@@ -49,7 +77,7 @@ const B2BUserRegister = () => {
                 toast.error(result.message || 'Registration failed');
             }
         } catch (error) {
-            toast.error('Something went wrong. Please try again.');
+            toast.error(error.message || 'Something went wrong. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -65,9 +93,6 @@ const B2BUserRegister = () => {
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-400 to-primary-600"></div>
 
                 <div className="text-center mb-10">
-                    <Link to="/app" className="inline-flex items-center gap-2 text-primary-600 font-bold mb-6 hover:translate-x-[-4px] transition-transform">
-                        <FiArrowLeft /> Back to Shopping
-                    </Link>
                     <div className="w-20 h-20 bg-primary-100 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-50">
                         <FiBriefcase className="text-primary-600 text-3xl" />
                     </div>
@@ -214,9 +239,12 @@ const B2BUserRegister = () => {
                         </button>
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 pt-4 border-t border-gray-100 flex flex-col items-center gap-4">
+                        <Link to="/app/login" className="text-gray-500 font-medium hover:text-primary-600 transition-colors">
+                            Back to Retail Marketplace
+                        </Link>
                         <p className="text-center text-gray-500 font-medium">
-                            Already have a bulk account?{' '}
+                            Already have an account?{' '}
                             <Link to="/b2b/login" className="text-primary-600 font-bold hover:underline">
                                 Sign In here
                             </Link>

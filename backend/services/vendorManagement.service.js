@@ -12,6 +12,7 @@ export const getAllVendors = async (filters = {}) => {
       status,
       isActive,
       search,
+      vendorType, // Add vendorType
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
@@ -24,6 +25,11 @@ export const getAllVendors = async (filters = {}) => {
     // Filter by status
     if (status && status !== 'all') {
       query.status = status;
+    }
+
+    // Filter by vendorType if provided
+    if (vendorType) {
+      query.vendorType = vendorType;
     }
 
     // Filter by isActive if provided

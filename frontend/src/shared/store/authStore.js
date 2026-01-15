@@ -34,6 +34,8 @@ export const useAuthStore = create(
               avatar: user.avatar || null,
               isEmailVerified: user.isEmailVerified || false,
               role: user.role || 'user',
+              currentMarketplace: user.currentMarketplace || userType || 'b2c',
+              businessInfo: user.businessInfo || null,
             };
 
             set({
@@ -41,7 +43,7 @@ export const useAuthStore = create(
               token: token,
               isAuthenticated: true,
               isLoading: false,
-              userType: userType,
+              userType: user.currentMarketplace || userType,
             });
 
             localStorage.setItem('token', token);
@@ -51,34 +53,23 @@ export const useAuthStore = create(
             throw new Error(response.message || 'Login failed');
           }
         } catch (error) {
-          // Always reset loading state, even on error
           set({ isLoading: false });
-
-          // Extract error message properly
-          // The API interceptor returns error.response.data, so check multiple places
           let errorMessage = error?.message;
-
-          // Check if error has response data (from axios)
           if (!errorMessage && error?.response?.data?.message) {
             errorMessage = error.response.data.message;
           }
-
-          // Check if error.response.data is the message itself (from API interceptor)
           if (!errorMessage && typeof error?.response?.data === 'string') {
             errorMessage = error.response.data;
           }
-
-          // Fallback message
           if (!errorMessage) {
             errorMessage = 'Invalid email/phone or password. Please check your credentials and try again.';
           }
-
           throw new Error(errorMessage);
         }
       },
 
-      // Register action (now only initiates registration, doesn't create user)
-      register: async (name, email, password, phone, userType = 'b2c') => {
+      // Register action
+      register: async (name, email, password, phone, userType = 'b2c', businessInfo = null) => {
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/register', {
@@ -86,13 +77,12 @@ export const useAuthStore = create(
             email,
             password,
             phone,
-            userType
+            userType,
+            businessInfo
           });
 
           if (response.success && response.data) {
-            // Registration only returns email now - user will be created after email verification
             set({ isLoading: false });
-
             return {
               success: true,
               email: response.data.email,
@@ -102,10 +92,7 @@ export const useAuthStore = create(
             throw new Error(response.message || 'Registration failed');
           }
         } catch (error) {
-          // Always reset loading state, even on error
           set({ isLoading: false });
-
-          // Ensure error has a message
           const errorMessage = error?.message ||
             error?.response?.data?.message ||
             'Registration failed. Please check your internet connection and try again.';
@@ -116,33 +103,23 @@ export const useAuthStore = create(
       // Logout action
       logout: async () => {
         try {
-          // Call backend logout endpoint if token exists and is valid
           const token = get().token;
           if (token) {
             try {
-              // Check if token is expired before making API call
               const tokenParts = token.split('.');
               if (tokenParts.length === 3) {
                 try {
                   const payload = JSON.parse(atob(tokenParts[1]));
                   const exp = payload.exp;
                   const now = Math.floor(Date.now() / 1000);
-
-                  // Only call logout API if token is not expired
                   if (exp && exp > now) {
                     await api.post('/auth/user/logout');
                   }
-                } catch (e) {
-                  // Token parsing failed, skip API call
-                }
+                } catch (e) { }
               }
-            } catch (error) {
-              // Silently ignore logout API errors (token might be expired)
-              // Still proceed with local logout
-            }
+            } catch (error) { }
           }
         } catch (error) {
-          // Ignore errors, proceed with local logout
         } finally {
           set({
             user: null,
@@ -151,10 +128,7 @@ export const useAuthStore = create(
             userType: null,
           });
           localStorage.removeItem('token');
-
-          // Reset cart store when user logs out
           try {
-            // Dynamic import to avoid circular dependency
             const cartStoreModule = await import('./cartStore.js');
             if (cartStoreModule?.useCartStore) {
               const cartStore = cartStoreModule.useCartStore.getState();
@@ -162,9 +136,7 @@ export const useAuthStore = create(
                 cartStore.reset();
               }
             }
-          } catch (e) {
-            // Cart store might not be loaded yet, ignore silently
-          }
+          } catch (e) { }
         }
       },
 
@@ -176,8 +148,6 @@ export const useAuthStore = create(
 
           if (response.success && response.data) {
             const user = response.data.user;
-
-            // Transform backend user object to frontend format
             const updatedUser = {
               id: user._id || user.id,
               _id: user._id,
@@ -187,11 +157,14 @@ export const useAuthStore = create(
               avatar: user.avatar || null,
               isEmailVerified: user.isEmailVerified || false,
               role: user.role || 'user',
+              currentMarketplace: user.currentMarketplace || 'b2c',
+              businessInfo: user.businessInfo || null,
             };
 
             set({
               user: updatedUser,
               isLoading: false,
+              userType: updatedUser.currentMarketplace,
             });
 
             return { success: true, user: updatedUser };
@@ -212,7 +185,6 @@ export const useAuthStore = create(
             currentPassword,
             newPassword
           });
-
           if (response.success) {
             set({ isLoading: false });
             return { success: true };
@@ -225,16 +197,13 @@ export const useAuthStore = create(
         }
       },
 
-      // Verify email with OTP (now creates user account)
+      // Verify email
       verifyEmail: async (email, otp) => {
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/verify-email', { email, otp });
-
           if (response.success && response.data) {
             const { user, token } = response.data;
-
-            // Transform backend user object to frontend format
             const userData = {
               id: user._id || user.id,
               _id: user._id,
@@ -242,20 +211,19 @@ export const useAuthStore = create(
               email: user.email,
               phone: user.phone || '',
               avatar: user.avatar || null,
-              isEmailVerified: user.isEmailVerified || true, // Should be true after verification
+              isEmailVerified: user.isEmailVerified || true,
               role: user.role || 'user',
+              currentMarketplace: user.currentMarketplace || 'b2c',
+              businessInfo: user.businessInfo || null,
             };
-
             set({
               user: userData,
               token: token,
               isAuthenticated: true,
               isLoading: false,
-              userType: user.userType || 'b2c',
+              userType: userData.currentMarketplace,
             });
-
             localStorage.setItem('token', token);
-
             return { success: true, user: userData, message: response.message };
           } else {
             throw new Error(response.message || 'Email verification failed');
@@ -266,12 +234,11 @@ export const useAuthStore = create(
         }
       },
 
-      // Resend verification OTP
+      // Resend OTP
       resendOTP: async (email) => {
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/resend-otp', { email });
-
           if (response.success) {
             set({ isLoading: false });
             return { success: true, message: response.message };
@@ -289,7 +256,6 @@ export const useAuthStore = create(
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/forgot-password', { email });
-
           if (response.success) {
             set({ isLoading: false });
             return { success: true, message: response.message };
@@ -311,7 +277,6 @@ export const useAuthStore = create(
             otp,
             newPassword
           });
-
           if (response.success) {
             set({ isLoading: false });
             return { success: true, message: response.message };
@@ -324,42 +289,62 @@ export const useAuthStore = create(
         }
       },
 
-      // Initialize auth state from localStorage and validate token
+      // Switch marketplace action
+      switchMarketplace: async (marketplace) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.put('/auth/user/switch-marketplace', { marketplace });
+          if (response.success && response.data) {
+            const user = response.data.user;
+            const updatedUser = {
+              id: user._id || user.id,
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              phone: user.phone || '',
+              avatar: user.avatar || null,
+              isEmailVerified: user.isEmailVerified || false,
+              role: user.role || 'user',
+              currentMarketplace: user.currentMarketplace,
+              businessInfo: user.businessInfo || null,
+            };
+            set({
+              user: updatedUser,
+              isLoading: false,
+              userType: updatedUser.currentMarketplace,
+            });
+            return { success: true, user: updatedUser };
+          } else {
+            throw new Error(response.message || 'Failed to switch marketplace');
+          }
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Initialize
       initialize: async () => {
         const token = localStorage.getItem('token');
         if (token) {
-          // First check if token is expired locally before making API call
           try {
             const tokenParts = token.split('.');
             if (tokenParts.length === 3) {
               const payload = JSON.parse(atob(tokenParts[1]));
               const exp = payload.exp;
               const now = Math.floor(Date.now() / 1000);
-
-              // If token is expired, clear storage immediately
               if (exp && exp <= now) {
-                set({
-                  user: null,
-                  token: null,
-                  isAuthenticated: false,
-                });
+                set({ user: null, token: null, isAuthenticated: false, userType: null });
                 localStorage.removeItem('token');
                 return;
               }
             }
-          } catch (e) {
-            // Token parsing failed, might be invalid format
-            // Continue to API validation
-          }
+          } catch (e) { }
 
           try {
-            // Validate token with backend
             const response = await api.get('/auth/user/me');
-
             if (response.success && response.data) {
               const user = response.data.user;
-
-              // Transform backend user object to frontend format
               const userData = {
                 id: user._id || user.id,
                 _id: user._id,
@@ -369,29 +354,21 @@ export const useAuthStore = create(
                 avatar: user.avatar || null,
                 isEmailVerified: user.isEmailVerified || false,
                 role: user.role || 'user',
+                currentMarketplace: user.currentMarketplace || 'b2c',
+                businessInfo: user.businessInfo || null,
               };
-
               set({
                 user: userData,
                 token: token,
                 isAuthenticated: true,
+                userType: userData.currentMarketplace,
               });
             } else {
-              // Invalid token, clear storage
-              set({
-                user: null,
-                token: null,
-                isAuthenticated: false,
-              });
+              set({ user: null, token: null, isAuthenticated: false, userType: null });
               localStorage.removeItem('token');
             }
           } catch (error) {
-            // Token invalid or expired, clear storage silently
-            set({
-              user: null,
-              token: null,
-              isAuthenticated: false,
-            });
+            set({ user: null, token: null, isAuthenticated: false, userType: null });
             localStorage.removeItem('token');
           }
         }
@@ -405,9 +382,7 @@ export const useAuthStore = create(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
         userType: state.userType,
-        // Exclude isLoading from persistence - it's a transient UI state
       }),
     }
   )
 );
-

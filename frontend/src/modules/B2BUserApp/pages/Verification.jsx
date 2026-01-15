@@ -3,30 +3,34 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FiArrowLeft, FiCheck, FiMail } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { useB2BUserAuthStore } from '../store/b2bUserAuthStore';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const B2BUserVerification = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const [codes, setCodes] = useState(['', '', '', '']);
+    const [codes, setCodes] = useState(['', '', '', '', '', '']); // 6 digit OTP
     const [isLoading, setIsLoading] = useState(false);
     const inputRefs = useRef([]);
-    // const { verifyEmail, resendOTP } = useB2BUserAuthStore(); // Placeholder
+    const { verifyEmail, resendOTP } = useAuthStore();
 
-    const email = location.state?.email || 'your business email';
+    const email = location.state?.email;
 
     useEffect(() => {
+        if (!email) {
+            toast.error('Session expired. Please register again.');
+            navigate('/b2b/register');
+        }
         if (inputRefs.current[0]) {
             inputRefs.current[0].focus();
         }
-    }, []);
+    }, [email, navigate]);
 
     const handleChange = (index, value) => {
         if (value.length > 1) return;
         const newCodes = [...codes];
         newCodes[index] = value;
         setCodes(newCodes);
-        if (value && index < 3) {
+        if (value && index < 5) {
             inputRefs.current[index + 1]?.focus();
         }
     };
@@ -39,13 +43,34 @@ const B2BUserVerification = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const otp = codes.join('');
+        if (otp.length !== 6) return;
+
         setIsLoading(true);
-        // Mock verification
-        setTimeout(() => {
-            toast.success('Email verified successfully! Welcome to the B2B Network.');
-            navigate('/b2b/login');
+        try {
+            const result = await verifyEmail(email, otp);
+            if (result.success) {
+                toast.success('Email verified successfully! Welcome to the B2B Network.');
+                navigate('/b2b');
+            } else {
+                toast.error(result.message || 'Verification failed');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Something went wrong. Please try again.');
+        } finally {
             setIsLoading(false);
-        }, 1500);
+        }
+    };
+
+    const handleResend = async () => {
+        try {
+            const result = await resendOTP(email);
+            if (result.success) {
+                toast.success('Verification code resent successfully');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to resend code');
+        }
     };
 
     return (
@@ -67,7 +92,7 @@ const B2BUserVerification = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
-                    <div className="flex justify-center gap-3">
+                    <div className="flex justify-center gap-2">
                         {codes.map((code, index) => (
                             <input
                                 key={index}
@@ -78,7 +103,7 @@ const B2BUserVerification = () => {
                                 value={code}
                                 onChange={(e) => handleChange(index, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(index, e)}
-                                className="w-16 h-16 text-center text-3xl font-extrabold bg-gray-50 border-2 border-transparent rounded-2xl focus:outline-none focus:border-primary-500 focus:bg-white text-gray-800 transition-all shadow-sm"
+                                className="w-12 h-14 text-center text-2xl font-extrabold bg-gray-50 border-2 border-transparent rounded-xl focus:outline-none focus:border-primary-500 focus:bg-white text-gray-800 transition-all shadow-sm"
                             />
                         ))}
                     </div>
@@ -92,7 +117,11 @@ const B2BUserVerification = () => {
                     </button>
 
                     <div className="text-center">
-                        <button type="button" className="text-sm font-bold text-primary-600 hover:underline">
+                        <button
+                            type="button"
+                            onClick={handleResend}
+                            className="text-sm font-bold text-primary-600 hover:underline"
+                        >
                             Didn't receive? Resend Code
                         </button>
                     </div>

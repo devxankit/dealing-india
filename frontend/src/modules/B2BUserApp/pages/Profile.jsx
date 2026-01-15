@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiUser, FiSettings, FiBell, FiShield, FiCreditCard, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight } from 'react-icons/fi';
+import { FiUser, FiSettings, FiBell, FiShield, FiCreditCard, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
-import { useB2BUserAuthStore } from '../store/b2bUserAuthStore';
+import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 
 const Profile = () => {
     const navigate = useNavigate();
-    const { user, logout } = useB2BUserAuthStore();
+    const { user, logout, switchMarketplace } = useAuthStore();
+    const [isSwitching, setIsSwitching] = useState(false);
 
     const menuItems = [
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
@@ -21,7 +23,22 @@ const Profile = () => {
     const handleLogout = () => {
         logout();
         toast.success('Logged out successfully');
-        navigate('/b2b/login');
+        navigate('/app/login');
+    };
+
+    const handleSwitchMarketplace = async () => {
+        setIsSwitching(true);
+        try {
+            const result = await switchMarketplace('b2c');
+            if (result.success) {
+                toast.success('Switched to Retail Marketplace');
+                navigate('/app');
+            }
+        } catch (error) {
+            toast.error('Failed to switch marketplace');
+        } finally {
+            setIsSwitching(false);
+        }
     };
 
     return (
@@ -30,21 +47,48 @@ const Profile = () => {
 
             <main className="max-w-2xl mx-auto px-4 py-8">
                 {/* Profile Header */}
-                <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm mb-8 relative overflow-hidden">
+                <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm mb-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
                     <div className="relative flex flex-col items-center">
                         <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-700 rounded-[2rem] flex items-center justify-center mb-4 shadow-xl shadow-primary-100">
                             <span className="text-3xl font-extrabold text-white">
-                                {user?.name?.charAt(0) || 'M'}
+                                {user?.name?.charAt(0) || 'U'}
                             </span>
                         </div>
-                        <h2 className="text-2xl font-extrabold text-gray-800">{user?.name || 'Mock Business User'}</h2>
-                        <p className="text-gray-500 font-medium mb-4">{user?.email || 'mockb2buser@example.com'}</p>
+                        <h2 className="text-2xl font-extrabold text-gray-800">{user?.name || 'User Name'}</h2>
+                        <p className="text-gray-500 font-medium mb-4">{user?.email || 'user@example.com'}</p>
                         <span className="px-4 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-widest">
                             Verified Buyer
                         </span>
                     </div>
                 </div>
+
+                {/* Marketplace Switcher Card */}
+                <motion.div
+                    initial={{ scale: 0.98, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={handleSwitchMarketplace}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-6 text-white shadow-xl mb-8 relative overflow-hidden cursor-pointer"
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-2xl" />
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10 text-white">
+                                <FiShoppingBag size={24} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg leading-tight">
+                                    {isSwitching ? "Switching..." : "Switch to Retail"}
+                                </h3>
+                                <p className="text-xs text-blue-100 font-medium opacity-80">
+                                    Buy for yourself at Retail Marketplace
+                                </p>
+                            </div>
+                        </div>
+                        <FiArrowRight size={20} className="text-blue-200" />
+                    </div>
+                </motion.div>
 
                 {/* Account Menu */}
                 <div className="space-y-4">
@@ -54,6 +98,7 @@ const Profile = () => {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.05 }}
+                            onClick={() => navigate(item.path)}
                             className="w-full bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-primary-200 transition-all hover:shadow-md"
                         >
                             <div className="flex items-center gap-5">
@@ -82,7 +127,7 @@ const Profile = () => {
                             </div>
                             <div className="text-left">
                                 <p className="font-bold text-red-600 leading-none">Log Out</p>
-                                <p className="text-xs text-red-400 font-medium mt-1">Exit business portal</p>
+                                <p className="text-xs text-red-400 font-medium mt-1">Exit account</p>
                             </div>
                         </div>
                         <FiArrowRight className="text-red-200 group-hover:translate-x-1 transition-all" />

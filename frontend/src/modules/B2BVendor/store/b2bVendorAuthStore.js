@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import api from '../../../shared/utils/api';
 
 export const useB2BVendorAuthStore = create(
     persist(
@@ -13,31 +14,35 @@ export const useB2BVendorAuthStore = create(
             login: async (email, password) => {
                 set({ loading: true });
                 try {
-                    // MOCK LOGIN FOR TESTING
-                    if (
-                        (email.toLowerCase() === 'mockb2bvendor@example.com' || email.toLowerCase() === 'mockb2b@example.com') &&
-                        password === 'password123'
-                    ) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        const mockVendor = {
-                            id: 'mock_b2b_v1',
-                            name: 'Mock B2B Vendor',
-                            email: email.toLowerCase(),
-                            storeName: 'Mock Wholesale Store',
-                            role: 'b2b_vendor'
-                        };
-                        const mockToken = 'mock_token_b2b_vendor_123';
-                        localStorage.setItem('token', mockToken);
-                        set({ vendor: mockVendor, token: mockToken, isAuthenticated: true, loading: false });
-                        return { success: true };
-                    }
+                    const response = await api.post('/auth/vendor/login', { email, password });
 
-                    // Actual API call placeholder
-                    // const response = await api.post('/b2b-vendor/login', { email, password });
-                    return { success: false, message: 'Invalid credentials' };
+                    if (response.success && response.data) {
+                        const { vendor, token } = response.data;
+
+                        // Transform backend vendor object to frontend format
+                        const vendorData = {
+                            id: vendor._id || vendor.id,
+                            _id: vendor._id,
+                            name: vendor.name,
+                            email: vendor.email,
+                            storeName: vendor.storeName,
+                            role: vendor.role || 'vendor',
+                            vendorType: vendor.vendorType
+                        };
+
+                        localStorage.setItem('b2b-vendor-token', token);
+                        set({ vendor: vendorData, token, isAuthenticated: true, loading: false });
+                        return { success: true };
+                    } else {
+                        set({ loading: false });
+                        return { success: false, message: response.message || 'Login failed' };
+                    }
                 } catch (error) {
+                    set({ loading: true });
+                    const message = error.response?.data?.message || 'Login failed';
+                    return { success: false, message };
+                } finally {
                     set({ loading: false });
-                    return { success: false, message: 'Login failed' };
                 }
             },
 
@@ -49,7 +54,7 @@ export const useB2BVendorAuthStore = create(
             }),
 
             logout: () => {
-                localStorage.removeItem('token');
+                localStorage.removeItem('b2b-vendor-token');
                 set({
                     vendor: null,
                     token: null,
