@@ -5,9 +5,6 @@ import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import toast from 'react-hot-toast';
 
-import VendorTypeSelector from '../components/VendorTypeSelector';
-import SubscriptionPlanSelector from '../components/SubscriptionPlanSelector';
-
 const VendorRegister = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,7 +16,7 @@ const VendorRegister = () => {
   const preFilledData = location.state?.userData || {};
   const isUpgrade = location.state?.isUpgrade || false;
 
-  const [vendorType, setVendorType] = useState('b2c'); // 'b2c' or 'b2b'
+  const [vendorType] = useState('b2c'); // Only 'b2c' now
   const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
 
   useEffect(() => {
@@ -191,11 +188,6 @@ const VendorRegister = () => {
       return;
     }
 
-    if (vendorType === 'b2b' && !subscriptionPlan) {
-      toast.error('Please select a subscription plan for B2B registration');
-      return;
-    }
-
     try {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -218,7 +210,7 @@ const VendorRegister = () => {
         address: formData.address,
         documents: documents,
         vendorType,
-        subscriptionPlan: vendorType === 'b2b' ? subscriptionPlan : null,
+        subscriptionPlan: null,
       });
 
       setLocalLoading(false);
@@ -262,30 +254,11 @@ const VendorRegister = () => {
             <FiShoppingBag className="text-white text-2xl" />
           </div>
           <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Become a Vendor</h1>
-          <p className="text-gray-600">Register your store and start selling today</p>
+          <p className="text-gray-600">Register your retail store and start selling today</p>
         </div>
 
         {/* Registration Form */}
-        <form onSubmit={handleSubmit} className="space-y-10">
-          {/* Vendor Type Selection */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <FiBriefcase className="text-primary-500" />
-              Choose Your Vendor Type
-            </h3>
-            <VendorTypeSelector selected={vendorType} onSelect={setVendorType} />
-          </div>
-
-          {/* Subscription Section for B2B */}
-          {vendorType === 'b2b' && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="pt-4 border-t border-gray-100"
-            >
-              <SubscriptionPlanSelector selected={subscriptionPlan} onSelect={setSubscriptionPlan} />
-            </motion.div>
-          )}
+        <form onSubmit={handleSubmit} className="space-y-6">
 
           <div className="pt-6 border-t border-gray-100">
             {/* Personal Information */}
@@ -636,8 +609,8 @@ const VendorRegister = () => {
               {isButtonLoading ? 'Registering...' : 'Register as Vendor'}
             </button>
 
-            {/* Login Link */}
-            <div className="text-center pt-4">
+            {/* Login & Switch Links */}
+            <div className="text-center space-y-4 pt-4">
               <p className="text-sm text-gray-600">
                 Already have an account?{' '}
                 <Link
@@ -647,6 +620,13 @@ const VendorRegister = () => {
                   Login
                 </Link>
               </p>
+
+              <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-2">
+                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Wholesale Vendor?</span>
+                <Link to="/b2b-vendor/register" className="text-primary-600 font-bold hover:underline">
+                  Switch to B2B Vendor Register
+                </Link>
+              </div>
             </div>
           </div>
         </form>

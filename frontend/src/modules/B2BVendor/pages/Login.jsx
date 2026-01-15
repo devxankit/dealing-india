@@ -149,7 +149,7 @@ const B2BVendorLogin = () => {
                         {isButtonLoading ? 'Authenticating...' : 'Login'}
                     </button>
 
-                    <div className="text-center pt-4">
+                    <div className="text-center space-y-4 pt-6 mt-6 border-t border-gray-100">
                         <p className="text-sm text-gray-600">
                             New B2B Vendor?{' '}
                             <Link
@@ -159,6 +159,13 @@ const B2BVendorLogin = () => {
                                 Apply Now
                             </Link>
                         </p>
+
+                        <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-2">
+                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Retail Vendor?</span>
+                            <Link to="/vendor/login" className="text-primary-600 font-bold hover:underline">
+                                Switch to B2C Vendor Panel
+                            </Link>
+                        </div>
                     </div>
                 </form>
             </motion.div>

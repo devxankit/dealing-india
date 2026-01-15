@@ -137,20 +137,14 @@ const B2BUserLogin = () => {
                         {isLoading ? 'Verifying...' : 'Sign In as Buyer'}
                     </button>
 
-                    <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-4">
-                        <div className="text-center">
-                            <p className="text-sm text-gray-500 mb-2">Want to shop or buy for yourself?</p>
-                            <Link to="/app/login" className="inline-flex items-center gap-2 text-primary-600 font-bold hover:gap-3 transition-all">
-                                <FiShoppingBag /> Back to Retail Login
-                            </Link>
-                        </div>
-
-                        <div className="w-full pt-4 border-t border-gray-50 flex flex-col items-center gap-2">
-                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Wholesaler / Manufacturer?</span>
-                            <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">
-                                Go to B2B Vendor Portal
-                            </Link>
-                        </div>
+                    <div className="pt-8 border-t border-gray-100 text-center">
+                        <p className="text-sm text-gray-500 mb-2">Want to shop or buy for yourself?</p>
+                        <Link
+                            to="/app/login"
+                            className="inline-flex items-center gap-2 text-primary-600 font-bold hover:gap-3 transition-all"
+                        >
+                            <FiShoppingBag /> Back to Retail Login
+                        </Link>
                     </div>
                 </form>
             </motion.div>

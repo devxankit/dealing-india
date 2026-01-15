@@ -242,7 +242,8 @@ const ProductCatalog = () => {
                                 layout
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 hover:shadow-2xl hover:shadow-primary-100 transition-all duration-300"
+                                onClick={() => navigate(`/b2b/product/${product._id}`)}
+                                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 hover:shadow-2xl hover:shadow-primary-100 transition-all duration-300 cursor-pointer"
                             >
                                 <div className="relative aspect-[4/3] overflow-hidden">
                                     <img
@@ -282,14 +283,14 @@ const ProductCatalog = () => {
 
                                     <div className="flex items-center justify-between gap-2 pt-4 border-t border-gray-100">
                                         <button
-                                            onClick={() => openInquiry(product)}
+                                            onClick={(e) => { e.stopPropagation(); openInquiry(product); }}
                                             className="flex-1 py-3 bg-white border-2 border-primary-600 text-primary-600 rounded-2xl hover:bg-primary-50 transition-all font-bold text-sm flex items-center justify-center gap-2"
                                         >
                                             <FiSend className="text-xs" />
                                             Inquiry
                                         </button>
                                         <button
-                                            onClick={() => handleChatDirect(product)}
+                                            onClick={(e) => { e.stopPropagation(); handleChatDirect(product); }}
                                             className="p-3 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all font-bold"
                                             title="Chat with Seller"
                                         >

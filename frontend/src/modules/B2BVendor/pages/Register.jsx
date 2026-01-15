@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiMapPin, FiBriefcase, FiUpload, FiFile, FiX } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiMapPin, FiBriefcase, FiUpload, FiFile, FiX, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
+import SubscriptionPlanSelector from '../../Vendor/components/SubscriptionPlanSelector';
 
 const B2BVendorRegister = () => {
     const navigate = useNavigate();
     const [localLoading, setLocalLoading] = useState(false);
     const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+    const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
 
     const [formData, setFormData] = useState({
         name: '',
@@ -79,6 +81,11 @@ const B2BVendorRegister = () => {
             return;
         }
 
+        if (!subscriptionPlan) {
+            toast.error('Please select a subscription plan');
+            return;
+        }
+
         setLocalLoading(true);
         try {
             const registrationData = {
@@ -89,6 +96,7 @@ const B2BVendorRegister = () => {
                 storeName: formData.companyName,
                 storeDescription: `B2B ${formData.businessType} Vendor`,
                 vendorType: 'b2b',
+                subscriptionPlan: subscriptionPlan,
                 address: formData.address,
                 documents: businessLicense ? {
                     businessLicense: businessLicense.data
@@ -124,6 +132,33 @@ const B2BVendorRegister = () => {
                     </div>
                     <h1 className="text-3xl font-extrabold text-gray-800 mb-2">B2B Vendor Registration</h1>
                     <p className="text-gray-600">Join our B2B network as a verified B2B vendor</p>
+                </div>
+
+                <div className="space-y-8 mb-10">
+                    {/* B2B Vendor Card (Moved from general register) */}
+                    <div className="relative p-6 rounded-2xl border-2 border-primary-600 bg-primary-50 shadow-md">
+                        <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-primary-600 flex items-center justify-center">
+                            <FiCheck className="text-white text-xs" />
+                        </div>
+
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center mb-4 shadow-lg">
+                            <FiBriefcase className="text-white text-xl" />
+                        </div>
+
+                        <div className="mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white text-primary-600">
+                                Bulk Orders
+                            </span>
+                        </div>
+
+                        <h3 className="text-lg font-bold text-gray-800 mb-1">B2B Vendor (Business)</h3>
+                        <p className="text-sm text-gray-500 leading-relaxed">Sell bulk quantities to other businesses. Inquiry and chat-based negotiation.</p>
+                    </div>
+
+                    {/* Subscription Plan Selection */}
+                    <div className="pt-4 border-t border-gray-100">
+                        <SubscriptionPlanSelector selected={subscriptionPlan} onSelect={setSubscriptionPlan} />
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
@@ -238,9 +273,18 @@ const B2BVendorRegister = () => {
                         {localLoading ? 'Submitting Application...' : 'Submit Registration'}
                     </button>
 
-                    <p className="text-center text-sm text-gray-600">
-                        Already registered? <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">Login here</Link>
-                    </p>
+                    <div className="text-center space-y-4 pt-6 mt-6 border-t border-gray-100">
+                        <p className="text-sm text-gray-600">
+                            Already registered? <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">Login here</Link>
+                        </p>
+
+                        <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-2">
+                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Retail Vendor?</span>
+                            <Link to="/vendor/login" className="text-primary-600 font-bold hover:underline">
+                                Switch to B2C Vendor Panel
+                            </Link>
+                        </div>
+                    </div>
                 </form>
             </motion.div>
         </div>
