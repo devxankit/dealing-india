@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiArrowLeft, FiSend, FiMessageSquare, FiUser, FiSearch, FiBox } from 'react-icons/fi';
+import { FiArrowLeft, FiSend, FiMessageSquare, FiUser, FiSearch, FiBox, FiPaperclip, FiFile } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import chatService from '../../../shared/services/chatService';
 import { initializeSocket } from '../../../shared/utils/socket';
@@ -20,6 +20,57 @@ const B2BVendorMessages = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const messagesEndRef = useRef(null);
     const socketRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const [uploadingFile, setUploadingFile] = useState(false);
+
+    const handleFileSelect = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !selectedConversation) return;
+
+        // Check file size (10MB limit)
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('File size too large. Max 10MB.');
+            return;
+        }
+
+        try {
+            setUploadingFile(true);
+            const response = await chatService.uploadVendorAttachment(file);
+
+            if (response.success) {
+                const fileData = response.data;
+                const messageType = fileData.resourceType === 'image' ? 'image' : 'file';
+
+                const otherParticipant = selectedConversation.otherParticipant?.userId;
+                const receiverId = otherParticipant._id || otherParticipant;
+
+                const sendResponse = await chatService.sendVendorMessage(
+                    selectedConversation._id,
+                    receiverId,
+                    '', // Empty message for file selection
+                    messageType,
+                    {
+                        fileUrl: fileData.url,
+                        fileName: fileData.originalName,
+                        fileFormat: fileData.format,
+                        resourceType: fileData.resourceType
+                    }
+                );
+
+                if (sendResponse.success) {
+                    setMessages(prev => [...prev, sendResponse.data]);
+                    scrollToBottom();
+                    loadConversations();
+                }
+            }
+        } catch (error) {
+            console.error('File upload error:', error);
+            toast.error('Failed to upload file');
+        } finally {
+            setUploadingFile(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
 
     const loadConversations = async () => {
         try {
@@ -316,7 +367,56 @@ const B2BVendorMessages = () => {
                                                             <div className="text-[10px] text-center italic mt-1 opacity-50 text-white">
                                                                 B2B Marketplace Verified Order Path
                                                             </div>
+
+                                                            {/* Attachment inside Inquiry */}
+                                                            {msg.metadata?.attachment && (
+                                                                <div className="space-y-2 mt-2">
+                                                                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 text-white">Attached Document</p>
+                                                                    <a
+                                                                        href={getImageUrl(msg.metadata.attachment.fileUrl)}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="flex items-center gap-3 p-3 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 transition-all"
+                                                                    >
+                                                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/20 text-white">
+                                                                            <FiFile className="text-lg" />
+                                                                        </div>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-xs font-bold truncate text-white">{msg.metadata.attachment.fileName}</p>
+                                                                            <p className="text-[9px] uppercase font-bold tracking-tighter text-primary-100">{msg.metadata.attachment.fileFormat || 'FILE'} • Click to view</p>
+                                                                        </div>
+                                                                    </a>
+                                                                </div>
+                                                            )}
                                                         </div>
+                                                    </div>
+                                                ) : msg.messageType === 'image' ? (
+                                                    <div className="space-y-2">
+                                                        <img
+                                                            src={getImageUrl(msg.metadata?.fileUrl)}
+                                                            alt={msg.metadata?.fileName}
+                                                            className="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-all shadow-sm"
+                                                            onClick={() => window.open(getImageUrl(msg.metadata?.fileUrl), '_blank')}
+                                                        />
+                                                        {msg.message && <p className="text-sm">{msg.message}</p>}
+                                                    </div>
+                                                ) : msg.messageType === 'file' ? (
+                                                    <div className="space-y-2">
+                                                        <a
+                                                            href={getImageUrl(msg.metadata?.fileUrl)}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isMe ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-gray-50 border-gray-100 hover:bg-gray-100'}`}
+                                                        >
+                                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isMe ? 'bg-white/20 text-white' : 'bg-primary-100 text-primary-600'}`}>
+                                                                <FiFile className="text-xl" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className={`text-sm font-bold truncate ${isMe ? 'text-white' : 'text-gray-800'}`}>{msg.metadata?.fileName}</p>
+                                                                <p className={`text-[10px] uppercase font-bold tracking-tighter ${isMe ? 'text-primary-100' : 'text-gray-400'}`}>{msg.metadata?.fileFormat || 'FILE'} • Click to view</p>
+                                                            </div>
+                                                        </a>
+                                                        {msg.message && <p className="text-sm">{msg.message}</p>}
                                                     </div>
                                                 ) : (
                                                     <div className={`p-3 rounded-2xl shadow-sm ${isMe ? 'bg-primary-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'}`}>
@@ -335,22 +435,41 @@ const B2BVendorMessages = () => {
 
                             {/* Message Input */}
                             <div className="p-4 bg-white border-t border-gray-100 shadow-lg">
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 items-center">
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileSelect}
+                                        className="hidden"
+                                        accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+                                    />
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploadingFile || sending}
+                                        className={`p-2 rounded-lg transition-colors ${uploadingFile ? 'bg-gray-100 text-gray-400' : 'text-gray-500 hover:bg-gray-100'}`}
+                                        title="Attach file"
+                                    >
+                                        <FiPaperclip className={`text-xl ${uploadingFile ? 'animate-pulse' : ''}`} />
+                                    </button>
                                     <input
                                         type="text"
                                         value={messageText}
                                         onChange={(e) => setMessageText(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                                        placeholder="Write your response..."
-                                        disabled={sending}
+                                        placeholder={uploadingFile ? "Uploading file..." : "Write your response..."}
+                                        disabled={sending || uploadingFile}
                                         className="flex-1 px-5 py-3 bg-slate-50 border-2 border-transparent rounded-2xl text-sm focus:border-primary-500 focus:bg-white transition-all outline-none"
                                     />
                                     <button
                                         onClick={handleSend}
-                                        disabled={sending || !messageText.trim()}
-                                        className="px-6 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all flex items-center justify-center disabled:opacity-50"
+                                        disabled={sending || uploadingFile || !messageText.trim()}
+                                        className="px-6 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all flex items-center justify-center disabled:opacity-50 h-[46px]"
                                     >
-                                        <FiSend className="text-lg" />
+                                        {sending ? (
+                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <FiSend className="text-lg" />
+                                        )}
                                     </button>
                                 </div>
                             </div>

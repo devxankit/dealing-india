@@ -47,6 +47,10 @@ import publicReviewRoutes from './routes/publicReview.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import cartRoutes from './routes/cart.routes.js';
 import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
+import adminB2BSubscriptionPlanRoutes from './routes/adminB2BSubscriptionPlan.routes.js';
+import adminB2BVendorSubscriptionRoutes from './routes/adminB2BVendorSubscription.routes.js';
+import adminB2BVendorManagementRoutes from './routes/adminB2BVendorManagement.routes.js';
+import adminB2BCategoryManagementRoutes from './routes/adminB2BCategoryManagement.routes.js';
 import adminSupportTicketRoutes from './routes/adminSupportTicket.routes.js';
 import vendorSubscriptionRoutes from './routes/vendorSubscription.routes.js';
 import vendorSupportTicketRoutes from './routes/vendorSupportTicket.routes.js';
@@ -59,12 +63,16 @@ import publicHeroBannerRoutes from './routes/publicHeroBanner.routes.js';
 import publicCampaignsRoutes from './routes/publicCampaigns.routes.js';
 import publicPromoCodeRoutes from './routes/publicPromoCode.routes.js';
 import publicDeliveryRoutes from './routes/publicDelivery.routes.js';
+import publicB2BCategoryRoutes from './routes/publicB2BCategory.routes.js';
 import vendorOrderRoutes from './routes/vendorOrder.routes.js';
 import adminOrderRoutes from './routes/adminOrder.routes.js';
 import adminDeliveryRoutes from './routes/adminDelivery.routes.js';
 import publicSettingsRoutes from './routes/publicSettings.routes.js';
 import adminAnalyticsRoutes from './routes/admin-routes/analytics.routes.js';
 import vendorAnalyticsRoutes from './routes/vendor-routes/analytics.routes.js';
+import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
+import b2bVendorDashboardRoutes from './routes/b2bVendorDashboard.routes.js';
+import adminB2BProductManagementRoutes from './routes/adminB2BProductManagement.routes.js';
 
 import userReelsRoutes from './routes/userReels.routes.js';
 import reelCommentsRoutes from './routes/reelComments.routes.js';
@@ -273,6 +281,7 @@ app.use('/api/hero-banners', publicHeroBannerRoutes);
 app.use('/api/campaigns', publicCampaignsRoutes);
 app.use('/api/public/promocodes', publicPromoCodeRoutes);
 app.use('/api/public/delivery', publicDeliveryRoutes);
+app.use('/api/public/b2b-categories', publicB2BCategoryRoutes);
 app.use('/api/settings', publicSettingsRoutes);
 app.use('/api/mega-reward', publicMegaRewardRoutes);
 app.use('/api/public/reels', publicReelRoutes);
@@ -316,6 +325,11 @@ app.use('/api/user/reels', reelCommentsRoutes);
 app.use('/api/user/support-tickets', userSupportTicketRoutes);
 app.use('/api/user/mega-reward', userMegaRewardRoutes);
 app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
+app.use('/api/admin/b2b-subscription-plans', adminB2BSubscriptionPlanRoutes);
+app.use('/api/admin/b2b-vendors/subscriptions', adminB2BVendorSubscriptionRoutes);
+app.use('/api/admin/b2b-vendors', adminB2BVendorManagementRoutes);
+app.use('/api/admin/b2b-categories', adminB2BCategoryManagementRoutes);
+app.use('/api/admin/b2b-products', adminB2BProductManagementRoutes);
 app.use('/api/admin/support-tickets', adminSupportTicketRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 app.use('/api/vendor/support-tickets', vendorSupportTicketRoutes);
@@ -343,6 +357,10 @@ app.use('/api/vendor/notifications', vendorNotificationRoutes);
 app.use('/api/vendor/wallet', vendorWalletRoutes);
 app.use('/api/vendor/returns', vendorReturnRoutes);
 app.use('/api/vendor/analytics', vendorAnalyticsRoutes);
+
+// B2B Vendor routes (separate from regular vendor routes)
+app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);
+app.use('/api/b2b-vendor/dashboard', b2bVendorDashboardRoutes);
 
 
 // Global error handler for unhandled promise rejections

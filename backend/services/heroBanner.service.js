@@ -3,16 +3,155 @@ import BannerBooking from '../models/BannerBooking.model.js';
 import Settings from '../models/Settings.model.js';
 import { uploadToCloudinary } from '../utils/cloudinary.util.js';
 import razorpayService from './razorpay.service.js';
+import vendorWalletService from './vendorWallet.service.js';
 import crypto from 'crypto';
 
 /**
  * Get all banner slots with current availability
+ * @param {String} bannerType - 'hero' or 'b2b', optional (returns all if not provided)
  */
-export const getBannerSlots = async () => {
-  return await BannerSlot.find().populate({
+export const getBannerSlots = async (bannerType = null) => {
+  // First, update existing slots without bannerType to 'hero' (one-time migration)
+  const slotsWithoutType = await BannerSlot.countDocuments({
+    $or: [
+      { bannerType: { $exists: false } },
+      { bannerType: null }
+    ]
+  });
+  
+  if (slotsWithoutType > 0) {
+    console.log(`🔄 Migrating ${slotsWithoutType} slots without bannerType to 'hero'...`);
+    const updateResult = await BannerSlot.updateMany(
+      {
+        $or: [
+          { bannerType: { $exists: false } },
+          { bannerType: null }
+        ]
+      },
+      { $set: { bannerType: 'hero' } }
+    );
+    console.log(`✅ Migrated ${updateResult.modifiedCount} slots to 'hero' type`);
+  }
+
+  // Initialize B2B slots if they don't exist
+  if (bannerType === 'b2b') {
+    // Check how many B2B slots exist
+    const existingB2BSlotsCount = await BannerSlot.countDocuments({ bannerType: 'b2b' });
+    console.log(`🔍 Checking B2B slots: Found ${existingB2BSlotsCount} existing slots`);
+    
+    if (existingB2BSlotsCount === 0) {
+      console.log(`🔄 Initializing B2B slots...`);
+      const defaultB2BSlots = [
+        { slotNumber: 1, bannerType: 'b2b', price: 2999, isActive: true },
+        { slotNumber: 2, bannerType: 'b2b', price: 2799, isActive: true },
+        { slotNumber: 3, bannerType: 'b2b', price: 2499, isActive: true },
+        { slotNumber: 4, bannerType: 'b2b', price: 2299, isActive: true },
+        { slotNumber: 5, bannerType: 'b2b', price: 1999, isActive: true },
+        { slotNumber: 6, bannerType: 'b2b', price: 1799, isActive: true },
+        { slotNumber: 7, bannerType: 'b2b', price: 1499, isActive: true },
+        { slotNumber: 8, bannerType: 'b2b', price: 1299, isActive: true },
+        { slotNumber: 9, bannerType: 'b2b', price: 1199, isActive: true },
+        { slotNumber: 10, bannerType: 'b2b', price: 999, isActive: true },
+      ];
+
+      // Try bulk insert first (faster and handles duplicates better)
+      try {
+        const insertResult = await BannerSlot.insertMany(defaultB2BSlots, {
+          ordered: false // Continue inserting even if some fail
+        });
+        console.log(`✅ Created ${insertResult.length} B2B slots via bulk insert`);
+      } catch (bulkError) {
+        // If bulk insert fails, it means some slots already exist
+        // Handle individual inserts
+        console.log(`🔄 Bulk insert partially failed, trying individual inserts...`);
+        
+        let createdCount = 0;
+        for (const slotData of defaultB2BSlots) {
+          try {
+            // Use findOneAndUpdate with upsert for better handling
+            const result = await BannerSlot.findOneAndUpdate(
+              {
+                slotNumber: slotData.slotNumber,
+                bannerType: 'b2b'
+              },
+              {
+                $setOnInsert: slotData // Only set on insert, don't update existing
+              },
+              {
+                upsert: true,
+                new: true,
+                setDefaultsOnInsert: true
+              }
+            );
+            
+            // Check if it was created (upserted) or already existed
+            const wasCreated = result.createdAt && 
+              result.createdAt.getTime() === result.updatedAt.getTime();
+            
+            if (wasCreated) {
+              createdCount++;
+              console.log(`✅ Created B2B slot ${slotData.slotNumber} (₹${slotData.price})`);
+            } else {
+              console.log(`⏭️  B2B slot ${slotData.slotNumber} already exists`);
+            }
+          } catch (error) {
+            // Try to find if slot exists despite error
+            const existingSlot = await BannerSlot.findOne({
+              slotNumber: slotData.slotNumber,
+              bannerType: 'b2b'
+            });
+            
+            if (existingSlot) {
+              console.log(`✅ B2B slot ${slotData.slotNumber} already exists (found after error)`);
+            } else {
+              // Duplicate key error means old index conflict - log and continue
+              if (error.code === 11000) {
+                console.log(`⚠️  B2B slot ${slotData.slotNumber} - old index conflict (slotNumber_1), skipping...`);
+              } else {
+                console.error(`❌ Error creating B2B slot ${slotData.slotNumber}:`, error.message);
+                // Don't throw - continue with other slots
+              }
+            }
+          }
+        }
+        console.log(`✅ Processed B2B slots (${createdCount} newly created)`);
+      }
+    } else {
+      console.log(`✅ B2B slots already exist (${existingB2BSlotsCount} slots)`);
+    }
+
+    // Always fetch the B2B slots after potential initialization
+    const slots = await BannerSlot.find({ bannerType: 'b2b' }).populate({
+      path: 'currentBooking',
+      populate: { path: 'vendorId', select: 'businessName storeName vendorType' }
+    }).sort({ slotNumber: 1 });
+    
+    console.log(`📊 Loaded ${slots.length} B2B banner slots`);
+    return slots;
+  }
+
+  // Handle hero banners and other cases
+  const query = {};
+  if (bannerType) {
+    // Handle backward compatibility: if bannerType is 'hero', also include documents
+    // where bannerType is missing or null (since default is 'hero')
+    if (bannerType === 'hero') {
+      query.$or = [
+        { bannerType: 'hero' },
+        { bannerType: { $exists: false } },
+        { bannerType: null }
+      ];
+    } else {
+      query.bannerType = bannerType;
+    }
+  }
+  
+  const slots = await BannerSlot.find(query).populate({
     path: 'currentBooking',
-    populate: { path: 'vendorId', select: 'businessName storeName' }
+    populate: { path: 'vendorId', select: 'businessName storeName vendorType' }
   }).sort({ slotNumber: 1 });
+
+  return slots;
 };
 
 /**
@@ -251,8 +390,12 @@ export const checkSlotAvailability = async (slotId, startDate, endDate) => {
 
 /**
  * Create a new banner booking
+ * @param {String} vendorId - Vendor ID
+ * @param {Object} bookingData - Booking data
+ * @param {File} file - Banner image file
+ * @param {String} paymentMethod - Payment method ('razorpay' or 'wallet'), default 'razorpay'
  */
-export const createBooking = async (vendorId, bookingData, file) => {
+export const createBooking = async (vendorId, bookingData, file, paymentMethod = 'razorpay') => {
   // Validate required fields
   if (!bookingData.slotId) {
     throw new Error('Slot ID is required');
@@ -334,6 +477,30 @@ export const createBooking = async (vendorId, bookingData, file) => {
   const slot = await BannerSlot.findById(slotId);
   if (!slot) throw new Error('Slot not found');
 
+  // Determine banner type from vendor or slot
+  let bannerType = bookingData.bannerType;
+  if (!bannerType) {
+    // Check vendor type to determine banner type
+    const Vendor = (await import('../models/Vendor.model.js')).default;
+    const vendor = await Vendor.findById(vendorId);
+    if (vendor && vendor.vendorType === 'b2b') {
+      bannerType = 'b2b';
+    } else {
+      bannerType = 'hero';
+    }
+  }
+
+  // Verify slot matches banner type (if slot has bannerType set)
+  if (slot.bannerType && slot.bannerType !== bannerType) {
+    throw new Error(`Slot type mismatch. This slot is for ${slot.bannerType} banners.`);
+  }
+  
+  // If slot doesn't have bannerType, set it based on booking
+  if (!slot.bannerType) {
+    slot.bannerType = bannerType;
+    await slot.save();
+  }
+
   const isAvailable = await checkSlotAvailability(slotId, startDateObj, endDateObj);
   if (!isAvailable) throw new Error('Slot is already booked for the selected date range');
 
@@ -374,10 +541,68 @@ export const createBooking = async (vendorId, bookingData, file) => {
     // "durationHours" field name implies hours. Storing 24 for 1 day is safer for legacy read.
     amount: amountNum,
     status: 'pending',
-    paymentStatus: 'unpaid'
+    paymentStatus: 'unpaid',
+    paymentMethod: paymentMethod || 'razorpay',
+    bannerType: bannerType
   });
 
-  // Create Razorpay order
+  // Handle wallet payment
+  if (paymentMethod === 'wallet' && vendorId) {
+    try {
+      // Check vendor wallet balance
+      const wallet = await vendorWalletService.getOrCreateWallet(vendorId);
+      
+      if (wallet.balance < amountNum) {
+        // Delete the booking if wallet payment fails
+        await BannerBooking.findByIdAndDelete(booking._id);
+        throw new Error('Insufficient wallet balance');
+      }
+
+      // Deduct from wallet
+      await vendorWalletService.debitPendingOrBalance(
+        vendorId,
+        amountNum,
+        `Banner Booking Payment - ${referenceId}`,
+        booking._id.toString(),
+        'banner_booking'
+      );
+
+      // Get the latest wallet transaction for this booking
+      const VendorWalletTransaction = (await import('../models/VendorWalletTransaction.model.js')).default;
+      const walletTransaction = await VendorWalletTransaction.findOne({
+        vendorId,
+        referenceId: booking._id.toString(),
+        referenceType: 'banner_booking'
+      }).sort({ createdAt: -1 });
+
+      // Update booking payment status
+      booking.paymentStatus = 'paid';
+      booking.paymentMethod = 'wallet';
+      // Store wallet transaction ID if available (paymentId is for Transaction model, but we can store wallet transaction _id as string)
+      if (walletTransaction) {
+        // Note: paymentId field references 'Transaction' model, but for wallet payments we store the wallet transaction ID
+        // This is acceptable as the reference is stored and we can query by it
+        booking.paymentId = walletTransaction._id;
+      }
+      await booking.save();
+
+      // Get Razorpay key ID for frontend (null for wallet payment)
+      const razorpayKeyId = null;
+
+      return {
+        ...booking.toObject(),
+        razorpayOrder: null,
+        razorpayKeyId,
+        walletTransactionId: walletResult._id
+      };
+    } catch (error) {
+      // If wallet payment fails, delete the booking
+      await BannerBooking.findByIdAndDelete(booking._id);
+      throw error;
+    }
+  }
+
+  // Create Razorpay order (for non-wallet payments)
   let razorpayOrder = null;
   try {
     razorpayOrder = await razorpayService.createOrder(
@@ -486,9 +711,15 @@ export const getActiveBanners = async () => {
 
 /**
  * Get vendor bookings
+ * @param {String} vendorId - Vendor ID
+ * @param {String} bannerType - Optional: 'hero' or 'b2b' to filter by type
  */
-export const getVendorBookings = async (vendorId) => {
-  return await BannerBooking.find({ vendorId })
+export const getVendorBookings = async (vendorId, bannerType = null) => {
+  const query = { vendorId };
+  if (bannerType) {
+    query.bannerType = bannerType;
+  }
+  return await BannerBooking.find(query)
     .populate('slotId')
     .sort({ createdAt: -1 });
 };
@@ -512,10 +743,15 @@ export const getBookingById = async (bookingId) => {
 
 /**
  * Get all bookings (Admin)
+ * @param {String} bannerType - Optional: 'hero' or 'b2b' to filter by type
  */
-export const getAllBookings = async () => {
-  return await BannerBooking.find()
-    .populate('vendorId', 'businessName storeName email')
+export const getAllBookings = async (bannerType = null) => {
+  const query = {};
+  if (bannerType) {
+    query.bannerType = bannerType;
+  }
+  return await BannerBooking.find(query)
+    .populate('vendorId', 'businessName storeName email vendorType')
     .populate('slotId')
     .sort({ createdAt: -1 });
 };
@@ -567,18 +803,23 @@ export const rejectBooking = async (bookingId, reason = '') => {
 
 /**
  * Get banner revenue statistics
+ * @param {String} bannerType - Optional: 'hero' or 'b2b' to filter by type
  */
-export const getBannerRevenueStats = async () => {
+export const getBannerRevenueStats = async (bannerType = null) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
+  // Build match query with banner type filter
+  const baseMatch = { paymentStatus: 'paid' };
+  if (bannerType) {
+    baseMatch.bannerType = bannerType;
+  }
+
   // Total revenue from all paid bookings
   const totalRevenueResult = await BannerBooking.aggregate([
     {
-      $match: {
-        paymentStatus: 'paid'
-      }
+      $match: baseMatch
     },
     {
       $group: {
@@ -591,12 +832,10 @@ export const getBannerRevenueStats = async () => {
   const totalRevenue = totalRevenueResult.length > 0 ? totalRevenueResult[0].totalRevenue : 0;
 
   // Revenue from last 30 days
+  const last30DaysMatch = { ...baseMatch, createdAt: { $gte: thirtyDaysAgo } };
   const last30DaysRevenueResult = await BannerBooking.aggregate([
     {
-      $match: {
-        paymentStatus: 'paid',
-        createdAt: { $gte: thirtyDaysAgo }
-      }
+      $match: last30DaysMatch
     },
     {
       $group: {
@@ -609,15 +848,16 @@ export const getBannerRevenueStats = async () => {
   const last30DaysRevenue = last30DaysRevenueResult.length > 0 ? last30DaysRevenueResult[0].revenue : 0;
 
   // Revenue from previous 30 days (31-60 days ago) for comparison
+  const previous30DaysMatch = {
+    ...baseMatch,
+    createdAt: {
+      $gte: sixtyDaysAgo,
+      $lt: thirtyDaysAgo
+    }
+  };
   const previous30DaysRevenueResult = await BannerBooking.aggregate([
     {
-      $match: {
-        paymentStatus: 'paid',
-        createdAt: {
-          $gte: sixtyDaysAgo,
-          $lt: thirtyDaysAgo
-        }
-      }
+      $match: previous30DaysMatch
     },
     {
       $group: {
@@ -635,26 +875,22 @@ export const getBannerRevenueStats = async () => {
     : last30DaysRevenue > 0 ? 100 : 0;
 
   // Active bookings count (paid + approved + within date range)
-  const activeBookingsCount = await BannerBooking.countDocuments({
-    paymentStatus: 'paid',
+  const activeBookingsMatch = {
+    ...baseMatch,
     adminApprovalStatus: 'approved',
     status: 'active',
     startDate: { $lte: now },
     endDate: { $gte: now }
-  });
+  };
+  const activeBookingsCount = await BannerBooking.countDocuments(activeBookingsMatch);
 
   // Active bookings in last 30 days
-  const activeBookingsLast30Days = await BannerBooking.countDocuments({
-    paymentStatus: 'paid',
-    createdAt: { $gte: thirtyDaysAgo }
-  });
+  const activeBookingsLast30Days = await BannerBooking.countDocuments(last30DaysMatch);
 
   // Unique vendors count
   const uniqueVendorsResult = await BannerBooking.aggregate([
     {
-      $match: {
-        paymentStatus: 'paid'
-      }
+      $match: baseMatch
     },
     {
       $group: {
@@ -668,6 +904,9 @@ export const getBannerRevenueStats = async () => {
 
   const uniqueVendorsCount = uniqueVendorsResult.length > 0 ? uniqueVendorsResult[0].total : 0;
 
+  // Total paid bookings count
+  const totalPaidBookingsCount = await BannerBooking.countDocuments(baseMatch);
+
   return {
     totalRevenue,
     last30DaysRevenue,
@@ -675,7 +914,8 @@ export const getBannerRevenueStats = async () => {
     percentageChange: parseFloat(percentageChange.toFixed(1)),
     activeBookingsCount,
     activeBookingsLast30Days,
-    uniqueVendorsCount
+    uniqueVendorsCount,
+    totalPaidBookings: totalPaidBookingsCount
   };
 };
 
@@ -701,10 +941,15 @@ export const updateSlot = async (slotId, slotData) => {
 
   return await slot.save();
 };
-export const getBannerTransactions = async (searchTerm = '', limit = 50, skip = 0) => {
+export const getBannerTransactions = async (searchTerm = '', limit = 50, skip = 0, bannerType = null) => {
   const query = {
     paymentStatus: 'paid'
   };
+
+  // Filter by banner type if provided
+  if (bannerType) {
+    query.bannerType = bannerType;
+  }
 
   // Build search query
   if (searchTerm) {
@@ -715,8 +960,8 @@ export const getBannerTransactions = async (searchTerm = '', limit = 50, skip = 
   }
 
   const transactions = await BannerBooking.find(query)
-    .populate('vendorId', 'businessName storeName email')
-    .populate('slotId', 'slotNumber')
+    .populate('vendorId', 'businessName storeName email vendorType')
+    .populate('slotId', 'slotNumber bannerType')
     .sort({ createdAt: -1 })
     .limit(limit)
     .skip(skip)
@@ -728,7 +973,8 @@ export const getBannerTransactions = async (searchTerm = '', limit = 50, skip = 
     transactionId: booking._id,
     date: booking.createdAt,
     amount: booking.amount,
-    type: 'Hero Banner Booking',
+    type: booking.bannerType === 'b2b' ? 'B2B Banner Booking' : 'Hero Banner Booking',
+    bannerType: booking.bannerType || 'hero',
     method: booking.paymentMethod || 'razorpay',
     status: booking.paymentStatus === 'paid' ? 'completed' : booking.paymentStatus,
     bookingId: booking.referenceId,

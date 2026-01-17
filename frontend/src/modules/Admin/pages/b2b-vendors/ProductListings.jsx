@@ -1,14 +1,39 @@
-import { useState } from "react";
-import { FiSearch, FiCheck, FiX, FiFlag, FiEye } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { FiSearch, FiEye } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api";
 
 const B2BVendorProductListings = () => {
-    const [products] = useState([
-        { _id: '1', title: 'Premium Cotton T-Shirts', b2bVendor: 'Global Wholesale Hub', price: '₹120-180', status: 'Pending', moq: 100 },
-        { _id: '2', title: 'Wireless Earbuds', b2bVendor: 'TechFlow Electronics', price: '₹450-600', status: 'Approved', moq: 50 },
-    ]);
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    const fetchProducts = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get('/admin/b2b-products', {
+                params: {
+                    page: 1,
+                    limit: 100,
+                }
+            });
+
+            if (response.success && response.data) {
+                setProducts(response.data.products || []);
+            }
+        } catch (error) {
+            console.error('Error fetching B2B products:', error);
+            toast.error('Failed to load B2B products');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const columns = [
         { key: "title", label: "Product Name", render: (val) => <span className="font-bold text-gray-800">{val}</span> },
@@ -30,10 +55,16 @@ const B2BVendorProductListings = () => {
             label: "Actions",
             render: (_, row) => (
                 <div className="flex items-center gap-2">
-                    <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><FiEye /></button>
-                    <button className="p-2 text-green-600 hover:bg-green-50 rounded-lg"><FiCheck /></button>
-                    <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><FiX /></button>
-                    <button className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg"><FiFlag /></button>
+                    <button 
+                        onClick={() => {
+                            // View product details - can be implemented later if needed
+                            console.log('View product:', row._id);
+                        }}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="View Details"
+                    >
+                        <FiEye />
+                    </button>
                 </div>
             )
         }
@@ -44,21 +75,36 @@ const B2BVendorProductListings = () => {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">B2B Vendor Product Listings</h1>
-                    <p className="text-gray-500">Monitor and approve B2B vendor listings.</p>
+                    <p className="text-gray-500">View all B2B vendor product listings.</p>
                 </div>
                 <div className="relative w-80">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input type="text" placeholder="Search products..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500" />
+                    <input 
+                        type="text" 
+                        placeholder="Search products..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500" 
+                    />
                 </div>
             </div>
 
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <DataTable
-                    data={products}
-                    columns={columns}
-                    pagination={true}
-                    itemsPerPage={10}
-                />
+                {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                    </div>
+                ) : (
+                    <DataTable
+                        data={products.filter(p => 
+                            p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            p.b2bVendor?.toLowerCase().includes(searchQuery.toLowerCase())
+                        )}
+                        columns={columns}
+                        pagination={true}
+                        itemsPerPage={10}
+                    />
+                )}
             </div>
         </motion.div>
     );

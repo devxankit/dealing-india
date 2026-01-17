@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid } from 'react-icons/fi';
+import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
-const B2BHeader = ({ showBack = false, title = "Bulk Marketplace" }) => {
+const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true }) => {
     const navigate = useNavigate();
 
     return (
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm">
+        <header className={`${sticky ? 'sticky top-0' : 'relative'} z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm flex-shrink-0`}>
             <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     {showBack ? (
@@ -34,6 +34,9 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace" }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <Link to="/b2b" className="p-2.5 text-gray-600 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all" title="Business Dashboard">
+                        <FiLayout className="text-xl" />
+                    </Link>
                     <Link to="/b2b/inquiries" className="p-2.5 text-gray-600 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all relative">
                         <FiMessageSquare className="text-xl" />
                         <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>

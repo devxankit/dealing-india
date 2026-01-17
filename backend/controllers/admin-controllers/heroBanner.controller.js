@@ -2,12 +2,15 @@ import * as heroBannerService from '../../services/heroBanner.service.js';
 
 export const getSlots = async (req, res, next) => {
   try {
-    const slots = await heroBannerService.getBannerSlots();
+    // Get banner type from query parameter (default to 'hero' for backward compatibility)
+    const bannerType = req.query.bannerType || 'hero';
+    
+    const slots = await heroBannerService.getBannerSlots(bannerType);
     const settings = await heroBannerService.getBannerSettings();
 
     res.status(200).json({
       success: true,
-      data: { slots, settings }
+      data: { slots, settings, bannerType }
     });
   } catch (error) {
     next(error);
@@ -32,7 +35,8 @@ export const updateSlot = async (req, res, next) => {
 
 export const updateSettings = async (req, res, next) => {
   try {
-    const adminId = req.user?.id || req.user?._id;
+    // Admin ID from token (adminId) or userDoc (_id)
+    const adminId = req.user?.adminId || req.userDoc?._id || req.user?.id || req.user?._id;
     if (!adminId) {
       const error = new Error('Admin ID not found in authentication token');
       error.status = 401;
@@ -74,7 +78,10 @@ export const getBooking = async (req, res, next) => {
 
 export const getBookings = async (req, res, next) => {
   try {
-    const bookings = await heroBannerService.getAllBookings();
+    // Get banner type from query parameter (optional, returns all if not provided)
+    const bannerType = req.query.bannerType || null;
+    
+    const bookings = await heroBannerService.getAllBookings(bannerType);
     res.status(200).json({
       success: true,
       data: bookings
@@ -117,7 +124,8 @@ export const rejectBooking = async (req, res, next) => {
 
 export const getRevenueStats = async (req, res, next) => {
   try {
-    const stats = await heroBannerService.getBannerRevenueStats();
+    const bannerType = req.query.bannerType || null;
+    const stats = await heroBannerService.getBannerRevenueStats(bannerType);
     res.status(200).json({
       success: true,
       data: stats
@@ -129,8 +137,8 @@ export const getRevenueStats = async (req, res, next) => {
 
 export const getTransactions = async (req, res, next) => {
   try {
-    const { search, limit = 50, skip = 0 } = req.query;
-    const result = await heroBannerService.getBannerTransactions(search, parseInt(limit), parseInt(skip));
+    const { search, limit = 50, skip = 0, bannerType } = req.query;
+    const result = await heroBannerService.getBannerTransactions(search, parseInt(limit), parseInt(skip), bannerType || null);
     res.status(200).json({
       success: true,
       data: result

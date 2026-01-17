@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { FiCheck, FiZap, FiStar, FiAward } from 'react-icons/fi';
 
-const SubscriptionPlanSelector = ({ selected, onSelect }) => {
-    const plans = [
+const SubscriptionPlanSelector = ({ selected, onSelect, plans: externalPlans }) => {
+    const defaultPlans = [
         {
             id: 'basic',
             name: 'Basic B2B',
@@ -49,6 +49,8 @@ const SubscriptionPlanSelector = ({ selected, onSelect }) => {
         }
     ];
 
+    const plans = externalPlans && externalPlans.length > 0 ? externalPlans : defaultPlans;
+
     return (
         <div className="space-y-6">
             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -63,8 +65,8 @@ const SubscriptionPlanSelector = ({ selected, onSelect }) => {
                         whileHover={{ y: -5 }}
                         onClick={() => onSelect(plan.id)}
                         className={`relative p-6 rounded-3xl border-2 cursor-pointer transition-all ${selected === plan.id
-                                ? 'border-primary-600 bg-white shadow-xl ring-4 ring-primary-50'
-                                : 'border-gray-100 bg-slate-50 hover:border-gray-200'
+                            ? 'border-primary-600 bg-white shadow-xl ring-4 ring-primary-50'
+                            : 'border-gray-100 bg-slate-50 hover:border-gray-200'
                             }`}
                     >
                         {plan.popular && (
@@ -95,8 +97,8 @@ const SubscriptionPlanSelector = ({ selected, onSelect }) => {
                         </div>
 
                         <div className={`w-full py-2.5 rounded-xl text-sm font-bold text-center transition-all ${selected === plan.id
-                                ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
-                                : 'bg-white border border-gray-100 text-gray-600 hover:bg-gray-50'
+                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
+                            : 'bg-white border border-gray-100 text-gray-600 hover:bg-gray-50'
                             }`}>
                             {selected === plan.id ? 'Selected' : 'Choose Plan'}
                         </div>

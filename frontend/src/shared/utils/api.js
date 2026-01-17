@@ -62,22 +62,26 @@ api.interceptors.request.use(
       url = '/' + url;
     }
 
+    // Get current path to determine context
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+
     // Check for admin routes first (including admin vendor management)
     // Admin routes: /auth/admin, /admin/* (config.url is relative, so no /api prefix)
     // This includes /admin/vendors, /admin/customers, etc.
     if (url.startsWith('/auth/admin') || url.startsWith('/admin/')) {
       token = localStorage.getItem('admin-token');
     }
+    // Check for B2B vendor routes first (separate from regular vendor routes)
+    // OR if current path is B2B vendor page, use b2b-vendor-token for vendor routes
+    else if (url.startsWith('/b2b-vendor/') || 
+             (currentPath.startsWith('/b2b-vendor') && (url.startsWith('/auth/vendor') || url.startsWith('/vendor/')))) {
+      token = localStorage.getItem('b2b-vendor-token');
+    }
     // Check for vendor routes (vendor auth or vendor-specific routes, but NOT admin vendor management)
     // Vendor routes: /auth/vendor, or /vendor/* (but NOT /admin/vendors)
     else if (url.startsWith('/auth/vendor') ||
       (url.startsWith('/vendor/') && !url.startsWith('/admin/vendors'))) {
-      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-      if (currentPath.startsWith('/b2b-vendor')) {
-        token = localStorage.getItem('b2b-vendor-token');
-      } else {
-        token = localStorage.getItem('vendor-token');
-      }
+      token = localStorage.getItem('vendor-token');
     }
     // Default to user token for all other requests
     else {
@@ -218,6 +222,8 @@ api.interceptors.response.use(
         (url.startsWith('/vendor/') && !url.startsWith('/admin/vendors'))) {
 
         if (currentPath.startsWith('/b2b-vendor')) {
+          console.warn('[API Interceptor] 401 on B2B vendor route:', url, 'Current path:', currentPath);
+          console.warn('[API Interceptor] Token before removal:', localStorage.getItem('b2b-vendor-token') ? 'exists' : 'missing');
           localStorage.removeItem('b2b-vendor-token');
           // Only redirect if on b2b vendor pages and not already on login
           if (!currentPath.includes('/login')) {
@@ -274,11 +280,19 @@ api.interceptors.response.use(
         }
       }
 
+      // Prevent immediate redirects right after login (within 2 seconds)
+      const loginTimestamp = sessionStorage.getItem('b2b-vendor-login-timestamp');
+      const timeSinceLogin = loginTimestamp ? Date.now() - parseInt(loginTimestamp) : Infinity;
+      const isRecentLogin = timeSinceLogin < 2000; // 2 seconds
+
       // Redirect if needed (for dashboard operations, redirect even if it's a background operation)
-      if (shouldRedirect && (!isBackgroundOperation || isDashboardOperation)) {
+      // But don't redirect if it's a recent login (might be a temporary auth check issue)
+      if (shouldRedirect && (!isBackgroundOperation || isDashboardOperation) && !isRecentLogin) {
         setTimeout(() => {
           window.location.href = redirectPath;
         }, 100);
+      } else if (isRecentLogin) {
+        console.warn('[API Interceptor] Suppressing redirect due to recent login (within 2s)');
       }
 
       // For background operations, silently reject

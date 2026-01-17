@@ -3,10 +3,12 @@ import mongoose from 'mongoose';
 const addressSchema = new mongoose.Schema(
   {
     street: { type: String, trim: true },
+    landmark: { type: String, trim: true },
     city: { type: String, trim: true },
     state: { type: String, trim: true },
     zipCode: { type: String, trim: true },
-    country: { type: String, trim: true, default: 'USA' },
+    pincode: { type: String, trim: true }, // For B2B vendors (India-specific)
+    country: { type: String, trim: true, default: 'India' },
   },
   { _id: false }
 );
@@ -89,6 +91,24 @@ const vendorSchema = new mongoose.Schema(
       enum: ['b2c', 'b2b'],
       default: 'b2c',
     },
+    // B2B-specific fields
+    businessTypes: [{
+      type: String,
+      trim: true,
+    }],
+    gstNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      validate: {
+        validator: function(v) {
+      // GST number is optional, no format validation
+      if (!v) return true; // Optional field
+      return true; // Accept any format
+    },
+    message: 'GST number is optional',
+      },
+    },
     documents: [{
       name: { type: String, required: true },
       url: { type: String, required: true },
@@ -131,6 +151,30 @@ vendorSchema.index({ phone: 1 }, { unique: true });
 vendorSchema.index({ status: 1 });
 vendorSchema.index({ isActive: 1 });
 vendorSchema.index({ role: 1 });
+vendorSchema.index({ vendorType: 1 }); // Index for B2B vendor queries
+
+// Pre-save middleware: Ensure B2B vendors have commissionRate = 0
+// B2B vendors pay subscription fees, NOT commission
+vendorSchema.pre('save', function (next) {
+  // If vendorType is 'b2b', ensure commissionRate is 0
+  if (this.vendorType === 'b2b') {
+    this.commissionRate = 0;
+  }
+  next();
+});
+
+// Pre-update middleware: Prevent commission updates for B2B vendors
+vendorSchema.pre(['updateOne', 'findOneAndUpdate', 'updateMany'], function (next) {
+  const update = this.getUpdate();
+  
+  // Check if commissionRate is being updated
+  if (update && update.$set && update.$set.commissionRate !== undefined) {
+    // If updating commission, we need to check vendorType
+    // This will be validated in the service layer for better error handling
+  }
+  
+  next();
+});
 
 // Remove password from JSON output
 vendorSchema.methods.toJSON = function () {

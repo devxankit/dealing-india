@@ -49,32 +49,44 @@ class SubscriptionService {
             path: 'tierId',
             select: 'name priceMonthly reelLimit extraReelPrice features isActive'
           })
+          .populate({
+            path: 'planId',
+            select: 'name duration price features isActive'
+          })
           .lean();
         
         // If subscription found via reference, return it immediately (regardless of status)
         // This ensures vendor sees admin's manual override changes
         if (subscription) {
-          // Check if tierId exists (might be null if tier was deleted)
-          if (subscription.tierId) {
+          // B2B subscriptions have planId, regular subscriptions have tierId
+          // Return if either exists (B2B vendor or regular vendor)
+          if (subscription.planId || subscription.tierId) {
             return subscription;
           } else {
-            // Tier was deleted, log warning but continue to find another subscription
-            console.warn(`Subscription ${subscription._id} has invalid tierId, trying to find alternative`);
+            // Neither planId nor tierId exists, log warning but continue to find another subscription
+            console.warn(`Subscription ${subscription._id} has neither planId (B2B) nor tierId (regular), trying to find alternative`);
           }
         }
       }
       
       // Priority 2: Try to find active subscription
-      subscription = await VendorSubscription.findOne({ 
-        vendorId: vendorObjectId, 
-        status: 'active' 
-      })
-        .populate({
-          path: 'tierId',
-          select: 'name priceMonthly reelLimit extraReelPrice features isActive'
+      // Note: If Priority 1 found a subscription (even if invalid), skip Priority 2
+      if (!subscription || (!subscription.planId && !subscription.tierId)) {
+        subscription = await VendorSubscription.findOne({ 
+          vendorId: vendorObjectId, 
+          status: 'active' 
         })
-        .sort({ createdAt: -1 }) // Get most recent
-        .lean();
+          .populate({
+            path: 'tierId',
+            select: 'name priceMonthly reelLimit extraReelPrice features isActive'
+          })
+          .populate({
+            path: 'planId',
+            select: 'name duration price features isActive'
+          })
+          .sort({ createdAt: -1 }) // Get most recent
+          .lean();
+      }
       
       // Priority 3: If still no subscription, get the most recent subscription regardless of status
       // This ensures vendor sees their subscription even if admin changed status
@@ -86,6 +98,10 @@ class SubscriptionService {
             path: 'tierId',
             select: 'name priceMonthly reelLimit extraReelPrice features isActive'
           })
+          .populate({
+            path: 'planId',
+            select: 'name duration price features isActive'
+          })
           .sort({ createdAt: -1 }) // Get most recent
           .lean();
       }
@@ -95,13 +111,15 @@ class SubscriptionService {
         return null;
       }
 
-      // If tierId is null (deleted tier), handle gracefully
-      if (!subscription.tierId) {
-        console.warn(`Subscription ${subscription._id} has invalid tierId`);
-        return null;
+      // B2B subscriptions have planId, regular subscriptions have tierId
+      // Return subscription if either exists
+      if (subscription.planId || subscription.tierId) {
+        return subscription;
       }
 
-      return subscription;
+      // Neither planId nor tierId exists - invalid subscription
+      console.warn(`Subscription ${subscription._id} has neither planId (B2B) nor tierId (regular)`);
+      return null;
     } catch (error) {
       console.error('Error in getVendorSubscription:', error);
       // Don't throw error, return null instead to allow frontend to handle gracefully

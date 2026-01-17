@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiArrowLeft, FiMessageSquare, FiTruck, FiShield,
     FiCheckCircle, FiShare2, FiInfo, FiSend, FiX,
-    FiPlus, FiMinus, FiShoppingBag, FiStar
+    FiPlus, FiMinus, FiShoppingBag, FiStar, FiPaperclip, FiFile
 } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -23,10 +23,60 @@ const B2BProductDetail = () => {
     const [selectedImage, setSelectedImage] = useState(0);
     const [quantity, setQuantity] = useState(100); // Default B2B MOQ
     const [showInquiryModal, setShowInquiryModal] = useState(false);
+    const [inquiryAttachment, setInquiryAttachment] = useState(null);
+    const [uploadingInquiryFile, setUploadingInquiryFile] = useState(false);
+    const [hasInquiry, setHasInquiry] = useState(false);
+
+    const handleInquiryFileSelect = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error('File size too large. Max 10MB.');
+            return;
+        }
+
+        try {
+            setUploadingInquiryFile(true);
+            const response = await chatService.uploadAttachment(file);
+            if (response.success) {
+                setInquiryAttachment(response.data);
+                toast.success('File attached');
+            }
+        } catch (error) {
+            console.error('File upload error:', error);
+            toast.error('Failed to upload file');
+        } finally {
+            setUploadingInquiryFile(false);
+        }
+    };
 
     useEffect(() => {
         fetchProductDetails();
     }, [id]);
+
+    useEffect(() => {
+        if (product && isAuthenticated) {
+            checkInquiryStatus();
+        }
+    }, [product, isAuthenticated, id]);
+
+    const checkInquiryStatus = async () => {
+        if (!product || !isAuthenticated) return;
+        
+        try {
+            const productId = product._id || product.id;
+            if (!productId) return;
+
+            const response = await api.get(`/user/chat/inquiries/check/${productId}`);
+            if (response.success && response.data) {
+                setHasInquiry(response.data.hasInquiry || false);
+            }
+        } catch (error) {
+            // If error (e.g., not authenticated), treat as no inquiry
+            setHasInquiry(false);
+        }
+    };
 
     const fetchProductDetails = async () => {
         setLoading(true);
@@ -112,8 +162,15 @@ const B2BProductDetail = () => {
             }
 
             const response = await api.get(`/products/${id}`);
+            console.log('Product Detail API Response:', response);
             if (response.success && response.data) {
-                setProduct(response.data);
+                // Handle both response.data (object) and response.data.product
+                const productData = response.data.product || response.data;
+                console.log('Product Data:', productData);
+                console.log('Product Images:', productData.images, 'Product Image:', productData.image);
+                setProduct(productData);
+            } else {
+                console.error('Invalid API response structure:', response);
             }
         } catch (error) {
             console.error('Error fetching product details:', error);
@@ -145,18 +202,34 @@ const B2BProductDetail = () => {
                 productImage: product.images?.[0] || product.image,
                 productPrice: product.price,
                 quantity: inquiryQuantity,
-                clientMessage: message
+                clientMessage: message,
+                // Add attachment if exists
+                attachment: inquiryAttachment ? {
+                    fileUrl: inquiryAttachment.url,
+                    fileName: inquiryAttachment.originalName,
+                    fileFormat: inquiryAttachment.format,
+                    resourceType: inquiryAttachment.resourceType
+                } : null
             };
 
             const inquiryMessage = `📦 *INQUIRY FOR: ${product.name}*\n` +
                 `🔢 *Quantity:* ${inquiryQuantity} units\n` +
                 `💬 *Message:* ${message}`;
 
-            await chatService.sendMessage(conversation._id, vendorId, inquiryMessage, 'inquiry', metadata);
+            await chatService.sendMessage(
+                conversation._id,
+                vendorId,
+                inquiryMessage,
+                inquiryAttachment ? 'file' : 'inquiry',
+                metadata
+            );
+
+            // Update inquiry status
+            setHasInquiry(true);
 
             toast.success('Inquiry sent successfully!');
             setShowInquiryModal(false);
-            navigate(`/app/chat/${vendorId}`);
+            navigate(`/b2b/inquiries?vendorId=${vendorId}`);
         } catch (err) {
             toast.error('Failed to send inquiry');
         }
@@ -175,6 +248,100 @@ const B2BProductDetail = () => {
     }
 
     if (!product) return null;
+
+    // Normalize images array - handle both single image and array cases
+    // Combine product.image (main) with product.images (gallery) if both exist
+    let productImages = [];
+    if (product.image) {
+        productImages.push(product.image);
+    }
+    if (Array.isArray(product.images) && product.images.length > 0) {
+        // Add images that are not already in the array (avoid duplicates)
+        product.images.forEach(img => {
+            if (img && !productImages.includes(img)) {
+                productImages.push(img);
+            }
+        });
+    }
+    // If no images found, use placeholder
+    if (productImages.length === 0) {
+        productImages = ['https://via.placeholder.com/800x600?text=No+Image'];
+    }
+
+    // Ensure selectedImage is within bounds
+    const safeSelectedImage = Math.min(selectedImage, productImages.length - 1);
+
+    // Get category from attributes or categoryId
+    const getCategoryName = () => {
+        if (product.categoryId?.name) return product.categoryId.name;
+        const categoryAttr = product.attributes?.find(attr =>
+            attr.name === 'category' || attr.attributeName === 'category'
+        );
+        return categoryAttr?.value || 'Product';
+    };
+
+    // Get specifications from attributes
+    const getSpecifications = () => {
+        if (product.specifications && Array.isArray(product.specifications)) {
+            return product.specifications;
+        }
+        // Extract specifications from attributes (excluding category, subcategory, bulkPricing)
+        if (product.attributes && Array.isArray(product.attributes)) {
+            return product.attributes
+                .filter(attr => {
+                    const name = attr.name || attr.attributeName || '';
+                    return name && !['category', 'subcategory', 'bulkPricing'].includes(name);
+                })
+                .map(attr => ({
+                    name: attr.name || attr.attributeName || 'Specification',
+                    value: attr.value || ''
+                }))
+                .filter(spec => spec.name && spec.value);
+        }
+        return [];
+    };
+
+    // Get bulk pricing from attributes
+    const getBulkPricing = () => {
+        if (!product.attributes || !Array.isArray(product.attributes)) {
+            return [];
+        }
+        const bulkPricingAttr = product.attributes.find(attr =>
+            attr.name === 'bulkPricing' || attr.attributeName === 'bulkPricing'
+        );
+        if (bulkPricingAttr && bulkPricingAttr.value) {
+            try {
+                // If value is a string (JSON), parse it
+                if (typeof bulkPricingAttr.value === 'string') {
+                    return JSON.parse(bulkPricingAttr.value);
+                }
+                // If already an array, return it
+                if (Array.isArray(bulkPricingAttr.value)) {
+                    return bulkPricingAttr.value;
+                }
+            } catch (error) {
+                console.error('Error parsing bulk pricing:', error);
+            }
+        }
+        return [];
+    };
+
+    const specifications = getSpecifications();
+    const bulkPricing = getBulkPricing();
+
+    // Get price for selected quantity based on bulk pricing
+    const getPriceForQuantity = (qty) => {
+        if (!bulkPricing || bulkPricing.length === 0) {
+            return product.price || 0;
+        }
+        // Sort bulk pricing by minQty descending to find the highest applicable tier
+        const sortedTiers = [...bulkPricing].sort((a, b) => (b.minQty || 0) - (a.minQty || 0));
+        // Find the first tier where quantity meets or exceeds minQty
+        const applicableTier = sortedTiers.find(tier => qty >= (tier.minQty || 0));
+        return applicableTier ? (applicableTier.price || product.price || 0) : (product.price || 0);
+    };
+
+    const currentPrice = getPriceForQuantity(quantity);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
@@ -204,7 +371,7 @@ const B2BProductDetail = () => {
                                 className="relative aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-white shadow-xl border border-gray-100"
                             >
                                 <img
-                                    src={product.images[selectedImage]}
+                                    src={productImages[safeSelectedImage]}
                                     alt={product.name}
                                     className="w-full h-full object-cover"
                                 />
@@ -213,18 +380,20 @@ const B2BProductDetail = () => {
                                 </div>
                             </motion.div>
 
-                            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                                {product.images.map((img, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setSelectedImage(idx)}
-                                        className={`flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === idx ? 'border-primary-500 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'
-                                            }`}
-                                    >
-                                        <img src={img} alt="" className="w-full h-full object-cover" />
-                                    </button>
-                                ))}
-                            </div>
+                            {productImages.length > 1 && (
+                                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                                    {productImages.map((img, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedImage(idx)}
+                                            className={`flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all ${safeSelectedImage === idx ? 'border-primary-500 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'
+                                                }`}
+                                        >
+                                            <img src={img} alt="" className="w-full h-full object-cover" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -232,14 +401,12 @@ const B2BProductDetail = () => {
                     <div className="lg:col-span-12 xl:col-span-5 space-y-8">
                         <div>
                             <span className="text-xs font-bold text-primary-600 uppercase tracking-widest px-3 py-1 bg-primary-50 rounded-full mb-3 inline-block">
-                                {product.categoryId?.name}
+                                {getCategoryName()}
                             </span>
                             <h1 className="text-4xl font-extrabold text-gray-800 leading-tight mb-4">
                                 {product.name}
                             </h1>
                             <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span className="flex items-center gap-1"><FiStar className="text-yellow-400 fill-yellow-400" /> 4.8 (124+ orders)</span>
-                                <span className="w-1.5 h-1.5 rounded-full bg-gray-200"></span>
                                 <span className="flex items-center gap-1 text-green-600 font-bold"><FiCheckCircle /> Verified Supply</span>
                             </div>
                         </div>
@@ -278,21 +445,69 @@ const B2BProductDetail = () => {
                                         </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-[11px] text-gray-400 justify-center">
-                                    <FiInfo /> Price may vary based on final order volume
-                                </div>
+
+                                {/* Bulk Pricing Display */}
+                                {bulkPricing && bulkPricing.length > 0 ? (
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide px-2">Bulk Pricing Rates</p>
+                                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                                            {bulkPricing
+                                                .sort((a, b) => (a.minQty || 0) - (b.minQty || 0))
+                                                .map((tier, index) => {
+                                                    const isSelected = quantity >= (tier.minQty || 0) &&
+                                                        (index === bulkPricing.length - 1 || quantity < (bulkPricing[index + 1]?.minQty || Infinity));
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${isSelected
+                                                                ? 'bg-primary-50 border-primary-300 shadow-sm'
+                                                                : 'bg-white border-gray-100'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-bold text-gray-500">Min Qty:</span>
+                                                                <span className={`text-sm font-bold ${isSelected ? 'text-primary-700' : 'text-gray-700'}`}>
+                                                                    {tier.minQty || 0}+ units
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs font-bold text-gray-500">Rate:</span>
+                                                                <span className={`text-base font-black ${isSelected ? 'text-primary-700' : 'text-gray-800'}`}>
+                                                                    ₹{tier.price || 0} / unit
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                        <div className="flex items-center justify-between p-3 bg-primary-100 rounded-xl border-2 border-primary-300">
+                                            <span className="text-sm font-bold text-gray-700">Your Price ({quantity} units):</span>
+                                            <span className="text-xl font-black text-primary-700">₹{currentPrice} / unit</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-[11px] text-gray-400 justify-center">
+                                        <FiInfo /> Price may vary based on final order volume
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 gap-3">
+                                {hasInquiry ? (
+                                    <div className="w-full py-5 bg-green-50 border-2 border-green-200 text-green-700 rounded-[1.25rem] font-bold text-lg flex items-center justify-center gap-3">
+                                        <span>✓ Inquiry Done</span>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowInquiryModal(true)}
+                                        className="w-full py-5 bg-primary-600 text-white rounded-[1.25rem] font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all flex items-center justify-center gap-3"
+                                    >
+                                        <FiSend className="text-xl" />
+                                        Send Inquiry Request
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => setShowInquiryModal(true)}
-                                    className="w-full py-5 bg-primary-600 text-white rounded-[1.25rem] font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all flex items-center justify-center gap-3"
-                                >
-                                    <FiSend className="text-xl" />
-                                    Send Inquiry Request
-                                </button>
-                                <button
-                                    onClick={() => navigate(`/app/chat/${product.vendorId?._id || product.vendorId}`)}
+                                    onClick={() => navigate(`/b2b/inquiries?vendorId=${product.vendorId?._id || product.vendorId}`)}
                                     className="w-full py-5 bg-white border-2 border-primary-600 text-primary-600 rounded-[1.25rem] font-bold text-lg hover:bg-primary-50 transition-all flex items-center justify-center gap-3"
                                 >
                                     <FiMessageSquare className="text-xl" />
@@ -308,24 +523,31 @@ const B2BProductDetail = () => {
                                 <h4 className="text-sm font-bold text-primary-400 uppercase tracking-widest mb-4">Sold By</h4>
                                 <div className="flex items-center gap-4 mb-6">
                                     <div className="w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center text-2xl font-black border border-white/20">
-                                        {product.vendorId?.storeName?.charAt(0) || 'V'}
+                                        {(product.vendorId?.storeName || product.vendorId?.businessName || 'V').charAt(0).toUpperCase()}
                                     </div>
                                     <div>
                                         <h3 className="text-xl font-bold flex items-center gap-2">
-                                            {product.vendorId?.storeName || 'Verified Seller'}
-                                            <FiCheckCircle className="text-primary-400" />
+                                            {product.vendorId?.storeName || product.vendorId?.businessName || 'Verified Seller'}
+                                            {product.vendorId?.isEmailVerified && (
+                                                <FiCheckCircle className="text-primary-400" />
+                                            )}
                                         </h3>
-                                        <p className="text-gray-400 text-sm">Manufacturer in Gujarat, India</p>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                                        <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">Response Rate</p>
-                                        <p className="text-lg font-bold">98% <span className="text-xs font-normal text-gray-500">Very Fast</span></p>
-                                    </div>
-                                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                                        <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">In Business</p>
-                                        <p className="text-lg font-bold">5+ Years</p>
+                                        <p className="text-gray-400 text-sm">
+                                            {(() => {
+                                                const vendor = product.vendorId;
+                                                const address = vendor?.address;
+                                                if (address) {
+                                                    const locationParts = [];
+                                                    if (address.city) locationParts.push(address.city);
+                                                    if (address.state) locationParts.push(address.state);
+                                                    if (address.country) locationParts.push(address.country);
+                                                    return locationParts.length > 0
+                                                        ? `Manufacturer in ${locationParts.join(', ')}`
+                                                        : 'Manufacturer';
+                                                }
+                                                return 'Manufacturer';
+                                            })()}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -348,13 +570,13 @@ const B2BProductDetail = () => {
                                     <FiCheckCircle className="text-primary-500" /> Technical details
                                 </h2>
                                 <div className="space-y-3">
-                                    {(product.specifications || []).map((spec, idx) => (
+                                    {specifications.map((spec, idx) => (
                                         <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
                                             <span className="text-gray-500 font-medium">{spec.name}</span>
                                             <span className="text-gray-800 font-bold">{spec.value}</span>
                                         </div>
                                     ))}
-                                    {(!product.specifications || product.specifications.length === 0) && (
+                                    {specifications.length === 0 && (
                                         <p className="text-gray-400 italic">No specific details available for this product.</p>
                                     )}
                                 </div>
@@ -394,7 +616,10 @@ const B2BProductDetail = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setShowInquiryModal(false)}
+                            onClick={() => {
+                                setShowInquiryModal(false);
+                                setInquiryAttachment(null);
+                            }}
                             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                         />
                         <motion.div
@@ -414,7 +639,10 @@ const B2BProductDetail = () => {
                                             <p className="text-gray-500 text-sm">Bulk Quote Request</p>
                                         </div>
                                     </div>
-                                    <button onClick={() => setShowInquiryModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
+                                    <button onClick={() => {
+                                        setShowInquiryModal(false);
+                                        setInquiryAttachment(null);
+                                    }} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
                                         <FiX className="text-2xl" />
                                     </button>
                                 </div>
@@ -431,7 +659,33 @@ const B2BProductDetail = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Message to Vendor</label>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="block text-sm font-bold text-gray-700">Message to Vendor</label>
+                                            <div className="relative">
+                                                <input
+                                                    type="file"
+                                                    id="inquiry-file"
+                                                    onChange={handleInquiryFileSelect}
+                                                    className="hidden"
+                                                    accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => document.getElementById('inquiry-file').click()}
+                                                    disabled={uploadingInquiryFile}
+                                                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border-2 transition-all ${inquiryAttachment ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-primary-600 border-primary-100 hover:bg-primary-50'}`}
+                                                >
+                                                    {uploadingInquiryFile ? (
+                                                        <div className="w-3 h-3 border-2 border-primary-600/30 border-t-primary-600 rounded-full animate-spin" />
+                                                    ) : inquiryAttachment ? (
+                                                        <FiCheckCircle />
+                                                    ) : (
+                                                        <FiPaperclip />
+                                                    )}
+                                                    {inquiryAttachment ? 'File Attached' : 'Attach File'}
+                                                </button>
+                                            </div>
+                                        </div>
                                         <textarea
                                             name="message"
                                             rows="4"
@@ -439,6 +693,27 @@ const B2BProductDetail = () => {
                                             className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium resize-none shadow-inner"
                                             required
                                         ></textarea>
+
+                                        {inquiryAttachment && (
+                                            <div className="mt-3 flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-primary-600 shadow-sm border border-gray-100">
+                                                        <FiFile />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-gray-800 truncate">{inquiryAttachment.originalName}</p>
+                                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-tighter">{inquiryAttachment.format} • Max 10MB</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setInquiryAttachment(null)}
+                                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    <FiX />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                     <button
                                         type="submit"

@@ -38,8 +38,8 @@ const AdminWallet = () => {
     setLoading(true);
     try {
       const [statsRes, transactionsRes] = await Promise.all([
-        getBannerRevenueStats(),
-        getBannerTransactions({ search: searchTerm, limit: 100 })
+        getBannerRevenueStats({ params: { bannerType: 'hero' } }),
+        getBannerTransactions({ search: searchTerm, limit: 100, bannerType: 'hero' })
       ]);
 
       setRevenueStats(statsRes.data || {});

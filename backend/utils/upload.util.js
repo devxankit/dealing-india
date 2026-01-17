@@ -70,6 +70,20 @@ export const uploadVideo = multer({
   fileFilter: videoFileFilter,
 });
 
+// File filter for chat attachments (Images, PDF, Docs)
+const chatFileFilter = (req, file, cb) => {
+  const allowedExtensions = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt|xls|xlsx/;
+  const extname = allowedExtensions.test(
+    path.extname(file.originalname).toLowerCase()
+  );
+
+  if (extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('File type not supported for chat. Use images, PDF, or common document formats.'));
+  }
+};
+
 // Multer configuration for reels (video + thumbnail)
 export const uploadReel = multer({
   storage,
@@ -77,6 +91,15 @@ export const uploadReel = multer({
     fileSize: 100 * 1024 * 1024, // 100MB limit
   },
   fileFilter: mediaFileFilter,
+});
+
+// Multer configuration for chat attachments
+export const uploadChatFile = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: chatFileFilter,
 });
 
 // Helper to get file URL (kept for backward compatibility)

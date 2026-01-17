@@ -1,4 +1,5 @@
 import VendorChatService from '../../services/vendorChat.service.js';
+import { uploadToCloudinary } from '../../utils/cloudinary.util.js';
 
 class VendorChatController {
   /**
@@ -215,6 +216,42 @@ class VendorChatController {
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to mark all messages as read'
+      });
+    }
+  }
+
+  /**
+   * Upload chat attachment
+   * POST /api/vendor/chat/upload
+   */
+  async uploadAttachment(req, res) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file provided'
+        });
+      }
+
+      const result = await uploadToCloudinary(req.file.buffer, 'chat_attachments', {
+        resource_type: 'auto'
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          url: result.secure_url || result.url,
+          publicId: result.public_id,
+          format: result.format,
+          resourceType: result.resource_type,
+          originalName: req.file.originalname
+        }
+      });
+    } catch (error) {
+      console.error('[VendorChatController] Error uploading attachment:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to upload attachment'
       });
     }
   }

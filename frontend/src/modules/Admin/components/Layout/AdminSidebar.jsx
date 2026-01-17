@@ -96,10 +96,11 @@ const getChildRoute = (parentRoute, childName) => {
       "Manage": "/admin/b2b-vendors/manage",
       "Pending": "/admin/b2b-vendors/pending",
       "Products": "/admin/b2b-vendors/products",
-      "Logs": "/admin/b2b-vendors/logs",
+      "Banner Bookings": "/admin/b2b-vendors/banner-bookings",
+      "Wallet": "/admin/b2b-vendors/wallet",
       "Analytics": "/admin/b2b-vendors/analytics",
-      "Disputes": "/admin/b2b-vendors/disputes",
       "Subscriptions": "/admin/b2b-vendors/subscriptions",
+      "Categories": "/admin/b2b-vendors/categories",
     },
     "/admin/locations": {
       Cities: "/admin/locations/cities",

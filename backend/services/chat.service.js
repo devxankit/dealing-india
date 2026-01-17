@@ -34,6 +34,10 @@ class ChatService {
       const userObjectId = new mongoose.Types.ObjectId(userId);
       const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
 
+      if (userObjectId.equals(vendorObjectId)) {
+        throw new Error('Cannot create a chat with yourself');
+      }
+
       // Check if conversation already exists using a more robust query
       // Handling both ObjectId and String formats just in case
       const existingChat = await Chat.findOne({
@@ -99,18 +103,17 @@ class ChatService {
   /**
    * Get user's conversations
    * @param {String} userId - User ID
+   * @param {Object} filters - Optional filters (e.g., { vendorType: 'b2b' })
    * @returns {Promise<Array>} Array of conversations
    */
-  async getUserConversations(userId) {
+  async getUserConversations(userId, filters = {}) {
     try {
       console.log('--- ChatService.getUserConversations Debug ---');
-      console.log('Original userId:', userId);
+      console.log('Original userId:', userId, 'Filters:', filters);
 
       const userObjectId = mongoose.isValidObjectId(userId)
         ? new mongoose.Types.ObjectId(userId)
         : null;
-
-      console.log('Converted userObjectId:', userObjectId);
 
       const query = {
         participants: {
@@ -121,12 +124,10 @@ class ChatService {
         }
       };
 
-      console.log('Query:', JSON.stringify(query, null, 2));
-
       const conversations = await Chat.find(query)
         .populate({
           path: 'participants.userId',
-          select: 'name email storeName storeLogo'
+          select: 'name email storeName storeLogo vendorType'
         })
         .populate('lastMessage')
         .sort({ lastMessageAt: -1, updatedAt: -1 })
@@ -134,8 +135,8 @@ class ChatService {
 
       console.log(`Found ${conversations.length} raw conversations for user ${userId}`);
 
-      // Deduplicate conversations by other participant ID
-      const deduplicated = [];
+      // Deduplicate conversations by other participant ID and apply filters
+      const filtered = [];
       const seenParticipants = new Set();
 
       for (const conv of conversations) {
@@ -145,6 +146,15 @@ class ChatService {
 
         if (otherParticipant) {
           const otherId = (otherParticipant.userId._id || otherParticipant.userId).toString();
+
+          // Apply vendorType filter if specified
+          if (filters.vendorType && otherParticipant.role === 'vendor') {
+            const vendorType = otherParticipant.userId?.vendorType;
+            if (vendorType !== filters.vendorType) {
+              continue; // Skip this conversation as it doesn't match the requested vendor type
+            }
+          }
+
           if (!seenParticipants.has(otherId)) {
             seenParticipants.add(otherId);
 
@@ -159,7 +169,7 @@ class ChatService {
               }
             }
 
-            deduplicated.push({
+            filtered.push({
               ...conv,
               otherParticipant,
               unreadCount,
@@ -168,7 +178,7 @@ class ChatService {
         }
       }
 
-      return deduplicated;
+      return filtered;
     } catch (error) {
       console.error('Error in getUserConversations:', error);
       throw error;
@@ -328,6 +338,7 @@ class ChatService {
       console.log('Conversation found:', conversation._id);
 
       // Identify sender and receiver from participants to ensure security
+      // SECURE: We strictly fetch participants from the database conversation record
       const senderParticipant = conversation.participants.find(p =>
         (p.userId._id || p.userId).toString() === senderId.toString() && p.role === senderRole
       );
@@ -338,17 +349,19 @@ class ChatService {
           senderRole,
           participants: conversation.participants
         });
-        throw new Error('Access denied: You are not a participant in this conversation');
+        throw new Error('Access denied: You are not authorized to send messages in this chat');
       }
 
       // Automatically find the "other" participant as the receiver
-      const receiverParticipant = conversation.participants.find(p =>
-        (p.userId._id || p.userId).toString() !== senderId.toString() || p.role !== senderRole
-      );
+      const receiverParticipant = conversation.participants.find(p => {
+        const pId = (p.userId?._id || p.userId).toString();
+        // The other participant is anyone who is NOT the sender (considering both ID and Role)
+        return pId !== senderId.toString() || p.role !== senderRole;
+      });
 
       if (!receiverParticipant) {
         console.error('Receiver not found for conversation:', conversationId);
-        throw new Error('Receiver not found for this conversation');
+        throw new Error('This conversation only has one participant. Cannot send message.');
       }
 
       const receiverId = receiverParticipant.userId._id || receiverParticipant.userId;

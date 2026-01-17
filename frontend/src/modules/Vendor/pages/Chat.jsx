@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSend, FiMessageSquare, FiUser, FiSearch } from 'react-icons/fi';
+import { FiArrowLeft, FiSend, FiMessageSquare, FiUser, FiSearch, FiPaperclip, FiFile } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import PageTransition from '../../../shared/components/PageTransition';
 import chatService from '../../../shared/services/chatService';
@@ -26,6 +26,63 @@ const VendorChat = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File size too large. Max 10MB.');
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      const uploadResponse = await chatService.uploadVendorAttachment(file);
+
+      if (uploadResponse.success) {
+        const fileData = uploadResponse.data;
+        const messageType = fileData.resourceType === 'image' ? 'image' : 'file';
+
+        const otherParticipant = selectedConversation.otherParticipant?.userId;
+        const receiverId = otherParticipant._id || otherParticipant;
+
+        const sendResponse = await chatService.sendVendorMessage(
+          selectedConversation._id,
+          receiverId,
+          '',
+          messageType,
+          {
+            fileUrl: fileData.url,
+            fileName: fileData.originalName,
+            fileFormat: fileData.format,
+            resourceType: fileData.resourceType
+          }
+        );
+
+        if (sendResponse.success) {
+          const newMessage = sendResponse.data?.data || sendResponse.data || sendResponse;
+          setMessages((prev) => {
+            const exists = prev.find(m => m._id === newMessage._id);
+            if (exists) return prev;
+            return [...prev, newMessage];
+          });
+          scrollToBottom();
+          loadConversations();
+        }
+      } else {
+        toast.error('Upload failed');
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast.error('Failed to upload file');
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // Load all verified vendors
   useEffect(() => {
@@ -520,6 +577,34 @@ const VendorChat = () => {
                                 </div>
                               )}
                             </div>
+                          ) : message.messageType === 'image' ? (
+                            <div className="space-y-2">
+                              <img
+                                src={getImageUrl(message.metadata?.fileUrl)}
+                                alt={message.metadata?.fileName}
+                                className="max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-all shadow-sm"
+                                onClick={() => window.open(getImageUrl(message.metadata?.fileUrl), '_blank')}
+                              />
+                              {message.message && <p className="text-[15px]">{message.message}</p>}
+                            </div>
+                          ) : message.messageType === 'file' ? (
+                            <div className="space-y-2">
+                              <a
+                                href={getImageUrl(message.metadata?.fileUrl)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isSender ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-gray-50 border-gray-100 hover:bg-gray-100'}`}
+                              >
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isSender ? 'bg-white/20 text-white' : 'bg-primary-100 text-primary-600'}`}>
+                                  <FiFile className="text-xl" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-bold truncate ${isSender ? 'text-white' : 'text-gray-800'}`}>{message.metadata?.fileName}</p>
+                                  <p className={`text-[10px] uppercase font-bold tracking-tighter ${isSender ? 'text-primary-100' : 'text-gray-400'}`}>{message.metadata?.fileFormat || 'FILE'} • Click to view</p>
+                                </div>
+                              </a>
+                              {message.message && <p className="text-[15px]">{message.message}</p>}
+                            </div>
                           ) : (
                             <p className="text-[15px] leading-relaxed">{message.message}</p>
                           )}
@@ -542,21 +627,40 @@ const VendorChat = () => {
 
               {/* Input */}
               <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shrink-0 z-20">
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile || sending}
+                    className={`p-2 rounded-lg transition-colors ${uploadingFile ? 'bg-gray-100 text-gray-400' : 'text-gray-500 hover:bg-gray-100'}`}
+                    title="Attach file"
+                  >
+                    <FiPaperclip className={`text-xl ${uploadingFile ? 'animate-pulse' : ''}`} />
+                  </button>
                   <input
                     type="text"
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Type a message..."
+                    placeholder={uploadingFile ? "Uploading file..." : "Type a message..."}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    disabled={sending}
+                    disabled={sending || uploadingFile}
                   />
                   <button
                     onClick={handleSendMessage}
-                    disabled={!messageText.trim() || sending}
-                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                    <FiSend className="text-lg" />
+                    disabled={(!messageText.trim() && !uploadingFile) || sending || uploadingFile}
+                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
+                    {sending ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <FiSend className="text-lg" />
+                    )}
                   </button>
                 </div>
               </div>

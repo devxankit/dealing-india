@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiEdit, FiTrash2, FiPlus, FiPackage } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -6,23 +6,55 @@ import DataTable from "../../../Admin/components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api";
 
 const ManageProducts = () => {
     const navigate = useNavigate();
-    const [loading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-
-    // Mock products data
-    const [products, setProducts] = useState([
-        { _id: '1', name: 'Cotton T-Shirts Bulk', price: 250, stockQuantity: 500, category: 'Textiles', visibility: 'Visible' },
-        { _id: '2', name: 'Wireless Earbuds X10', price: 800, stockQuantity: 200, category: 'Electronics', visibility: 'Visible' },
-        { _id: '3', name: 'Industrial Safety Gloves', price: 120, stockQuantity: 1000, category: 'Industrial', visibility: 'Visible' },
-        { _id: '4', name: 'Premium Leather Wallets', price: 450, stockQuantity: 150, category: 'Handicrafts', visibility: 'Visible' },
-        { _id: '5', name: 'Organic Cotton Bed Sheets', price: 1200, stockQuantity: 300, category: 'Textiles', visibility: 'Visible' },
-        { _id: '6', name: 'Steel Cutlery Set (50pc)', price: 3500, stockQuantity: 50, category: 'Industrial', visibility: 'Visible' },
-    ]);
-
+    const [products, setProducts] = useState([]);
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, productId: null });
+
+    // Fetch products from API
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
+    const fetchProducts = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get('/b2b-vendor/products', {
+                params: {
+                    page: 1,
+                    limit: 100, // Get all products for now
+                }
+            });
+
+            if (response.success && response.data) {
+                // Transform API response to match table format
+                const transformedProducts = response.data.products.map(product => {
+                    // Extract category from attributes
+                    const categoryAttr = product.attributes?.find(attr => attr.name === 'category');
+                    const category = categoryAttr?.value || 'N/A';
+                    
+                    return {
+                        _id: product._id,
+                        name: product.name,
+                        price: product.price,
+                        moq: product.minimumOrderQuantity || 0,
+                        category: category,
+                        visibility: product.isVisible ? 'Visible' : 'Hidden',
+                    };
+                });
+                setProducts(transformedProducts);
+            }
+        } catch (error) {
+            console.error('Error fetching products:', error);
+            toast.error('Failed to load products');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const columns = [
         {
@@ -45,18 +77,18 @@ const ManageProducts = () => {
         },
         {
             key: "price",
-            label: "Base Price",
+            label: "Exp. Price",
             sortable: true,
             render: (value) => `₹${value}`,
         },
         {
-            key: "stockQuantity",
-            label: "MOQ / Stock",
+            key: "moq",
+            label: "Min. Order (MOQ)",
             sortable: true,
         },
         {
             key: "visibility",
-            label: "Visibility",
+            label: "Status",
             render: (value) => (
                 <Badge variant={value === "Visible" ? "success" : "warning"}>
                     {value.toUpperCase()}
@@ -79,10 +111,17 @@ const ManageProducts = () => {
         },
     ];
 
-    const confirmDelete = () => {
-        setProducts(products.filter(p => p._id !== deleteModal.productId));
-        toast.success("Product listing removed");
-        setDeleteModal({ isOpen: false, productId: null });
+    const confirmDelete = async () => {
+        try {
+            await api.delete(`/b2b-vendor/products/${deleteModal.productId}`);
+            toast.success("Product listing removed");
+            setDeleteModal({ isOpen: false, productId: null });
+            // Refresh products list
+            fetchProducts();
+        } catch (error) {
+            console.error('Error deleting product:', error);
+            toast.error('Failed to delete product');
+        }
     };
 
     return (
@@ -111,12 +150,21 @@ const ManageProducts = () => {
                     </div>
                 </div>
 
-                <DataTable
-                    data={products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))}
-                    columns={columns}
-                    pagination={true}
-                    itemsPerPage={10}
-                />
+                {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                    </div>
+                ) : (
+                    <DataTable
+                        data={products.filter(p => 
+                            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            p.category.toLowerCase().includes(searchQuery.toLowerCase())
+                        )}
+                        columns={columns}
+                        pagination={true}
+                        itemsPerPage={10}
+                    />
+                )}
             </div>
 
             <ConfirmModal

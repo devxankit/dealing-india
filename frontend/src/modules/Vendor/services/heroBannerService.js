@@ -2,9 +2,10 @@ import api from '../../../shared/utils/api';
 
 /**
  * Get available banner slots for vendors
+ * @param {Object} options - { params: { bannerType: 'hero' | 'b2b' } }
  */
-export const getAvailableBannerSlots = async () => {
-  const response = await api.get('/vendor/hero-banners/slots');
+export const getAvailableBannerSlots = async (options = {}) => {
+  const response = await api.get('/vendor/hero-banners/slots', options);
   return response;
 };
 
@@ -66,17 +67,19 @@ export const getActiveBanners = async () => {
 
 /**
  * Admin: Get all banner slots and settings
+ * @param {Object} options - { params: { bannerType: 'hero' | 'b2b' } }
  */
-export const getAdminBannerSlots = async () => {
-  const response = await api.get('/admin/hero-banners/slots');
+export const getAdminBannerSlots = async (options = {}) => {
+  const response = await api.get('/admin/hero-banners/slots', options);
   return response;
 };
 
 /**
  * Admin: Get all banner bookings
+ * @param {Object} options - { params: { bannerType: 'hero' | 'b2b' } }
  */
-export const getAdminBannerBookings = async () => {
-  const response = await api.get('/admin/hero-banners/bookings');
+export const getAdminBannerBookings = async (options = {}) => {
+  const response = await api.get('/admin/hero-banners/bookings', options);
   return response;
 };
 
@@ -127,15 +130,16 @@ export const rejectBannerBooking = async (bookingId, reason = '') => {
 
 /**
  * Admin: Get banner revenue statistics
+ * @param {Object} options - { params: { bannerType: 'hero' | 'b2b' } }
  */
-export const getBannerRevenueStats = async () => {
-  const response = await api.get('/admin/hero-banners/revenue-stats');
+export const getBannerRevenueStats = async (options = {}) => {
+  const response = await api.get('/admin/hero-banners/revenue-stats', options);
   return response;
 };
 
 /**
  * Admin: Get banner transactions for wallet page
- * @param {Object} params - { search, limit, skip }
+ * @param {Object} params - { search, limit, skip, bannerType }
  */
 export const getBannerTransactions = async (params = {}) => {
   const response = await api.get('/admin/hero-banners/transactions', { params });

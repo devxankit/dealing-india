@@ -11,8 +11,9 @@ import {
     FiChevronDown,
     FiX,
     FiMessageCircle,
-    FiUsers,
-    FiBriefcase
+    FiBriefcase,
+    FiImage,
+    FiCreditCard
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
@@ -23,8 +24,9 @@ const iconMap = {
     "Manage Products": FiPackage,
     "Add Product": FiPackage,
     "B2B Inquiries": FiMessageCircle,
-    Vendors: FiUsers,
     Analytics: FiBarChart2,
+    Subscription: FiCreditCard,
+    "Banner Booking": FiImage,
     "Account Settings": FiSettings,
     Profile: FiUser,
     "Business Details": FiBriefcase,

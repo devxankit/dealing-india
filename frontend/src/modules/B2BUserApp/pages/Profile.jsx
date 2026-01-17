@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiUser, FiSettings, FiBell, FiShield, FiCreditCard, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag } from 'react-icons/fi';
+import { FiUser, FiSettings, FiBell, FiShield, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -16,7 +16,6 @@ const Profile = () => {
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
         { icon: FiBell, label: 'Notifications', desc: 'Manage inquiry alerts', path: '/b2b/notifications' },
         { icon: FiShield, label: 'Security', desc: 'Password & account safety', path: '/b2b/security' },
-        { icon: FiCreditCard, label: 'Payment Methods', desc: 'Saved cards & bank details', path: '/b2b/payments' },
         { icon: FiHelpCircle, label: 'Support & FAQs', desc: 'Get help with your bulk orders', path: '/b2b/support' },
     ];
 

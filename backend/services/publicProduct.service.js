@@ -301,7 +301,7 @@ export const getPublicProductById = async (productId) => {
       .populate('categoryId', 'name image icon')
       .populate('subcategoryId', 'name image icon')
       .populate('brandId', 'name')
-      .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status')
+      .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status address createdAt')
       .populate('attributes.attributeId', 'name type')
       .populate('attributes.values', 'value')
       .lean();

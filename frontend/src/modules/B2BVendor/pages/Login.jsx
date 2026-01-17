@@ -19,15 +19,25 @@ const B2BVendorLogin = () => {
     const [localLoading, setLocalLoading] = useState(false);
 
     useEffect(() => {
+        // Check for existing authentication on mount
         const token = localStorage.getItem('b2b-vendor-token');
-        if (isAuthenticated && token) {
+        const { isAuthenticated: storeAuth } = useB2BVendorAuthStore.getState();
+        
+        if (storeAuth && token) {
             const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
             navigate(from, { replace: true });
-        } else if (isAuthenticated && !token) {
+        } else if (storeAuth && !token) {
             // Store state is stale (token removed by api interceptor), force logout
             useB2BVendorAuthStore.getState().logout();
         }
-    }, [isAuthenticated, navigate, location]);
+
+        // Show message from registration if available
+        if (location.state?.message) {
+            toast.success(location.state.message, {
+                duration: 6000,
+            });
+        }
+    }, [navigate, location]); // Removed isAuthenticated from deps to avoid redirect loops
     const handleChange = (e) => {
         setFormData({
             ...formData,
@@ -46,17 +56,60 @@ const B2BVendorLogin = () => {
         setLocalLoading(true);
         try {
             const { login } = useB2BVendorAuthStore.getState();
+            console.log('[B2B Vendor Login Page] Calling login function');
             const result = await login(formData.email, formData.password);
+            console.log('[B2B Vendor Login Page] Login result:', result);
 
-            if (result.success) {
-                toast.success('B2B Vendor Login successful!');
-                const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
-                navigate(from, { replace: true });
+            if (result && result.success) {
+                // Wait for Zustand persist to save to localStorage (persist middleware is async)
+                // Try multiple times to ensure state is persisted
+                let retries = 0;
+                const maxRetries = 10;
+                let stateReady = false;
+                
+                while (retries < maxRetries && !stateReady) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    
+                    const { isAuthenticated, token } = useB2BVendorAuthStore.getState();
+                    const storedToken = localStorage.getItem('b2b-vendor-token');
+                    
+                    stateReady = isAuthenticated && storedToken && token;
+                    
+                    if (stateReady) {
+                        console.log('[B2B Vendor Login Page] State confirmed ready after', retries + 1, 'retries');
+                        break;
+                    }
+                    
+                    retries++;
+                }
+                
+                // Final check
+                const { isAuthenticated, token } = useB2BVendorAuthStore.getState();
+                const storedToken = localStorage.getItem('b2b-vendor-token');
+                console.log('[B2B Vendor Login Page] Final state check - isAuthenticated:', isAuthenticated, 'token:', storedToken ? 'exists' : 'missing', 'state token:', token ? 'exists' : 'missing');
+                
+                if (isAuthenticated && storedToken && token) {
+                    toast.success('B2B Vendor Login successful!');
+                    // Small delay before navigation to ensure everything is settled
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
+                    navigate(from, { replace: true });
+                } else {
+                    console.error('[B2B Vendor Login Page] State not properly updated after login', {
+                        isAuthenticated,
+                        hasStoredToken: !!storedToken,
+                        hasStateToken: !!token
+                    });
+                    toast.error('Login successful but state not updated. Please refresh the page.');
+                }
             } else {
-                toast.error(result.message || 'Invalid B2B vendor credentials.');
+                const errorMsg = result?.message || 'Invalid B2B vendor credentials.';
+                console.error('[B2B Vendor Login Page] Login failed:', errorMsg);
+                toast.error(errorMsg);
             }
         } catch (error) {
-            toast.error('An error occurred during login.');
+            console.error('[B2B Vendor Login Page] Login error:', error);
+            toast.error(error.message || 'An error occurred during login.');
         } finally {
             setLocalLoading(false);
         }

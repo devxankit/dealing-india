@@ -44,9 +44,9 @@ class ChatService {
   /**
    * Get user's conversations
    */
-  async getUserConversations() {
+  async getUserConversations(params = {}) {
     try {
-      const response = await api.get('/user/chat/conversations');
+      const response = await api.get('/user/chat/conversations', { params });
       return response;
     } catch (error) {
       throw error.response?.data || error;
@@ -183,6 +183,41 @@ class ChatService {
   async markVendorAllAsRead(conversationId) {
     try {
       const response = await api.put(`/vendor/chat/conversations/${conversationId}/read-all`);
+      return response;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  }
+  /**
+   * Upload chat attachment (user)
+   */
+  async uploadAttachment(file) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api.post('/user/chat/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      return response;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  }
+
+  /**
+   * Upload chat attachment (vendor)
+   */
+  async uploadVendorAttachment(file) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await api.post('/vendor/chat/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
       return response;
     } catch (error) {
       throw error.response?.data || error;

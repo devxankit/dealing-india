@@ -109,10 +109,11 @@ import AdminB2BVendors from "./modules/Admin/pages/B2BVendors";
 import AdminManageB2BVendors from "./modules/Admin/pages/b2b-vendors/ManageB2BVendors";
 import AdminB2BVendorPendingApprovals from "./modules/Admin/pages/b2b-vendors/PendingApprovals";
 import AdminB2BVendorProductListings from "./modules/Admin/pages/b2b-vendors/ProductListings";
-import AdminB2BVendorCommunicationLogs from "./modules/Admin/pages/b2b-vendors/CommunicationLogs";
 import AdminB2BVendorAnalyticsPage from "./modules/Admin/pages/b2b-vendors/B2BVendorAnalytics";
-import AdminB2BDisputeResolution from "./modules/Admin/pages/b2b-vendors/DisputeResolution";
 import AdminB2BSubscriptions from "./modules/Admin/pages/b2b-vendors/Subscriptions";
+import B2BBannerManagement from "./modules/Admin/pages/b2b-vendors/B2BBannerManagement";
+import B2BWallet from "./modules/Admin/pages/b2b-vendors/B2BWallet";
+import AdminB2BCategories from "./modules/Admin/pages/b2b-vendors/Categories";
 import RouteWrapper from "./shared/components/RouteWrapper";
 // Mobile App Routes
 import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
@@ -203,7 +204,7 @@ import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics"
 
 // B2B Vendor Routes
 import B2BVendorLogin from "./modules/B2BVendor/pages/Login";
-import B2BVendorRegister from "./modules/B2BVendor/pages/Register";
+import B2BVendorRegister from "./modules/B2BVendor/pages/Register.jsx";
 import B2BVendorVerification from "./modules/B2BVendor/pages/Verification";
 import B2BVendorProtectedRoute from "./modules/B2BVendor/components/B2BVendorProtectedRoute";
 import B2BVendorLayout from "./modules/B2BVendor/components/Layout/B2BVendorLayout";
@@ -213,11 +214,12 @@ import B2BVendorManageProducts from "./modules/B2BVendor/pages/products/ManagePr
 import B2BVendorAddProduct from "./modules/B2BVendor/pages/products/AddProduct";
 import B2BVendorEditProduct from "./modules/B2BVendor/pages/products/EditProduct";
 import B2BVendorMessages from "./modules/B2BVendor/pages/Messages";
-import B2BVendorVendors from "./modules/B2BVendor/pages/Vendors";
 import B2BVendorAnalytics from "./modules/B2BVendor/pages/Analytics";
 import B2BVendorSettings from "./modules/B2BVendor/pages/Settings";
 import B2BVendorProfile from "./modules/B2BVendor/pages/Profile";
 import B2BVendorSubscription from "./modules/B2BVendor/pages/Subscription";
+import B2BVendorBannerBooking from "./modules/B2BVendor/pages/B2BBannerBooking";
+import B2BVendorPaymentPage from "./modules/B2BVendor/pages/PaymentPage";
 
 // B2B User App Routes
 import B2BUserLogin from "./modules/B2BUserApp/pages/Login";
@@ -344,10 +346,11 @@ const AppRoutes = () => {
             <Route path="manage" element={<AdminManageB2BVendors />} />
             <Route path="pending" element={<AdminB2BVendorPendingApprovals />} />
             <Route path="products" element={<AdminB2BVendorProductListings />} />
-            <Route path="logs" element={<AdminB2BVendorCommunicationLogs />} />
+            <Route path="banner-bookings" element={<B2BBannerManagement />} />
+            <Route path="wallet" element={<B2BWallet />} />
             <Route path="analytics" element={<AdminB2BVendorAnalyticsPage />} />
-            <Route path="disputes" element={<AdminB2BDisputeResolution />} />
             <Route path="subscriptions" element={<AdminB2BSubscriptions />} />
+            <Route path="categories" element={<AdminB2BCategories />} />
             <Route path=":id" element={<VendorDetail />} />
           </Route>
 
@@ -539,6 +542,7 @@ const AppRoutes = () => {
         {/* B2B Vendor Routes */}
         <Route path="/b2b-vendor/login" element={<B2BVendorLogin />} />
         <Route path="/b2b-vendor/register" element={<B2BVendorRegister />} />
+        <Route path="/b2b-vendor/payment" element={<B2BVendorPaymentPage />} />
         <Route path="/b2b-vendor/verification" element={<B2BVendorVerification />} />
         <Route
           path="/b2b-vendor"
@@ -554,13 +558,13 @@ const AppRoutes = () => {
           <Route path="products/add-product" element={<B2BVendorAddProduct />} />
           <Route path="products/edit/:id" element={<B2BVendorEditProduct />} />
           <Route path="messages" element={<B2BVendorMessages />} />
-          <Route path="vendors" element={<B2BVendorVendors />} />
           <Route path="analytics" element={<B2BVendorAnalytics />} />
           <Route path="settings" element={<B2BVendorSettings />} />
           <Route path="settings/profile" element={<B2BVendorSettings />} />
           <Route path="settings/business" element={<B2BVendorSettings />} />
           <Route path="settings/security" element={<B2BVendorSettings />} />
           <Route path="subscription" element={<B2BVendorSubscription />} />
+          <Route path="banner-booking" element={<B2BVendorBannerBooking />} />
           <Route path="profile" element={<B2BVendorProfile />} />
         </Route>
         {/* Mobile App Routes */}

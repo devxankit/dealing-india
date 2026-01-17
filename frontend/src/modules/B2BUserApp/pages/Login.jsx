@@ -42,7 +42,7 @@ const B2BUserLogin = () => {
             const result = await login(identifier, formData.password, false, 'b2b');
             if (result.success) {
                 toast.success('Welcome back to Bulk Marketplace!');
-                navigate('/b2b');
+                navigate('/b2b/catalog');
             } else {
                 toast.error(result.message || 'Login failed');
             }

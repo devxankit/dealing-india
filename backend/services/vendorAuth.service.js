@@ -14,24 +14,43 @@ import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
  */
 export const registerVendor = async (vendorData) => {
   try {
-    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType } = vendorData;
+    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, gstNumber, subscriptionPlan } = vendorData;
 
     // Validate inputs
     if (!name || !email || !phone || !password || !storeName) {
-      throw new Error('Name, email, phone, password, and store name are required');
+      const error = new Error('Name, email, phone, password, and store name are required');
+      error.statusCode = 400;
+      throw error;
     }
 
     if (!isValidEmail(email)) {
-      throw new Error('Invalid email format');
+      const error = new Error('Invalid email format');
+      error.statusCode = 400;
+      throw error;
     }
 
     if (!isValidPhone(phone)) {
-      throw new Error('Invalid phone number format');
+      const error = new Error('Invalid phone number format');
+      error.statusCode = 400;
+      throw error;
     }
 
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
-      throw new Error(passwordValidation.message);
+      const error = new Error(passwordValidation.message);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // B2B-specific validations
+    if (vendorType === 'b2b') {
+      if (businessTypes && (!Array.isArray(businessTypes) || businessTypes.length === 0)) {
+        const error = new Error('At least one business type is required for B2B vendors');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      // GST number is optional and no format validation required
     }
 
     // Check if vendor already exists in database
@@ -70,7 +89,62 @@ export const registerVendor = async (vendorData) => {
 
     // Process documents/media if provided - upload to Cloudinary
     let processedDocuments = [];
-    if (documents && Array.isArray(documents) && documents.length > 0) {
+    
+    // Handle B2B-specific document structure (panCard, businessLicense as objects)
+    if (vendorType === 'b2b' && documents && typeof documents === 'object' && !Array.isArray(documents)) {
+      // Convert B2B document object to array format
+      const docArray = [];
+      if (documents.panCard) {
+        docArray.push({ name: 'PAN Card', data: documents.panCard, type: 'application/pdf' });
+      }
+      if (documents.businessLicense) {
+        docArray.push({ name: 'Business License', data: documents.businessLicense, type: 'application/pdf' });
+      }
+      
+      // Process each document
+      for (const doc of docArray) {
+        if (doc.data) {
+          try {
+            // Determine file type from base64 data or default
+            const fileType = doc.type || 'application/pdf';
+            const isImage = fileType.startsWith('image/');
+            const isPDF = fileType === 'application/pdf';
+
+            if (!isImage && !isPDF) {
+              console.warn(`Skipping invalid file type: ${fileType}`);
+              continue;
+            }
+
+            let resourceType = 'auto';
+            let folderName = 'vendor-documents/b2b';
+
+            if (isPDF) {
+              resourceType = 'auto';
+            } else if (isImage) {
+              resourceType = 'image';
+              folderName = 'vendor-documents/b2b/images';
+            }
+
+            // Upload to Cloudinary
+            const result = await uploadBase64ToCloudinary(doc.data, folderName, {
+              resource_type: resourceType,
+            });
+
+            processedDocuments.push({
+              name: doc.name,
+              url: result.secure_url,
+              publicId: result.public_id,
+              type: fileType,
+              uploadedAt: new Date(),
+            });
+          } catch (uploadError) {
+            console.error(`Failed to upload file ${doc.name}:`, uploadError.message);
+            // Continue with other files even if one fails
+          }
+        }
+      }
+    } else if (documents && Array.isArray(documents) && documents.length > 0) {
+      // Handle regular array format
       for (const doc of documents) {
         if (doc.data && doc.name) {
           try {
@@ -131,6 +205,10 @@ export const registerVendor = async (vendorData) => {
         address: address || {},
         documents: processedDocuments, // Store processed documents
         vendorType: vendorType || 'b2c',
+        // B2B-specific fields
+        businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()) : undefined,
+        gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
+        subscriptionPlan: subscriptionPlan, // Store plan ID for later subscription creation
       },
       expiresAt,
       isVerified: false,
@@ -200,10 +278,10 @@ export const loginVendor = async (email, password) => {
       throw new Error('Email and password are required');
     }
 
-    // Find vendor by email
+    // Find vendor by email - select all fields including password
     const vendor = await Vendor.findOne({
       email: email.toLowerCase(),
-    }).select('+password'); // Include password field
+    }).select('+password'); // Include password field, all other fields are included by default
 
     if (!vendor) {
       console.log(`[Login Failed] Vendor not found: ${email}`);
@@ -212,10 +290,15 @@ export const loginVendor = async (email, password) => {
       throw error;
     }
 
-    console.log(`[Login Progress] Vendor found, status: ${vendor.status}, isActive: ${vendor.isActive}`);
+    // For B2B vendor login, ensure vendorType is b2b
+    // Note: This allows both B2B and B2C vendors to use the same login endpoint
+    // Frontend can filter based on vendorType if needed
+
+    console.log(`[Login Progress] Vendor found - Email: ${vendor.email}, Type: ${vendor.vendorType}, Status: ${vendor.status}, isActive: ${vendor.isActive}`);
 
     // Check if account is active
     if (!vendor.isActive) {
+      console.log(`[Login Blocked] Account inactive for: ${email}`);
       const error = new Error('Account is inactive. Please contact support.');
       error.statusCode = 403;
       throw error;
@@ -223,6 +306,7 @@ export const loginVendor = async (email, password) => {
 
     // Check if vendor is approved (vendors can only login if approved)
     if (vendor.status !== 'approved') {
+      console.log(`[Login Blocked] Account not approved - Status: ${vendor.status} for: ${email}`);
       const error = new Error(
         `Vendor account is ${vendor.status}. Please wait for admin approval before logging in.`
       );
@@ -248,6 +332,34 @@ export const loginVendor = async (email, password) => {
     // Return vendor without password
     const vendorObj = vendor.toObject();
     delete vendorObj.password;
+
+    // Ensure vendorType is preserved (critical for B2B login)
+    if (!vendorObj.vendorType && vendor.vendorType) {
+      vendorObj.vendorType = vendor.vendorType;
+    }
+
+    // Populate subscription with plan details if exists (don't let this block login)
+    if (vendor.currentSubscription) {
+      try {
+        await vendor.populate({
+          path: 'currentSubscription',
+          populate: {
+            path: 'planId',
+            select: 'name duration price features isActive',
+            model: 'B2BSubscriptionPlan',
+          },
+        });
+        vendorObj.currentSubscription = vendor.currentSubscription;
+      } catch (subError) {
+        console.error(`[Login Warning] Failed to populate subscription for vendor ${vendor.email}:`, subError.message);
+        // Don't block login if subscription population fails
+        vendorObj.currentSubscription = null;
+      }
+    }
+
+    console.log(`[Login Success] Vendor ${vendor.email} (${vendor.vendorType}) logged in successfully`);
+    console.log(`[Login Success] Vendor object vendorType:`, vendorObj.vendorType);
+    console.log(`[Login Success] Returning vendor object keys:`, Object.keys(vendorObj));
 
     return {
       vendor: vendorObj,
@@ -373,7 +485,7 @@ export const verifyVendorEmail = async (email, otp) => {
     }
 
     // Create actual vendor in database
-    const vendor = await Vendor.create({
+    const vendorData = {
       name: tempRegistration.registrationData.name,
       email: tempRegistration.registrationData.email,
       phone: tempRegistration.registrationData.phone,
@@ -387,7 +499,22 @@ export const verifyVendorEmail = async (email, otp) => {
       isActive: true,
       role: 'vendor',
       vendorType: tempRegistration.registrationData.vendorType || 'b2c',
-    });
+    };
+
+    // Add B2B-specific fields if vendorType is b2b
+    if (tempRegistration.registrationData.vendorType === 'b2b') {
+      if (tempRegistration.registrationData.businessTypes) {
+        vendorData.businessTypes = tempRegistration.registrationData.businessTypes;
+      }
+      if (tempRegistration.registrationData.gstNumber) {
+        vendorData.gstNumber = tempRegistration.registrationData.gstNumber;
+      }
+      // B2B vendors pay subscription fees, NOT commission
+      // Set commissionRate to 0 for B2B vendors
+      vendorData.commissionRate = 0;
+    }
+
+    const vendor = await Vendor.create(vendorData);
 
     // Mark temporary registration as verified and delete it
     await TemporaryRegistration.deleteOne({ _id: tempRegistration._id });

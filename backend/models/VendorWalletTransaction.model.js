@@ -36,7 +36,7 @@ const vendorWalletTransactionSchema = new mongoose.Schema(
         },
         referenceType: {
             type: String,
-            enum: ['order', 'withdrawal', 'adjustment', 'manual', 'refund'],
+            enum: ['order', 'withdrawal', 'adjustment', 'manual', 'refund', 'banner_booking'],
             default: 'manual',
         },
         performedBy: {

@@ -1,15 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiSearch, FiEdit2, FiTrash2, FiEye, FiUser } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
+import B2BVendorDetailModal from "./components/B2BVendorDetailModal";
+import { useB2BVendorManagementStore } from "../../store/b2bVendorManagementStore";
+import toast from "react-hot-toast";
 
 const ManageB2BVendors = () => {
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedVendor, setSelectedVendor] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { b2bVendors, isLoading, fetchB2BVendors } = useB2BVendorManagementStore();
 
-    const mockB2BVendors = [
-        { _id: '1', companyName: 'Global Wholesale Hub', email: 'contact@globalhub.com', status: 'Active', products: 124, joinDate: '2023-01-15' },
-        { _id: '2', companyName: 'Urban Textiles', email: 'sales@urbantex.com', status: 'Pending', products: 0, joinDate: '2023-11-20' },
-    ];
+    useEffect(() => {
+        const loadVendors = async () => {
+            try {
+                await fetchB2BVendors({
+                    status: 'all',
+                    search: searchQuery,
+                    page: 1,
+                    limit: 100,
+                });
+            } catch (error) {
+                // Error toast is shown by API interceptor
+            }
+        };
+
+        // Debounce search
+        const timeoutId = setTimeout(() => {
+            loadVendors();
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery, fetchB2BVendors]);
+
+    const handleViewDetails = (vendor) => {
+        setSelectedVendor(vendor);
+        setIsModalOpen(true);
+    };
 
     const columns = [
         {
@@ -42,7 +70,13 @@ const ManageB2BVendors = () => {
             label: "Actions",
             render: (_, row) => (
                 <div className="flex items-center gap-2">
-                    <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><FiEye /></button>
+                    <button
+                        onClick={() => handleViewDetails(row)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="View Full Details"
+                    >
+                        <FiEye />
+                    </button>
                     <button className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg"><FiEdit2 /></button>
                     <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><FiTrash2 /></button>
                 </div>
@@ -70,13 +104,30 @@ const ManageB2BVendors = () => {
             </div>
 
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <DataTable
-                    data={mockB2BVendors}
-                    columns={columns}
-                    pagination={true}
-                    itemsPerPage={10}
-                />
+                {isLoading ? (
+                    <div className="text-center py-12">
+                        <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-gray-500">Loading B2B vendors...</p>
+                    </div>
+                ) : b2bVendors.length > 0 ? (
+                    <DataTable
+                        data={b2bVendors}
+                        columns={columns}
+                        pagination={true}
+                        itemsPerPage={10}
+                    />
+                ) : (
+                    <div className="text-center py-12">
+                        <p className="text-gray-500">No B2B vendors found</p>
+                    </div>
+                )}
             </div>
+
+            <B2BVendorDetailModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                vendor={selectedVendor}
+            />
         </motion.div>
     );
 };

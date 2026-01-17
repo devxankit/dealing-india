@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
+import B2BBanner from '../components/B2BBanner';
 import api from '../../../shared/utils/api';
 import chatService from '../../../shared/services/chatService';
 import { useAuthStore } from '../../../shared/store/authStore';
@@ -16,9 +17,13 @@ const ProductCatalog = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [showInquiryModal, setShowInquiryModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [b2bVendors, setB2bVendors] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [expandedCategory, setExpandedCategory] = useState(null);
+    const [productInquiries, setProductInquiries] = useState({}); // Track which products have inquiries { productId: true/false }
 
     useEffect(() => {
         const init = async () => {
@@ -27,6 +32,115 @@ const ProductCatalog = () => {
         };
         init();
     }, []);
+
+    // Update categories when products change
+    useEffect(() => {
+        if (products.length > 0) {
+            fetchB2BCategories();
+            if (isAuthenticated) {
+                checkInquiriesForProducts();
+            }
+        }
+    }, [products, isAuthenticated]);
+
+    const fetchB2BCategories = async () => {
+        try {
+            const response = await api.get('/public/b2b-categories');
+            console.log('B2B Categories API Response:', response);
+            if (response.success && response.data) {
+                // Transform backend format to frontend format
+                const transformedCategories = response.data.map((cat, index) => ({
+                    id: cat._id || cat.id || index.toString(),
+                    name: cat.name,
+                    subcategories: cat.subcategories || [],
+                }));
+                
+                // If products exist, filter categories to show only those that have products
+                // Otherwise show all categories from admin
+                let categoriesToShow = [];
+                if (products.length > 0) {
+                    categoriesToShow = transformedCategories.filter(cat => {
+                        return products.some(product => {
+                            // Get category from attributes array
+                            const categoryAttr = product.attributes?.find(attr => 
+                                attr.name === 'category' || attr.attributeName === 'category'
+                            );
+                            const productCategory = categoryAttr?.value || '';
+                            return productCategory === cat.name;
+                        });
+                    });
+                } else {
+                    // If no products, show all categories (they might not have products yet)
+                    categoriesToShow = transformedCategories;
+                }
+                
+                // Build subcategories list based on actual products in each category
+                const categoriesWithFilteredSubcategories = categoriesToShow.map(cat => {
+                    // Get all subcategories that have products in this category (if products exist)
+                    let subcategoriesToShow = cat.subcategories;
+                    if (products.length > 0) {
+                        subcategoriesToShow = cat.subcategories.filter(subcat => {
+                            return products.some(product => {
+                                const categoryAttr = product.attributes?.find(attr => 
+                                    attr.name === 'category' || attr.attributeName === 'category'
+                                );
+                                const subcategoryAttr = product.attributes?.find(attr => 
+                                    attr.name === 'subcategory' || attr.attributeName === 'subcategory'
+                                );
+                                const productCategory = categoryAttr?.value || '';
+                                const productSubcategory = subcategoryAttr?.value || '';
+                                return productCategory === cat.name && productSubcategory === subcat;
+                            });
+                        });
+                    }
+                    
+                    return {
+                        ...cat,
+                        subcategories: subcategoriesToShow
+                    };
+                });
+                
+                // Always show 'All' option, then categories
+                const finalCategories = [
+                    { id: 'all', name: 'All', subcategories: [] },
+                    ...categoriesWithFilteredSubcategories
+                ];
+                console.log('Setting categories:', finalCategories);
+                console.log('Products count:', products.length);
+                setCategories(finalCategories);
+            } else {
+                // Fallback: show empty categories
+                setCategories([{ id: 'all', name: 'All', subcategories: [] }]);
+            }
+        } catch (error) {
+            console.error('Error fetching B2B categories:', error);
+            // Fallback: show empty categories
+            setCategories([{ id: 'all', name: 'All', subcategories: [] }]);
+        }
+    };
+
+    const handleCategoryClick = (categoryName) => {
+        if (selectedCategory === categoryName && expandedCategory === categoryName) {
+            // If clicking the same category, collapse it
+            setExpandedCategory(null);
+            setSelectedCategory('All');
+            setSelectedSubcategory(null);
+        } else {
+            setSelectedCategory(categoryName);
+            setExpandedCategory(categoryName);
+            setSelectedSubcategory(null);
+        }
+    };
+
+    const handleSubcategoryClick = (subcategoryName) => {
+        setSelectedSubcategory(subcategoryName);
+    };
+
+    const getCurrentSubcategories = () => {
+        if (selectedCategory === 'All' || !expandedCategory) return [];
+        const category = categories.find(cat => cat.name === selectedCategory);
+        return category ? category.subcategories : [];
+    };
 
     const fetchB2BVendors = async () => {
         try {
@@ -54,91 +168,8 @@ const ProductCatalog = () => {
                 // The API returns a paginated object { products, total, page, totalPages }
                 const productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
 
-                // FALLBACK MOCK DATA IF API IS EMPTY
-                if (productsData.length === 0) {
-                    // Seek the specific mock B2B vendor if available in fetched vendors, 
-                    // otherwise use the hardcoded ID we just created for 'mockb2bvendor@example.com'
-                    const specificB2BVendor = b2bVendors.find(v => v.email === 'mockb2bvendor@example.com');
-                    const targetVendorId = specificB2BVendor?._id || '65a1234567890abcdefb2b01';
-
-                    setProducts([
-                        {
-                            _id: 'm1',
-                            name: 'Premium Silk Sarees (Bulk)',
-                            description: 'Pure Banarasi silk sarees for showrooms and boutique owners. Direct from manufacturer.',
-                            price: 4500,
-                            images: ['https://images.unsplash.com/photo-1610030469668-935142b96fe4?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Textiles' },
-                            vendorId: targetVendorId
-                        },
-                        {
-                            _id: 'm2',
-                            name: 'Smart Watch Gen 3',
-                            description: 'Bulk quantity smart watches with heart rate monitor, GPS and waterproof design.',
-                            price: 1200,
-                            images: ['https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Electronics' },
-                            vendorId: targetVendorId
-                        },
-                        {
-                            _id: 'm3',
-                            name: 'Industrial Heavy Drill Machine',
-                            description: 'Professional grade drill machines for construction and industrial use.',
-                            price: 8500,
-                            images: ['https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Industrial' },
-                            vendorId: targetVendorId
-                        },
-                        {
-                            _id: 'm4',
-                            name: 'Handcrafted Bamboo Lamps',
-                            description: 'Eco-friendly bamboo lamps made by local artisans. Great for home decor stores.',
-                            price: 650,
-                            images: ['https://images.unsplash.com/photo-1542736667-069246bdbc6d?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Handicrafts' },
-                            vendorId: targetVendorId
-                        },
-                        {
-                            _id: 'm5',
-                            name: 'Bulk Essential Oils Kit',
-                            description: 'Set of 12 therapeutic grade essential oils for wellness and spa businesses.',
-                            price: 2800,
-                            images: ['https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Chemicals' },
-                            vendorId: targetVendorId
-                        },
-                        {
-                            _id: 'm6',
-                            name: 'Cotton Canvas Tote Bags',
-                            description: 'Reusable eco-friendly tote bags. Customizable for branding.',
-                            price: 85,
-                            images: ['https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Textiles' },
-                            vendorId: targetVendorId
-                        },
-                        {
-                            _id: 'm7',
-                            name: 'Solar Panel Kit (100W)',
-                            description: 'High efficiency solar panels for residential and commercial installation.',
-                            price: 12500,
-                            images: ['https://images.unsplash.com/photo-1508514177221-18d14de6d62d?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Electronics' },
-                            vendorId: targetVendorId
-                        },
-                        {
-                            _id: 'm8',
-                            name: 'Designer Ceramic Vases',
-                            description: 'Modern ceramic vases in various sizes. Perfect for interior design shops.',
-                            price: 1800,
-                            images: ['https://images.unsplash.com/photo-1581783898377-1c85bc937427?auto=format&fit=crop&q=80&w=400'],
-                            categoryId: { name: 'Handicrafts' },
-                            vendorId: targetVendorId
-                        }
-                    ]);
-                }
-                else {
-                    setProducts(productsData);
-                }
+                // Use API data directly - no fallback mock data
+                setProducts(productsData);
             }
         } catch (error) {
             toast.error('Failed to load products');
@@ -147,14 +178,74 @@ const ProductCatalog = () => {
         }
     };
 
-    const categories = ['All', 'Electronics', 'Textiles', 'Industrial', 'Chemicals', 'Handicrafts'];
+    const checkInquiriesForProducts = async () => {
+        if (!isAuthenticated || products.length === 0) return;
+
+        try {
+            // Check inquiry status for all products in parallel
+            const inquiryChecks = await Promise.all(
+                products.map(async (product) => {
+                    try {
+                        const productId = product._id || product.id;
+                        if (!productId) return { productId: null, hasInquiry: false };
+                        
+                        const response = await api.get(`/user/chat/inquiries/check/${productId}`);
+                        return {
+                            productId,
+                            hasInquiry: response.success && response.data?.hasInquiry
+                        };
+                    } catch (error) {
+                        // If error (e.g., not authenticated), treat as no inquiry
+                        return { productId: product._id || product.id, hasInquiry: false };
+                    }
+                })
+            );
+
+            // Convert array to object for easy lookup
+            const inquiryMap = {};
+            inquiryChecks.forEach(check => {
+                if (check.productId) {
+                    inquiryMap[check.productId] = check.hasInquiry;
+                }
+            });
+
+            setProductInquiries(inquiryMap);
+        } catch (error) {
+            console.error('Error checking inquiries:', error);
+        }
+    };
 
     const productsList = Array.isArray(products) ? products : [];
 
     const filteredProducts = productsList.filter(product => {
         const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             product.description?.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = selectedCategory === 'All' || product.categoryId?.name === selectedCategory;
+        
+        let matchesCategory = false;
+        if (selectedCategory === 'All') {
+            matchesCategory = true;
+        } else {
+            // Get category from attributes array
+            const categoryAttr = product.attributes?.find(attr => 
+                attr.name === 'category' || attr.attributeName === 'category'
+            );
+            const productCategory = categoryAttr?.value || product.categoryId?.name || product.category || '';
+            
+            if (selectedSubcategory) {
+                // Get subcategory from attributes array
+                const subcategoryAttr = product.attributes?.find(attr => 
+                    attr.name === 'subcategory' || attr.attributeName === 'subcategory'
+                );
+                const productSubcategory = subcategoryAttr?.value || product.subcategory || product.subcategoryId?.name || '';
+                
+                // Filter by both category and subcategory
+                matchesCategory = productCategory === selectedCategory && productSubcategory === selectedSubcategory;
+            } else {
+                // Filter by category only
+                matchesCategory = productCategory === selectedCategory;
+            }
+        }
+        
         return matchesSearch && matchesCategory;
     });
 
@@ -181,7 +272,7 @@ const ProductCatalog = () => {
         const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(vId);
 
         if (vId && isValidObjectId) {
-            navigate(`/app/chat/${vId}`);
+            navigate(`/b2b/inquiries?vendorId=${vId}`);
         } else {
             console.error('Invalid vendor ID:', vId);
             toast.error('Cannot start chat: Invalid Vendor ID');
@@ -191,6 +282,9 @@ const ProductCatalog = () => {
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <B2BHeader />
+
+            {/* B2B Banner Carousel */}
+            <B2BBanner />
 
             <main className="max-w-7xl mx-auto px-4 py-6">
                 {/* Search & Filter Bar */}
@@ -205,19 +299,60 @@ const ProductCatalog = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar lg:pb-0">
-                        {categories.map((cat) => (
+                    <div className="space-y-3">
+                        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar lg:pb-0">
                             <button
-                                key={cat}
-                                onClick={() => setSelectedCategory(cat)}
-                                className={`px-5 py-2.5 rounded-2xl whitespace-nowrap font-medium transition-all ${selectedCategory === cat
+                                onClick={() => {
+                                    setSelectedCategory('All');
+                                    setExpandedCategory(null);
+                                    setSelectedSubcategory(null);
+                                }}
+                                className={`px-5 py-2.5 rounded-2xl whitespace-nowrap font-medium transition-all ${selectedCategory === 'All'
                                     ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                                     : 'bg-white text-gray-600 border border-gray-100 hover:border-primary-200'
                                     }`}
                             >
-                                {cat}
+                                All
                             </button>
-                        ))}
+                            {categories.filter(cat => cat.name !== 'All').map((cat) => (
+                                <div key={cat.id} className="relative">
+                                    <button
+                                        onClick={() => handleCategoryClick(cat.name)}
+                                        className={`px-5 py-2.5 rounded-2xl whitespace-nowrap font-medium transition-all flex items-center gap-2 ${selectedCategory === cat.name
+                                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
+                                            : 'bg-white text-gray-600 border border-gray-100 hover:border-primary-200'
+                                            }`}
+                                    >
+                                        {cat.name}
+                                        {expandedCategory === cat.name && (
+                                            <FiChevronDown className="text-xs rotate-180" />
+                                        )}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        {/* Subcategories Dropdown */}
+                        {expandedCategory && getCurrentSubcategories().length > 0 && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex gap-2 overflow-x-auto pb-2 no-scrollbar lg:pb-0 flex-wrap"
+                            >
+                                {getCurrentSubcategories().map((sub, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => handleSubcategoryClick(sub)}
+                                        className={`px-4 py-2 rounded-xl whitespace-nowrap text-sm font-medium transition-all ${selectedSubcategory === sub
+                                            ? 'bg-primary-500 text-white shadow-md shadow-primary-200'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                    >
+                                        {sub}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
                     </div>
                 </div>
 
@@ -247,7 +382,11 @@ const ProductCatalog = () => {
                             >
                                 <div className="relative aspect-[4/3] overflow-hidden">
                                     <img
-                                        src={product.images[0] || 'https://via.placeholder.com/400x300'}
+                                        src={
+                                            (Array.isArray(product.images) && product.images.length > 0) 
+                                                ? product.images[0] 
+                                                : product.image || 'https://via.placeholder.com/400x300'
+                                        }
                                         alt={product.name}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />
@@ -282,13 +421,19 @@ const ProductCatalog = () => {
                                     </div>
 
                                     <div className="flex items-center justify-between gap-2 pt-4 border-t border-gray-100">
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); openInquiry(product); }}
-                                            className="flex-1 py-3 bg-white border-2 border-primary-600 text-primary-600 rounded-2xl hover:bg-primary-50 transition-all font-bold text-sm flex items-center justify-center gap-2"
-                                        >
-                                            <FiSend className="text-xs" />
-                                            Inquiry
-                                        </button>
+                                        {productInquiries[product._id || product.id] ? (
+                                            <div className="flex-1 py-3 bg-green-50 border-2 border-green-200 text-green-700 rounded-2xl font-bold text-sm flex items-center justify-center gap-2">
+                                                <span>✓ Inquiry Done</span>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); openInquiry(product); }}
+                                                className="flex-1 py-3 bg-white border-2 border-primary-600 text-primary-600 rounded-2xl hover:bg-primary-50 transition-all font-bold text-sm flex items-center justify-center gap-2"
+                                            >
+                                                <FiSend className="text-xs" />
+                                                Inquiry
+                                            </button>
+                                        )}
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleChatDirect(product); }}
                                             className="p-3 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all font-bold"
@@ -372,9 +517,18 @@ const ProductCatalog = () => {
 
                                         await chatService.sendMessage(conversationId, vendorId, inquiryMessage, 'inquiry', metadata);
 
+                                        // Update inquiry status for this product
+                                        const productId = selectedProduct._id || selectedProduct.id;
+                                        if (productId) {
+                                            setProductInquiries(prev => ({
+                                                ...prev,
+                                                [productId]: true
+                                            }));
+                                        }
+
                                         toast.success('Inquiry sent via chat!');
                                         setShowInquiryModal(false);
-                                        navigate(`/app/chat/${vendorId}`);
+                                        navigate(`/b2b/inquiries?vendorId=${vendorId}`);
                                     } catch (err) {
                                         console.error('Inquiry failed:', err);
                                         toast.error('Failed to send inquiry via chat');

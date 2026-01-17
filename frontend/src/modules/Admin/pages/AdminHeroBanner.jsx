@@ -79,19 +79,38 @@ const AdminHeroBanner = () => {
     setLoading(true);
     try {
       const [slotsRes, bookingsRes, revenueRes] = await Promise.all([
-        getAdminBannerSlots(),
-        getAdminBannerBookings(),
-        getBannerRevenueStats()
+        getAdminBannerSlots({ params: { bannerType: 'hero' } }),
+        getAdminBannerBookings({ params: { bannerType: 'hero' } }),
+        getBannerRevenueStats({ params: { bannerType: 'hero' } })
       ]);
 
       console.log("Admin Slots Response:", slotsRes);
 
       // Handle slots response structure
       // Expected: { success: true, data: { slots: [], settings: {} } } via interceptor
-      const slotsData = slotsRes.data || slotsRes;
-
-      if (slotsData && slotsData.slots) {
-        setSlots(slotsData.slots);
+      // Interceptor returns response.data, so slotsRes = { success: true, data: { slots: [], settings: {} } }
+      if (slotsRes?.data?.success) {
+        const slotsData = slotsRes.data.data;
+        const slotsList = slotsData.slots || slotsData || [];
+        setSlots(slotsList);
+        if (slotsData.settings) {
+          setSettings(slotsData.settings);
+          setSettingsForm(slotsData.settings);
+        }
+      } else if (slotsRes?.success && slotsRes?.data) {
+        // Handle case where interceptor already unwrapped: { success: true, data: { slots: [], settings: {} } }
+        const slotsData = slotsRes.data;
+        const slotsList = slotsData.slots || [];
+        setSlots(slotsList);
+        if (slotsData.settings) {
+          setSettings(slotsData.settings);
+          setSettingsForm(slotsData.settings);
+        }
+      } else if (slotsRes?.data) {
+        // Handle case where data is directly available
+        const slotsData = slotsRes.data;
+        const slotsList = slotsData.slots || [];
+        setSlots(slotsList);
         if (slotsData.settings) {
           setSettings(slotsData.settings);
           setSettingsForm(slotsData.settings);
@@ -100,8 +119,23 @@ const AdminHeroBanner = () => {
         setSlots([]);
       }
 
-      setBookings(bookingsRes.data || []);
-      setRevenueStats(revenueRes.data || { totalRevenue: 0, percentageChange: 0 });
+      // Handle bookings response
+      if (bookingsRes?.data?.success) {
+        setBookings(bookingsRes.data.data || []);
+      } else if (bookingsRes?.success && bookingsRes?.data) {
+        setBookings(bookingsRes.data || []);
+      } else {
+        setBookings(bookingsRes?.data || []);
+      }
+
+      // Handle revenue stats response
+      if (revenueRes?.data?.success) {
+        setRevenueStats(revenueRes.data.data || { totalRevenue: 0, percentageChange: 0 });
+      } else if (revenueRes?.success && revenueRes?.data) {
+        setRevenueStats(revenueRes.data || { totalRevenue: 0, percentageChange: 0 });
+      } else {
+        setRevenueStats(revenueRes?.data || { totalRevenue: 0, percentageChange: 0 });
+      }
 
     } catch (error) {
       console.error("Error loading admin banner data:", error);

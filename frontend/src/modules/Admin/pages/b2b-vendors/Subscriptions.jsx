@@ -1,49 +1,174 @@
-import { useState } from "react";
-import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
+import { getB2BPlans, updateB2BPlan, createB2BPlan, initializeDefaultPlans } from "../../../../shared/utils/b2bPlanManager";
+import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api";
 
 const Subscriptions = () => {
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeTab, setActiveTab] = useState("all");
+    const [activeTab, setActiveTab] = useState("subscriptions");
+    const [subscriptionFilter, setSubscriptionFilter] = useState("all");
+    const [plans, setPlans] = useState([]);
+    const [editingPlan, setEditingPlan] = useState(null);
+    const [showPlanForm, setShowPlanForm] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [subscriptions, setSubscriptions] = useState([]);
+    const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
+    const [stats, setStats] = useState({
+        active: 0,
+        monthlyRevenue: 0,
+        expiringSoon: 0
+    });
 
-    const mockSubscriptions = [
-        {
-            _id: '1',
-            vendorName: 'Global Wholesale Hub',
-            plan: 'Platinum',
-            status: 'Active',
-            amount: '₹4,999',
-            billingCycle: 'Monthly',
-            expiryDate: '2024-12-15',
-            autoRenew: true
-        },
-        {
-            _id: '2',
-            vendorName: 'Urban Textiles',
-            plan: 'Gold',
-            status: 'Expired',
-            amount: '₹2,499',
-            billingCycle: 'Quarterly',
-            expiryDate: '2023-11-20',
-            autoRenew: false
-        },
-        {
-            _id: '3',
-            vendorName: 'ElectroBulk Co',
-            plan: 'Platinum',
-            status: 'Active',
-            amount: '₹4,999',
-            billingCycle: 'Yearly',
-            expiryDate: '2025-01-10',
-            autoRenew: true
-        },
-    ];
+    useEffect(() => {
+        loadPlans();
+        loadSubscriptions(); // Load subscriptions on initial mount
+    }, []);
 
-    const stats = [
-        { label: "Active Subscriptions", value: "142", icon: FiCheckCircle, color: "text-green-600", bg: "bg-green-100" },
-        { label: "Monthly Revenue", value: "₹2,45,000", icon: FiTrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
-        { label: "Expiring Soon", value: "12", icon: FiActivity, color: "text-orange-600", bg: "bg-orange-100" },
+    useEffect(() => {
+        if (activeTab !== 'plans') {
+            loadSubscriptions();
+        }
+    }, [activeTab, subscriptionFilter]);
+
+    const loadPlans = async () => {
+        try {
+            setLoading(true);
+            const allPlans = await getB2BPlans();
+            // Filter to show only 3, 6, 12 months plans
+            const filteredPlans = allPlans.filter(plan => 
+                plan.duration === 3 || plan.duration === 6 || plan.duration === 12
+            );
+            
+            // If we don't have all 3 plans, initialize defaults
+            if (filteredPlans.length < 3) {
+                try {
+                    await initializeDefaultPlans();
+                    // Reload plans after initialization
+                    const updatedPlans = await getB2BPlans(true); // Force refresh
+                    const updatedFiltered = updatedPlans.filter(plan => 
+                        plan.duration === 3 || plan.duration === 6 || plan.duration === 12
+                    );
+                    setPlans(updatedFiltered.sort((a, b) => a.duration - b.duration));
+                } catch (error) {
+                    console.error('Error initializing default plans:', error);
+                    toast.error('Failed to initialize default plans');
+                    setPlans(filteredPlans.sort((a, b) => a.duration - b.duration));
+                }
+            } else {
+                setPlans(filteredPlans.sort((a, b) => a.duration - b.duration));
+            }
+        } catch (error) {
+            console.error('Error loading plans:', error);
+            toast.error('Failed to load subscription plans');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleEditPlan = (plan) => {
+        setEditingPlan({ ...plan });
+        setShowPlanForm(true);
+    };
+
+    const handleSavePlan = async () => {
+        if (!editingPlan.name || !editingPlan.price || editingPlan.price <= 0) {
+            toast.error('Please fill all required fields');
+            return;
+        }
+
+        try {
+            const planId = editingPlan._id || editingPlan.id;
+            
+            if (planId) {
+                // Update existing plan
+                await updateB2BPlan(planId, {
+                    name: editingPlan.name,
+                    price: editingPlan.price,
+                    features: editingPlan.features,
+                    isActive: editingPlan.isActive,
+                    description: editingPlan.description
+                });
+                toast.success('Plan updated successfully');
+            } else {
+                // Create new plan (shouldn't happen for 3,6,12 but just in case)
+                await createB2BPlan({
+                    name: editingPlan.name,
+                    duration: editingPlan.duration,
+                    price: editingPlan.price,
+                    features: editingPlan.features,
+                    description: editingPlan.description
+                });
+                toast.success('Plan created successfully');
+            }
+
+            // Reload plans after save
+            await loadPlans();
+            setShowPlanForm(false);
+            setEditingPlan(null);
+        } catch (error) {
+            console.error('Error saving plan:', error);
+            toast.error(error.message || 'Failed to save plan');
+        }
+    };
+
+    const handleFeatureChange = (index, value) => {
+        const newFeatures = [...editingPlan.features];
+        newFeatures[index] = value;
+        setEditingPlan({ ...editingPlan, features: newFeatures });
+    };
+
+    const handleAddFeature = () => {
+        setEditingPlan({
+            ...editingPlan,
+            features: [...editingPlan.features, '']
+        });
+    };
+
+    const handleRemoveFeature = (index) => {
+        const newFeatures = editingPlan.features.filter((_, i) => i !== index);
+        setEditingPlan({ ...editingPlan, features: newFeatures });
+    };
+
+    const loadSubscriptions = async () => {
+        try {
+            setSubscriptionsLoading(true);
+            const params = new URLSearchParams();
+            if (subscriptionFilter === 'active') {
+                params.append('status', 'active');
+            } else if (subscriptionFilter === 'expired') {
+                params.append('status', 'expired');
+            } else if (subscriptionFilter === 'pending') {
+                params.append('status', 'pending');
+            }
+            // If subscriptionFilter is 'all', load all
+
+            const response = await api.get(`/admin/b2b-vendors/subscriptions?${params.toString()}`);
+            if (response.success) {
+                setSubscriptions(response.data || []);
+                if (response.stats) {
+                    setStats({
+                        active: response.stats.active || 0,
+                        monthlyRevenue: response.stats.monthlyRevenue || 0,
+                        expiringSoon: response.stats.expiringSoon || 0
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error loading subscriptions:', error);
+            toast.error('Failed to load subscriptions');
+            setSubscriptions([]);
+        } finally {
+            setSubscriptionsLoading(false);
+        }
+    };
+
+    const statsCards = [
+        { label: "Active Subscriptions", value: stats.active.toString(), icon: FiCheckCircle, color: "text-green-600", bg: "bg-green-100" },
+        { label: "Monthly Revenue", value: `₹${stats.monthlyRevenue.toLocaleString('en-IN')}`, icon: FiTrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
+        { label: "Expiring Soon", value: stats.expiringSoon.toString(), icon: FiActivity, color: "text-orange-600", bg: "bg-orange-100" },
     ];
 
     const columns = [
@@ -74,7 +199,7 @@ const Subscriptions = () => {
         {
             key: "amount",
             label: "Amount",
-            render: (val) => <span className="font-bold text-gray-700">{val}</span>
+            render: (val) => <span className="font-bold text-gray-700">₹{typeof val === 'number' ? val.toLocaleString('en-IN') : val}</span>
         },
         {
             key: "status",
@@ -124,7 +249,7 @@ const Subscriptions = () => {
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {stats.map((stat, idx) => (
+                {statsCards.map((stat, idx) => (
                     <motion.div
                         key={idx}
                         whileHover={{ y: -5 }}
@@ -144,28 +269,244 @@ const Subscriptions = () => {
             {/* Main Content Area */}
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
                 <div className="flex items-center gap-6 mb-8 border-b border-gray-50">
-                    {["all", "active", "expired", "pending"].map((tab) => (
+                    {[
+                        { id: "subscriptions", label: "Subscriptions" },
+                        { id: "plans", label: "Plan Management" }
+                    ].map((tab) => (
                         <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all relative ${activeTab === tab ? "text-primary-600" : "text-gray-400 hover:text-gray-600"
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all relative ${activeTab === tab.id ? "text-primary-600" : "text-gray-400 hover:text-gray-600"
                                 }`}
                         >
-                            {tab}
-                            {activeTab === tab && (
+                            {tab.label}
+                            {activeTab === tab.id && (
                                 <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-primary-600 rounded-full" />
                             )}
                         </button>
                     ))}
                 </div>
 
-                <DataTable
-                    data={mockSubscriptions}
-                    columns={columns}
-                    pagination={true}
-                    itemsPerPage={10}
-                />
+                {activeTab === "subscriptions" ? (
+                    <>
+                        <div className="flex items-center gap-6 mb-8 border-b border-gray-50">
+                            {["all", "active", "expired", "pending"].map((filter) => (
+                                <button
+                                    key={filter}
+                                    onClick={() => setSubscriptionFilter(filter)}
+                                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all relative ${subscriptionFilter === filter ? "text-primary-600" : "text-gray-400 hover:text-gray-600"
+                                        }`}
+                                >
+                                    {filter}
+                                    {subscriptionFilter === filter && (
+                                        <motion.div layoutId="activeFilter" className="absolute bottom-0 left-0 right-0 h-1 bg-primary-600 rounded-full" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {subscriptionsLoading ? (
+                            <div className="text-center py-12">
+                                <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="mt-4 text-gray-500">Loading subscriptions...</p>
+                            </div>
+                        ) : subscriptions.length === 0 ? (
+                            <div className="text-center py-12">
+                                <FiCheckCircle className="text-gray-300 text-5xl mx-auto mb-4" />
+                                <p className="text-gray-500">No subscriptions found</p>
+                            </div>
+                        ) : (
+                            <DataTable
+                                data={subscriptions}
+                                columns={columns}
+                                pagination={true}
+                                itemsPerPage={10}
+                            />
+                        )}
+                    </>
+                ) : (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-800">Manage Subscription Plans</h2>
+                                <p className="text-sm text-gray-500 mt-1">Configure 3, 6, and 12 months subscription plans for B2B vendors</p>
+                            </div>
+                        </div>
+
+                        {/* Plans Grid */}
+                        {loading ? (
+                            <div className="text-center py-12">
+                                <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="mt-4 text-gray-500">Loading plans...</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {plans.map((plan) => (
+                                    <motion.div
+                                        key={plan._id || plan.id}
+                                        whileHover={{ y: -5 }}
+                                        className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 border-2 border-gray-100 shadow-sm"
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-800">{plan.name}</h3>
+                                                <p className="text-2xl font-extrabold text-primary-600 mt-2">
+                                                    ₹{plan.price.toLocaleString('en-IN')}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleEditPlan(plan)}
+                                                disabled={loading}
+                                                className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-50"
+                                            >
+                                                <FiEdit2 />
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-2 mb-4">
+                                            {plan.features && plan.features.slice(0, 3).map((feature, idx) => (
+                                                <div key={idx} className="flex items-start gap-2 text-sm text-gray-600">
+                                                    <FiCheckCircle className="text-green-500 mt-0.5 flex-shrink-0" />
+                                                    <span>{feature}</span>
+                                                </div>
+                                            ))}
+                                            {plan.features && plan.features.length > 3 && (
+                                                <p className="text-xs text-gray-400">+{plan.features.length - 3} more features</p>
+                                            )}
+                                        </div>
+
+                                        <div className={`px-3 py-1 rounded-full text-xs font-bold text-center ${plan.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                            {plan.isActive ? 'Active' : 'Inactive'}
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
+
+            {/* Plan Edit Modal */}
+            {showPlanForm && editingPlan && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-gray-800">Edit {editingPlan.name}</h2>
+                            <button
+                                onClick={() => {
+                                    setShowPlanForm(false);
+                                    setEditingPlan(null);
+                                }}
+                                className="p-2 hover:bg-gray-100 rounded-lg"
+                            >
+                                <FiX className="text-xl" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Plan Name</label>
+                                <input
+                                    type="text"
+                                    value={editingPlan.name}
+                                    onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
+                                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-primary-500"
+                                    placeholder="e.g., 3 Months Plan"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (Months)</label>
+                                <input
+                                    type="number"
+                                    value={editingPlan.duration}
+                                    disabled
+                                    className="w-full px-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-xl cursor-not-allowed"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Duration cannot be changed</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Price (₹)</label>
+                                <input
+                                    type="number"
+                                    value={editingPlan.price}
+                                    onChange={(e) => setEditingPlan({ ...editingPlan, price: parseFloat(e.target.value) || 0 })}
+                                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-primary-500"
+                                    placeholder="9999"
+                                    min="0"
+                                />
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="block text-sm font-semibold text-gray-700">Features</label>
+                                    <button
+                                        onClick={handleAddFeature}
+                                        className="text-primary-600 hover:text-primary-700 text-sm font-semibold flex items-center gap-1"
+                                    >
+                                        <FiPlus /> Add Feature
+                                    </button>
+                                </div>
+                                <div className="space-y-2">
+                                    {editingPlan.features.map((feature, index) => (
+                                        <div key={index} className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={feature}
+                                                onChange={(e) => handleFeatureChange(index, e.target.value)}
+                                                className="flex-1 px-4 py-2 bg-white border-2 border-gray-200 rounded-xl focus:border-primary-500"
+                                                placeholder="Feature description"
+                                            />
+                                            <button
+                                                onClick={() => handleRemoveFeature(index)}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                            >
+                                                <FiX />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="isActive"
+                                    checked={editingPlan.isActive}
+                                    onChange={(e) => setEditingPlan({ ...editingPlan, isActive: e.target.checked })}
+                                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                                />
+                                <label htmlFor="isActive" className="text-sm font-semibold text-gray-700">
+                                    Plan is Active
+                                </label>
+                            </div>
+
+                            <div className="flex items-center gap-3 pt-4">
+                                <button
+                                    onClick={handleSavePlan}
+                                    className="flex-1 bg-primary-600 text-white py-3 rounded-xl font-bold hover:bg-primary-700 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <FiSave /> Save Plan
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowPlanForm(false);
+                                        setEditingPlan(null);
+                                    }}
+                                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </motion.div>
     );
 };

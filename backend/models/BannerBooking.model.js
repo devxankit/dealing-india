@@ -12,6 +12,12 @@ const bannerBookingSchema = new mongoose.Schema(
       ref: 'BannerSlot',
       required: true,
     },
+    bannerType: {
+      type: String,
+      enum: ['hero', 'b2b'],
+      required: true,
+      default: 'hero',
+    },
     referenceId: {
       type: String,
       required: true,

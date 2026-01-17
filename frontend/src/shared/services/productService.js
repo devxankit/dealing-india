@@ -98,20 +98,14 @@ export const getProductById = async (productId) => {
 export const getRecommendedProducts = async (limit = 6) => {
   try {
     const params = new URLSearchParams();
-    if (limit) params.append('limit', limit);
-
-    // API interceptor returns response.data, so response is already the data object
+    if (limit) params.append('limit', limit);    // API interceptor returns response.data, so response is already the data object
     // Backend returns: { success, message, data: { products, total } }
-    const response = await api.get(`/products/recommended?${params.toString()}`);
-
-    // Extract products array
+    const response = await api.get(`/products/recommended?${params.toString()}`);    // Extract products array
     if (response && response.data && Array.isArray(response.data.products)) {
       return response.data.products;
     } else if (response && Array.isArray(response.products)) {
       return response.products;
-    }
-
-    console.warn('Unexpected API response structure for recommended products:', response);
+    }    console.warn('Unexpected API response structure for recommended products:', response);
     return [];
   } catch (error) {
     // If user is not authenticated, return empty array (recommendations are optional)
@@ -123,4 +117,3 @@ export const getRecommendedProducts = async (limit = 6) => {
     return [];
   }
 };
-

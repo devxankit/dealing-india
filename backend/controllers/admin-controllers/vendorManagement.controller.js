@@ -6,6 +6,7 @@ import {
   toggleVendorActive,
   getPendingVendors,
   getApprovedVendors,
+  getB2BVendors,
 } from '../../services/vendorManagement.service.js';
 import {
   getVendorAnalytics,
@@ -244,3 +245,74 @@ export const getOrders = async (req, res, next) => {
   }
 };
 
+/**
+ * Get B2B vendors with subscription information
+ * GET /api/admin/b2b-vendors
+ */
+export const getB2BVendorsList = async (req, res, next) => {
+  try {
+    const {
+      status = 'all',
+      search = '',
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
+
+    const result = await getB2BVendors({
+      status,
+      search,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'B2B vendors retrieved successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get pending B2B vendors
+ * GET /api/admin/b2b-vendors/pending
+ */
+export const getPendingB2BVendors = async (req, res, next) => {
+  try {
+    const {
+      search = '',
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
+
+    console.log('Fetching pending B2B vendors:', { search, page, limit });
+
+    const result = await getB2BVendors({
+      status: 'pending',
+      search,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    });
+
+    console.log('Pending B2B vendors fetched:', { count: result.vendors?.length || 0, total: result.total });
+
+    res.status(200).json({
+      success: true,
+      message: 'Pending B2B vendors retrieved successfully',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error in getPendingB2BVendors:', error);
+    next(error);
+  }
+};

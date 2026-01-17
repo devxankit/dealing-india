@@ -10,6 +10,7 @@ import {
   forgotPassword,
   resetPassword,
 } from '../controllers/vendor-controllers/vendorAuth.controller.js';
+import { registerWithPayment, initializePayment, createSubscriptionAfterPayment, verifySubscription } from '../controllers/vendor-controllers/b2bVendorRegistration.controller.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { vendorApproved } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -20,6 +21,10 @@ const router = express.Router();
 
 // Public routes
 router.post('/register', rateLimiter('vendor-register', 5, 600), asyncHandler(register));
+router.post('/b2b-vendor/initialize-payment', rateLimiter('b2b-vendor-payment', 10, 600), asyncHandler(initializePayment));
+router.post('/b2b-vendor/create-subscription-after-payment', rateLimiter('b2b-vendor-subscription', 5, 600), asyncHandler(createSubscriptionAfterPayment));
+router.get('/b2b-vendor/verify-subscription/:subscriptionId', rateLimiter('b2b-vendor-verify', 10, 60), asyncHandler(verifySubscription));
+router.post('/b2b-vendor/register-with-payment', rateLimiter('b2b-vendor-register', 5, 600), asyncHandler(registerWithPayment));
 router.post('/login', rateLimiter('vendor-login', 10, 600), asyncHandler(login));
 router.post('/verify-email', asyncHandler(verifyEmail));
 router.post('/resend-otp', rateLimiter('vendor-otp-resend', 5, 600), asyncHandler(resendOTP));

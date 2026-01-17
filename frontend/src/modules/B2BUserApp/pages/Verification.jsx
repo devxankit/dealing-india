@@ -51,7 +51,7 @@ const B2BUserVerification = () => {
             const result = await verifyEmail(email, otp);
             if (result.success) {
                 toast.success('Email verified successfully! Welcome to the B2B Network.');
-                navigate('/b2b');
+                navigate('/b2b/catalog');
             } else {
                 toast.error(result.message || 'Verification failed');
             }

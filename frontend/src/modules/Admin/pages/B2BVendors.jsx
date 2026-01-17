@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiUsers, FiClock, FiPackage, FiMessageCircle, FiTrendingUp, FiAlertCircle } from "react-icons/fi";
+import { FiUsers, FiClock, FiPackage, FiTrendingUp, FiTag } from "react-icons/fi";
 
 const B2BVendors = () => {
     const navigate = useNavigate();
@@ -29,13 +29,6 @@ const B2BVendors = () => {
             color: "green",
         },
         {
-            path: "/admin/b2b-vendors/logs",
-            label: "Communication Logs",
-            icon: FiMessageCircle,
-            description: "Monitor vendor-B2B interaction logs",
-            color: "purple",
-        },
-        {
             path: "/admin/b2b-vendors/analytics",
             label: "B2B Analytics",
             icon: FiTrendingUp,
@@ -43,11 +36,11 @@ const B2BVendors = () => {
             color: "indigo",
         },
         {
-            path: "/admin/b2b-vendors/disputes",
-            label: "Dispute Resolution",
-            icon: FiAlertCircle,
-            description: "Manage and resolve B2B disputes",
-            color: "red",
+            path: "/admin/b2b-vendors/categories",
+            label: "Categories",
+            icon: FiTag,
+            description: "Manage B2B product categories and subcategories",
+            color: "purple",
         },
     ];
 

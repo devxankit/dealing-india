@@ -9,6 +9,7 @@ import {
   getApproved,
   getAnalytics,
   getOrders,
+  getB2BVendorsList,
 } from '../controllers/admin-controllers/vendorManagement.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';

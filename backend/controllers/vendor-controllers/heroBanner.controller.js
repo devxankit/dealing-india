@@ -2,11 +2,30 @@ import * as heroBannerService from '../../services/heroBanner.service.js';
 
 export const getAvailableSlots = async (req, res, next) => {
   try {
-    const slots = await heroBannerService.getBannerSlots();
+    // Get banner type from query or determine from vendor
+    let bannerType = req.query.bannerType;
+    
+    if (!bannerType) {
+      // Determine from vendor type
+      const vendorId = req.user.vendorId || req.user.id;
+      if (vendorId) {
+        const Vendor = (await import('../../models/Vendor.model.js')).default;
+        const vendor = await Vendor.findById(vendorId);
+        if (vendor && vendor.vendorType === 'b2b') {
+          bannerType = 'b2b';
+        } else {
+          bannerType = 'hero';
+        }
+      } else {
+        bannerType = 'hero'; // Default
+      }
+    }
+
+    const slots = await heroBannerService.getBannerSlots(bannerType);
     const settings = await heroBannerService.getBannerSettings();
     res.status(200).json({
       success: true,
-      data: { slots, settings }
+      data: { slots, settings, bannerType }
     });
   } catch (error) {
     next(error);
@@ -35,7 +54,7 @@ export const createBannerBooking = async (req, res, next) => {
       error.status = 400;
       return next(error);
     }
-    if (!req.body.durationHours) {
+    if (!req.body.durationHours && !req.body.durationDays) {
       const error = new Error('Duration is required');
       error.status = 400;
       return next(error);
@@ -46,7 +65,10 @@ export const createBannerBooking = async (req, res, next) => {
       return next(error);
     }
 
-    const booking = await heroBannerService.createBooking(vendorId, req.body, req.file);
+    // Get payment method from request body (default 'razorpay')
+    const paymentMethod = req.body.paymentMethod || 'razorpay';
+
+    const booking = await heroBannerService.createBooking(vendorId, req.body, req.file, paymentMethod);
 
     res.status(201).json({
       success: true,
@@ -69,7 +91,19 @@ export const getMyBookings = async (req, res, next) => {
       return next(error);
     }
 
-    const bookings = await heroBannerService.getVendorBookings(vendorId);
+    // Get banner type from query or determine from vendor
+    let bannerType = req.query.bannerType;
+    if (!bannerType) {
+      const Vendor = (await import('../../models/Vendor.model.js')).default;
+      const vendor = await Vendor.findById(vendorId);
+      if (vendor && vendor.vendorType === 'b2b') {
+        bannerType = 'b2b';
+      } else {
+        bannerType = 'hero';
+      }
+    }
+
+    const bookings = await heroBannerService.getVendorBookings(vendorId, bannerType);
     res.status(200).json({
       success: true,
       data: bookings

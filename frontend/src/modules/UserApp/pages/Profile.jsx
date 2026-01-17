@@ -45,7 +45,7 @@ const MobileProfile = () => {
       const result = await switchMarketplace(targetMarketplace);
       if (result.success) {
         toast.success(`Switched to ${targetMarketplace === 'b2b' ? 'Bulk' : 'Retail'} Marketplace`);
-        navigate(targetMarketplace === 'b2b' ? '/b2b' : '/app');
+        navigate(targetMarketplace === 'b2b' ? '/b2b/catalog' : '/app');
       }
     } catch (error) {
       toast.error('Failed to switch marketplace');
