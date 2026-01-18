@@ -6,6 +6,7 @@ import { generateOTP, verifyOTP, resendOTP } from './otp.service.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.js';
 import { isValidEmail, isValidPhone, validatePassword } from '../utils/validators.util.js';
 import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
+import SubscriptionService from './subscription.service.js';
 
 /**
  * Register a new vendor (temporary - only creates record after email verification)
@@ -314,6 +315,40 @@ export const loginVendor = async (email, password) => {
       throw error;
     }
 
+    // For B2B vendors, check subscription status
+    if (vendor.vendorType === 'b2b') {
+      const subscription = await SubscriptionService.getVendorSubscription(vendor._id);
+      
+      // B2B vendors must have an active subscription to login
+      if (!subscription) {
+        console.log(`[Login Blocked] No subscription found for B2B vendor: ${email}`);
+        const error = new Error('You must have an active subscription plan to login. Please subscribe to a plan first.');
+        error.statusCode = 403;
+        error.code = 'NO_SUBSCRIPTION';
+        throw error;
+      }
+
+      // Check if subscription is approved (status must be 'active')
+      if (subscription.status !== 'active') {
+        console.log(`[Login Blocked] Subscription not approved - Status: ${subscription.status} for: ${email}`);
+        const error = new Error('Your subscription plan is not approved yet. Please wait for admin approval before logging in.');
+        error.statusCode = 403;
+        error.code = 'SUBSCRIPTION_NOT_APPROVED';
+        throw error;
+      }
+
+      // Check if subscription is expired
+      const now = new Date();
+      if (subscription.endDate && new Date(subscription.endDate) < now) {
+        console.log(`[Login Blocked] Subscription expired for: ${email}, Expiry: ${subscription.endDate}`);
+        const error = new Error('Your subscription plan has expired. Please renew your subscription to continue.');
+        error.statusCode = 403;
+        error.code = 'SUBSCRIPTION_EXPIRED';
+        error.expiredDate = subscription.endDate;
+        throw error;
+      }
+    }
+
     // Verify password
     const isPasswordValid = await comparePassword(password, vendor.password);
     if (!isPasswordValid) {
@@ -371,13 +406,22 @@ export const loginVendor = async (email, password) => {
 };
 
 /**
- * Get vendor by ID
- * @param {String} vendorId - Vendor ID
+ * Get vendor by ID or email
+ * @param {String} vendorId - Vendor ID (optional)
+ * @param {String} email - Vendor email (optional)
  * @returns {Promise<Object>} Vendor object
  */
-export const getVendorById = async (vendorId) => {
+export const getVendorById = async (vendorId, email = null) => {
   try {
-    const vendor = await Vendor.findById(vendorId);
+    let vendor;
+    if (email) {
+      vendor = await Vendor.findOne({ email: email.toLowerCase() });
+    } else if (vendorId) {
+      vendor = await Vendor.findById(vendorId);
+    } else {
+      throw new Error('Either vendorId or email must be provided');
+    }
+    
     if (!vendor) {
       throw new Error('Vendor not found');
     }

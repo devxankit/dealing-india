@@ -5,7 +5,8 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 const router = express.Router();
 
 router.get('/active', asyncHandler(async (req, res) => {
-  const banners = await heroBannerService.getActiveBanners();
+  const { bannerType } = req.query; // Get bannerType from query params ('hero' or 'b2b')
+  const banners = await heroBannerService.getActiveBanners(bannerType);
   const settings = await heroBannerService.getBannerSettings();
   
   res.status(200).json({

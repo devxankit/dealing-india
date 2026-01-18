@@ -1,31 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-
-// Mock data for approved B2B banners
-const mockB2BBanners = [
-    {
-        id: 'b2b-banner-1',
-        image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=400&fit=crop',
-        title: 'Wholesale Hub - Premium Electronics',
-        vendorId: 'v1',
-        link: '/b2b/vendor/v1',
-    },
-    {
-        id: 'b2b-banner-2',
-        image: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=1200&h=400&fit=crop',
-        title: 'Industrial Supplies - Heavy Machinery',
-        vendorId: 'v2',
-        link: '/b2b/vendor/v2',
-    },
-    {
-        id: 'b2b-banner-3',
-        image: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=1200&h=400&fit=crop',
-        title: 'Bulk Electronics - Smart Devices',
-        vendorId: 'v3',
-        link: '/b2b/vendor/v3',
-    },
-];
+import { getActiveBanners } from "../../../modules/Vendor/services/heroBannerService";
 
 const B2BBanner = () => {
     const navigate = useNavigate();
@@ -37,17 +13,36 @@ const B2BBanner = () => {
     const [isPaused, setIsPaused] = useState(false);
 
     useEffect(() => {
-        // Simulate loading banners from API
+        // Load real banners from API
         const loadBanners = async () => {
             try {
-                // Using mock data
-                setTimeout(() => {
-                    setBanners(mockB2BBanners);
-                    setDisplayTime(3000);
-                    setLoading(false);
-                }, 500);
+                setLoading(true);
+                const response = await getActiveBanners('b2b');
+                
+                if (response.success && response.data) {
+                    const bannerData = response.data.banners || [];
+                    // Transform API data to component format
+                    const transformedBanners = bannerData.map(banner => ({
+                        id: banner.id,
+                        image: banner.image,
+                        title: banner.title || banner.vendorName || 'B2B Featured Banner',
+                        vendorId: banner.vendorId,
+                        link: banner.link || (banner.vendorId ? `/b2b/vendor/${banner.vendorId}` : '#'),
+                    }));
+                    
+                    setBanners(transformedBanners);
+                    
+                    // Get display time from settings if available
+                    if (response.data.settings?.displayTime) {
+                        setDisplayTime(response.data.settings.displayTime * 1000); // Convert seconds to milliseconds
+                    }
+                } else {
+                    setBanners([]);
+                }
             } catch (error) {
                 console.error("Failed to load B2B banners:", error);
+                setBanners([]);
+            } finally {
                 setLoading(false);
             }
         };

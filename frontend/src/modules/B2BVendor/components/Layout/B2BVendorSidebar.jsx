@@ -143,20 +143,31 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     };
 
     const sidebarContent = (
-        <div className="h-full flex flex-col bg-slate-800 shadow-xl">
-            <div className="p-4 border-b border-slate-700 bg-slate-900">
-                <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-                            <FiBriefcase className="text-white text-xl" />
+        <div className="h-full flex flex-col bg-slate-800 shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-slate-700 bg-slate-900 overflow-hidden">
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                            <FiBriefcase className="text-white text-lg sm:text-xl" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <h2 className="font-semibold text-white text-sm truncate">{displayVendorName}</h2>
-                            <p className="text-xs text-gray-400 truncate">{vendor?.email}</p>
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                            <h2 className="font-semibold text-white text-xs sm:text-sm truncate mb-0.5" title={displayVendorName}>{displayVendorName}</h2>
+                            <p 
+                                className="text-[10px] sm:text-xs text-gray-400 truncate block" 
+                                style={{ 
+                                    maxWidth: '100%',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }} 
+                                title={vendor?.email}
+                            >
+                                {vendor?.email || ''}
+                            </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg lg:hidden">
-                        <FiX className="text-xl text-gray-300" />
+                    <button onClick={onClose} className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg lg:hidden flex-shrink-0">
+                        <FiX className="text-lg sm:text-xl text-gray-300" />
                     </button>
                 </div>
             </div>
@@ -185,13 +196,13 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                         initial={{ x: -300 }}
                         animate={{ x: 0 }}
                         exit={{ x: -300 }}
-                        className="fixed left-0 top-0 bottom-0 w-64 z-[10000] lg:hidden"
+                        className="fixed left-0 top-0 bottom-0 w-64 z-[10000] lg:hidden overflow-hidden"
                     >
                         {sidebarContent}
                     </motion.div>
                 )}
             </AnimatePresence>
-            <div className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-30">
+            <div className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-30 overflow-hidden">
                 {sidebarContent}
             </div>
         </>

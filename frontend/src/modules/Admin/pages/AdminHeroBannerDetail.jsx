@@ -237,7 +237,7 @@ const AdminHeroBannerDetail = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm text-gray-500">Business Name</p>
-                                    <p className="font-medium text-gray-900">{booking.vendorId?.businessName || "N/A"}</p>
+                                    <p className="font-medium text-gray-900">{booking.vendorId?.storeName || booking.vendorId?.name || "N/A"}</p>
                                     <p className="text-xs text-gray-500">{booking.vendorId?.storeName}</p>
                                 </div>
                             </div>

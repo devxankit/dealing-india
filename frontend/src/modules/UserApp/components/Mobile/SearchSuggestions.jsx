@@ -12,13 +12,6 @@ const SearchSuggestions = ({
 }) => {
   if (!isOpen || !query) return null;
 
-  // Filter products based on query
-  const suggestions = products
-    .filter((product) =>
-      product.name.toLowerCase().includes(query.toLowerCase())
-    )
-    .slice(0, 5);
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -67,29 +60,7 @@ const SearchSuggestions = ({
             </div>
           )}
 
-          {/* Suggestions */}
-          {suggestions.length > 0 && (
-            <div className="p-2">
-              <div className="px-3 py-2">
-                <span className="text-xs font-semibold text-gray-600">Suggestions</span>
-              </div>
-              {suggestions.map((product, index) => (
-                <motion.button
-                  key={product.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  onClick={() => onSelect(product.name)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 rounded-lg transition-colors text-left"
-                >
-                  <FiSearch className="text-gray-400 text-sm" />
-                  <span className="text-sm text-gray-700">{product.name}</span>
-                </motion.button>
-              ))}
-            </div>
-          )}
-
-          {suggestions.length === 0 && recentSearches.length === 0 && query.length > 0 && (
+          {recentSearches.length === 0 && query.length > 0 && (
             <div className="p-4 text-center">
               <p className="text-sm text-gray-500">No suggestions found</p>
             </div>

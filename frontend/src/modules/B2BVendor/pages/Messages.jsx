@@ -336,7 +336,7 @@ const B2BVendorMessages = () => {
                                                                         {msg.metadata?.productName || (msg.message.match(/\*INQUIRY FOR: (.*?)\*/)?.[1]) || 'Product Inquiry'}
                                                                     </p>
                                                                     <p className="text-[11px] mt-1 font-bold text-primary-100">
-                                                                        Rate: ₹{msg.metadata?.productPrice || 'N/A'}/unit
+                                                                        Rate: ₹{msg.metadata?.productPrice ? (typeof msg.metadata.productPrice === 'number' ? msg.metadata.productPrice.toLocaleString('en-IN') : msg.metadata.productPrice) : 'N/A'}/unit
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -346,7 +346,12 @@ const B2BVendorMessages = () => {
                                                                 <div className="p-3 rounded-2xl bg-white/10">
                                                                     <p className="text-[9px] uppercase font-bold opacity-60 text-white">Quantity</p>
                                                                     <p className="text-md font-black mt-0.5 text-white">
-                                                                        {msg.metadata?.quantity || (msg.message.match(/\*Quantity:\* (.*?) units/)?.[1]) || '---'}
+                                                                        {(() => {
+                                                                            const qty = msg.metadata?.quantity;
+                                                                            if (qty) return qty;
+                                                                            const parsedQty = msg.message?.match(/\*Quantity:\* (.*?) units/i)?.[1]?.trim();
+                                                                            return parsedQty || '---';
+                                                                        })()}
                                                                         <span className="text-[10px] font-normal ml-1">Units</span>
                                                                     </p>
                                                                 </div>
@@ -357,12 +362,17 @@ const B2BVendorMessages = () => {
                                                             </div>
 
                                                             {/* Quote Message */}
-                                                            {(msg.metadata?.clientMessage || msg.message.includes('💬 *Message:*')) && (
-                                                                <div className="relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed italic bg-black/15 text-primary-50 shadow-inner">
-                                                                    <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl bg-primary-300"></div>
-                                                                    "{msg.metadata?.clientMessage || (msg.message.match(/💬 \*Message:\*\n(.*?)$/s)?.[1]) || 'Interested in this product.'}"
-                                                                </div>
-                                                            )}
+                                                            {(() => {
+                                                                const clientMsg = msg.metadata?.clientMessage;
+                                                                const parsedMsg = msg.message?.match(/💬 \*Message:\*\n(.*?)$/s)?.[1]?.trim();
+                                                                const finalMessage = clientMsg || parsedMsg;
+                                                                return finalMessage ? (
+                                                                    <div className="relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed italic bg-black/15 text-primary-50 shadow-inner">
+                                                                        <div className="absolute top-0 left-0 w-1 h-full rounded-l-2xl bg-primary-300"></div>
+                                                                        "{finalMessage}"
+                                                                    </div>
+                                                                ) : null;
+                                                            })()}
 
                                                             <div className="text-[10px] text-center italic mt-1 opacity-50 text-white">
                                                                 B2B Marketplace Verified Order Path

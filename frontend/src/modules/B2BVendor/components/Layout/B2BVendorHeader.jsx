@@ -53,38 +53,38 @@ const B2BVendorHeader = ({ onMenuClick }) => {
     const displayVendorName = vendor?.name || "B2B Vendor";
 
     return (
-        <header className="bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-30">
-            <div className="flex items-center justify-between px-4 lg:px-6 py-4">
-                <div className="flex items-center gap-4">
-                    <Button onClick={onMenuClick} variant="icon" className="lg:hidden text-gray-700" icon={FiMenu} />
-                    <div className="hidden lg:block">
-                        <h1 className="text-2xl font-bold text-gray-800 mb-1">{pageName}</h1>
-                        <p className="text-sm text-gray-600 flex items-center gap-2">
-                            <FiBriefcase className="text-primary-500" />
-                            {displayVendorName}
+        <header className="bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-30 overflow-hidden">
+            <div className="flex items-center justify-between px-4 lg:px-6 py-4 gap-4">
+                <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden">
+                    <Button onClick={onMenuClick} variant="icon" className="lg:hidden text-gray-700 flex-shrink-0" icon={FiMenu} />
+                    <div className="hidden lg:block min-w-0 flex-1 overflow-hidden">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-1 truncate">{pageName}</h1>
+                        <p className="text-sm text-gray-600 flex items-center gap-2 min-w-0 overflow-hidden">
+                            <FiBriefcase className="text-primary-500 flex-shrink-0" />
+                            <span className="truncate block min-w-0">{displayVendorName}</span>
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 sm:gap-4">
-                    <div className="relative">
+                <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                    <div className="relative flex-shrink-0">
                         <Button onClick={() => setShowNotifications(!showNotifications)} variant="icon" className="text-gray-700 hover:bg-gray-100" icon={FiBell} />
                         <NotificationWindow isOpen={showNotifications} onClose={() => setShowNotifications(false)} position="right" />
                     </div>
 
-                    <div className="relative" ref={userMenuRef}>
+                    <div className="relative flex-shrink-0" ref={userMenuRef}>
                         <button
                             onClick={() => setShowUserMenu(!showUserMenu)}
-                            className="flex items-center gap-2 p-1 sm:p-1.5 hover:bg-gray-100 rounded-xl transition-all duration-200 border border-transparent hover:border-gray-200"
+                            className="flex items-center gap-2 p-1 sm:p-1.5 hover:bg-gray-100 rounded-xl transition-all duration-200 border border-transparent hover:border-gray-200 max-w-[180px] sm:max-w-[220px]"
                         >
-                            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center shadow-sm text-white font-bold text-sm sm:text-base">
+                            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center shadow-sm text-white font-bold text-sm sm:text-base flex-shrink-0">
                                 {displayVendorName.charAt(0).toUpperCase()}
                             </div>
-                            <div className="hidden sm:block text-left mr-1">
-                                <p className="text-sm font-bold text-gray-800 leading-none mb-0.5">{displayVendorName}</p>
-                                <p className="text-[10px] text-gray-500 font-medium leading-none">B2B Vendor Account</p>
+                            <div className="hidden sm:block text-left mr-1 min-w-0 overflow-hidden">
+                                <p className="text-sm font-bold text-gray-800 leading-none mb-0.5 truncate">{displayVendorName}</p>
+                                <p className="text-[10px] text-gray-500 font-medium leading-none truncate">B2B Vendor Account</p>
                             </div>
-                            <FiChevronDown className={`text-gray-400 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
+                            <FiChevronDown className={`text-gray-400 transition-transform duration-200 flex-shrink-0 ${showUserMenu ? 'rotate-180' : ''}`} />
                         </button>
 
                         <AnimatePresence>
@@ -97,7 +97,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                                 >
                                     <div className="px-4 py-3 border-b border-gray-50 mb-1">
                                         <p className="text-sm font-bold text-gray-900 truncate">{displayVendorName}</p>
-                                        <p className="text-xs text-gray-500 truncate mt-0.5">{vendor?.email}</p>
+                                        <p className="text-xs text-gray-500 truncate break-all mt-0.5" title={vendor?.email}>{vendor?.email}</p>
                                     </div>
                                     <Link to="/b2b-vendor/settings/profile" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
                                         <FiUser className="text-lg" />

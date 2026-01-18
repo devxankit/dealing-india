@@ -455,7 +455,7 @@ const Chat = ({ vendorId: propVendorId, embedded = false, onClose, initialProduc
                                                                     {metadata.productName || (message.message.match(/\*INQUIRY FOR: (.*?)\*/)?.[1]) || 'Product Inquiry'}
                                                                 </p>
                                                                 <p className={`text-[11px] mt-1 font-bold ${isSender ? 'text-primary-100' : 'text-primary-600'}`}>
-                                                                    Rate: ₹{metadata.productPrice || 'N/A'}/unit
+                                                                    Rate: ₹{metadata?.productPrice ? (typeof metadata.productPrice === 'number' ? metadata.productPrice.toLocaleString('en-IN') : metadata.productPrice) : 'N/A'}/unit
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -476,12 +476,17 @@ const Chat = ({ vendorId: propVendorId, embedded = false, onClose, initialProduc
                                                         </div>
 
                                                         {/* Quote Message */}
-                                                        {(metadata.clientMessage || message.message.includes('💬 *Message:*')) && (
-                                                            <div className={`relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed italic ${isSender ? 'bg-black/15 text-primary-50 shadow-inner' : 'bg-gray-100 text-gray-700'}`}>
-                                                                <div className={`absolute top-0 left-0 w-1 h-full rounded-l-2xl ${isSender ? 'bg-primary-300' : 'bg-primary-500'}`}></div>
-                                                                "{metadata.clientMessage || (message.message.match(/💬 \*Message:\*\n(.*?)$/s)?.[1]) || 'Interested in this product.'}"
-                                                            </div>
-                                                        )}
+                                                        {(() => {
+                                                            const clientMsg = metadata?.clientMessage;
+                                                            const parsedMsg = message.message?.match(/💬 \*Message:\*\n(.*?)$/s)?.[1]?.trim();
+                                                            const finalMessage = clientMsg || parsedMsg;
+                                                            return finalMessage ? (
+                                                                <div className={`relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed italic ${isSender ? 'bg-black/15 text-primary-50 shadow-inner' : 'bg-gray-100 text-gray-700'}`}>
+                                                                    <div className={`absolute top-0 left-0 w-1 h-full rounded-l-2xl ${isSender ? 'bg-primary-300' : 'bg-primary-500'}`}></div>
+                                                                    "{finalMessage}"
+                                                                </div>
+                                                            ) : null;
+                                                        })()}
 
                                                         <div className={`text-[10px] text-center italic mt-1 opacity-50 ${isSender ? 'text-white' : 'text-gray-400'}`}>
                                                             B2B Marketplace Verified Order Path
@@ -655,7 +660,7 @@ const Chat = ({ vendorId: propVendorId, embedded = false, onClose, initialProduc
                                                                         {metadata.productName || (message.message.match(/\*INQUIRY FOR: (.*?)\*/)?.[1]) || 'Product Inquiry'}
                                                                     </p>
                                                                     <p className={`text-[11px] mt-1 font-bold ${isSender ? 'text-primary-100' : 'text-primary-600'}`}>
-                                                                        Rate: ₹{metadata.productPrice || 'N/A'}/unit
+                                                                        Rate: ₹{metadata?.productPrice ? (typeof metadata.productPrice === 'number' ? metadata.productPrice.toLocaleString('en-IN') : metadata.productPrice) : 'N/A'}/unit
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -676,12 +681,17 @@ const Chat = ({ vendorId: propVendorId, embedded = false, onClose, initialProduc
                                                             </div>
 
                                                             {/* Quote Message */}
-                                                            {(metadata.clientMessage || (message.message && message.message.includes('💬 *Message:*'))) && (
-                                                                <div className={`relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed italic ${isSender ? 'bg-black/15 text-primary-50 shadow-inner' : 'bg-gray-100 text-gray-700'}`}>
-                                                                    <div className={`absolute top-0 left-0 w-1 h-full rounded-l-2xl ${isSender ? 'bg-primary-300' : 'bg-primary-500'}`}></div>
-                                                                    "{metadata.clientMessage || (message.message.match(/💬 \*Message:\*\n(.*?)$/s)?.[1]) || 'Interested in this product.'}"
-                                                                </div>
-                                                            )}
+                                                            {(() => {
+                                                                const clientMsg = metadata?.clientMessage;
+                                                                const parsedMsg = message.message?.match(/💬 \*Message:\*\n(.*?)$/s)?.[1]?.trim();
+                                                                const finalMessage = clientMsg || parsedMsg;
+                                                                return finalMessage ? (
+                                                                    <div className={`relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed italic ${isSender ? 'bg-black/15 text-primary-50 shadow-inner' : 'bg-gray-100 text-gray-700'}`}>
+                                                                        <div className={`absolute top-0 left-0 w-1 h-full rounded-l-2xl ${isSender ? 'bg-primary-300' : 'bg-primary-500'}`}></div>
+                                                                        "{finalMessage}"
+                                                                    </div>
+                                                                ) : null;
+                                                            })()}
 
                                                             {/* Attachment inside Inquiry */}
                                                             {metadata.attachment && (

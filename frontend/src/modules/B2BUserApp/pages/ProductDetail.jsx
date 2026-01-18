@@ -198,11 +198,11 @@ const B2BProductDetail = () => {
 
             const metadata = {
                 productId: product._id,
-                productName: product.name,
-                productImage: product.images?.[0] || product.image,
-                productPrice: product.price,
-                quantity: inquiryQuantity,
-                clientMessage: message,
+                productName: product.name || '',
+                productImage: product.images?.[0] || product.image || null,
+                productPrice: product.price ? Number(product.price) : null,
+                quantity: Number(inquiryQuantity) || 0,
+                clientMessage: message || '',
                 // Add attachment if exists
                 attachment: inquiryAttachment ? {
                     fileUrl: inquiryAttachment.url,
@@ -220,16 +220,19 @@ const B2BProductDetail = () => {
                 conversation._id,
                 vendorId,
                 inquiryMessage,
-                inquiryAttachment ? 'file' : 'inquiry',
+                'inquiry',
                 metadata
             );
 
-            // Update inquiry status
+            // Update inquiry status immediately
             setHasInquiry(true);
 
             toast.success('Inquiry sent successfully!');
             setShowInquiryModal(false);
-            navigate(`/b2b/inquiries?vendorId=${vendorId}`);
+            setInquiryAttachment(null);
+            
+            // Optional: Navigate to inquiries page, or stay on product page
+            // navigate(`/b2b/inquiries?vendorId=${vendorId}`);
         } catch (err) {
             toast.error('Failed to send inquiry');
         }
@@ -494,13 +497,14 @@ const B2BProductDetail = () => {
 
                             <div className="grid grid-cols-1 gap-3">
                                 {hasInquiry ? (
-                                    <div className="w-full py-5 bg-green-50 border-2 border-green-200 text-green-700 rounded-[1.25rem] font-bold text-lg flex items-center justify-center gap-3">
+                                    <div className="w-full py-5 bg-green-50 border-2 border-green-200 text-green-700 rounded-[1.25rem] font-bold text-lg flex items-center justify-center gap-3 cursor-not-allowed">
                                         <span>✓ Inquiry Done</span>
                                     </div>
                                 ) : (
                                     <button
                                         onClick={() => setShowInquiryModal(true)}
-                                        className="w-full py-5 bg-primary-600 text-white rounded-[1.25rem] font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all flex items-center justify-center gap-3"
+                                        className="w-full py-5 bg-primary-600 text-white rounded-[1.25rem] font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={hasInquiry}
                                     >
                                         <FiSend className="text-xl" />
                                         Send Inquiry Request

@@ -123,7 +123,7 @@ export const getBannerSlots = async (bannerType = null) => {
     // Always fetch the B2B slots after potential initialization
     const slots = await BannerSlot.find({ bannerType: 'b2b' }).populate({
       path: 'currentBooking',
-      populate: { path: 'vendorId', select: 'businessName storeName vendorType' }
+      populate: { path: 'vendorId', select: 'name storeName vendorType' }
     }).sort({ slotNumber: 1 });
     
     console.log(`📊 Loaded ${slots.length} B2B banner slots`);
@@ -148,7 +148,7 @@ export const getBannerSlots = async (bannerType = null) => {
   
   const slots = await BannerSlot.find(query).populate({
     path: 'currentBooking',
-    populate: { path: 'vendorId', select: 'businessName storeName vendorType' }
+    populate: { path: 'vendorId', select: 'name storeName vendorType' }
   }).sort({ slotNumber: 1 });
 
   return slots;
@@ -639,7 +639,7 @@ export const createBooking = async (vendorId, bookingData, file, paymentMethod =
  * Confirm payment - booking remains pending until admin approval
  */
 export const confirmBookingPayment = async (bookingId, paymentData, paymentMethod = 'razorpay') => {
-  const booking = await BannerBooking.findById(bookingId).populate('vendorId', 'businessName storeName email');
+  const booking = await BannerBooking.findById(bookingId).populate('vendorId', 'name storeName email');
   if (!booking) throw new Error('Booking not found');
 
   // paymentData can be:
@@ -675,23 +675,32 @@ export const confirmBookingPayment = async (bookingId, paymentData, paymentMetho
 /**
  * Get active banners for rotation
  * Only returns banners that are: paid + approved + within date range
+ * @param {String} bannerType - Optional: 'hero' or 'b2b' to filter by type
  */
-export const getActiveBanners = async () => {
+export const getActiveBanners = async (bannerType = null) => {
   const now = new Date();
 
-  // Find all bookings that meet the criteria
-  const activeBookings = await BannerBooking.find({
+  // Build query
+  const query = {
     paymentStatus: 'paid',
     adminApprovalStatus: 'approved',
     status: 'active',
     startDate: { $lte: now },
     endDate: { $gte: now }
-  })
+  };
+
+  // Filter by bannerType if provided (BannerBooking has bannerType field)
+  if (bannerType) {
+    query.bannerType = bannerType;
+  }
+
+  // Find all bookings that meet the criteria
+  const activeBookings = await BannerBooking.find(query)
     .populate('slotId')
     .populate({
       path: 'vendorId',
       match: { isActive: true },
-      select: '_id businessName storeName'
+      select: '_id name storeName'
     })
     .sort({ 'slotId.slotNumber': 1 });
 
@@ -704,7 +713,7 @@ export const getActiveBanners = async () => {
       link: booking.link,
       title: booking.title,
       vendorId: booking.vendorId?._id,
-      vendorName: booking.vendorId?.businessName || booking.vendorId?.storeName
+      vendorName: booking.vendorId?.storeName || booking.vendorId?.name
     }));
 };
 
@@ -737,7 +746,7 @@ export const getVendorBookingById = async (bookingId, vendorId) => {
  */
 export const getBookingById = async (bookingId) => {
   return await BannerBooking.findById(bookingId)
-    .populate('vendorId', 'businessName storeName email phone')
+    .populate('vendorId', 'name storeName email phone')
     .populate('slotId');
 };
 
@@ -751,7 +760,7 @@ export const getAllBookings = async (bannerType = null) => {
     query.bannerType = bannerType;
   }
   return await BannerBooking.find(query)
-    .populate('vendorId', 'businessName storeName email vendorType')
+    .populate('vendorId', 'name storeName email vendorType')
     .populate('slotId')
     .sort({ createdAt: -1 });
 };
@@ -960,7 +969,7 @@ export const getBannerTransactions = async (searchTerm = '', limit = 50, skip = 
   }
 
   const transactions = await BannerBooking.find(query)
-    .populate('vendorId', 'businessName storeName email vendorType')
+    .populate('vendorId', 'name storeName email vendorType')
     .populate('slotId', 'slotNumber bannerType')
     .sort({ createdAt: -1 })
     .limit(limit)
@@ -979,7 +988,7 @@ export const getBannerTransactions = async (searchTerm = '', limit = 50, skip = 
     status: booking.paymentStatus === 'paid' ? 'completed' : booking.paymentStatus,
     bookingId: booking.referenceId,
     direction: 'in',
-    vendor: booking.vendorId?.businessName || booking.vendorId?.storeName || 'Unknown Vendor',
+    vendor: booking.vendorId?.storeName || booking.vendorId?.name || 'Unknown Vendor',
     vendorId: booking.vendorId?._id,
     slotNumber: booking.slotId?.slotNumber,
     bannerImage: booking.bannerImage,

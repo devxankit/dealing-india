@@ -1,17 +1,84 @@
-import { useState } from "react";
-import { FiTrendingUp, FiUsers, FiPackage, FiDownload } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { FiTrendingUp, FiUsers, FiPackage, FiDownload, FiMessageCircle } from "react-icons/fi";
 import { motion } from "framer-motion";
 import TimePeriodFilter from "../../components/Analytics/TimePeriodFilter";
+import B2BOnboardingTrendChart from "../../components/Analytics/B2BOnboardingTrendChart";
+import B2BTransactionVolumeChart from "../../components/Analytics/B2BTransactionVolumeChart";
+import api from "../../../../shared/utils/api";
+import toast from "react-hot-toast";
 
 const AdminB2BVendorAnalytics = () => {
-    const [period, setPeriod] = useState("this_month");
+    const [period, setPeriod] = useState("month");
+    const [loading, setLoading] = useState(true);
+    const [metrics, setMetrics] = useState([
+        { label: "Total B2B Vendors", value: "0", trend: "0", icon: FiUsers, color: "blue" },
+        { label: "B2B Volume", value: "₹0", trend: "0%", icon: FiTrendingUp, color: "green" },
+        { label: "Product Listings", value: "0", trend: "0", icon: FiPackage, color: "purple" },
+        { label: "B2B Messages", value: "0", trend: "0%", icon: FiMessageCircle, color: "orange" },
+    ]);
+    const [chartData, setChartData] = useState({
+        onboardingTrend: [],
+        transactionVolumeTrend: []
+    });
 
-    const metrics = [
-        { label: "Total B2B Vendors", value: "154", trend: "+12", icon: FiUsers, color: "blue" },
-        { label: "B2B Volume", value: "₹4.2Cr", trend: "+8%", icon: FiTrendingUp, color: "green" },
-        { label: "Product Listings", value: "1,245", trend: "+45", icon: FiPackage, color: "purple" },
-        { label: "B2B Messages", value: "8.4K", trend: "+15%", icon: FiMessageCircle, color: "orange" },
-    ];
+    useEffect(() => {
+        fetchAnalyticsData();
+    }, [period]);
+
+    const fetchAnalyticsData = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get('/admin/analytics/b2b-vendors', {
+                params: { period }
+            });
+
+            if (response.success && response.data) {
+                const { formatted, trends, charts } = response.data;
+
+                setMetrics([
+                    {
+                        label: "Total B2B Vendors",
+                        value: formatted?.totalB2BVendors || "0",
+                        trend: trends?.vendors || "0",
+                        icon: FiUsers,
+                        color: "blue"
+                    },
+                    {
+                        label: "B2B Volume",
+                        value: formatted?.b2BVolume || "₹0",
+                        trend: "0%", // Volume trend can be calculated separately
+                        icon: FiTrendingUp,
+                        color: "green"
+                    },
+                    {
+                        label: "Product Listings",
+                        value: formatted?.totalB2BProducts || "0",
+                        trend: trends?.products || "0",
+                        icon: FiPackage,
+                        color: "purple"
+                    },
+                    {
+                        label: "B2B Messages",
+                        value: formatted?.totalB2BMessages || "0",
+                        trend: trends?.messages || "0",
+                        icon: FiMessageCircle,
+                        color: "orange"
+                    },
+                ]);
+
+                // Set chart data
+                setChartData({
+                    onboardingTrend: charts?.onboardingTrend || [],
+                    transactionVolumeTrend: charts?.transactionVolumeTrend || []
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching B2B vendor analytics:', error);
+            toast.error('Failed to load B2B vendor analytics');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -29,42 +96,38 @@ const AdminB2BVendorAnalytics = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {metrics.map((m, i) => (
-                    <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className={`p-3 rounded-xl bg-${m.color}-50 text-${m.color}-600`}>
-                                <m.icon className="text-xl" />
+                {loading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                            <div className="animate-pulse">
+                                <div className="h-10 bg-gray-200 rounded mb-4"></div>
+                                <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                                <div className="h-8 bg-gray-200 rounded"></div>
                             </div>
-                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">{m.trend}</span>
                         </div>
-                        <h3 className="text-gray-500 text-sm font-medium">{m.label}</h3>
-                        <p className="text-2xl font-bold text-gray-800 mt-1">{m.value}</p>
-                    </div>
-                ))}
+                    ))
+                ) : (
+                    metrics.map((m, i) => (
+                        <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className={`p-3 rounded-xl bg-${m.color}-50 text-${m.color}-600`}>
+                                    <m.icon className="text-xl" />
+                                </div>
+                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">{m.trend}</span>
+                            </div>
+                            <h3 className="text-gray-500 text-sm font-medium">{m.label}</h3>
+                            <p className="text-2xl font-bold text-gray-800 mt-1">{m.value}</p>
+                        </div>
+                    ))
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-80 flex flex-col">
-                    <h3 className="font-bold text-gray-800 mb-6">B2B Vendor Onboarding Trend</h3>
-                    <div className="flex-1 bg-slate-50 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-200">
-                        <p className="text-sm text-gray-400">Onboarding Chart Placeholder</p>
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-80 flex flex-col">
-                    <h3 className="font-bold text-gray-800 mb-6">B2B Transaction Volume</h3>
-                    <div className="flex-1 bg-slate-50 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-200">
-                        <p className="text-sm text-gray-400">Transaction Chart Placeholder</p>
-                    </div>
-                </div>
+                <B2BOnboardingTrendChart data={chartData.onboardingTrend} period={period} />
+                <B2BTransactionVolumeChart data={chartData.transactionVolumeTrend} period={period} />
             </div>
         </motion.div>
     );
 };
-
-const FiMessageCircle = (props) => (
-    <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" {...props}>
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-    </svg>
-);
 
 export default AdminB2BVendorAnalytics;

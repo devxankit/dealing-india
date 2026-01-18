@@ -59,9 +59,11 @@ export const cancelBannerBooking = async (bookingId) => {
 
 /**
  * Get active banners for public display
+ * @param {String} bannerType - Optional: 'hero' or 'b2b' to filter by type
  */
-export const getActiveBanners = async () => {
-  const response = await api.get('/hero-banners/active');
+export const getActiveBanners = async (bannerType = null) => {
+  const params = bannerType ? { bannerType } : {};
+  const response = await api.get('/hero-banners/active', { params });
   return response;
 };
 

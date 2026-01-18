@@ -88,10 +88,41 @@ class VendorChatService {
 
             console.log(`[VendorChatService] Found ${conversations.length} conversations`);
 
-            // Transform conversations to include other participant info
-            const transformed = conversations.map(conv => {
+            // Deduplicate conversations by other participant ID - keep only the most recent one
+            const deduplicated = [];
+            const seenParticipants = new Map();
+
+            for (const conv of conversations) {
                 const otherParticipant = conv.participants.find(
-                    p => p.userId._id.toString() !== vendorId.toString()
+                    p => p.userId && (p.userId._id || p.userId).toString() !== vendorId.toString()
+                );
+
+                if (otherParticipant) {
+                    const otherId = (otherParticipant.userId._id || otherParticipant.userId).toString();
+                    
+                    // Check if we've seen this participant before
+                    const existingConv = seenParticipants.get(otherId);
+                    
+                    if (!existingConv) {
+                        // First time seeing this participant, add it
+                        seenParticipants.set(otherId, conv);
+                    } else {
+                        // Compare timestamps - keep the conversation with the most recent message
+                        const existingTime = existingConv.lastMessageAt || existingConv.updatedAt || existingConv.createdAt;
+                        const currentTime = conv.lastMessageAt || conv.updatedAt || conv.createdAt;
+                        
+                        if (new Date(currentTime) > new Date(existingTime)) {
+                            // Current conversation is more recent, replace it
+                            seenParticipants.set(otherId, conv);
+                        }
+                    }
+                }
+            }
+
+            // Transform deduplicated conversations to include other participant info
+            const transformed = Array.from(seenParticipants.values()).map(conv => {
+                const otherParticipant = conv.participants.find(
+                    p => p.userId && (p.userId._id || p.userId).toString() !== vendorId.toString()
                 );
 
                 let unreadCount = 0;
@@ -109,6 +140,13 @@ class VendorChatService {
                     otherParticipant,
                     unreadCount
                 };
+            });
+
+            // Sort again by lastMessageAt to maintain order
+            transformed.sort((a, b) => {
+                const timeA = a.lastMessageAt || a.updatedAt || a.createdAt;
+                const timeB = b.lastMessageAt || b.updatedAt || b.createdAt;
+                return new Date(timeB) - new Date(timeA);
             });
 
             return transformed;

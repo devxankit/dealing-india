@@ -1,11 +1,13 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
 import { useEffect, useState } from 'react';
+import api from '../../../shared/utils/api';
 
 const B2BVendorProtectedRoute = ({ children }) => {
     const { isAuthenticated, logout, vendor } = useB2BVendorAuthStore();
     const location = useLocation();
     const [isChecking, setIsChecking] = useState(true);
+    const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
 
     // Wait for Zustand persist to hydrate on mount
     useEffect(() => {
@@ -16,11 +18,52 @@ const B2BVendorProtectedRoute = ({ children }) => {
         return () => clearTimeout(timer);
     }, []);
 
+    // Check subscription expiry on mount and periodically
+    useEffect(() => {
+        if (!isChecking && isAuthenticated && vendor && vendor.vendorType === 'b2b') {
+            const checkSubscription = async () => {
+                try {
+                    setIsCheckingSubscription(true);
+                    const response = await api.get('/vendor/subscriptions/current');
+                    if (response.success && response.data) {
+                        const subscription = response.data;
+                        // Check if subscription is expired
+                        if (subscription && subscription.endDate) {
+                            const now = new Date();
+                            const endDate = new Date(subscription.endDate);
+                            if (endDate < now || subscription.status !== 'active') {
+                                console.log('[B2BVendorProtectedRoute] Subscription expired or inactive, logging out');
+                                logout();
+                                // Redirect to login with expired flag
+                                window.location.href = '/b2b-vendor/login?expired=true';
+                            }
+                        } else if (subscription === null) {
+                            // No subscription found for B2B vendor
+                            console.log('[B2BVendorProtectedRoute] No subscription found for B2B vendor, logging out');
+                            logout();
+                            window.location.href = '/b2b-vendor/login?expired=true';
+                        }
+                    }
+                } catch (error) {
+                    console.error('[B2BVendorProtectedRoute] Error checking subscription:', error);
+                    // Don't block access on error, backend will handle it
+                } finally {
+                    setIsCheckingSubscription(false);
+                }
+            };
+
+            checkSubscription();
+            // Check every 5 minutes
+            const interval = setInterval(checkSubscription, 5 * 60 * 1000);
+            return () => clearInterval(interval);
+        }
+    }, [isChecking, isAuthenticated, vendor, logout]);
+
     // Get token from localStorage (source of truth)
     const token = localStorage.getItem('b2b-vendor-token');
 
     // If still checking, don't redirect yet
-    if (isChecking) {
+    if (isChecking || isCheckingSubscription) {
         return null; // or a loading spinner
     }
 

@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiBriefcase } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiBriefcase, FiCheck, FiStar, FiX } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import toast from 'react-hot-toast';
+import api from '../../../shared/utils/api';
+import { getActiveB2BPlans } from '../../../shared/utils/b2bPlanManager';
+import PaymentModal from '../components/PaymentModal';
 
 const B2BVendorLogin = () => {
     const navigate = useNavigate();
@@ -17,6 +20,11 @@ const B2BVendorLogin = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
     const [localLoading, setLocalLoading] = useState(false);
+    const [showPlans, setShowPlans] = useState(false);
+    const [availablePlans, setAvailablePlans] = useState([]);
+    const [selectedPlan, setSelectedPlan] = useState(null);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [isLoadingPlans, setIsLoadingPlans] = useState(false);
 
     useEffect(() => {
         // Check for existing authentication on mount
@@ -31,6 +39,12 @@ const B2BVendorLogin = () => {
             useB2BVendorAuthStore.getState().logout();
         }
 
+        // Check if redirected due to expired subscription
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('expired') === 'true') {
+            toast.error('Your subscription has expired. Please renew to continue.');
+        }
+
         // Show message from registration if available
         if (location.state?.message) {
             toast.success(location.state.message, {
@@ -38,11 +52,17 @@ const B2BVendorLogin = () => {
             });
         }
     }, [navigate, location]); // Removed isAuthenticated from deps to avoid redirect loops
+
     const handleChange = (e) => {
         setFormData({
             ...formData,
             [e.target.name]: e.target.value,
         });
+        
+        // If email changes and plans are shown, hide them
+        if (e.target.name === 'email' && showPlans) {
+            setShowPlans(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -104,8 +124,18 @@ const B2BVendorLogin = () => {
                 }
             } else {
                 const errorMsg = result?.message || 'Invalid B2B vendor credentials.';
-                console.error('[B2B Vendor Login Page] Login failed:', errorMsg);
-                toast.error(errorMsg);
+                const errorCode = result?.code;
+                
+                // If subscription expired, show plans
+                if (errorCode === 'SUBSCRIPTION_EXPIRED') {
+                    console.log('[B2B Vendor Login Page] Subscription expired, showing plans');
+                    setShowPlans(true);
+                    loadPlans();
+                    toast.error('Your subscription has expired. Please renew to continue.');
+                } else {
+                    console.error('[B2B Vendor Login Page] Login failed:', errorMsg);
+                    toast.error(errorMsg);
+                }
             }
         } catch (error) {
             console.error('[B2B Vendor Login Page] Login error:', error);
@@ -116,6 +146,47 @@ const B2BVendorLogin = () => {
     };
 
     const isButtonLoading = localLoading || storeLoading;
+
+    const loadPlans = async () => {
+        setIsLoadingPlans(true);
+        try {
+            const plans = await getActiveB2BPlans();
+            const filteredPlans = plans.filter(plan => 
+                plan.duration === 3 || plan.duration === 6 || plan.duration === 12
+            ).sort((a, b) => a.duration - b.duration);
+            setAvailablePlans(filteredPlans);
+            if (filteredPlans.length > 0) {
+                const defaultPlan = filteredPlans.find(p => p.duration === 6) || filteredPlans[0];
+                setSelectedPlan(defaultPlan._id || defaultPlan.id);
+            }
+        } catch (error) {
+            console.error('Error loading plans:', error);
+            toast.error('Failed to load subscription plans');
+        } finally {
+            setIsLoadingPlans(false);
+        }
+    };
+
+    const handlePlanSelect = (planId) => {
+        setSelectedPlan(planId);
+    };
+
+    const handleSubscribe = () => {
+        if (!selectedPlan) {
+            toast.error('Please select a plan');
+            return;
+        }
+        setShowPaymentModal(true);
+    };
+
+    const handlePaymentSuccess = async (plan) => {
+        // After payment success, try to login again
+        toast.success('Subscription renewed successfully! Please login again.');
+        setShowPlans(false);
+        setShowPaymentModal(false);
+        // Clear form to allow fresh login
+        setFormData({ email: formData.email, password: '' });
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -221,7 +292,106 @@ const B2BVendorLogin = () => {
                         </div>
                     </div>
                 </form>
+
+                {/* Subscription Plans Section - Only shown when expired */}
+                <AnimatePresence>
+                    {showPlans && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-8 pt-8 border-t border-gray-200"
+                        >
+                            <div className="mb-6">
+                                <h2 className="text-xl font-bold text-gray-800 mb-2">Renew Your Subscription</h2>
+                                <p className="text-sm text-gray-600">Your subscription has expired. Please select a plan to continue.</p>
+                            </div>
+
+                            {isLoadingPlans ? (
+                                <div className="text-center py-8">
+                                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                                    <p className="mt-2 text-sm text-gray-600">Loading plans...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    {availablePlans.map((plan) => {
+                                        const planId = plan._id || plan.id;
+                                        const isSelected = selectedPlan === planId;
+                                        return (
+                                            <motion.div
+                                                key={planId}
+                                                whileHover={{ y: -5 }}
+                                                onClick={() => handlePlanSelect(planId)}
+                                                className={`relative bg-white rounded-2xl p-6 shadow-sm border-2 cursor-pointer transition-all ${
+                                                    isSelected
+                                                        ? 'border-primary-500 ring-4 ring-primary-50'
+                                                        : 'border-gray-100 hover:border-primary-200'
+                                                }`}
+                                            >
+                                                {plan.duration === 6 && (
+                                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                                                        RECOMMENDED
+                                                    </div>
+                                                )}
+
+                                                <div className="mb-4">
+                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
+                                                        isSelected ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400'
+                                                    }`}>
+                                                        <FiStar className="text-xl" />
+                                                    </div>
+                                                    <h3 className="text-lg font-bold text-gray-800 mb-2">{plan.name}</h3>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-3xl font-extrabold text-gray-900">₹{plan.price.toLocaleString('en-IN')}</span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mt-1">{plan.duration} Months Duration</p>
+                                                </div>
+
+                                                <ul className="space-y-2 mb-4">
+                                                    {plan.features && plan.features.slice(0, 3).map((feature, idx) => (
+                                                        <li key={idx} className="flex items-start gap-2 text-gray-600">
+                                                            <div className={`mt-1 p-0.5 rounded-full ${
+                                                                isSelected ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'
+                                                            }`}>
+                                                                <FiCheck className="text-xs" />
+                                                            </div>
+                                                            <span className="text-xs font-medium">{feature}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={handleSubscribe}
+                                    disabled={!selectedPlan || isLoadingPlans}
+                                    className="flex-1 bg-primary-600 text-white py-3 rounded-xl font-semibold hover:bg-primary-700 transition-all duration-200 disabled:opacity-50 shadow-md"
+                                >
+                                    {isLoadingPlans ? 'Loading...' : 'Subscribe & Continue'}
+                                </button>
+                                <button
+                                    onClick={() => setShowPlans(false)}
+                                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all duration-200"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </motion.div>
+
+            {/* Payment Modal */}
+            <PaymentModal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                planId={selectedPlan}
+                onSuccess={handlePaymentSuccess}
+            />
         </div>
     );
 };

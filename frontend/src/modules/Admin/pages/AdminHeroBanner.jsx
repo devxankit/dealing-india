@@ -324,7 +324,7 @@ const AdminHeroBanner = () => {
       accessor: "vendorId",
       render: (val) => (
         <div className="flex flex-col">
-          <span className="font-medium">{val?.businessName || "N/A"}</span>
+          <span className="font-medium">{val?.storeName || val?.name || "N/A"}</span>
           <span className="text-xs text-gray-500">{val?.email}</span>
         </div>
       ),
@@ -868,7 +868,7 @@ const AdminHeroBanner = () => {
               {isActive ? (
                 <div className="mt-2 space-y-2">
                   <img src={booking.bannerImage} alt="" className="w-full h-20 object-cover rounded border" />
-                  <p className="text-xs font-medium text-gray-700 truncate">{booking.vendorId?.businessName}</p>
+                  <p className="text-xs font-medium text-gray-700 truncate">{booking.vendorId?.storeName || booking.vendorId?.name}</p>
                 </div>
               ) : (
                 <div className="mt-2 h-20 flex flex-col items-center justify-center border border-dashed border-gray-200 rounded-lg bg-gray-50">

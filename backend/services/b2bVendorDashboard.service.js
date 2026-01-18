@@ -148,6 +148,106 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
       };
     }).filter(Boolean);
 
+    // 6. Get inquiry trends data (inquiries over time)
+    const calculateDateRange = (period) => {
+      const now = new Date();
+      let startDate = new Date();
+      
+      switch (period) {
+        case 'today':
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+      return startDate;
+    };
+
+    const periodStartDate = calculateDateRange(period);
+    
+    const inquiryTrends = await Message.aggregate([
+      {
+        $match: {
+          receiverId: vendorObjectId,
+          receiverRole: 'vendor',
+          createdAt: { $gte: periodStartDate },
+          $or: [
+            { messageType: 'inquiry' },
+            { 'metadata.productId': { $exists: true } }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { 
+              format: period === 'year' ? '%Y-%m' : period === 'month' ? '%Y-%m-%d' : '%Y-%m-%d', 
+              date: '$createdAt' 
+            }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // 7. Get category distribution data (top performing categories)
+    // First get all products with their categories
+    const allProducts = await Product.find({
+      vendorId: vendorObjectId,
+      isActive: true
+    })
+    .select('_id attributes')
+    .lean();
+
+    // Get inquiry counts per product
+    const productInquiryCountsMap = {};
+    inquiryMessages.forEach(msg => {
+      const productId = msg.metadata?.productId;
+      if (productId) {
+        const pid = productId.toString();
+        productInquiryCountsMap[pid] = (productInquiryCountsMap[pid] || 0) + 1;
+      }
+    });
+
+    // Group by category
+    const categoryData = {};
+    allProducts.forEach(product => {
+      const categoryAttr = product.attributes?.find(attr => 
+        attr.name?.toLowerCase() === 'category'
+      );
+      const category = categoryAttr?.value || 'Other';
+      
+      if (!categoryData[category]) {
+        categoryData[category] = {
+          name: category,
+          products: 0,
+          inquiries: 0
+        };
+      }
+      
+      categoryData[category].products += 1;
+      
+      const productId = product._id.toString();
+      if (productInquiryCountsMap[productId]) {
+        categoryData[category].inquiries += productInquiryCountsMap[productId];
+      }
+    });
+
+    // Convert to array and sort by inquiries (or products if no inquiries)
+    const categoryDistributionWithInquiries = Object.values(categoryData)
+      .sort((a, b) => (b.inquiries || 0) - (a.inquiries || 0) || b.products - a.products)
+      .slice(0, 10);
+
     // Return dashboard data
     return {
       metrics: {
@@ -156,7 +256,14 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
         activeConversations
       },
       recentInquiries,
-      topProducts
+      topProducts,
+      charts: {
+        inquiryTrends: inquiryTrends.map(item => ({
+          date: item._id,
+          inquiries: item.count
+        })),
+        categoryDistribution: categoryDistributionWithInquiries
+      }
     };
   } catch (error) {
     console.error('Error in getB2BVendorDashboardData:', error);

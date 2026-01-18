@@ -1,4 +1,5 @@
 import Vendor from '../models/Vendor.model.js';
+import Product from '../models/Product.model.js';
 import redisService from './redis.service.js';
 
 /**
@@ -359,6 +360,26 @@ export const getB2BVendors = async (filters = {}) => {
       });
     }
 
+    // Get product counts for all vendors
+    const vendorIds = verifiedB2BVendors.map(v => v._id);
+    
+    // Count products for each vendor in parallel
+    const productCounts = await Promise.all(
+      vendorIds.map(async (vendorId) => {
+        const count = await Product.countDocuments({ 
+          vendorId: vendorId, 
+          isActive: true 
+        });
+        return { vendorId: vendorId.toString(), count };
+      })
+    );
+    
+    // Create a map for quick lookup
+    const productCountMap = new Map();
+    productCounts.forEach(({ vendorId, count }) => {
+      productCountMap.set(vendorId, count);
+    });
+
     // Format vendors for admin panel - use verified B2B vendors only
     // FINAL CHECK: Verify vendorType one more time before formatting
     const formattedVendors = verifiedB2BVendors
@@ -392,7 +413,7 @@ export const getB2BVendors = async (filters = {}) => {
           email: vendor.email || 'N/A',
           phone: vendor.phone || 'N/A',
           status: vendor.status === 'approved' ? 'Active' : vendor.status === 'pending' ? 'Pending' : vendor.status || 'Inactive',
-          products: 0, // TODO: Get actual product count
+          products: productCountMap.get(vendor._id.toString()) || 0,
           joinDate: vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : null,
           gstNumber: vendor.gstNumber || 'N/A',
           businessTypes: vendor.businessTypes || [],

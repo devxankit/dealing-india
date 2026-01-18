@@ -19,8 +19,11 @@ import DataTable from "../../Admin/components/DataTable";
 import {
     getAvailableBannerSlots,
     getMyBannerBookings,
-    createBannerBooking
+    createBannerBooking,
+    confirmBannerPayment,
+    cancelBannerBooking
 } from "../services/b2bBannerService";
+import { initializeRazorpayCheckout, handlePaymentSuccess } from "../../../shared/services/paymentService";
 
 const B2BBannerBooking = () => {
     const navigate = useNavigate();
@@ -226,6 +229,19 @@ const B2BBannerBooking = () => {
         setLoading(true);
 
         try {
+            // Validate required fields before creating FormData
+            if (!selectedSlot || !selectedSlot._id) {
+                toast.error("Please select a slot");
+                setLoading(false);
+                return;
+            }
+
+            if (!formData.image) {
+                toast.error("Please upload a banner image");
+                setLoading(false);
+                return;
+            }
+
             // Create FormData for the booking
             const formDataToSend = new FormData();
             formDataToSend.append('slotId', selectedSlot._id);
@@ -235,31 +251,172 @@ const B2BBannerBooking = () => {
             formDataToSend.append('link', formData.link || '/');
             formDataToSend.append('image', formData.image);
             formDataToSend.append('paymentMethod', 'razorpay'); // Default to razorpay, can be changed to 'wallet' later
+            formDataToSend.append('bannerType', 'b2b'); // Explicitly set bannerType for B2B vendors
+
+            // Verify FormData contents
+            console.log('Creating booking with data:', {
+                slotId: selectedSlot._id,
+                startDate: selectedDate.toISOString(),
+                durationDays: formData.durationDays,
+                hasImage: !!formData.image,
+                imageName: formData.image?.name,
+                imageSize: formData.image?.size,
+                imageType: formData.image?.type
+            });
+
+            // Log FormData entries (for debugging)
+            console.log('FormData entries:');
+            for (let pair of formDataToSend.entries()) {
+                console.log(pair[0] + ': ' + (pair[1] instanceof File ? `File(${pair[1].name}, ${pair[1].size} bytes)` : pair[1]));
+            }
 
             const response = await createBannerBooking(formDataToSend);
+            
+            console.log('Booking response:', response);
+            console.log('Response type:', typeof response);
+            console.log('Response keys:', Object.keys(response || {}));
 
-            if (response?.data?.success) {
-                const bookingData = response.data.data;
+            // API interceptor returns response.data directly, so response is already unwrapped
+            // Response structure: { success: true, message: '...', data: { ... } }
+            const responseData = response;
+            
+            console.log('Response data:', responseData);
+            console.log('Response success:', responseData?.success);
+            
+            if (responseData?.success) {
+                // Data is in responseData.data
+                const bookingData = responseData.data;
+                
+                console.log('Booking data:', bookingData);
+                console.log('Has razorpayOrder:', !!bookingData?.razorpayOrder);
+                console.log('Booking ID:', bookingData?._id);
 
                 // If wallet payment was used, it's already paid
                 if (bookingData.paymentStatus === 'paid' && bookingData.paymentMethod === 'wallet') {
                     toast.success("Banner booking created successfully using wallet! Awaiting admin approval.");
+                    await loadData();
+                    setShowBookingModal(false);
+                    resetForm();
+                } else if (bookingData.razorpayOrder) {
+                    // For Razorpay, open payment gateway
+                    toast.success("Booking initiated! Opening payment gateway...");
+                    await handleRazorpayPayment(
+                        bookingData._id,
+                        bookingData.razorpayOrder,
+                        calculatedPrice,
+                        bookingData.razorpayKeyId
+                    );
                 } else {
-                    // For Razorpay, booking is created but payment is pending
-                    toast.success("Banner booking created! Please complete payment to submit for admin approval.");
+                    // Booking created but payment gateway failed
+                    toast.error("Booking created but payment gateway failed. Please contact support.");
+                    await loadData();
+                    setShowBookingModal(false);
+                    resetForm();
                 }
-
-                // Reload data to get the latest bookings
-                await loadData();
-
-                setShowBookingModal(false);
-                resetForm();
+            } else {
+                toast.error(responseData?.message || 'Failed to create banner booking');
             }
         } catch (error) {
             console.error('Error creating booking:', error);
-            toast.error(error?.response?.data?.message || 'Failed to create banner booking');
+            console.error('Error details:', {
+                message: error?.message,
+                response: error?.response,
+                responseData: error?.response?.data,
+                status: error?.response?.status,
+                config: error?.config
+            });
+            
+            // Show detailed error message
+            let errorMessage = 'Failed to create banner booking';
+            
+            if (error?.response?.data) {
+                errorMessage = error.response.data.message 
+                    || error.response.data.error 
+                    || error.response.data 
+                    || errorMessage;
+            } else if (error?.message) {
+                errorMessage = error.message;
+            }
+            
+            // Check for specific error cases
+            if (error?.response?.status === 401) {
+                errorMessage = 'Authentication failed. Please login again.';
+            } else if (error?.response?.status === 400) {
+                errorMessage = error.response.data?.message || 'Invalid booking data. Please check all fields.';
+            } else if (error?.response?.status === 403) {
+                errorMessage = error.response.data?.message || 'You do not have permission to create this booking.';
+            } else if (error?.isNetworkError) {
+                errorMessage = 'Network error. Please check your connection and try again.';
+            }
+            
+            toast.error(errorMessage, { duration: 5000 });
+            
+            // Log full error for debugging
+            if (error?.response?.data) {
+                console.error('Full error response:', JSON.stringify(error.response.data, null, 2));
+            }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRazorpayPayment = async (bookingId, razorpayOrder, amount, razorpayKeyId = null) => {
+        try {
+            const keyId = razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+            if (!keyId) {
+                toast.error("Payment gateway not configured. Please contact support.");
+                return;
+            }
+
+            await initializeRazorpayCheckout({
+                key: keyId,
+                amount: amount,
+                currency: 'INR',
+                name: 'Dealing India',
+                description: `B2B Banner Booking - ${bookingId}`,
+                orderId: razorpayOrder.id,
+                prefill: {
+                    name: '',
+                    email: '',
+                    contact: '',
+                },
+                handler: async (paymentResponse) => {
+                    try {
+                        const paymentData = handlePaymentSuccess(paymentResponse);
+
+                        await confirmBannerPayment({
+                            bookingId,
+                            razorpayPaymentId: paymentData.razorpayPaymentId,
+                            razorpayOrderId: paymentData.razorpayOrderId,
+                            razorpaySignature: paymentData.razorpaySignature,
+                            paymentMethod: 'razorpay'
+                        });
+
+                        toast.success("Payment successful! Your banner booking is pending admin approval.");
+                        setShowBookingModal(false);
+                        resetForm();
+                        await loadData();
+                    } catch (error) {
+                        console.error("Payment confirmation error:", error);
+                        toast.error(error?.response?.data?.message || error?.message || "Payment verification failed. Please contact support.");
+                    }
+                },
+                modal: {
+                    ondismiss: async () => {
+                        try {
+                            toast.error("Payment cancelled");
+                            await cancelBannerBooking(bookingId);
+                            await loadData(); // Refresh list to remove the temp booking
+                        } catch (err) {
+                            console.error("Error cancelling booking:", err);
+                        }
+                    },
+                },
+            });
+        } catch (error) {
+            console.error("Razorpay payment error:", error);
+            toast.error(error?.message || "Failed to open payment gateway. Please try again.");
         }
     };
 

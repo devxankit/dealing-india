@@ -120,9 +120,22 @@ const B2BBannerManagement = () => {
                 }
             }
 
-            if (bookingsRes?.data?.success) {
-                setBookings(bookingsRes.data.data || []);
+            // Handle bookings response (API interceptor returns response.data directly)
+            // Backend returns: { success: true, data: [...] }
+            // Interceptor returns: { success: true, data: [...] }
+            let bookingsData = [];
+            if (bookingsRes?.success && bookingsRes?.data) {
+                bookingsData = Array.isArray(bookingsRes.data) ? bookingsRes.data : [];
+            } else if (bookingsRes?.data?.success && bookingsRes?.data?.data) {
+                bookingsData = Array.isArray(bookingsRes.data.data) ? bookingsRes.data.data : [];
+            } else if (Array.isArray(bookingsRes?.data)) {
+                bookingsData = bookingsRes.data;
+            } else if (Array.isArray(bookingsRes)) {
+                bookingsData = bookingsRes;
             }
+            
+            console.log('B2B Banner Management - Bookings loaded:', bookingsData.length, bookingsData);
+            setBookings(bookingsData);
 
             // Load revenue stats for B2B banners - Calculate from paid bookings only
             try {
@@ -354,7 +367,7 @@ const B2BBannerManagement = () => {
             accessor: "vendorId",
             render: (val) => (
                 <div className="flex flex-col">
-                    <span className="font-medium">{val?.businessName || "N/A"}</span>
+                    <span className="font-medium">{val?.storeName || val?.name || "N/A"}</span>
                     <span className="text-xs text-gray-500">{val?.email}</span>
                 </div>
             ),
@@ -798,10 +811,10 @@ const B2BBannerManagement = () => {
                                         <FiEye className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-lg" />
                                     </div>
                                     {/* Vendor Name Overlay */}
-                                    {booking?.vendorId?.businessName && (
+                                    {(booking?.vendorId?.storeName || booking?.vendorId?.name) && (
                                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                                             <p className="text-white text-[10px] font-medium truncate">
-                                                {booking.vendorId.businessName}
+                                                {booking.vendorId.storeName || booking.vendorId.name}
                                             </p>
                                         </div>
                                     )}

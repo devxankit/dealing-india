@@ -81,11 +81,24 @@ export const login = async (req, res, next) => {
     const statusCode = error.statusCode || error.status || 500;
     const message = error.message || 'Login failed. Please check your credentials.';
 
-    // Don't pass to next() if we can handle it here
-    return res.status(statusCode).json({
+    // Include error code and additional data for frontend handling
+    const response = {
       success: false,
       message,
-    });
+    };
+
+    // Add error code if present (for subscription-related errors)
+    if (error.code) {
+      response.code = error.code;
+    }
+
+    // Add expired date if subscription expired
+    if (error.code === 'SUBSCRIPTION_EXPIRED' && error.expiredDate) {
+      response.expiredDate = error.expiredDate;
+    }
+
+    // Don't pass to next() if we can handle it here
+    return res.status(statusCode).json(response);
   }
 };
 
@@ -225,3 +238,71 @@ export const resetPassword = async (req, res, next) => {
   }
 };
 
+/**
+ * Check subscription status by email (for login page)
+ * GET /api/auth/vendor/check-subscription/:email
+ */
+export const checkSubscriptionByEmail = async (req, res, next) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required',
+      });
+    }
+
+    // Find vendor by email
+    const vendor = await getVendorById(null, email);
+    
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found',
+        data: { isExpired: false, hasSubscription: false },
+      });
+    }
+
+    // Only check for B2B vendors
+    if (vendor.vendorType !== 'b2b') {
+      return res.status(200).json({
+        success: true,
+        message: 'Not a B2B vendor',
+        data: { isExpired: false, hasSubscription: false, isB2B: false },
+      });
+    }
+
+    // Get subscription
+    const SubscriptionService = (await import('../../services/subscription.service.js')).default;
+    const subscription = await SubscriptionService.getVendorSubscription(vendor._id);
+
+    if (!subscription) {
+      return res.status(200).json({
+        success: true,
+        message: 'No subscription found',
+        data: { isExpired: false, hasSubscription: false, isB2B: true },
+      });
+    }
+
+    // Check if expired
+    const now = new Date();
+    const isExpired = subscription.endDate && new Date(subscription.endDate) < now;
+    const isActive = subscription.status === 'active';
+
+    return res.status(200).json({
+      success: true,
+      message: 'Subscription status retrieved',
+      data: {
+        isExpired,
+        hasSubscription: true,
+        isB2B: true,
+        status: subscription.status,
+        endDate: subscription.endDate,
+        isActive,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

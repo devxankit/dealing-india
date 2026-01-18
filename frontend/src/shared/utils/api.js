@@ -76,6 +76,9 @@ api.interceptors.request.use(
     else if (url.startsWith('/b2b-vendor/') || 
              (currentPath.startsWith('/b2b-vendor') && (url.startsWith('/auth/vendor') || url.startsWith('/vendor/')))) {
       token = localStorage.getItem('b2b-vendor-token');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[API] Using b2b-vendor-token for URL:', url, 'Current path:', currentPath);
+      }
     }
     // Check for vendor routes (vendor auth or vendor-specific routes, but NOT admin vendor management)
     // Vendor routes: /auth/vendor, or /vendor/* (but NOT /admin/vendors)
