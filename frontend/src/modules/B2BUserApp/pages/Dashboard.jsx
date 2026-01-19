@@ -51,58 +51,107 @@ const B2BUserDashboard = () => {
                 let pendingQuotesCount = 0;
                 const inquiriesList = [];
 
+                // Fetch messages for each conversation to find inquiry messages
                 for (const conv of conversations) {
-                    // Check if conversation has inquiry messages
-                    const lastMsg = conv.lastMessage;
-                    const isInquiry = lastMsg?.messageType === 'inquiry' || 
-                                     (lastMsg?.message && lastMsg.message.includes('📦 *INQUIRY FOR:'));
-                    
-                    if (isInquiry || lastMsg?.metadata?.productId) {
-                        activeInquiriesCount++;
+                    try {
+                        // Fetch all messages for this conversation to find inquiry messages
+                        const messagesResponse = await chatService.getMessages(conv._id || conv.id, 1, 100);
+                        const messages = messagesResponse?.data?.messages || messagesResponse?.messages || [];
                         
-                        // Get vendor name
-                        const vendor = conv.participants?.find(p => p.role === 'vendor');
-                        const vendorName = vendor?.userId?.storeName || vendor?.userId?.businessName || 'Unknown Vendor';
-                        
-                        // Get product name from metadata or message
-                        const productName = lastMsg?.metadata?.productName || 
-                                          (lastMsg?.message?.match(/INQUIRY FOR: (.+?)\*/)?.[1]) || 
-                                          'Product Inquiry';
-                        
-                        // Determine status based on last message
-                        // If last message is from vendor, status is "Responded"
-                        // If last message is from user, status is "Pending"
-                        let status = 'Pending';
-                        if (lastMsg?.senderRole === 'vendor') {
-                            status = 'Responded';
-                        } else if (lastMsg?.senderRole === 'user') {
-                            status = 'Pending';
+                        // Find inquiry messages (messages with messageType='inquiry' or metadata.productId)
+                        const inquiryMessages = messages.filter(msg => 
+                            msg.messageType === 'inquiry' || 
+                            msg.metadata?.productId ||
+                            (msg.message && msg.message.includes('📦 *INQUIRY FOR:'))
+                        );
+
+                        if (inquiryMessages.length > 0) {
+                            // Get the most recent inquiry message
+                            const latestInquiry = inquiryMessages.sort((a, b) => 
+                                new Date(b.createdAt) - new Date(a.createdAt)
+                            )[0];
+
+                            activeInquiriesCount++;
+                            
+                            // Get vendor name
+                            const vendor = conv.participants?.find(p => p.role === 'vendor');
+                            const vendorName = vendor?.userId?.storeName || vendor?.userId?.businessName || vendor?.userId?.name || 'Unknown Vendor';
+                            
+                            // Get product name from metadata or message
+                            const productName = latestInquiry?.metadata?.productName || 
+                                              (latestInquiry?.message?.match(/INQUIRY FOR: (.+?)\*/)?.[1]) || 
+                                              'Product Inquiry';
+                            
+                            // Get the last message in conversation to determine status
+                            const lastMsg = messages.length > 0 ? messages[messages.length - 1] : conv.lastMessage;
+                            
+                            // Determine status based on last message
+                            // If last message is from vendor, status is "Responded"
+                            // If last message is from user, status is "Pending"
+                            let status = 'Pending';
+                            if (lastMsg?.senderRole === 'vendor') {
+                                status = 'Responded';
+                            } else if (lastMsg?.senderRole === 'user') {
+                                status = 'Pending';
+                            }
+
+                            // Format date from latest inquiry
+                            const createdAt = latestInquiry?.createdAt ? new Date(latestInquiry.createdAt) : new Date(conv.lastMessageAt || conv.updatedAt);
+                            const dateStr = formatRelativeTime(createdAt);
+
+                            inquiriesList.push({
+                                id: conv._id || conv.id,
+                                product: productName,
+                                vendor: vendorName,
+                                status: status,
+                                date: dateStr,
+                                conversationId: conv._id || conv.id,
+                                inquiryDate: createdAt
+                            });
+
+                            // Count pending (where last message is from user - awaiting vendor response)
+                            if (lastMsg?.senderRole === 'user') {
+                                pendingQuotesCount++;
+                            }
                         }
+                    } catch (msgError) {
+                        console.error('Error fetching messages for conversation:', conv._id, msgError);
+                        // Fallback: check lastMessage if available
+                        const lastMsg = conv.lastMessage;
+                        if (lastMsg && (lastMsg.messageType === 'inquiry' || lastMsg.metadata?.productId)) {
+                            activeInquiriesCount++;
+                            
+                            const vendor = conv.participants?.find(p => p.role === 'vendor');
+                            const vendorName = vendor?.userId?.storeName || vendor?.userId?.businessName || 'Unknown Vendor';
+                            const productName = lastMsg?.metadata?.productName || 
+                                              (lastMsg?.message?.match(/INQUIRY FOR: (.+?)\*/)?.[1]) || 
+                                              'Product Inquiry';
+                            
+                            let status = lastMsg?.senderRole === 'vendor' ? 'Responded' : 'Pending';
+                            const createdAt = lastMsg?.createdAt ? new Date(lastMsg.createdAt) : new Date(conv.lastMessageAt || conv.updatedAt);
+                            const dateStr = formatRelativeTime(createdAt);
 
-                        // Format date
-                        const createdAt = lastMsg?.createdAt ? new Date(lastMsg.createdAt) : new Date(conv.lastMessageAt || conv.updatedAt);
-                        const dateStr = formatRelativeTime(createdAt);
+                            inquiriesList.push({
+                                id: conv._id || conv.id,
+                                product: productName,
+                                vendor: vendorName,
+                                status: status,
+                                date: dateStr,
+                                conversationId: conv._id || conv.id,
+                                inquiryDate: createdAt
+                            });
 
-                        inquiriesList.push({
-                            id: conv._id || conv.id,
-                            product: productName,
-                            vendor: vendorName,
-                            status: status,
-                            date: dateStr,
-                            conversationId: conv._id || conv.id
-                        });
-
-                        // Count pending (where last message is from user - awaiting vendor response)
-                        if (lastMsg?.senderRole === 'user') {
-                            pendingQuotesCount++;
+                            if (lastMsg?.senderRole === 'user') {
+                                pendingQuotesCount++;
+                            }
                         }
                     }
                 }
 
-                // Sort by date (most recent first) and take top 3
+                // Sort by inquiry date (most recent first) and take top 3
                 inquiriesList.sort((a, b) => {
-                    const dateA = new Date(conversations.find(c => (c._id || c.id) === a.id)?.lastMessageAt || 0);
-                    const dateB = new Date(conversations.find(c => (c._id || c.id) === b.id)?.lastMessageAt || 0);
+                    const dateA = a.inquiryDate || new Date(0);
+                    const dateB = b.inquiryDate || new Date(0);
                     return dateB - dateA;
                 });
 
@@ -112,9 +161,22 @@ const B2BUserDashboard = () => {
                 ]);
 
                 setRecentInquiries(inquiriesList.slice(0, 3));
+            } else {
+                // If no conversations or error, set empty state
+                setStats([
+                    { label: 'Active Inquiries', value: '0', icon: FiMessageSquare, color: 'blue' },
+                    { label: 'Pending Quotes', value: '0', icon: FiBox, color: 'primary' },
+                ]);
+                setRecentInquiries([]);
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
+            // Set empty state on error
+            setStats([
+                { label: 'Active Inquiries', value: '0', icon: FiMessageSquare, color: 'blue' },
+                { label: 'Pending Quotes', value: '0', icon: FiBox, color: 'primary' },
+            ]);
+            setRecentInquiries([]);
         } finally {
             setLoading(false);
         }

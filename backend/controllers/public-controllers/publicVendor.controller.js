@@ -16,6 +16,15 @@ export const getPublicVendors = async (req, res, next) => {
       vendorType, // Extract vendorType
     } = req.query;
 
+    // CRITICAL: If vendorType is not explicitly 'b2b', exclude B2B vendors
+    // This ensures B2B vendors only show in B2B app, not in regular user app
+    let effectiveVendorType = vendorType;
+    if (vendorType !== 'b2b') {
+      // When vendorType is not 'b2b' (or undefined), exclude B2B vendors
+      // This will be handled by getAllVendors which excludes B2B when vendorType is not 'b2b'
+      effectiveVendorType = undefined; // Let getAllVendors handle the exclusion
+    }
+
     // TEMPORARY: Restrict B2B to only 'mockb2bvendor@example.com' as per user request
     let effectiveSearch = search;
     if (vendorType === 'b2b') {
@@ -23,9 +32,10 @@ export const getPublicVendors = async (req, res, next) => {
     }
 
     // Get approved and active vendors
+    // When effectiveVendorType is undefined, getAllVendors will exclude B2B vendors
     const result = await getApprovedVendors({
       search: effectiveSearch,
-      vendorType,
+      vendorType: effectiveVendorType, // Pass undefined to exclude B2B vendors
       isActive: true, // Only show active vendors
       page: parseInt(page),
       limit: parseInt(limit),
@@ -33,9 +43,24 @@ export const getPublicVendors = async (req, res, next) => {
       sortOrder,
     });
 
+    // CRITICAL: Filter out B2B vendors if vendorType is not 'b2b'
+    // This is a safety check to ensure B2B vendors never appear in regular user app
+    const filteredVendors = result.vendors.filter(vendor => {
+      // If vendorType is not 'b2b', exclude any vendors with vendorType='b2b'
+      if (effectiveVendorType !== 'b2b') {
+        // Exclude B2B vendors - only include vendors that are NOT B2B
+        const vendorType = vendor.vendorType || (vendor.toObject && vendor.toObject().vendorType);
+        if (vendorType === 'b2b') {
+          console.warn(`⚠️ Filtered out B2B vendor from public vendors list: ${vendor.email || vendor.storeName}`);
+          return false;
+        }
+      }
+      return true;
+    });
+
     // Enrich vendors with product counts and ratings
     const enrichedVendors = await Promise.all(
-      result.vendors.map(async (vendor) => {
+      filteredVendors.map(async (vendor) => {
         // Get product count for this vendor
         const productCount = await Product.countDocuments({
           vendorId: vendor._id,
@@ -85,15 +110,19 @@ export const getPublicVendors = async (req, res, next) => {
       })
     );
 
+    // Recalculate total based on filtered vendors (excluding B2B if needed)
+    const finalTotal = effectiveVendorType !== 'b2b' ? enrichedVendors.length : result.total;
+    const finalTotalPages = Math.ceil(finalTotal / parseInt(limit));
+
     res.status(200).json({
       success: true,
       message: 'Vendors retrieved successfully',
       data: {
         vendors: enrichedVendors,
-        total: result.total,
+        total: finalTotal,
         page: result.page,
         limit: result.limit,
-        totalPages: result.totalPages,
+        totalPages: finalTotalPages,
       },
     });
   } catch (error) {

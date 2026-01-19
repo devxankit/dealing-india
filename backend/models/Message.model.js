@@ -40,12 +40,27 @@ const messageSchema = new mongoose.Schema(
     },
     message: {
       type: String,
-      required: true,
+      required: function() {
+        // Allow empty message if:
+        // 1. metadata exists (for images, files, products)
+        // 2. messageType is image, file, or product
+        const hasMetadata = this.metadata && Object.keys(this.metadata).length > 0;
+        const isMediaType = ['image', 'file', 'product', 'inquiry'].includes(this.messageType);
+        
+        // If it's a media type or has metadata, message is optional (not required)
+        if (hasMetadata || isMediaType) {
+          return false;
+        }
+        
+        // Otherwise, message is required
+        return true;
+      },
       trim: true,
+      default: '',
     },
     messageType: {
       type: String,
-      enum: ['text', 'inquiry', 'image', 'product'],
+      enum: ['text', 'inquiry', 'image', 'file', 'product'],
       default: 'text',
     },
     metadata: {

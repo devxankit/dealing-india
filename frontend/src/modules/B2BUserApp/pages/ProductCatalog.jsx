@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
@@ -12,10 +12,11 @@ import toast from 'react-hot-toast';
 
 const ProductCatalog = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { isAuthenticated } = useAuthStore();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
     const [showInquiryModal, setShowInquiryModal] = useState(false);
@@ -25,9 +26,99 @@ const ProductCatalog = () => {
     const [expandedCategory, setExpandedCategory] = useState(null);
     const [productInquiries, setProductInquiries] = useState({}); // Track which products have inquiries { productId: true/false }
     const categoryDropdownRefs = useRef({}); // Refs for each category dropdown
+    const [selectedState, setSelectedState] = useState('All States');
+    const [selectedCity, setSelectedCity] = useState('All Cities');
+    const [availableStates, setAvailableStates] = useState([]);
+    const [availableCities, setAvailableCities] = useState([]);
+    const [locationsLoading, setLocationsLoading] = useState(false);
+
+    // Define functions before useEffect hooks that use them
+    const fetchAvailableLocations = async () => {
+        setLocationsLoading(true);
+        try {
+            const response = await api.get('/public/b2b-locations');
+            if (response.success && response.data) {
+                setAvailableStates(response.data.states || []);
+            }
+        } catch (error) {
+            console.error('Error fetching locations:', error);
+        } finally {
+            setLocationsLoading(false);
+        }
+    };
+
+    const handleStateChange = (state) => {
+        setSelectedState(state);
+        setSelectedCity('All Cities');
+        
+        if (state === 'All States') {
+            setAvailableCities([]);
+        } else {
+            const stateData = availableStates.find(s => s.name === state);
+            setAvailableCities(stateData?.cities || []);
+        }
+    };
+
+    const fetchB2BVendors = async () => {
+        try {
+            const response = await api.get('/vendors', {
+                params: {
+                    vendorType: 'b2b',
+                    status: 'approved',
+                    limit: 10
+                }
+            });
+            if (response.success) {
+                setB2bVendors(response.data.vendors || []);
+            }
+        } catch (error) {
+            console.error('Error fetching B2B vendors:', error);
+        }
+    };
+
+    const fetchB2BProducts = async () => {
+        setLoading(true);
+        try {
+            // Build query parameters
+            const params = {
+                vendorType: 'b2b'
+            };
+            
+            // Add location filters if selected
+            if (selectedState !== 'All States') {
+                params.state = selectedState;
+            }
+            if (selectedCity !== 'All Cities') {
+                params.city = selectedCity;
+            }
+
+            // Fetch products where vendorType is b2b
+            const response = await api.get('/products', { params });
+            if (response.success && response.data) {
+                // The API returns a paginated object { products, total, page, totalPages }
+                const productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
+
+                // Use API data directly - no fallback mock data
+                setProducts(productsData);
+            }
+        } catch (error) {
+            toast.error('Failed to load products');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Read search query from URL on mount
+    useEffect(() => {
+        const urlSearch = searchParams.get('search');
+        if (urlSearch) {
+            setSearchQuery(urlSearch);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         const init = async () => {
+            await fetchAvailableLocations();
             await fetchB2BVendors();
             await fetchB2BProducts();
         };
@@ -43,6 +134,24 @@ const ProductCatalog = () => {
             }
         }
     }, [products, isAuthenticated]);
+
+    // Recheck inquiries when modal closes (in case inquiry was just sent)
+    useEffect(() => {
+        if (!showInquiryModal && isAuthenticated && products.length > 0) {
+            // Small delay to ensure backend has processed the inquiry
+            const timeoutId = setTimeout(() => {
+                checkInquiriesForProducts();
+            }, 1000);
+            return () => clearTimeout(timeoutId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showInquiryModal, isAuthenticated, products.length]);
+
+    // Refetch products when location filters change
+    useEffect(() => {
+        fetchB2BProducts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedState, selectedCity]);
 
     const fetchB2BCategories = async () => {
         try {
@@ -164,6 +273,21 @@ const ProductCatalog = () => {
                 }
             });
 
+            // CRITICAL: Check if click is on subcategory buttons - don't close card when clicking subcategories
+            // Find the expanded category card and check if click is inside it
+            const expandedCard = document.querySelector('[data-expanded-category-card]');
+            if (expandedCard && expandedCard.contains(event.target)) {
+                clickedInside = true;
+            }
+
+            // Also check if click is on any subcategory button specifically
+            const subcategoryButtons = document.querySelectorAll('[data-subcategory-button]');
+            subcategoryButtons.forEach(btn => {
+                if (btn.contains(event.target) || btn === event.target) {
+                    clickedInside = true;
+                }
+            });
+
             if (!clickedInside) {
                 setExpandedCategory(null);
             }
@@ -184,42 +308,6 @@ const ProductCatalog = () => {
         if (selectedCategory === 'All' || !expandedCategory) return [];
         const category = categories.find(cat => cat.name === selectedCategory);
         return category ? category.subcategories : [];
-    };
-
-    const fetchB2BVendors = async () => {
-        try {
-            const response = await api.get('/vendors', {
-                params: {
-                    vendorType: 'b2b',
-                    status: 'approved',
-                    limit: 10
-                }
-            });
-            if (response.success) {
-                setB2bVendors(response.data.vendors || []);
-            }
-        } catch (error) {
-            console.error('Error fetching B2B vendors:', error);
-        }
-    };
-
-    const fetchB2BProducts = async () => {
-        setLoading(true);
-        try {
-            // Fetch products where vendorType is b2b
-            const response = await api.get('/products?vendorType=b2b');
-            if (response.success && response.data) {
-                // The API returns a paginated object { products, total, page, totalPages }
-                const productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
-
-                // Use API data directly - no fallback mock data
-                setProducts(productsData);
-            }
-        } catch (error) {
-            toast.error('Failed to load products');
-        } finally {
-            setLoading(false);
-        }
     };
 
     const checkInquiriesForProducts = async () => {
@@ -269,28 +357,50 @@ const ProductCatalog = () => {
         if (selectedCategory === 'All') {
             matchesCategory = true;
         } else {
-            // Get category from various possible fields
+            // Get category from attributes array (B2B products store category/subcategory in attributes)
             const categoryAttr = product.attributes?.find(attr =>
-                attr.name?.toLowerCase() === 'category' || attr.attributeName?.toLowerCase() === 'category'
+                (attr.name?.toLowerCase() === 'category' || attr.attributeName?.toLowerCase() === 'category')
             );
             const productCategory = (categoryAttr?.value || product.categoryId?.name || product.category || '').toString().trim();
             const targetCategory = selectedCategory.toString().trim();
 
-            // Basic category match
+            // Basic category match - must be exact (case-insensitive)
             const categoryMatch = productCategory.toLowerCase() === targetCategory.toLowerCase();
 
             if (selectedSubcategory) {
-                // Get subcategory from various possible fields
+                // CRITICAL: When subcategory is selected, product MUST match BOTH category AND subcategory
+                // Get subcategory from attributes array
                 const subcategoryAttr = product.attributes?.find(attr =>
-                    attr.name?.toLowerCase() === 'subcategory' || attr.attributeName?.toLowerCase() === 'subcategory'
+                    (attr.name?.toLowerCase() === 'subcategory' || attr.attributeName?.toLowerCase() === 'subcategory')
                 );
                 const productSubcategory = (subcategoryAttr?.value || product.subcategory || product.subcategoryId?.name || '').toString().trim();
                 const targetSubcategory = selectedSubcategory.toString().trim();
 
-                // Filter by both category and subcategory strictly
-                matchesCategory = categoryMatch && (productSubcategory.toLowerCase() === targetSubcategory.toLowerCase());
+                // STRICT FILTERING: 
+                // 1. Category must match
+                // 2. Product MUST have a subcategory attribute
+                // 3. Product's subcategory MUST exactly match the selected subcategory
+                // If product doesn't have subcategory, it should NOT show when a specific subcategory is selected
+                const hasSubcategory = productSubcategory && productSubcategory.length > 0;
+                const subcategoryMatch = hasSubcategory && (productSubcategory.toLowerCase() === targetSubcategory.toLowerCase());
+                
+                // Only show product if category matches AND subcategory matches exactly
+                matchesCategory = categoryMatch && subcategoryMatch;
+
+                // Debug log for mismatches (only in development)
+                if (process.env.NODE_ENV === 'development' && categoryMatch && !subcategoryMatch) {
+                    console.log('Product filtered out - category matches but subcategory does not:', {
+                        productName: product.name,
+                        productCategory,
+                        productSubcategory: productSubcategory || '(no subcategory)',
+                        targetCategory,
+                        targetSubcategory,
+                        hasSubcategory
+                    });
+                }
             } else {
-                // Filter by category only (Show all in category)
+                // Filter by category only (Show all products in category, regardless of subcategory)
+                // This includes products with or without subcategory
                 matchesCategory = categoryMatch;
             }
         }
@@ -328,9 +438,29 @@ const ProductCatalog = () => {
         }
     };
 
+    const handleHeaderSearchChange = (value) => {
+        setSearchQuery(value);
+    };
+
+    const handleHeaderSearchSubmit = (query) => {
+        setSearchQuery(query);
+        // Update URL without navigation
+        const newParams = new URLSearchParams(searchParams);
+        if (query) {
+            newParams.set('search', query);
+        } else {
+            newParams.delete('search');
+        }
+        setSearchParams(newParams, { replace: true });
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            <B2BHeader />
+            <B2BHeader 
+                searchQuery={searchQuery}
+                onSearchChange={handleHeaderSearchChange}
+                onSearchSubmit={handleHeaderSearchSubmit}
+            />
 
             {/* B2B Banner Carousel */}
             <B2BBanner />
@@ -338,6 +468,33 @@ const ProductCatalog = () => {
             <main className="max-w-7xl mx-auto px-4 py-6">
                 {/* Search & Filter Bar */}
                 <div className="space-y-6 mb-10">
+                    {/* Location Filters */}
+                    <div className="flex gap-3 flex-wrap">
+                        <select
+                            value={selectedState}
+                            onChange={(e) => handleStateChange(e.target.value)}
+                            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none"
+                            disabled={locationsLoading}
+                        >
+                            <option value="All States">All States</option>
+                            {availableStates.map(state => (
+                                <option key={state.name} value={state.name}>{state.name}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            value={selectedCity}
+                            onChange={(e) => setSelectedCity(e.target.value)}
+                            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={selectedState === 'All States' || availableCities.length === 0 || locationsLoading}
+                        >
+                            <option value="All Cities">All Cities</option>
+                            {availableCities.map(city => (
+                                <option key={city} value={city}>{city}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* Search & Category Header */}
                     <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
                         <div className="relative flex-1 group w-full">
@@ -398,6 +555,7 @@ const ProductCatalog = () => {
                                 exit={{ height: 0, opacity: 0, scale: 0.98 }}
                                 transition={{ duration: 0.4, ease: [0.04, 0.62, 0.23, 0.98] }}
                                 className="overflow-hidden"
+                                data-expanded-category-card
                             >
                                 <div className="bg-gradient-to-br from-white to-primary-50/30 rounded-[2.5rem] p-6 lg:p-8 border border-primary-100/50 shadow-2xl shadow-primary-100/10 mb-2 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-100/20 blur-3xl rounded-full -mr-16 -mt-16"></div>
@@ -425,7 +583,11 @@ const ProductCatalog = () => {
 
                                     <div className="flex flex-wrap gap-3 relative z-10">
                                         <button
-                                            onClick={() => handleSubcategoryClick(null, expandedCategory)}
+                                            data-subcategory-button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleSubcategoryClick(null, expandedCategory);
+                                            }}
                                             className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all ${!selectedSubcategory && selectedCategory === expandedCategory
                                                 ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                                                 : 'bg-white text-gray-600 border border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md'
@@ -437,7 +599,11 @@ const ProductCatalog = () => {
                                         {categories.find(c => c.name === expandedCategory)?.subcategories.map((sub, idx) => (
                                             <button
                                                 key={idx}
-                                                onClick={() => handleSubcategoryClick(sub, expandedCategory)}
+                                                data-subcategory-button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleSubcategoryClick(sub, expandedCategory);
+                                                }}
                                                 className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all ${selectedSubcategory === sub && selectedCategory === expandedCategory
                                                     ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                                                     : 'bg-white text-gray-600 border border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md'
@@ -595,8 +761,15 @@ const ProductCatalog = () => {
 
                                 <form className="space-y-6" onSubmit={async (e) => {
                                     e.preventDefault();
-                                    const quantity = e.target.elements[0].value;
-                                    const message = e.target.elements[1].value;
+                                    // Use FormData or named inputs to properly extract form values
+                                    const formData = new FormData(e.target);
+                                    const quantity = formData.get('quantity') || e.target.quantity?.value || '';
+                                    const message = formData.get('message') || e.target.message?.value || '';
+
+                                    if (!quantity || !message.trim()) {
+                                        toast.error('Please fill in all required fields');
+                                        return;
+                                    }
 
                                     try {
                                         const vendorId = selectedProduct.vendorId?._id || selectedProduct.vendorId;
@@ -617,12 +790,12 @@ const ProductCatalog = () => {
                                             productImage: selectedProduct.images?.[0] || selectedProduct.image || null,
                                             productPrice: selectedProduct.price ? Number(selectedProduct.price) : null,
                                             quantity: Number(quantity) || 0,
-                                            clientMessage: message || ''
+                                            clientMessage: message.trim() || '' // Ensure message is properly included
                                         };
 
                                         const inquiryMessage = `📦 *INQUIRY FOR: ${selectedProduct.name}*\n` +
                                             `🔢 *Quantity:* ${quantity} units\n` +
-                                            `💬 *Message:* ${message}`;
+                                            `💬 *Message:* ${message.trim()}`;
 
                                         await chatService.sendMessage(conversationId, vendorId, inquiryMessage, 'inquiry', metadata);
 
@@ -635,6 +808,19 @@ const ProductCatalog = () => {
                                             }));
                                         }
 
+                                        // Recheck inquiry status to ensure persistence
+                                        try {
+                                            const checkResponse = await api.get(`/user/chat/inquiries/check/${productId}`);
+                                            if (checkResponse.success && checkResponse.data?.hasInquiry) {
+                                                setProductInquiries(prev => ({
+                                                    ...prev,
+                                                    [productId]: true
+                                                }));
+                                            }
+                                        } catch (checkError) {
+                                            console.error('Error rechecking inquiry status:', checkError);
+                                        }
+
                                         toast.success('Inquiry sent successfully!');
                                         setShowInquiryModal(false);
 
@@ -642,21 +828,24 @@ const ProductCatalog = () => {
                                         // navigate(`/b2b/inquiries?vendorId=${vendorId}`);
                                     } catch (err) {
                                         console.error('Inquiry failed:', err);
-                                        toast.error('Failed to send inquiry via chat');
+                                        toast.error(err.response?.data?.message || err.message || 'Failed to send inquiry via chat');
                                     }
                                 }}>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Quantity Needed</label>
                                         <input
                                             type="number"
+                                            name="quantity"
                                             placeholder="Min. 100 units"
                                             className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
                                             required
+                                            min="1"
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Message to Vendor</label>
                                         <textarea
+                                            name="message"
                                             rows="4"
                                             placeholder="Write your requirements here..."
                                             className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium resize-none"

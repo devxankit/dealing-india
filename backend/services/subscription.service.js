@@ -31,16 +31,16 @@ class SubscriptionService {
   async getVendorSubscription(vendorId) {
     try {
       // Convert vendorId to ObjectId if it's a string
-      const vendorObjectId = typeof vendorId === 'string' 
-        ? new mongoose.Types.ObjectId(vendorId) 
+      const vendorObjectId = typeof vendorId === 'string'
+        ? new mongoose.Types.ObjectId(vendorId)
         : vendorId;
 
       // First, try to get the vendor's current subscription reference
       const Vendor = (await import('../models/Vendor.model.js')).default;
       const vendor = await Vendor.findById(vendorObjectId).select('currentSubscription').lean();
-      
+
       let subscription = null;
-      
+
       // Priority 1: If vendor has a currentSubscription reference, ALWAYS use that
       // This ensures admin manual overrides are reflected immediately
       if (vendor?.currentSubscription) {
@@ -54,7 +54,7 @@ class SubscriptionService {
             select: 'name duration price features isActive'
           })
           .lean();
-        
+
         // If subscription found via reference, return it immediately (regardless of status)
         // This ensures vendor sees admin's manual override changes
         if (subscription) {
@@ -68,13 +68,13 @@ class SubscriptionService {
           }
         }
       }
-      
+
       // Priority 2: Try to find active subscription
       // Note: If Priority 1 found a subscription (even if invalid), skip Priority 2
       if (!subscription || (!subscription.planId && !subscription.tierId)) {
-        subscription = await VendorSubscription.findOne({ 
-          vendorId: vendorObjectId, 
-          status: 'active' 
+        subscription = await VendorSubscription.findOne({
+          vendorId: vendorObjectId,
+          status: 'active'
         })
           .populate({
             path: 'tierId',
@@ -87,11 +87,11 @@ class SubscriptionService {
           .sort({ createdAt: -1 }) // Get most recent
           .lean();
       }
-      
+
       // Priority 3: If still no subscription, get the most recent subscription regardless of status
       // This ensures vendor sees their subscription even if admin changed status
       if (!subscription) {
-        subscription = await VendorSubscription.findOne({ 
+        subscription = await VendorSubscription.findOne({
           vendorId: vendorObjectId
         })
           .populate({
@@ -105,7 +105,7 @@ class SubscriptionService {
           .sort({ createdAt: -1 }) // Get most recent
           .lean();
       }
-      
+
       // If no subscription found at all, return null (not an error)
       if (!subscription) {
         return null;
@@ -186,11 +186,11 @@ class SubscriptionService {
       // For paid tiers, ONLY create Razorpay order (DO NOT create subscription yet)
       // Subscription will be created only when payment is verified
       const subscriptionCode = `SUB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      
+
       // Create Razorpay order with metadata (vendorId, tierId) for later reference
       let razorpayOrder = null;
       let razorpayKeyId = null;
-      
+
       try {
         razorpayOrder = await razorpayService.createOrder(
           tier.priceMonthly,
@@ -378,13 +378,13 @@ class SubscriptionService {
         // Get all admins and send notification
         const Admin = (await import('../models/Admin.model.js')).default;
         const admins = await Admin.find({ isActive: true }).select('_id');
-        
+
         if (admins.length > 0) {
           const notifications = admins.map(admin => ({
             ...adminNotification,
             recipientId: admin._id
           }));
-          
+
           await NotificationService.createBulkNotifications(notifications, io);
         }
       } catch (notifError) {
@@ -393,7 +393,7 @@ class SubscriptionService {
       }
 
       await session.commitTransaction();
-      
+
       // Populate the subscription before returning
       const populatedSubscription = await VendorSubscription.findById(subscription[0]._id)
         .populate('tierId')
@@ -401,7 +401,7 @@ class SubscriptionService {
           path: 'vendorId',
           select: 'businessName storeName email phone'
         });
-      
+
       return populatedSubscription;
     } catch (error) {
       await session.abortTransaction();
@@ -495,17 +495,17 @@ class SubscriptionService {
   async initializeExtraReelPayment(vendorId) {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
       const paymentCheck = await this.checkReelUploadPayment(vendorId);
-      
+
       if (!paymentCheck.requiresPayment) {
         throw new Error('Payment not required for this reel upload');
       }
 
       const subscription = await VendorSubscription.findOne({ vendorId, status: 'active' }).session(session)
         .populate('tierId');
-      
+
       if (!subscription) {
         throw new Error('No active subscription found');
       }
@@ -532,7 +532,7 @@ class SubscriptionService {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID || null;
 
       await session.commitTransaction();
-      
+
       return {
         requiresPayment: true,
         extraCharge: paymentCheck.extraCharge,
@@ -554,7 +554,7 @@ class SubscriptionService {
   async verifyExtraReelPayment(vendorId, paymentData) {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
       const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = paymentData;
 
@@ -571,7 +571,7 @@ class SubscriptionService {
 
       const subscription = await VendorSubscription.findOne({ vendorId, status: 'active' }).session(session)
         .populate('tierId');
-      
+
       if (!subscription) {
         throw new Error('No active subscription found');
       }
@@ -585,8 +585,8 @@ class SubscriptionService {
         action: 'extra_reel_payment',
         timestamp: new Date(),
         details: {
-        amount: extraCharge,
-        status: 'completed',
+          amount: extraCharge,
+          status: 'completed',
           razorpayOrderId,
           razorpayPaymentId,
           razorpaySignature,
@@ -603,7 +603,7 @@ class SubscriptionService {
       await subscription.save({ session });
 
       await session.commitTransaction();
-      
+
       return {
         success: true,
         paymentVerified: true,
@@ -626,22 +626,22 @@ class SubscriptionService {
     }
 
     const { tierId: tier } = subscription;
-    
+
     // Check if payment is required
     const paymentCheck = await this.checkReelUploadPayment(vendorId);
-    
+
     // If payment is required but not verified, throw error
     if (paymentCheck.requiresPayment && !paymentVerified) {
       throw new Error('Payment required for this reel upload. Please complete payment first.');
     }
-    
+
     // Track the upload
     subscription.usage.reelsUploaded += 1;
     await subscription.save();
-    
-    return { 
-      totalUploaded: subscription.usage.reelsUploaded, 
-      limit: tier.reelLimit 
+
+    return {
+      totalUploaded: subscription.usage.reelsUploaded,
+      limit: tier.reelLimit
     };
   }
 
@@ -708,8 +708,8 @@ class SubscriptionService {
           action: 'upgrade_payment',
           timestamp: new Date(),
           details: {
-          amount: chargeAmount,
-          status: 'completed',
+            amount: chargeAmount,
+            status: 'completed',
             type: 'upgrade_proration',
             tierName: newTier.name,
             previousTierName: currentSub.tierId?.name || 'Unknown',
@@ -897,7 +897,7 @@ class SubscriptionService {
       const enrichedSubscriptionPayments = recentSubscriptionPayments.map(payment => ({
         id: payment._id,
         vendor: payment.vendorName || 'Unknown Vendor',
-          amount: payment.amount,
+        amount: payment.amount,
         tier: payment.tierName,
         date: payment.date,
         status: payment.status,
@@ -986,7 +986,7 @@ class SubscriptionService {
 
       // Combine and merge revenue data by date
       const revenueMap = new Map();
-      
+
       subscriptionRevenueData.forEach(item => {
         revenueMap.set(item.date, {
           date: item.date,
@@ -1009,7 +1009,7 @@ class SubscriptionService {
         }
       });
 
-      const revenueData = Array.from(revenueMap.values()).sort((a, b) => 
+      const revenueData = Array.from(revenueMap.values()).sort((a, b) =>
         new Date(a.date) - new Date(b.date)
       );
 
@@ -1067,16 +1067,16 @@ class SubscriptionService {
         { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
       ]);
 
-      const currentRevenue = (currentPeriodSubscriptionRevenue[0]?.total || 0) + 
-                            (currentPeriodExtraReelRevenue[0]?.total || 0);
-      const previousRevenue = (previousPeriodSubscriptionRevenue[0]?.total || 0) + 
-                              (previousPeriodExtraReelRevenue[0]?.total || 0);
-      const monthlyGrowth = previousRevenue > 0 
+      const currentRevenue = (currentPeriodSubscriptionRevenue[0]?.total || 0) +
+        (currentPeriodExtraReelRevenue[0]?.total || 0);
+      const previousRevenue = (previousPeriodSubscriptionRevenue[0]?.total || 0) +
+        (previousPeriodExtraReelRevenue[0]?.total || 0);
+      const monthlyGrowth = previousRevenue > 0
         ? ((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1)
         : '0.0';
 
       // Calculate revenue change percentage
-      const revenueChange = previousRevenue > 0 
+      const revenueChange = previousRevenue > 0
         ? parseFloat(((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1))
         : 0;
 
@@ -1106,7 +1106,7 @@ class SubscriptionService {
         { $group: { _id: null, count: { $sum: 1 } } }
       ]);
       const previousOrders = previousPeriodOrders[0]?.count || 0;
-      const ordersChange = previousOrders > 0 
+      const ordersChange = previousOrders > 0
         ? parseFloat(((currentOrders - previousOrders) / previousOrders * 100).toFixed(1))
         : 0;
 
@@ -1122,7 +1122,7 @@ class SubscriptionService {
         { $group: { _id: null, count: { $sum: 1 } } }
       ]);
       const previousCustomers = previousPeriodCustomers[0]?.count || 0;
-      const customersChange = previousCustomers > 0 
+      const customersChange = previousCustomers > 0
         ? parseFloat(((totalCustomers - previousCustomers) / previousCustomers * 100).toFixed(1))
         : 0;
 
@@ -1159,11 +1159,11 @@ class SubscriptionService {
   async getAllVendorSubscriptions(filters = {}) {
     try {
       const { status, tierId, expiringSoon } = filters;
-      
+
       const query = {};
       if (status) query.status = status;
       if (tierId) query.tierId = tierId;
-      
+
       // Filter for subscriptions expiring in next 7 days
       if (expiringSoon) {
         const sevenDaysFromNow = new Date();
@@ -1210,10 +1210,10 @@ class SubscriptionService {
     if (!subscriptionId || typeof subscriptionId !== 'string') {
       throw new Error('Subscription ID is required and must be a string');
     }
-    
+
     // Trim whitespace
     const trimmedId = subscriptionId.trim();
-    
+
     if (!mongoose.Types.ObjectId.isValid(trimmedId)) {
       throw new Error(`Invalid subscription ID format. Expected a 24-character hexadecimal string, got: ${trimmedId.substring(0, 20)}...`);
     }
@@ -1225,7 +1225,7 @@ class SubscriptionService {
 
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
       const subscription = await VendorSubscription.findById(subscriptionId).session(session)
         .populate('tierId')
@@ -1262,7 +1262,7 @@ class SubscriptionService {
           }
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
-          
+
           // Update vendor's currentSubscription reference to ensure it's up to date
           const vendorIdForExtend = subscription.vendorId?._id || subscription.vendorId;
           if (vendorIdForExtend && mongoose.Types.ObjectId.isValid(vendorIdForExtend)) {
@@ -1287,7 +1287,7 @@ class SubscriptionService {
           }
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
-          
+
           // Update vendor's currentSubscription reference
           const vendorIdForCustom = subscription.vendorId?._id || subscription.vendorId;
           if (vendorIdForCustom && mongoose.Types.ObjectId.isValid(vendorIdForCustom)) {
@@ -1302,10 +1302,10 @@ class SubscriptionService {
           if (!PremiumTier) {
             throw new Error('Premium tier not found');
           }
-          
+
           // Get previous tier name safely
           const previousTierName = subscription.tierId?.name || subscription.tierId?.toString() || 'Unknown';
-          
+
           // Deactivate current subscription
           subscription.status = 'expired';
           subscription.cancellationDate = new Date();
@@ -1320,7 +1320,7 @@ class SubscriptionService {
           // Create new premium subscription
           const trialEndDate = new Date();
           trialEndDate.setDate(trialEndDate.getDate() + 30); // 30-day trial
-          
+
           const newTrialSub = await VendorSubscription.create([{
             vendorId: subscription.vendorId,
             tierId: PremiumTier._id,
@@ -1356,7 +1356,7 @@ class SubscriptionService {
           subscription.autoRenew = false;
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
-          
+
           // Update vendor's currentSubscription reference to ensure vendor sees the cancellation
           const vendorIdForCancel = subscription.vendorId?._id || subscription.vendorId;
           if (vendorIdForCancel && mongoose.Types.ObjectId.isValid(vendorIdForCancel)) {
@@ -1378,7 +1378,7 @@ class SubscriptionService {
             }
             subscription.auditLogs.push(auditLog);
             updatedSubscription = await subscription.save({ session });
-            
+
             // Update vendor's currentSubscription reference
             const vendorIdForReactivate = subscription.vendorId?._id || subscription.vendorId;
             if (vendorIdForReactivate && mongoose.Types.ObjectId.isValid(vendorIdForReactivate)) {
@@ -1403,15 +1403,15 @@ class SubscriptionService {
           currentSubscription: updatedSubscription._id
         }, { session });
       }
-      
+
       await session.commitTransaction();
-      
+
       // Populate the returned subscription for better response
       const populatedSubscription = await VendorSubscription.findById(updatedSubscription._id)
         .populate('tierId', 'name priceMonthly reelLimit')
         .populate('vendorId', 'businessName storeName email')
         .lean();
-      
+
       return populatedSubscription || updatedSubscription;
     } catch (error) {
       await session.abortTransaction();
@@ -1452,8 +1452,8 @@ class SubscriptionService {
   async getVendorBillingHistory(vendorId, filter = 'all') {
     try {
       // Convert vendorId to ObjectId if it's a string
-      const vendorObjectId = typeof vendorId === 'string' 
-        ? new mongoose.Types.ObjectId(vendorId) 
+      const vendorObjectId = typeof vendorId === 'string'
+        ? new mongoose.Types.ObjectId(vendorId)
         : vendorId;
 
       // Get all subscriptions for the vendor (including expired ones)
@@ -1462,12 +1462,12 @@ class SubscriptionService {
         .populate('tierId', 'name')
         .sort({ createdAt: -1 })
         .lean();
-      
+
       // Process subscriptions and ensure auditLogs are properly formatted
       const subscriptionsData = subscriptions.map(sub => {
         // Ensure auditLogs is an array (lean() preserves arrays)
         const auditLogs = Array.isArray(sub.auditLogs) ? sub.auditLogs : [];
-        
+
         return {
           ...sub,
           auditLogs: auditLogs.map(log => {
@@ -1485,7 +1485,7 @@ class SubscriptionService {
       });
 
       const billingHistory = [];
-      
+
       // Debug logging (only in development)
       if (process.env.NODE_ENV === 'development') {
         console.log(`[Billing History] Found ${subscriptionsData.length} subscriptions for vendor ${vendorId}`);
@@ -1497,7 +1497,7 @@ class SubscriptionService {
         // Check for lastPaymentDate OR if subscription was created (for free tiers)
         if (sub.lastPaymentDate || (sub.status === 'active' && sub.tierId)) {
           const amount = sub.tierId?.priceMonthly || 0;
-          
+
           // For free tier, still show it in history but with 0 amount
           // For paid tiers, only show if payment was made
           if (amount === 0 || (amount > 0 && sub.razorpayPaymentId)) {
@@ -1506,9 +1506,9 @@ class SubscriptionService {
               transactionCode: sub.razorpayOrderId || `SUB-${sub._id}`,
               amount,
               type: 'subscription_payment',
-              status: sub.status === 'active' ? 'completed' : 
-                      sub.status === 'expired' ? 'completed' :
-                      sub.status === 'pending' ? 'pending' : 'failed',
+              status: sub.status === 'active' ? 'completed' :
+                sub.status === 'expired' ? 'completed' :
+                  sub.status === 'pending' ? 'pending' : 'failed',
               method: sub.paymentMethod || (amount === 0 ? 'free' : 'razorpay'),
               tierName: sub.tierId?.name || 'Unknown',
               date: sub.lastPaymentDate || sub.startDate || sub.createdAt,
@@ -1520,12 +1520,12 @@ class SubscriptionService {
         // Add entries from audit logs (renewals and extra reel payments)
         // Ensure auditLogs is an array and iterate through it
         const auditLogs = Array.isArray(sub.auditLogs) ? sub.auditLogs : [];
-        
+
         if (auditLogs.length > 0) {
           for (const log of auditLogs) {
             // Skip if log is null or undefined
             if (!log || !log.action) continue;
-            
+
             // Debug logging for extra reel payments
             if (log.action === 'extra_reel_payment') {
               console.log(`[Billing History] Processing extra_reel_payment log:`, {
@@ -1536,13 +1536,13 @@ class SubscriptionService {
                 timestamp: log.timestamp
               });
             }
-            
+
             // Renewal entries
             if (log.action === 'renewal' && log.details && typeof log.details === 'object' && log.details.amount) {
-              const renewalDate = log.timestamp instanceof Date 
-                ? log.timestamp 
+              const renewalDate = log.timestamp instanceof Date
+                ? log.timestamp
                 : new Date(log.timestamp);
-              
+
               billingHistory.push({
                 id: `${sub._id}-renewal-${renewalDate.getTime()}`,
                 transactionCode: `RENEW-${sub._id}-${renewalDate.getTime()}`,
@@ -1555,15 +1555,15 @@ class SubscriptionService {
                 invoiceUrl: null
               });
             }
-            
+
             // Subscription payment entries (initial payment)
             if (log.action === 'subscription_payment' && log.details && typeof log.details === 'object' && log.details.amount) {
-              const paymentDate = log.timestamp instanceof Date 
-                ? log.timestamp 
+              const paymentDate = log.timestamp instanceof Date
+                ? log.timestamp
                 : (log.details.paymentDate instanceof Date
                   ? log.details.paymentDate
                   : new Date(log.timestamp));
-              
+
               billingHistory.push({
                 id: `${sub._id}-payment-${paymentDate.getTime()}`,
                 transactionCode: log.details.razorpayOrderId || `SUB-${sub._id}-${paymentDate.getTime()}`,
@@ -1576,15 +1576,15 @@ class SubscriptionService {
                 invoiceUrl: null
               });
             }
-            
+
             // Upgrade payment entries
             if (log.action === 'upgrade_payment' && log.details && typeof log.details === 'object' && log.details.amount) {
-              const upgradeDate = log.timestamp instanceof Date 
-                ? log.timestamp 
+              const upgradeDate = log.timestamp instanceof Date
+                ? log.timestamp
                 : (log.details.paymentDate instanceof Date
                   ? log.details.paymentDate
                   : new Date(log.timestamp));
-              
+
               billingHistory.push({
                 id: `${sub._id}-upgrade-${upgradeDate.getTime()}`,
                 transactionCode: `UPGRADE-${sub._id}-${upgradeDate.getTime()}`,
@@ -1597,12 +1597,12 @@ class SubscriptionService {
                 invoiceUrl: null
               });
             }
-            
+
             // Extra reel payment entries - check for details object and amount
             if (log.action === 'extra_reel_payment') {
               // Check if details exists - handle both object and stringified JSON
               let details = log.details;
-              
+
               // If details is a string, try to parse it
               if (typeof details === 'string') {
                 try {
@@ -1612,13 +1612,13 @@ class SubscriptionService {
                   details = null;
                 }
               }
-              
+
               const hasDetails = details && typeof details === 'object';
               // Get amount - check multiple possible locations
-              const amount = hasDetails 
+              const amount = hasDetails
                 ? (details.amount !== undefined && details.amount !== null ? details.amount : null)
                 : null;
-              
+
               // Debug logging (only in development)
               if (process.env.NODE_ENV === 'development') {
                 console.log(`[Billing History] Processing extra_reel_payment:`, {
@@ -1628,15 +1628,15 @@ class SubscriptionService {
                   amountType: typeof amount
                 });
               }
-              
+
               if (hasDetails && amount !== null && amount !== undefined && !isNaN(amount)) {
                 // Ensure timestamp is a Date object
-                const paymentDate = log.timestamp instanceof Date 
-                  ? log.timestamp 
+                const paymentDate = log.timestamp instanceof Date
+                  ? log.timestamp
                   : (details.paymentDate instanceof Date
                     ? details.paymentDate
                     : new Date(log.timestamp));
-                
+
                 // Debug logging (only in development)
                 if (process.env.NODE_ENV === 'development') {
                   console.log(`[Billing History] ✓ Adding extra reel payment to billing history:`, {
@@ -1645,7 +1645,7 @@ class SubscriptionService {
                     status: details.status
                   });
                 }
-                
+
                 billingHistory.push({
                   id: `${sub._id}-extra-reel-${paymentDate.getTime()}`,
                   transactionCode: details.razorpayOrderId || `REEL-${sub._id}-${paymentDate.getTime()}`,
@@ -1667,7 +1667,7 @@ class SubscriptionService {
             }
           }
         }
-        
+
         // Extra reel payments are tracked via audit logs, so no need for additional checks here
       }
 

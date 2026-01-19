@@ -53,9 +53,13 @@ const B2BVendorSubscription = () => {
                 }
                 
                 // If no current subscription, set default selection
+                // Don't auto-select if there's an active subscription
                 if (!currentSubscription && filteredPlans.length > 0) {
                     const defaultPlan = filteredPlans.find(p => p.duration === 6) || filteredPlans[0];
                     setSelectedPlan(defaultPlan._id || defaultPlan.id);
+                } else if (currentSubscription) {
+                    // Clear any selected plan if subscription is active
+                    setSelectedPlan(null);
                 }
             } catch (error) {
                 console.error('Error loading plans:', error);
@@ -94,6 +98,12 @@ const B2BVendorSubscription = () => {
     const handleSubscribe = () => {
         if (!selectedPlan) {
             toast.error('Please select a plan');
+            return;
+        }
+
+        // Prevent subscription if there's an active plan
+        if (currentSubscription) {
+            toast.error('You already have an active subscription. Please wait for it to expire before subscribing to a new plan.');
             return;
         }
 
@@ -152,26 +162,38 @@ const B2BVendorSubscription = () => {
 
             {/* Available Plans */}
             <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">
-                    {currentSubscription ? 'Upgrade or Renew Your Plan' : 'Select a Subscription Plan'}
+                <h2 className="text-xl font-bold text-gray-800 mb-2">
+                    {currentSubscription ? 'Available Plans' : 'Select a Subscription Plan'}
                 </h2>
+                {currentSubscription && (
+                    <p className="text-sm text-gray-500">
+                        Other plans will be available after your current plan expires on {new Date(currentSubscription.endDate).toLocaleDateString()}
+                    </p>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {availablePlans.map((plan, index) => {
                     const planId = plan._id || plan.id;
                     const isCurrentPlan = currentSubscription?.planId === planId;
+                    const hasActiveSubscription = !!currentSubscription;
+                    const isButtonDisabled = hasActiveSubscription && !isCurrentPlan;
                     return (
                         <motion.div
                             key={planId}
-                            whileHover={{ y: -10 }}
-                            className={`relative bg-white rounded-3xl p-8 shadow-sm border-2 flex flex-col ${selectedPlan === planId
-                                    ? 'border-primary-500 ring-4 ring-primary-50'
+                            whileHover={!isButtonDisabled ? { y: -10 } : {}}
+                            className={`relative bg-white rounded-3xl p-8 shadow-sm border-2 flex flex-col transition-all ${
+                                selectedPlan === planId
+                                    ? 'border-primary-500 ring-4 ring-primary-50 cursor-pointer'
                                     : isCurrentPlan
                                     ? 'border-green-500 ring-4 ring-green-50'
-                                    : 'border-gray-100'
+                                    : 'border-gray-100 cursor-pointer hover:border-gray-300'
                                 }`}
-                            onClick={() => !isCurrentPlan && setSelectedPlan(planId)}
+                            onClick={() => {
+                                if (!isCurrentPlan && !isButtonDisabled) {
+                                    setSelectedPlan(planId);
+                                }
+                            }}
                         >
                             {plan.duration === 6 && !isCurrentPlan && (
                                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary-600 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg">
@@ -186,7 +208,12 @@ const B2BVendorSubscription = () => {
                             )}
 
                             <div className="mb-8">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${selectedPlan === planId ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : isCurrentPlan ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'bg-slate-100 text-gray-400'
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${
+                                    selectedPlan === planId 
+                                        ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' 
+                                        : isCurrentPlan 
+                                        ? 'bg-green-600 text-white shadow-lg shadow-green-200' 
+                                        : 'bg-slate-100 text-gray-400'
                                     }`}>
                                     <FiStar className="text-2xl" />
                                 </div>
@@ -200,7 +227,11 @@ const B2BVendorSubscription = () => {
                             <ul className="space-y-4 mb-10 flex-grow">
                                 {plan.features && plan.features.map((feature, idx) => (
                                     <li key={idx} className="flex items-start gap-3 text-gray-600">
-                                        <div className={`mt-1 p-0.5 rounded-full ${selectedPlan === planId || isCurrentPlan ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'}`}>
+                                        <div className={`mt-1 p-0.5 rounded-full ${
+                                            selectedPlan === planId || isCurrentPlan 
+                                                ? 'bg-primary-100 text-primary-600' 
+                                                : 'bg-gray-100 text-gray-400'
+                                        }`}>
                                             <FiCheck className="text-xs" />
                                         </div>
                                         <span className="text-sm font-medium">{feature}</span>
@@ -215,16 +246,37 @@ const B2BVendorSubscription = () => {
                                 >
                                     Current Plan
                                 </button>
+                            ) : isButtonDisabled ? (
+                                <div className="space-y-2">
+                                    <button
+                                        disabled
+                                        className="w-full py-4 rounded-2xl font-bold shadow-lg bg-gray-200 text-gray-400 cursor-not-allowed"
+                                    >
+                                        Not Available
+                                    </button>
+                                    <p className="text-xs text-center text-gray-500">
+                                        Available after current plan expires
+                                    </p>
+                                </div>
                             ) : (
                                 <button
-                                    onClick={handleSubscribe}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSubscribe();
+                                    }}
                                     disabled={isLoading}
-                                    className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all ${selectedPlan === planId
+                                    className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all ${
+                                        selectedPlan === planId
                                             ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-200'
                                             : 'bg-slate-100 text-gray-600 hover:bg-slate-200 shadow-slate-100'
                                         }`}
                                 >
-                                    {isLoading ? 'Processing...' : selectedPlan === planId ? 'Subscribe Now' : 'Choose Plan'}
+                                    {isLoading 
+                                        ? 'Processing...' 
+                                        : selectedPlan === planId 
+                                        ? 'Subscribe Now' 
+                                        : 'Choose Plan'
+                                    }
                                 </button>
                             )}
                         </motion.div>

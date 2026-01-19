@@ -411,6 +411,44 @@ class ChatService {
       console.log('Saving conversation update with unread key:', unreadKey);
       await conversation.save();
 
+      // Create notification for receiver if it's an inquiry related message
+      try {
+        if (messageType === 'inquiry' || (metadata && metadata.productId)) {
+          // Determine actionUrl based on receiver role and type
+          let actionUrl;
+          if (receiverRole === 'user') {
+            actionUrl = `/b2b/chat/${conversationId}`;
+          } else if (receiverRole === 'vendor') {
+            // Check if vendor is B2B vendor
+            const Vendor = (await import('../models/Vendor.model.js')).default;
+            const receiverVendor = await Vendor.findById(receiverId).select('vendorType').lean();
+            if (receiverVendor && receiverVendor.vendorType === 'b2b') {
+              actionUrl = `/b2b-vendor/messages`;
+            } else {
+              actionUrl = `/vendor/chat/${conversationId}`;
+            }
+          } else {
+            actionUrl = `/vendor/chat/${conversationId}`;
+          }
+
+          await notificationService.createNotification({
+            recipientId: receiverId,
+            recipientType: receiverRole,
+            type: 'inquiry',
+            title: senderRole === 'user' ? 'New Inquiry Received' : 'Inquiry Response Received',
+            message: message || (messageType === 'inquiry' ? 'You received a new inquiry' : 'You received a new inquiry update'),
+            actionUrl,
+            metadata: {
+              conversationId,
+              messageId: newMessage._id,
+              ...metadata
+            }
+          }, io);
+        }
+      } catch (notifError) {
+        console.error('Failed to create notification for message:', notifError);
+      }
+
       const populatedMessage = await Message.findById(newMessage._id)
         .populate('senderId', 'name email storeName')
         .populate('receiverId', 'name email storeName')

@@ -41,11 +41,23 @@ const MobileProfile = () => {
   const handleSwitchMarketplace = async () => {
     setIsSwitching(true);
     try {
-      const targetMarketplace = user?.currentMarketplace === 'b2c' ? 'b2b' : 'b2c';
+      // Default to 'b2c' if currentMarketplace is undefined (user is on B2C profile page)
+      const currentMarketplace = user?.currentMarketplace || 'b2c';
+      const targetMarketplace = currentMarketplace === 'b2c' ? 'b2b' : 'b2c';
+      
+      // Only switch if we're actually changing marketplaces
+      if (currentMarketplace === targetMarketplace) {
+        toast.error('Already on this marketplace');
+        setIsSwitching(false);
+        return;
+      }
+      
       const result = await switchMarketplace(targetMarketplace);
       if (result.success) {
         toast.success(`Switched to ${targetMarketplace === 'b2b' ? 'Bulk' : 'Retail'} Marketplace`);
-        navigate(targetMarketplace === 'b2b' ? '/b2b/catalog' : '/app');
+        // Use the updated user from result to ensure we navigate correctly
+        const updatedMarketplace = result.user?.currentMarketplace || targetMarketplace;
+        navigate(updatedMarketplace === 'b2b' ? '/b2b/catalog' : '/app');
       }
     } catch (error) {
       toast.error('Failed to switch marketplace');

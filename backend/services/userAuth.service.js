@@ -404,7 +404,7 @@ export const getUserById = async (userId) => {
  */
 export const updateUserProfile = async (userId, updateData) => {
   try {
-    const { name, phone, avatar } = updateData;
+    const { name, phone, avatar, businessInfo } = updateData;
     const updateFields = {};
 
     if (name) {
@@ -430,6 +430,10 @@ export const updateUserProfile = async (userId, updateData) => {
 
     if (avatar !== undefined) {
       updateFields.avatar = avatar;
+    }
+
+    if (businessInfo !== undefined) {
+      updateFields.businessInfo = businessInfo;
     }
 
     const user = await User.findByIdAndUpdate(

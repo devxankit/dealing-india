@@ -38,6 +38,12 @@ const Chat = ({ vendorId: propVendorId, embedded = false, onClose, initialProduc
             return;
         }
 
+        // Check if conversation exists
+        if (!conversation) {
+            toast.error('Please wait for conversation to load');
+            return;
+        }
+
         try {
             setUploadingFile(true);
 
@@ -51,11 +57,22 @@ const Chat = ({ vendorId: propVendorId, embedded = false, onClose, initialProduc
                 const messageType = fileData.resourceType === 'image' ? 'image' : 'file';
 
                 // Identify receiver
+                if (!conversation.participants || conversation.participants.length === 0) {
+                    toast.error('Conversation participants not found');
+                    return;
+                }
+
                 const otherParticipant = conversation.participants.find(p => {
                     const pId = p.userId?._id || p.userId?.id || (typeof p.userId === 'string' ? p.userId : null);
                     const currentUserId = user?._id || user?.id;
                     return pId !== currentUserId;
                 });
+
+                if (!otherParticipant) {
+                    toast.error('Could not find receiver in conversation');
+                    return;
+                }
+
                 const receiverId = otherParticipant.userId?._id || otherParticipant.userId;
 
                 const sendResponse = user.role === 'vendor'

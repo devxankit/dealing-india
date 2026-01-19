@@ -36,9 +36,7 @@
         "title": "Account Settings",
         "route": "/b2b-vendor/settings",
         "children": [
-            "Profile",
-            "Business Details",
-            "Security"
+            "Profile"
         ]
     }
 ]

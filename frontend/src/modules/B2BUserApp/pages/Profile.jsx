@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiUser, FiSettings, FiBell, FiShield, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag } from 'react-icons/fi';
+import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -15,7 +15,6 @@ const Profile = () => {
     const menuItems = [
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
         { icon: FiBell, label: 'Notifications', desc: 'Manage inquiry alerts', path: '/b2b/notifications' },
-        { icon: FiShield, label: 'Security', desc: 'Password & account safety', path: '/b2b/security' },
         { icon: FiHelpCircle, label: 'Support & FAQs', desc: 'Get help with your bulk orders', path: '/b2b/support' },
     ];
 
@@ -137,7 +136,7 @@ const Profile = () => {
                 <div className="mt-12 text-center">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-loose">
                         Dealing India B2B v1.0.4<br />
-                        © 2024 All Rights Reserved
+                        © 2026 All Rights Reserved
                     </p>
                 </div>
             </main>

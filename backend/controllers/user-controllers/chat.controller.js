@@ -109,12 +109,20 @@ class ChatController {
     async sendMessage(req, res) {
         try {
             const userId = req.user?.userId || req.user?._id;
-            const { conversationId, receiverId, message } = req.body;
+            const { conversationId, receiverId, message, messageType = 'text', metadata = null } = req.body;
 
-            if (!conversationId || !receiverId || !message) {
+            if (!conversationId || !receiverId) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Conversation ID, receiver ID, and message are required'
+                    message: 'Conversation ID and receiver ID are required'
+                });
+            }
+
+            // Allow empty message only if metadata exists (for inquiry types)
+            if (!message && !metadata) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Message or metadata is required'
                 });
             }
 
@@ -124,7 +132,9 @@ class ChatController {
                 'user',
                 receiverId,
                 'vendor',
-                message
+                message || '', // Allow empty message if metadata exists
+                messageType,
+                metadata
             );
 
             res.status(201).json({
@@ -195,15 +205,98 @@ class ChatController {
      */
     async uploadAttachment(req, res) {
         try {
+            console.log('[ChatController] Upload request received:', {
+                hasFile: !!req.file,
+                fileKeys: req.file ? Object.keys(req.file) : [],
+                body: req.body,
+                headers: req.headers['content-type']
+            });
+
+            // Check for multer errors (file size, file type, etc.)
+            if (req.fileValidationError) {
+                console.error('[ChatController] File validation error:', req.fileValidationError);
+                return res.status(400).json({
+                    success: false,
+                    message: req.fileValidationError
+                });
+            }
+
             if (!req.file) {
+                console.error('[ChatController] No file in request');
                 return res.status(400).json({
                     success: false,
                     message: 'No file provided'
                 });
             }
 
-            const result = await uploadToCloudinary(req.file.buffer, 'chat_attachments', {
-                resource_type: 'auto'
+            // Validate file buffer exists
+            if (!req.file.buffer) {
+                console.error('[ChatController] File buffer is missing:', {
+                    file: req.file,
+                    hasBuffer: !!req.file.buffer,
+                    mimetype: req.file.mimetype,
+                    size: req.file.size,
+                    fieldname: req.file.fieldname
+                });
+                return res.status(400).json({
+                    success: false,
+                    message: 'File buffer is missing. Please ensure file is uploaded correctly.'
+                });
+            }
+
+            // Validate buffer is not empty
+            if (req.file.buffer.length === 0) {
+                console.error('[ChatController] File buffer is empty');
+                return res.status(400).json({
+                    success: false,
+                    message: 'File buffer is empty'
+                });
+            }
+
+            console.log('[ChatController] Uploading file to Cloudinary:', {
+                originalName: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size,
+                bufferLength: req.file.buffer?.length
+            });
+
+            let result;
+            try {
+                result = await uploadToCloudinary(req.file.buffer, 'chat_attachments', {
+                    resource_type: 'auto'
+                });
+            } catch (uploadError) {
+                console.error('[ChatController] Cloudinary upload error:', {
+                    message: uploadError.message,
+                    stack: uploadError.stack,
+                    name: uploadError.name
+                });
+                return res.status(500).json({
+                    success: false,
+                    message: `Upload failed: ${uploadError.message || 'Unknown error'}`
+                });
+            }
+
+            if (!result) {
+                console.error('[ChatController] Cloudinary returned null/undefined result');
+                return res.status(500).json({
+                    success: false,
+                    message: 'Cloudinary upload returned no result'
+                });
+            }
+
+            if (!result.secure_url && !result.url) {
+                console.error('[ChatController] Cloudinary result missing URL:', result);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Cloudinary upload succeeded but no URL returned'
+                });
+            }
+
+            console.log('[ChatController] Upload successful:', {
+                url: result.secure_url || result.url,
+                publicId: result.public_id,
+                format: result.format
             });
 
             res.status(200).json({
@@ -211,13 +304,18 @@ class ChatController {
                 data: {
                     url: result.secure_url || result.url,
                     publicId: result.public_id,
-                    format: result.format,
-                    resourceType: result.resource_type,
+                    format: result.format || 'unknown',
+                    resourceType: result.resource_type || 'auto',
                     originalName: req.file.originalname
                 }
             });
         } catch (error) {
-            console.error('[ChatController] Error uploading attachment:', error);
+            console.error('[ChatController] Unexpected error uploading attachment:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name,
+                code: error.code
+            });
             res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to upload attachment'

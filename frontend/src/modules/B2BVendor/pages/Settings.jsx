@@ -1,19 +1,92 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiUser, FiBell, FiLock, FiShield, FiSave } from "react-icons/fi";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
+import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
 const B2BVendorSettings = () => {
+    const { vendor, updateProfile } = useB2BVendorAuthStore();
     const [activeTab, setActiveTab] = useState("profile");
+    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        storeName: "",
+        gstNumber: "",
+        businessAddress: ""
+    });
+
+    // Initialize form data from vendor
+    useEffect(() => {
+        if (vendor) {
+            // Format address as string
+            const address = vendor.address || {};
+            const addressParts = [
+                address.street,
+                address.landmark,
+                address.city,
+                address.state,
+                address.pincode || address.zipCode,
+                address.country
+            ].filter(Boolean);
+            const formattedAddress = addressParts.join(", ");
+
+            setFormData({
+                storeName: vendor.storeName || "",
+                gstNumber: vendor.gstNumber || "",
+                businessAddress: formattedAddress || ""
+            });
+        }
+    }, [vendor]);
 
     const tabs = [
         { id: "profile", label: "Business Profile", icon: FiUser },
-        { id: "notifications", label: "Notifications", icon: FiBell },
-        { id: "security", label: "Security", icon: FiShield },
     ];
 
-    const handleSave = () => {
-        toast.success("Settings updated successfully!");
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleSave = async () => {
+        if (!vendor) {
+            toast.error("Vendor information not available");
+            return;
+        }
+
+        if (!formData.storeName.trim()) {
+            toast.error("Company Name is required");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            // Parse address string back to object
+            const addressParts = formData.businessAddress.split(",").map(part => part.trim());
+            const address = {
+                street: addressParts[0] || "",
+                landmark: addressParts[1] || "",
+                city: addressParts[2] || "",
+                state: addressParts[3] || "",
+                pincode: addressParts[4] || "",
+                country: addressParts[5] || "India"
+            };
+
+            const updateData = {
+                storeName: formData.storeName.trim(),
+                gstNumber: formData.gstNumber.trim(),
+                address: address
+            };
+
+            await updateProfile(updateData);
+            toast.success("Profile updated successfully!");
+        } catch (error) {
+            console.error("Error updating profile:", error);
+            toast.error(error.message || "Failed to update profile");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -46,72 +119,63 @@ const B2BVendorSettings = () => {
                     {activeTab === "profile" && (
                         <div className="space-y-6">
                             <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-4">Business Information</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Company Name</label>
-                                    <input type="text" defaultValue="Antigravity Wholesale" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500" />
+                            {!vendor ? (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500">Loading vendor information...</p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">GST Number</label>
-                                    <input type="text" defaultValue="22AAAAA0000A1Z5" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500" />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Business Address</label>
-                                    <textarea rows={3} defaultValue="123 Bulk Market, Cyber City, Gurgaon, India" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500" />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === "notifications" && (
-                        <div className="space-y-6">
-                            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-4">Notification Preferences</h3>
-                            <div className="space-y-4">
-                                {[
-                                    { title: "New Inquiries", desc: "Get notified when a vendor sends a message." },
-                                    { title: "Product Stock Alerts", desc: "Notify when your listed stock is running low." },
-                                    { title: "Marketing Updates", desc: "Receive news about B2B features and promotions." },
-                                ].map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                                        <div>
-                                            <h4 className="font-bold text-gray-800 text-sm">{item.title}</h4>
-                                            <p className="text-xs text-gray-500">{item.desc}</p>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" defaultChecked className="sr-only peer" />
-                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                                        </label>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Company Name</label>
+                                        <input
+                                            type="text"
+                                            name="storeName"
+                                            value={formData.storeName}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none"
+                                            placeholder="Enter company name"
+                                        />
                                     </div>
-                                ))}
-                            </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">GST Number</label>
+                                        <input
+                                            type="text"
+                                            name="gstNumber"
+                                            value={formData.gstNumber}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none"
+                                            placeholder="Enter GST number (optional)"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Business Address</label>
+                                        <textarea
+                                            rows={3}
+                                            name="businessAddress"
+                                            value={formData.businessAddress}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none resize-none"
+                                            placeholder="Street, Landmark, City, State, Pincode, Country"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {activeTab === "security" && (
-                        <div className="space-y-6">
-                            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-4">Security Settings</h3>
-                            <div className="space-y-4 max-w-md">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Current Password</label>
-                                    <input type="password" underline className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">New Password</label>
-                                    <input type="password" underline className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Confirm New Password</label>
-                                    <input type="password" underline className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500" />
-                                </div>
-                            </div>
+
+
+                    {activeTab === "profile" && (
+                        <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
+                            <button
+                                onClick={handleSave}
+                                disabled={loading || !vendor}
+                                className="flex items-center gap-2 px-8 py-2.5 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600"
+                            >
+                                <FiSave /> {loading ? "Saving..." : "Save Changes"}
+                            </button>
                         </div>
                     )}
-
-                    <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-                        <button onClick={handleSave} className="flex items-center gap-2 px-8 py-2.5 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-all shadow-md">
-                            <FiSave /> Save Changes
-                        </button>
-                    </div>
                 </div>
             </div>
         </motion.div>

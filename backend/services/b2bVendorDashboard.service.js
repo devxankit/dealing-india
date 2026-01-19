@@ -12,6 +12,11 @@ import Vendor from '../models/Vendor.model.js';
  */
 export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
   try {
+    if (!vendorId || !mongoose.Types.ObjectId.isValid(vendorId)) {
+      const err = new Error('Invalid Vendor ID format');
+      err.status = 400;
+      throw err;
+    }
     const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
 
     // Verify vendor is B2B
@@ -28,9 +33,9 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
     }
 
     // 1. Get total products count for this vendor
-    const totalProducts = await Product.countDocuments({ 
+    const totalProducts = await Product.countDocuments({
       vendorId: vendorObjectId,
-      isActive: true 
+      isActive: true
     });
 
     // 2. Get vendor's conversations (chats with users)
@@ -70,8 +75,12 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
 
     // 4. Get recent inquiries (last 10)
     // First, get conversation IDs for inquiries
-    const inquiryConversationIds = [...new Set(inquiryMessages.map(msg => msg.conversationId?.toString()).filter(Boolean))];
-    
+    // Safely extract ID whether conversationId is populated or not
+    const inquiryConversationIds = [...new Set(inquiryMessages.map(msg => {
+      const id = msg.conversationId?._id || msg.conversationId;
+      return id ? id.toString() : null;
+    }).filter(id => id && mongoose.Types.ObjectId.isValid(id)))];
+
     // Get conversations with last message to determine status
     const inquiryConversations = await Chat.find({
       _id: { $in: inquiryConversationIds.map(id => new mongoose.Types.ObjectId(id)) }
@@ -86,19 +95,19 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
 
     const recentInquiries = inquiryMessages.slice(0, 10).map(msg => {
       const sender = msg.senderId;
-      const productName = msg.metadata?.productName || 
-                         (msg.message?.match(/INQUIRY FOR: (.+?)\*/)?.[1]) || 
-                         'Product Inquiry';
-      
+      const productName = msg.metadata?.productName ||
+        (msg.message?.match(/INQUIRY FOR: (.+?)\*/)?.[1]) ||
+        'Product Inquiry';
+
       // Determine status: if last message in conversation is from vendor, status is 'responded', else 'new'
-      const conversationId = msg.conversationId?.toString();
+      const conversationId = (msg.conversationId?._id || msg.conversationId)?.toString();
       const conversation = conversationId ? conversationMap.get(conversationId) : null;
       const lastMessage = conversation?.lastMessage;
-      
+
       // If last message is from vendor (receiverRole or senderRole), status is 'responded'
       // Otherwise, status is 'new'
       const status = lastMessage?.senderRole === 'vendor' ? 'responded' : 'new';
-      
+
       return {
         id: msg._id?.toString() || conversationId,
         vendor: sender?.storeName || sender?.businessName || sender?.name || 'Unknown Buyer',
@@ -123,7 +132,9 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
     const topProductIds = Object.entries(productInquiryCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
-      .map(([productId]) => new mongoose.Types.ObjectId(productId));
+      .map(([productId]) => productId)
+      .filter(id => mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
 
     // Fetch top products
     const topProductsData = await Product.find({
@@ -137,9 +148,9 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
     const topProducts = topProductIds.map(productId => {
       const product = topProductsData.find(p => p._id.toString() === productId.toString());
       if (!product) return null;
-      
+
       const inquiryCount = productInquiryCounts[productId.toString()] || 0;
-      
+
       return {
         id: product._id?.toString(),
         name: product.name,
@@ -152,7 +163,7 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
     const calculateDateRange = (period) => {
       const now = new Date();
       let startDate = new Date();
-      
+
       switch (period) {
         case 'today':
           startDate.setHours(0, 0, 0, 0);
@@ -173,7 +184,7 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
     };
 
     const periodStartDate = calculateDateRange(period);
-    
+
     const inquiryTrends = await Message.aggregate([
       {
         $match: {
@@ -189,9 +200,9 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
       {
         $group: {
           _id: {
-            $dateToString: { 
-              format: period === 'year' ? '%Y-%m' : period === 'month' ? '%Y-%m-%d' : '%Y-%m-%d', 
-              date: '$createdAt' 
+            $dateToString: {
+              format: period === 'year' ? '%Y-%m' : period === 'month' ? '%Y-%m-%d' : '%Y-%m-%d',
+              date: '$createdAt'
             }
           },
           count: { $sum: 1 }
@@ -206,8 +217,8 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
       vendorId: vendorObjectId,
       isActive: true
     })
-    .select('_id attributes')
-    .lean();
+      .select('_id attributes')
+      .lean();
 
     // Get inquiry counts per product
     const productInquiryCountsMap = {};
@@ -222,11 +233,11 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
     // Group by category
     const categoryData = {};
     allProducts.forEach(product => {
-      const categoryAttr = product.attributes?.find(attr => 
+      const categoryAttr = product.attributes?.find(attr =>
         attr.name?.toLowerCase() === 'category'
       );
       const category = categoryAttr?.value || 'Other';
-      
+
       if (!categoryData[category]) {
         categoryData[category] = {
           name: category,
@@ -234,9 +245,9 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
           inquiries: 0
         };
       }
-      
+
       categoryData[category].products += 1;
-      
+
       const productId = product._id.toString();
       if (productInquiryCountsMap[productId]) {
         categoryData[category].inquiries += productInquiryCountsMap[productId];

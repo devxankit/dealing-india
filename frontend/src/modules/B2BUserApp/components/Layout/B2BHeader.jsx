@@ -1,10 +1,48 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
-const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true }) => {
+const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit }) => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const [localSearchQuery, setLocalSearchQuery] = useState(propSearchQuery || '');
+
+    // Sync local state when prop changes
+    useEffect(() => {
+        if (propSearchQuery !== undefined) {
+            setLocalSearchQuery(propSearchQuery);
+        }
+    }, [propSearchQuery]);
+
+    // Use prop searchQuery if provided, otherwise use local state
+    const searchQuery = propSearchQuery !== undefined ? propSearchQuery : localSearchQuery;
+
+    const handleSearchChange = (e) => {
+        const value = e.target.value;
+        if (onSearchChange) {
+            onSearchChange(value);
+        } else {
+            setLocalSearchQuery(value);
+        }
+    };
+
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        const query = searchQuery.trim();
+        
+        if (onSearchSubmit) {
+            // If parent component provides submit handler, use it
+            onSearchSubmit(query);
+        } else {
+            // Otherwise, navigate to product catalog with search query
+            if (query) {
+                navigate(`/b2b?search=${encodeURIComponent(query)}`);
+            } else {
+                navigate('/b2b');
+            }
+        }
+    };
 
     return (
         <header className={`${sticky ? 'sticky top-0' : 'relative'} z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm flex-shrink-0`}>
@@ -23,14 +61,16 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                 </div>
 
                 <div className="flex-1 max-w-md hidden md:block">
-                    <div className="relative">
+                    <form onSubmit={handleSearchSubmit} className="relative">
                         <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="Search bulk products, wholesalers..."
+                            value={searchQuery}
+                            onChange={handleSearchChange}
                             className="w-full pl-12 pr-4 py-2 bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-primary-500 transition-all text-sm"
                         />
-                    </div>
+                    </form>
                 </div>
 
                 <div className="flex items-center gap-2">

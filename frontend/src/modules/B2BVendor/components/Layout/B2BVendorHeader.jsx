@@ -53,7 +53,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
     const displayVendorName = vendor?.name || "B2B Vendor";
 
     return (
-        <header className="bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-30 overflow-hidden">
+        <header className="bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-40">
             <div className="flex items-center justify-between px-4 lg:px-6 py-4 gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden">
                     <Button onClick={onMenuClick} variant="icon" className="lg:hidden text-gray-700 flex-shrink-0" icon={FiMenu} />
@@ -102,10 +102,6 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                                     <Link to="/b2b-vendor/settings/profile" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
                                         <FiUser className="text-lg" />
                                         <span className="font-medium">My Profile</span>
-                                    </Link>
-                                    <Link to="/b2b-vendor/settings/business" onClick={() => setShowUserMenu(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                                        <FiSettings className="text-lg" />
-                                        <span className="font-medium">Business Details</span>
                                     </Link>
                                     <div className="h-px bg-gray-50 my-1"></div>
                                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">

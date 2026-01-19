@@ -1,13 +1,68 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { FiBriefcase, FiMapPin, FiAward, FiEdit2 } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiBriefcase, FiMapPin, FiAward, FiEdit2, FiCheck, FiX, FiLoader, FiPlus } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { getAddresses } from '../../../shared/services/addressService';
+import toast from 'react-hot-toast';
 
 const CompanyProfile = () => {
-    const { user } = useAuthStore();
-    const company = user?.businessInfo || {};
+    const { user, updateProfile } = useAuthStore();
+    const [addresses, setAddresses] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [updating, setUpdating] = useState(false);
+
+    // Form state
+    const [formData, setFormData] = useState({
+        companyName: user?.businessInfo?.companyName || '',
+        industry: user?.businessInfo?.industry || 'General Trade',
+        companyType: user?.businessInfo?.companyType || 'Retailer'
+    });
+
+    useEffect(() => {
+        const fetchAddresses = async () => {
+            try {
+                const data = await getAddresses();
+                setAddresses(data);
+            } catch (error) {
+                console.error('Error fetching addresses:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAddresses();
+    }, []);
+
+    const handleUpdate = async () => {
+        if (!formData.companyName.trim()) {
+            toast.error('Company name is required');
+            return;
+        }
+
+        setUpdating(true);
+        try {
+            const result = await updateProfile({
+                businessInfo: {
+                    ...user?.businessInfo,
+                    companyName: formData.companyName,
+                    industry: formData.industry,
+                    companyType: formData.companyType
+                }
+            });
+            if (result.success) {
+                toast.success('Company info updated');
+                setIsEditing(false);
+            }
+        } catch (error) {
+            toast.error(error.message || 'Update failed');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const defaultAddress = addresses.find(addr => addr.isDefault) || addresses[0];
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
@@ -19,31 +74,76 @@ const CompanyProfile = () => {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
+                    className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 relative overflow-hidden"
                 >
-                    <div className="flex items-start justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 border border-primary-100">
+                    {/* Background decoration */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
+
+                    <div className="relative z-10 flex items-start justify-between mb-8">
+                        <div className="flex items-center gap-5">
+                            <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary-200">
                                 <FiBriefcase size={32} />
                             </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-800">{company.companyName || 'Your Company Name'}</h2>
-                                <p className="text-sm text-gray-500 font-medium">{company.gstNumber ? `GST: ${company.gstNumber}` : 'GST Not Verified'}</p>
+                            <div className="space-y-1">
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={formData.companyName}
+                                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                                        className="text-xl font-extrabold text-gray-800 bg-gray-50 border-b-2 border-primary-500 focus:outline-none px-2 py-1 rounded-t-lg"
+                                        placeholder="Enter Company Name"
+                                    />
+                                ) : (
+                                    <h2 className="text-2xl font-black text-gray-800 tracking-tight">
+                                        {user?.businessInfo?.companyName || 'Add Company Name'}
+                                    </h2>
+                                )}
+                                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    {formData.companyType} • ID #{user?.id?.slice(-6).toUpperCase() || 'N/A'}
+                                </p>
                             </div>
                         </div>
-                        <button className="p-2 text-primary-600 hover:bg-primary-50 rounded-xl transition-colors">
-                            <FiEdit2 size={20} />
+
+                        <button
+                            onClick={() => isEditing ? handleUpdate() : setIsEditing(true)}
+                            disabled={updating}
+                            className={`p-3 rounded-2xl transition-all ${isEditing ? 'bg-green-600 text-white' : 'bg-gray-50 text-gray-400 hover:text-primary-600'}`}
+                        >
+                            {updating ? <FiLoader className="animate-spin" size={20} /> : isEditing ? <FiCheck size={20} /> : <FiEdit2 size={20} />}
                         </button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-gray-50 rounded-2xl">
-                            <p className="text-xs text-gray-400 font-bold uppercase mb-1">Company Type</p>
-                            <p className="font-semibold text-gray-800">{company.companyType || 'Retailer'}</p>
+                        <div className="p-5 bg-gray-50 rounded-3xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100">
+                            <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest mb-2">Company Type</p>
+                            {isEditing ? (
+                                <select
+                                    value={formData.companyType}
+                                    onChange={(e) => setFormData({ ...formData, companyType: e.target.value })}
+                                    className="w-full bg-transparent font-bold text-gray-800 focus:outline-none"
+                                >
+                                    <option value="Retailer">Retailer</option>
+                                    <option value="Wholesaler">Wholesaler</option>
+                                    <option value="Manufacturer">Manufacturer</option>
+                                    <option value="Distributor">Distributor</option>
+                                </select>
+                            ) : (
+                                <p className="font-bold text-gray-800">{formData.companyType}</p>
+                            )}
                         </div>
-                        <div className="p-4 bg-gray-50 rounded-2xl">
-                            <p className="text-xs text-gray-400 font-bold uppercase mb-1">Industry</p>
-                            <p className="font-semibold text-gray-800">{company.industry || 'Fashion & Apparel'}</p>
+                        <div className="p-5 bg-gray-50 rounded-3xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100">
+                            <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest mb-2">Industry</p>
+                            {isEditing ? (
+                                <input
+                                    type="text"
+                                    value={formData.industry}
+                                    onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                                    className="w-full bg-transparent font-bold text-gray-800 focus:outline-none"
+                                />
+                            ) : (
+                                <p className="font-bold text-gray-800">{formData.industry}</p>
+                            )}
                         </div>
                     </div>
                 </motion.div>
@@ -53,50 +153,75 @@ const CompanyProfile = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100"
+                    className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100"
                 >
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <FiMapPin className="text-primary-500" />
-                        Registered Address
-                    </h3>
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                                <FiMapPin size={20} />
+                            </div>
+                            Registered Address
+                        </h3>
+                        {addresses.length > 0 && (
+                            <span className="text-[10px] font-black uppercase text-indigo-500 bg-indigo-50 px-3 py-1 rounded-full tracking-wider">
+                                Primary Address
+                            </span>
+                        )}
+                    </div>
 
-                    <div className="space-y-4">
-                        <div className="flex gap-4">
-                            <div className="flex-1">
-                                <label className="block text-xs text-gray-400 font-bold uppercase mb-1">Address Line 1</label>
-                                <p className="text-gray-700 font-medium bg-gray-50 p-3 rounded-xl">
-                                    {company.address?.line1 || 'No address added'}
-                                </p>
+                    <div className="space-y-6">
+                        {loading ? (
+                            <div className="flex justify-center py-4">
+                                <FiLoader className="animate-spin text-primary-600" size={24} />
                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs text-gray-400 font-bold uppercase mb-1">City</label>
-                                <p className="text-gray-700 font-medium bg-gray-50 p-3 rounded-xl">{company.address?.city || '---'}</p>
+                        ) : defaultAddress ? (
+                            <div className="space-y-5">
+                                <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 relative group overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                                    <label className="block text-[10px] text-gray-400 font-black uppercase tracking-widest mb-2">Full Address</label>
+                                    <p className="text-gray-800 font-bold leading-relaxed">
+                                        {defaultAddress.streetAddress || defaultAddress.line1}
+                                        <br />
+                                        {defaultAddress.city}, {defaultAddress.state} - {defaultAddress.pincode || defaultAddress.zipCode}
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100">
+                                        <label className="block text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Mobile</label>
+                                        <p className="text-gray-800 font-bold">{defaultAddress.phone || user?.phone || 'Not added'}</p>
+                                    </div>
+                                    <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100">
+                                        <label className="block text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Type</label>
+                                        <p className="text-gray-800 font-bold capitalize">{defaultAddress.addressType || 'Work'}</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-xs text-gray-400 font-bold uppercase mb-1">State</label>
-                                <p className="text-gray-700 font-medium bg-gray-50 p-3 rounded-xl">{company.address?.state || '---'}</p>
+                        ) : (
+                            <div className="text-center py-10 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200">
+                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-gray-400 mx-auto mb-4 shadow-sm">
+                                    <FiMapPin size={28} />
+                                </div>
+                                <h4 className="font-bold text-gray-700 mb-1">No addresses found</h4>
+                                <p className="text-xs text-gray-400 font-medium mb-6">Add a registered address to proceed.</p>
+                                <button className="px-6 py-3 bg-primary-600 text-white rounded-2xl font-extrabold text-sm hover:bg-primary-700 transition-all flex items-center gap-2 mx-auto shadow-lg shadow-primary-200">
+                                    <FiPlus /> Add Address
+                                </button>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </motion.div>
 
-                {/* Verification Status */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-6 border border-green-100 flex items-center gap-4"
-                >
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-green-500 shadow-sm">
+                {/* Verification Notice - Informational only */}
+                <div className="p-6 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-[2rem] border border-teal-100 flex items-center gap-5">
+                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-teal-600 shadow-sm flex-shrink-0">
                         <FiAward size={24} />
                     </div>
                     <div>
-                        <h3 className="font-bold text-green-800">Verified Business</h3>
-                        <p className="text-xs text-green-600 font-medium">Your GST and business documents are verified.</p>
+                        <h3 className="font-bold text-teal-900 text-sm">Self-Verified Business</h3>
+                        <p className="text-[11px] text-teal-700 font-medium leading-tight">Your business details are private and used only for bulk order compliance on Dealing India.</p>
                     </div>
-                </motion.div>
+                </div>
 
             </main>
             <B2BBottomNav />

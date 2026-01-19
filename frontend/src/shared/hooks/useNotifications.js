@@ -42,6 +42,8 @@ export const useNotifications = (options = {}) => {
     const path = window.location.pathname;
     if (path.startsWith('/admin')) {
       return localStorage.getItem('admin-token');
+    } else if (path.startsWith('/b2b-vendor')) {
+      return localStorage.getItem('b2b-vendor-token');
     } else if (path.startsWith('/vendor')) {
       return localStorage.getItem('vendor-token');
     }

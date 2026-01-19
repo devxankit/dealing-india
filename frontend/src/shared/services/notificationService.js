@@ -11,13 +11,14 @@ const getEndpoint = (role = null) => {
     const path = window.location.pathname;
     if (path.startsWith('/admin')) {
       return '/admin/notifications';
-    } else if (path.startsWith('/vendor')) {
+    } else if (path.startsWith('/b2b-vendor') || path.startsWith('/vendor')) {
+      // B2B vendors use the same vendor notification endpoints
       return '/vendor/notifications';
     }
   } else {
     if (role === 'admin') {
       return '/admin/notifications';
-    } else if (role === 'vendor') {
+    } else if (role === 'vendor' || role === 'b2b-vendor') {
       return '/vendor/notifications';
     }
   }

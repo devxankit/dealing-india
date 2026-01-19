@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { FiBell, FiCheck, FiX, FiChevronRight, FiPackage, FiTruck, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiBell, FiCheck, FiX, FiChevronRight, FiPackage, FiTruck, FiCheckCircle, FiXCircle, FiMessageCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDateTime } from '../../utils/adminHelpers';
 import { useNavigate } from 'react-router-dom';
@@ -12,11 +12,21 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
 
   // Determine role from path
   const path = window.location.pathname;
-  const isVendor = path.startsWith('/vendor');
+  const isB2BVendor = path.startsWith('/b2b-vendor');
+  const isVendor = path.startsWith('/vendor') && !path.startsWith('/b2b-vendor');
   const isAdmin = path.startsWith('/admin');
 
+  // Filter notifications for B2B vendors - only show inquiry-related notifications
+  const filterNotifications = (notifs) => {
+    if (isB2BVendor) {
+      // For B2B vendors, only show inquiry notifications
+      return notifs.filter(n => n.type === 'inquiry' || n.type === 'chat_message');
+    }
+    return notifs;
+  };
+
   const {
-    notifications,
+    notifications: allNotifications,
     unreadCount,
     loading,
     markAsRead,
@@ -25,7 +35,11 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
   } = useNotifications({
     autoFetch: isOpen,
     enableSocket: true,
+    filters: isB2BVendor ? { type: 'inquiry' } : {},
   });
+
+  // Apply filter to notifications
+  const notifications = filterNotifications(allNotifications);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -90,6 +104,8 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
       system: FiBell,
       offer: FiBell,
       promotion: FiBell,
+      inquiry: FiMessageCircle,
+      chat_message: FiMessageCircle,
     };
     return iconMap[type] || FiBell;
   };
@@ -110,6 +126,8 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
       system: 'bg-gray-100 text-gray-600',
       offer: 'bg-orange-100 text-orange-600',
       promotion: 'bg-pink-100 text-pink-600',
+      inquiry: 'bg-primary-100 text-primary-600',
+      chat_message: 'bg-primary-100 text-primary-600',
     };
     return colors[type] || 'bg-gray-100 text-gray-600';
   };
@@ -122,9 +140,17 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
     if (notification.actionUrl) {
       navigate(notification.actionUrl);
       onClose();
+    } else if (notification.metadata?.conversationId) {
+      // For B2B vendor inquiries, navigate to messages page
+      if (isB2BVendor) {
+        navigate('/b2b-vendor/messages');
+      } else {
+        navigate(notification.actionUrl || '/b2b/inquiries');
+      }
+      onClose();
     } else if (notification.orderId) {
       const orderId = notification.orderId._id || notification.orderId;
-      if (isVendor) {
+      if (isB2BVendor || isVendor) {
         navigate(`/vendor/orders/${orderId}`);
       } else if (isAdmin) {
         navigate(`/admin/orders/all-orders`);
@@ -134,7 +160,9 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
   };
 
   const getViewAllUrl = () => {
-    if (isVendor) {
+    if (isB2BVendor) {
+      return '/b2b-vendor/messages';
+    } else if (isVendor) {
       return '/vendor/notifications';
     } else if (isAdmin) {
       return '/admin/orders/order-notifications';

@@ -37,7 +37,7 @@ const B2BVendorDashboard = () => {
         setLoading(true);
         try {
             const response = await getB2BVendorDashboardData(period);
-            
+
             // Handle different response structures
             let dashboardData = null;
             if (response?.data?.success && response?.data?.data) {
@@ -207,13 +207,7 @@ const B2BVendorDashboard = () => {
                         </button>
                     </div>
 
-                    <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl p-6 shadow-lg text-white">
-                        <h3 className="text-lg font-bold mb-2">Need Assistance?</h3>
-                        <p className="text-sm text-primary-100 mb-4">Contact our B2B support team for any vendor queries.</p>
-                        <button className="w-full py-3 bg-white text-primary-600 font-bold rounded-xl hover:bg-primary-50 transition-all">
-                            Go to Support
-                        </button>
-                    </div>
+
                 </div>
             </div>
         </motion.div>

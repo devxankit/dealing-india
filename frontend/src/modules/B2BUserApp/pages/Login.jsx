@@ -123,11 +123,7 @@ const B2BUserLogin = () => {
                         </div>
                     </div>
 
-                    <div className="flex justify-end">
-                        <Link to="/app/forgot-password" title="Forgot Password" className="text-sm font-bold text-primary-600 hover:underline">
-                            Rescue Access?
-                        </Link>
-                    </div>
+
 
                     <button
                         type="submit"

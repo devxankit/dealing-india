@@ -13,31 +13,116 @@ export const uploadToCloudinary = async (buffer, folderName, options = {}) => {
       throw new Error('Buffer is required for upload');
     }
 
+    // Check Cloudinary configuration
+    const cloudinaryConfig = cloudinary.config();
+    if (!cloudinaryConfig.cloud_name || !cloudinaryConfig.api_key || !cloudinaryConfig.api_secret) {
+      console.error('[Cloudinary] Configuration missing:', {
+        hasCloudName: !!cloudinaryConfig.cloud_name,
+        hasApiKey: !!cloudinaryConfig.api_key,
+        hasApiSecret: !!cloudinaryConfig.api_secret
+      });
+      throw new Error('Cloudinary is not properly configured. Please check environment variables.');
+    }
+
     return new Promise((resolve, reject) => {
-      const uploadOptions = {
-        folder: folderName,
-        resource_type: 'auto',
-        timeout: 120000, // 2 minutes timeout for communication with Cloudinary
-        ...options,
-      };
-
-      const uploadStream = cloudinary.uploader.upload_stream(
-        uploadOptions,
-        (error, result) => {
-          if (error) {
-            reject(new Error(`Cloudinary upload failed: ${error.message}`));
-          } else {
-            resolve({
-              secure_url: result.secure_url,
-              public_id: result.public_id,
-            });
-          }
+      try {
+        // Ensure buffer is a Buffer object
+        let fileBuffer;
+        if (Buffer.isBuffer(buffer)) {
+          fileBuffer = buffer;
+        } else if (buffer instanceof Uint8Array) {
+          fileBuffer = Buffer.from(buffer);
+        } else if (typeof buffer === 'string') {
+          fileBuffer = Buffer.from(buffer, 'base64');
+        } else {
+          fileBuffer = Buffer.from(buffer);
         }
-      );
+        
+        if (!fileBuffer || fileBuffer.length === 0) {
+          reject(new Error('Invalid or empty buffer'));
+          return;
+        }
 
-      uploadStream.end(buffer);
+        const uploadOptions = {
+          folder: folderName,
+          resource_type: 'auto',
+          timeout: 120000, // 2 minutes timeout for communication with Cloudinary
+          ...options,
+        };
+
+        console.log('[Cloudinary] Starting upload:', {
+          folder: folderName,
+          bufferSize: fileBuffer.length,
+          options: uploadOptions
+        });
+
+        const uploadStream = cloudinary.uploader.upload_stream(
+          uploadOptions,
+          (error, result) => {
+            if (error) {
+              console.error('[Cloudinary] Upload callback error:', {
+                message: error.message,
+                http_code: error.http_code,
+                name: error.name
+              });
+              reject(new Error(`Cloudinary upload failed: ${error.message || 'Unknown error'}`));
+            } else if (!result) {
+              console.error('[Cloudinary] Upload returned null result');
+              reject(new Error('Cloudinary upload returned no result'));
+            } else {
+              console.log('[Cloudinary] Upload successful:', {
+                public_id: result.public_id,
+                format: result.format,
+                resource_type: result.resource_type,
+                hasSecureUrl: !!result.secure_url
+              });
+              resolve({
+                secure_url: result.secure_url,
+                url: result.url,
+                public_id: result.public_id,
+                format: result.format,
+                resource_type: result.resource_type,
+              });
+            }
+          }
+        );
+
+        // Handle stream errors
+        uploadStream.on('error', (streamError) => {
+          console.error('[Cloudinary] Stream error event:', {
+            message: streamError.message,
+            code: streamError.code,
+            name: streamError.name
+          });
+          reject(new Error(`Upload stream error: ${streamError.message || 'Unknown stream error'}`));
+        });
+
+        // Handle stream finish
+        uploadStream.on('finish', () => {
+          console.log('[Cloudinary] Stream finished');
+        });
+
+        // Write buffer to stream
+        try {
+          uploadStream.end(fileBuffer);
+        } catch (writeError) {
+          console.error('[Cloudinary] Error writing to stream:', writeError);
+          reject(new Error(`Failed to write buffer to stream: ${writeError.message}`));
+        }
+      } catch (error) {
+        console.error('[Cloudinary] Setup error:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+        reject(new Error(`Failed to setup upload: ${error.message}`));
+      }
     });
   } catch (error) {
+    console.error('[Cloudinary] Outer catch error:', {
+      message: error.message,
+      stack: error.stack
+    });
     throw new Error(`Failed to upload to Cloudinary: ${error.message}`);
   }
 };

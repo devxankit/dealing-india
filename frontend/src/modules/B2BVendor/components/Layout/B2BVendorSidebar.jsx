@@ -13,10 +13,12 @@ import {
     FiMessageCircle,
     FiBriefcase,
     FiImage,
-    FiCreditCard
+    FiCreditCard,
+    FiLogOut
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
+import toast from "react-hot-toast";
 
 const iconMap = {
     Dashboard: FiHome,
@@ -29,7 +31,6 @@ const iconMap = {
     "Banner Booking": FiImage,
     "Account Settings": FiSettings,
     Profile: FiUser,
-    "Business Details": FiBriefcase,
     Security: FiBriefcase,
 };
 
@@ -41,8 +42,6 @@ const getChildRoute = (parentRoute, childName) => {
         },
         "/b2b-vendor/settings": {
             "Profile": "/b2b-vendor/settings/profile",
-            "Business Details": "/b2b-vendor/settings/business",
-            "Security": "/b2b-vendor/settings/security",
         },
     };
     return routeMap[parentRoute]?.[childName] || parentRoute;
@@ -80,6 +79,13 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const handleMenuItemClick = (route, parentTitle = null) => {
         if (parentTitle) setExpandedItems({ [parentTitle]: true });
         navigate(route);
+        if (window.innerWidth < 1024) onClose();
+    };
+
+    const handleLogout = () => {
+        useB2BVendorAuthStore.getState().logout();
+        toast.success("Logged out successfully");
+        navigate("/b2b-vendor/login");
         if (window.innerWidth < 1024) onClose();
     };
 
@@ -152,14 +158,14 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                         </div>
                         <div className="flex-1 min-w-0 overflow-hidden">
                             <h2 className="font-semibold text-white text-xs sm:text-sm truncate mb-0.5" title={displayVendorName}>{displayVendorName}</h2>
-                            <p 
-                                className="text-[10px] sm:text-xs text-gray-400 truncate block" 
-                                style={{ 
+                            <p
+                                className="text-[10px] sm:text-xs text-gray-400 truncate block"
+                                style={{
                                     maxWidth: '100%',
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap'
-                                }} 
+                                }}
                                 title={vendor?.email}
                             >
                                 {vendor?.email || ''}
@@ -171,8 +177,19 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                     </button>
                 </div>
             </div>
-            <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin">
+            <nav className="flex-1 overflow-y-auto p-3 pb-32 scrollbar-admin">
                 {b2bVendorMenu.map(renderMenuItem)}
+
+                {/* Logout Button in Sidebar for mobile/desktop convenience */}
+                <div className="mt-8 pt-8 border-t border-slate-700">
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200 cursor-pointer"
+                    >
+                        <FiLogOut className="text-xl flex-shrink-0" />
+                        <span className="font-medium text-sm">Logout Account</span>
+                    </button>
+                </div>
             </nav>
         </div>
     );

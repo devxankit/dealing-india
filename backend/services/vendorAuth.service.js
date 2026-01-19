@@ -439,7 +439,7 @@ export const getVendorById = async (vendorId, email = null) => {
  */
 export const updateVendorProfile = async (vendorId, updateData) => {
   try {
-    const { name, phone, storeName, storeDescription, address } = updateData;
+    const { name, phone, storeName, storeDescription, address, gstNumber } = updateData;
     const updateFields = {};
 
     if (name) {
@@ -469,6 +469,10 @@ export const updateVendorProfile = async (vendorId, updateData) => {
 
     if (storeDescription !== undefined) {
       updateFields.storeDescription = storeDescription ? storeDescription.trim() : null;
+    }
+
+    if (gstNumber !== undefined) {
+      updateFields.gstNumber = gstNumber ? gstNumber.trim().toUpperCase() : '';
     }
 
     if (address) {

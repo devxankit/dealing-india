@@ -65,6 +65,8 @@ const userSchema = new mongoose.Schema(
     },
     businessInfo: {
       companyName: String,
+      companyType: String,
+      industry: String,
       gstNumber: String,
       address: {
         city: String,

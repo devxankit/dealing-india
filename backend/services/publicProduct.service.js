@@ -32,9 +32,13 @@ export const getPublicProducts = async (filters = {}) => {
       sortBy = 'createdAt',
       sortOrder = 'desc',
       vendorType,
+      state,
+      city,
     } = filters;
 
     // Get active and approved vendors with optional vendorType filter
+    // CRITICAL: If vendorType is not 'b2b', exclude B2B vendors
+    // This ensures B2B vendors' products only show in B2B app, not in regular user app
     const vendorQuery = { isActive: true, status: 'approved' };
     if (vendorType) {
       vendorQuery.vendorType = vendorType;
@@ -47,6 +51,18 @@ export const getPublicProducts = async (filters = {}) => {
           vendorQuery._id = targetB2BVendor._id;
         }
       }
+    } else {
+      // When vendorType is not provided, exclude B2B vendors
+      // This ensures regular user app doesn't show B2B vendors' products
+      vendorQuery.vendorType = { $ne: 'b2b' };
+    }
+
+    // Add location filters (state and city)
+    if (state && state.trim()) {
+      vendorQuery['address.state'] = state.trim();
+    }
+    if (city && city.trim()) {
+      vendorQuery['address.city'] = city.trim();
     }
     const activeVendors = await Vendor.find(vendorQuery).select('_id');
     const activeVendorIds = activeVendors.map(v => v._id);

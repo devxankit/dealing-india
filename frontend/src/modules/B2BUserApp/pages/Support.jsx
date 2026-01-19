@@ -27,10 +27,26 @@ const FAQItem = ({ question, answer }) => {
 
 const Support = () => {
     const faqs = [
-        { q: "How do I place a bulk order?", a: "To place a bulk order, navigate to the product page, enter the quantity (minimum wholesale quantity applies), and request a quote or pay directly if instant buying is available." },
-        { q: "What are the payment terms?", a: "We accept payments via Net Banking, Credit/Debit Cards, and sometimes offer delayed payment terms for verified businesses." },
-        { q: "How can I track my shipment?", a: "Go to the 'Orders' tab in your account dashboard. You will find real-time tracking details for all dispatched orders." },
-        { q: "Can I cancel a wholesale order?", a: "Orders can only be canceled before the vendor accepts them or starts processing. Once confirmed, cancellation may incur a fee depending on the vendor's policy." }
+        {
+            q: "How do I get GST invoices for my business?",
+            a: "All bulk purchases through Dealing India B2B are GST compliant. You can download your Tax Invoice from the 'Order Details' section once the vendor confirms the dispatch."
+        },
+        {
+            q: "What is Minimum Order Quantity (MOQ) and why is it required?",
+            a: "MOQ is the minimum quantity a wholesaler is willing to sell to maintain wholesale pricing. Each vendor sets their own MOQ based on the product category and manufacturing costs."
+        },
+        {
+            q: "How to negotiate bulk pricing with vendors?",
+            a: "You can use the 'Inquiry' feature to request a custom quote. For large orders, we recommend using the 'Chat' option to discuss volume-based discounts directly with the verified wholesaler."
+        },
+        {
+            q: "Can I request samples before placing a large wholesale order?",
+            a: "Most vendors allow sample ordering at a premium rate. Use the 'Inquiry' form to request a sample. Once approved, the vendor will send a custom link for the sample payment."
+        },
+        {
+            q: "How does Dealing India verify wholesalers?",
+            a: "Every vendor on our B2B platform undergo a multi-step verification process, including GSTIN validation, business premises verification, and trade history checks to ensure safe transactions."
+        }
     ];
 
     return (
@@ -41,52 +57,69 @@ const Support = () => {
 
                 {/* Contact Options */}
                 <div className="grid grid-cols-2 gap-4">
-                    <motion.button
+                    <motion.a
+                        href="tel:+918000000000"
                         whileTap={{ scale: 0.95 }}
-                        className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-3 text-center group hover:border-primary-200 transition-all"
+                        className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-3 text-center group hover:border-primary-200 transition-all cursor-pointer"
                     >
                         <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors">
                             <FiPhoneCall size={24} />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-800">Call Us</p>
-                            <p className="text-[10px] text-gray-400 font-medium">Mon-Sat, 9am-6pm</p>
+                            <p className="font-bold text-gray-800">Call B2B Desk</p>
+                            <p className="text-[10px] text-gray-400 font-medium">9 AM - 7 PM (Mon-Sat)</p>
                         </div>
-                    </motion.button>
+                    </motion.a>
 
-                    <motion.button
+                    <motion.a
+                        href="mailto:support@dealingindia.com"
                         whileTap={{ scale: 0.95 }}
-                        className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-3 text-center group hover:border-primary-200 transition-all"
+                        className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center gap-3 text-center group hover:border-primary-200 transition-all cursor-pointer"
                     >
                         <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors">
                             <FiMail size={24} />
                         </div>
                         <div>
                             <p className="font-bold text-gray-800">Email Support</p>
-                            <p className="text-[10px] text-gray-400 font-medium">Response in 24hrs</p>
+                            <p className="text-[10px] text-gray-400 font-medium">response within 4 hours</p>
                         </div>
-                    </motion.button>
+                    </motion.a>
                 </div>
 
                 {/* Live Chat Banner */}
-                <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-3xl p-6 text-white flex items-center justify-between shadow-lg">
-                    <div>
-                        <h3 className="font-bold text-lg mb-1">Need instant help?</h3>
-                        <p className="text-xs text-gray-400">Chat with our support team now.</p>
+                <div className="relative bg-gradient-to-r from-blue-900 to-indigo-900 rounded-[2.5rem] p-8 text-white flex items-center justify-between shadow-xl overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
+                    <div className="relative z-10">
+                        <h3 className="font-extrabold text-xl mb-2 flex items-center gap-2">
+                            <FiMessageSquare size={20} className="text-blue-300" />
+                            Need Instant Help?
+                        </h3>
+                        <p className="text-sm text-blue-100/70 font-medium max-w-[200px]">Our B2B specialists are ready to assist you in real-time.</p>
                     </div>
-                    <button className="px-5 py-2.5 bg-white text-gray-900 rounded-xl font-bold text-sm hover:bg-gray-100 transition-colors">
+                    <button className="relative z-10 px-6 py-3 bg-white text-blue-900 rounded-2xl font-extrabold text-sm hover:bg-blue-50 transition-all shadow-lg active:scale-95">
                         Start Chat
                     </button>
                 </div>
 
                 {/* FAQs */}
-                <div>
-                    <h3 className="font-bold text-gray-800 mb-4 text-lg">Frequently Asked Questions</h3>
-                    <div className="space-y-3">
+                <div className="pt-2">
+                    <div className="flex items-center gap-2 mb-6">
+                        <div className="w-1.5 h-6 bg-primary-500 rounded-full"></div>
+                        <h3 className="font-extrabold text-gray-800 text-xl tracking-tight">Frequently Asked Questions</h3>
+                    </div>
+                    <div className="space-y-4">
                         {faqs.map((faq, idx) => (
                             <FAQItem key={idx} question={faq.q} answer={faq.a} />
                         ))}
                     </div>
+                </div>
+
+                {/* Footer Disclaimer */}
+                <div className="bg-gray-100 rounded-2xl p-4 mt-8">
+                    <p className="text-[10px] text-gray-500 text-center font-medium leading-relaxed">
+                        Authorized Business Hours: Mon-Sat | 09:00 - 19:00 IST<br />
+                        For urgent disputes related to bulk orders, please use the WhatsApp Support integration.
+                    </p>
                 </div>
 
             </main>

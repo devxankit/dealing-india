@@ -152,6 +152,51 @@ export const useB2BVendorAuthStore = create(
 
             setError: (error) => set({ error }),
             setLoading: (loading) => set({ loading }),
+
+            // Update vendor profile
+            updateProfile: async (profileData) => {
+                set({ loading: true, error: null });
+                try {
+                    const response = await api.put('/auth/vendor/profile', profileData);
+
+                    if (response.success && response.data) {
+                        const vendor = response.data.vendor;
+
+                        // Transform backend vendor object to frontend format
+                        const updatedVendor = {
+                            id: vendor._id || vendor.id,
+                            _id: vendor._id,
+                            name: vendor.name,
+                            email: vendor.email,
+                            phone: vendor.phone || '',
+                            storeName: vendor.storeName,
+                            storeDescription: vendor.storeDescription || '',
+                            role: vendor.role || 'vendor',
+                            vendorType: vendor.vendorType || 'b2b',
+                            businessTypes: vendor.businessTypes || [],
+                            gstNumber: vendor.gstNumber || '',
+                            address: vendor.address || {},
+                            status: vendor.status,
+                            isEmailVerified: vendor.isEmailVerified || false,
+                            currentSubscription: vendor.currentSubscription || null,
+                        };
+
+                        set({
+                            vendor: updatedVendor,
+                            loading: false,
+                            error: null
+                        });
+
+                        return { success: true, vendor: updatedVendor };
+                    } else {
+                        throw new Error(response.message || 'Profile update failed');
+                    }
+                } catch (error) {
+                    const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile';
+                    set({ loading: false, error: errorMessage });
+                    throw error;
+                }
+            },
         }),
         {
             name: 'b2b-vendor-auth-storage',

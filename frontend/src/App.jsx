@@ -231,7 +231,7 @@ import B2BInquiries from "./modules/B2BUserApp/pages/Inquiries";
 import B2BUserProfile from "./modules/B2BUserApp/pages/Profile";
 import B2BCompanyProfile from "./modules/B2BUserApp/pages/CompanyProfile";
 import B2BNotifications from "./modules/B2BUserApp/pages/Notifications";
-import B2BSecurity from "./modules/B2BUserApp/pages/Security";
+
 import B2BPayments from "./modules/B2BUserApp/pages/Payments";
 import B2BSupport from "./modules/B2BUserApp/pages/Support";
 import B2BProductDetail from "./modules/B2BUserApp/pages/ProductDetail";
@@ -428,7 +428,7 @@ const AppRoutes = () => {
         <Route path="/b2b/profile" element={<ProtectedRoute><B2BUserProfile /></ProtectedRoute>} />
         <Route path="/b2b/company" element={<ProtectedRoute><B2BCompanyProfile /></ProtectedRoute>} />
         <Route path="/b2b/notifications" element={<ProtectedRoute><B2BNotifications /></ProtectedRoute>} />
-        <Route path="/b2b/security" element={<ProtectedRoute><B2BSecurity /></ProtectedRoute>} />
+
         <Route path="/b2b/payments" element={<ProtectedRoute><B2BPayments /></ProtectedRoute>} />
         <Route path="/b2b/support" element={<ProtectedRoute><B2BSupport /></ProtectedRoute>} />
         <Route path="/b2b/product/:id" element={<ProtectedRoute><B2BProductDetail /></ProtectedRoute>} />
@@ -561,8 +561,8 @@ const AppRoutes = () => {
           <Route path="analytics" element={<B2BVendorAnalytics />} />
           <Route path="settings" element={<B2BVendorSettings />} />
           <Route path="settings/profile" element={<B2BVendorSettings />} />
-          <Route path="settings/business" element={<B2BVendorSettings />} />
-          <Route path="settings/security" element={<B2BVendorSettings />} />
+          <Route path="settings/business" element={<Navigate to="/b2b-vendor/settings/profile" replace />} />
+
           <Route path="subscription" element={<B2BVendorSubscription />} />
           <Route path="banner-booking" element={<B2BVendorBannerBooking />} />
           <Route path="profile" element={<B2BVendorProfile />} />
