@@ -55,13 +55,18 @@ const MobileProfile = () => {
       const result = await switchMarketplace(targetMarketplace);
       if (result.success) {
         toast.success(`Switched to ${targetMarketplace === 'b2b' ? 'Bulk' : 'Retail'} Marketplace`);
-        // Use the updated user from result to ensure we navigate correctly
-        const updatedMarketplace = result.user?.currentMarketplace || targetMarketplace;
-        navigate(updatedMarketplace === 'b2b' ? '/b2b/catalog' : '/app');
+        
+        // Use hard navigation to ensure store is fully updated and prevent race conditions
+        // This forces a full page reload with the new marketplace setting
+        const targetUrl = targetMarketplace === 'b2b' ? '/b2b/catalog' : '/app';
+        
+        // Small delay to ensure toast is visible, then navigate
+        setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 300);
       }
     } catch (error) {
       toast.error('Failed to switch marketplace');
-    } finally {
       setIsSwitching(false);
     }
   };

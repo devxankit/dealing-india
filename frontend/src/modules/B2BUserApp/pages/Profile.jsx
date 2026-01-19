@@ -30,11 +30,15 @@ const Profile = () => {
             const result = await switchMarketplace('b2c');
             if (result.success) {
                 toast.success('Switched to Retail Marketplace');
-                navigate('/app');
+                
+                // Use hard navigation to ensure store is fully updated and prevent race conditions
+                // This forces a full page reload with the new marketplace setting
+                setTimeout(() => {
+                    window.location.href = '/app';
+                }, 300);
             }
         } catch (error) {
             toast.error('Failed to switch marketplace');
-        } finally {
             setIsSwitching(false);
         }
     };

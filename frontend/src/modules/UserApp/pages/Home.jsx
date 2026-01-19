@@ -12,7 +12,6 @@ import FeaturedVendorsSection from "../components/Mobile/FeaturedVendorsSection"
 import BrandLogosScroll from "../../../shared/components/Home/BrandLogosScroll";
 import HeroBanner from "../../../shared/components/Home/HeroBanner";
 import LazyImage from "../../../shared/components/LazyImage";
-import { categories } from "../../../data/categories";
 import PageTransition from "../../../shared/components/PageTransition";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import toast from "react-hot-toast";

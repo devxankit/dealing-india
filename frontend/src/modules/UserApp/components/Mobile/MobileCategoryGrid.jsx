@@ -1,16 +1,41 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { categories } from "../../../../data/categories";
+import { useCategoryStore } from "../../../../shared/store/categoryStore";
+import { useEffect } from "react";
 import LazyImage from "../../../../shared/components/LazyImage";
 
 const MobileCategoryGrid = () => {
+  const { categories, initialize, isLoading } = useCategoryStore();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  // Only show top-level categories in the grid
+  const rootCategories = categories.filter(cat => !cat.parentId && cat.isActive !== false);
+
+  if (isLoading && rootCategories.length === 0) {
+    return (
+      <div className="px-4 py-4">
+        <div className="h-6 w-40 bg-gray-200 rounded animate-pulse mb-4"></div>
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex-shrink-0 w-20 h-24 bg-gray-100 rounded-xl animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (rootCategories.length === 0) return null;
+
   return (
     <div className="px-4 py-4">
       <h2 className="text-xl font-bold text-gray-800 mb-4">
         Browse Categories
       </h2>
       <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
-        {categories.map((category, index) => (
+        {rootCategories.map((category, index) => (
           <motion.div
             key={category.id}
             initial={{ opacity: 0, scale: 0.9 }}
