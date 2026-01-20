@@ -11,7 +11,7 @@ const VendorLogin = () => {
   const { login, isAuthenticated, isLoading } = useVendorAuthStore();
 
   const [formData, setFormData] = useState({
-    email: '',
+    email: location.state?.email || '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +26,18 @@ const VendorLogin = () => {
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
+
+  // Autofill email and show message if provided
+  useEffect(() => {
+    if (location.state?.email && location.state?.autoFill) {
+      setFormData(prev => ({ ...prev, email: location.state.email }));
+    }
+    if (location.state?.message) {
+      toast.success(location.state.message, {
+        duration: 6000,
+      });
+    }
+  }, [location.state]);
 
   // Safety mechanism: Reset loading state if it's stuck
   useEffect(() => {

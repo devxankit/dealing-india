@@ -14,7 +14,7 @@ const B2BVendorLogin = () => {
     const { setAuth, isAuthenticated, loading: storeLoading } = useB2BVendorAuthStore();
 
     const [formData, setFormData] = useState({
-        email: '',
+        email: location.state?.email || '',
         password: '',
     });
     const [showPassword, setShowPassword] = useState(false);
@@ -50,6 +50,11 @@ const B2BVendorLogin = () => {
             toast.success(location.state.message, {
                 duration: 6000,
             });
+        }
+
+        // Autofill email if provided
+        if (location.state?.email && location.state?.autoFill) {
+            setFormData(prev => ({ ...prev, email: location.state.email }));
         }
     }, [navigate, location]); // Removed isAuthenticated from deps to avoid redirect loops
 

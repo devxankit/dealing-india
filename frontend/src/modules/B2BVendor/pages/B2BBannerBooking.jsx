@@ -127,11 +127,13 @@ const B2BBannerBooking = () => {
     const calculatedEndDate = useMemo(() => {
         if (!formData.startDate) return null;
 
-        const start = new Date(formData.startDate);
+        // Use UTC midnight to avoid timezone shifts
+        const start = new Date(`${formData.startDate}T00:00:00.000Z`);
         const days = parseInt(formData.durationDays) || 1;
         const end = new Date(start);
-        end.setDate(end.getDate() + days);
-        end.setHours(0, 0, 0, 0);
+        // End at 23:59:59 of the last day (UTC)
+        end.setUTCDate(end.getUTCDate() + days - 1);
+        end.setUTCHours(23, 59, 59, 999);
 
         return end;
     }, [formData.startDate, formData.durationDays]);
@@ -211,17 +213,23 @@ const B2BBannerBooking = () => {
             return;
         }
 
-        const startDateTimeString = `${formData.startDate}T00:00:00`;
-        const selectedDate = new Date(startDateTimeString);
+        // Handle date to avoid timezone conversion issues
+        // User selects date like "2026-01-21" - we want to store exactly that date
+        // Send date-only string to backend, which will interpret it as UTC midnight
+        // This ensures the date stored matches what user selected
+        
+        // For validation, use local date comparison (user's perspective)
+        const localSelectedDate = new Date(`${formData.startDate}T00:00:00`); // Local time for validation
         const now = new Date();
         const maxDateObj = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
 
-        if (selectedDate < now) {
+        // Compare using local dates for user-friendly validation
+        if (localSelectedDate < now) {
             toast.error("Start time cannot be in the past");
             return;
         }
 
-        if (selectedDate > maxDateObj) {
+        if (localSelectedDate > maxDateObj) {
             toast.error(`Start date cannot be more than ${settings.bookingWindowDays} days in the future`);
             return;
         }
@@ -245,7 +253,9 @@ const B2BBannerBooking = () => {
             // Create FormData for the booking
             const formDataToSend = new FormData();
             formDataToSend.append('slotId', selectedSlot._id);
-            formDataToSend.append('startDate', selectedDate.toISOString());
+            // Send date-only string (YYYY-MM-DD) - backend will interpret as UTC midnight
+            // This ensures the selected date is stored correctly without timezone shifts
+            formDataToSend.append('startDate', formData.startDate);
             formDataToSend.append('durationDays', formData.durationDays.toString());
             formDataToSend.append('title', formData.title || '');
             formDataToSend.append('link', formData.link || '/');
@@ -256,7 +266,7 @@ const B2BBannerBooking = () => {
             // Verify FormData contents
             console.log('Creating booking with data:', {
                 slotId: selectedSlot._id,
-                startDate: selectedDate.toISOString(),
+                startDate: formData.startDate, // Date-only string (YYYY-MM-DD)
                 durationDays: formData.durationDays,
                 hasImage: !!formData.image,
                 imageName: formData.image?.name,
@@ -500,7 +510,7 @@ const B2BBannerBooking = () => {
         {
             header: "Start Date",
             accessor: "startDate",
-            render: (val) => new Date(val).toLocaleString(),
+            render: (val) => new Date(val).toISOString().split('T')[0],
         },
         {
             header: "Created At",

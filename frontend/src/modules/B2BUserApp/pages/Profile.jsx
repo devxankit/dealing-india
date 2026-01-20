@@ -1,16 +1,23 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiUser, FiSettings, FiBell, FiHelpCircle, FiLogOut, FiBriefcase, FiArrowRight, FiShoppingBag, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { useVendorAuthStore } from '../../Vendor/store/vendorAuthStore';
+import { useB2BVendorAuthStore } from '../../B2BVendor/store/b2bVendorAuthStore';
 import toast from 'react-hot-toast';
+import api from '../../../shared/utils/api';
 
 const Profile = () => {
     const navigate = useNavigate();
     const { user, logout, switchMarketplace } = useAuthStore();
+    const { login: loginVendor } = useVendorAuthStore();
+    const { login: loginB2BVendor } = useB2BVendorAuthStore();
     const [isSwitching, setIsSwitching] = useState(false);
+    const [showVendorTypeModal, setShowVendorTypeModal] = useState(false);
+    const [isCheckingVendorStatus, setIsCheckingVendorStatus] = useState(false);
 
     const menuItems = [
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
@@ -30,7 +37,7 @@ const Profile = () => {
             const result = await switchMarketplace('b2c');
             if (result.success) {
                 toast.success('Switched to Retail Marketplace');
-                
+
                 // Use hard navigation to ensure store is fully updated and prevent race conditions
                 // This forces a full page reload with the new marketplace setting
                 setTimeout(() => {
@@ -43,9 +50,160 @@ const Profile = () => {
         }
     };
 
+    // Check vendor status and handle navigation
+    const handleVendorTypeSelection = async (vendorType) => {
+        if (!user?.email) {
+            toast.error('User email not found');
+            setShowVendorTypeModal(false);
+            return;
+        }
+
+        setIsCheckingVendorStatus(true);
+        setShowVendorTypeModal(false);
+
+        try {
+            // Check if vendor exists and is approved
+            const response = await api.get(`/auth/vendor/check-status/${user.email}`);
+
+            if (response.success && response.data) {
+                const { exists, isApproved, vendorType: existingVendorType, status } = response.data;
+
+                // Normalize vendorType for comparison
+                // Backend returns 'b2b' for B2B vendors and 'b2c' (or null/undefined) for regular vendors
+                // Frontend uses 'b2b' for B2B and 'vendor' for regular vendors
+                const normalizedSelectedType = vendorType === 'b2b' ? 'b2b' : 'b2c';
+                const normalizedExistingType = existingVendorType === 'b2b' ? 'b2b' : 'b2c';
+
+                // If vendor exists and is approved for the selected type
+                if (exists && isApproved && normalizedExistingType === normalizedSelectedType) {
+                    // Check if already logged in as this vendor type
+                    if (vendorType === 'b2b') {
+                        const b2bVendorStore = useB2BVendorAuthStore.getState();
+                        if (b2bVendorStore.isAuthenticated) {
+                            toast.success('Already logged in as B2B Vendor');
+                            navigate('/b2b-vendor/dashboard');
+                            setIsCheckingVendorStatus(false);
+                            return;
+                        }
+                    } else {
+                        const vendorStore = useVendorAuthStore.getState();
+                        if (vendorStore.isAuthenticated) {
+                            toast.success('Already logged in as Vendor');
+                            navigate('/vendor/dashboard');
+                            setIsCheckingVendorStatus(false);
+                            return;
+                        }
+                    }
+
+                    // Redirect to login with email prefilled
+                    if (vendorType === 'b2b') {
+                        navigate('/b2b-vendor/login', {
+                            state: {
+                                email: user.email,
+                                autoFill: true,
+                                message: 'Please login to access your B2B Vendor dashboard'
+                            }
+                        });
+                    } else {
+                        navigate('/vendor/login', {
+                            state: {
+                                email: user.email,
+                                autoFill: true,
+                                message: 'Please login to access your Vendor dashboard'
+                            }
+                        });
+                    }
+                    setIsCheckingVendorStatus(false);
+                    return;
+                }
+
+                // If vendor exists but is pending approval
+                if (exists && status === 'pending') {
+                    toast.success('Your vendor account is pending admin approval. Please wait for approval.');
+                    if (vendorType === 'b2b') {
+                        navigate('/b2b-vendor/login', {
+                            state: {
+                                email: user.email,
+                                autoFill: true,
+                                message: 'Your account is pending approval. Please login to check status.'
+                            }
+                        });
+                    } else {
+                        navigate('/vendor/login', {
+                            state: {
+                                email: user.email,
+                                autoFill: true,
+                                message: 'Your account is pending approval. Please login to check status.'
+                            }
+                        });
+                    }
+                    setIsCheckingVendorStatus(false);
+                    return;
+                }
+
+                // If vendor exists but is different type
+                if (exists && normalizedExistingType !== normalizedSelectedType) {
+                    toast.success(`You already have a ${normalizedExistingType === 'b2b' ? 'B2B Vendor' : 'Vendor'} account. Redirecting...`);
+                    if (normalizedExistingType === 'b2b') {
+                        navigate('/b2b-vendor/login', {
+                            state: {
+                                email: user.email,
+                                autoFill: true
+                            }
+                        });
+                    } else {
+                        navigate('/vendor/login', {
+                            state: {
+                                email: user.email,
+                                autoFill: true
+                            }
+                        });
+                    }
+                    setIsCheckingVendorStatus(false);
+                    return;
+                }
+            }
+
+            // No vendor account exists - redirect to registration with user data prefilled
+            if (vendorType === 'b2b') {
+                navigate('/b2b-vendor/register', {
+                    state: {
+                        preFilledData: {
+                            name: user.name,
+                            email: user.email,
+                            phone: user.phone
+                        },
+                        isUpgrade: true
+                    }
+                });
+            } else if (vendorType === 'vendor') {
+                // Regular vendor registration
+                navigate('/vendor/register', {
+                    state: {
+                        preFilledData: {
+                            name: user.name,
+                            email: user.email,
+                            phone: user.phone
+                        },
+                        isUpgrade: true
+                    }
+                });
+            } else {
+                // Fallback - should not happen
+                toast.error('Invalid vendor type selected');
+                setIsCheckingVendorStatus(false);
+            }
+            setIsCheckingVendorStatus(false);
+        } catch (error) {
+            console.error('Error checking vendor status:', error);
+            toast.error('Failed to check vendor status. Please try again.');
+            setIsCheckingVendorStatus(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            <B2BHeader title="My Business Account" />
+            <B2BHeader title="My Business Account" showBack={true} />
 
             <main className="max-w-2xl mx-auto px-4 py-8">
                 {/* Profile Header */}
@@ -71,7 +229,7 @@ const Profile = () => {
                     animate={{ scale: 1, opacity: 1 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={handleSwitchMarketplace}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-6 text-white shadow-xl mb-8 relative overflow-hidden cursor-pointer"
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-6 text-white shadow-xl mb-4 relative overflow-hidden cursor-pointer"
                 >
                     <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-2xl" />
                     <div className="relative z-10 flex items-center justify-between">
@@ -89,6 +247,34 @@ const Profile = () => {
                             </div>
                         </div>
                         <FiArrowRight size={20} className="text-blue-200" />
+                    </div>
+                </motion.div>
+
+                {/* Become a Seller Card */}
+                <motion.div
+                    initial={{ scale: 0.98, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setShowVendorTypeModal(true)}
+                    className="w-full bg-gradient-to-r from-primary-600 to-primary-800 rounded-3xl p-6 text-white shadow-xl mb-8 relative overflow-hidden cursor-pointer"
+                >
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-2xl" />
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10 text-white">
+                                <FiBriefcase size={24} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg leading-tight">
+                                    Become a Seller
+                                </h3>
+                                <p className="text-xs text-primary-100 font-medium opacity-80">
+                                    Start selling on our platform
+                                </p>
+                            </div>
+                        </div>
+                        <FiArrowRight size={20} className="text-primary-200" />
                     </div>
                 </motion.div>
 
@@ -146,6 +332,105 @@ const Profile = () => {
             </main>
 
             <B2BBottomNav />
+
+            {/* Vendor Type Selection Modal */}
+            <AnimatePresence>
+                {showVendorTypeModal && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowVendorTypeModal(false)}
+                            className="fixed inset-0 bg-black/60 z-[99999] backdrop-blur-sm"
+                        />
+
+                        {/* Modal */}
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, x: "-50%", y: "-50%" }}
+                            animate={{ scale: 1, opacity: 1, x: "-50%", y: "-50%" }}
+                            exit={{ scale: 0.9, opacity: 0, x: "-50%", y: "-50%" }}
+                            className="fixed top-1/2 left-1/2 w-[90%] max-w-md bg-white rounded-2xl p-6 z-[100000] shadow-2xl"
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-gray-900">Become a Seller</h3>
+                                <button
+                                    onClick={() => setShowVendorTypeModal(false)}
+                                    className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <FiX className="text-xl" />
+                                </button>
+                            </div>
+
+                            {/* Description */}
+                            <p className="text-sm text-gray-600 mb-6">
+                                Choose the type of seller account you want to create:
+                            </p>
+
+                            {/* Options */}
+                            <div className="space-y-3">
+                                {/* B2B Vendor Option */}
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => handleVendorTypeSelection('b2b')}
+                                    className="w-full p-4 bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl text-white shadow-lg hover:shadow-xl transition-all text-left flex items-center gap-4 group"
+                                >
+                                    <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10 group-hover:bg-white/20 transition-colors">
+                                        <FiBriefcase className="text-2xl" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-base mb-1">B2B Vendor</h4>
+                                        <p className="text-xs text-gray-300">
+                                            Wholesale & bulk business
+                                        </p>
+                                    </div>
+                                    <div className="text-white/50 group-hover:text-white transition-colors">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </div>
+                                </motion.button>
+
+                                {/* Regular Vendor Option */}
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    onClick={() => handleVendorTypeSelection('vendor')}
+                                    className="w-full p-4 bg-gradient-to-r from-blue-900 to-indigo-900 rounded-xl text-white shadow-lg hover:shadow-xl transition-all text-left flex items-center gap-4 group"
+                                >
+                                    <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/10 group-hover:bg-white/20 transition-colors">
+                                        <FiShoppingBag className="text-2xl" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-base mb-1">Vendor</h4>
+                                        <p className="text-xs text-blue-200">
+                                            Retail & individual seller
+                                        </p>
+                                    </div>
+                                    <div className="text-white/50 group-hover:text-white transition-colors">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </div>
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Loading Overlay */}
+            {isCheckingVendorStatus && (
+                <div className="fixed inset-0 bg-black/50 z-[100001] flex items-center justify-center">
+                    <div className="bg-white rounded-2xl p-6 flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-gray-700 font-medium">Checking vendor status...</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

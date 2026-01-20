@@ -11,28 +11,31 @@ const B2BVendorSettings = () => {
     const [formData, setFormData] = useState({
         storeName: "",
         gstNumber: "",
-        businessAddress: ""
+        address: {
+            street: "",
+            landmark: "",
+            city: "",
+            state: "",
+            pincode: "",
+            country: "India"
+        }
     });
 
     // Initialize form data from vendor
     useEffect(() => {
         if (vendor) {
-            // Format address as string
             const address = vendor.address || {};
-            const addressParts = [
-                address.street,
-                address.landmark,
-                address.city,
-                address.state,
-                address.pincode || address.zipCode,
-                address.country
-            ].filter(Boolean);
-            const formattedAddress = addressParts.join(", ");
-
             setFormData({
                 storeName: vendor.storeName || "",
                 gstNumber: vendor.gstNumber || "",
-                businessAddress: formattedAddress || ""
+                address: {
+                    street: address.street || "",
+                    landmark: address.landmark || "",
+                    city: address.city || "",
+                    state: address.state || "",
+                    pincode: address.pincode || address.zipCode || "",
+                    country: address.country || "India"
+                }
             });
         }
     }, [vendor]);
@@ -43,10 +46,23 @@ const B2BVendorSettings = () => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        
+        // Handle nested address fields
+        if (name.startsWith('address.')) {
+            const addressField = name.split('.')[1];
+            setFormData(prev => ({
+                ...prev,
+                address: {
+                    ...prev.address,
+                    [addressField]: value
+                }
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
     };
 
     const handleSave = async () => {
@@ -62,15 +78,21 @@ const B2BVendorSettings = () => {
 
         setLoading(true);
         try {
-            // Parse address string back to object
-            const addressParts = formData.businessAddress.split(",").map(part => part.trim());
+            // Validate required address fields
+            if (!formData.address.city || !formData.address.state) {
+                toast.error("City and State are required");
+                setLoading(false);
+                return;
+            }
+
+            // Clean and prepare address object
             const address = {
-                street: addressParts[0] || "",
-                landmark: addressParts[1] || "",
-                city: addressParts[2] || "",
-                state: addressParts[3] || "",
-                pincode: addressParts[4] || "",
-                country: addressParts[5] || "India"
+                street: (formData.address.street || "").trim(),
+                landmark: (formData.address.landmark || "").trim(),
+                city: (formData.address.city || "").trim(),
+                state: (formData.address.state || "").trim(),
+                pincode: (formData.address.pincode || "").trim(),
+                country: (formData.address.country || "India").trim()
             };
 
             const updateData = {
@@ -96,7 +118,7 @@ const B2BVendorSettings = () => {
                 <p className="text-gray-500">Manage your business account and preferences.</p>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
                 {/* Tabs */}
                 <div className="lg:w-64 space-y-1">
                     {tabs.map(tab => (
@@ -115,7 +137,7 @@ const B2BVendorSettings = () => {
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="flex-1 bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
                     {activeTab === "profile" && (
                         <div className="space-y-6">
                             <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-4">Business Information</h3>
@@ -124,39 +146,101 @@ const B2BVendorSettings = () => {
                                     <p className="text-gray-500">Loading vendor information...</p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Company Name</label>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Name</label>
                                         <input
                                             type="text"
                                             name="storeName"
                                             value={formData.storeName}
                                             onChange={handleInputChange}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none"
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
                                             placeholder="Enter company name"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">GST Number</label>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">GST Number</label>
                                         <input
                                             type="text"
                                             name="gstNumber"
                                             value={formData.gstNumber}
                                             onChange={handleInputChange}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none"
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
                                             placeholder="Enter GST number (optional)"
                                         />
                                     </div>
                                     <div className="md:col-span-2">
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Business Address</label>
-                                        <textarea
-                                            rows={3}
-                                            name="businessAddress"
-                                            value={formData.businessAddress}
-                                            onChange={handleInputChange}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none resize-none"
-                                            placeholder="Street, Landmark, City, State, Pincode, Country"
-                                        />
+                                        <label className="block text-sm font-semibold text-gray-700 mb-3">Business Address</label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Street Address</label>
+                                                <input
+                                                    type="text"
+                                                    name="address.street"
+                                                    value={formData.address.street}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                                    placeholder="Street Address"
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Landmark (Optional)</label>
+                                                <input
+                                                    type="text"
+                                                    name="address.landmark"
+                                                    value={formData.address.landmark}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                                    placeholder="Landmark (Optional)"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">City *</label>
+                                                <input
+                                                    type="text"
+                                                    name="address.city"
+                                                    value={formData.address.city}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                                    placeholder="City"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">State *</label>
+                                                <input
+                                                    type="text"
+                                                    name="address.state"
+                                                    value={formData.address.state}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                                    placeholder="State"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Pincode</label>
+                                                <input
+                                                    type="text"
+                                                    name="address.pincode"
+                                                    value={formData.address.pincode}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                                    placeholder="Pincode"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Country</label>
+                                                <input
+                                                    type="text"
+                                                    name="address.country"
+                                                    value={formData.address.country}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                                    placeholder="Country"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -170,7 +254,7 @@ const B2BVendorSettings = () => {
                             <button
                                 onClick={handleSave}
                                 disabled={loading || !vendor}
-                                className="flex items-center gap-2 px-8 py-2.5 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600"
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-2.5 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600"
                             >
                                 <FiSave /> {loading ? "Saving..." : "Save Changes"}
                             </button>

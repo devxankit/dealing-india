@@ -41,16 +41,8 @@ export const getPublicProducts = async (filters = {}) => {
     // This ensures B2B vendors' products only show in B2B app, not in regular user app
     const vendorQuery = { isActive: true, status: 'approved' };
     if (vendorType) {
+      // Use provided vendorType filter (e.g., 'b2b' or 'b2c')
       vendorQuery.vendorType = vendorType;
-
-      // TEMPORARY: Restrict B2B to only 'mockb2bvendor@example.com' as per user request
-      if (vendorType === 'b2b') {
-        const targetB2BVendor = await Vendor.findOne({ email: 'mockb2bvendor@example.com' });
-        if (targetB2BVendor) {
-          // Force filter to this vendor only
-          vendorQuery._id = targetB2BVendor._id;
-        }
-      }
     } else {
       // When vendorType is not provided, exclude B2B vendors
       // This ensures regular user app doesn't show B2B vendors' products
@@ -274,7 +266,7 @@ export const getPublicProducts = async (filters = {}) => {
         .populate('subcategoryId', 'name image icon')
         .populate('subSubCategoryId', 'name image icon') // Also populate deepest subcategory
         .populate('brandId', 'name')
-        .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status')
+        .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status address')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))

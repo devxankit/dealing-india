@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiMessageSquare, FiClock, FiCheckCircle, FiX, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiMessageSquare, FiClock, FiCheckCircle, FiX, FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import MobileLayout from '../../../modules/UserApp/components/Layout/MobileLayout';
 import PageTransition from '../PageTransition';
@@ -99,9 +99,17 @@ const SupportTickets = () => {
             <div className="container mx-auto px-4 py-6 max-w-6xl">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-800">Support Tickets</h1>
-                        <p className="text-gray-600 mt-1">Get help with your orders and account</p>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                        >
+                            <FiArrowLeft className="text-xl text-gray-700" />
+                        </button>
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-800">Support Tickets</h1>
+                            <p className="text-gray-600 mt-1">Get help with your orders and account</p>
+                        </div>
                     </div>
                     <button
                         onClick={() => setShowCreateModal(true)}

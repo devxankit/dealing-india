@@ -1,5 +1,6 @@
 import Campaign from '../models/Campaign.model.js';
 import Product from '../models/Product.model.js';
+import Vendor from '../models/Vendor.model.js';
 
 /**
  * Calculate campaign status based on dates
@@ -34,7 +35,7 @@ export const getPublicCampaigns = async (filters = {}) => {
     // Set to start of day to ensure campaigns show for the entire day
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
-    
+
     // Set to end of day to ensure campaigns show until end of their end date
     const endOfToday = new Date(now);
     endOfToday.setHours(23, 59, 59, 999);
@@ -56,12 +57,20 @@ export const getPublicCampaigns = async (filters = {}) => {
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    // Get B2C vendor IDs to exclude B2B products from campaigns
+    const b2cVendors = await Vendor.find({ vendorType: { $ne: 'b2b' }, isActive: true, status: 'approved' }).select('_id');
+    const b2cVendorIds = b2cVendors.map(v => v._id);
+
     // Execute query
     const [campaigns, total] = await Promise.all([
       Campaign.find(query)
         .populate({
           path: 'productIds',
-          match: { isActive: true, isVisible: true },
+          match: {
+            isActive: true,
+            isVisible: true,
+            vendorId: { $in: b2cVendorIds }
+          },
           select: 'name price image originalPrice discount vendorId categoryId rating reviewCount stock isActive isVisible',
         })
         .sort({ createdAt: -1 })
@@ -126,10 +135,14 @@ export const getPublicCampaignById = async (identifier) => {
     // Set to start of day to ensure campaigns show for the entire day
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
-    
+
     // Set to end of day to ensure campaigns show until end of their end date
     const endOfToday = new Date(now);
     endOfToday.setHours(23, 59, 59, 999);
+
+    // Get B2C vendor IDs to exclude B2B products from campaigns
+    const b2cVendors = await Vendor.find({ vendorType: { $ne: 'b2b' }, isActive: true, status: 'approved' }).select('_id');
+    const b2cVendorIds = b2cVendors.map(v => v._id);
 
     // Try to find by ID first, then by slug
     let campaign = null;
@@ -143,7 +156,11 @@ export const getPublicCampaignById = async (identifier) => {
       })
         .populate({
           path: 'productIds',
-          match: { isActive: true, isVisible: true },
+          match: {
+            isActive: true,
+            isVisible: true,
+            vendorId: { $in: b2cVendorIds }
+          },
           select: 'name price image originalPrice discount vendorId categoryId rating reviewCount stock isActive isVisible',
         })
         .lean();
@@ -157,7 +174,11 @@ export const getPublicCampaignById = async (identifier) => {
       })
         .populate({
           path: 'productIds',
-          match: { isActive: true, isVisible: true },
+          match: {
+            isActive: true,
+            isVisible: true,
+            vendorId: { $in: b2cVendorIds }
+          },
           select: 'name price image originalPrice discount vendorId categoryId rating reviewCount stock isActive isVisible',
         })
         .lean();

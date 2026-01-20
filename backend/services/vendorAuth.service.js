@@ -476,7 +476,41 @@ export const updateVendorProfile = async (vendorId, updateData) => {
     }
 
     if (address) {
-      updateFields.address = address;
+      // Validate and clean address data to prevent incorrect storage
+      const cleanedAddress = { ...address };
+      
+      // Validate state - should not be a pincode
+      if (cleanedAddress.state && /^\d{6}$/.test(cleanedAddress.state.trim())) {
+        console.warn(`⚠️ Invalid state value (pincode): "${cleanedAddress.state}" for vendor ${vendorId}`);
+        // Don't update state if it's a pincode - keep existing or set to empty
+        cleanedAddress.state = '';
+      }
+      
+      // Validate city - should not be a state name
+      const commonStates = ['Madhya Pradesh', 'Uttar Pradesh', 'Maharashtra', 'Gujarat', 'Rajasthan', 
+                           'Karnataka', 'Tamil Nadu', 'West Bengal', 'Bihar', 'Odisha', 'Andhra Pradesh',
+                           'Telangana', 'Kerala', 'Punjab', 'Haryana', 'Jharkhand', 'Assam', 'Himachal Pradesh'];
+      if (cleanedAddress.city && commonStates.some(s => cleanedAddress.city.trim().toLowerCase() === s.toLowerCase())) {
+        console.warn(`⚠️ Invalid city value (state name): "${cleanedAddress.city}" for vendor ${vendorId}`);
+        // Don't update city if it's a state name - keep existing or set to empty
+        cleanedAddress.city = '';
+      }
+      
+      // Validate pincode - should not be a country name
+      if (cleanedAddress.pincode && (cleanedAddress.pincode.trim().toLowerCase() === 'india' || cleanedAddress.pincode.trim().length > 10)) {
+        console.warn(`⚠️ Invalid pincode value: "${cleanedAddress.pincode}" for vendor ${vendorId}`);
+        // Don't update pincode if it's invalid - keep existing or set to empty
+        cleanedAddress.pincode = '';
+      }
+      
+      // Trim all address fields
+      Object.keys(cleanedAddress).forEach(key => {
+        if (typeof cleanedAddress[key] === 'string') {
+          cleanedAddress[key] = cleanedAddress[key].trim();
+        }
+      });
+      
+      updateFields.address = cleanedAddress;
     }
 
     const vendor = await Vendor.findByIdAndUpdate(

@@ -38,24 +38,135 @@ const ProductCatalog = () => {
         try {
             const response = await api.get('/public/b2b-locations');
             if (response.success && response.data) {
-                setAvailableStates(response.data.states || []);
+                const states = (response.data.states || []).map(state => ({
+                    ...state,
+                    name: (state.name || '').trim() // Ensure state names are trimmed
+                }));
+                console.log('📍 Frontend - Received states:', states.length);
+                states.forEach(state => {
+                    console.log(`  State: "${state.name}" - Cities: ${state.cities?.length || 0}`, state.cities?.slice(0, 3));
+                });
+                setAvailableStates(states);
+            } else {
+                console.warn('⚠️ No states data received');
+                setAvailableStates([]);
             }
         } catch (error) {
-            console.error('Error fetching locations:', error);
+            console.error('❌ Error fetching locations:', error);
+            setAvailableStates([]);
         } finally {
             setLocationsLoading(false);
         }
     };
 
-    const handleStateChange = (state) => {
-        setSelectedState(state);
+    const handleStateChange = (selectedValue) => {
+        // Backend already returns clean state names, so use directly
+        console.log('🔄 handleStateChange called with:', selectedValue);
+        console.log('📋 Available states count:', availableStates.length);
+        console.log('📋 Available states:', availableStates.map(s => `"${(s.name || '').trim()}"`));
+        
         setSelectedCity('All Cities');
         
-        if (state === 'All States') {
+        if (selectedValue === 'All States' || !selectedValue || selectedValue.trim() === '') {
+            console.log('✅ Setting to All States');
+            setSelectedState('All States');
             setAvailableCities([]);
+            return;
+        }
+        
+        // Find state by exact match (trimmed) - backend already returns clean names
+        const trimmedSelected = (selectedValue || '').trim();
+        console.log('🔍 Looking for state:', `"${trimmedSelected}"`);
+        
+        const stateData = availableStates.find(s => {
+            const stateName = (s.name || '').trim();
+            const matches = stateName === trimmedSelected;
+            if (matches) {
+                console.log('✅ Found match:', stateName);
+            }
+            return matches;
+        });
+        
+        if (!stateData) {
+            console.error('❌ State not found!');
+            console.error('  Searched for:', `"${trimmedSelected}"`);
+            console.error('  Available states:', availableStates.map(s => `"${(s.name || '').trim()}"`));
+            // Don't set an invalid state - keep current or reset to All States
+            setSelectedState('All States');
+            setAvailableCities([]);
+            return;
+        }
+        
+        // Set selected state - use the exact name from stateData to ensure matching
+        const exactStateName = (stateData.name || '').trim();
+        console.log('✅ Setting selectedState to:', `"${exactStateName}"`);
+        console.log('📊 Cities in state data:', stateData.cities?.length || 0);
+        
+        setSelectedState(exactStateName);
+        
+        // Process cities - backend already returns clean cities, but do final cleanup
+        console.log('🔍 Processing cities for state:', exactStateName);
+        console.log('🔍 Raw cities data:', stateData.cities);
+        console.log('🔍 Cities is array?', Array.isArray(stateData.cities));
+        console.log('🔍 Cities length:', stateData.cities?.length || 0);
+        
+        if (stateData.cities && Array.isArray(stateData.cities) && stateData.cities.length > 0) {
+            const stateName = exactStateName;
+            
+            // Final cleanup of cities - remove any remaining state names or pincodes
+            // BUT be less aggressive - only filter obvious issues
+            const cleanedCities = stateData.cities
+                .map(city => {
+                    if (!city || typeof city !== 'string') return null;
+                    let cleanCity = city.trim();
+                    
+                    // Skip if empty
+                    if (!cleanCity || cleanCity.length === 0) return null;
+                    
+                    // Skip if only numbers (pincode)
+                    if (/^\d+$/.test(cleanCity)) return null;
+                    
+                    // Skip if it's exactly the state name
+                    if (cleanCity.toLowerCase() === stateName.toLowerCase()) return null;
+                    
+                    // Remove pincode if present at the end
+                    cleanCity = cleanCity.replace(/\s+\d{6}$/, '').replace(/\s+\d{5,6}$/, '').trim();
+                    
+                    // Only remove state name from end if city has multiple words
+                    const stateWords = stateName.split(' ').filter(w => w.length > 2);
+                    if (stateWords.length > 0 && cleanCity.split(' ').length > 1) {
+                        const cityWords = cleanCity.split(' ');
+                        const lastWord = cityWords[cityWords.length - 1];
+                        // Only remove if last word matches a state word AND city has more than one word
+                        if (stateWords.some(sw => sw.toLowerCase() === lastWord.toLowerCase()) && cityWords.length > 1) {
+                            cleanCity = cityWords.slice(0, -1).join(' ').trim();
+                        }
+                    }
+                    
+                    // Return cleaned city if it's still valid
+                    return (cleanCity && cleanCity.length > 0) ? cleanCity : null;
+                })
+                .filter(city => city !== null && city.length > 0); // Remove nulls and empty strings
+            
+            console.log('🏙️ Cities after processing:', cleanedCities.length);
+            console.log('🏙️ First 10 cities:', cleanedCities.slice(0, 10));
+            
+            if (cleanedCities.length > 0) {
+                setAvailableCities(cleanedCities);
+                console.log('✅ Cities set successfully!');
+            } else {
+                console.warn('⚠️ All cities were filtered out! Using original cities.');
+                // If all cities were filtered, use original cities (less filtered)
+                const fallbackCities = stateData.cities
+                    .filter(city => city && typeof city === 'string' && city.trim().length > 0 && !/^\d+$/.test(city.trim()))
+                    .map(city => city.trim());
+                console.log('🔄 Fallback cities:', fallbackCities.length, fallbackCities.slice(0, 5));
+                setAvailableCities(fallbackCities);
+            }
         } else {
-            const stateData = availableStates.find(s => s.name === state);
-            setAvailableCities(stateData?.cities || []);
+            console.warn('⚠️ No cities found for state:', exactStateName);
+            console.warn('  stateData:', stateData);
+            setAvailableCities([]);
         }
     };
 
@@ -152,6 +263,46 @@ const ProductCatalog = () => {
         fetchB2BProducts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedState, selectedCity]);
+
+    // Debug: Log state and cities changes
+    useEffect(() => {
+        console.log('🔍 useEffect - selectedState changed to:', `"${selectedState}"`);
+        console.log('🔍 useEffect - availableCities count:', availableCities.length);
+        console.log('🔍 useEffect - availableCities:', availableCities.slice(0, 5));
+        console.log('🔍 useEffect - locationsLoading:', locationsLoading);
+        console.log('🔍 useEffect - City dropdown should be:', 
+            selectedState === 'All States' || availableCities.length === 0 || locationsLoading ? 'DISABLED' : 'ENABLED'
+        );
+        
+        // If state is selected but cities are empty, try to find cities again
+        if (selectedState !== 'All States' && availableCities.length === 0 && !locationsLoading && availableStates.length > 0) {
+            console.warn('⚠️ State selected but no cities! Trying to find cities again...');
+            const stateData = availableStates.find(s => (s.name || '').trim() === selectedState);
+            if (stateData && stateData.cities && stateData.cities.length > 0) {
+                console.log('✅ Found cities in stateData, setting them:', stateData.cities.length);
+                // Use cities directly without heavy filtering
+                const directCities = stateData.cities
+                    .filter(city => city && typeof city === 'string' && city.trim().length > 0)
+                    .map(city => city.trim());
+                if (directCities.length > 0) {
+                    setAvailableCities(directCities);
+                }
+            }
+        }
+        
+        // Validate that selectedState matches an available option
+        if (selectedState !== 'All States' && availableStates.length > 0) {
+            const isValidState = availableStates.some(s => (s.name || '').trim() === selectedState);
+            if (!isValidState) {
+                console.error('❌ INVALID STATE! selectedState does not match any available option!');
+                console.error('  selectedState:', `"${selectedState}"`);
+                console.error('  Available states:', availableStates.map(s => `"${(s.name || '').trim()}"`));
+                // Reset to All States if invalid
+                setSelectedState('All States');
+                setAvailableCities([]);
+            }
+        }
+    }, [selectedState, availableCities, locationsLoading, availableStates]);
 
     const fetchB2BCategories = async () => {
         try {
@@ -472,26 +623,74 @@ const ProductCatalog = () => {
                     <div className="flex gap-3 flex-wrap">
                         <select
                             value={selectedState}
-                            onChange={(e) => handleStateChange(e.target.value)}
-                            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none"
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                console.log('📝 Dropdown onChange - Raw value:', val);
+                                console.log('📝 Current selectedState:', selectedState);
+                                console.log('📝 Available states:', availableStates.map(s => `"${s.name}"`));
+                                handleStateChange(val);
+                            }}
+                            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none min-w-[180px]"
                             disabled={locationsLoading}
                         >
                             <option value="All States">All States</option>
-                            {availableStates.map(state => (
-                                <option key={state.name} value={state.name}>{state.name}</option>
-                            ))}
+                            {availableStates
+                                .filter(state => {
+                                    // Filter out states that are only pincodes, numbers, or partial names
+                                    const stateName = (state.name || '').trim();
+                                    if (!stateName || /^\d+$/.test(stateName) || stateName.length === 0) {
+                                        return false;
+                                    }
+                                    // Filter out partial state names (single word suffixes)
+                                    const stateSuffixes = ['Pradesh', 'Bengal', 'Nadu', 'Desh', 'Khand'];
+                                    const stateWords = stateName.split(' ');
+                                    if (stateWords.length === 1 && stateSuffixes.includes(stateName)) {
+                                        console.warn('⚠️ Filtering out partial state name:', stateName);
+                                        return false;
+                                    }
+                                    return true;
+                                })
+                                .map(state => {
+                                    // Backend already returns clean state names, so use directly
+                                    const stateName = (state.name || '').trim();
+                                    return (
+                                        <option key={stateName} value={stateName} title={stateName}>
+                                            {stateName}
+                                        </option>
+                                    );
+                                })}
                         </select>
 
                         <select
                             value={selectedCity}
-                            onChange={(e) => setSelectedCity(e.target.value)}
+                            onChange={(e) => {
+                                console.log('🏙️ City selected:', e.target.value);
+                                setSelectedCity(e.target.value);
+                            }}
                             className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={selectedState === 'All States' || availableCities.length === 0 || locationsLoading}
+                            title={selectedState === 'All States' ? 'Please select a state first' : availableCities.length === 0 ? 'No cities available for this state' : 'Select a city'}
                         >
                             <option value="All Cities">All Cities</option>
-                            {availableCities.map(city => (
-                                <option key={city} value={city}>{city}</option>
-                            ))}
+                            {availableCities.length > 0 ? availableCities.map((city, index) => {
+                                // city is already cleaned from handleStateChange
+                                const cityValue = typeof city === 'string' ? city.trim() : String(city);
+                                
+                                // Additional safety check
+                                if (!cityValue || cityValue.length === 0 || /^\d+$/.test(cityValue)) {
+                                    return null;
+                                }
+                                
+                                return (
+                                    <option key={`${cityValue}-${index}`} value={cityValue}>
+                                        {cityValue}
+                                    </option>
+                                );
+                            }) : (
+                                selectedState !== 'All States' && (
+                                    <option value="" disabled>No cities available for {selectedState}</option>
+                                )
+                            )}
                         </select>
                     </div>
 
@@ -671,9 +870,30 @@ const ProductCatalog = () => {
                                         </p>
                                     </div>
 
-                                    <p className="text-sm text-gray-500 line-clamp-2 mb-6 font-medium leading-relaxed">
+                                    <p className="text-sm text-gray-500 line-clamp-2 mb-4 font-medium leading-relaxed">
                                         {product.description}
                                     </p>
+
+                                    {/* Vendor Company Name and City */}
+                                    {(product.vendorId?.storeName || product.vendorId?.address?.city) && (
+                                        <div className="mb-4 pb-4 border-b border-gray-100">
+                                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                                                {product.vendorId?.storeName && (
+                                                    <span className="font-bold text-gray-700">
+                                                        {product.vendorId.storeName}
+                                                    </span>
+                                                )}
+                                                {product.vendorId?.storeName && product.vendorId?.address?.city && (
+                                                    <span className="text-gray-400">•</span>
+                                                )}
+                                                {product.vendorId?.address?.city && (
+                                                    <span className="text-gray-500">
+                                                        {product.vendorId.address.city}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="flex items-center gap-4 mb-6 mt-auto">
                                         <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">

@@ -467,10 +467,8 @@ const AddProduct = () => {
       // Validate basic info
       const hasRootVariants = formData.sizeVariants && formData.sizeVariants.length > 0;
       const hasColorVariants = colorVariants && colorVariants.length > 0;
-      const isPriceRequired = !hasRootVariants && !hasColorVariants;
-
-      if (!formData.name || (isPriceRequired && !formData.price) || !formData.categoryId) {
-        toast.error("Please fill in all required fields");
+      if (!formData.name || !formData.categoryId) {
+        toast.error("Please fill in all required fields (Product Name and Category)");
         return;
       }
     }
@@ -507,10 +505,8 @@ const AddProduct = () => {
     // Validation
     const hasRootVariants = formData.sizeVariants && formData.sizeVariants.length > 0;
     const hasColorVariants = colorVariants && colorVariants.length > 0;
-    const isPriceRequired = !hasRootVariants && !hasColorVariants;
-
-    if (!formData.name || (isPriceRequired && !formData.price)) {
-      toast.error("Please fill in all required fields");
+    if (!formData.name || !formData.categoryId) {
+      toast.error("Please fill in all required fields (Product Name and Category)");
       return;
     }
 
@@ -519,9 +515,15 @@ const AddProduct = () => {
       return;
     }
 
-    if (isPriceRequired && (formData.stockQuantity === undefined || formData.stockQuantity === null || formData.stockQuantity === "" || isNaN(parseInt(formData.stockQuantity)))) {
-      toast.error("Please enter the base stock quantity");
-      return;
+    if (formData.stockQuantity === undefined || formData.stockQuantity === null || isNaN(parseInt(formData.stockQuantity))) {
+      // If stock is not provided, we can either error or default to 0. 
+      // Given the user's request to relax requirements, we'll just ensure it's at least valid if present.
+      // But the backend requires it, so we ensure formData has a default or error here.
+      // Let's stick to requiring it for now but remove the isPriceRequired check which was causing an error.
+      if (!hasRootVariants && !hasColorVariants && (formData.stockQuantity === "")) {
+        toast.error("Please enter the stock quantity");
+        return;
+      }
     }
 
 
@@ -1097,8 +1099,6 @@ const AddProduct = () => {
                       name="stockQuantity"
                       value={formData.stockQuantity}
                       onChange={handleChange}
-                      required
-                      min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                       placeholder="0"
                     />

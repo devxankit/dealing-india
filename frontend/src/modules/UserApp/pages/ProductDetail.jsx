@@ -142,6 +142,7 @@ const MobileProductDetail = () => {
               const similarResponse = await getProducts({
                 categoryId: productData.categoryId._id || productData.categoryId,
                 limit: 4,
+                vendorType: 'b2c',
               });
 
               // Transform products to match frontend format (same as Home page)

@@ -21,6 +21,7 @@ const NewArrivalsSection = () => {
           isNew: true, // Filter for new products
           sortBy: 'createdAt',
           sortOrder: 'desc',
+          vendorType: 'b2c',
         });
 
         // Transform products to match frontend format

@@ -12,6 +12,7 @@ import {
   FiChevronRight,
   FiEdit2,
   FiTag,
+  FiTrash2,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "../../../shared/store/useStore";
@@ -43,7 +44,7 @@ const MobileCheckout = () => {
   }, [buyNowItem, cartItems]);
 
   const { user, isAuthenticated } = useAuthStore();
-  const { addresses, getDefaultAddress, addAddress, fetchAddresses } = useAddressStore();
+  const { addresses, getDefaultAddress, addAddress, fetchAddresses, deleteAddress } = useAddressStore();
   const { createOrderAPI, verifyPaymentAPI, cancelOrderAPI } = useOrderStore();
 
   useEffect(() => {
@@ -342,6 +343,25 @@ const MobileCheckout = () => {
     handleSelectAddress(newAddress);
     setShowAddressForm(false);
     toast.success("Address added and selected!");
+  };
+
+  const handleDeleteAddress = async (id) => {
+    try {
+      await deleteAddress(id);
+      toast.success("Address deleted successfully");
+      if (selectedAddressId === id) {
+        const remaining = addresses.find(a => (a.id || a._id) !== id);
+        if (remaining) {
+          handleSelectAddress(remaining);
+        } else {
+          setSelectedAddressId(null);
+          setFormData(prev => ({ ...prev, address: "", city: "", state: "", zipCode: "", country: "" }));
+        }
+      }
+    } catch (error) {
+      console.error("Delete address error:", error);
+      toast.error("Failed to delete address");
+    }
   };
 
   if (items.length === 0) {
@@ -660,9 +680,20 @@ const MobileCheckout = () => {
                                 </p>
                               </div>
                             </div>
-                            {selectedAddressId === address.id && (
-                              <FiCheck className="text-primary-600 text-xl flex-shrink-0" />
-                            )}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteAddress(address.id || address._id);
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors z-10">
+                                <FiTrash2 size={18} />
+                              </button>
+                              {selectedAddressId === address.id && (
+                                <FiCheck className="text-primary-600 text-xl flex-shrink-0" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}

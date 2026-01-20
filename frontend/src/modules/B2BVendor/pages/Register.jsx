@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiMapPin, FiBriefcase, FiUpload, FiFile, FiX, FiCheck, FiZap, FiStar, FiAward, FiPlus } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import { getActiveB2BPlans } from '../../../shared/utils/b2bPlanManager';
 
 const B2BVendorRegister = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [localLoading, setLocalLoading] = useState(false);
     const [isUploadingDocs, setIsUploadingDocs] = useState(false);
     const [subscriptionPlan, setSubscriptionPlan] = useState('');
@@ -18,10 +19,14 @@ const B2BVendorRegister = () => {
     const [paymentData, setPaymentData] = useState(null);
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
+    // Get pre-filled data from navigation state (e.g. from "Become a Seller" button)
+    const preFilledData = location.state?.userData || {};
+    const isUpgrade = location.state?.isUpgrade || false;
+
     const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
+        name: preFilledData.name || '',
+        email: preFilledData.email || '',
+        phone: preFilledData.phone || '',
         password: '',
         confirmPassword: '',
         companyName: '',
@@ -34,6 +39,12 @@ const B2BVendorRegister = () => {
             country: 'India',
         },
     });
+
+    useEffect(() => {
+        if (isUpgrade && preFilledData.name) {
+            toast.success(`Welcome ${preFilledData.name.split(' ')[0]}! Complete these details to start your B2B business.`);
+        }
+    }, [isUpgrade, preFilledData.name]);
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -48,11 +59,11 @@ const B2BVendorRegister = () => {
             const savedSubscriptionId = localStorage.getItem('b2b_subscription_id');
             const savedEmail = localStorage.getItem('b2b_payment_email');
             const savedPhone = localStorage.getItem('b2b_payment_phone');
-            
+
             if (savedPaymentData && savedPaidPlanId) {
                 try {
                     const paymentData = JSON.parse(savedPaymentData);
-                    
+
                     // Validate payment data has required fields
                     if (!paymentData.razorpayPaymentId) {
                         console.warn('Invalid payment data - missing payment ID, clearing...');
@@ -69,14 +80,14 @@ const B2BVendorRegister = () => {
                         try {
                             console.log('🔍 Verifying subscription in database:', savedSubscriptionId);
                             const verifyResponse = await api.get(`/auth/vendor/b2b-vendor/verify-subscription/${savedSubscriptionId}`);
-                            
+
                             if (verifyResponse.success && verifyResponse.data?.subscription) {
                                 // Subscription exists in database - restore data
                                 console.log('✅ Subscription verified in database, restoring payment data');
                                 setPaymentData(paymentData);
                                 setPaidPlanId(savedPaidPlanId);
                                 setSubscriptionPlan(savedPaidPlanId);
-                                
+
                                 // Restore email and phone if available
                                 if (savedEmail) {
                                     setFormData(prev => ({ ...prev, email: savedEmail }));
@@ -84,7 +95,7 @@ const B2BVendorRegister = () => {
                                 if (savedPhone) {
                                     setFormData(prev => ({ ...prev, phone: savedPhone }));
                                 }
-                                
+
                                 console.log('✅ Restored payment data from localStorage:', {
                                     planId: savedPaidPlanId,
                                     subscriptionId: savedSubscriptionId,
@@ -110,7 +121,7 @@ const B2BVendorRegister = () => {
                             localStorage.removeItem('b2b_subscription_id');
                             localStorage.removeItem('b2b_payment_email');
                             localStorage.removeItem('b2b_payment_phone');
-                            
+
                             // Only show error if it's not a 404 (subscription not found)
                             if (verifyError.response?.status !== 404) {
                                 toast.error('Failed to verify payment. Please make payment again.');
@@ -155,7 +166,7 @@ const B2BVendorRegister = () => {
                     popular: p.duration === 6
                 }));
                 setAvailablePlans(formattedPlans);
-                
+
                 // Only set default plan if no payment has been made
                 if (!paidPlanId && formattedPlans.length > 0) {
                     const defaultPlan = formattedPlans.find(p => p.popular) || formattedPlans[0];
@@ -277,7 +288,7 @@ const B2BVendorRegister = () => {
                 handler: async (paymentResponse) => {
                     try {
                         setIsProcessingPayment(true);
-                        
+
                         // Prepare payment data
                         const paymentData = {
                             razorpayOrderId: paymentResponse.razorpay_order_id,
@@ -312,10 +323,10 @@ const B2BVendorRegister = () => {
                             if (subscriptionResponse.success) {
                                 const subscriptionId = subscriptionResponse.data.subscription._id;
                                 console.log('✅ Subscription created in database:', subscriptionId);
-                                
+
                                 // Store subscription ID in localStorage
                                 localStorage.setItem('b2b_subscription_id', subscriptionId);
-                                
+
                                 toast.success('Payment successful! Subscription created. Please complete your registration below.');
                             } else {
                                 throw new Error(subscriptionResponse.message || 'Failed to create subscription');
@@ -431,7 +442,7 @@ const B2BVendorRegister = () => {
             });
 
             const response = await api.post('/auth/vendor/b2b-vendor/register-with-payment', registrationData);
-            
+
             console.log('✅ Registration API response received:', {
                 success: response.success,
                 hasVendor: !!response.data?.vendor,
@@ -447,16 +458,16 @@ const B2BVendorRegister = () => {
                 localStorage.removeItem('b2b_subscription_id');
                 localStorage.removeItem('b2b_payment_email');
                 localStorage.removeItem('b2b_payment_phone');
-                
+
                 toast.success('Registration successful! Your account is pending admin approval. You will be able to login once approved.', {
                     duration: 6000,
                 });
                 // Navigate to login page with message
-                navigate('/b2b-vendor/login', { 
-                    state: { 
+                navigate('/b2b-vendor/login', {
+                    state: {
                         message: 'Registration successful! Please wait for admin approval before logging in.',
-                        email: formData.email 
-                    } 
+                        email: formData.email
+                    }
                 });
             } else {
                 toast.error(response.message || 'Registration failed');
@@ -469,10 +480,10 @@ const B2BVendorRegister = () => {
                 statusText: error.response?.statusText,
                 data: error.response?.data,
             });
-            
+
             const message = error.response?.data?.message || error.message || 'Registration failed. Please try again.';
             toast.error(message);
-            
+
             // Log detailed error for debugging
             if (error.response?.data) {
                 console.error('Error details from backend:', error.response.data);
@@ -534,20 +545,19 @@ const B2BVendorRegister = () => {
                                     const hasPaymentDone = !!paidPlanId; // Check if any payment is done
                                     const canSelect = !hasPaymentDone; // Can only select if no payment is done yet
                                     const isDisabled = hasPaymentDone && !isPaid; // Disable if payment done for another plan
-                                    
+
                                     return (
                                         <motion.div
                                             key={plan.id}
                                             whileHover={canSelect && !isDisabled ? { y: -5 } : {}}
-                                            className={`relative p-6 rounded-3xl border-2 transition-all ${
-                                                isPaid
+                                            className={`relative p-6 rounded-3xl border-2 transition-all ${isPaid
                                                     ? 'border-green-500 bg-green-50 shadow-lg'
                                                     : isSelected && canSelect
-                                                    ? 'border-primary-600 bg-white shadow-xl ring-4 ring-primary-50'
-                                                    : isDisabled
-                                                    ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
-                                                    : 'border-gray-100 bg-slate-50 hover:border-gray-200'
-                                            }`}
+                                                        ? 'border-primary-600 bg-white shadow-xl ring-4 ring-primary-50'
+                                                        : isDisabled
+                                                            ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                                                            : 'border-gray-100 bg-slate-50 hover:border-gray-200'
+                                                }`}
                                         >
                                             {plan.popular && (
                                                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md">
@@ -556,11 +566,10 @@ const B2BVendorRegister = () => {
                                             )}
 
                                             <div className="text-center mb-6">
-                                                <div className={`w-12 h-12 rounded-2xl mx-auto flex items-center justify-center mb-4 ${
-                                                    isSelected ? 'bg-primary-600 text-white' : 
-                                                    isPaid ? 'bg-green-600 text-white' :
-                                                    'bg-white text-gray-400 border border-gray-100'
-                                                }`}>
+                                                <div className={`w-12 h-12 rounded-2xl mx-auto flex items-center justify-center mb-4 ${isSelected ? 'bg-primary-600 text-white' :
+                                                        isPaid ? 'bg-green-600 text-white' :
+                                                            'bg-white text-gray-400 border border-gray-100'
+                                                    }`}>
                                                     <Icon className="text-2xl" />
                                                 </div>
                                                 <h4 className="text-lg font-bold text-gray-800">{plan.name}</h4>
@@ -573,11 +582,10 @@ const B2BVendorRegister = () => {
                                             <div className="space-y-3 mb-6">
                                                 {plan.features.map((feature, i) => (
                                                     <div key={i} className="flex items-start gap-2">
-                                                        <FiCheck className={`mt-0.5 flex-shrink-0 ${
-                                                            isSelected ? 'text-primary-600' : 
-                                                            isPaid ? 'text-green-600' :
-                                                            'text-gray-400'
-                                                        }`} />
+                                                        <FiCheck className={`mt-0.5 flex-shrink-0 ${isSelected ? 'text-primary-600' :
+                                                                isPaid ? 'text-green-600' :
+                                                                    'text-gray-400'
+                                                            }`} />
                                                         <span className="text-xs text-gray-600 leading-tight">{feature}</span>
                                                     </div>
                                                 ))}
@@ -624,11 +632,10 @@ const B2BVendorRegister = () => {
                                                         }
                                                     }}
                                                     disabled={!canSelect || isDisabled}
-                                                    className={`w-full py-2.5 rounded-xl text-sm font-bold text-center transition-all ${
-                                                        canSelect && !isDisabled
+                                                    className={`w-full py-2.5 rounded-xl text-sm font-bold text-center transition-all ${canSelect && !isDisabled
                                                             ? 'bg-white border border-gray-100 text-gray-600 hover:bg-gray-50'
                                                             : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {canSelect ? 'Choose Plan' : 'Payment Already Done'}
                                                 </button>

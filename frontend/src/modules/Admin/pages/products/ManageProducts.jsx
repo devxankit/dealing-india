@@ -8,7 +8,7 @@ import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import StatCard from "../../../../shared/components/StatCard";
-import { formatPrice } from "../../../../shared/utils/helpers";
+import { formatPrice, getPlaceholderImage } from "../../../../shared/utils/helpers";
 
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useVendorManagementStore } from "../../store/vendorManagementStore";

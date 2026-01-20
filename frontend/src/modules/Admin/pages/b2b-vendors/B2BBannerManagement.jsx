@@ -442,7 +442,7 @@ const B2BBannerManagement = () => {
             render: (val, row) => (
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => toast.info("View details coming soon")}
+                        onClick={() => navigate(`/admin/b2b-vendors/banner-bookings/details/${row._id}`)}
                         className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
                         title="View Details"
                     >

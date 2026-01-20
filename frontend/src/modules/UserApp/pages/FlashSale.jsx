@@ -73,6 +73,7 @@ const MobileFlashSale = () => {
           limit: 100, // Fetch more products for infinite scroll
           sortBy: 'createdAt',
           sortOrder: 'desc',
+          vendorType: 'b2c',
         });
 
         const products = (response.data?.products || response.products || []).map(p => ({

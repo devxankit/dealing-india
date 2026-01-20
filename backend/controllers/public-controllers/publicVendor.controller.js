@@ -25,16 +25,10 @@ export const getPublicVendors = async (req, res, next) => {
       effectiveVendorType = undefined; // Let getAllVendors handle the exclusion
     }
 
-    // TEMPORARY: Restrict B2B to only 'mockb2bvendor@example.com' as per user request
-    let effectiveSearch = search;
-    if (vendorType === 'b2b') {
-      effectiveSearch = 'mockb2bvendor@example.com';
-    }
-
     // Get approved and active vendors
     // When effectiveVendorType is undefined, getAllVendors will exclude B2B vendors
     const result = await getApprovedVendors({
-      search: effectiveSearch,
+      search,
       vendorType: effectiveVendorType, // Pass undefined to exclude B2B vendors
       isActive: true, // Only show active vendors
       page: parseInt(page),

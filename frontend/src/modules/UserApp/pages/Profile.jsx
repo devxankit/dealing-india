@@ -11,12 +11,20 @@ import { useAuthStore } from '../../../shared/store/authStore';
 import PageTransition from '../../../shared/components/PageTransition';
 import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
 import toast from 'react-hot-toast';
+import VendorTypeModal from '../components/VendorTypeModal';
+import api from '../../../shared/utils/api';
+import { useVendorAuthStore } from '../../Vendor/store/vendorAuthStore';
+import { useB2BVendorAuthStore } from '../../B2BVendor/store/b2bVendorAuthStore';
 
 const MobileProfile = () => {
   const navigate = useNavigate();
   const { user, logout, switchMarketplace } = useAuthStore();
+  const { login: loginVendor } = useVendorAuthStore();
+  const { login: loginB2BVendor } = useB2BVendorAuthStore();
   const [isSwitching, setIsSwitching] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showVendorTypeModal, setShowVendorTypeModal] = useState(false);
+  const [isCheckingVendorStatus, setIsCheckingVendorStatus] = useState(false);
 
   // Check Mega Reward Status
   const [isRewardEntered, setIsRewardEntered] = useState(false);
@@ -68,6 +76,203 @@ const MobileProfile = () => {
     } catch (error) {
       toast.error('Failed to switch marketplace');
       setIsSwitching(false);
+    }
+  };
+
+  // Check vendor status and handle navigation
+  const handleVendorTypeSelection = async (vendorType) => {
+    if (!user?.email) {
+      toast.error('User email not found');
+      setShowVendorTypeModal(false);
+      return;
+    }
+
+    setIsCheckingVendorStatus(true);
+    setShowVendorTypeModal(false);
+
+    try {
+      // Check if vendor exists and is approved
+      const response = await api.get(`/auth/vendor/check-status/${user.email}`);
+      
+      if (response.success && response.data) {
+        const { exists, isApproved, vendorType: existingVendorType } = response.data;
+
+        // If vendor exists and is approved
+        if (exists && isApproved) {
+          // If selected type matches existing type, proceed normally
+          if (existingVendorType === vendorType) {
+            // Check if already logged in as this vendor type
+            if (vendorType === 'b2b') {
+              const { isAuthenticated, vendor: b2bVendor } = useB2BVendorAuthStore.getState();
+              if (isAuthenticated && b2bVendor && b2bVendor.email === user.email) {
+                // Already logged in, redirect to dashboard
+                toast.success('Redirecting to your B2B vendor dashboard...');
+                navigate('/b2b-vendor/dashboard');
+                setIsCheckingVendorStatus(false);
+                return;
+              }
+            } else {
+              const { isAuthenticated, vendor: regularVendor } = useVendorAuthStore.getState();
+              if (isAuthenticated && regularVendor && regularVendor.email === user.email) {
+                // Already logged in, redirect to dashboard
+                toast.success('Redirecting to your vendor dashboard...');
+                navigate('/vendor/dashboard');
+                setIsCheckingVendorStatus(false);
+                return;
+              }
+            }
+
+            // Not logged in, but approved - navigate to login with email prefilled
+            if (vendorType === 'b2b') {
+              navigate('/b2b-vendor/login', {
+                state: {
+                  message: 'You are already an approved B2B vendor. Please login to continue.',
+                  email: user.email,
+                  autoFill: true
+                }
+              });
+            } else {
+              navigate('/vendor/login', {
+                state: {
+                  message: 'You are already an approved vendor. Please login to continue.',
+                  email: user.email,
+                  autoFill: true
+                }
+              });
+            }
+            setIsCheckingVendorStatus(false);
+            return;
+          } else {
+            // User has approved vendor account of different type - redirect to their existing account
+            toast.success(`You already have an approved ${existingVendorType === 'b2b' ? 'B2B' : 'regular'} vendor account. Redirecting...`);
+            
+            if (existingVendorType === 'b2b') {
+              const { isAuthenticated, vendor: b2bVendor } = useB2BVendorAuthStore.getState();
+              if (isAuthenticated && b2bVendor && b2bVendor.email === user.email) {
+                navigate('/b2b-vendor/dashboard');
+              } else {
+                navigate('/b2b-vendor/login', {
+                  state: {
+                    message: 'You are already an approved B2B vendor. Please login to continue.',
+                    email: user.email,
+                    autoFill: true
+                  }
+                });
+              }
+            } else {
+              const { isAuthenticated, vendor: regularVendor } = useVendorAuthStore.getState();
+              if (isAuthenticated && regularVendor && regularVendor.email === user.email) {
+                navigate('/vendor/dashboard');
+              } else {
+                navigate('/vendor/login', {
+                  state: {
+                    message: 'You are already an approved vendor. Please login to continue.',
+                    email: user.email,
+                    autoFill: true
+                  }
+                });
+              }
+            }
+            setIsCheckingVendorStatus(false);
+            return;
+          }
+        }
+
+        // If vendor exists but not approved
+        if (exists && !isApproved) {
+          // If selected type matches, go to login page
+          if (existingVendorType === vendorType) {
+            if (vendorType === 'b2b') {
+              navigate('/b2b-vendor/login', {
+                state: {
+                  message: 'Your vendor account is pending approval. Please wait for admin approval.',
+                  email: user.email
+                }
+              });
+            } else {
+              navigate('/vendor/login', {
+                state: {
+                  message: 'Your vendor account is pending approval. Please wait for admin approval.',
+                  email: user.email
+                }
+              });
+            }
+          } else {
+            // Different type but pending - show message and redirect to existing account
+            toast.success(`You have a pending ${existingVendorType === 'b2b' ? 'B2B' : 'regular'} vendor account. Please wait for approval.`);
+            if (existingVendorType === 'b2b') {
+              navigate('/b2b-vendor/login', {
+                state: {
+                  message: 'Your vendor account is pending approval. Please wait for admin approval.',
+                  email: user.email
+                }
+              });
+            } else {
+              navigate('/vendor/login', {
+                state: {
+                  message: 'Your vendor account is pending approval. Please wait for admin approval.',
+                  email: user.email
+                }
+              });
+            }
+          }
+          setIsCheckingVendorStatus(false);
+          return;
+        }
+      }
+
+      // Vendor doesn't exist - navigate to register with prefilled data
+      if (vendorType === 'b2b') {
+        navigate('/b2b-vendor/register', {
+          state: {
+            userData: {
+              name: user?.name,
+              email: user?.email,
+              phone: user?.phone
+            },
+            isUpgrade: true
+          }
+        });
+      } else {
+        navigate('/vendor/register', {
+          state: {
+            userData: {
+              name: user?.name,
+              email: user?.email,
+              phone: user?.phone
+            },
+            isUpgrade: true
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error checking vendor status:', error);
+      // On error, still navigate to register page
+      if (vendorType === 'b2b') {
+        navigate('/b2b-vendor/register', {
+          state: {
+            userData: {
+              name: user?.name,
+              email: user?.email,
+              phone: user?.phone
+            },
+            isUpgrade: true
+          }
+        });
+      } else {
+        navigate('/vendor/register', {
+          state: {
+            userData: {
+              name: user?.name,
+              email: user?.email,
+              phone: user?.phone
+            },
+            isUpgrade: true
+          }
+        });
+      }
+    } finally {
+      setIsCheckingVendorStatus(false);
     }
   };
 
@@ -181,16 +386,7 @@ const MobileProfile = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ delay: 0.1 }}
-                onClick={() => navigate('/vendor/register', {
-                  state: {
-                    userData: {
-                      name: user?.name,
-                      email: user?.email,
-                      phone: user?.phone
-                    },
-                    isUpgrade: true
-                  }
-                })}
+                onClick={() => setShowVendorTypeModal(true)}
                 className="w-full bg-gradient-to-r from-blue-900 to-indigo-900 rounded-xl p-4 text-white shadow-xl relative overflow-hidden cursor-pointer"
               >
                 {/* Background Pattern */}
@@ -290,6 +486,25 @@ const MobileProfile = () => {
                 </>
               )}
             </AnimatePresence>
+
+            {/* Vendor Type Selection Modal */}
+            <VendorTypeModal
+              isOpen={showVendorTypeModal}
+              onClose={() => setShowVendorTypeModal(false)}
+              onSelectVendorType={handleVendorTypeSelection}
+              userEmail={user?.email}
+              userName={user?.name}
+            />
+
+            {/* Loading overlay when checking vendor status */}
+            {isCheckingVendorStatus && (
+              <div className="fixed inset-0 bg-black/50 z-[100001] flex items-center justify-center">
+                <div className="bg-white rounded-xl p-6 flex flex-col items-center gap-4">
+                  <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-700 font-medium">Checking vendor status...</p>
+                </div>
+              </div>
+            )}
 
           </div>
         </MobileLayout>

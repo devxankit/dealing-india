@@ -306,3 +306,67 @@ export const checkSubscriptionByEmail = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Check vendor status by email (for checking if user is already a vendor)
+ * GET /api/auth/vendor/check-status/:email
+ */
+export const checkVendorStatusByEmail = async (req, res, next) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required',
+      });
+    }
+
+    // Find vendor by email
+    try {
+      const vendor = await getVendorById(null, email);
+      
+      if (!vendor) {
+        return res.status(200).json({
+          success: true,
+          message: 'Vendor not found',
+          data: { 
+            exists: false,
+            isApproved: false,
+            vendorType: null,
+            status: null
+          },
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Vendor status retrieved',
+        data: {
+          exists: true,
+          isApproved: vendor.status === 'approved',
+          vendorType: vendor.vendorType || 'b2c',
+          status: vendor.status,
+          isActive: vendor.isActive,
+        },
+      });
+    } catch (error) {
+      // Vendor not found
+      if (error.message === 'Vendor not found') {
+        return res.status(200).json({
+          success: true,
+          message: 'Vendor not found',
+          data: { 
+            exists: false,
+            isApproved: false,
+            vendorType: null,
+            status: null
+          },
+        });
+      }
+      throw error;
+    }
+  } catch (error) {
+    next(error);
+  }
+};

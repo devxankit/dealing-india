@@ -17,6 +17,14 @@ export const getActiveReelsForUsers = async (filters = {}) => {
     // Only get active reels
     const query = { status: 'active' };
 
+    // EXCLUDE B2B REELS: Get all B2C vendors first
+    const Vendor = (await import('../models/Vendor.model.js')).default;
+    const b2cVendors = await Vendor.find({ vendorType: { $ne: 'b2b' } }).select('_id');
+    const b2cVendorIds = b2cVendors.map(v => v._id);
+
+    // Add vendor restriction to query
+    query.vendorId = { $in: b2cVendorIds };
+
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 

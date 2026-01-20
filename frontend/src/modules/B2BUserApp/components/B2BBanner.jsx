@@ -17,30 +17,39 @@ const B2BBanner = () => {
         const loadBanners = async () => {
             try {
                 setLoading(true);
+                console.log('🖼️ Loading B2B banners...');
                 const response = await getActiveBanners('b2b');
+                
+                console.log('🖼️ B2B banners API response:', response);
                 
                 if (response.success && response.data) {
                     const bannerData = response.data.banners || [];
+                    console.log('🖼️ Banners received:', bannerData.length, bannerData);
+                    
                     // Transform API data to component format
                     const transformedBanners = bannerData.map(banner => ({
-                        id: banner.id,
-                        image: banner.image,
-                        title: banner.title || banner.vendorName || 'B2B Featured Banner',
-                        vendorId: banner.vendorId,
-                        link: banner.link || (banner.vendorId ? `/b2b/vendor/${banner.vendorId}` : '#'),
+                        id: banner._id || banner.id,
+                        image: banner.bannerImage || banner.image,
+                        title: banner.title || banner.vendorId?.storeName || banner.vendorId?.name || 'B2B Featured Banner',
+                        vendorId: banner.vendorId?._id || banner.vendorId,
+                        link: banner.link || banner.redirectUrl || (banner.vendorId?._id ? `/b2b/vendor/${banner.vendorId._id}` : '#'),
                     }));
                     
+                    console.log('🖼️ Transformed banners:', transformedBanners.length, transformedBanners);
                     setBanners(transformedBanners);
                     
                     // Get display time from settings if available
                     if (response.data.settings?.displayTime) {
                         setDisplayTime(response.data.settings.displayTime * 1000); // Convert seconds to milliseconds
+                    } else if (response.data.settings?.universalDisplayTime) {
+                        setDisplayTime(response.data.settings.universalDisplayTime * 1000);
                     }
                 } else {
+                    console.warn('⚠️ No banners data in response:', response);
                     setBanners([]);
                 }
             } catch (error) {
-                console.error("Failed to load B2B banners:", error);
+                console.error("❌ Failed to load B2B banners:", error);
                 setBanners([]);
             } finally {
                 setLoading(false);
@@ -88,7 +97,12 @@ const B2BBanner = () => {
         );
     }
 
-    if (banners.length === 0) return null;
+    if (banners.length === 0) {
+        console.log('⚠️ No active B2B banners to display');
+        return null;
+    }
+    
+    console.log('✅ Displaying', banners.length, 'B2B banners');
 
     return (
         <div
@@ -120,7 +134,7 @@ const B2BBanner = () => {
                         }}>
                         {banners.map((banner, index) => (
                             <div
-                                key={banner.id}
+                                key={banner.id || banner._id || `banner-${index}`}
                                 className="flex-shrink-0 cursor-pointer relative"
                                 onClick={() => handleBannerClick(banner)}
                                 style={{
@@ -128,10 +142,14 @@ const B2BBanner = () => {
                                     height: "100%",
                                 }}>
                                 <img
-                                    src={banner.image}
+                                    src={banner.image || banner.bannerImage}
                                     alt={banner.title || `B2B Banner ${index + 1}`}
                                     className="w-full h-full object-cover"
                                     loading={index === 0 ? "eager" : "lazy"}
+                                    onError={(e) => {
+                                        console.error(`❌ Failed to load banner image:`, banner.image || banner.bannerImage);
+                                        e.target.style.display = 'none';
+                                    }}
                                 />
                                 {/* Overlay with title */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end">
@@ -211,7 +229,7 @@ const B2BBanner = () => {
                         }}>
                         {banners.map((banner, index) => (
                             <div
-                                key={banner.id}
+                                key={banner.id || banner._id || `banner-${index}`}
                                 className="flex-shrink-0 cursor-pointer relative"
                                 onClick={() => handleBannerClick(banner)}
                                 style={{
@@ -219,10 +237,14 @@ const B2BBanner = () => {
                                     height: "100%",
                                 }}>
                                 <img
-                                    src={banner.image}
+                                    src={banner.image || banner.bannerImage}
                                     alt={banner.title || `B2B Banner ${index + 1}`}
                                     className="w-full h-full object-cover select-none"
                                     draggable="false"
+                                    onError={(e) => {
+                                        console.error(`❌ Failed to load banner image:`, banner.image || banner.bannerImage);
+                                        e.target.style.display = 'none';
+                                    }}
                                 />
                                 {/* Overlay with title */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end">

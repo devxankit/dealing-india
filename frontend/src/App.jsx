@@ -112,6 +112,7 @@ import AdminB2BVendorProductListings from "./modules/Admin/pages/b2b-vendors/Pro
 import AdminB2BVendorAnalyticsPage from "./modules/Admin/pages/b2b-vendors/B2BVendorAnalytics";
 import AdminB2BSubscriptions from "./modules/Admin/pages/b2b-vendors/Subscriptions";
 import B2BBannerManagement from "./modules/Admin/pages/b2b-vendors/B2BBannerManagement";
+import AdminB2BBannerDetail from "./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail";
 import B2BWallet from "./modules/Admin/pages/b2b-vendors/B2BWallet";
 import AdminB2BCategories from "./modules/Admin/pages/b2b-vendors/Categories";
 import RouteWrapper from "./shared/components/RouteWrapper";
@@ -347,6 +348,7 @@ const AppRoutes = () => {
             <Route path="pending" element={<AdminB2BVendorPendingApprovals />} />
             <Route path="products" element={<AdminB2BVendorProductListings />} />
             <Route path="banner-bookings" element={<B2BBannerManagement />} />
+            <Route path="banner-bookings/details/:id" element={<AdminB2BBannerDetail />} />
             <Route path="wallet" element={<B2BWallet />} />
             <Route path="analytics" element={<AdminB2BVendorAnalyticsPage />} />
             <Route path="subscriptions" element={<AdminB2BSubscriptions />} />

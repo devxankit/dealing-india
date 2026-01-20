@@ -7,7 +7,7 @@ import ExportButton from "../../../Admin/components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
-import { formatPrice } from "../../../../shared/utils/helpers";
+import { formatPrice, getPlaceholderImage } from "../../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";

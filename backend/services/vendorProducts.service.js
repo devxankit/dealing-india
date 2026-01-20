@@ -227,8 +227,8 @@ export const createVendorProduct = async (productData, vendorId) => {
       throw err;
     }
 
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-      const err = new Error('Valid price is required (must be a positive number)');
+    if (price !== undefined && price !== null && (isNaN(parseFloat(price)) || parseFloat(price) < 0)) {
+      const err = new Error('Valid price is required (must be a non-negative number)');
       err.status = 400;
       throw err;
     }

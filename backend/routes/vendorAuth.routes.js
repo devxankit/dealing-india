@@ -10,6 +10,7 @@ import {
   forgotPassword,
   resetPassword,
   checkSubscriptionByEmail,
+  checkVendorStatusByEmail,
 } from '../controllers/vendor-controllers/vendorAuth.controller.js';
 import { registerWithPayment, initializePayment, createSubscriptionAfterPayment, verifySubscription } from '../controllers/vendor-controllers/b2bVendorRegistration.controller.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
@@ -28,6 +29,7 @@ router.get('/b2b-vendor/verify-subscription/:subscriptionId', rateLimiter('b2b-v
 router.post('/b2b-vendor/register-with-payment', rateLimiter('b2b-vendor-register', 5, 600), asyncHandler(registerWithPayment));
 router.post('/login', rateLimiter('vendor-login', 10, 600), asyncHandler(login));
 router.get('/check-subscription/:email', rateLimiter('vendor-check-subscription', 10, 60), asyncHandler(checkSubscriptionByEmail));
+router.get('/check-status/:email', rateLimiter('vendor-check-status', 10, 60), asyncHandler(checkVendorStatusByEmail));
 router.post('/verify-email', asyncHandler(verifyEmail));
 router.post('/resend-otp', rateLimiter('vendor-otp-resend', 5, 600), asyncHandler(resendOTP));
 router.post('/forgot-password', rateLimiter('vendor-forgot-password', 5, 600), asyncHandler(forgotPassword));

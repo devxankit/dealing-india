@@ -441,33 +441,54 @@ export const createBooking = async (vendorId, bookingData, file, paymentMethod =
 
 
   // Convert start date to Date object
-  const startDateObj = startDate instanceof Date ? startDate : new Date(startDate);
-  if (isNaN(startDateObj.getTime())) {
-    throw new Error('Invalid start date format');
+  // Handle date-only strings (YYYY-MM-DD) by treating them as UTC midnight
+  // This ensures the selected date is stored correctly without timezone shifts
+  let startDateObj;
+  if (startDate instanceof Date) {
+    startDateObj = startDate;
+  } else if (typeof startDate === 'string' && startDate.trim()) {
+    const dateStr = startDate.trim();
+    
+    // Check if it's a date-only string (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      // Date-only format: treat as UTC midnight to preserve the selected date
+      // Example: "2026-01-21" -> "2026-01-21T00:00:00.000Z"
+      startDateObj = new Date(`${dateStr}T00:00:00.000Z`);
+      console.log(`📅 Date-only string detected: "${dateStr}" -> UTC: ${startDateObj.toISOString()}`);
+    } else if (dateStr.endsWith('Z') || dateStr.includes('+') || (dateStr.includes('T') && dateStr.includes('-'))) {
+      // ISO string with timezone info - parse directly
+      startDateObj = new Date(dateStr);
+      console.log(`📅 ISO string with timezone: "${dateStr}" -> ${startDateObj.toISOString()}`);
+    } else {
+      // Other formats - try to parse, but log warning
+      startDateObj = new Date(dateStr);
+      console.warn(`⚠️ Unrecognized date format: "${dateStr}", parsed as: ${startDateObj.toISOString()}`);
+    }
+  } else {
+    // Date object or other type
+    startDateObj = startDate instanceof Date ? startDate : new Date(startDate);
   }
+  
+  if (isNaN(startDateObj.getTime())) {
+    throw new Error(`Invalid start date format: ${startDate}`);
+  }
+  
+  console.log(`📅 Final startDateObj: ${startDateObj.toISOString()} (UTC)`);
 
   // Calculate End Date:
-  // "visible only till night 12.am"
-  // Logic: 
-  // Start Date: Jan 6, 3:00 PM
-  // Duration: 1 Day
-  // End Date: Jan 6 (Today) Midnight -> Jan 7, 00:00 AM.
+  // Requirement: banner always ends at 23:59:59 of the last day.
+  // Example:
+  // Start Date: Jan 21 (any time), Duration: 1 Day
+  // End Date: Jan 21, 23:59:59
   //
-  // Start Date: Jan 6, 3:00 PM
-  // Duration: 2 Days
-  // End Date: Jan 7 (Tomorrow) Midnight -> Jan 8, 00:00 AM.
-
-  // We take the Start Date, Add (DurationDays - 1) Days, then set to End of that day (which is next midnight)
-  // Actually simpler: 
-  // 1 Day = Remainder of Today.
-  // End Date = StartDate (Date Part) + 1 Day (at 00:00:00)
+  // Start Date: Jan 21, Duration: 2 Days
+  // End Date: Jan 22, 23:59:59
 
   const tempDate = new Date(startDateObj);
-  // Add durationDays (integer part mostly, but let's assume integers for "days")
   const fullDays = Math.ceil(durationDays);
-
-  tempDate.setDate(tempDate.getDate() + fullDays);
-  tempDate.setHours(0, 0, 0, 0); // Set to Midnight of that target date
+  // Add (fullDays - 1) days and set to end of day (UTC)
+  tempDate.setUTCDate(tempDate.getUTCDate() + fullDays - 1);
+  tempDate.setUTCHours(23, 59, 59, 999);
 
   const endDateObj = tempDate;
 
@@ -679,19 +700,59 @@ export const confirmBookingPayment = async (bookingId, paymentData, paymentMetho
  */
 export const getActiveBanners = async (bannerType = null) => {
   const now = new Date();
+  
+  // For date comparison, we need to be precise
+  // A banner is active if:
+  // - startDate <= now (banner has started)
+  // - endDate > now (banner hasn't ended yet)
+  // Note: endDate is set to midnight (00:00:00) of the day AFTER the last display day
+  // So if endDate is Jan 20 00:00:00, banner should show until Jan 19 23:59:59
+  //
+  // IMPORTANT: Some old banners might have incorrect endDate (calculated as startDate + 24 hours)
+  // We'll handle this by checking if the banner's date range makes sense
 
   // Build query
+  // Get start of yesterday (00:00:00) to include banners that ended yesterday
+  // This handles cases where old banners have incorrect endDate calculation
+  const startOfYesterday = new Date(now);
+  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+  startOfYesterday.setHours(0, 0, 0, 0);
+  
   const query = {
     paymentStatus: 'paid',
     adminApprovalStatus: 'approved',
     status: 'active',
     startDate: { $lte: now },
-    endDate: { $gte: now }
+    // Include banners that ended yesterday or later
+    // This is lenient to handle old banners with incorrect endDate
+    // We'll do stricter filtering in JavaScript after fetching
+    endDate: { $gte: startOfYesterday }
   };
 
-  // Filter by bannerType if provided (BannerBooking has bannerType field)
-  if (bannerType) {
-    query.bannerType = bannerType;
+  // Note: We don't filter by bannerType in the initial query
+  // because we need to check both booking.bannerType AND slot.bannerType
+  // (for old bookings that might not have bannerType set)
+  // We'll filter after population
+
+  console.log(`🔍 getActiveBanners(${bannerType || 'all'}): Query:`, JSON.stringify(query, null, 2));
+  console.log(`🔍 Current time:`, now.toISOString());
+
+  // First, let's check all bookings without vendor filter to see what we have
+  const allMatchingBookings = await BannerBooking.find(query).lean();
+  console.log(`📊 Found ${allMatchingBookings.length} bookings matching base criteria (before vendor filter)`);
+  
+  if (allMatchingBookings.length > 0) {
+    console.log(`📋 Sample bookings:`, allMatchingBookings.slice(0, 3).map(b => ({
+      _id: b._id,
+      referenceId: b.referenceId,
+      bannerType: b.bannerType,
+      vendorId: b.vendorId,
+      startDate: b.startDate,
+      endDate: b.endDate,
+      status: b.status,
+      paymentStatus: b.paymentStatus,
+      adminApprovalStatus: b.adminApprovalStatus
+    })));
   }
 
   // Find all bookings that meet the criteria
@@ -699,22 +760,119 @@ export const getActiveBanners = async (bannerType = null) => {
     .populate('slotId')
     .populate({
       path: 'vendorId',
-      match: { isActive: true },
-      select: '_id name storeName'
+      match: { isActive: true, status: 'approved' }, // Only active and approved vendors
+      select: '_id name storeName vendorType isActive status'
     })
-    .sort({ 'slotId.slotNumber': 1 });
+    .sort({ 'slotId.slotNumber': 1 })
+    .lean();
 
-  return activeBookings
-    .filter(booking => booking.vendorId) // Only include banners from active vendors
-    .map(booking => ({
-      id: booking._id,
-      slotNumber: booking.slotId?.slotNumber || 0,
-      image: booking.bannerImage,
-      link: booking.link,
-      title: booking.title,
-      vendorId: booking.vendorId?._id,
-      vendorName: booking.vendorId?.storeName || booking.vendorId?.name
-    }));
+  console.log(`📊 getActiveBanners(${bannerType || 'all'}): Found ${activeBookings.length} bookings after vendor population`);
+
+  // Log details about each booking
+  activeBookings.forEach((booking, index) => {
+    console.log(`📋 Booking ${index + 1}:`, {
+      _id: booking._id,
+      referenceId: booking.referenceId,
+      bookingBannerType: booking.bannerType,
+      slotBannerType: booking.slotId?.bannerType,
+      vendorId: booking.vendorId?._id || booking.vendorId,
+      vendorType: booking.vendorId?.vendorType,
+      vendorActive: booking.vendorId?.isActive,
+      vendorStatus: booking.vendorId?.status,
+      hasVendor: !!booking.vendorId,
+      startDate: booking.startDate,
+      endDate: booking.endDate
+    });
+  });
+
+  const filteredBookings = activeBookings.filter(booking => {
+    // Only include banners from active and approved vendors
+    if (!booking.vendorId) {
+      console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - vendor not found or inactive`);
+      return false;
+    }
+    
+    // Check if banner is still within valid date range
+    // Handle both new format (endDate at midnight of next day) and old format (endDate = startDate + 24h)
+    const endDate = new Date(booking.endDate);
+    const startDate = new Date(booking.startDate);
+    
+    // Get date-only values (ignoring time) for comparison
+    const endDateOnly = new Date(endDate);
+    endDateOnly.setHours(0, 0, 0, 0);
+    const nowDateOnly = new Date(now);
+    nowDateOnly.setHours(0, 0, 0, 0);
+    const yesterdayDateOnly = new Date(nowDateOnly);
+    yesterdayDateOnly.setDate(yesterdayDateOnly.getDate() - 1);
+    
+    // Check if banner has expired
+    // Allow banners that:
+    // 1. End in the future (endDate > now) - normal case
+    // 2. End today (endDateOnly === nowDateOnly) - banner is still valid today
+    // 3. Ended yesterday but endDate is close to now (within 24 hours) - handle old format
+    if (endDate <= now) {
+      // Banner has ended, check if we should still show it
+      if (endDateOnly.getTime() === nowDateOnly.getTime()) {
+        // Banner ended today - allow it (it's still the same calendar day)
+        console.log(`ℹ️ Banner ${booking._id} (${booking.referenceId}) ended today, allowing it`);
+      } else if (endDateOnly.getTime() === yesterdayDateOnly.getTime()) {
+        // Banner ended yesterday - check if it's within 24 hours
+        const hoursSinceEnd = (now - endDate) / (1000 * 60 * 60);
+        if (hoursSinceEnd <= 24) {
+          // Ended within last 24 hours, allow it (handles old format where endDate was calculated incorrectly)
+          console.log(`ℹ️ Banner ${booking._id} (${booking.referenceId}) ended yesterday (${hoursSinceEnd.toFixed(1)}h ago), allowing it (old format compatibility)`);
+        } else {
+          console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - endDate (${endDate.toISOString()}) has passed (${hoursSinceEnd.toFixed(1)}h ago)`);
+          return false;
+        }
+      } else {
+        // Banner ended more than 1 day ago - skip it
+        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - endDate (${endDate.toISOString()}) has passed`);
+        return false;
+      }
+    }
+    
+    // Determine the effective bannerType (use booking's bannerType, fallback to slot's)
+    const effectiveBannerType = booking.bannerType || booking.slotId?.bannerType || 'hero';
+    
+    // For B2B banners, ensure bannerType matches
+    if (bannerType === 'b2b') {
+      if (effectiveBannerType !== 'b2b') {
+        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType is '${effectiveBannerType}', expected 'b2b'`);
+        return false;
+      }
+      // Also ensure vendor is B2B type
+      if (booking.vendorId.vendorType !== 'b2b') {
+        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - vendor is not B2B type (${booking.vendorId.vendorType})`);
+        return false;
+      }
+    }
+    
+    // For hero banners, ensure bannerType matches (if filter is set)
+    if (bannerType === 'hero' && effectiveBannerType !== 'hero') {
+      console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType is '${effectiveBannerType}', expected 'hero'`);
+      return false;
+    }
+    
+    return true;
+  });
+
+  console.log(`✅ Returning ${filteredBookings.length} active ${bannerType || 'all'} banners`);
+
+  return filteredBookings.map(booking => ({
+    _id: booking._id,
+    id: booking._id.toString(), // Also provide id as string for compatibility
+    slotNumber: booking.slotId?.slotNumber || 0,
+    image: booking.bannerImage,
+    bannerImage: booking.bannerImage, // Provide both field names
+    link: booking.link || booking.redirectUrl,
+    redirectUrl: booking.redirectUrl,
+    title: booking.title,
+    vendorId: booking.vendorId?._id || booking.vendorId,
+    vendorName: booking.vendorId?.storeName || booking.vendorId?.name,
+    startDate: booking.startDate,
+    endDate: booking.endDate
+  }));
 };
 
 
