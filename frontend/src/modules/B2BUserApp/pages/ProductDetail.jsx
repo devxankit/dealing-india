@@ -63,7 +63,7 @@ const B2BProductDetail = () => {
 
     const checkInquiryStatus = async () => {
         if (!product || !isAuthenticated) return;
-        
+
         try {
             const productId = product._id || product.id;
             if (!productId) return;
@@ -230,7 +230,7 @@ const B2BProductDetail = () => {
             toast.success('Inquiry sent successfully!');
             setShowInquiryModal(false);
             setInquiryAttachment(null);
-            
+
             // Optional: Navigate to inquiries page, or stay on product page
             // navigate(`/b2b/inquiries?vendorId=${vendorId}`);
         } catch (err) {
@@ -521,17 +521,31 @@ const B2BProductDetail = () => {
                         </div>
 
                         {/* Seller Card */}
-                        <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
+                        <div
+                            onClick={() => {
+                                const vId = product.vendorId?._id || product.vendorId;
+                                if (vId) navigate(`/b2b/vendor/${vId}`);
+                            }}
+                            className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden cursor-pointer hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all group"
+                        >
                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                             <div className="relative z-10">
-                                <h4 className="text-sm font-bold text-primary-400 uppercase tracking-widest mb-4">Sold By</h4>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h4 className="text-sm font-bold text-primary-400 uppercase tracking-widest">Sold By</h4>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 bg-white/10 rounded-full group-hover:bg-primary-600 transition-colors">Visit Store</span>
+                                </div>
                                 <div className="flex items-center gap-4 mb-6">
-                                    <div className="w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center text-2xl font-black border border-white/20">
+                                    <div className="w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center text-2xl font-black border border-white/20 group-hover:border-primary-500/50 transition-colors">
                                         {(product.vendorId?.storeName || product.vendorId?.businessName || 'V').charAt(0).toUpperCase()}
                                     </div>
                                     <div>
                                         <h3 className="text-xl font-bold flex items-center gap-2">
-                                            {product.vendorId?.storeName || product.vendorId?.businessName || 'Verified Seller'}
+                                            <Link
+                                                to={`/b2b/vendor/${product.vendorId?._id || product.vendorId}`}
+                                                className="hover:text-primary-400 transition-colors"
+                                            >
+                                                {product.vendorId?.storeName || product.vendorId?.businessName || 'Verified Seller'}
+                                            </Link>
                                             {product.vendorId?.isEmailVerified && (
                                                 <FiCheckCircle className="text-primary-400" />
                                             )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
@@ -64,20 +64,20 @@ const ProductCatalog = () => {
         console.log('🔄 handleStateChange called with:', selectedValue);
         console.log('📋 Available states count:', availableStates.length);
         console.log('📋 Available states:', availableStates.map(s => `"${(s.name || '').trim()}"`));
-        
+
         setSelectedCity('All Cities');
-        
+
         if (selectedValue === 'All States' || !selectedValue || selectedValue.trim() === '') {
             console.log('✅ Setting to All States');
             setSelectedState('All States');
             setAvailableCities([]);
             return;
         }
-        
+
         // Find state by exact match (trimmed) - backend already returns clean names
         const trimmedSelected = (selectedValue || '').trim();
         console.log('🔍 Looking for state:', `"${trimmedSelected}"`);
-        
+
         const stateData = availableStates.find(s => {
             const stateName = (s.name || '').trim();
             const matches = stateName === trimmedSelected;
@@ -86,7 +86,7 @@ const ProductCatalog = () => {
             }
             return matches;
         });
-        
+
         if (!stateData) {
             console.error('❌ State not found!');
             console.error('  Searched for:', `"${trimmedSelected}"`);
@@ -96,42 +96,42 @@ const ProductCatalog = () => {
             setAvailableCities([]);
             return;
         }
-        
+
         // Set selected state - use the exact name from stateData to ensure matching
         const exactStateName = (stateData.name || '').trim();
         console.log('✅ Setting selectedState to:', `"${exactStateName}"`);
         console.log('📊 Cities in state data:', stateData.cities?.length || 0);
-        
+
         setSelectedState(exactStateName);
-        
+
         // Process cities - backend already returns clean cities, but do final cleanup
         console.log('🔍 Processing cities for state:', exactStateName);
         console.log('🔍 Raw cities data:', stateData.cities);
         console.log('🔍 Cities is array?', Array.isArray(stateData.cities));
         console.log('🔍 Cities length:', stateData.cities?.length || 0);
-        
+
         if (stateData.cities && Array.isArray(stateData.cities) && stateData.cities.length > 0) {
             const stateName = exactStateName;
-            
+
             // Final cleanup of cities - remove any remaining state names or pincodes
             // BUT be less aggressive - only filter obvious issues
             const cleanedCities = stateData.cities
                 .map(city => {
                     if (!city || typeof city !== 'string') return null;
                     let cleanCity = city.trim();
-                    
+
                     // Skip if empty
                     if (!cleanCity || cleanCity.length === 0) return null;
-                    
+
                     // Skip if only numbers (pincode)
                     if (/^\d+$/.test(cleanCity)) return null;
-                    
+
                     // Skip if it's exactly the state name
                     if (cleanCity.toLowerCase() === stateName.toLowerCase()) return null;
-                    
+
                     // Remove pincode if present at the end
                     cleanCity = cleanCity.replace(/\s+\d{6}$/, '').replace(/\s+\d{5,6}$/, '').trim();
-                    
+
                     // Only remove state name from end if city has multiple words
                     const stateWords = stateName.split(' ').filter(w => w.length > 2);
                     if (stateWords.length > 0 && cleanCity.split(' ').length > 1) {
@@ -142,15 +142,15 @@ const ProductCatalog = () => {
                             cleanCity = cityWords.slice(0, -1).join(' ').trim();
                         }
                     }
-                    
+
                     // Return cleaned city if it's still valid
                     return (cleanCity && cleanCity.length > 0) ? cleanCity : null;
                 })
                 .filter(city => city !== null && city.length > 0); // Remove nulls and empty strings
-            
+
             console.log('🏙️ Cities after processing:', cleanedCities.length);
             console.log('🏙️ First 10 cities:', cleanedCities.slice(0, 10));
-            
+
             if (cleanedCities.length > 0) {
                 setAvailableCities(cleanedCities);
                 console.log('✅ Cities set successfully!');
@@ -194,7 +194,7 @@ const ProductCatalog = () => {
             const params = {
                 vendorType: 'b2b'
             };
-            
+
             // Add location filters if selected
             if (selectedState !== 'All States') {
                 params.state = selectedState;
@@ -270,10 +270,10 @@ const ProductCatalog = () => {
         console.log('🔍 useEffect - availableCities count:', availableCities.length);
         console.log('🔍 useEffect - availableCities:', availableCities.slice(0, 5));
         console.log('🔍 useEffect - locationsLoading:', locationsLoading);
-        console.log('🔍 useEffect - City dropdown should be:', 
+        console.log('🔍 useEffect - City dropdown should be:',
             selectedState === 'All States' || availableCities.length === 0 || locationsLoading ? 'DISABLED' : 'ENABLED'
         );
-        
+
         // If state is selected but cities are empty, try to find cities again
         if (selectedState !== 'All States' && availableCities.length === 0 && !locationsLoading && availableStates.length > 0) {
             console.warn('⚠️ State selected but no cities! Trying to find cities again...');
@@ -289,7 +289,7 @@ const ProductCatalog = () => {
                 }
             }
         }
-        
+
         // Validate that selectedState matches an available option
         if (selectedState !== 'All States' && availableStates.length > 0) {
             const isValidState = availableStates.some(s => (s.name || '').trim() === selectedState);
@@ -534,7 +534,7 @@ const ProductCatalog = () => {
                 // If product doesn't have subcategory, it should NOT show when a specific subcategory is selected
                 const hasSubcategory = productSubcategory && productSubcategory.length > 0;
                 const subcategoryMatch = hasSubcategory && (productSubcategory.toLowerCase() === targetSubcategory.toLowerCase());
-                
+
                 // Only show product if category matches AND subcategory matches exactly
                 matchesCategory = categoryMatch && subcategoryMatch;
 
@@ -607,7 +607,7 @@ const ProductCatalog = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            <B2BHeader 
+            <B2BHeader
                 searchQuery={searchQuery}
                 onSearchChange={handleHeaderSearchChange}
                 onSearchSubmit={handleHeaderSearchSubmit}
@@ -675,12 +675,12 @@ const ProductCatalog = () => {
                             {availableCities.length > 0 ? availableCities.map((city, index) => {
                                 // city is already cleaned from handleStateChange
                                 const cityValue = typeof city === 'string' ? city.trim() : String(city);
-                                
+
                                 // Additional safety check
                                 if (!cityValue || cityValue.length === 0 || /^\d+$/.test(cityValue)) {
                                     return null;
                                 }
-                                
+
                                 return (
                                     <option key={`${cityValue}-${index}`} value={cityValue}>
                                         {cityValue}
@@ -879,9 +879,13 @@ const ProductCatalog = () => {
                                         <div className="mb-4 pb-4 border-b border-gray-100">
                                             <div className="flex items-center gap-2 text-xs text-gray-600">
                                                 {product.vendorId?.storeName && (
-                                                    <span className="font-bold text-gray-700">
+                                                    <Link
+                                                        to={`/b2b/vendor/${product.vendorId?._id || product.vendorId}`}
+                                                        className="font-bold text-primary-600 hover:text-primary-700 hover:underline transition-colors cursor-pointer relative z-10"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
                                                         {product.vendorId.storeName}
-                                                    </span>
+                                                    </Link>
                                                 )}
                                                 {product.vendorId?.storeName && product.vendorId?.address?.city && (
                                                     <span className="text-gray-400">•</span>

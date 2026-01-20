@@ -19,7 +19,7 @@ const connectDB = async () => {
     console.log(`   Host: ${conn.connection.host}`);
     console.log(`   Database: ${conn.connection.name}`);
     console.log(`   Port: ${conn.connection.port || 'default'}`);
-    
+
     // Handle connection events
     mongoose.connection.on('error', (err) => {
       console.error('❌ MongoDB connection error:', err);
