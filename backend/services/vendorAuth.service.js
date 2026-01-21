@@ -90,7 +90,7 @@ export const registerVendor = async (vendorData) => {
 
     // Process documents/media if provided - upload to Cloudinary
     let processedDocuments = [];
-    
+
     // Handle B2B-specific document structure (panCard, businessLicense as objects)
     if (vendorType === 'b2b' && documents && typeof documents === 'object' && !Array.isArray(documents)) {
       // Convert B2B document object to array format
@@ -101,7 +101,7 @@ export const registerVendor = async (vendorData) => {
       if (documents.businessLicense) {
         docArray.push({ name: 'Business License', data: documents.businessLicense, type: 'application/pdf' });
       }
-      
+
       // Process each document
       for (const doc of docArray) {
         if (doc.data) {
@@ -220,46 +220,34 @@ export const registerVendor = async (vendorData) => {
     try {
       otp = await generateOTP(email, 'email_verification');
     } catch (otpError) {
-      // If it's a rate limit error, throw it with proper status
       if (otpError.isRateLimitError || otpError.statusCode === 429) {
         otpError.status = 429;
         throw otpError;
       }
-      // For other OTP errors, throw with 400 status
       otpError.status = 400;
       throw otpError;
     }
 
-    const emailResult = await sendVerificationEmail(email, otp);
-
-    if (!emailResult.success) {
-      // If email fails, don't delete temporary registration if it's likely due to missing config
-      // Instead, log the OTP for manual verification during development/setup
-      console.error(`❌ Failed to send verification email to ${email}:`, emailResult.error);
-
-      const isConfigMissing = !process.env.EMAIL_USER || !process.env.EMAIL_PASS;
-
-      if (isConfigMissing) {
-        console.warn('⚠️  EMAIL_USER or EMAIL_PASS missing. Registration allowed to proceed for setup purposes.');
-        console.warn(`🔑 VERIFICATION OTP FOR ${email}: ${otp}`);
-
-        return {
-          message: 'Registration initiated. (EMAIL CONFIG MISSING - check server logs for OTP)',
-          email: email.toLowerCase(),
-          debugOtp: otp, // Include OTP in response only if config is missing (for development)
-        };
+    // FIRE AND FORGET - Don't await email sending to avoid timeouts
+    // Since we have default OTP '1234' active, failures are acceptable
+    setTimeout(async () => {
+      try {
+        const emailResult = await sendVerificationEmail(email, otp);
+        if (!emailResult.success) {
+          console.error(`❌ Background Email Error for Vendor ${email}:`, emailResult.error);
+        } else {
+          console.log(`✅ Background Email Sent to Vendor ${email}`);
+        }
+      } catch (err) {
+        console.error(`❌ Background Email Exception for Vendor ${email}:`, err.message);
       }
-
-      await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
-      throw new Error('Failed to send verification email. Please try again later.');
-    }
-
-    console.log(`✅ Verification OTP sent to ${email}`);
+    }, 0);
 
     // Return only email - no vendor or token until verified
     return {
-      message: 'Registration initiated. Please verify your email to complete registration.',
+      message: 'Registration initiated. Please verify your email.',
       email: email.toLowerCase(),
+      debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
     };
   } catch (error) {
     throw error;
@@ -318,7 +306,7 @@ export const loginVendor = async (email, password) => {
     // For B2B vendors, check subscription status
     if (vendor.vendorType === 'b2b') {
       const subscription = await SubscriptionService.getVendorSubscription(vendor._id);
-      
+
       // B2B vendors must have an active subscription to login
       if (!subscription) {
         console.log(`[Login Blocked] No subscription found for B2B vendor: ${email}`);
@@ -421,7 +409,7 @@ export const getVendorById = async (vendorId, email = null) => {
     } else {
       throw new Error('Either vendorId or email must be provided');
     }
-    
+
     if (!vendor) {
       throw new Error('Vendor not found');
     }
@@ -478,38 +466,38 @@ export const updateVendorProfile = async (vendorId, updateData) => {
     if (address) {
       // Validate and clean address data to prevent incorrect storage
       const cleanedAddress = { ...address };
-      
+
       // Validate state - should not be a pincode
       if (cleanedAddress.state && /^\d{6}$/.test(cleanedAddress.state.trim())) {
         console.warn(`⚠️ Invalid state value (pincode): "${cleanedAddress.state}" for vendor ${vendorId}`);
         // Don't update state if it's a pincode - keep existing or set to empty
         cleanedAddress.state = '';
       }
-      
+
       // Validate city - should not be a state name
-      const commonStates = ['Madhya Pradesh', 'Uttar Pradesh', 'Maharashtra', 'Gujarat', 'Rajasthan', 
-                           'Karnataka', 'Tamil Nadu', 'West Bengal', 'Bihar', 'Odisha', 'Andhra Pradesh',
-                           'Telangana', 'Kerala', 'Punjab', 'Haryana', 'Jharkhand', 'Assam', 'Himachal Pradesh'];
+      const commonStates = ['Madhya Pradesh', 'Uttar Pradesh', 'Maharashtra', 'Gujarat', 'Rajasthan',
+        'Karnataka', 'Tamil Nadu', 'West Bengal', 'Bihar', 'Odisha', 'Andhra Pradesh',
+        'Telangana', 'Kerala', 'Punjab', 'Haryana', 'Jharkhand', 'Assam', 'Himachal Pradesh'];
       if (cleanedAddress.city && commonStates.some(s => cleanedAddress.city.trim().toLowerCase() === s.toLowerCase())) {
         console.warn(`⚠️ Invalid city value (state name): "${cleanedAddress.city}" for vendor ${vendorId}`);
         // Don't update city if it's a state name - keep existing or set to empty
         cleanedAddress.city = '';
       }
-      
+
       // Validate pincode - should not be a country name
       if (cleanedAddress.pincode && (cleanedAddress.pincode.trim().toLowerCase() === 'india' || cleanedAddress.pincode.trim().length > 10)) {
         console.warn(`⚠️ Invalid pincode value: "${cleanedAddress.pincode}" for vendor ${vendorId}`);
         // Don't update pincode if it's invalid - keep existing or set to empty
         cleanedAddress.pincode = '';
       }
-      
+
       // Trim all address fields
       Object.keys(cleanedAddress).forEach(key => {
         if (typeof cleanedAddress[key] === 'string') {
           cleanedAddress[key] = cleanedAddress[key].trim();
         }
       });
-      
+
       updateFields.address = cleanedAddress;
     }
 

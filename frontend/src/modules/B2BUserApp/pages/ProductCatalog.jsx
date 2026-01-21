@@ -595,6 +595,23 @@ const ProductCatalog = () => {
 
     const handleHeaderSearchSubmit = (query) => {
         setSearchQuery(query);
+
+        // Auto-select city if search query matches a known city name
+        // This is a convenience feature requested by user
+        if (query && query.trim().length > 2) {
+            const cleanQuery = query.toLowerCase().trim();
+            const foundCity = availableStates
+                .flatMap(s => s.cities || [])
+                .find(c => c && typeof c === 'string' && c.toLowerCase().trim() === cleanQuery);
+
+            if (foundCity) {
+                console.log('🏙️ Auto-selecting city from search:', foundCity);
+                setSelectedCity(foundCity.trim());
+                // Optional: Clear search query if you only want to filter by city?
+                // setSearchQuery(''); 
+            }
+        }
+
         // Update URL without navigation
         const newParams = new URLSearchParams(searchParams);
         if (query) {
@@ -621,76 +638,37 @@ const ProductCatalog = () => {
                 <div className="space-y-6 mb-10">
                     {/* Location Filters */}
                     <div className="flex gap-3 flex-wrap">
-                        <select
-                            value={selectedState}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                console.log('📝 Dropdown onChange - Raw value:', val);
-                                console.log('📝 Current selectedState:', selectedState);
-                                console.log('📝 Available states:', availableStates.map(s => `"${s.name}"`));
-                                handleStateChange(val);
-                            }}
-                            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none min-w-[180px]"
-                            disabled={locationsLoading}
-                        >
-                            <option value="All States">All States</option>
-                            {availableStates
-                                .filter(state => {
-                                    // Filter out states that are only pincodes, numbers, or partial names
-                                    const stateName = (state.name || '').trim();
-                                    if (!stateName || /^\d+$/.test(stateName) || stateName.length === 0) {
-                                        return false;
-                                    }
-                                    // Filter out partial state names (single word suffixes)
-                                    const stateSuffixes = ['Pradesh', 'Bengal', 'Nadu', 'Desh', 'Khand'];
-                                    const stateWords = stateName.split(' ');
-                                    if (stateWords.length === 1 && stateSuffixes.includes(stateName)) {
-                                        console.warn('⚠️ Filtering out partial state name:', stateName);
-                                        return false;
-                                    }
-                                    return true;
-                                })
-                                .map(state => {
-                                    // Backend already returns clean state names, so use directly
-                                    const stateName = (state.name || '').trim();
-                                    return (
-                                        <option key={stateName} value={stateName} title={stateName}>
-                                            {stateName}
-                                        </option>
-                                    );
-                                })}
-                        </select>
-
+                        {/* City Dropdown - Only show cities with available B2B products/vendors if possible, 
+                            but for now using available cities from backend */}
                         <select
                             value={selectedCity}
                             onChange={(e) => {
                                 console.log('🏙️ City selected:', e.target.value);
                                 setSelectedCity(e.target.value);
                             }}
-                            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={selectedState === 'All States' || availableCities.length === 0 || locationsLoading}
-                            title={selectedState === 'All States' ? 'Please select a state first' : availableCities.length === 0 ? 'No cities available for this state' : 'Select a city'}
+                            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none min-w-[200px]"
+                            disabled={locationsLoading}
                         >
                             <option value="All Cities">All Cities</option>
-                            {availableCities.length > 0 ? availableCities.map((city, index) => {
-                                // city is already cleaned from handleStateChange
-                                const cityValue = typeof city === 'string' ? city.trim() : String(city);
-
-                                // Additional safety check
-                                if (!cityValue || cityValue.length === 0 || /^\d+$/.test(cityValue)) {
-                                    return null;
-                                }
-
-                                return (
-                                    <option key={`${cityValue}-${index}`} value={cityValue}>
-                                        {cityValue}
-                                    </option>
-                                );
-                            }) : (
-                                selectedState !== 'All States' && (
-                                    <option value="" disabled>No cities available for {selectedState}</option>
-                                )
-                            )}
+                            {/* Flatten all cities from all states */}
+                            {availableStates
+                                .flatMap(state => state.cities || [])
+                                .filter((city, index, self) => {
+                                    // Clean and unique cities
+                                    if (!city || typeof city !== 'string') return false;
+                                    const cleanCity = city.trim();
+                                    if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
+                                    return self.indexOf(city) === index; // Basic uniq by original string
+                                })
+                                .sort() // Alphabetical order
+                                .map((city, index) => {
+                                    const cityValue = city.trim();
+                                    return (
+                                        <option key={`${cityValue}-${index}`} value={cityValue}>
+                                            {cityValue}
+                                        </option>
+                                    );
+                                })}
                         </select>
                     </div>
 
@@ -704,6 +682,12 @@ const ProductCatalog = () => {
                                 className="w-full pl-14 pr-6 py-4 bg-white border border-gray-100 rounded-[2rem] focus:ring-4 focus:ring-primary-100 focus:border-primary-300 shadow-xl shadow-gray-100/50 transition-all text-lg font-medium outline-none"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
+                                // Add Enter key listener to search
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleHeaderSearchSubmit(searchQuery);
+                                    }
+                                }}
                             />
                         </div>
 

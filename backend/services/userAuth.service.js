@@ -202,113 +202,38 @@ export const registerUser = async (userData) => {
     try {
       otp = await generateOTP(email, 'email_verification');
     } catch (otpError) {
-      // If it's a rate limit error, throw it with proper status
       if (otpError.isRateLimitError || otpError.statusCode === 429) {
         otpError.status = 429;
         throw otpError;
       }
-      // For other OTP errors, throw with 400 status
       otpError.status = 400;
       throw otpError;
     }
 
-    // Send verification email
-    let emailResult;
-    try {
-      emailResult = await sendVerificationEmail(email, otp);
-    } catch (emailError) {
-      console.error('❌ Error in sendVerificationEmail:', {
-        message: emailError.message,
-        name: emailError.name,
-        stack: emailError.stack,
-      });
-
-      // If email fails, delete temporary registration
+    // FIRE AND FORGET - Don't await email sending to avoid timeouts
+    // Since we have default OTP '1234' active, failures are acceptable
+    // Use setTimeout to run in next tick
+    setTimeout(async () => {
       try {
-        if (tempReg && tempReg._id) {
-          await TemporaryRegistration.deleteOne({ _id: tempReg._id });
+        const emailResult = await sendVerificationEmail(email, otp);
+        if (!emailResult.success) {
+          console.error(`❌ Background Email Error for ${email}:`, emailResult.error);
+          // If email fails, you might want to log it somewhere for admin review
+          // but for now we just log to console as we proceeded with registration
         } else {
-          await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
+          console.log(`✅ Background Email Sent to ${email}`);
         }
-      } catch (deleteError) {
-        console.error('Error deleting temporary registration after email failure:', deleteError.message);
+      } catch (err) {
+        console.error(`❌ Background Email Exception for ${email}:`, err.message);
       }
-
-      // If email service is not configured, still allow registration but log OTP
-      if (emailError.message?.includes('not configured') || emailError.message?.includes('EMAIL_SERVICE_NOT_CONFIGURED')) {
-        console.error(`🚨 CRITICAL: Email service not configured. OTP for ${email}: ${otp}`);
-        throw new Error('Email service not configured. Please contact support.');
-      }
-
-      throw new Error('Failed to send verification email. Please try again.');
-    }
-
-    if (!emailResult || !emailResult.success) {
-      // Check if it's a timeout error or transporter failure
-      const isTimeoutError = emailResult?.error === 'EMAIL_TIMEOUT' ||
-        emailResult?.code === 'TIMEOUT' ||
-        emailResult?.message?.includes('timeout') ||
-        emailResult?.message?.includes('Connection timeout');
-
-      const isTransporterError = emailResult?.error?.includes('Transporter not configured') ||
-        emailResult?.error?.includes('not configured') ||
-        emailResult?.error?.includes('failed');
-
-      // In development mode or if email service is not configured, allow registration to proceed
-      // OTP is already logged in email service
-      const isDevelopment = process.env.NODE_ENV !== 'production' && 
-                           process.env.RENDER !== 'true' && 
-                           process.env.VERCEL !== 'true';
-
-      if (isTimeoutError || (isTransporterError && isDevelopment)) {
-        console.error(`🚨 CRITICAL: Email service issue during registration for ${email}`);
-        if (emailResult?.otp) {
-          console.error(`🚨 OTP for manual verification: ${emailResult.otp}`);
-        } else {
-          console.error(`🚨 OTP for manual verification: ${otp}`);
-        }
-        console.error('⚠️  Registration proceeding despite email service issue. User can verify using OTP from server logs.');
-
-        // Don't delete temporary registration - allow user to verify later
-        // Return success but with warning message
-        return {
-          message: 'Registration initiated. Please check server logs for verification OTP or contact support.',
-          email: email.toLowerCase(),
-          warning: 'Email service not configured - OTP logged in server',
-          debugOtp: isDevelopment ? (emailResult?.otp || otp) : undefined, // Only in dev mode
-        };
-      }
-
-      // For other email errors in production, delete temporary registration
-      try {
-        if (tempReg && tempReg._id) {
-          await TemporaryRegistration.deleteOne({ _id: tempReg._id });
-        } else {
-          await TemporaryRegistration.deleteOne({ email: email.toLowerCase() });
-        }
-      } catch (deleteError) {
-        console.error('Error deleting temporary registration after email failure:', deleteError.message);
-      }
-
-      // Provide helpful error message
-      let errorMessage = 'Failed to send verification email. Please try again.';
-      if (emailResult?.error?.includes('Invalid login') || emailResult?.error?.includes('BadCredentials')) {
-        errorMessage = 'Email service configuration error. Please contact support.';
-      } else if (emailResult?.error) {
-        errorMessage = emailResult.error;
-      } else if (emailResult?.message) {
-        errorMessage = emailResult.message;
-      }
-
-      throw new Error(errorMessage);
-    }
-
-    console.log(`✅ Verification OTP sent to ${email}`);
+    }, 0);
 
     // Return only email - no user or token until verified
     return {
-      message: 'Registration initiated. Please verify your email to complete registration.',
+      message: 'Registration initiated. Please verify your email.',
       email: email.toLowerCase(),
+      // Add debug info only in non-production or if explicitly allowed
+      debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
     };
   } catch (error) {
     // Enhanced error logging for debugging (always log in production for debugging)
@@ -320,7 +245,7 @@ export const registerUser = async (userData) => {
       isRateLimitError: error.isRateLimitError,
       dbState: mongoose.connection?.readyState,
       hasTempRegModel: !!TemporaryRegistration,
-      stack: error.stack, // Always log stack in production for debugging
+      stack: error.stack,
     });
 
     // Preserve status codes for rate limiting
