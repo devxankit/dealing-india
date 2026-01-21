@@ -8,7 +8,7 @@ import Product from '../models/Product.model.js';
  */
 export const getWishlist = async (userId) => {
   try {
-    let wishlist = await Wishlist.findOne({ userId })
+    let wishlist = await Wishlist.findOne({ user: userId })
       .populate({
         path: 'products.productId',
         model: 'Product',
@@ -22,10 +22,10 @@ export const getWishlist = async (userId) => {
 
     // If wishlist doesn't exist, create empty one
     if (!wishlist) {
-      wishlist = await Wishlist.create({ userId, products: [] });
+      wishlist = await Wishlist.create({ user: userId, products: [] });
       return {
         id: wishlist._id.toString(),
-        userId: wishlist.userId.toString(),
+        userId: wishlist.user.toString(),
         products: [],
       };
     }
@@ -40,13 +40,13 @@ export const getWishlist = async (userId) => {
         const vendor = product.vendorId;
         const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
           ? {
-              id: vendor._id?.toString() || vendor.id?.toString(),
-              businessName: vendor.businessName || vendor.storeName || '',
-              storeName: vendor.storeName || vendor.businessName || '',
-              storeLogo: vendor.storeLogo || null,
-              isEmailVerified: vendor.isEmailVerified || false,
-              status: vendor.status || 'active',
-            }
+            id: vendor._id?.toString() || vendor.id?.toString(),
+            businessName: vendor.businessName || vendor.storeName || '',
+            storeName: vendor.storeName || vendor.businessName || '',
+            storeLogo: vendor.storeLogo || null,
+            isEmailVerified: vendor.isEmailVerified || false,
+            status: vendor.status || 'active',
+          }
           : null;
 
         return {
@@ -75,7 +75,7 @@ export const getWishlist = async (userId) => {
 
     return {
       id: wishlist._id.toString(),
-      userId: wishlist.userId.toString(),
+      userId: wishlist.user.toString(),
       products,
     };
   } catch (error) {
@@ -98,11 +98,11 @@ export const addToWishlist = async (userId, productId) => {
     }
 
     // Find or create wishlist
-    let wishlist = await Wishlist.findOne({ userId });
-    
+    let wishlist = await Wishlist.findOne({ user: userId });
+
     if (!wishlist) {
       wishlist = await Wishlist.create({
-        userId,
+        user: userId,
         products: [{ productId, addedAt: new Date() }],
       });
     } else {
@@ -135,7 +135,7 @@ export const addToWishlist = async (userId, productId) => {
  */
 export const removeFromWishlist = async (userId, productId) => {
   try {
-    const wishlist = await Wishlist.findOne({ userId });
+    const wishlist = await Wishlist.findOne({ user: userId });
 
     if (!wishlist) {
       throw new Error('Wishlist not found');
@@ -162,7 +162,7 @@ export const removeFromWishlist = async (userId, productId) => {
  */
 export const clearWishlist = async (userId) => {
   try {
-    const wishlist = await Wishlist.findOne({ userId });
+    const wishlist = await Wishlist.findOne({ user: userId });
 
     if (!wishlist) {
       // Return empty wishlist structure
@@ -178,7 +178,7 @@ export const clearWishlist = async (userId) => {
 
     return {
       id: wishlist._id.toString(),
-      userId: wishlist.userId.toString(),
+      userId: wishlist.user.toString(),
       products: [],
     };
   } catch (error) {
@@ -194,7 +194,7 @@ export const clearWishlist = async (userId) => {
  */
 export const isInWishlist = async (userId, productId) => {
   try {
-    const wishlist = await Wishlist.findOne({ userId });
+    const wishlist = await Wishlist.findOne({ user: userId });
     if (!wishlist) {
       return false;
     }

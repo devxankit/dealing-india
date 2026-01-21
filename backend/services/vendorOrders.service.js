@@ -79,6 +79,7 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
         quantity: item.quantity || 1,
         price: item.price || 0,
         image: item.image,
+        variant: item.variant,
       });
 
       vendorGroups[itemVendorId].subtotal += itemSubtotal;
@@ -155,6 +156,7 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
         quantity: item.quantity || 1,
         price: item.price || 0,
         image: item.image,
+        variant: item.variant,
       })),
       vendorItems,
       shippingAddress: order.shippingAddress,

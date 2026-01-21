@@ -34,6 +34,10 @@ const orderSchema = new mongoose.Schema(
           min: 0,
         },
         image: String,
+        variant: {
+          type: Object,
+          default: null
+        },
       },
     ],
     total: {

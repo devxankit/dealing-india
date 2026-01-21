@@ -237,6 +237,7 @@ import B2BPayments from "./modules/B2BUserApp/pages/Payments";
 import B2BSupport from "./modules/B2BUserApp/pages/Support";
 import B2BProductDetail from "./modules/B2BUserApp/pages/ProductDetail";
 import B2BVendorStore from "./modules/B2BUserApp/pages/B2BVendorStore";
+import SellerTypeSelection from "./modules/B2BUserApp/pages/SellerTypeSelection";
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -429,6 +430,7 @@ const AppRoutes = () => {
         <Route path="/b2b/catalog" element={<ProtectedRoute><B2BProductCatalog /></ProtectedRoute>} />
         <Route path="/b2b/inquiries" element={<ProtectedRoute><B2BInquiries /></ProtectedRoute>} />
         <Route path="/b2b/profile" element={<ProtectedRoute><B2BUserProfile /></ProtectedRoute>} />
+        <Route path="/b2b/seller-selection" element={<ProtectedRoute><SellerTypeSelection /></ProtectedRoute>} />
         <Route path="/b2b/company" element={<ProtectedRoute><B2BCompanyProfile /></ProtectedRoute>} />
         <Route path="/b2b/notifications" element={<ProtectedRoute><B2BNotifications /></ProtectedRoute>} />
 

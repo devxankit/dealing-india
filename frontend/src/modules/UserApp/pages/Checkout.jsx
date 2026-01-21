@@ -44,7 +44,7 @@ const MobileCheckout = () => {
   }, [buyNowItem, cartItems]);
 
   const { user, isAuthenticated } = useAuthStore();
-  const { addresses, getDefaultAddress, addAddress, fetchAddresses, deleteAddress } = useAddressStore();
+  const { addresses, getDefaultAddress, addAddress, updateAddress, fetchAddresses, deleteAddress } = useAddressStore();
   const { createOrderAPI, verifyPaymentAPI, cancelOrderAPI } = useOrderStore();
 
   useEffect(() => {
@@ -98,6 +98,8 @@ const MobileCheckout = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
   const [loadingWallet, setLoadingWallet] = useState(false);
+  const [showSavedAddresses, setShowSavedAddresses] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
 
   useEffect(() => {
     if (showCouponModal) {
@@ -325,10 +327,10 @@ const MobileCheckout = () => {
   };
 
   const handleSelectAddress = (address) => {
-    setSelectedAddressId(address.id);
+    setSelectedAddressId(address.id || address._id);
     setFormData({
       ...formData,
-      name: address.fullName,
+      name: address.fullName || address.name, // Handle varied naming
       phone: address.phone,
       address: address.address,
       city: address.city,
@@ -336,13 +338,41 @@ const MobileCheckout = () => {
       state: address.state,
       country: address.country,
     });
+    setShowSavedAddresses(false);
   };
 
-  const handleNewAddress = (addressData) => {
-    const newAddress = addAddress(addressData);
-    handleSelectAddress(newAddress);
+  const handleSaveAddress = async (addressData) => {
+    if (editingAddress) {
+      try {
+        const updated = await updateAddress(editingAddress.id || editingAddress._id, addressData);
+        handleSelectAddress(updated);
+        toast.success("Address updated successfully");
+      } catch (error) {
+        toast.error("Failed to update address");
+      }
+      setEditingAddress(null);
+    } else {
+      try {
+        const newAddress = await addAddress(addressData);
+        handleSelectAddress(newAddress);
+        toast.success("Address added and selected!");
+      } catch (error) {
+        toast.error("Failed to add address");
+      }
+    }
     setShowAddressForm(false);
-    toast.success("Address added and selected!");
+  };
+
+  const handleEditAddress = (address) => {
+    setEditingAddress(address);
+    setShowSavedAddresses(false);
+    setShowAddressForm(true);
+  };
+
+  const handleAddNewClick = () => {
+    setEditingAddress(null);
+    setShowSavedAddresses(false);
+    setShowAddressForm(true);
   };
 
   const handleDeleteAddress = async (id) => {
@@ -446,6 +476,7 @@ const MobileCheckout = () => {
           quantity: item.quantity,
           price: item.price,
           image: item.image,
+          variant: item.variant,
         })),
         shippingAddress: {
           name: formData.name,
@@ -561,6 +592,7 @@ const MobileCheckout = () => {
           quantity: item.quantity,
           price: item.price,
           image: item.image,
+          variant: item.variant,
         })),
         shippingAddress: {
           name: formData.name,
@@ -646,65 +678,54 @@ const MobileCheckout = () => {
                   Shipping Information
                 </h2>
 
-                {/* Saved Addresses */}
-                {isAuthenticated && addresses.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                      Saved Addresses
-                    </h3>
-                    <div className="space-y-2 mb-3">
-                      {addresses.map((address) => (
-                        <div
-                          key={address.id}
-                          onClick={() => handleSelectAddress(address)}
-                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedAddressId === address.id
-                            ? "border-primary-500 bg-primary-50"
-                            : "border-gray-200"
-                            }`}>
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-2 flex-1">
-                              <FiMapPin className="text-primary-600 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <h4 className="font-bold text-gray-800 text-sm">
-                                  {address.name}
-                                </h4>
-                                <p className="text-xs text-gray-600">
-                                  {address.fullName}
+                {/* Selected Address View */}
+                {isAuthenticated && (
+                  <div className="mb-6">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700">Delivery Address</h3>
+                      <button
+                        type="button"
+                        onClick={() => setShowSavedAddresses(true)}
+                        className="text-primary-600 text-sm font-semibold hover:text-primary-700"
+                      >
+                        {selectedAddressId ? "Change" : "Select Address"}
+                      </button>
+                    </div>
+
+                    {selectedAddressId ? (
+                      (() => {
+                        const selectedAddr = addresses.find(a => (a.id || a._id) === selectedAddressId);
+                        if (!selectedAddr) return null;
+                        return (
+                          <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-1 text-primary-600">
+                                <FiMapPin size={20} />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-gray-800">{selectedAddr.name}</h4>
+                                  <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full">Primary</span>
+                                </div>
+                                <p className="text-sm font-medium text-gray-900 mt-0.5">{selectedAddr.fullName}</p>
+                                <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                                  {selectedAddr.address}, {selectedAddr.city}, {selectedAddr.state} - {selectedAddr.zipCode}
                                 </p>
-                                <p className="text-xs text-gray-600">
-                                  {address.address}
-                                </p>
-                                <p className="text-xs text-gray-600">
-                                  {address.city}, {address.state}{" "}
-                                  {address.zipCode}
-                                </p>
+                                <p className="text-sm text-gray-600 mt-1">Phone: {selectedAddr.phone}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteAddress(address.id || address._id);
-                                }}
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors z-10">
-                                <FiTrash2 size={18} />
-                              </button>
-                              {selectedAddressId === address.id && (
-                                <FiCheck className="text-primary-600 text-xl flex-shrink-0" />
-                              )}
-                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddressForm(true)}
-                      className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-semibold text-sm">
-                      <FiPlus />
-                      Add New Address
-                    </button>
+                        )
+                      })()
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowSavedAddresses(true)}
+                        className="w-full p-4 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors bg-gray-50"
+                      >
+                        <FiPlus /> Select or Add Address
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1193,8 +1214,27 @@ const MobileCheckout = () => {
         <AnimatePresence>
           {showAddressForm && (
             <AddressFormModal
-              onSubmit={handleNewAddress}
-              onCancel={() => setShowAddressForm(false)}
+              initialData={editingAddress}
+              onSubmit={handleSaveAddress}
+              onCancel={() => {
+                setShowAddressForm(false);
+                setEditingAddress(null);
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Saved Addresses Modal */}
+        <AnimatePresence>
+          {showSavedAddresses && (
+            <SavedAddressesModal
+              addresses={addresses}
+              selectedId={selectedAddressId}
+              onSelect={handleSelectAddress}
+              onEdit={handleEditAddress}
+              onDelete={handleDeleteAddress}
+              onAddNew={handleAddNewClick}
+              onClose={() => setShowSavedAddresses(false)}
             />
           )}
         </AnimatePresence>
@@ -1275,8 +1315,120 @@ const MobileCheckout = () => {
   );
 };
 
+// Saved Addresses List Modal
+const SavedAddressesModal = ({
+  addresses,
+  selectedId,
+  onSelect,
+  onEdit,
+  onDelete,
+  onAddNew,
+  onClose
+}) => {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto"
+      />
+
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="relative w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-4 sm:p-6 shadow-xl pointer-events-auto max-h-[85vh] overflow-hidden flex flex-col"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-gray-800">Saved Addresses</h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            type="button"
+          >
+            <FiX className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 space-y-3 p-1">
+          {addresses.map((address) => (
+            <div
+              key={address.id || address._id}
+              onClick={() => onSelect(address)}
+              className={`p-4 rounded-xl border-2 cursor-pointer transition-all group ${selectedId === (address.id || address._id)
+                ? "border-primary-500 bg-primary-50"
+                : "border-gray-200 hover:border-primary-200"
+                }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 flex-1 overflow-hidden">
+                  <div className={`mt-1 p-2 rounded-full flex-shrink-0 ${selectedId === (address.id || address._id) ? "bg-primary-100 text-primary-600" : "bg-gray-100 text-gray-500"
+                    }`}>
+                    <FiMapPin size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-bold text-gray-800 text-sm truncate">{address.name}</h4>
+                      {selectedId === (address.id || address._id) && (
+                        <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-bold uppercase rounded-full">Selected</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 truncate">{address.fullName}</p>
+                    <p className="text-xs text-gray-500 truncate">{address.info || address.address}</p>
+                    <p className="text-xs text-gray-500">
+                      {address.city}, {address.state} {address.zipCode}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onEdit(address); }}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <FiEdit2 size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDelete(address.id || address._id); }}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete"
+                  >
+                    <FiTrash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {addresses.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <p>No saved addresses.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={onAddNew}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-gray-50 hover:bg-gray-100 text-primary-600 font-bold rounded-xl border border-dashed border-primary-300 transition-all"
+          >
+            <FiPlus /> Add New Address
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // Address Form Modal Component
-const AddressFormModal = ({ onSubmit, onCancel }) => {
+const AddressFormModal = ({ onSubmit, onCancel, initialData }) => {
   const [formData, setFormData] = useState({
     name: "",
     fullName: "",
@@ -1286,6 +1438,7 @@ const AddressFormModal = ({ onSubmit, onCancel }) => {
     state: "",
     zipCode: "",
     country: "",
+    ...initialData // Merge initial data if provided (for editing)
   });
 
   const handleChange = (e) => {
@@ -1311,7 +1464,7 @@ const AddressFormModal = ({ onSubmit, onCancel }) => {
         onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-t-3xl p-6 w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-gray-800">Add New Address</h3>
+          <h3 className="text-xl font-bold text-gray-800">{initialData ? 'Edit Address' : 'Add New Address'}</h3>
           <button
             onClick={onCancel}
             className="p-2 hover:bg-gray-100 rounded-full">
@@ -1430,7 +1583,7 @@ const AddressFormModal = ({ onSubmit, onCancel }) => {
             <button
               type="submit"
               className="flex-1 gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all">
-              Add Address
+              {initialData ? 'Update Address' : 'Add Address'}
             </button>
             <button
               type="button"

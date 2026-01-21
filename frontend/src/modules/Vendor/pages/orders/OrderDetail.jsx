@@ -159,6 +159,20 @@ const OrderDetail = () => {
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <h3 className="font-medium text-gray-800">{itemName}</h3>
+                                                    {item.variant && (
+                                                        <p className="text-sm text-gray-500">
+                                                            {item.variant.size && <span className="mr-2">Size: <span className="font-semibold">{item.variant.size}</span></span>}
+                                                            {item.variant.color && <span>Color: <span className="font-semibold">{item.variant.color}</span></span>}
+                                                            {/* Fallback for indices if names missing - difficult without product data but we can try */}
+                                                            {(!item.variant.size && !item.variant.color) && (
+                                                                <span className="text-xs text-gray-400">
+                                                                    Variant: {Object.entries(item.variant)
+                                                                        .filter(([k]) => !['colorIndex', 'sizeIndex', 'isRootSize', 'prices'].includes(k))
+                                                                        .map(([k, v]) => `${k}: ${v}`).join(', ')}
+                                                                </span>
+                                                            )}
+                                                        </p>
+                                                    )}
                                                     <p className="text-sm text-gray-500">Qty: {itemQuantity}</p>
                                                 </div>
                                                 <p className="font-semibold text-gray-800">

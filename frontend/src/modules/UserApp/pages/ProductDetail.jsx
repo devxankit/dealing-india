@@ -516,7 +516,7 @@ const MobileProductDetail = () => {
       id: product.id,
       name: product.name,
       price: finalPrice,
-      image: product.image,
+      image: productImages[0] || product.image,
       quantity: quantity,
       variant: selectedVariant,
     });

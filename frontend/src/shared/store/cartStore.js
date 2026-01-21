@@ -185,6 +185,7 @@ export const useCartStore = create(
           stockQuantity: product.stockQuantity || 0,
           taxRate: product.taxRate || 0,
           taxIncluded: product.taxIncluded || false,
+          variant: item.variant || null,
         };
 
         // Update local state immediately

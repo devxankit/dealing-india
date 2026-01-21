@@ -18,7 +18,7 @@ export const getBannerSlots = async (bannerType = null) => {
       { bannerType: null }
     ]
   });
-  
+
   if (slotsWithoutType > 0) {
     console.log(`🔄 Migrating ${slotsWithoutType} slots without bannerType to 'hero'...`);
     const updateResult = await BannerSlot.updateMany(
@@ -38,7 +38,7 @@ export const getBannerSlots = async (bannerType = null) => {
     // Check how many B2B slots exist
     const existingB2BSlotsCount = await BannerSlot.countDocuments({ bannerType: 'b2b' });
     console.log(`🔍 Checking B2B slots: Found ${existingB2BSlotsCount} existing slots`);
-    
+
     if (existingB2BSlotsCount === 0) {
       console.log(`🔄 Initializing B2B slots...`);
       const defaultB2BSlots = [
@@ -64,7 +64,7 @@ export const getBannerSlots = async (bannerType = null) => {
         // If bulk insert fails, it means some slots already exist
         // Handle individual inserts
         console.log(`🔄 Bulk insert partially failed, trying individual inserts...`);
-        
+
         let createdCount = 0;
         for (const slotData of defaultB2BSlots) {
           try {
@@ -83,11 +83,11 @@ export const getBannerSlots = async (bannerType = null) => {
                 setDefaultsOnInsert: true
               }
             );
-            
+
             // Check if it was created (upserted) or already existed
-            const wasCreated = result.createdAt && 
+            const wasCreated = result.createdAt &&
               result.createdAt.getTime() === result.updatedAt.getTime();
-            
+
             if (wasCreated) {
               createdCount++;
               console.log(`✅ Created B2B slot ${slotData.slotNumber} (₹${slotData.price})`);
@@ -100,7 +100,7 @@ export const getBannerSlots = async (bannerType = null) => {
               slotNumber: slotData.slotNumber,
               bannerType: 'b2b'
             });
-            
+
             if (existingSlot) {
               console.log(`✅ B2B slot ${slotData.slotNumber} already exists (found after error)`);
             } else {
@@ -125,7 +125,7 @@ export const getBannerSlots = async (bannerType = null) => {
       path: 'currentBooking',
       populate: { path: 'vendorId', select: 'name storeName vendorType' }
     }).sort({ slotNumber: 1 });
-    
+
     console.log(`📊 Loaded ${slots.length} B2B banner slots`);
     return slots;
   }
@@ -145,7 +145,7 @@ export const getBannerSlots = async (bannerType = null) => {
       query.bannerType = bannerType;
     }
   }
-  
+
   const slots = await BannerSlot.find(query).populate({
     path: 'currentBooking',
     populate: { path: 'vendorId', select: 'name storeName vendorType' }
@@ -448,7 +448,7 @@ export const createBooking = async (vendorId, bookingData, file, paymentMethod =
     startDateObj = startDate;
   } else if (typeof startDate === 'string' && startDate.trim()) {
     const dateStr = startDate.trim();
-    
+
     // Check if it's a date-only string (YYYY-MM-DD)
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       // Date-only format: treat as UTC midnight to preserve the selected date
@@ -468,11 +468,11 @@ export const createBooking = async (vendorId, bookingData, file, paymentMethod =
     // Date object or other type
     startDateObj = startDate instanceof Date ? startDate : new Date(startDate);
   }
-  
+
   if (isNaN(startDateObj.getTime())) {
     throw new Error(`Invalid start date format: ${startDate}`);
   }
-  
+
   console.log(`📅 Final startDateObj: ${startDateObj.toISOString()} (UTC)`);
 
   // Calculate End Date:
@@ -515,7 +515,7 @@ export const createBooking = async (vendorId, bookingData, file, paymentMethod =
   if (slot.bannerType && slot.bannerType !== bannerType) {
     throw new Error(`Slot type mismatch. This slot is for ${slot.bannerType} banners.`);
   }
-  
+
   // If slot doesn't have bannerType, set it based on booking
   if (!slot.bannerType) {
     slot.bannerType = bannerType;
@@ -572,7 +572,7 @@ export const createBooking = async (vendorId, bookingData, file, paymentMethod =
     try {
       // Check vendor wallet balance
       const wallet = await vendorWalletService.getOrCreateWallet(vendorId);
-      
+
       if (wallet.balance < amountNum) {
         // Delete the booking if wallet payment fails
         await BannerBooking.findByIdAndDelete(booking._id);
@@ -698,9 +698,13 @@ export const confirmBookingPayment = async (bookingId, paymentData, paymentMetho
  * Only returns banners that are: paid + approved + within date range
  * @param {String} bannerType - Optional: 'hero' or 'b2b' to filter by type
  */
-export const getActiveBanners = async (bannerType = null) => {
+export const getActiveBanners = async (bannerType = 'hero') => {
   const now = new Date();
-  
+
+  // Default to 'hero' if bannerType is null, undefined, or empty string
+  // This ensures we never return "mixed" results to the frontend
+  const filterType = bannerType || 'hero';
+
   // For date comparison, we need to be precise
   // A banner is active if:
   // - startDate <= now (banner has started)
@@ -717,7 +721,7 @@ export const getActiveBanners = async (bannerType = null) => {
   const startOfYesterday = new Date(now);
   startOfYesterday.setDate(startOfYesterday.getDate() - 1);
   startOfYesterday.setHours(0, 0, 0, 0);
-  
+
   const query = {
     paymentStatus: 'paid',
     adminApprovalStatus: 'approved',
@@ -734,13 +738,13 @@ export const getActiveBanners = async (bannerType = null) => {
   // (for old bookings that might not have bannerType set)
   // We'll filter after population
 
-  console.log(`🔍 getActiveBanners(${bannerType || 'all'}): Query:`, JSON.stringify(query, null, 2));
+  console.log(`🔍 getActiveBanners(${filterType}): Query:`, JSON.stringify(query, null, 2));
   console.log(`🔍 Current time:`, now.toISOString());
 
   // First, let's check all bookings without vendor filter to see what we have
   const allMatchingBookings = await BannerBooking.find(query).lean();
   console.log(`📊 Found ${allMatchingBookings.length} bookings matching base criteria (before vendor filter)`);
-  
+
   if (allMatchingBookings.length > 0) {
     console.log(`📋 Sample bookings:`, allMatchingBookings.slice(0, 3).map(b => ({
       _id: b._id,
@@ -766,7 +770,7 @@ export const getActiveBanners = async (bannerType = null) => {
     .sort({ 'slotId.slotNumber': 1 })
     .lean();
 
-  console.log(`📊 getActiveBanners(${bannerType || 'all'}): Found ${activeBookings.length} bookings after vendor population`);
+  console.log(`📊 getActiveBanners(${filterType}): Found ${activeBookings.length} bookings after vendor population`);
 
   // Log details about each booking
   activeBookings.forEach((booking, index) => {
@@ -791,12 +795,12 @@ export const getActiveBanners = async (bannerType = null) => {
       console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - vendor not found or inactive`);
       return false;
     }
-    
+
     // Check if banner is still within valid date range
     // Handle both new format (endDate at midnight of next day) and old format (endDate = startDate + 24h)
     const endDate = new Date(booking.endDate);
     const startDate = new Date(booking.startDate);
-    
+
     // Get date-only values (ignoring time) for comparison
     const endDateOnly = new Date(endDate);
     endDateOnly.setHours(0, 0, 0, 0);
@@ -804,7 +808,7 @@ export const getActiveBanners = async (bannerType = null) => {
     nowDateOnly.setHours(0, 0, 0, 0);
     const yesterdayDateOnly = new Date(nowDateOnly);
     yesterdayDateOnly.setDate(yesterdayDateOnly.getDate() - 1);
-    
+
     // Check if banner has expired
     // Allow banners that:
     // 1. End in the future (endDate > now) - normal case
@@ -831,12 +835,12 @@ export const getActiveBanners = async (bannerType = null) => {
         return false;
       }
     }
-    
+
     // Determine the effective bannerType (use booking's bannerType, fallback to slot's)
     const effectiveBannerType = booking.bannerType || booking.slotId?.bannerType || 'hero';
-    
+
     // For B2B banners, ensure bannerType matches
-    if (bannerType === 'b2b') {
+    if (filterType === 'b2b') {
       if (effectiveBannerType !== 'b2b') {
         console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType is '${effectiveBannerType}', expected 'b2b'`);
         return false;
@@ -847,17 +851,17 @@ export const getActiveBanners = async (bannerType = null) => {
         return false;
       }
     }
-    
+
     // For hero banners, ensure bannerType matches (if filter is set)
-    if (bannerType === 'hero' && effectiveBannerType !== 'hero') {
+    if (filterType === 'hero' && effectiveBannerType !== 'hero') {
       console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType is '${effectiveBannerType}', expected 'hero'`);
       return false;
     }
-    
+
     return true;
   });
 
-  console.log(`✅ Returning ${filteredBookings.length} active ${bannerType || 'all'} banners`);
+  console.log(`✅ Returning ${filteredBookings.length} active ${filterType} banners`);
 
   return filteredBookings.map(booking => ({
     _id: booking._id,
