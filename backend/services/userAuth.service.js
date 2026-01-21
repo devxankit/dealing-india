@@ -197,31 +197,24 @@ export const registerUser = async (userData) => {
       }
     }
 
-    // Generate and send verification OTP
-    let otp;
-    try {
-      otp = await generateOTP(email, 'email_verification');
-    } catch (otpError) {
-      if (otpError.isRateLimitError || otpError.statusCode === 429) {
-        otpError.status = 429;
-        throw otpError;
-      }
-      otpError.status = 400;
-      throw otpError;
-    }
-
-    // FIRE AND FORGET - Don't await email sending to avoid timeouts
-    // Since we have default OTP '1234' active, failures are acceptable
-    // Use setTimeout to run in next tick
+    // FIRE AND FORGET - Don't await email sending or OTP generation to avoid timeouts
+    // We move the entire OTP Generation AND Email sending to background
     setTimeout(async () => {
       try {
-        const emailResult = await sendVerificationEmail(email, otp);
-        if (!emailResult.success) {
-          console.error(`❌ Background Email Error for ${email}:`, emailResult.error);
-          // If email fails, you might want to log it somewhere for admin review
-          // but for now we just log to console as we proceeded with registration
-        } else {
-          console.log(`✅ Background Email Sent to ${email}`);
+        let otpCode = '1234';
+        try {
+          otpCode = await generateOTP(email, 'email_verification');
+        } catch (otpGenError) {
+          console.error(`❌ Background OTP Generation Error for ${email}:`, otpGenError.message);
+        }
+
+        if (otpCode) {
+          const emailResult = await sendVerificationEmail(email, otpCode);
+          if (!emailResult.success) {
+            console.error(`❌ Background Email Error for ${email}:`, emailResult.error);
+          } else {
+            console.log(`✅ Background Email Sent to ${email}`);
+          }
         }
       } catch (err) {
         console.error(`❌ Background Email Exception for ${email}:`, err.message);
@@ -233,7 +226,7 @@ export const registerUser = async (userData) => {
       message: 'Registration initiated. Please verify your email.',
       email: email.toLowerCase(),
       // Add debug info only in non-production or if explicitly allowed
-      debugOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
+      debugOtp: process.env.NODE_ENV !== 'production' ? '1234' : undefined
     };
   } catch (error) {
     // Enhanced error logging for debugging (always log in production for debugging)

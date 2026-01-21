@@ -31,6 +31,9 @@ const ProductCatalog = () => {
     const [availableStates, setAvailableStates] = useState([]);
     const [availableCities, setAvailableCities] = useState([]);
     const [locationsLoading, setLocationsLoading] = useState(false);
+    const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+    const [citySearchQuery, setCitySearchQuery] = useState('');
+    const cityDropdownRef = useRef(null);
 
     // Define functions before useEffect hooks that use them
     const fetchAvailableLocations = async () => {
@@ -235,6 +238,22 @@ const ProductCatalog = () => {
         };
         init();
     }, []);
+
+    // Close city dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
+                setIsCityDropdownOpen(false);
+            }
+        };
+
+        if (isCityDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isCityDropdownOpen]);
 
     // Update categories when products change
     useEffect(() => {
@@ -622,6 +641,20 @@ const ProductCatalog = () => {
         setSearchParams(newParams, { replace: true });
     };
 
+    const uniqueCities = (availableStates || [])
+        .flatMap(state => state.cities || [])
+        .filter((city, index, self) => {
+            if (!city || typeof city !== 'string') return false;
+            const cleanCity = city.trim();
+            if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
+            return self.findIndex(c => c.trim() === cleanCity) === index;
+        })
+        .sort();
+
+    const filteredCitiesList = citySearchQuery
+        ? uniqueCities.filter(city => city.toLowerCase().includes(citySearchQuery.toLowerCase()))
+        : uniqueCities;
+
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <B2BHeader
@@ -638,38 +671,77 @@ const ProductCatalog = () => {
                 <div className="space-y-6 mb-10">
                     {/* Location Filters */}
                     <div className="flex gap-3 flex-wrap">
-                        {/* City Dropdown - Only show cities with available B2B products/vendors if possible, 
-                            but for now using available cities from backend */}
-                        <select
-                            value={selectedCity}
-                            onChange={(e) => {
-                                console.log('🏙️ City selected:', e.target.value);
-                                setSelectedCity(e.target.value);
-                            }}
-                            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none min-w-[200px]"
-                            disabled={locationsLoading}
-                        >
-                            <option value="All Cities">All Cities</option>
-                            {/* Flatten all cities from all states */}
-                            {availableStates
-                                .flatMap(state => state.cities || [])
-                                .filter((city, index, self) => {
-                                    // Clean and unique cities
-                                    if (!city || typeof city !== 'string') return false;
-                                    const cleanCity = city.trim();
-                                    if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
-                                    return self.indexOf(city) === index; // Basic uniq by original string
-                                })
-                                .sort() // Alphabetical order
-                                .map((city, index) => {
-                                    const cityValue = city.trim();
-                                    return (
-                                        <option key={`${cityValue}-${index}`} value={cityValue}>
-                                            {cityValue}
-                                        </option>
-                                    );
-                                })}
-                        </select>
+                        {/* City Searchable Dropdown */}
+                        <div className="relative min-w-[200px]" ref={cityDropdownRef}>
+                            <button
+                                onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                                disabled={locationsLoading}
+                                className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none flex items-center justify-between gap-2"
+                            >
+                                <span className="truncate">{selectedCity}</span>
+                                <FiChevronDown className={`transition-transform duration-200 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {isCityDropdownOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl z-[100] overflow-hidden"
+                                    >
+                                        <div className="p-3 border-b border-gray-50">
+                                            <div className="relative">
+                                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                                                <input
+                                                    autoFocus
+                                                    type="text"
+                                                    placeholder="Search city..."
+                                                    className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-xl text-xs font-medium focus:ring-1 focus:ring-primary-500 outline-none"
+                                                    value={citySearchQuery}
+                                                    onChange={(e) => setCitySearchQuery(e.target.value)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedCity('All Cities');
+                                                    setIsCityDropdownOpen(false);
+                                                    setCitySearchQuery('');
+                                                }}
+                                                className={`w-full px-4 py-2.5 text-left text-xs font-bold transition-colors hover:bg-primary-50 ${selectedCity === 'All Cities' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                            >
+                                                All Cities
+                                            </button>
+
+                                            {filteredCitiesList.length > 0 ? (
+                                                filteredCitiesList.map((city, index) => (
+                                                    <button
+                                                        key={`${city}-${index}`}
+                                                        onClick={() => {
+                                                            setSelectedCity(city);
+                                                            setIsCityDropdownOpen(false);
+                                                            setCitySearchQuery('');
+                                                        }}
+                                                        className={`w-full px-4 py-2.5 text-left text-xs font-medium transition-colors hover:bg-primary-50 ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                                    >
+                                                        {city}
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-6 text-center">
+                                                    <p className="text-xs text-gray-400 font-medium">No cities found</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
 
                     {/* Search & Category Header */}
