@@ -8,6 +8,12 @@ const wishlistSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    // Adding userId field to support legacy schema and avoid unique index errors on null values
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      // We don't make it required, but we will populate it to match 'user'
+    },
     products: [
       {
         productId: {

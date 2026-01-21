@@ -632,6 +632,8 @@ const ProductForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (loading) return; // Prevent double submission
+
     if (!vendorId) {
       toast.error("Please log in to save products");
       return;
@@ -680,6 +682,7 @@ const ProductForm = () => {
       }
     }
 
+    setLoading(true);
     try {
       const hasSizeVariants = formData.sizeVariants && formData.sizeVariants.length > 0;
       const hasColorVariants = colorVariants && colorVariants.length > 0;
@@ -688,10 +691,12 @@ const ProductForm = () => {
       if (requiresMainPrice) {
         if (!formData.price || isNaN(parseFloat(formData.price)) || parseFloat(formData.price) <= 0) {
           toast.error('Valid price is required');
+          setLoading(false);
           return;
         }
         if (formData.stockQuantity === '' || formData.stockQuantity === null || formData.stockQuantity === undefined) {
           toast.error('Stock quantity is required');
+          setLoading(false);
           return;
         }
       }
@@ -720,11 +725,13 @@ const ProductForm = () => {
 
       if (requiresMainPrice && isNaN(parsedPrice)) {
         toast.error('Price must be a valid positive number');
+        setLoading(false);
         return;
       }
 
       if (!formData.primaryColorName || formData.primaryColorName.trim() === "") {
         toast.error('Please select the main product color');
+        setLoading(false);
         return;
       }
 
@@ -804,6 +811,8 @@ const ProductForm = () => {
     } catch (error) {
       console.error("Error saving product:", error);
       toast.error(error.response?.data?.message || "Failed to save product");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1734,9 +1743,19 @@ const ProductForm = () => {
           </button>
           <button
             type="submit"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm">
-            <FiSave />
-            {isEdit ? "Update Product" : "Create Product"}
+            disabled={loading}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                {isEdit ? "Updating..." : "Creating..."}
+              </>
+            ) : (
+              <>
+                <FiSave />
+                {isEdit ? "Update Product" : "Create Product"}
+              </>
+            )}
           </button>
         </div>
       </form>

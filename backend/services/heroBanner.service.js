@@ -127,7 +127,7 @@ export const getBannerSlots = async (bannerType = null) => {
     }).sort({ slotNumber: 1 });
 
     console.log(`📊 Loaded ${slots.length} B2B banner slots`);
-    return slots;
+    return await processExpiredSlots(slots);
   }
 
   // Handle hero banners and other cases
@@ -151,7 +151,40 @@ export const getBannerSlots = async (bannerType = null) => {
     populate: { path: 'vendorId', select: 'name storeName vendorType' }
   }).sort({ slotNumber: 1 });
 
-  return slots;
+  return await processExpiredSlots(slots);
+};
+
+/**
+ * Shared logic to check and clear expired slots
+ */
+const processExpiredSlots = async (slots) => {
+  const now = new Date();
+  const processedSlots = await Promise.all(slots.map(async (slot) => {
+    if (slot.currentBooking) {
+      const booking = slot.currentBooking;
+      const endDate = new Date(booking.endDate);
+
+      if (endDate < now) {
+        console.log(`⌛ Slot ${slot.slotNumber} (${slot.bannerType}) booking ${booking.referenceId} has expired. Clearing slot.`);
+        
+        // 1. Update the booking status to 'completed' if it's still 'active'
+        if (booking.status === 'active') {
+          await BannerBooking.findByIdAndUpdate(booking._id, { status: 'completed' });
+        }
+
+        // 2. Clear the currentBooking reference in BannerSlot model
+        await BannerSlot.findByIdAndUpdate(slot._id, { currentBooking: null });
+        
+        // 3. Return the slot as empty for the current response
+        const slotObj = slot.toObject ? slot.toObject() : JSON.parse(JSON.stringify(slot));
+        slotObj.currentBooking = null;
+        return slotObj;
+      }
+    }
+    return slot;
+  }));
+
+  return processedSlots;
 };
 
 /**
@@ -716,61 +749,31 @@ export const getActiveBanners = async (bannerType = 'hero') => {
   // We'll handle this by checking if the banner's date range makes sense
 
   // Build query
-  // Get start of yesterday (00:00:00) to include banners that ended yesterday
-  // This handles cases where old banners have incorrect endDate calculation
-  const startOfYesterday = new Date(now);
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-  startOfYesterday.setHours(0, 0, 0, 0);
-
   const query = {
     paymentStatus: 'paid',
     adminApprovalStatus: 'approved',
     status: 'active',
     startDate: { $lte: now },
-    // Include banners that ended yesterday or later
-    // This is lenient to handle old banners with incorrect endDate
-    // We'll do stricter filtering in JavaScript after fetching
-    endDate: { $gte: startOfYesterday }
+    endDate: { $gte: now },
+    // Stricter bannerType matching in the query itself
+    bannerType: filterType
   };
-
-  // Note: We don't filter by bannerType in the initial query
-  // because we need to check both booking.bannerType AND slot.bannerType
-  // (for old bookings that might not have bannerType set)
-  // We'll filter after population
 
   console.log(`🔍 getActiveBanners(${filterType}): Query:`, JSON.stringify(query, null, 2));
   console.log(`🔍 Current time:`, now.toISOString());
-
-  // First, let's check all bookings without vendor filter to see what we have
-  const allMatchingBookings = await BannerBooking.find(query).lean();
-  console.log(`📊 Found ${allMatchingBookings.length} bookings matching base criteria (before vendor filter)`);
-
-  if (allMatchingBookings.length > 0) {
-    console.log(`📋 Sample bookings:`, allMatchingBookings.slice(0, 3).map(b => ({
-      _id: b._id,
-      referenceId: b.referenceId,
-      bannerType: b.bannerType,
-      vendorId: b.vendorId,
-      startDate: b.startDate,
-      endDate: b.endDate,
-      status: b.status,
-      paymentStatus: b.paymentStatus,
-      adminApprovalStatus: b.adminApprovalStatus
-    })));
-  }
 
   // Find all bookings that meet the criteria
   const activeBookings = await BannerBooking.find(query)
     .populate('slotId')
     .populate({
       path: 'vendorId',
-      match: { isActive: true, status: 'approved' }, // Only active and approved vendors
+      match: { isActive: true, status: 'approved' },
       select: '_id name storeName vendorType isActive status'
     })
     .sort({ 'slotId.slotNumber': 1 })
     .lean();
 
-  console.log(`📊 getActiveBanners(${filterType}): Found ${activeBookings.length} bookings after vendor population`);
+  console.log(`📊 getActiveBanners(${filterType}): Found ${activeBookings.length} bookings after query`);
 
   // Log details about each booking
   activeBookings.forEach((booking, index) => {
@@ -796,66 +799,19 @@ export const getActiveBanners = async (bannerType = 'hero') => {
       return false;
     }
 
-    // Check if banner is still within valid date range
-    // Handle both new format (endDate at midnight of next day) and old format (endDate = startDate + 24h)
-    const endDate = new Date(booking.endDate);
-    const startDate = new Date(booking.startDate);
-
-    // Get date-only values (ignoring time) for comparison
-    const endDateOnly = new Date(endDate);
-    endDateOnly.setHours(0, 0, 0, 0);
-    const nowDateOnly = new Date(now);
-    nowDateOnly.setHours(0, 0, 0, 0);
-    const yesterdayDateOnly = new Date(nowDateOnly);
-    yesterdayDateOnly.setDate(yesterdayDateOnly.getDate() - 1);
-
-    // Check if banner has expired
-    // Allow banners that:
-    // 1. End in the future (endDate > now) - normal case
-    // 2. End today (endDateOnly === nowDateOnly) - banner is still valid today
-    // 3. Ended yesterday but endDate is close to now (within 24 hours) - handle old format
-    if (endDate <= now) {
-      // Banner has ended, check if we should still show it
-      if (endDateOnly.getTime() === nowDateOnly.getTime()) {
-        // Banner ended today - allow it (it's still the same calendar day)
-        console.log(`ℹ️ Banner ${booking._id} (${booking.referenceId}) ended today, allowing it`);
-      } else if (endDateOnly.getTime() === yesterdayDateOnly.getTime()) {
-        // Banner ended yesterday - check if it's within 24 hours
-        const hoursSinceEnd = (now - endDate) / (1000 * 60 * 60);
-        if (hoursSinceEnd <= 24) {
-          // Ended within last 24 hours, allow it (handles old format where endDate was calculated incorrectly)
-          console.log(`ℹ️ Banner ${booking._id} (${booking.referenceId}) ended yesterday (${hoursSinceEnd.toFixed(1)}h ago), allowing it (old format compatibility)`);
-        } else {
-          console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - endDate (${endDate.toISOString()}) has passed (${hoursSinceEnd.toFixed(1)}h ago)`);
-          return false;
-        }
-      } else {
-        // Banner ended more than 1 day ago - skip it
-        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - endDate (${endDate.toISOString()}) has passed`);
-        return false;
-      }
-    }
-
     // Determine the effective bannerType (use booking's bannerType, fallback to slot's)
     const effectiveBannerType = booking.bannerType || booking.slotId?.bannerType || 'hero';
 
-    // For B2B banners, ensure bannerType matches
-    if (filterType === 'b2b') {
-      if (effectiveBannerType !== 'b2b') {
-        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType is '${effectiveBannerType}', expected 'b2b'`);
+    // Double check bannerType match (though query already handles it)
+    if (filterType !== effectiveBannerType) {
+        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType mismatch: ${effectiveBannerType} vs ${filterType}`);
         return false;
-      }
-      // Also ensure vendor is B2B type
-      if (booking.vendorId.vendorType !== 'b2b') {
-        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - vendor is not B2B type (${booking.vendorId.vendorType})`);
-        return false;
-      }
     }
 
-    // For hero banners, ensure bannerType matches (if filter is set)
-    if (filterType === 'hero' && effectiveBannerType !== 'hero') {
-      console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType is '${effectiveBannerType}', expected 'hero'`);
-      return false;
+    // Additional vendor type check for B2B banners
+    if (filterType === 'b2b' && booking.vendorId.vendorType !== 'b2b') {
+        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - B2B banner but vendor is ${booking.vendorId.vendorType}`);
+        return false;
     }
 
     return true;

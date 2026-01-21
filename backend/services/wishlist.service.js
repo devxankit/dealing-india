@@ -8,7 +8,13 @@ import Product from '../models/Product.model.js';
  */
 export const getWishlist = async (userId) => {
   try {
-    let wishlist = await Wishlist.findOne({ user: userId })
+    // Search using both user and userId to handle schema migration
+    let wishlist = await Wishlist.findOne({
+      $or: [
+        { user: userId },
+        { userId: userId }
+      ]
+    })
       .populate({
         path: 'products.productId',
         model: 'Product',
@@ -18,14 +24,59 @@ export const getWishlist = async (userId) => {
           { path: 'brandId', select: 'name' },
         ],
       })
-      .lean();
+      .exec(); // Use exec() for better stack traces
+
+    // Migration logic: If we found a wishlist but fields are inconsistent, fix them
+    if (wishlist) {
+      let needsSave = false;
+
+      // Ensure 'user' is set (if only userId was present)
+      if (!wishlist.user && wishlist.userId) {
+        wishlist.user = wishlist.userId;
+        needsSave = true;
+      }
+
+      // Ensure 'userId' is set (to avoid unique index collision on null)
+      if (!wishlist.userId && wishlist.user) {
+        wishlist.userId = wishlist.user;
+        needsSave = true;
+      }
+
+      if (needsSave) {
+        try {
+          await wishlist.save();
+        } catch (saveError) {
+          console.error("Error migrating wishlist schema:", saveError.message);
+          // Continue even if save fails (might be duplicate key on 'user', meaning duplicate wishlists exist)
+          // If so, we might need to rely on the one that succeeded or handle merge later.
+        }
+      }
+    }
 
     // If wishlist doesn't exist, create empty one
     if (!wishlist) {
-      wishlist = await Wishlist.create({ user: userId, products: [] });
+      try {
+        // Set BOTH user and userId to satisfy schemas and indexes
+        wishlist = await Wishlist.create({
+          user: userId,
+          userId: userId, // Explicitly set to avoid null collision
+          products: []
+        });
+      } catch (createError) {
+        // Handle race condition or duplicate key error
+        if (createError.code === 11000) {
+          // Try finding it again
+          wishlist = await Wishlist.findOne({
+            $or: [{ user: userId }, { userId: userId }]
+          });
+        }
+
+        if (!wishlist) throw createError;
+      }
+
       return {
         id: wishlist._id.toString(),
-        userId: wishlist.user.toString(),
+        userId: wishlist.user?.toString() || wishlist.userId?.toString(),
         products: [],
       };
     }
@@ -75,7 +126,7 @@ export const getWishlist = async (userId) => {
 
     return {
       id: wishlist._id.toString(),
-      userId: wishlist.user.toString(),
+      userId: wishlist.user?.toString() || wishlist.userId?.toString(),
       products,
     };
   } catch (error) {
@@ -89,6 +140,7 @@ export const getWishlist = async (userId) => {
  * @param {String} productId - Product ID
  * @returns {Promise<Object>} Updated wishlist
  */
+
 export const addToWishlist = async (userId, productId) => {
   try {
     // Verify product exists
@@ -98,22 +150,71 @@ export const addToWishlist = async (userId, productId) => {
     }
 
     // Find or create wishlist
-    let wishlist = await Wishlist.findOne({ user: userId });
+    let wishlist = await Wishlist.findOne({
+      $or: [{ user: userId }, { userId: userId }]
+    });
 
     if (!wishlist) {
-      wishlist = await Wishlist.create({
-        user: userId,
-        products: [{ productId, addedAt: new Date() }],
-      });
+      try {
+        // Explicitly set BOTH user and userId to avoid unique index null collisions
+        // Ensure userId is valid, not null/undefined/empty string
+        const safeUserId = userId ? userId.toString() : null;
+        if (!safeUserId) throw new Error("Invalid User ID");
+
+        wishlist = await Wishlist.create({
+          user: safeUserId,
+          userId: safeUserId,
+          products: [{ productId, addedAt: new Date() }],
+        });
+      } catch (createError) {
+        // Handle Duplicate Key Error (E11000)
+        if (createError.code === 11000) {
+          const keyPattern = createError.keyPattern || {};
+          // If error is specifically about 'userId' being duplicate (likely null)
+          if (keyPattern.userId) {
+            console.warn("⚠️ Detect problematic userId unique index. Attempting to fix...");
+            try {
+              // Attempt to drop the problematic index
+              await Wishlist.collection.dropIndex('userId_1');
+              console.log("✅ Successfully dropped problematic userId_1 index. Retrying creation...");
+
+              // Retry creation
+              const safeUserId = userId.toString();
+              wishlist = await Wishlist.create({
+                user: safeUserId,
+                userId: safeUserId,
+                products: [{ productId, addedAt: new Date() }],
+              });
+            } catch (dropError) {
+              console.error("❌ Failed to drop index or retry:", dropError.message);
+              // Fallback: If we can't drop index, maybe we can find the existing doc if it appeared?
+              wishlist = await Wishlist.findOne({ user: userId });
+              if (!wishlist) throw createError; // Rethrow original if still stuck
+            }
+          } else {
+            // Duplicate on 'user' or something else? Maybe race condition.
+            wishlist = await Wishlist.findOne({
+              $or: [{ user: userId }, { userId: userId }]
+            });
+            if (!wishlist) throw createError;
+          }
+        } else {
+          throw createError;
+        }
+      }
     } else {
       // Check if product already exists in wishlist
       const existingProduct = wishlist.products.find(
-        (p) => p.productId.toString() === productId.toString()
+        (p) => p.productId && p.productId.toString() === productId.toString()
       );
 
       if (existingProduct) {
         throw new Error('Product already in wishlist');
       }
+
+      // MIGRATION: Ensure schema consistency before saving
+      if (!wishlist.user && wishlist.userId) wishlist.user = wishlist.userId;
+      if (!wishlist.userId && wishlist.user) wishlist.userId = wishlist.user;
 
       // Add product to wishlist
       wishlist.products.push({ productId, addedAt: new Date() });
@@ -135,15 +236,21 @@ export const addToWishlist = async (userId, productId) => {
  */
 export const removeFromWishlist = async (userId, productId) => {
   try {
-    const wishlist = await Wishlist.findOne({ user: userId });
+    const wishlist = await Wishlist.findOne({
+      $or: [{ user: userId }, { userId: userId }]
+    });
 
     if (!wishlist) {
       throw new Error('Wishlist not found');
     }
 
+    // MIGRATION: Ensure schema consistency before saving
+    if (!wishlist.user && wishlist.userId) wishlist.user = wishlist.userId;
+    if (!wishlist.userId && wishlist.user) wishlist.userId = wishlist.user;
+
     // Remove product from wishlist
     wishlist.products = wishlist.products.filter(
-      (p) => p.productId.toString() !== productId.toString()
+      (p) => p.productId && p.productId.toString() !== productId.toString()
     );
 
     await wishlist.save();
@@ -162,7 +269,9 @@ export const removeFromWishlist = async (userId, productId) => {
  */
 export const clearWishlist = async (userId) => {
   try {
-    const wishlist = await Wishlist.findOne({ user: userId });
+    const wishlist = await Wishlist.findOne({
+      $or: [{ user: userId }, { userId: userId }]
+    });
 
     if (!wishlist) {
       // Return empty wishlist structure
@@ -173,12 +282,16 @@ export const clearWishlist = async (userId) => {
       };
     }
 
+    // MIGRATION: Ensure schema consistency before saving
+    if (!wishlist.user && wishlist.userId) wishlist.user = wishlist.userId;
+    if (!wishlist.userId && wishlist.user) wishlist.userId = wishlist.user;
+
     wishlist.products = [];
     await wishlist.save();
 
     return {
       id: wishlist._id.toString(),
-      userId: wishlist.user.toString(),
+      userId: wishlist.user?.toString() || wishlist.userId?.toString(),
       products: [],
     };
   } catch (error) {
@@ -194,13 +307,15 @@ export const clearWishlist = async (userId) => {
  */
 export const isInWishlist = async (userId, productId) => {
   try {
-    const wishlist = await Wishlist.findOne({ user: userId });
+    const wishlist = await Wishlist.findOne({
+      $or: [{ user: userId }, { userId: userId }]
+    });
     if (!wishlist) {
       return false;
     }
 
     return wishlist.products.some(
-      (p) => p.productId.toString() === productId.toString()
+      (p) => p.productId && p.productId.toString() === productId.toString()
     );
   } catch (error) {
     throw error;

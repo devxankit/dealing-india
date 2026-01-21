@@ -114,14 +114,13 @@ const HeroBannerBooking = () => {
   const calculatedEndDate = useMemo(() => {
     if (!formData.startDate) return null;
 
-    const start = new Date(formData.startDate);
-    // Valid until Midnight of the last day.
-    // Logic: Start Jan 6. Duration 1 Day. Valid until Jan 6 Midnight (Jan 7 00:00).
-
+    // Use UTC midnight to avoid timezone shifts
+    const start = new Date(`${formData.startDate}T00:00:00.000Z`);
     const days = parseInt(formData.durationDays) || 1;
     const end = new Date(start);
-    end.setDate(end.getDate() + days); // Add days
-    end.setHours(0, 0, 0, 0); // Midnight
+    // End at 23:59:59 of the last day (UTC)
+    end.setUTCDate(end.getUTCDate() + days - 1);
+    end.setUTCHours(23, 59, 59, 999);
 
     return end;
   }, [formData.startDate, formData.durationDays]);
@@ -225,16 +224,16 @@ const HeroBannerBooking = () => {
     // Combine date and time (defaulting to 00:00 for validation purposes, actual expiry is midnight)
     // Actually, backend now handles expiry.
     const startDateTimeString = `${formData.startDate}T00:00:00`;
-    const selectedDate = new Date(startDateTimeString);
+    const localSelectedDate = new Date(startDateTimeString); // Local time for validation
     const now = new Date();
-    const maxDate = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
+    const maxDateObj = new Date(now.getTime() + (settings.bookingWindowDays * 24 * 60 * 60 * 1000));
 
-    if (selectedDate < now) {
+    if (localSelectedDate < now) {
       toast.error("Start time cannot be in the past");
       return;
     }
 
-    if (selectedDate > maxDate) {
+    if (localSelectedDate > maxDateObj) {
       toast.error(`Start date cannot be more than ${settings.bookingWindowDays} days in the future`);
       return;
     }
@@ -246,8 +245,11 @@ const HeroBannerBooking = () => {
       bookingFormData.append("title", formData.title);
       bookingFormData.append("link", formData.link);
       bookingFormData.append("image", formData.image);
-      bookingFormData.append("startDate", selectedDate.toISOString());
-      bookingFormData.append("durationDays", formData.durationDays); // Send durationDays
+      // Send date-only string (YYYY-MM-DD) - backend will interpret as UTC midnight
+      // This ensures the selected date is stored correctly without timezone shifts
+      bookingFormData.append("startDate", formData.startDate);
+      bookingFormData.append("durationDays", formData.durationDays);
+      bookingFormData.append("bannerType", "hero");
 
       const response = await createBannerBooking(bookingFormData);
 
@@ -406,7 +408,7 @@ const HeroBannerBooking = () => {
     {
       header: "Start Date",
       accessor: "startDate",
-      render: (val) => new Date(val).toLocaleString(),
+      render: (val) => new Date(val).toISOString().split('T')[0],
     },
     {
       header: "Created At",

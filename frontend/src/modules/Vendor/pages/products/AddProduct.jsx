@@ -497,6 +497,8 @@ const AddProduct = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (loading) return; // Prevent double submission
+
     if (!vendorId) {
       toast.error("Please log in to add products");
       return;
@@ -563,6 +565,7 @@ const AddProduct = () => {
       }
     }
 
+    setLoading(true);
     try {
       let parsedPrice = formData.price ? parseFloat(formData.price) : 0;
       let parsedStockQuantity = formData.stockQuantity ? parseInt(formData.stockQuantity) : 0;
@@ -635,6 +638,8 @@ const AddProduct = () => {
     } catch (error) {
       console.error("Error creating product:", error);
       toast.error(error.response?.data?.message || "Failed to create product");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1822,9 +1827,19 @@ const AddProduct = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center justify-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm">
-                  <FiSave />
-                  Create Product
+                  disabled={loading}
+                  className="flex items-center justify-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <FiSave />
+                      Create Product
+                    </>
+                  )}
                 </button>
               </div>
             </div>

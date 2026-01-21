@@ -29,8 +29,24 @@ export const getWishlistController = async (req, res, next) => {
  */
 export const addToWishlistController = async (req, res, next) => {
   try {
-    const userId = req.user.userId;
+    // Debug logging
+    console.log('📝 Add to Wishlist Request:', {
+      user: req.user,
+      body: req.body,
+      headers: req.headers['content-type']
+    });
+
+    // Handle different user property structures (e.g. userId, _id, id)
+    const userId = req.user?.userId || req.user?._id || req.user?.id;
     const { productId } = req.body;
+
+    if (!userId) {
+      console.error('❌ User ID missing in request');
+      return res.status(401).json({
+        success: false,
+        message: 'User authentication failed',
+      });
+    }
 
     if (!productId) {
       return res.status(400).json({
@@ -47,6 +63,7 @@ export const addToWishlistController = async (req, res, next) => {
       data: wishlist,
     });
   } catch (error) {
+    console.error('❌ Add to Wishlist Controller Error:', error);
     if (error.message === 'Product not found') {
       return res.status(404).json({
         success: false,
