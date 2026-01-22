@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import toast from 'react-hot-toast';
@@ -113,9 +113,24 @@ const VendorLogin = () => {
         timeoutRef.current = null;
       }
 
-      toast.success('Login successful!');
-      const from = location.state?.from?.pathname || '/vendor/dashboard';
-      navigate(from, { replace: true });
+      if (result && result.success) {
+        // Wait for Zustand persist to save to localStorage
+        let retries = 0;
+        const maxRetries = 10;
+        let stateReady = false;
+        
+        while (retries < maxRetries && !stateReady) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            const { isAuthenticated, token } = useVendorAuthStore.getState();
+            stateReady = isAuthenticated && token;
+            if (stateReady) break;
+            retries++;
+        }
+
+        toast.success('Login successful!');
+        const from = location.state?.from?.pathname || '/vendor/dashboard';
+        navigate(from, { replace: true });
+      }
     } catch (error) {
       setLocalLoading(false);
       if (timeoutRef.current) {
@@ -131,12 +146,20 @@ const VendorLogin = () => {
   const isButtonLoading = localLoading || isLoading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4 relative overflow-hidden">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl"
+        className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl relative"
       >
+        {/* Back Button */}
+        <button 
+            onClick={() => navigate(-1)} 
+            className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+        >
+            <FiArrowLeft size={24} />
+        </button>
+
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 gradient-green rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-green">
@@ -223,13 +246,14 @@ const VendorLogin = () => {
 
           {/* Register Link */}
           <div className="text-center pt-4">
-            <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+            <p className="text-gray-600">
+              New to Dealing India?{' '}
               <Link
                 to="/vendor/register"
-                className="text-primary-600 hover:text-primary-700 font-semibold"
+                state={{ from: location.state?.from }}
+                className="text-primary-600 hover:text-primary-700 font-bold"
               >
-                Register as Vendor
+                Join now
               </Link>
             </p>
             <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-2">
@@ -237,6 +261,13 @@ const VendorLogin = () => {
               <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">
                 Switch to B2B Vendor Portal
               </Link>
+              
+              <div className="mt-2 pt-2 w-full border-t border-gray-100 flex flex-col items-center gap-1">
+                  <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">B2C Buyer?</span>
+                  <Link to="/app/login" className="text-primary-600 font-bold hover:underline">
+                    Switch to B2C Buyer Login
+                  </Link>
+              </div>
             </div>
           </div>
         </form>

@@ -26,6 +26,7 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true, full
     location.pathname !== '/app/mega-reward' &&
     location.pathname !== '/app/flash-sale' &&
     location.pathname !== '/app/checkout' &&
+    location.pathname !== '/app/become-seller' &&
     location.pathname !== '/app/help' &&
     location.pathname !== '/app/settings' &&
     !location.pathname.startsWith('/app/change-password') &&

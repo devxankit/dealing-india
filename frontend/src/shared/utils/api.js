@@ -33,7 +33,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: isProduction ? 90000 : 30000, // 90s in production (for email), 30s in dev
+  timeout: 120000, // Increased to 120s for all environments to handle large image uploads
 });
 
 // Request interceptor

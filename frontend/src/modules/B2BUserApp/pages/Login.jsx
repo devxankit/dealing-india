@@ -1,13 +1,14 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { FiPhone, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingBag } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { FiPhone, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingBag, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 
 const B2BUserLogin = () => {
     const navigate = useNavigate();
-    const { login } = useAuthStore();
+    const location = useLocation();
+    const { login, isAuthenticated } = useAuthStore();
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
@@ -15,6 +16,14 @@ const B2BUserLogin = () => {
         countryCode: '+91',
         password: '',
     });
+
+    // Redirect if already authenticated
+    useEffect(() => {
+        if (isAuthenticated) {
+            const from = location.state?.from?.pathname || '/b2b/catalog';
+            navigate(from, { replace: true });
+        }
+    }, [isAuthenticated, navigate, location]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -42,7 +51,8 @@ const B2BUserLogin = () => {
             const result = await login(identifier, formData.password, false, 'b2b');
             if (result.success) {
                 toast.success('Welcome back to Bulk Marketplace!');
-                navigate('/b2b/catalog');
+                const from = location.state?.from?.pathname || '/b2b/catalog';
+                navigate(from, { replace: true });
             } else {
                 toast.error(result.message || 'Login failed');
             }
@@ -61,6 +71,14 @@ const B2BUserLogin = () => {
                 className="bg-white/95 backdrop-blur-xl rounded-[2.5rem] p-8 sm:p-12 w-full max-w-md shadow-2xl relative overflow-hidden"
             >
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-400 to-primary-600"></div>
+
+                 {/* Back Button */}
+                <button 
+                    onClick={() => navigate(-1)} 
+                    className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors z-10"
+                >
+                    <FiArrowLeft size={24} />
+                </button>
 
                 <div className="text-center mb-10">
                     <div className="w-20 h-20 bg-primary-100 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-50">
@@ -133,14 +151,26 @@ const B2BUserLogin = () => {
                         {isLoading ? 'Verifying...' : 'Sign In as Buyer'}
                     </button>
 
-                    <div className="pt-8 border-t border-gray-100 text-center">
-                        <p className="text-sm text-gray-500 mb-2">Want to shop or buy for yourself?</p>
-                        <Link
-                            to="/app/login"
-                            className="inline-flex items-center gap-2 text-primary-600 font-bold hover:gap-3 transition-all"
-                        >
-                            <FiShoppingBag /> Back to Retail Login
-                        </Link>
+                    <div className="pt-8 border-t border-gray-100 text-center space-y-4">
+                        <p className="text-sm text-gray-600">
+                            New to Bulk Marketplace?{' '}
+                            <Link 
+                                to="/b2b/register" 
+                                state={{ from: location.state?.from }}
+                                className="text-primary-600 hover:text-primary-700 font-bold"
+                            >
+                                Create Account
+                            </Link>
+                        </p>
+                        <div className="pt-2">
+                            <p className="text-sm text-gray-500 mb-2">Want to shop or buy for yourself?</p>
+                            <Link
+                                to="/app/login"
+                                className="inline-flex items-center gap-2 text-primary-600 font-bold hover:gap-3 transition-all"
+                            >
+                                <FiShoppingBag /> Back to Retail Login
+                            </Link>
+                        </div>
                     </div>
                 </form>
             </motion.div>

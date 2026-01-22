@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiBriefcase, FiCheck, FiStar, FiX } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiBriefcase, FiCheck, FiStar, FiX, FiArrowLeft } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import toast from 'react-hot-toast';
@@ -194,12 +194,19 @@ const B2BVendorLogin = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl"
+                className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl relative"
             >
+             {/* Back Button */}
+            <button 
+                onClick={() => navigate(-1)} 
+                className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+            >
+                <FiArrowLeft size={24} />
+            </button>
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                         <FiBriefcase className="text-white text-2xl" />
@@ -283,6 +290,7 @@ const B2BVendorLogin = () => {
                             New B2B Vendor?{' '}
                             <Link
                                 to="/b2b-vendor/register"
+                                state={{ from: location.state?.from }}
                                 className="text-primary-600 hover:text-primary-700 font-semibold"
                             >
                                 Apply Now
@@ -294,6 +302,13 @@ const B2BVendorLogin = () => {
                             <Link to="/vendor/login" className="text-primary-600 font-bold hover:underline">
                                 Switch to B2C Vendor Panel
                             </Link>
+                            
+                            <div className="mt-2 pt-2 w-full border-t border-gray-100 flex flex-col items-center gap-1">
+                                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">B2B Buyer?</span>
+                                <Link to="/b2b/login" className="text-primary-600 font-bold hover:underline">
+                                    Switch to B2B Buyer Login
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </form>

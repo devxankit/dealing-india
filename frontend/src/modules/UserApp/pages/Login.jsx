@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiPhone, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { isValidEmail, isValidPhone } from '../../../shared/utils/helpers';
@@ -12,7 +12,7 @@ import PageTransition from '../../../shared/components/PageTransition';
 const MobileLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isLoading } = useAuthStore();
+  const { login, isAuthenticated, isLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loginMethod, setLoginMethod] = useState('phone'); // 'phone' or 'email'
@@ -26,6 +26,13 @@ const MobileLogin = () => {
   } = useForm();
 
   const from = location.state?.from?.pathname || '/app';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
 
   // Reset loading state on mount to prevent stuck loading state from persistence
   useEffect(() => {
@@ -89,7 +96,7 @@ const MobileLogin = () => {
         ? (data.countryCode ? `${data.countryCode}${data.phone}` : data.phone)
         : data.email;
 
-      await login(identifier, data.password, rememberMe, 'b2c');
+      const result = await login(identifier, data.password, rememberMe, 'b2c');
 
       setLocalLoading(false);
       if (timeoutRef.current) {
@@ -97,8 +104,24 @@ const MobileLogin = () => {
         timeoutRef.current = null;
       }
 
-      toast.success('Login successful!');
-      navigate(from, { replace: true });
+      if (result && result.success) {
+        // Wait for Zustand persist to save to localStorage
+        let retries = 0;
+        const maxRetries = 10;
+        let stateReady = false;
+        
+        while (retries < maxRetries && !stateReady) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            const { isAuthenticated, token } = useAuthStore.getState();
+            const storedToken = localStorage.getItem('auth-storage'); // Check if storage exists
+            stateReady = isAuthenticated && token;
+            if (stateReady) break;
+            retries++;
+        }
+
+        toast.success('Login successful!');
+        navigate(from, { replace: true });
+      }
     } catch (error) {
       setLocalLoading(false);
       if (timeoutRef.current) {
@@ -123,7 +146,14 @@ const MobileLogin = () => {
             transition={{ duration: 0.5 }}
             className="w-full max-w-md"
           >
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <div className="bg-white rounded-2xl p-6 shadow-sm relative">
+                {/* Back Button */}
+                <button 
+                    onClick={() => navigate(-1)} 
+                    className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+                >
+                    <FiArrowLeft size={24} />
+                </button>
               {/* Header */}
               <div className="text-center mb-8">
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
@@ -300,6 +330,7 @@ const MobileLogin = () => {
                   Don't have an account?{' '}
                   <Link
                     to="/app/register"
+                    state={{ from: location.state?.from }}
                     className="text-primary-600 hover:text-primary-700 font-semibold"
                   >
                     Sign Up

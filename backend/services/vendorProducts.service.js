@@ -427,18 +427,26 @@ export const createVendorProduct = async (productData, vendorId) => {
     }
 
     // Upload gallery images if provided
-    const imageUrls = [];
-    const imagePublicIds = [];
+    let imageUrls = [];
+    let imagePublicIds = [];
     if (images && images.length > 0) {
-      for (const img of images) {
-        if (img.startsWith('data:') || img.startsWith('http')) {
-          const uploadResult = await uploadBase64ToCloudinary(img, 'products');
-          imageUrls.push(uploadResult.secure_url);
-          imagePublicIds.push(uploadResult.public_id);
+      const galleryUploadPromises = images.map(async (img) => {
+        if (img && (img.startsWith('data:') || img.startsWith('http'))) {
+          try {
+            const uploadResult = await uploadBase64ToCloudinary(img, 'products');
+            return { secure_url: uploadResult.secure_url, public_id: uploadResult.public_id };
+          } catch (err) {
+            console.error('Gallery image upload failed:', err);
+            return null;
+          }
         } else {
-          imageUrls.push(img);
+          return { secure_url: img, public_id: null };
         }
-      }
+      });
+      
+      const galleryResults = (await Promise.all(galleryUploadPromises)).filter(r => r !== null);
+      imageUrls = galleryResults.map(r => r.secure_url);
+      imagePublicIds = galleryResults.map(r => r.public_id).filter(id => id !== null);
     }
 
     // Process root-level size variants if provided
@@ -460,9 +468,9 @@ export const createVendorProduct = async (productData, vendorId) => {
     // Process color variants if provided
     let processedColorVariants = [];
     if (variants && variants.colorVariants && Array.isArray(variants.colorVariants)) {
-      for (const colorVariant of variants.colorVariants) {
+      const colorVariantPromises = variants.colorVariants.map(async (colorVariant) => {
         if (!colorVariant.colorName) {
-          continue; // Skip invalid color variants
+          return null; // Skip invalid color variants
         }
 
         // Upload thumbnail image if provided
@@ -470,9 +478,13 @@ export const createVendorProduct = async (productData, vendorId) => {
         let thumbnailImagePublicId = null;
         if (colorVariant.thumbnailImage) {
           if (colorVariant.thumbnailImage.startsWith('data:') || colorVariant.thumbnailImage.startsWith('http')) {
-            const uploadResult = await uploadBase64ToCloudinary(colorVariant.thumbnailImage, 'products/variants');
-            thumbnailImageUrl = uploadResult.secure_url;
-            thumbnailImagePublicId = uploadResult.public_id;
+            try {
+              const uploadResult = await uploadBase64ToCloudinary(colorVariant.thumbnailImage, 'products/variants');
+              thumbnailImageUrl = uploadResult.secure_url;
+              thumbnailImagePublicId = uploadResult.public_id;
+            } catch (err) {
+              console.error('Thumbnail image upload failed:', err);
+            }
           } else {
             thumbnailImageUrl = colorVariant.thumbnailImage;
           }
@@ -482,17 +494,26 @@ export const createVendorProduct = async (productData, vendorId) => {
         let variantImageUrls = [];
         let variantImagePublicIds = [];
         if (colorVariant.images && Array.isArray(colorVariant.images)) {
-          for (const vimg of colorVariant.images) {
+          const variantImagePromises = colorVariant.images.map(async (vimg) => {
             if (typeof vimg === 'string') {
               if (vimg.startsWith('data:') || vimg.startsWith('http')) {
-                const uploadResult = await uploadBase64ToCloudinary(vimg, 'products/variants');
-                variantImageUrls.push(uploadResult.secure_url);
-                variantImagePublicIds.push(uploadResult.public_id);
+                try {
+                  const uploadResult = await uploadBase64ToCloudinary(vimg, 'products/variants');
+                  return { secure_url: uploadResult.secure_url, public_id: uploadResult.public_id };
+                } catch (err) {
+                  console.error('Variant image upload failed:', err);
+                  return null;
+                }
               } else {
-                variantImageUrls.push(vimg);
+                return { secure_url: vimg, public_id: null };
               }
             }
-          }
+            return null;
+          });
+          
+          const variantResults = (await Promise.all(variantImagePromises)).filter(r => r !== null);
+          variantImageUrls = variantResults.map(r => r.secure_url);
+          variantImagePublicIds = variantResults.map(r => r.public_id).filter(id => id !== null);
         }
 
         // Process size variants for this color
@@ -503,13 +524,6 @@ export const createVendorProduct = async (productData, vendorId) => {
               continue; // Skip invalid size variants
             }
 
-            // Calculate stock status for size variant
-            const sizeStockStatus = sizeVariant.stockQuantity === 0
-              ? 'out_of_stock'
-              : sizeVariant.stockQuantity <= 10
-                ? 'low_stock'
-                : 'in_stock';
-
             processedSizeVariants.push({
               size: sizeVariant.size.trim(),
               price: sizeVariant.price !== undefined && sizeVariant.price !== null
@@ -519,12 +533,11 @@ export const createVendorProduct = async (productData, vendorId) => {
                 ? parseFloat(sizeVariant.originalPrice)
                 : null,
               stockQuantity: parseInt(sizeVariant.stockQuantity),
-              // stockStatus is auto-calculated by Mongoose pre-save middleware
             });
           }
         }
 
-        processedColorVariants.push({
+        return {
           colorName: colorVariant.colorName.trim(),
           colorCode: colorVariant.colorCode ? colorVariant.colorCode.trim() : null,
           thumbnailImage: thumbnailImageUrl,
@@ -532,8 +545,10 @@ export const createVendorProduct = async (productData, vendorId) => {
           images: variantImageUrls,
           imagesPublicIds: variantImagePublicIds,
           sizeVariants: processedSizeVariants,
-        });
-      }
+        };
+      });
+
+      processedColorVariants = (await Promise.all(colorVariantPromises)).filter(v => v !== null);
     }
 
     // Validate variation consistency
@@ -999,15 +1014,23 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       imageUrls = [];
       imagePublicIds = [];
       if (images.length > 0) {
-        for (const img of images) {
-          if (img.startsWith('data:') || img.startsWith('http')) {
-            const uploadResult = await uploadBase64ToCloudinary(img, 'products');
-            imageUrls.push(uploadResult.secure_url);
-            imagePublicIds.push(uploadResult.public_id);
+        const galleryUploadPromises = images.map(async (img) => {
+          if (img && (img.startsWith('data:') || img.startsWith('http'))) {
+            try {
+              const uploadResult = await uploadBase64ToCloudinary(img, 'products');
+              return { secure_url: uploadResult.secure_url, public_id: uploadResult.public_id };
+            } catch (err) {
+              console.error('Update gallery image upload failed:', err);
+              return null;
+            }
           } else {
-            imageUrls.push(img);
+            return { secure_url: img, public_id: null };
           }
-        }
+        });
+        
+        const galleryResults = (await Promise.all(galleryUploadPromises)).filter(r => r !== null);
+        imageUrls = galleryResults.map(r => r.secure_url);
+        imagePublicIds = galleryResults.map(r => r.public_id).filter(id => id !== null);
       }
     }
 
@@ -1016,21 +1039,23 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
     if (variants !== undefined && variants.colorVariants !== undefined) {
       // Delete old variant thumbnail images and gallery images
       if (existingProduct.variants?.colorVariants) {
+        const deletePromises = [];
         for (const oldCv of existingProduct.variants.colorVariants) {
           if (oldCv.thumbnailImagePublicId) {
-            await deleteFromCloudinary(oldCv.thumbnailImagePublicId);
+            deletePromises.push(deleteFromCloudinary(oldCv.thumbnailImagePublicId));
           }
           if (oldCv.imagesPublicIds && Array.isArray(oldCv.imagesPublicIds)) {
-            await Promise.all(oldCv.imagesPublicIds.map(id => deleteFromCloudinary(id)));
+            oldCv.imagesPublicIds.forEach(id => deletePromises.push(deleteFromCloudinary(id)));
           }
         }
+        await Promise.all(deletePromises);
       }
 
       processedColorVariants = [];
       if (Array.isArray(variants.colorVariants)) {
-        for (const colorVariant of variants.colorVariants) {
+        const colorVariantPromises = variants.colorVariants.map(async (colorVariant) => {
           if (!colorVariant.colorName) {
-            continue; // Skip invalid color variants
+            return null; // Skip invalid color variants
           }
 
           // Upload thumbnail image if provided
@@ -1038,9 +1063,13 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
           let thumbnailImagePublicId = null;
           if (colorVariant.thumbnailImage) {
             if (colorVariant.thumbnailImage.startsWith('data:') || colorVariant.thumbnailImage.startsWith('http')) {
-              const uploadResult = await uploadBase64ToCloudinary(colorVariant.thumbnailImage, 'products/variants');
-              thumbnailImageUrl = uploadResult.secure_url;
-              thumbnailImagePublicId = uploadResult.public_id;
+              try {
+                const uploadResult = await uploadBase64ToCloudinary(colorVariant.thumbnailImage, 'products/variants');
+                thumbnailImageUrl = uploadResult.secure_url;
+                thumbnailImagePublicId = uploadResult.public_id;
+              } catch (err) {
+                console.error('Update variant thumbnail upload failed:', err);
+              }
             } else {
               thumbnailImageUrl = colorVariant.thumbnailImage;
             }
@@ -1050,17 +1079,26 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
           let variantImageUrls = [];
           let variantImagePublicIds = [];
           if (colorVariant.images && Array.isArray(colorVariant.images)) {
-            for (const vimg of colorVariant.images) {
+            const variantImagePromises = colorVariant.images.map(async (vimg) => {
               if (typeof vimg === 'string') {
                 if (vimg.startsWith('data:') || vimg.startsWith('http')) {
-                  const uploadResult = await uploadBase64ToCloudinary(vimg, 'products/variants');
-                  variantImageUrls.push(uploadResult.secure_url);
-                  variantImagePublicIds.push(uploadResult.public_id);
+                  try {
+                    const uploadResult = await uploadBase64ToCloudinary(vimg, 'products/variants');
+                    return { secure_url: uploadResult.secure_url, public_id: uploadResult.public_id };
+                  } catch (err) {
+                    console.error('Update variant gallery image upload failed:', err);
+                    return null;
+                  }
                 } else {
-                  variantImageUrls.push(vimg);
+                  return { secure_url: vimg, public_id: null };
                 }
               }
-            }
+              return null;
+            });
+            
+            const variantResults = (await Promise.all(variantImagePromises)).filter(r => r !== null);
+            variantImageUrls = variantResults.map(r => r.secure_url);
+            variantImagePublicIds = variantResults.map(r => r.public_id).filter(id => id !== null);
           }
 
           // Process size variants for this color
@@ -1070,13 +1108,6 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
               if (!sizeVariant.size || sizeVariant.stockQuantity === undefined) {
                 continue; // Skip invalid size variants
               }
-
-              // Calculate stock status for size variant
-              const sizeStockStatus = sizeVariant.stockQuantity === 0
-                ? 'out_of_stock'
-                : sizeVariant.stockQuantity <= 10
-                  ? 'low_stock'
-                  : 'in_stock';
 
               processedSizeVariants.push({
                 size: sizeVariant.size.trim(),
@@ -1092,7 +1123,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
             }
           }
 
-          processedColorVariants.push({
+          return {
             colorName: colorVariant.colorName.trim(),
             colorCode: colorVariant.colorCode ? colorVariant.colorCode.trim() : null,
             thumbnailImage: thumbnailImageUrl,
@@ -1100,8 +1131,10 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
             images: variantImageUrls,
             imagesPublicIds: variantImagePublicIds,
             sizeVariants: processedSizeVariants,
-          });
-        }
+          };
+        });
+
+        processedColorVariants = (await Promise.all(colorVariantPromises)).filter(v => v !== null);
       }
 
       // Validate variation consistency

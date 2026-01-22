@@ -71,6 +71,8 @@ const AddProduct = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3; // Basic Info, Variations, Additional Details
 
+  const [loading, setLoading] = useState(false);
+
   // Color variants state
   const [colorVariants, setColorVariants] = useState([]);
   const [activeCoupons, setActiveCoupons] = useState([]);

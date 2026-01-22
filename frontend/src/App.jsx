@@ -122,12 +122,14 @@ const Chat = lazyWithRetry(() => import("./shared/components/Chat/Chat"));
 import ScrollToTop from "./shared/components/ScrollToTop";
 
 // Mobile App Routes (Eager Loaded for Instant Nav)
+import LandingPage from "./modules/UserApp/pages/LandingPage";
 import MobileHome from "./modules/UserApp/pages/Home";
 import MobileCategories from "./modules/UserApp/pages/categories";
 import MobileSearch from "./modules/UserApp/pages/Search";
 import MobileReels from "./modules/UserApp/pages/Reels";
-import MobileProfile from "./modules/UserApp/pages/Profile";
-import MobileLogin from "./modules/UserApp/pages/Login";
+const MobileProfile = lazyWithRetry(() => import("./modules/UserApp/pages/Profile"));
+const MobileBecomeSeller = lazyWithRetry(() => import("./modules/UserApp/pages/BecomeSeller"));
+const MobileLogin = lazyWithRetry(() => import("./modules/UserApp/pages/Login"));
 
 // Mobile App Routes (Lazy Loaded with Auto-Refresh on Fail)
 const MobileProductDetail = lazyWithRetry(() => import("./modules/UserApp/pages/ProductDetail"));
@@ -594,7 +596,7 @@ const AppRoutes = () => {
           path="/app"
           element={
             <RouteWrapper>
-              <MobileHome />
+              <LandingPage />
             </RouteWrapper>
           }
         />
@@ -756,6 +758,16 @@ const AppRoutes = () => {
             <RouteWrapper>
               <ProtectedRoute>
                 <MobileProfile />
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/app/become-seller"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <MobileBecomeSeller />
               </ProtectedRoute>
             </RouteWrapper>
           }
