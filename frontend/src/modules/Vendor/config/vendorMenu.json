@@ -31,9 +31,13 @@
     "route": "/vendor/reels",
     "children": [
       "All Reels",
-      "Add Reel",
-      "Subscription"
+      "Add Reel"
     ]
+  },
+  {
+    "title": "Subscription",
+    "route": "/vendor/subscription",
+    "children": []
   },
   {
     "title": "Hero Banner Booking",

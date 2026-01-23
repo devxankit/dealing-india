@@ -65,6 +65,8 @@ import publicPromoCodeRoutes from './routes/publicPromoCode.routes.js';
 import publicDeliveryRoutes from './routes/publicDelivery.routes.js';
 import publicB2BCategoryRoutes from './routes/publicB2BCategory.routes.js';
 import publicB2BLocationRoutes from './routes/publicB2BLocation.routes.js';
+import publicB2BSubscriptionRoutes from './routes/publicB2BSubscription.routes.js';
+import SubscriptionRoutes from './routes/vendor-routes/SubscriptionRoute.js';
 import vendorOrderRoutes from './routes/vendorOrder.routes.js';
 import adminOrderRoutes from './routes/adminOrder.routes.js';
 import adminDeliveryRoutes from './routes/adminDelivery.routes.js';
@@ -99,7 +101,11 @@ import adminMegaRewardRoutes from './routes/adminMegaReward.routes.js';
 import userMegaRewardRoutes from './routes/userMegaReward.routes.js';
 import publicMegaRewardRoutes from './routes/publicMegaReward.routes.js';
 import publicReelRoutes from './routes/publicReel.routes.js';
+import { B2BSubscriptionExpiryCron, subscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 
+
+subscriptionExpiryCron.start();
+B2BSubscriptionExpiryCron.start();
 
 // Load environment variables
 dotenv.config();
@@ -117,6 +123,7 @@ const httpServer = http.createServer(app);
 // Default allowed origins (always included)
 const defaultOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'http://localhost:5000',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5000',
@@ -264,6 +271,7 @@ app.get('/api/test-db', (req, res) => {
     });
   }
 });
+import { razorpayWebhook } from "./controllers/SubscriptionCtrl.js";
 
 // Routes
 app.use('/api/auth/user', userAuthRoutes);
@@ -284,9 +292,11 @@ app.use('/api/public/promocodes', publicPromoCodeRoutes);
 app.use('/api/public/delivery', publicDeliveryRoutes);
 app.use('/api/public/b2b-categories', publicB2BCategoryRoutes);
 app.use('/api/public', publicB2BLocationRoutes);
+app.use('/api/public/b2b-subscription-plans', publicB2BSubscriptionRoutes);
 app.use('/api/settings', publicSettingsRoutes);
 app.use('/api/mega-reward', publicMegaRewardRoutes);
 app.use('/api/public/reels', publicReelRoutes);
+app.use('/api/subscription', SubscriptionRoutes);
 
 // Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);
@@ -359,6 +369,7 @@ app.use('/api/vendor/notifications', vendorNotificationRoutes);
 app.use('/api/vendor/wallet', vendorWalletRoutes);
 app.use('/api/vendor/returns', vendorReturnRoutes);
 app.use('/api/vendor/analytics', vendorAnalyticsRoutes);
+app.use('/api/subscription', SubscriptionRoutes);
 
 // B2B Vendor routes (separate from regular vendor routes)
 app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);
@@ -381,7 +392,11 @@ process.on('uncaughtException', (error) => {
     process.exit(1);
   }
 });
-
+app.post(
+  "/api/v1/razorpay-webhook",
+  express.raw({ type: "application/json" }),
+  razorpayWebhook
+);
 // Error handling middleware (must be after routes)
 app.use(errorHandler);
 

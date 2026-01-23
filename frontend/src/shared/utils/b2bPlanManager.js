@@ -70,13 +70,13 @@ export const getB2BPlans = async (forceRefresh = false) => {
             return plansCache;
         }
 
-        const response = await api.get('/admin/b2b-subscription-plans/active');
+        const response = await api.get('/public/b2b-subscription-plans/active');
         if (response.success && response.data) {
             plansCache = response.data;
             cacheTimestamp = Date.now();
             return response.data;
         }
-        
+
         // Fallback to default if API fails
         console.warn('Failed to fetch plans from API, using defaults');
         return DEFAULT_PLANS;
@@ -121,7 +121,7 @@ export const getB2BPlanById = async (planId) => {
         }
 
         // Fetch from API
-        const response = await api.get(`/admin/b2b-subscription-plans/${planId}`);
+        const response = await api.get(`/public/b2b-subscription-plans/${planId}`);
         if (response.success && response.data) {
             return response.data;
         }

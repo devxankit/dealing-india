@@ -12,7 +12,6 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'Duration is required'],
       enum: [3, 6, 12],
-      unique: true,
       index: true,
     },
     price: {
@@ -45,6 +44,10 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Admin',
     },
+    razorpayPlanId: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -57,6 +60,9 @@ b2bSubscriptionPlanSchema.index({ isActive: 1, duration: 1 });
 // Prevent duplicate durations
 b2bSubscriptionPlanSchema.index({ duration: 1 }, { unique: true });
 
-const B2BSubscriptionPlan = mongoose.model('B2BSubscriptionPlan', b2bSubscriptionPlanSchema);
+const B2BSubscriptionPlan =
+  mongoose.models.B2BSubscriptionPlan ||
+  mongoose.model('B2BSubscriptionPlan', b2bSubscriptionPlanSchema);
 
 export default B2BSubscriptionPlan;
+

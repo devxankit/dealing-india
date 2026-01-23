@@ -50,14 +50,14 @@ class RazorpayService {
     if (!this.razorpay) {
       const keyId = process.env.RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
-      
+
       if (!keyId || !keySecret) {
         throw new Error('Razorpay not configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your .env file.');
       }
-      
+
       // Try to re-initialize
       this.initializeRazorpay();
-      
+
       if (!this.razorpay) {
         throw new Error('Failed to initialize Razorpay. Please check your API keys.');
       }
@@ -89,9 +89,9 @@ class RazorpayService {
       });
 
       const order = await this.razorpay.orders.create(options);
-      
+
       console.log('Razorpay order created successfully:', order.id);
-      
+
       return {
         id: order.id,
         entity: order.entity,
@@ -111,7 +111,7 @@ class RazorpayService {
         error: error.error,
         message: error.message,
       });
-      
+
       // Provide more specific error messages
       if (error.statusCode === 401) {
         throw new Error('Razorpay authentication failed. Please check your RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env file.');
@@ -143,7 +143,7 @@ class RazorpayService {
 
       // Create the signature string
       const payload = `${orderId}|${paymentId}`;
-      
+
       // Generate expected signature
       const expectedSignature = crypto
         .createHmac('sha256', keySecret)
@@ -152,11 +152,11 @@ class RazorpayService {
 
       // Compare signatures
       const isValid = expectedSignature === signature;
-      
+
       if (!isValid) {
         console.warn('⚠️ Payment signature verification failed');
       }
-      
+
       return isValid;
     } catch (error) {
       console.error('Error verifying payment signature:', error);
@@ -249,6 +249,47 @@ class RazorpayService {
     } catch (error) {
       console.error('Error refunding payment:', error);
       throw new Error(`Failed to refund payment: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a subscription plan in Razorpay
+   * @param {Object} planData - Plan details
+   * @param {string} planData.name - Plan name
+   * @param {number} planData.amount - Amount in rupees
+   * @param {string} planData.currency - Currency code (default: 'INR')
+   * @param {string} planData.period - 'daily', 'weekly', 'monthly', 'yearly'
+   * @param {number} planData.interval - Billing interval (default: 1)
+   * @param {string} planData.description - Plan description
+   * @returns {Promise<Object>} Created plan object
+   */
+  async createPlan({ name, amount, currency = 'INR', period = 'monthly', interval = 1, description }) {
+    if (!this.razorpay) {
+      this.initializeRazorpay();
+      if (!this.razorpay) {
+        throw new Error('Razorpay not initialized');
+      }
+    }
+
+    try {
+      const planOptions = {
+        period,
+        interval,
+        item: {
+          name,
+          amount: Math.round(amount * 100), // Convert to paise
+          currency: currency.toUpperCase(),
+          description
+        }
+      };
+
+      console.log('Creating Razorpay plan:', planOptions);
+      const plan = await this.razorpay.plans.create(planOptions);
+      console.log('Razorpay plan created:', plan.id);
+      return plan;
+    } catch (error) {
+      console.error('Error creating Razorpay plan:', error);
+      throw new Error(`Failed to create Razorpay plan: ${error.message}`);
     }
   }
 }
