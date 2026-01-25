@@ -1,4 +1,5 @@
 import B2BSubscriptionPlan from '../models/B2BSubscriptionPlan.model.js';
+import razorpayService from './razorpay.service.js';
 
 class B2BSubscriptionPlanService {
   /**
@@ -11,7 +12,7 @@ class B2BSubscriptionPlanService {
     try {
       const { includeInactive = false } = options;
       const query = {};
-      
+
       if (!includeInactive) {
         query.isActive = true;
       }
@@ -106,7 +107,7 @@ class B2BSubscriptionPlanService {
         description: description?.trim(),
         isActive: true,
       };
-      
+
       if (createdBy) {
         planToCreate.createdBy = createdBy;
         planToCreate.updatedBy = createdBy;
@@ -139,28 +140,77 @@ class B2BSubscriptionPlanService {
         throw new Error('B2B subscription plan not found');
       }
 
-      // Duration cannot be changed after creation
-      if (updateData.duration && updateData.duration !== plan.duration) {
-        throw new Error('Duration cannot be changed. Please create a new plan instead.');
+      // 🔹 Detect critical changes
+      const isPriceChanged =
+        price !== undefined && price !== plan.price;
+
+      const isNameChanged =
+        name !== undefined && name.trim() !== plan.name;
+
+      const newPrice = price !== undefined ? price : plan.price;
+
+      /**
+       * 🔹 Rule:
+       * - price OR name change ho
+       * - aur plan paid ho (> 0)
+       * → naya Razorpay plan create karo
+       */
+      if ((isPriceChanged || isNameChanged) && newPrice > 0) {
+        const planName = name?.trim() || plan.name;
+        const planDescription =
+          description?.trim() ||
+          plan.description ||
+          `Monthly subscription for ${planName}`;
+
+        try {
+          const razorpayPlan = await razorpayService.createPlan({
+            name: planName,
+            amount: newPrice,
+            currency: 'INR',
+            period: 'monthly',
+            interval: 1,
+            description: planDescription,
+          });
+
+          updateData.razorpayPlanId = razorpayPlan.id;
+        } catch (err) {
+          console.error('Razorpay plan creation failed:', err);
+          throw new Error('Could not create Razorpay plan');
+        }
       }
 
-      // Update fields
+      // 🔹 Free plan case
+      if (newPrice === 0) {
+        updateData.razorpayPlanId = null;
+      }
+
+      // 🔹 Update DB fields
       if (name !== undefined) plan.name = name.trim();
       if (price !== undefined) plan.price = price;
+
       if (features !== undefined) {
-        plan.features = features.filter(f => f && f.trim()); // Remove empty features
+        plan.features = features.filter(f => f?.trim());
       }
-      if (description !== undefined) plan.description = description?.trim();
+
+      if (description !== undefined) {
+        plan.description = description.trim();
+      }
+
       if (isActive !== undefined) plan.isActive = isActive;
       if (updatedBy) plan.updatedBy = updatedBy;
 
-      await plan.save();
+      if (updateData.razorpayPlanId !== undefined) {
+        plan.razorpayPlanId = updateData.razorpayPlanId;
+      }
 
+      await plan.save();
       return plan.toObject();
+
     } catch (error) {
       throw new Error(`Failed to update plan: ${error.message}`);
     }
   }
+
 
   /**
    * Delete a plan (soft delete by setting isActive to false)

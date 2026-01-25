@@ -73,11 +73,39 @@ api.interceptors.request.use(
     }
     // Check for B2B vendor routes first (separate from regular vendor routes)
     // OR if current path is B2B vendor page, use b2b-vendor-token for vendor routes
-    else if (url.startsWith('/b2b-vendor/') || 
-             (currentPath.startsWith('/b2b-vendor') && (url.startsWith('/auth/vendor') || url.startsWith('/vendor/')))) {
+    else if (url.startsWith('/b2b-vendor/') ||
+      (currentPath.startsWith('/b2b-vendor') && (url.startsWith('/auth/vendor') || url.startsWith('/vendor/') || url.startsWith('/subscription/')))) {
       token = localStorage.getItem('b2b-vendor-token');
       if (process.env.NODE_ENV === 'development') {
         console.log('[API] Using b2b-vendor-token for URL:', url, 'Current path:', currentPath);
+      }
+    }
+    // Check for subscription routes - use vendor token based on current path
+    else if (url.startsWith('/subscription/')) {
+      // If on B2B vendor pages, use b2b-vendor-token
+      if (currentPath.startsWith('/b2b-vendor')) {
+        token = localStorage.getItem('b2b-vendor-token');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[API] Using b2b-vendor-token for subscription URL:', url);
+        }
+      }
+      // If on vendor pages, use vendor-token
+      else if (currentPath.startsWith('/vendor')) {
+        token = localStorage.getItem('vendor-token');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[API] Using vendor-token for subscription URL:', url);
+        }
+      }
+      // If on admin pages, use admin-token
+      else if (currentPath.startsWith('/admin')) {
+        token = localStorage.getItem('admin-token');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[API] Using admin-token for subscription URL:', url);
+        }
+      }
+      // Default fallback to vendor-token for subscription routes
+      else {
+        token = localStorage.getItem('vendor-token');
       }
     }
     // Check for vendor routes (vendor auth or vendor-specific routes, but NOT admin vendor management)

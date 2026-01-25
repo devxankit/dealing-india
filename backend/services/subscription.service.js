@@ -25,6 +25,43 @@ class SubscriptionService {
   }
 
   async updateTier(tierId, updateData) {
+    const currentTier = await SubscriptionTier.findById(tierId);
+    if (!currentTier) {
+      throw new Error('Subscription tier not found');
+    }
+
+    // Check if critical fields are changing
+    const isPriceChanged = updateData.priceMonthly !== undefined && updateData.priceMonthly !== currentTier.priceMonthly;
+    const isNameChanged = updateData.name !== undefined && updateData.name !== currentTier.name;
+
+    // We create a new plan if price changes, or if name changes (to keep consistency),
+    // provided the plan is not free (price > 0).
+    const newPrice = updateData.priceMonthly !== undefined ? updateData.priceMonthly : currentTier.priceMonthly;
+
+    if ((isPriceChanged || isNameChanged) && newPrice > 0) {
+      const planName = updateData.name || currentTier.name;
+      const description = updateData.description || currentTier.description || `Monthly subscription for ${planName}`;
+
+      try {
+        const plan = await razorpayService.createPlan({
+          name: planName,
+          amount: newPrice,
+          currency: 'INR',
+          period: 'monthly',
+          interval: 1,
+          description: description
+        });
+console.log("plan",plan)
+        updateData.razorpayPlanId = plan.id;
+      } catch (error) {
+        console.error('Failed to create new Razorpay plan during tier update:', error);
+        throw new Error(`Failed to update tier: Could not create Razorpay plan - ${error.message}`);
+      }
+    } else if (newPrice === 0) {
+      // If updating to free, clear plan ID
+      updateData.razorpayPlanId = null;
+    }
+
     return await SubscriptionTier.findByIdAndUpdate(tierId, updateData, { new: true });
   }
 

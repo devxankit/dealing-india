@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const subscriptionTierSchema = new mongoose.Schema(
+const SubscriptionTierSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -42,12 +42,19 @@ const subscriptionTierSchema = new mongoose.Schema(
       enum: ['monthly'],
       default: 'monthly',
     },
+    razorpayPlanId: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-const SubscriptionTier = mongoose.model('SubscriptionTier', subscriptionTierSchema);
+const SubscriptionTier =
+  mongoose.models.SubscriptionTier ||
+  mongoose.model("SubscriptionTier", SubscriptionTierSchema);
 
 export default SubscriptionTier;
+

@@ -537,7 +537,7 @@ const B2BVendorRegister = () => {
                     </div>
 
                     {/* Subscription Plan Selection */}
-                    <div className="pt-4 border-t border-gray-100">
+                    {/* <div className="pt-4 border-t border-gray-100">
                         <div className="space-y-6">
                             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <FiStar className="text-yellow-500" />
@@ -670,7 +670,7 @@ const B2BVendorRegister = () => {
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </div> */}
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
