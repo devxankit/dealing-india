@@ -7,6 +7,29 @@ import {
   bulkDeleteBrands,
   toggleBrandStatus,
 } from '../../services/brandManagement.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear brand-related cache
+ */
+const clearBrandCache = async (brandId = null) => {
+  try {
+    const patterns = [
+      'public:brands:*',
+      'admin:brands:list:*'
+    ];
+
+    if (brandId) {
+      patterns.push(`admin:brands:details:*${brandId}*`);
+    } else {
+      patterns.push('admin:brands:details:*');
+    }
+
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing brand cache:', error);
+  }
+};
 
 /**
  * Get all brands with filters
@@ -70,6 +93,9 @@ export const create = async (req, res, next) => {
     const brandData = req.body;
     const brand = await createBrand(brandData);
 
+    // Clear cache
+    await clearBrandCache();
+
     res.status(201).json({
       success: true,
       message: 'Brand created successfully',
@@ -90,6 +116,9 @@ export const update = async (req, res, next) => {
     const updateData = req.body;
     const brand = await updateBrand(id, updateData);
 
+    // Clear cache
+    await clearBrandCache(id);
+
     res.status(200).json({
       success: true,
       message: 'Brand updated successfully',
@@ -108,6 +137,9 @@ export const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
     await deleteBrand(id);
+
+    // Clear cache
+    await clearBrandCache(id);
 
     res.status(200).json({
       success: true,
@@ -135,6 +167,9 @@ export const bulkDelete = async (req, res, next) => {
 
     const result = await bulkDeleteBrands(ids);
 
+    // Clear cache
+    await clearBrandCache();
+
     res.status(200).json({
       success: true,
       message: `${result.deletedCount} brand(s) deleted successfully`,
@@ -153,6 +188,9 @@ export const toggleStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const brand = await toggleBrandStatus(id);
+
+    // Clear cache
+    await clearBrandCache(id);
 
     res.status(200).json({
       success: true,

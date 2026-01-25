@@ -1,4 +1,20 @@
 import * as reviewService from '../../services/review.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear review-related cache
+ */
+const clearReviewCache = async (productId = null) => {
+    try {
+        if (productId) {
+            await redisService.clearPattern(`public:reviews:*${productId}*`);
+        } else {
+            await redisService.clearPattern('public:reviews:*');
+        }
+    } catch (error) {
+        console.error('Error clearing review cache:', error);
+    }
+};
 
 export const createReview = async (req, res, next) => {
     try {
@@ -14,6 +30,9 @@ export const createReview = async (req, res, next) => {
             review,
             images,
         });
+
+        // Clear cache
+        await clearReviewCache(productId);
 
         res.status(201).json({
             success: true,

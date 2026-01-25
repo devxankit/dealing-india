@@ -1,4 +1,18 @@
 import returnService from '../../services/return.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear return-related cache
+ */
+const clearReturnCache = async (userId) => {
+    try {
+        if (userId) {
+            await redisService.clearPattern(`user:returns:*:u:${userId}*`);
+        }
+    } catch (error) {
+        console.error('Error clearing return cache:', error);
+    }
+};
 
 export const createReturnRequest = async (req, res) => {
     try {
@@ -6,6 +20,9 @@ export const createReturnRequest = async (req, res) => {
         const returnData = req.body;
 
         const returnRequest = await returnService.createReturnRequest(userId, returnData);
+
+        // Clear cache
+        await clearReturnCache(userId);
 
         res.status(201).json({
             success: true,

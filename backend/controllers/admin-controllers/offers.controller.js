@@ -9,6 +9,32 @@ import {
 } from '../../services/offers.service.js';
 import { upload } from '../../utils/upload.util.js';
 import { uploadToCloudinary, deleteFromCloudinary, extractPublicIdFromUrl } from '../../utils/cloudinary.util.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear campaign-related cache
+ */
+const clearCampaignCache = async (campaignId = null) => {
+  try {
+    const patterns = [
+      'public:campaigns:*',
+      'products:list:*', // Campaigns affect product prices/visibility
+      'admin:offers:list:*'
+    ];
+
+    if (campaignId) {
+      patterns.push(`campaign:details:*${campaignId}*`);
+      patterns.push(`admin:offers:details:*${campaignId}*`);
+    } else {
+      patterns.push('campaign:details:*');
+      patterns.push('admin:offers:details:*');
+    }
+
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing campaign cache:', error);
+  }
+};
 
 /**
  * Get all campaigns (offers)
@@ -123,6 +149,9 @@ export const createOffer = async (req, res, next) => {
     }
 
     const campaign = await createCampaign(campaignData);
+
+    // Clear campaign cache
+    await clearCampaignCache();
 
     res.status(201).json({
       success: true,
@@ -300,6 +329,9 @@ export const updateOffer = async (req, res, next) => {
 
     const campaign = await updateCampaign(id, updateData);
 
+    // Clear campaign cache
+    await clearCampaignCache(id);
+
     res.status(200).json({
       success: true,
       message: 'Offer updated successfully',
@@ -329,6 +361,9 @@ export const deleteOffer = async (req, res, next) => {
       await deleteFromCloudinary(campaign.bannerConfig.imagePublicId);
     }
 
+    // Clear campaign cache
+    await clearCampaignCache(id);
+
     res.status(200).json({
       success: true,
       message: 'Offer deleted successfully',
@@ -346,6 +381,9 @@ export const updateOfferStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const campaign = await toggleCampaignStatus(id);
+
+    // Clear campaign cache
+    await clearCampaignCache(id);
 
     res.status(200).json({
       success: true,

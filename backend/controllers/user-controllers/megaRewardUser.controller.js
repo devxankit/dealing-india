@@ -3,6 +3,22 @@ import MegaRewardShareService from '../../services/megaRewardShare.service.js';
 import MegaRewardEntryService from '../../services/megaRewardEntry.service.js';
 import PromotionalReel from '../../models/PromotionalReel.model.js';
 import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear mega reward cache
+ */
+const clearMegaRewardCache = async (userId) => {
+    try {
+        if (userId) {
+            await redisService.clearPattern(`user:mega-reward:*:u:${userId}*`);
+        }
+        // Also clear public/general active campaign cache
+        await redisService.del('user:mega-reward:active');
+    } catch (error) {
+        console.error('Error clearing mega reward cache:', error);
+    }
+};
 
 /**
  * User Mega Reward Controller
@@ -147,6 +163,9 @@ export const generateShareLink = asyncHandler(async (req, res) => {
         const shareUrl = `${backendUrl}/api/mega-reward/r/${shareLink.linkCode}`;
         console.log('[MegaReward] Final shareUrl:', shareUrl);
 
+        // Clear cache
+        await clearMegaRewardCache(userId);
+
         res.status(200).json({
             success: true,
             data: {
@@ -194,6 +213,9 @@ export const tryGenerateTicket = asyncHandler(async (req, res) => {
 
     try {
         const result = await MegaRewardEntryService.generateTicket(userId, reelId);
+
+        // Clear cache
+        await clearMegaRewardCache(userId);
 
         res.status(result.isNew ? 201 : 200).json({
             success: true,

@@ -10,6 +10,7 @@ import {
 import { protectVendor } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -18,8 +19,8 @@ router.use(protectVendor);
 router.use(authorize('vendor'));
 
 // Routes
-router.get('/', asyncHandler(getProducts));
-router.get('/:id', asyncHandler(getProduct));
+router.get('/', redisService.cacheMiddleware('vendor:products:list', 300), asyncHandler(getProducts));
+router.get('/:id', redisService.cacheMiddleware('vendor:products:details', 300), asyncHandler(getProduct));
 router.post('/', asyncHandler(create));
 router.put('/:id', asyncHandler(update));
 router.delete('/:id', asyncHandler(remove));

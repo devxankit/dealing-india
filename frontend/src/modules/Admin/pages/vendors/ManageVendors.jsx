@@ -19,6 +19,7 @@ import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorManagementStore } from "../../store/vendorManagementStore";
 import toast from "react-hot-toast";
+import useDebounce from "../../../../shared/hooks/useDebounce";
 
 const ManageVendors = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const ManageVendors = () => {
   } = useVendorManagementStore();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [actionModal, setActionModal] = useState({
     isOpen: false,
@@ -47,7 +49,7 @@ const ManageVendors = () => {
       try {
         await fetchVendors({
           status: selectedStatus,
-          search: searchQuery,
+          search: debouncedSearchQuery,
           page: 1,
           limit: 100, // Get all for now, can implement pagination later
         });
@@ -57,7 +59,7 @@ const ManageVendors = () => {
     };
 
     loadVendors();
-  }, [selectedStatus, searchQuery, fetchVendors]);
+  }, [selectedStatus, debouncedSearchQuery, fetchVendors]);
 
   // Get vendor statistics (simplified - will be enhanced when orders are available)
   const getVendorStats = (vendorId) => {

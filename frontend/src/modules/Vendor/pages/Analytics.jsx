@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   FiBarChart2,
   FiTrendingUp,
@@ -15,52 +15,30 @@ import TimePeriodFilter from "../../Admin/components/Analytics/TimePeriodFilter"
 import ExportButton from "../../Admin/components/ExportButton";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import * as analyticsService from "../../../shared/services/analyticsService";
+import { useVendorAnalyticsSummary, useVendorChartData } from "../hooks/useVendorData";
 import toast from 'react-hot-toast';
 
 const Analytics = () => {
   const { vendor } = useVendorAuthStore();
   const [period, setPeriod] = useState("month");
-  const [loading, setLoading] = useState(true);
-  const [analyticsSummary, setAnalyticsSummary] = useState({
-    totalRevenue: 0,
-    pendingEarnings: 0,
-    totalOrders: 0,
-    totalProducts: 0,
-    revenueChange: 0,
-    ordersChange: 0
-  });
-  const [analyticsData, setAnalyticsData] = useState([]);
 
   const vendorId = vendor?.id;
 
-  useEffect(() => {
-    if (!vendorId) return;
+  const { data: summaryData, isLoading: summaryLoading } = useVendorAnalyticsSummary(period);
+  const { data: chartData, isLoading: chartLoading } = useVendorChartData(period);
 
-    const fetchAnalytics = async () => {
-      setLoading(true);
-      try {
-        const [summaryRes, chartRes] = await Promise.all([
-          analyticsService.getVendorAnalyticsSummary(period),
-          analyticsService.getVendorChartData(period)
-        ]);
+  const analyticsSummary = useMemo(() => ({
+    totalRevenue: summaryData?.totalRevenue || 0,
+    pendingEarnings: summaryData?.pendingEarnings || 0,
+    totalOrders: summaryData?.totalOrders || 0,
+    totalProducts: summaryData?.totalProducts || 0,
+    revenueChange: summaryData?.revenueChange || 0,
+    ordersChange: summaryData?.ordersChange || 0
+  }), [summaryData]);
 
-        if (summaryRes.success) {
-          setAnalyticsSummary(summaryRes.data);
-        }
-        if (chartRes.success) {
-          setAnalyticsData(chartRes.data);
-        }
-      } catch (error) {
-        console.error('Error fetching vendor analytics:', error);
-        // toast.error is handled by api interceptor
-      } finally {
-        setLoading(false);
-      }
-    };
+  const analyticsData = useMemo(() => chartData || [], [chartData]);
 
-    fetchAnalytics();
-  }, [vendorId, period]);
+  const loading = summaryLoading || chartLoading;
 
   if (!vendorId) {
     return (

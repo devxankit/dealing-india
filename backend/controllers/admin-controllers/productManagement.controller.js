@@ -5,6 +5,7 @@ import {
   updateProduct,
   deleteProduct,
 } from '../../services/productManagement.service.js';
+import redisService from '../../services/redis.service.js';
 import {
   uploadBase64ToCloudinary,
   deleteFromCloudinary,
@@ -12,6 +13,37 @@ import {
   isBase64DataUrl,
   extractPublicIdFromUrl,
 } from '../../utils/cloudinary.util.js';
+
+/**
+ * Helper to clear product-related cache
+ */
+const clearProductCache = async (productId = null) => {
+  try {
+    const patterns = [
+      'products:list:*',
+      'products:recommended:*',
+      'public:campaigns:*',
+      'campaign:details:*',
+      'public:b2b-locations:*',
+      'admin:products:list:*',
+      'vendor:products:list:*'
+    ];
+
+    if (productId) {
+      patterns.push(`product:details:*${productId}*`);
+      patterns.push(`admin:products:details:*${productId}*`);
+      patterns.push(`vendor:products:details:*${productId}*`);
+    } else {
+      patterns.push('product:details:*');
+      patterns.push('admin:products:details:*');
+      patterns.push('vendor:products:details:*');
+    }
+
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing product cache:', error);
+  }
+};
 
 /**
  * Get all products with filters
@@ -125,6 +157,9 @@ export const create = async (req, res, next) => {
 
     const product = await createProduct(productData);
 
+    // Clear product cache
+    await clearProductCache();
+
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
@@ -226,6 +261,9 @@ export const update = async (req, res, next) => {
 
     const product = await updateProduct(id, updateData);
 
+    // Clear product cache
+    await clearProductCache(id);
+
     res.status(200).json({
       success: true,
       message: 'Product updated successfully',
@@ -267,6 +305,9 @@ export const remove = async (req, res, next) => {
     if (publicIdsToDelete.length > 0) {
       await deleteMultipleFromCloudinary(publicIdsToDelete);
     }
+
+    // Clear product cache
+    await clearProductCache(id);
 
     res.status(200).json({
       success: true,

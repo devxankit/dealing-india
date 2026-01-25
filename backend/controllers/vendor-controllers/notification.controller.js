@@ -1,4 +1,18 @@
 import notificationService from '../../services/notification.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear notification-related cache
+ */
+const clearNotificationCache = async (vendorId, role = 'vendor') => {
+  try {
+    if (vendorId) {
+      await redisService.clearPattern(`${role}:notifications:*:v:${vendorId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing notification cache:', error);
+  }
+};
 
 /**
  * Get vendor notifications
@@ -58,6 +72,9 @@ export const markAsRead = async (req, res, next) => {
 
     const notification = await notificationService.markAsRead(id, vendorId, 'vendor', io);
 
+    // Clear cache
+    await clearNotificationCache(vendorId, 'vendor');
+
     return res.status(200).json({
       success: true,
       data: notification,
@@ -78,6 +95,9 @@ export const markAllAsRead = async (req, res, next) => {
     const io = req.app.get('io');
 
     const result = await notificationService.markAllAsRead(vendorId, 'vendor', io);
+
+    // Clear cache
+    await clearNotificationCache(vendorId, 'vendor');
 
     return res.status(200).json({
       success: true,
@@ -100,6 +120,9 @@ export const deleteNotification = async (req, res, next) => {
     const io = req.app.get('io');
 
     await notificationService.deleteNotification(id, vendorId, 'vendor', io);
+
+    // Clear cache
+    await clearNotificationCache(vendorId, 'vendor');
 
     return res.status(200).json({
       success: true,

@@ -1,6 +1,24 @@
 import ChatService from '../../services/chat.service.js';
 import mongoose from 'mongoose';
 import { uploadToCloudinary } from '../../utils/cloudinary.util.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear chat-related cache
+ */
+const clearChatCache = async (userId, conversationId = null) => {
+    try {
+        if (userId) {
+            await redisService.clearPattern(`user:chat:conversations:*:u:${userId}*`);
+            await redisService.clearPattern(`user:chat:inquiry:*:u:${userId}*`);
+        }
+        if (conversationId) {
+            await redisService.clearPattern(`user:chat:messages:*${conversationId}*`);
+        }
+    } catch (error) {
+        console.error('Error clearing chat cache:', error);
+    }
+};
 
 class ChatController {
     /**
@@ -33,6 +51,9 @@ class ChatController {
             }
 
             const conversation = await ChatService.createOrGetConversation(userId, vendorId);
+
+            // Clear cache
+            await clearChatCache(userId);
 
             res.status(200).json({
                 success: true,
@@ -137,6 +158,9 @@ class ChatController {
                 metadata
             );
 
+            // Clear cache
+            await clearChatCache(userId, conversationId);
+
             res.status(201).json({
                 success: true,
                 message: 'Message sent successfully',
@@ -162,6 +186,11 @@ class ChatController {
 
             const updatedMessage = await ChatService.markMessageAsRead(messageId, userId, 'user');
 
+            // Clear cache
+            if (updatedMessage) {
+                await clearChatCache(userId, updatedMessage.conversationId);
+            }
+
             res.status(200).json({
                 success: true,
                 message: 'Message marked as read',
@@ -186,6 +215,9 @@ class ChatController {
             const { id: conversationId } = req.params;
 
             await ChatService.markAllAsRead(conversationId, userId, 'user');
+
+            // Clear cache
+            await clearChatCache(userId, conversationId);
 
             res.status(200).json({
                 success: true,

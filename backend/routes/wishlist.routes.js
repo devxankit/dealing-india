@@ -9,6 +9,7 @@ import {
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ const router = express.Router();
 router.use(authenticate, authorize('user'));
 
 // Get wishlist
-router.get('/', asyncHandler(getWishlistController));
+router.get('/', redisService.cacheMiddleware('user:wishlist:list', 300), asyncHandler(getWishlistController));
 
 // Add product to wishlist
 router.post('/', asyncHandler(addToWishlistController));
@@ -28,7 +29,7 @@ router.delete('/:productId', asyncHandler(removeFromWishlistController));
 router.delete('/', asyncHandler(clearWishlistController));
 
 // Check if product is in wishlist
-router.get('/check/:productId', asyncHandler(checkWishlistController));
+router.get('/check/:productId', redisService.cacheMiddleware('user:wishlist:check', 300), asyncHandler(checkWishlistController));
 
 export default router;
 

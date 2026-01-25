@@ -1,4 +1,16 @@
 import { getSettings, updateCategorySettings } from '../../services/settings.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear settings-related cache
+ */
+const clearSettingsCache = async () => {
+  try {
+    await redisService.clearPattern('public:settings:*');
+  } catch (error) {
+    console.error('Error clearing settings cache:', error);
+  }
+};
 
 /**
  * Get settings
@@ -37,6 +49,9 @@ export const updateSettingsController = async (req, res, next) => {
     }
 
     const settings = await updateCategorySettings(category, categoryData);
+
+    // Clear cache
+    await clearSettingsCache();
 
     res.status(200).json({
       success: true,

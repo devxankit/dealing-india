@@ -8,10 +8,12 @@ import DataTable from '../../components/DataTable';
 import Pagination from '../../components/Pagination';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import { formatPrice } from '../../../../shared/utils/helpers';
+import useDebounce from '../../../../shared/hooks/useDebounce';
 
 const ViewCustomers = () => {
   const { customers, initialize } = useCustomerStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -25,7 +27,7 @@ const ViewCustomers = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       const result = await initialize({
-        search: searchQuery,
+        search: debouncedSearchQuery,
         status: selectedStatus,
         page: currentPage,
         limit: itemsPerPage,
@@ -36,7 +38,7 @@ const ViewCustomers = () => {
       }
     };
     fetchCustomers();
-  }, [searchQuery, selectedStatus, currentPage]);
+  }, [debouncedSearchQuery, selectedStatus, currentPage]);
 
   const filteredCustomers = customers;
 
@@ -46,7 +48,7 @@ const ViewCustomers = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedStatus]);
+  }, [debouncedSearchQuery, selectedStatus]);
 
   const handleViewCustomer = (customer) => {
     setSelectedCustomer(customer);

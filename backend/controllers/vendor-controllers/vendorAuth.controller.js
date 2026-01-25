@@ -8,6 +8,30 @@ import {
   forgotVendorPassword,
   resetVendorPassword,
 } from '../../services/vendorAuth.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear vendor-related cache
+ */
+const clearVendorCache = async (vendorId = null) => {
+  try {
+    const patterns = [
+      'home:featured_vendors:*',
+      'public:b2b-locations:*',
+      'admin:vendors:list:*'
+    ];
+    if (vendorId) {
+      patterns.push(`vendor:details:*${vendorId}*`);
+      patterns.push(`admin:vendors:details:*${vendorId}*`);
+    } else {
+      patterns.push('vendor:details:*');
+      patterns.push('admin:vendors:details:*');
+    }
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing vendor cache:', error);
+  }
+};
 
 /**
  * Register a new vendor
@@ -147,6 +171,9 @@ export const updateProfile = async (req, res, next) => {
     const updateData = req.body;
 
     const updatedVendor = await updateVendorProfile(vendorId, updateData);
+
+    // Clear vendor cache
+    await clearVendorCache(vendorId);
 
     res.status(200).json({
       success: true,

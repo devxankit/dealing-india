@@ -10,6 +10,8 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
+import redisService from '../services/redis.service.js';
+
 const router = express.Router();
 
 // All routes require admin authentication
@@ -17,8 +19,8 @@ router.use(authenticate);
 router.use(authorize('admin'));
 
 // Product Ratings/Reviews routes
-router.get('/', asyncHandler(getReviews));
-router.get('/:id', asyncHandler(getReview));
+router.get('/', redisService.cacheMiddleware('admin:reviews:list', 300), asyncHandler(getReviews));
+router.get('/:id', redisService.cacheMiddleware('admin:reviews:details', 300), asyncHandler(getReview));
 router.post('/', asyncHandler(create));
 router.put('/:id', asyncHandler(update));
 router.delete('/:id', asyncHandler(remove));

@@ -5,6 +5,20 @@ import {
   removeFromCart,
   clearCart,
 } from '../../services/cart.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear cart-related cache
+ */
+const clearCartCache = async (userId) => {
+  try {
+    if (userId) {
+      await redisService.clearPattern(`user:cart:*:u:${userId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing cart cache:', error);
+  }
+};
 
 /**
  * Get user's cart
@@ -61,6 +75,9 @@ export const addToCartController = async (req, res, next) => {
 
     const cart = await addToCart(userId, productId, quantity);
 
+    // Clear cache
+    await clearCartCache(userId);
+
     res.status(200).json({
       success: true,
       message: 'Product added to cart',
@@ -108,6 +125,9 @@ export const updateCartItemController = async (req, res, next) => {
 
     const cart = await updateCartItem(userId, productId, quantity);
 
+    // Clear cache
+    await clearCartCache(userId);
+
     res.status(200).json({
       success: true,
       message: 'Cart item updated',
@@ -147,6 +167,9 @@ export const removeFromCartController = async (req, res, next) => {
 
     const cart = await removeFromCart(userId, productId);
 
+    // Clear cache
+    await clearCartCache(userId);
+
     res.status(200).json({
       success: true,
       message: 'Product removed from cart',
@@ -170,6 +193,9 @@ export const clearCartController = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const cart = await clearCart(userId);
+
+    // Clear cache
+    await clearCartCache(userId);
 
     res.status(200).json({
       success: true,

@@ -1,48 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { FiDownload, FiCalendar, FiTrendingUp } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import ExportButton from '../../components/ExportButton';
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { formatDateTime } from '../../utils/adminHelpers';
-import api from '../../../../shared/utils/api';
+import { useSalesReport } from '../../../../shared/hooks/useAdminAnalytics';
 
 const SalesReport = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [orders, setOrders] = useState([]);
-  const [summary, setSummary] = useState({
+  
+  const { data: reportResponse, isLoading } = useSalesReport(dateRange);
+
+  const orders = useMemo(() => reportResponse?.data?.orders || reportResponse?.orders || [], [reportResponse]);
+  const summary = useMemo(() => reportResponse?.data?.summary || reportResponse?.summary || {
     totalSales: 0,
     totalOrders: 0,
     averageOrderValue: 0,
-  });
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    fetchSalesReport();
-  }, [dateRange.start, dateRange.end]);
-
-  const fetchSalesReport = async () => {
-    setIsLoading(true);
-    try {
-      const params = {};
-      if (dateRange.start) params.startDate = dateRange.start;
-      if (dateRange.end) params.endDate = dateRange.end;
-
-      const response = await api.get('/admin/reports/sales', { params });
-      if (response.success && response.data) {
-        setOrders(response.data.orders || []);
-        setSummary(response.data.summary || {
-          totalSales: 0,
-          totalOrders: 0,
-          averageOrderValue: 0,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch sales report:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [reportResponse]);
 
   const { totalSales, totalOrders, averageOrderValue } = summary;
 

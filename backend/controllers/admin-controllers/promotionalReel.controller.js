@@ -1,5 +1,31 @@
 import PromotionalReelService from '../../services/promotionalReel.service.js';
 import { asyncHandler } from '../../middleware/errorHandler.middleware.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear reel-related cache
+ */
+const clearReelCache = async (reelId = null) => {
+    try {
+        const patterns = [
+            'reels:feed:*',
+            'promotional-reels:list:*',
+            'promotional-reels:liked:*'
+        ];
+        
+        if (reelId) {
+            patterns.push(`reel:details:*${reelId}*`);
+            patterns.push(`promotional-reels:comments:*${reelId}*`);
+        } else {
+            patterns.push('reel:details:*');
+            patterns.push('promotional-reels:comments:*');
+        }
+        
+        await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+    } catch (error) {
+        console.error('Error clearing reel cache:', error);
+    }
+};
 
 export const createReel = asyncHandler(async (req, res) => {
     // Handle file uploads if present
@@ -10,8 +36,13 @@ export const createReel = asyncHandler(async (req, res) => {
     const adminId = req.user.adminId || req.user._id;
 
     const reel = await PromotionalReelService.createReel(req.body, videoFile, thumbnailFile, adminId);
+    
+    // Clear reel cache
+    await clearReelCache();
+
     res.status(201).json({ success: true, count: 1, data: reel });
 });
+
 
 export const getReels = asyncHandler(async (req, res) => {
     const reels = await PromotionalReelService.getAllReels(req.query);
@@ -19,12 +50,22 @@ export const getReels = asyncHandler(async (req, res) => {
 });
 
 export const deleteReel = asyncHandler(async (req, res) => {
-    await PromotionalReelService.deleteReel(req.params.id);
+    const { id } = req.params;
+    await PromotionalReelService.deleteReel(id);
+    
+    // Clear reel cache
+    await clearReelCache(id);
+
     res.status(200).json({ success: true, message: 'Promotional Reel deleted' });
 });
 
 export const updateReel = asyncHandler(async (req, res) => {
-    const reel = await PromotionalReelService.updateReel(req.params.id, req.body);
+    const { id } = req.params;
+    const reel = await PromotionalReelService.updateReel(id, req.body);
+    
+    // Clear reel cache
+    await clearReelCache(id);
+
     res.status(200).json({ success: true, data: reel });
 });
 
@@ -41,6 +82,10 @@ export const unfollowReel = asyncHandler(async (req, res) => {
 export const toggleLike = asyncHandler(async (req, res) => {
     const userId = req.user.userId || req.user.adminId || req.user.vendorId || req.user._id;
     const result = await PromotionalReelService.toggleLike(req.params.id, userId);
+
+    // Clear reel cache
+    await clearReelCache(req.params.id);
+
     res.status(200).json({ success: true, data: result });
 });
 
@@ -56,6 +101,10 @@ export const addComment = asyncHandler(async (req, res) => {
     const userId = req.user.userId || req.user.adminId || req.user.vendorId || req.user._id;
     const { text } = req.body;
     const comment = await PromotionalReelService.addComment(req.params.id, userId, text);
+
+    // Clear reel cache
+    await clearReelCache(req.params.id);
+
     res.status(201).json({ success: true, data: comment });
 });
 

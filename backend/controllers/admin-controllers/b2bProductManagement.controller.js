@@ -2,6 +2,38 @@ import mongoose from 'mongoose';
 import Product from '../../models/Product.model.js';
 import Vendor from '../../models/Vendor.model.js';
 import { sanitizeImageUrl, sanitizeImageUrls } from '../../utils/imageValidation.util.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear product-related cache
+ */
+const clearProductCache = async (productId = null) => {
+  try {
+    const patterns = [
+      'products:list:*',
+      'products:recommended:*',
+      'public:campaigns:*',
+      'campaign:details:*',
+      'public:b2b-locations:*',
+      'admin:products:list:*',
+      'vendor:products:list:*'
+    ];
+
+    if (productId) {
+      patterns.push(`product:details:*${productId}*`);
+      patterns.push(`admin:products:details:*${productId}*`);
+      patterns.push(`vendor:products:details:*${productId}*`);
+    } else {
+      patterns.push('product:details:*');
+      patterns.push('admin:products:details:*');
+      patterns.push('vendor:products:details:*');
+    }
+
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing product cache:', error);
+  }
+};
 
 /**
  * Get all B2B products
@@ -250,6 +282,9 @@ export const updateB2BProductStatus = async (req, res, next) => {
     product.isVisible = status === 'approved';
 
     await product.save();
+
+    // Clear cache
+    await clearProductCache(id);
 
     res.status(200).json({
       success: true,

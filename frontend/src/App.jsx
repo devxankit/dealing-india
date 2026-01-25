@@ -7,119 +7,120 @@ import {
 import React, { lazy, Suspense } from 'react';
 import { Toaster, useToasterStore, toast } from "react-hot-toast";
 import { useEffect } from 'react';
-import SupportTickets from "./shared/components/Support/SupportTickets";
-import VendorStore from "./shared/components/Store/VendorStore";
-import AdminSupportTickets from "./modules/Admin/pages/supportTickets/SupportTickets";
-import CartDrawer from "./shared/components/Cart/CartDrawer";
+import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+const SupportTickets = lazyWithRetry(() => import("./shared/components/Support/SupportTickets"));
+const VendorStore = lazyWithRetry(() => import("./shared/components/Store/VendorStore"));
+const AdminSupportTickets = lazyWithRetry(() => import("./modules/Admin/pages/supportTickets/SupportTickets"));
+const CartDrawer = lazyWithRetry(() => import("./shared/components/Cart/CartDrawer"));
 import { useTimeWarpCheat } from "./shared/hooks/useTimeWarpCheat";
-import ProtectedRoute from "./shared/components/Auth/ProtectedRoute";
-import ErrorBoundary from "./shared/components/ErrorBoundary/ErrorBoundary";
-import AdminLogin from "./modules/Admin/pages/Login";
-import AdminProtectedRoute from "./modules/Admin/components/AdminProtectedRoute";
-import AdminLayout from "./modules/Admin/components/Layout/AdminLayout";
-import Dashboard from "./modules/Admin/pages/Dashboard";
-import Products from "./modules/Admin/pages/Products";
-import ProductForm from "./modules/Admin/pages/ProductForm";
-import AdminOrders from "./modules/Admin/pages/Orders";
-import OrderDetail from "./modules/Admin/pages/OrderDetail";
-import ReturnRequests from "./modules/Admin/pages/ReturnRequests";
-import ReturnRequestDetail from "./modules/Admin/pages/ReturnRequestDetail";
-import Categories from "./modules/Admin/pages/Categories";
-import Brands from "./modules/Admin/pages/Brands";
-import Customers from "./modules/Admin/pages/Customers";
-import Inventory from "./modules/Admin/pages/Inventory";
-import Campaigns from "./modules/Admin/pages/Campaigns";
-import AdminHeroBanner from "./modules/Admin/pages/AdminHeroBanner";
-import AdminHeroBannerDetail from "./modules/Admin/pages/AdminHeroBannerDetail";
-import AdminWallet from "./modules/Admin/pages/AdminWallet";
-import Banners from "./modules/Admin/pages/Banners";
-import Reviews from "./modules/Admin/pages/Reviews";
-import Analytics from "./modules/Admin/pages/Analytics";
-import Content from "./modules/Admin/pages/Content";
-import Settings from "./modules/Admin/pages/Settings";
-import More from "./modules/Admin/pages/More";
-import PromoCodes from "./modules/Admin/pages/PromoCodes";
+const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
+const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
+const AdminLogin = lazyWithRetry(() => import("./modules/Admin/pages/Login"));
+const AdminProtectedRoute = lazyWithRetry(() => import("./modules/Admin/components/AdminProtectedRoute"));
+const AdminLayout = lazyWithRetry(() => import("./modules/Admin/components/Layout/AdminLayout"));
+const Dashboard = lazyWithRetry(() => import("./modules/Admin/pages/Dashboard"));
+const Products = lazyWithRetry(() => import("./modules/Admin/pages/Products"));
+const ProductForm = lazyWithRetry(() => import("./modules/Admin/pages/ProductForm"));
+const AdminOrders = lazyWithRetry(() => import("./modules/Admin/pages/Orders"));
+const OrderDetail = lazyWithRetry(() => import("./modules/Admin/pages/OrderDetail"));
+const ReturnRequests = lazyWithRetry(() => import("./modules/Admin/pages/ReturnRequests"));
+const ReturnRequestDetail = lazyWithRetry(() => import("./modules/Admin/pages/ReturnRequestDetail"));
+const Categories = lazyWithRetry(() => import("./modules/Admin/pages/Categories"));
+const Brands = lazyWithRetry(() => import("./modules/Admin/pages/Brands"));
+const Customers = lazyWithRetry(() => import("./modules/Admin/pages/Customers"));
+const Inventory = lazyWithRetry(() => import("./modules/Admin/pages/Inventory"));
+const Campaigns = lazyWithRetry(() => import("./modules/Admin/pages/Campaigns"));
+const AdminHeroBanner = lazyWithRetry(() => import("./modules/Admin/pages/AdminHeroBanner"));
+const AdminHeroBannerDetail = lazyWithRetry(() => import("./modules/Admin/pages/AdminHeroBannerDetail"));
+const AdminWallet = lazyWithRetry(() => import("./modules/Admin/pages/AdminWallet"));
+const Banners = lazyWithRetry(() => import("./modules/Admin/pages/Banners"));
+const Reviews = lazyWithRetry(() => import("./modules/Admin/pages/Reviews"));
+const Analytics = lazyWithRetry(() => import("./modules/Admin/pages/Analytics"));
+const Content = lazyWithRetry(() => import("./modules/Admin/pages/Content"));
+const Settings = lazyWithRetry(() => import("./modules/Admin/pages/Settings"));
+const More = lazyWithRetry(() => import("./modules/Admin/pages/More"));
+const PromoCodes = lazyWithRetry(() => import("./modules/Admin/pages/PromoCodes"));
 // Orders child pages
-import AllOrders from "./modules/Admin/pages/orders/AllOrders";
-import OrderTracking from "./modules/Admin/pages/orders/OrderTracking";
-import OrderNotifications from "./modules/Admin/pages/orders/OrderNotifications";
-import Invoice from "./modules/Admin/pages/orders/Invoice";
+const AllOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/AllOrders"));
+const OrderTracking = lazyWithRetry(() => import("./modules/Admin/pages/orders/OrderTracking"));
+const OrderNotifications = lazyWithRetry(() => import("./modules/Admin/pages/orders/OrderNotifications"));
+const Invoice = lazyWithRetry(() => import("./modules/Admin/pages/orders/Invoice"));
 // Products child pages
-import ManageProducts from "./modules/Admin/pages/products/ManageProducts";
-import ProductRatings from "./modules/Admin/pages/products/ProductRatings";
+const ManageProducts = lazyWithRetry(() => import("./modules/Admin/pages/products/ManageProducts"));
+const ProductRatings = lazyWithRetry(() => import("./modules/Admin/pages/products/ProductRatings"));
 // Categories child pages
-import ManageCategories from "./modules/Admin/pages/categories/ManageCategories";
-import CategoryOrder from "./modules/Admin/pages/categories/CategoryOrder";
+const ManageCategories = lazyWithRetry(() => import("./modules/Admin/pages/categories/ManageCategories"));
+const CategoryOrder = lazyWithRetry(() => import("./modules/Admin/pages/categories/CategoryOrder"));
 // Brands child pages
-import ManageBrands from "./modules/Admin/pages/brands/ManageBrands";
+const ManageBrands = lazyWithRetry(() => import("./modules/Admin/pages/brands/ManageBrands"));
 // Customers child pages
-import ViewCustomers from "./modules/Admin/pages/customers/ViewCustomers";
-import CustomerAddresses from "./modules/Admin/pages/customers/Addresses";
-import Transactions from "./modules/Admin/pages/customers/Transactions";
-import CustomerDetailPage from "./modules/Admin/pages/customers/CustomerDetailPage";
-import CustomerAnalytics from "./modules/Admin/pages/customers/CustomerAnalytics";
+const ViewCustomers = lazyWithRetry(() => import("./modules/Admin/pages/customers/ViewCustomers"));
+const CustomerAddresses = lazyWithRetry(() => import("./modules/Admin/pages/customers/Addresses"));
+const Transactions = lazyWithRetry(() => import("./modules/Admin/pages/customers/Transactions"));
+const CustomerDetailPage = lazyWithRetry(() => import("./modules/Admin/pages/customers/CustomerDetailPage"));
+const CustomerAnalytics = lazyWithRetry(() => import("./modules/Admin/pages/customers/CustomerAnalytics"));
 // Vendors child pages
-import Vendors from "./modules/Admin/pages/Vendors";
-import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
-import PendingApprovals from "./modules/Admin/pages/vendors/PendingApprovals";
-import VendorDetail from "./modules/Admin/pages/vendors/VendorDetail";
-import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
-import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
-import VendorWalletManagement from "./modules/Admin/pages/vendors/VendorWalletManagement";
-import Subscriptions from "./modules/Admin/pages/vendors/Subscriptions";
+const Vendors = lazyWithRetry(() => import("./modules/Admin/pages/Vendors"));
+const ManageVendors = lazyWithRetry(() => import("./modules/Admin/pages/vendors/ManageVendors"));
+const PendingApprovals = lazyWithRetry(() => import("./modules/Admin/pages/vendors/PendingApprovals"));
+const VendorDetail = lazyWithRetry(() => import("./modules/Admin/pages/vendors/VendorDetail"));
+const CommissionRates = lazyWithRetry(() => import("./modules/Admin/pages/vendors/CommissionRates"));
+const AdminVendorAnalytics = lazyWithRetry(() => import("./modules/Admin/pages/vendors/VendorAnalytics"));
+const VendorWalletManagement = lazyWithRetry(() => import("./modules/Admin/pages/vendors/VendorWalletManagement"));
+const Subscriptions = lazyWithRetry(() => import("./modules/Admin/pages/vendors/Subscriptions"));
 // Offers & Sliders child pages
-import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
+const FestivalOffers = lazyWithRetry(() => import("./modules/Admin/pages/offers/FestivalOffers"));
 // Mega Reward child pages
-import MegaRewardEntries from "./modules/Admin/pages/mega-reward/Entries";
-import MegaRewardWinners from "./modules/Admin/pages/mega-reward/Winners";
-import MegaRewardSettings from "./modules/Admin/pages/mega-reward/Settings";
-import MegaRewardPromotionalReels from "./modules/Admin/pages/mega-reward/PromotionalReels";
+const MegaRewardEntries = lazyWithRetry(() => import("./modules/Admin/pages/mega-reward/Entries"));
+const MegaRewardWinners = lazyWithRetry(() => import("./modules/Admin/pages/mega-reward/Winners"));
+const MegaRewardSettings = lazyWithRetry(() => import("./modules/Admin/pages/mega-reward/Settings"));
+const MegaRewardPromotionalReels = lazyWithRetry(() => import("./modules/Admin/pages/mega-reward/PromotionalReels"));
 // Notifications child pages
-import PushNotifications from "./modules/Admin/pages/notifications/PushNotifications";
-import CustomMessages from "./modules/Admin/pages/notifications/CustomMessages";
+const PushNotifications = lazyWithRetry(() => import("./modules/Admin/pages/notifications/PushNotifications"));
+const CustomMessages = lazyWithRetry(() => import("./modules/Admin/pages/notifications/CustomMessages"));
 // Reports child pages
-import SalesReport from "./modules/Admin/pages/reports/SalesReport";
-import InventoryReport from "./modules/Admin/pages/reports/InventoryReport";
+const SalesReport = lazyWithRetry(() => import("./modules/Admin/pages/reports/SalesReport"));
+const InventoryReport = lazyWithRetry(() => import("./modules/Admin/pages/reports/InventoryReport"));
 // Analytics & Finance child pages
-import RevenueOverview from "./modules/Admin/pages/finance/RevenueOverview";
-import ProfitLoss from "./modules/Admin/pages/finance/ProfitLoss";
-import OrderTrends from "./modules/Admin/pages/finance/OrderTrends";
-import PaymentBreakdown from "./modules/Admin/pages/finance/PaymentBreakdown";
-import TaxReports from "./modules/Admin/pages/finance/TaxReports";
-import RefundReports from "./modules/Admin/pages/finance/RefundReports";
-import WalletRecharges from "./modules/Admin/pages/finance/WalletRecharges";
+const RevenueOverview = lazyWithRetry(() => import("./modules/Admin/pages/finance/RevenueOverview"));
+const ProfitLoss = lazyWithRetry(() => import("./modules/Admin/pages/finance/ProfitLoss"));
+const OrderTrends = lazyWithRetry(() => import("./modules/Admin/pages/finance/OrderTrends"));
+const PaymentBreakdown = lazyWithRetry(() => import("./modules/Admin/pages/finance/PaymentBreakdown"));
+const TaxReports = lazyWithRetry(() => import("./modules/Admin/pages/finance/TaxReports"));
+const RefundReports = lazyWithRetry(() => import("./modules/Admin/pages/finance/RefundReports"));
+const WalletRecharges = lazyWithRetry(() => import("./modules/Admin/pages/finance/WalletRecharges"));
 // Consolidated Settings pages
-import GeneralSettings from "./modules/Admin/pages/settings/GeneralSettings";
-import PaymentShippingSettings from "./modules/Admin/pages/settings/PaymentShippingSettings";
-import OrdersCustomersSettings from "./modules/Admin/pages/settings/OrdersCustomersSettings";
-import ProductsInventorySettings from "./modules/Admin/pages/settings/ProductsInventorySettings";
-import ContentFeaturesSettings from "./modules/Admin/pages/settings/ContentFeaturesSettings";
-import NotificationsSEOSettings from "./modules/Admin/pages/settings/NotificationsSEOSettings";
+const GeneralSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/GeneralSettings"));
+const PaymentShippingSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/PaymentShippingSettings"));
+const OrdersCustomersSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/OrdersCustomersSettings"));
+const ProductsInventorySettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/ProductsInventorySettings"));
+const ContentFeaturesSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/ContentFeaturesSettings"));
+const NotificationsSEOSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/NotificationsSEOSettings"));
 // Policies child pages
-import PrivacyPolicy from "./modules/Admin/pages/policies/PrivacyPolicy";
-import RefundPolicy from "./modules/Admin/pages/policies/RefundPolicy";
-import TermsConditions from "./modules/Admin/pages/policies/TermsConditions";
+const PrivacyPolicy = lazyWithRetry(() => import("./modules/Admin/pages/policies/PrivacyPolicy"));
+const RefundPolicy = lazyWithRetry(() => import("./modules/Admin/pages/policies/RefundPolicy"));
+const TermsConditions = lazyWithRetry(() => import("./modules/Admin/pages/policies/TermsConditions"));
 // Firebase child pages
-import PushConfig from "./modules/Admin/pages/firebase/PushConfig";
-import Authentication from "./modules/Admin/pages/firebase/Authentication";
-import DeliveryRules from "./modules/Admin/pages/DeliveryRules";
+const PushConfig = lazyWithRetry(() => import("./modules/Admin/pages/firebase/PushConfig"));
+const Authentication = lazyWithRetry(() => import("./modules/Admin/pages/firebase/Authentication"));
+const DeliveryRules = lazyWithRetry(() => import("./modules/Admin/pages/DeliveryRules"));
 
 // Admin B2B Vendor Routes
-import AdminB2BVendors from "./modules/Admin/pages/B2BVendors";
-import AdminManageB2BVendors from "./modules/Admin/pages/b2b-vendors/ManageB2BVendors";
-import AdminB2BVendorPendingApprovals from "./modules/Admin/pages/b2b-vendors/PendingApprovals";
-import AdminB2BVendorProductListings from "./modules/Admin/pages/b2b-vendors/ProductListings";
-import AdminB2BVendorAnalyticsPage from "./modules/Admin/pages/b2b-vendors/B2BVendorAnalytics";
-import AdminB2BSubscriptions from "./modules/Admin/pages/b2b-vendors/Subscriptions";
-import B2BBannerManagement from "./modules/Admin/pages/b2b-vendors/B2BBannerManagement";
-import AdminB2BBannerDetail from "./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail";
-import B2BWallet from "./modules/Admin/pages/b2b-vendors/B2BWallet";
-import AdminB2BCategories from "./modules/Admin/pages/b2b-vendors/Categories";
-import RouteWrapper from "./shared/components/RouteWrapper";
+const AdminB2BVendors = lazyWithRetry(() => import("./modules/Admin/pages/B2BVendors"));
+const AdminManageB2BVendors = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/ManageB2BVendors"));
+const AdminB2BVendorPendingApprovals = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/PendingApprovals"));
+const AdminB2BVendorProductListings = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/ProductListings"));
+const AdminB2BVendorAnalyticsPage = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BVendorAnalytics"));
+const AdminB2BSubscriptions = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/Subscriptions"));
+const B2BBannerManagement = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BBannerManagement"));
+const AdminB2BBannerDetail = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail"));
+const B2BWallet = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BWallet"));
+const AdminB2BCategories = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/Categories"));
+const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrapper"));
 // Mobile App Routes
-import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
 const Chat = lazyWithRetry(() => import("./shared/components/Chat/Chat"));
-import ScrollToTop from "./shared/components/ScrollToTop";
+const ScrollToTop = lazyWithRetry(() => import("./shared/components/ScrollToTop"));
 
 // Mobile App Routes (Eager Loaded for Instant Nav)
 import LandingPage from "./modules/UserApp/pages/LandingPage";
@@ -158,88 +159,88 @@ const MobileForgotPassword = lazyWithRetry(() => import("./modules/UserApp/pages
 const MobileSingleReel = lazyWithRetry(() => import("./modules/UserApp/pages/SingleReel"));
 
 // Vendor Routes
-import VendorLogin from "./modules/Vendor/pages/Login";
-import VendorRegister from "./modules/Vendor/pages/Register";
-import VendorVerification from "./modules/Vendor/pages/Verification";
-import VendorForgotPassword from "./modules/Vendor/pages/ForgotPassword";
-import VendorProtectedRoute from "./modules/Vendor/components/VendorProtectedRoute";
-import VendorLayout from "./modules/Vendor/components/Layout/VendorLayout";
-import VendorReels from "./modules/Vendor/pages/Reels";
-import VendorDashboard from "./modules/Vendor/pages/Dashboard";
-import VendorProducts from "./modules/Vendor/pages/Products";
-import VendorManageProducts from "./modules/Vendor/pages/products/ManageProducts";
-import VendorAddProduct from "./modules/Vendor/pages/products/AddProduct";
-import VendorProductForm from "./modules/Vendor/pages/products/ProductForm";
-import VendorOrders from "./modules/Vendor/pages/Orders";
-import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
-import VendorOrderTracking from "./modules/Vendor/pages/orders/OrderTracking";
-import VendorOrderDetail from "./modules/Vendor/pages/orders/OrderDetail";
-import VendorInvoice from "./modules/Vendor/pages/orders/Invoice";
-import VendorAnalytics from "./modules/Vendor/pages/Analytics";
-import VendorEarnings from "./modules/Vendor/pages/Earnings";
-import VendorSettings from "./modules/Vendor/pages/Settings";
-import VendorSubscription from "./modules/Vendor/pages/Subscription";
-import VendorSupportTickets from "./modules/Vendor/pages/SupportTickets";
-import VendorHeroBannerBooking from "./modules/Vendor/pages/HeroBannerBooking";
-import VendorHeroBannerBookingDetail from "./modules/Vendor/pages/HeroBannerBookingDetail";
-import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
+const VendorLogin = lazyWithRetry(() => import("./modules/Vendor/pages/Login"));
+const VendorRegister = lazyWithRetry(() => import("./modules/Vendor/pages/Register"));
+const VendorVerification = lazyWithRetry(() => import("./modules/Vendor/pages/Verification"));
+const VendorForgotPassword = lazyWithRetry(() => import("./modules/Vendor/pages/ForgotPassword"));
+const VendorProtectedRoute = lazyWithRetry(() => import("./modules/Vendor/components/VendorProtectedRoute"));
+const VendorLayout = lazyWithRetry(() => import("./modules/Vendor/components/Layout/VendorLayout"));
+const VendorReels = lazyWithRetry(() => import("./modules/Vendor/pages/Reels"));
+const VendorDashboard = lazyWithRetry(() => import("./modules/Vendor/pages/Dashboard"));
+const VendorProducts = lazyWithRetry(() => import("./modules/Vendor/pages/Products"));
+const VendorManageProducts = lazyWithRetry(() => import("./modules/Vendor/pages/products/ManageProducts"));
+const VendorAddProduct = lazyWithRetry(() => import("./modules/Vendor/pages/products/AddProduct"));
+const VendorProductForm = lazyWithRetry(() => import("./modules/Vendor/pages/products/ProductForm"));
+const VendorOrders = lazyWithRetry(() => import("./modules/Vendor/pages/Orders"));
+const VendorAllOrders = lazyWithRetry(() => import("./modules/Vendor/pages/orders/AllOrders"));
+const VendorOrderTracking = lazyWithRetry(() => import("./modules/Vendor/pages/orders/OrderTracking"));
+const VendorOrderDetail = lazyWithRetry(() => import("./modules/Vendor/pages/orders/OrderDetail"));
+const VendorInvoice = lazyWithRetry(() => import("./modules/Vendor/pages/orders/Invoice"));
+const VendorAnalytics = lazyWithRetry(() => import("./modules/Vendor/pages/Analytics"));
+const VendorEarnings = lazyWithRetry(() => import("./modules/Vendor/pages/Earnings"));
+const VendorSettings = lazyWithRetry(() => import("./modules/Vendor/pages/Settings"));
+const VendorSubscription = lazyWithRetry(() => import("./modules/Vendor/pages/Subscription"));
+const VendorSupportTickets = lazyWithRetry(() => import("./modules/Vendor/pages/SupportTickets"));
+const VendorHeroBannerBooking = lazyWithRetry(() => import("./modules/Vendor/pages/HeroBannerBooking"));
+const VendorHeroBannerBookingDetail = lazyWithRetry(() => import("./modules/Vendor/pages/HeroBannerBookingDetail"));
+const VendorStockManagement = lazyWithRetry(() => import("./modules/Vendor/pages/StockManagement"));
 
-import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
-import VendorReturnRequests from "./modules/Vendor/pages/ReturnRequests";
-import VendorReturnRequestDetail from "./modules/Vendor/pages/returns/ReturnRequestDetail";
-import VendorProductReviews from "./modules/Vendor/pages/ProductReviews";
-import VendorPromotions from "./modules/Vendor/pages/Promotions";
-import VendorNotifications from "./modules/Vendor/pages/Notifications";
-import VendorChat from "./modules/Vendor/pages/Chat";
-import VendorAllReels from "./modules/Vendor/pages/reels/AllReels";
-import VendorAddReel from "./modules/Vendor/pages/reels/AddReel";
-import VendorEditReel from "./modules/Vendor/pages/reels/EditReel";
-import VendorProductFAQs from "./modules/Vendor/pages/ProductFAQs";
-import VendorShippingManagement from "./modules/Vendor/pages/ShippingManagement";
-import VendorCustomers from "./modules/Vendor/pages/Customers";
-import VendorCustomerDetail from "./modules/Vendor/pages/CustomerDetail";
-import VendorProductAttributes from "./modules/Vendor/pages/ProductAttributes";
-import VendorAttributes from "./modules/Vendor/pages/attributes/Attributes";
-import VendorAttributeValues from "./modules/Vendor/pages/attributes/AttributeValues";
-import VendorAttributeSets from "./modules/Vendor/pages/attributes/AttributeSets";
-import VendorInventoryReports from "./modules/Vendor/pages/InventoryReports";
-import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics";
+const VendorPickupLocations = lazyWithRetry(() => import("./modules/Vendor/pages/PickupLocations"));
+const VendorReturnRequests = lazyWithRetry(() => import("./modules/Vendor/pages/ReturnRequests"));
+const VendorReturnRequestDetail = lazyWithRetry(() => import("./modules/Vendor/pages/returns/ReturnRequestDetail"));
+const VendorProductReviews = lazyWithRetry(() => import("./modules/Vendor/pages/ProductReviews"));
+const VendorPromotions = lazyWithRetry(() => import("./modules/Vendor/pages/Promotions"));
+const VendorNotifications = lazyWithRetry(() => import("./modules/Vendor/pages/Notifications"));
+const VendorChat = lazyWithRetry(() => import("./modules/Vendor/pages/Chat"));
+const VendorAllReels = lazyWithRetry(() => import("./modules/Vendor/pages/reels/AllReels"));
+const VendorAddReel = lazyWithRetry(() => import("./modules/Vendor/pages/reels/AddReel"));
+const VendorEditReel = lazyWithRetry(() => import("./modules/Vendor/pages/reels/EditReel"));
+const VendorProductFAQs = lazyWithRetry(() => import("./modules/Vendor/pages/ProductFAQs"));
+const VendorShippingManagement = lazyWithRetry(() => import("./modules/Vendor/pages/ShippingManagement"));
+const VendorCustomers = lazyWithRetry(() => import("./modules/Vendor/pages/Customers"));
+const VendorCustomerDetail = lazyWithRetry(() => import("./modules/Vendor/pages/CustomerDetail"));
+const VendorProductAttributes = lazyWithRetry(() => import("./modules/Vendor/pages/ProductAttributes"));
+const VendorAttributes = lazyWithRetry(() => import("./modules/Vendor/pages/attributes/Attributes"));
+const VendorAttributeValues = lazyWithRetry(() => import("./modules/Vendor/pages/attributes/AttributeValues"));
+const VendorAttributeSets = lazyWithRetry(() => import("./modules/Vendor/pages/attributes/AttributeSets"));
+const VendorInventoryReports = lazyWithRetry(() => import("./modules/Vendor/pages/InventoryReports"));
+const VendorPerformanceMetrics = lazyWithRetry(() => import("./modules/Vendor/pages/PerformanceMetrics"));
 
 // B2B Vendor Routes
-import B2BVendorLogin from "./modules/B2BVendor/pages/Login";
-import B2BVendorRegister from "./modules/B2BVendor/pages/Register.jsx";
-import B2BVendorVerification from "./modules/B2BVendor/pages/Verification";
-import B2BVendorProtectedRoute from "./modules/B2BVendor/components/B2BVendorProtectedRoute";
-import B2BVendorLayout from "./modules/B2BVendor/components/Layout/B2BVendorLayout";
-import B2BVendorDashboard from "./modules/B2BVendor/pages/Dashboard";
-import B2BVendorProducts from "./modules/B2BVendor/pages/Products";
-import B2BVendorManageProducts from "./modules/B2BVendor/pages/products/ManageProducts";
-import B2BVendorAddProduct from "./modules/B2BVendor/pages/products/AddProduct";
-import B2BVendorEditProduct from "./modules/B2BVendor/pages/products/EditProduct";
-import B2BVendorMessages from "./modules/B2BVendor/pages/Messages";
-import B2BVendorAnalytics from "./modules/B2BVendor/pages/Analytics";
-import B2BVendorSettings from "./modules/B2BVendor/pages/Settings";
-import B2BVendorProfile from "./modules/B2BVendor/pages/Profile";
-import B2BVendorSubscription from "./modules/B2BVendor/pages/Subscription";
-import B2BVendorBannerBooking from "./modules/B2BVendor/pages/B2BBannerBooking";
-import B2BVendorPaymentPage from "./modules/B2BVendor/pages/PaymentPage";
+const B2BVendorLogin = lazyWithRetry(() => import("./modules/B2BVendor/pages/Login"));
+const B2BVendorRegister = lazyWithRetry(() => import("./modules/B2BVendor/pages/Register.jsx"));
+const B2BVendorVerification = lazyWithRetry(() => import("./modules/B2BVendor/pages/Verification"));
+const B2BVendorProtectedRoute = lazyWithRetry(() => import("./modules/B2BVendor/components/B2BVendorProtectedRoute"));
+const B2BVendorLayout = lazyWithRetry(() => import("./modules/B2BVendor/components/Layout/B2BVendorLayout"));
+const B2BVendorDashboard = lazyWithRetry(() => import("./modules/B2BVendor/pages/Dashboard"));
+const B2BVendorProducts = lazyWithRetry(() => import("./modules/B2BVendor/pages/Products"));
+const B2BVendorManageProducts = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/ManageProducts"));
+const B2BVendorAddProduct = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/AddProduct"));
+const B2BVendorEditProduct = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/EditProduct"));
+const B2BVendorMessages = lazyWithRetry(() => import("./modules/B2BVendor/pages/Messages"));
+const B2BVendorAnalytics = lazyWithRetry(() => import("./modules/B2BVendor/pages/Analytics"));
+const B2BVendorSettings = lazyWithRetry(() => import("./modules/B2BVendor/pages/Settings"));
+const B2BVendorProfile = lazyWithRetry(() => import("./modules/B2BVendor/pages/Profile"));
+const B2BVendorSubscription = lazyWithRetry(() => import("./modules/B2BVendor/pages/Subscription"));
+const B2BVendorBannerBooking = lazyWithRetry(() => import("./modules/B2BVendor/pages/B2BBannerBooking"));
+const B2BVendorPaymentPage = lazyWithRetry(() => import("./modules/B2BVendor/pages/PaymentPage"));
 
 // B2B User App Routes
-import B2BUserLogin from "./modules/B2BUserApp/pages/Login";
-import B2BUserRegister from "./modules/B2BUserApp/pages/Register";
-import B2BUserVerification from "./modules/B2BUserApp/pages/Verification";
-import B2BUserDashboard from "./modules/B2BUserApp/pages/Dashboard";
-import B2BProductCatalog from "./modules/B2BUserApp/pages/ProductCatalog";
-import B2BInquiries from "./modules/B2BUserApp/pages/Inquiries";
-import B2BUserProfile from "./modules/B2BUserApp/pages/Profile";
-import B2BCompanyProfile from "./modules/B2BUserApp/pages/CompanyProfile";
-import B2BNotifications from "./modules/B2BUserApp/pages/Notifications";
+const B2BUserLogin = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Login"));
+const B2BUserRegister = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Register"));
+const B2BUserVerification = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Verification"));
+const B2BUserDashboard = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Dashboard"));
+const B2BProductCatalog = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ProductCatalog"));
+const B2BInquiries = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Inquiries"));
+const B2BUserProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Profile"));
+const B2BCompanyProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/CompanyProfile"));
+const B2BNotifications = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Notifications"));
 
-import B2BPayments from "./modules/B2BUserApp/pages/Payments";
-import B2BSupport from "./modules/B2BUserApp/pages/Support";
-import B2BProductDetail from "./modules/B2BUserApp/pages/ProductDetail";
-import B2BVendorStore from "./modules/B2BUserApp/pages/B2BVendorStore";
-import SellerTypeSelection from "./modules/B2BUserApp/pages/SellerTypeSelection";
+const B2BPayments = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Payments"));
+const B2BSupport = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Support"));
+const B2BProductDetail = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ProductDetail"));
+const B2BVendorStore = lazyWithRetry(() => import("./modules/B2BUserApp/pages/B2BVendorStore"));
+const SellerTypeSelection = lazyWithRetry(() => import("./modules/B2BUserApp/pages/SellerTypeSelection"));
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -905,8 +906,19 @@ const AppRoutes = () => {
   );
 };
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
+
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <ErrorBoundary>
       <Router
         future={{
@@ -914,7 +926,13 @@ function App() {
           v7_relativeSplatPath: true,
         }}>
         <ScrollToTop />
-        <AppRoutes />
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-screen bg-[#121212]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        }>
+          <AppRoutes />
+        </Suspense>
         <CartDrawer />
         <Toaster
           position="top-right"
@@ -941,7 +959,8 @@ function App() {
           }}
         />
       </Router>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </QueryClientProvider>
   );
 }
 

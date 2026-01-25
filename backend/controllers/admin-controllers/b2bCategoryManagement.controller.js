@@ -8,6 +8,18 @@ import {
   deleteB2BSubcategory,
   updateB2BSubcategory,
 } from '../../services/b2bCategoryManagement.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear B2B category-related cache
+ */
+const clearB2BCategoryCache = async () => {
+  try {
+    await redisService.clearPattern('public:b2b-categories:*');
+  } catch (error) {
+    console.error('Error clearing B2B category cache:', error);
+  }
+};
 
 /**
  * Get all B2B categories
@@ -70,6 +82,9 @@ export const create = async (req, res, next) => {
 
     const category = await createB2BCategory({ name, subcategoryName });
 
+    // Clear cache
+    await clearB2BCategoryCache();
+
     res.status(201).json({
       success: true,
       message: 'B2B category created successfully',
@@ -98,6 +113,9 @@ export const update = async (req, res, next) => {
 
     const category = await updateB2BCategory(id, name);
 
+    // Clear cache
+    await clearB2BCategoryCache();
+
     res.status(200).json({
       success: true,
       message: 'B2B category updated successfully',
@@ -116,6 +134,9 @@ export const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
     await deleteB2BCategory(id);
+
+    // Clear cache
+    await clearB2BCategoryCache();
 
     res.status(200).json({
       success: true,
@@ -144,6 +165,9 @@ export const addSubcategory = async (req, res, next) => {
 
     const category = await addB2BSubcategory(id, subcategoryName);
 
+    // Clear cache
+    await clearB2BCategoryCache();
+
     res.status(200).json({
       success: true,
       message: 'Subcategory added successfully',
@@ -171,6 +195,9 @@ export const removeSubcategory = async (req, res, next) => {
     }
 
     const category = await deleteB2BSubcategory(id, subcategoryName);
+
+    // Clear cache
+    await clearB2BCategoryCache();
 
     res.status(200).json({
       success: true,
@@ -206,6 +233,9 @@ export const updateSubcategory = async (req, res, next) => {
     }
 
     const category = await updateB2BSubcategory(id, parseInt(index), newName);
+
+    // Clear cache
+    await clearB2BCategoryCache();
 
     res.status(200).json({
       success: true,

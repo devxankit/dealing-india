@@ -32,40 +32,38 @@ export const getB2BVendorDashboardData = async (vendorId, period = 'month') => {
       throw err;
     }
 
-    // 1. Get total products count for this vendor
-    const totalProducts = await Product.countDocuments({
-      vendorId: vendorObjectId,
-      isActive: true
-    });
-
-    // 2. Get vendor's conversations (chats with users)
-    const conversations = await Chat.find({
-      'participants.userId': vendorObjectId,
-      'participants.role': 'vendor'
-    })
-      .populate({
-        path: 'participants.userId',
-        select: 'name email storeName storeLogo businessName'
+    // 1, 2, 3. Parallelize initial queries
+    const [totalProducts, conversations, inquiryMessages] = await Promise.all([
+      // 1. Get total products count for this vendor
+      Product.countDocuments({
+        vendorId: vendorObjectId,
+        isActive: true
+      }),
+      // 2. Get vendor's conversations (chats with users)
+      Chat.find({
+        'participants.userId': vendorObjectId,
+        'participants.role': 'vendor'
       })
-      .populate('lastMessage')
-      .lean();
-
-    // 3. Get all inquiry messages for this vendor
-    // Inquiries are messages where:
-    // - receiverId is the vendor AND receiverRole is 'vendor'
-    // - messageType is 'inquiry' OR metadata contains productId
-    const inquiryMessages = await Message.find({
-      receiverId: vendorObjectId,
-      receiverRole: 'vendor',
-      $or: [
-        { messageType: 'inquiry' },
-        { 'metadata.productId': { $exists: true } }
-      ]
-    })
-      .populate('senderId', 'name email storeName businessName')
-      .populate('conversationId')
-      .sort({ createdAt: -1 })
-      .lean();
+        .populate({
+          path: 'participants.userId',
+          select: 'name email storeName storeLogo businessName'
+        })
+        .populate('lastMessage')
+        .lean(),
+      // 3. Get all inquiry messages for this vendor
+      Message.find({
+        receiverId: vendorObjectId,
+        receiverRole: 'vendor',
+        $or: [
+          { messageType: 'inquiry' },
+          { 'metadata.productId': { $exists: true } }
+        ]
+      })
+        .populate('senderId', 'name email storeName businessName')
+        .populate('conversationId')
+        .sort({ createdAt: -1 })
+        .lean()
+    ]);
 
     // Count total inquiries
     const totalInquiries = inquiryMessages.length;

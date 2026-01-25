@@ -323,7 +323,7 @@ export const getVendorAnalyticsSummary = async (vendorId, period) => {
   const vId = new mongoose.Types.ObjectId(vendorId);
 
   // Total stats for the vendor
-  const [totalEarningsResult, totalOrders, totalProducts] = await Promise.all([
+  const [totalEarningsResult, totalOrders, totalProducts, pendingEarningsResult] = await Promise.all([
     Order.aggregate([
       { $match: { 'vendorBreakdown.vendorId': vId, status: { $ne: 'cancelled' } } },
       { $unwind: '$vendorBreakdown' },
@@ -331,24 +331,21 @@ export const getVendorAnalyticsSummary = async (vendorId, period) => {
       { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
     ]),
     Order.countDocuments({ 'vendorBreakdown.vendorId': vId, status: { $ne: 'cancelled' } }),
-    Product.countDocuments({ vendorId: vId })
+    Product.countDocuments({ vendorId: vId }),
+    Order.aggregate([
+      {
+        $match: {
+          'vendorBreakdown.vendorId': vId,
+          status: { $in: ['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped_seller', 'shipped'] }
+        }
+      },
+      { $unwind: '$vendorBreakdown' },
+      { $match: { 'vendorBreakdown.vendorId': vId } },
+      { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
+    ])
   ]);
 
   const totalEarnings = totalEarningsResult[0]?.total || 0;
-
-  // Pending earnings (orders not yet delivered)
-  const pendingEarningsResult = await Order.aggregate([
-    {
-      $match: {
-        'vendorBreakdown.vendorId': vId,
-        status: { $in: ['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped_seller', 'shipped'] }
-      }
-    },
-    { $unwind: '$vendorBreakdown' },
-    { $match: { 'vendorBreakdown.vendorId': vId } },
-    { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
-  ]);
-
   const pendingEarnings = pendingEarningsResult[0]?.total || 0;
 
   // Growth stats
@@ -449,7 +446,8 @@ export const getVendorDashboardData = async (vendorId, period) => {
     totalOrders,
     totalProducts,
     recentOrders,
-    topProductsResult
+    topProductsResult,
+    revenueData
   ] = await Promise.all([
     // Total Earnings (Delivered)
     Order.aggregate([
@@ -505,14 +503,12 @@ export const getVendorDashboardData = async (vendorId, period) => {
       },
       { $sort: { revenue: -1 } },
       { $limit: 5 }
-    ])
+    ]),
+    getVendorChartData(vendorId, period)
   ]);
 
   const totalEarnings = totalEarningsResult[0]?.total || 0;
   const pendingEarnings = pendingEarningsResult[0]?.total || 0;
-
-  // 2. Revenue Data for Chart
-  const revenueData = await getVendorChartData(vendorId, period);
 
   return {
     metrics: {

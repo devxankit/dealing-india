@@ -11,6 +11,7 @@ import {
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -19,8 +20,8 @@ router.use(authenticate);
 router.use(authorize('admin'));
 
 // Brand management routes
-router.get('/', asyncHandler(getBrands));
-router.get('/:id', asyncHandler(getBrand));
+router.get('/', redisService.cacheMiddleware('admin:brands:list', 300), asyncHandler(getBrands));
+router.get('/:id', redisService.cacheMiddleware('admin:brands:details', 300), asyncHandler(getBrand));
 router.post('/', asyncHandler(create));
 router.put('/:id', asyncHandler(update));
 router.delete('/bulk', asyncHandler(bulkDelete));

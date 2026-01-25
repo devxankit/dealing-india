@@ -132,6 +132,14 @@ export const updateVendorStatus = async (vendorId, status, reason = null) => {
       throw new Error('Vendor not found');
     }
 
+    // Cache Invalidation
+    try {
+      await redisService.del(`vendor:details:${vendorId}`);
+      await redisService.clearPattern('vendors:list:*');
+    } catch (cacheError) {
+      console.error('Cache invalidation error (updateVendorStatus):', cacheError);
+    }
+
     return vendor;
   } catch (error) {
     if (error.name === 'CastError') {
@@ -190,6 +198,7 @@ export const toggleVendorActive = async (vendorId) => {
     // Cache Invalidation
     try {
       await redisService.del(`vendor:details:${vendorId}`);
+      await redisService.clearPattern('vendors:list:*');
       await redisService.clearPattern('home:featured_vendors:*');
     } catch (cacheError) {
       console.error('Cache invalidation error (toggleVendorActive):', cacheError);

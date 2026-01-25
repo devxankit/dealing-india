@@ -6,6 +6,18 @@ import {
   updatePromoCodeStatus,
   deletePromoCode,
 } from '../../services/promoCode.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear promo code-related cache
+ */
+const clearPromoCodeCache = async () => {
+  try {
+    await redisService.clearPattern('public:promocodes:*');
+  } catch (error) {
+    console.error('Error clearing promo code cache:', error);
+  }
+};
 
 /**
  * Get all promo codes
@@ -52,6 +64,10 @@ export const create = async (req, res, next) => {
   try {
     const adminId = req.user.adminId;
     const promoCode = await createPromoCode(req.body, adminId);
+
+    // Clear cache
+    await clearPromoCodeCache();
+
     res.status(201).json({
       success: true,
       message: 'Promo code created successfully',
@@ -70,6 +86,10 @@ export const update = async (req, res, next) => {
   try {
     const { id } = req.params;
     const promoCode = await updatePromoCode(id, req.body);
+
+    // Clear cache
+    await clearPromoCodeCache();
+
     res.status(200).json({
       success: true,
       message: 'Promo code updated successfully',
@@ -97,6 +117,10 @@ export const updateStatus = async (req, res, next) => {
     }
 
     const promoCode = await updatePromoCodeStatus(id, status);
+
+    // Clear cache
+    await clearPromoCodeCache();
+
     res.status(200).json({
       success: true,
       message: 'Promo code status updated successfully',
@@ -115,6 +139,10 @@ export const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
     await deletePromoCode(id);
+
+    // Clear cache
+    await clearPromoCodeCache();
+
     res.status(200).json({
       success: true,
       message: 'Promo code deleted successfully',

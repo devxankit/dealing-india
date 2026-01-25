@@ -6,6 +6,20 @@ import {
   initiateAddMoney,
   completeAddMoney,
 } from '../../services/wallet.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear wallet-related cache
+ */
+const clearWalletCache = async (userId) => {
+  try {
+    if (userId) {
+      await redisService.clearPattern(`user:wallet:*:u:${userId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing wallet cache:', error);
+  }
+};
 
 /**
  * Get wallet balance and stats
@@ -80,6 +94,9 @@ export const addMoneyController = async (req, res, next) => {
       description || 'Money added to wallet'
     );
 
+    // Clear cache
+    await clearWalletCache(userId);
+
     res.status(201).json({
       success: true,
       message: 'Money added to wallet successfully',
@@ -141,6 +158,9 @@ export const verifyAddMoneyController = async (req, res, next) => {
       razorpayPaymentId,
       razorpaySignature,
     });
+
+    // Clear cache
+    await clearWalletCache(userId);
 
     res.status(200).json({
       success: true,

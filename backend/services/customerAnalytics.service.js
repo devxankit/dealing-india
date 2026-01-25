@@ -1,5 +1,4 @@
 import User from '../models/User.model.js';
-import redisService from './redis.service.js';
 
 // Order model - handle gracefully if it doesn't exist
 let Order = null;

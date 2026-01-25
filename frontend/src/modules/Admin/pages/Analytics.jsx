@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiBarChart2, FiTrendingUp, FiTrendingDown, FiDownload } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import * as analyticsService from '../../../shared/services/analyticsService';
+import { useAdminAnalyticsSummary, useAdminChartData } from '../../../shared/hooks/useAdminAnalytics';
 import RevenueChart from '../components/Analytics/RevenueChart';
 import SalesChart from '../components/Analytics/SalesChart';
 import TimePeriodFilter from '../components/Analytics/TimePeriodFilter';
@@ -11,44 +11,36 @@ import toast from 'react-hot-toast';
 
 const Analytics = () => {
   const [period, setPeriod] = useState('month');
-  const [loading, setLoading] = useState(true);
-  const [analyticsSummary, setAnalyticsSummary] = useState({
-    totalRevenue: 0,
-    totalOrders: 0,
-    totalProducts: 0,
-    totalCustomers: 0,
-    revenueChange: 0,
-    ordersChange: 0,
-    productsChange: 0,
-    customersChange: 0
-  });
-  const [revenueData, setRevenueData] = useState([]);
+  
+  // Use TanStack Query for analytics data
+  const { 
+    data: summaryResponse, 
+    isLoading: summaryLoading,
+  } = useAdminAnalyticsSummary(period);
 
-  useEffect(() => {
-    const fetchAnalytics = async () => {
-      setLoading(true);
-      try {
-        const [summaryRes, chartRes] = await Promise.all([
-          analyticsService.getAdminAnalyticsSummary(period),
-          analyticsService.getAdminChartData(period)
-        ]);
+  const { 
+    data: chartResponse, 
+    isLoading: chartLoading,
+  } = useAdminChartData(period);
 
-        if (summaryRes.success) {
-          setAnalyticsSummary(summaryRes.data);
-        }
-        if (chartRes.success) {
-          setRevenueData(chartRes.data);
-        }
-      } catch (error) {
-        console.error('Error fetching analytics:', error);
-        // toast.error is handled by api interceptor
-      } finally {
-        setLoading(false);
-      }
+  const loading = summaryLoading || chartLoading;
+
+  const analyticsSummary = useMemo(() => {
+    return summaryResponse?.data || summaryResponse || {
+      totalRevenue: 0,
+      totalOrders: 0,
+      totalProducts: 0,
+      totalCustomers: 0,
+      revenueChange: 0,
+      ordersChange: 0,
+      productsChange: 0,
+      customersChange: 0
     };
+  }, [summaryResponse]);
 
-    fetchAnalytics();
-  }, [period]);
+  const revenueData = useMemo(() => {
+    return chartResponse?.data || chartResponse || [];
+  }, [chartResponse]);
 
   return (
     <motion.div

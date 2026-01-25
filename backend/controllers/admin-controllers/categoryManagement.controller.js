@@ -7,11 +7,35 @@ import {
   bulkDeleteCategories,
   bulkUpdateCategoryOrder,
 } from '../../services/categoryManagement.service.js';
+import redisService from '../../services/redis.service.js';
 import {
   uploadBase64ToCloudinary,
   deleteFromCloudinary,
   isBase64DataUrl,
 } from '../../utils/cloudinary.util.js';
+
+/**
+ * Helper to clear category-related cache
+ */
+const clearCategoryCache = async (categoryId = null) => {
+  try {
+    const patterns = [
+      'home:categories:*',
+      'category:details:*',
+      'admin:categories:list:*'
+    ];
+
+    if (categoryId) {
+      patterns.push(`admin:categories:details:*${categoryId}*`);
+    } else {
+      patterns.push('admin:categories:details:*');
+    }
+
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing category cache:', error);
+  }
+};
 
 /**
  * Get all categories with filters
@@ -93,6 +117,9 @@ export const create = async (req, res, next) => {
 
     const category = await createCategory(categoryData);
 
+    // Clear cache
+    await clearCategoryCache();
+
     res.status(201).json({
       success: true,
       message: 'Category created successfully',
@@ -155,6 +182,9 @@ export const update = async (req, res, next) => {
 
     const category = await updateCategory(id, updateData);
 
+    // Clear cache
+    await clearCategoryCache(id);
+
     res.status(200).json({
       success: true,
       message: 'Category updated successfully',
@@ -183,6 +213,9 @@ export const remove = async (req, res, next) => {
     if (category.imagePublicId) {
       await deleteFromCloudinary(category.imagePublicId);
     }
+
+    // Clear cache
+    await clearCategoryCache(id);
 
     res.status(200).json({
       success: true,
@@ -215,6 +248,9 @@ export const bulkDelete = async (req, res, next) => {
       const { deleteMultipleFromCloudinary } = await import('../../utils/cloudinary.util.js');
       await deleteMultipleFromCloudinary(result.imagePublicIds);
     }
+
+    // Clear cache
+    await clearCategoryCache();
 
     if (result.failedIds && result.failedIds.length > 0) {
       return res.status(200).json({
@@ -260,6 +296,9 @@ export const bulkUpdateOrder = async (req, res, next) => {
     }
 
     const result = await bulkUpdateCategoryOrder(orders);
+
+    // Clear cache
+    await clearCategoryCache();
 
     res.status(200).json({
       success: true,

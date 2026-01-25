@@ -10,6 +10,7 @@ import {
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -18,10 +19,10 @@ router.use(authenticate);
 router.use(authorize('user'));
 
 // Get notifications
-router.get('/', asyncHandler(getNotifications));
+router.get('/', redisService.cacheMiddleware('user:notifications:list', 300), asyncHandler(getNotifications));
 
 // Get unread count
-router.get('/unread-count', asyncHandler(getUnreadCount));
+router.get('/unread-count', redisService.cacheMiddleware('user:notifications:unread', 300), asyncHandler(getUnreadCount));
 
 // Mark notification as read
 router.put('/:id/read', asyncHandler(markAsRead));

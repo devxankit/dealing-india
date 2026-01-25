@@ -17,26 +17,17 @@ import Badge from "../../../shared/components/Badge";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
 import { formatPrice, getPlaceholderImage } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { getVendorStock, updateVendorStock, getVendorStockStats } from "../services/stockService";
+import { useVendorStock, useVendorStockStats } from "../hooks/useVendorData";
+import { updateVendorStock } from "../services/stockService";
 import toast from "react-hot-toast";
 
 const StockManagement = () => {
   const location = useLocation();
   const { vendor } = useVendorAuthStore();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [lowStockThreshold, setLowStockThreshold] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [stockStats, setStockStats] = useState({
-    totalProducts: 0,
-    inStock: 0,
-    lowStock: 0,
-    outOfStock: 0,
-    totalValue: 0,
-  });
 
   // Update selected status based on URL path
   useEffect(() => {
@@ -46,6 +37,7 @@ const StockManagement = () => {
     else if (path.includes('/vendor/stock-management/out-of-stock')) setStockFilter('out_of_stock');
     else setStockFilter('all');
   }, [location.pathname]);
+
   const [stockModal, setStockModal] = useState({
     isOpen: false,
     product: null,
@@ -53,87 +45,71 @@ const StockManagement = () => {
 
   const vendorId = vendor?.id;
 
-  useEffect(() => {
-    if (vendorId) {
-      loadStock();
-      loadStockStats();
-    }
-  }, [vendorId, lowStockThreshold]);
-
-  useEffect(() => {
-    if (vendorId) {
-      loadStock();
-    }
-  }, [vendorId, currentPage, stockFilter]);
-
   // Debounce search
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (currentPage === 1) {
-        loadStock();
-      } else {
-        setCurrentPage(1);
-      }
+      setDebouncedSearch(searchQuery);
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const loadStock = async () => {
-    if (!vendorId) return;
+  const filters = useMemo(() => ({
+    search: debouncedSearch,
+    stock: stockFilter !== "all" ? stockFilter : undefined,
+    lowStockThreshold,
+    page: currentPage,
+    limit: 10,
+  }), [debouncedSearch, stockFilter, lowStockThreshold, currentPage]);
 
-    setLoading(true);
+  const { data: stockResponse, isLoading: stockLoading, refetch: refetchStock } = useVendorStock(filters);
+  const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useVendorStockStats(lowStockThreshold);
+
+  const products = useMemo(() => stockResponse?.products || [], [stockResponse]);
+  const totalPages = useMemo(() => stockResponse?.pagination?.pages || 1, [stockResponse]);
+
+  const stockStats = useMemo(() => statsData || {
+    totalProducts: 0,
+    inStock: 0,
+    lowStock: 0,
+    outOfStock: 0,
+    totalValue: 0,
+  }, [statsData]);
+
+  const loading = stockLoading || statsLoading;
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, stockFilter]);
+
+  const handleUpdateStock = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const quantity = parseInt(formData.get("quantity"));
+    const type = formData.get("type");
+
+    if (!quantity || quantity <= 0) {
+      toast.error("Please enter a valid quantity");
+      return;
+    }
+
     try {
-      const response = await getVendorStock({
-        search: searchQuery,
-        stock: stockFilter !== "all" ? stockFilter : undefined,
-        lowStockThreshold,
-        page: currentPage,
-        limit: 10,
+      const adjustment = type === "add" ? quantity : -quantity;
+      const newStock = Math.max(0, stockModal.product.stockQuantity + adjustment);
+
+      await updateVendorStock(stockModal.product._id, {
+        stockQuantity: newStock,
+        reason: formData.get("reason") || "Manual adjustment",
       });
 
-      setProducts(response.products || []);
-      setTotalPages(response.pagination?.pages || 1);
-    } catch (error) {
-      console.error("Error loading stock:", error);
-      toast.error("Failed to load stock information");
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadStockStats = async () => {
-    if (!vendorId) return;
-
-    try {
-      const stats = await getVendorStockStats(lowStockThreshold);
-      setStockStats(stats || {
-        totalProducts: 0,
-        inStock: 0,
-        lowStock: 0,
-        outOfStock: 0,
-        totalValue: 0,
-      });
-    } catch (error) {
-      console.error("Error loading stock stats:", error);
-      // Don't show error toast for stats, just use defaults
-    }
-  };
-
-  // Products are already filtered by API
-  const filteredProducts = products;
-
-  const handleStockUpdate = async (productId, newQuantity) => {
-    try {
-      await updateVendorStock(productId, newQuantity, lowStockThreshold);
       toast.success("Stock updated successfully");
       setStockModal({ isOpen: false, product: null });
-      loadStock();
-      loadStockStats(); // Refresh stats after update
+      refetchStock();
+      refetchStats();
     } catch (error) {
       console.error("Error updating stock:", error);
-      toast.error(error.response?.data?.message || "Failed to update stock");
+      toast.error("Failed to update stock");
     }
   };
 

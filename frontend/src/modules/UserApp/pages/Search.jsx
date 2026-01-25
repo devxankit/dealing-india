@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import useDebounce from '../../../shared/hooks/useDebounce';
 import { FiSearch, FiFilter, FiX, FiGrid, FiList, FiShoppingBag } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -15,6 +17,7 @@ const MobileSearch = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [showFilters, setShowFilters] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
@@ -31,6 +34,29 @@ const MobileSearch = () => {
     isNew: searchParams.get('isNew') === 'true' || false,
     isTrending: searchParams.get('isTrending') === 'true' || false,
   });
+  const debouncedFilters = useDebounce(filters, 300);
+
+  // Use TanStack Query for products fetching and caching
+  const { data, isLoading: queryLoading, error: queryError } = useQuery({
+    queryKey: ['products', 'search', debouncedSearchQuery, debouncedFilters],
+    queryFn: () => getProducts({
+      search: debouncedSearchQuery || undefined,
+      categoryId: debouncedFilters.category || undefined,
+      vendorId: debouncedFilters.vendor || undefined,
+      minPrice: debouncedFilters.minPrice || undefined,
+      maxPrice: debouncedFilters.maxPrice || undefined,
+      minRating: debouncedFilters.minRating || undefined,
+      isNew: debouncedFilters.isNew ? true : undefined,
+      isTrending: debouncedFilters.isTrending ? true : undefined,
+      vendorType: 'b2c',
+      page: 1,
+      limit: 100,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    }),
+    keepPreviousData: true,
+  });
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({
@@ -38,6 +64,77 @@ const MobileSearch = () => {
     page: 1,
     totalPages: 1,
   });
+
+  // Sync query data to state for existing infinite scroll logic
+  useEffect(() => {
+    if (data) {
+      const transformedProducts = (data.products || []).map((product) => {
+        const vendor = product.vendorId;
+        const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
+          ? {
+            id: (vendor._id || vendor.id).toString(),
+            _id: vendor._id || vendor.id,
+            storeName: vendor.storeName || vendor.businessName || vendor.name,
+            businessName: vendor.businessName,
+            name: vendor.name,
+            storeLogo: vendor.storeLogo || vendor.logo,
+            isVerified: vendor.isVerified !== undefined
+              ? vendor.isVerified
+              : (vendor.status === 'approved' || vendor.isEmailVerified || false),
+          }
+          : null;
+
+        let mainImage = product.image;
+        if (!mainImage && product.images && product.images.length > 0) {
+          mainImage = product.images[0];
+        }
+
+        return {
+          id: product._id || product.id,
+          name: product.name,
+          price: product.price,
+          originalPrice: product.originalPrice || product.price,
+          image: mainImage || null,
+          images: product.images || [],
+          unit: product.unit || 'Piece',
+          rating: product.rating || 0,
+          reviewCount: product.reviewCount || 0,
+          stock: product.stock || 'in_stock',
+          stockQuantity: product.stockQuantity || 0,
+          vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
+          vendor: vendorData,
+          vendorName: vendorData?.storeName || product.vendorName || 'Unknown Vendor',
+          flashSale: product.flashSale || false,
+          variants: product.variants || {},
+          sizeVariants: product.sizeVariants || [],
+          primaryColorName: product.primaryColorName,
+          primaryColorCode: product.primaryColorCode,
+        };
+      });
+
+      setProducts(transformedProducts);
+      setPagination({
+        total: data.total || 0,
+        page: data.page || 1,
+        totalPages: data.totalPages || 1,
+      });
+      setLoading(false);
+    }
+  }, [data]);
+
+  // Handle loading state from query
+  useEffect(() => {
+    if (queryLoading) setLoading(true);
+  }, [queryLoading]);
+
+  // Handle error state from query
+  useEffect(() => {
+    if (queryError) {
+      console.error('Error fetching products:', queryError);
+      toast.error('Failed to load products');
+      setLoading(false);
+    }
+  }, [queryError]);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -60,105 +157,6 @@ const MobileSearch = () => {
     setRecentSearches(updated);
     localStorage.setItem('recentSearches', JSON.stringify(updated));
   };
-
-
-  // Fetch products from backend
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await getProducts({
-        search: searchQuery || undefined,
-        categoryId: filters.category || undefined,
-        vendorId: filters.vendor || undefined,
-        minPrice: filters.minPrice || undefined,
-        maxPrice: filters.maxPrice || undefined,
-        minRating: filters.minRating || undefined,
-        isNew: filters.isNew ? true : undefined, // Only pass if true
-        isTrending: filters.isTrending ? true : undefined, // Only pass if true
-        vendorType: 'b2c',
-        page: 1,
-        limit: 100, // Get more products for better UX
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      });
-
-      // Transform backend products to match frontend format (same as Home page)
-      const transformedProducts = (result.products || []).map((product) => {
-        // Handle vendor data - can be ObjectId or populated object
-        const vendor = product.vendorId;
-        const vendorData = vendor && typeof vendor === 'object' && (vendor._id || vendor.id)
-          ? {
-            id: (vendor._id || vendor.id).toString(),
-            _id: vendor._id || vendor.id,
-            storeName: vendor.storeName || vendor.businessName || vendor.name,
-            businessName: vendor.businessName,
-            name: vendor.name,
-            storeLogo: vendor.storeLogo || vendor.logo,
-            isVerified: vendor.isVerified !== undefined
-              ? vendor.isVerified
-              : (vendor.status === 'approved' || vendor.isEmailVerified || false),
-          }
-          : null;
-
-        // Get main image - ALWAYS prioritize product.image (main image) over gallery images
-        // Backend model: image (String) = main image, images ([String]) = gallery images
-        // We should NEVER use gallery images if main image exists
-        let mainImage = product.image;
-
-        // Debug: Log if we're using gallery image instead of main
-        if (!mainImage && product.images && product.images.length > 0) {
-          console.warn(`Product ${product.name} has no main image, using gallery image:`, product.images[0]);
-          mainImage = product.images[0];
-        }
-
-        // Ensure we're using the main image, not gallery
-        if (product.image && product.images && product.images.includes(product.image)) {
-          // Main image is also in gallery, that's fine - use main image
-          mainImage = product.image;
-        }
-
-        return {
-          id: product._id || product.id,
-          name: product.name,
-          price: product.price,
-          originalPrice: product.originalPrice || product.price,
-          image: mainImage || null, // Always use main image field, never gallery images unless main is missing
-          images: product.images || [],
-          unit: product.unit || 'Piece',
-          rating: product.rating || 0,
-          reviewCount: product.reviewCount || 0,
-          stock: product.stock || 'in_stock',
-          stockQuantity: product.stockQuantity || 0,
-          vendorId: vendorData?.id || (typeof vendor === 'object' ? vendor?._id?.toString() : vendor?.toString() || vendor),
-          vendor: vendorData,
-          vendorName: vendorData?.storeName || product.vendorName || 'Unknown Vendor',
-          flashSale: product.flashSale || false,
-          variants: product.variants || {},
-          sizeVariants: product.sizeVariants || [],
-          primaryColorName: product.primaryColorName,
-          primaryColorCode: product.primaryColorCode,
-        };
-      });
-
-      setProducts(transformedProducts);
-      setPagination({
-        total: result.total || 0,
-        page: result.page || 1,
-        totalPages: result.totalPages || 1,
-      });
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      toast.error('Failed to load products');
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, filters.category, filters.vendor, filters.minPrice, filters.maxPrice, filters.minRating, filters.isNew, filters.isTrending]);
-
-  // Fetch products when search query or filters change
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
 
   const filteredProducts = products;
 

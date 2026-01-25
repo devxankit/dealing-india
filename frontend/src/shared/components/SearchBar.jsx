@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FiSearch, FiClock, FiTrendingUp } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAllProducts } from '../../data/products';
+import useDebounce from '../hooks/useDebounce';
 
 const RECENT_SEARCHES_KEY = 'recent-searches';
 const MAX_RECENT_SEARCHES = 5;
@@ -11,6 +12,7 @@ const MAX_SUGGESTIONS = 5;
 
 const SearchBar = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [suggestions, setSuggestions] = useState([]);
@@ -80,14 +82,14 @@ const SearchBar = () => {
 
   // Update suggestions when query changes
   useEffect(() => {
-    if (searchQuery.trim()) {
-      const productSuggestions = getProductSuggestions(searchQuery);
+    if (debouncedSearchQuery.trim()) {
+      const productSuggestions = getProductSuggestions(debouncedSearchQuery);
       setSuggestions(productSuggestions);
     } else {
       setSuggestions([]);
     }
     setSelectedIndex(-1);
-  }, [searchQuery]);
+  }, [debouncedSearchQuery]);
 
   // Handle outside click
   useEffect(() => {

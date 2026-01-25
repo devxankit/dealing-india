@@ -172,6 +172,7 @@ const MobileProductCard = ({ product }) => {
                 src={product.image}
                 alt={product.name}
                 className="w-full h-full object-cover"
+                context="product-listing"
                 onError={(e) => {
                   e.target.src = getPlaceholderImage(200, 200, "Product");
                 }}

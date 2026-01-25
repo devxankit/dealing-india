@@ -1,4 +1,18 @@
 import SupportTicketService from '../../services/supportTicket.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear support ticket-related cache
+ */
+const clearTicketCache = async (userId) => {
+  try {
+    if (userId) {
+      await redisService.clearPattern(`user:tickets:*:u:${userId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing ticket cache:', error);
+  }
+};
 
 class UserSupportTicketController {
   /**
@@ -37,6 +51,9 @@ class UserSupportTicketController {
       if (io) {
         io.emit('ticket_created', ticket);
       }
+
+      // Clear cache
+      await clearTicketCache(userId);
 
       res.status(201).json({
         success: true,
@@ -187,6 +204,9 @@ class UserSupportTicketController {
         io.to(`ticket_${id}`).emit('ticket_message', ticketMessage);
         io.to(`ticket_${id}`).emit('ticket_updated', { ticketId: id, message: ticketMessage });
       }
+
+      // Clear cache
+      await clearTicketCache(userId);
 
       res.status(201).json({
         success: true,

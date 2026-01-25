@@ -2,6 +2,7 @@ import DeliveryRule from '../models/DeliveryRule.model.js';
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
 import Address from '../models/Address.model.js';
+import redisService from './redis.service.js';
 
 /**
  * Calculate delivery charge for a cart
@@ -20,6 +21,15 @@ export const calculateDeliveryCharge = async (items, address) => {
             // Or throw error? Let's return a default estimation or 0.
             // Better to return 0 and let frontend prompt for address.
             return { total: 0, breakdown: [], warning: "Address required for accurate calculation" };
+        }
+
+        // Try to get calculation result from cache (short TTL)
+        const cacheKey = `delivery:calc:${JSON.stringify({ items: items.map(i => ({ id: i.productId || i.id, q: i.quantity })), address })}`;
+        try {
+            const cachedResult = await redisService.get(cacheKey);
+            if (cachedResult) return cachedResult;
+        } catch (cacheError) {
+            console.error('Redis GET error (calculateDeliveryCharge):', cacheError);
         }
 
         // 1. Group items by Vendor
@@ -143,10 +153,19 @@ export const calculateDeliveryCharge = async (items, address) => {
             });
         }
 
-        return {
+        const result = {
             total: totalDeliveryCharge,
             breakdown
         };
+
+        // Cache the result for 5 minutes
+        try {
+            await redisService.set(cacheKey, result, 300);
+        } catch (cacheError) {
+            console.error('Redis SET error (calculateDeliveryCharge):', cacheError);
+        }
+
+        return result;
 
     } catch (error) {
         console.error("Delivery Calculation Error:", error);

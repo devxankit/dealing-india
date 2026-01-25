@@ -6,6 +6,20 @@ import {
   deleteAddress,
   setDefaultAddress,
 } from '../../services/address.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear address-related cache
+ */
+const clearAddressCache = async (userId) => {
+  try {
+    if (userId) {
+      await redisService.clearPattern(`user:addresses:*:u:${userId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing address cache:', error);
+  }
+};
 
 /**
  * Get all addresses for authenticated user
@@ -74,6 +88,9 @@ export const createAddressController = async (req, res, next) => {
 
     const address = await createAddress(userId, addressData);
 
+    // Clear cache
+    await clearAddressCache(userId);
+
     res.status(201).json({
       success: true,
       message: 'Address created successfully',
@@ -97,6 +114,9 @@ export const updateAddressController = async (req, res, next) => {
     const addressData = req.body;
 
     const address = await updateAddress(id, userId, addressData);
+
+    // Clear cache
+    await clearAddressCache(userId);
 
     res.status(200).json({
       success: true,
@@ -127,6 +147,9 @@ export const deleteAddressController = async (req, res, next) => {
 
     await deleteAddress(id, userId);
 
+    // Clear cache
+    await clearAddressCache(userId);
+
     res.status(200).json({
       success: true,
       message: 'Address deleted successfully',
@@ -152,6 +175,9 @@ export const setDefaultAddressController = async (req, res, next) => {
     const { id } = req.params;
 
     const address = await setDefaultAddress(id, userId);
+
+    // Clear cache
+    await clearAddressCache(userId);
 
     res.status(200).json({
       success: true,

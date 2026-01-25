@@ -1,5 +1,6 @@
 import PromoCode from '../models/PromoCode.model.js';
 import Product from '../models/Product.model.js';
+import redisService from './redis.service.js';
 
 /**
  * Get all promo codes with optional filters
@@ -10,6 +11,18 @@ export const getAllPromoCodes = async (filters = {}) => {
   try {
     const { search, status } = filters;
     const query = {};
+
+    // Try to get from cache first if status is active
+    const isPublicSearch = status === 'active' && !search;
+    const cacheKey = `promocodes:active`;
+    if (isPublicSearch) {
+      try {
+        const cachedData = await redisService.get(cacheKey);
+        if (cachedData) return cachedData;
+      } catch (cacheError) {
+        console.error('Redis GET error (getAllPromoCodes):', cacheError);
+      }
+    }
 
     // Search filter
     if (search) {
@@ -31,6 +44,14 @@ export const getAllPromoCodes = async (filters = {}) => {
       if (code.status === 'active' && now > code.endDate) {
         code.status = 'expired';
         await code.save();
+      }
+    }
+
+    if (isPublicSearch) {
+      try {
+        await redisService.set(cacheKey, promoCodes, 3600); // Cache for 1 hour
+      } catch (cacheError) {
+        console.error('Redis SET error (getAllPromoCodes):', cacheError);
       }
     }
 
@@ -211,6 +232,15 @@ export const updatePromoCode = async (id, data) => {
     });
 
     await promoCode.save();
+
+    // Cache Invalidation
+    try {
+      await redisService.del('promocodes:active');
+      await redisService.clearPattern(`promocode:val:${promoCode.code}:*`);
+    } catch (cacheError) {
+      console.error('Cache invalidation error (updatePromoCode):', cacheError);
+    }
+
     return await PromoCode.findById(promoCode._id).populate('createdBy', 'name email');
   } catch (error) {
     if (error.code === 11000) {
@@ -253,6 +283,14 @@ export const updatePromoCodeStatus = async (id, status) => {
     promoCode.status = status;
     await promoCode.save();
 
+    // Cache Invalidation
+    try {
+      await redisService.del('promocodes:active');
+      await redisService.clearPattern(`promocode:val:${promoCode.code}:*`);
+    } catch (cacheError) {
+      console.error('Cache invalidation error (updatePromoCodeStatus):', cacheError);
+    }
+
     return await PromoCode.findById(promoCode._id).populate('createdBy', 'name email');
   } catch (error) {
     throw error;
@@ -272,6 +310,15 @@ export const deletePromoCode = async (id) => {
       err.status = 404;
       throw err;
     }
+
+    // Cache Invalidation
+    try {
+      await redisService.del('promocodes:active');
+      await redisService.clearPattern(`promocode:val:${promoCode.code}:*`);
+    } catch (cacheError) {
+      console.error('Cache invalidation error (deletePromoCode):', cacheError);
+    }
+
     return { success: true };
   } catch (error) {
     throw error;
@@ -288,6 +335,14 @@ export const deletePromoCode = async (id) => {
  */
 export const validatePromoCodeLogic = async (code, cartTotal, cartItems, userId) => {
   try {
+    const cacheKey = `promocode:val:${code.toUpperCase()}:${cartTotal}:${JSON.stringify(cartItems.map(i => ({ id: i.productId || i.id, q: i.quantity })))}${userId ? ':' + userId : ''}`;
+    try {
+      const cachedResult = await redisService.get(cacheKey);
+      if (cachedResult) return cachedResult;
+    } catch (cacheError) {
+      console.error('Redis GET error (validatePromoCodeLogic):', cacheError);
+    }
+
     const promoCode = await PromoCode.findOne({ code: code.toUpperCase() });
     if (!promoCode) {
       const err = new Error('Invalid promo code');
@@ -360,7 +415,7 @@ export const validatePromoCodeLogic = async (code, cartTotal, cartItems, userId)
       discountAmount = Math.min(discountAmount, eligibleAmount);
     }
 
-    return {
+    const result = {
       success: true,
       code: promoCode.code,
       type: promoCode.type,
@@ -368,6 +423,15 @@ export const validatePromoCodeLogic = async (code, cartTotal, cartItems, userId)
       discountAmount: discountAmount,
       promoCodeId: promoCode._id
     };
+
+    // Cache the result for 2 minutes (short TTL for validation)
+    try {
+      await redisService.set(cacheKey, result, 120);
+    } catch (cacheError) {
+      console.error('Redis SET error (validatePromoCodeLogic):', cacheError);
+    }
+
+    return result;
 
   } catch (error) {
     throw error;

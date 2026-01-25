@@ -11,6 +11,7 @@ import {
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -19,8 +20,8 @@ router.use(authenticate);
 router.use(authorize('admin'));
 
 // Category management routes
-router.get('/', asyncHandler(getCategories));
-router.get('/:id', asyncHandler(getCategory));
+router.get('/', redisService.cacheMiddleware('admin:categories:list', 300), asyncHandler(getCategories));
+router.get('/:id', redisService.cacheMiddleware('admin:categories:details', 300), asyncHandler(getCategory));
 router.post('/', asyncHandler(create));
 router.put('/bulk-order', asyncHandler(bulkUpdateOrder));
 router.put('/:id', asyncHandler(update));

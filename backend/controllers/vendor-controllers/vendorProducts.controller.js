@@ -6,6 +6,38 @@ import {
   deleteVendorProduct,
   updateVendorProductStatus,
 } from '../../services/vendorProducts.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear product-related cache
+ */
+const clearProductCache = async (productId = null) => {
+  try {
+    const patterns = [
+      'products:list:*',
+      'products:recommended:*',
+      'public:campaigns:*',
+      'campaign:details:*',
+      'public:b2b-locations:*',
+      'admin:products:list:*',
+      'vendor:products:list:*'
+    ];
+
+    if (productId) {
+      patterns.push(`product:details:*${productId}*`);
+      patterns.push(`admin:products:details:*${productId}*`);
+      patterns.push(`vendor:products:details:*${productId}*`);
+    } else {
+      patterns.push('product:details:*');
+      patterns.push('admin:products:details:*');
+      patterns.push('vendor:products:details:*');
+    }
+
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing product cache:', error);
+  }
+};
 
 /**
  * Get all products for vendor
@@ -86,6 +118,9 @@ export const create = async (req, res, next) => {
 
     const product = await createVendorProduct(productData, vendorId);
 
+    // Clear product cache
+    await clearProductCache();
+
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
@@ -107,6 +142,9 @@ export const update = async (req, res, next) => {
     const productData = req.body;
 
     const product = await updateVendorProduct(id, productData, vendorId);
+
+    // Clear product cache
+    await clearProductCache(id);
 
     res.status(200).json({
       success: true,
@@ -141,6 +179,9 @@ export const remove = async (req, res, next) => {
       }
     }
 
+    // Clear product cache
+    await clearProductCache(id);
+
     res.status(200).json({
       success: true,
       message: 'Product deleted successfully from database',
@@ -161,6 +202,9 @@ export const updateStatus = async (req, res, next) => {
     const statusData = req.body;
 
     const product = await updateVendorProductStatus(id, statusData, vendorId);
+
+    // Clear product cache
+    await clearProductCache(id);
 
     res.status(200).json({
       success: true,

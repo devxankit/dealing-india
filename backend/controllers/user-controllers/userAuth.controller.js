@@ -10,6 +10,20 @@ import {
   resetUserPassword,
   switchUserMarketplace,
 } from '../../services/userAuth.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear user profile cache
+ */
+const clearUserProfileCache = async (userId) => {
+  try {
+    if (userId) {
+      await redisService.clearPattern(`user:profile:*:u:${userId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing user profile cache:', error);
+  }
+};
 
 /**
  * Register a new user
@@ -170,6 +184,9 @@ export const updateProfile = async (req, res, next) => {
 
     const updatedUser = await updateUserProfile(userId, updateData);
 
+    // Clear cache
+    await clearUserProfileCache(userId);
+
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
@@ -297,6 +314,9 @@ export const switchMarketplace = async (req, res, next) => {
     }
 
     const updatedUser = await switchUserMarketplace(userId, marketplace);
+
+    // Clear cache
+    await clearUserProfileCache(userId);
 
     res.status(200).json({
       success: true,

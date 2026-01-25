@@ -6,6 +6,20 @@ import {
   cancelOrder as cancelOrderService,
 } from '../../services/order.service.js';
 import razorpayService from '../../services/razorpay.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear order-related cache
+ */
+const clearOrderCache = async (userId) => {
+  try {
+    if (userId) {
+      await redisService.clearPattern(`user:orders:*:u:${userId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing order cache:', error);
+  }
+};
 
 /**
  * Create a new order and initialize Razorpay payment (if online payment)
@@ -77,6 +91,9 @@ export const createOrder = async (req, res, next) => {
         couponCode,
         walletAmount,
       }, io);
+
+      // Clear cache
+      await clearOrderCache(userId);
 
       return res.status(201).json({
         success: true,
@@ -280,6 +297,9 @@ export const verifyPayment = async (req, res, next) => {
       status: 'completed',
     }, io);
 
+    // Clear cache
+    await clearOrderCache(userId);
+
     res.status(200).json({
       success: true,
       message: 'Payment verified and order created successfully',
@@ -373,6 +393,9 @@ export const cancelOrder = async (req, res, next) => {
     const { orderId } = req.params;
 
     const cancelledOrder = await cancelOrderService(orderId, userId);
+
+    // Clear cache
+    await clearOrderCache(userId);
 
     res.status(200).json({
       success: true,

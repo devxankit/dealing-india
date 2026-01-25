@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FiShoppingBag,
@@ -12,62 +12,27 @@ import {
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { getVendorOrderStats } from '../../../shared/services/orderService';
+import { useVendorOrderStats } from '../hooks/useVendorData';
 
 const Orders = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const [orderStats, setOrderStats] = useState({
-    pending: 0,
-    processing: 0,
-    shipped: 0,
-    delivered: 0,
-    cancelled: 0,
-    total: 0,
-    ready_to_ship: 0,
-    dispatched: 0,
-    shipped_seller: 0,
-    on_hold: 0,
-  });
-  const [loading, setLoading] = useState(true);
-
   const vendorId = vendor?.id;
 
-  // Fetch vendor order statistics
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (!vendorId) {
-        setLoading(false);
-        return;
-      }
+  const { data: stats, isLoading: loading } = useVendorOrderStats();
 
-      try {
-        setLoading(true);
-        const response = await getVendorOrderStats();
-        if (response && response.data) {
-          const stats = response.data;
-          setOrderStats({
-            pending: stats.pending || 0,
-            processing: stats.processing || 0,
-            shipped: stats.shipped || 0,
-            delivered: stats.delivered || 0,
-            cancelled: stats.cancelled || 0,
-            total: stats.total || 0,
-            ready_to_ship: stats.ready_to_ship || 0,
-            dispatched: stats.dispatched || 0,
-            shipped_seller: stats.shipped_seller || 0,
-            on_hold: stats.on_hold || 0,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching vendor order stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, [vendorId]);
+  const orderStats = useMemo(() => ({
+    pending: stats?.pending || 0,
+    processing: stats?.processing || 0,
+    shipped: stats?.shipped || 0,
+    delivered: stats?.delivered || 0,
+    cancelled: stats?.cancelled || 0,
+    total: stats?.total || 0,
+    ready_to_ship: stats?.ready_to_ship || 0,
+    dispatched: stats?.dispatched || 0,
+    shipped_seller: stats?.shipped_seller || 0,
+    on_hold: stats?.on_hold || 0,
+  }), [stats]);
 
   // Analytics cards configuration
   const analyticsCards = [

@@ -12,6 +12,30 @@ import {
   getVendorAnalytics,
   getVendorOrders,
 } from '../../services/vendorAnalytics.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear vendor-related cache
+ */
+const clearVendorCache = async (vendorId = null) => {
+  try {
+    const patterns = [
+      'home:featured_vendors:*',
+      'public:b2b-locations:*',
+      'admin:vendors:list:*'
+    ];
+    if (vendorId) {
+      patterns.push(`vendor:details:*${vendorId}*`);
+      patterns.push(`admin:vendors:details:*${vendorId}*`);
+    } else {
+      patterns.push('vendor:details:*');
+      patterns.push('admin:vendors:details:*');
+    }
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing vendor cache:', error);
+  }
+};
 
 /**
  * Get all vendors with filters
@@ -84,6 +108,9 @@ export const updateStatus = async (req, res, next) => {
 
     const vendor = await updateVendorStatus(id, status, reason);
 
+    // Clear vendor cache
+    await clearVendorCache(id);
+
     res.status(200).json({
       success: true,
       message: `Vendor status updated to ${status}`,
@@ -112,6 +139,9 @@ export const updateCommission = async (req, res, next) => {
 
     const vendor = await updateCommissionRate(id, commissionRate);
 
+    // Clear vendor cache
+    await clearVendorCache(id);
+
     res.status(200).json({
       success: true,
       message: 'Commission rate updated successfully',
@@ -130,6 +160,9 @@ export const toggleActive = async (req, res, next) => {
   try {
     const { id } = req.params;
     const vendor = await toggleVendorActive(id);
+
+    // Clear vendor cache
+    await clearVendorCache(id);
 
     res.status(200).json({
       success: true,

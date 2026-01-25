@@ -9,6 +9,7 @@ import {
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ const router = express.Router();
 router.use(authenticate, authorize('user'));
 
 // Get cart
-router.get('/', asyncHandler(getCartController));
+router.get('/', redisService.cacheMiddleware('user:cart:details', 60), asyncHandler(getCartController));
 
 // Add product to cart
 router.post('/', asyncHandler(addToCartController));

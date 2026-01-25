@@ -3,6 +3,7 @@ import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
 import Vendor from '../models/Vendor.model.js';
+import redisService from './redis.service.js';
 import { getCategoryDepth } from './categoryManagement.service.js';
 import { getAllFAQs } from './productFAQs.service.js';
 import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
@@ -35,6 +36,15 @@ export const getPublicProducts = async (filters = {}) => {
       state,
       city,
     } = filters;
+
+    // Try to get from cache first
+    const cacheKey = `products:list:${JSON.stringify(filters)}`;
+    try {
+      const cachedData = await redisService.get(cacheKey);
+      if (cachedData) return cachedData;
+    } catch (cacheError) {
+      console.error('Redis GET error (getPublicProducts):', cacheError);
+    }
 
     // Get active and approved vendors with optional vendorType filter
     // CRITICAL: If vendorType is not 'b2b', exclude B2B vendors
@@ -283,13 +293,22 @@ export const getPublicProducts = async (filters = {}) => {
       images: sanitizeImageUrls(product.images || []),
     }));
 
-    return {
+    const result = {
       products: sanitizedProducts,
       total,
       page: parseInt(page),
       limit: parseInt(limit),
       totalPages,
     };
+
+    // Cache the result for 10 minutes
+    try {
+      await redisService.set(cacheKey, result, 600);
+    } catch (cacheError) {
+      console.error('Redis SET error (getPublicProducts):', cacheError);
+    }
+
+    return result;
   } catch (error) {
     throw error;
   }
@@ -302,6 +321,14 @@ export const getPublicProducts = async (filters = {}) => {
  */
 export const getPublicProductById = async (productId) => {
   try {
+    const cacheKey = `product:details:${productId}`;
+    try {
+      const cachedProduct = await redisService.get(cacheKey);
+      if (cachedProduct) return cachedProduct;
+    } catch (cacheError) {
+      console.error('Redis GET error (getPublicProductById):', cacheError);
+    }
+
     const product = await Product.findOne({
       _id: productId,
       isVisible: true, // Only return if visible
@@ -342,6 +369,13 @@ export const getPublicProductById = async (productId) => {
     product.images = sanitizeImageUrls(product.images || []);
 
     console.log('Public Product Fetch:', product._id, 'Brand:', product.brandId); // Debug logging
+
+    // Cache the result for 1 hour
+    try {
+      await redisService.set(cacheKey, product, 3600);
+    } catch (cacheError) {
+      console.error('Redis SET error (getPublicProductById):', cacheError);
+    }
 
     return product;
   } catch (error) {

@@ -8,6 +8,22 @@ import {
 } from '../../services/vendorReels.service.js';
 import { uploadToCloudinary } from '../../utils/cloudinary.util.js';
 import SubscriptionService from '../../services/subscription.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear reel-related cache
+ */
+const clearReelCache = async (reelId = null) => {
+  try {
+    if (reelId) {
+      await redisService.clearPattern(`reel:details:*${reelId}*`);
+    } else {
+      await redisService.clearPattern('reel:details:*');
+    }
+  } catch (error) {
+    console.error('Error clearing reel cache:', error);
+  }
+};
 
 /**
  * Get all reels for vendor
@@ -169,6 +185,9 @@ export const create = async (req, res, next) => {
 
     const reel = await createVendorReel(reelData, vendorId);
 
+    // Clear reel cache
+    await clearReelCache();
+
     res.status(201).json({
       success: true,
       message: 'Reel created successfully',
@@ -232,6 +251,9 @@ export const update = async (req, res, next) => {
 
     const reel = await updateVendorReel(id, reelData, vendorId);
 
+    // Clear reel cache
+    await clearReelCache(id);
+
     res.status(200).json({
       success: true,
       message: 'Reel updated successfully',
@@ -252,6 +274,9 @@ export const remove = async (req, res, next) => {
     const vendorId = req.user.vendorId;
 
     await deleteVendorReel(id, vendorId);
+
+    // Clear reel cache
+    await clearReelCache(id);
 
     res.status(200).json({
       success: true,
@@ -279,6 +304,9 @@ export const updateStatus = async (req, res, next) => {
     }
 
     const reel = await updateVendorReelStatus(id, status, vendorId);
+
+    // Clear reel cache
+    await clearReelCache(id);
 
     res.status(200).json({
       success: true,

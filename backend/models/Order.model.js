@@ -226,6 +226,8 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ customerId: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ 'vendorBreakdown.vendorId': 1, status: 1 });
+orderSchema.index({ razorpayOrderId: 1 }, { sparse: true });
+orderSchema.index({ paymentStatus: 1, createdAt: -1 });
 
 const Order = mongoose.model('Order', orderSchema);
 

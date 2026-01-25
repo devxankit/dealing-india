@@ -34,162 +34,83 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    // 1. Total B2B Vendors (all time)
-    const totalB2BVendors = await Vendor.countDocuments({ vendorType: 'b2b' });
-
-    // 2. B2B Vendors in period (for trend calculation)
-    const b2bVendorsInPeriod = await Vendor.countDocuments({
-      vendorType: 'b2b',
-      createdAt: { $gte: startDate }
-    });
-
-    // 3. Total B2B Products (all time)
-    const b2bVendorIds = await Vendor.find({ vendorType: 'b2b' }).select('_id').lean();
-    const b2bVendorObjectIds = b2bVendorIds.map(v => v._id);
-    const totalB2BProducts = await Product.countDocuments({
-      vendorId: { $in: b2bVendorObjectIds },
-      isActive: true
-    });
-
-    // 4. Products in period
-    const productsInPeriod = await Product.countDocuments({
-      vendorId: { $in: b2bVendorObjectIds },
-      isActive: true,
-      createdAt: { $gte: startDate }
-    });
-
-    // 5. Total B2B Messages (all conversations with B2B vendors)
-    const totalB2BMessages = await Message.countDocuments({
-      $or: [
-        {
-          senderRole: 'vendor',
-          'senderId': { $in: b2bVendorObjectIds }
-        },
-        {
-          receiverRole: 'vendor',
-          'receiverId': { $in: b2bVendorObjectIds }
-        }
-      ]
-    });
-
-    // Messages in period
-    const messagesInPeriod = await Message.countDocuments({
-      $or: [
-        {
-          senderRole: 'vendor',
-          'senderId': { $in: b2bVendorObjectIds },
-          createdAt: { $gte: startDate }
-        },
-        {
-          receiverRole: 'vendor',
-          'receiverId': { $in: b2bVendorObjectIds },
-          createdAt: { $gte: startDate }
-        }
-      ]
-    });
-
-    // 6. Calculate B2B Volume (revenue) - if you have Order model with B2B orders
-    // For now, using messages as a proxy, but you can extend this with actual order data
-    let b2BVolume = 0;
-    try {
-      const Order = (await import('../models/Order.model.js')).default;
-      const b2BOrders = await Order.aggregate([
-        {
-          $match: {
-            'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds },
-            status: { $ne: 'cancelled' }
-          }
-        },
-        { $unwind: '$vendorBreakdown' },
-        {
-          $match: {
-            'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$vendorBreakdown.subtotal' }
-          }
-        }
-      ]);
-      b2BVolume = b2BOrders[0]?.total || 0;
-    } catch (error) {
-      // If Order model not available or no orders, use 0
-      console.log('B2B Volume calculation: Order model not available or no orders');
-    }
-
-    // Format volume in Crores
-    const formatVolume = (amount) => {
-      if (amount >= 10000000) {
-        return `₹${(amount / 10000000).toFixed(1)}Cr`;
-      } else if (amount >= 100000) {
-        return `₹${(amount / 100000).toFixed(1)}L`;
-      } else if (amount >= 1000) {
-        return `₹${(amount / 1000).toFixed(1)}K`;
-      }
-      return `₹${amount}`;
-    };
-
-    // Calculate trends (simple - can be improved with previous period comparison)
-    const calculateTrend = (current, previous = 0) => {
-      if (previous === 0) return current > 0 ? `+${current}` : '0';
-      const change = current - previous;
-      if (change === 0) return '0';
-      if (change > 0) return `+${change}`;
-      return `${change}`;
-    };
-
-    // 7. Get onboarding trend data (vendors registered over time)
-    const onboardingTrend = await Vendor.aggregate([
-      {
-        $match: {
-          vendorType: 'b2b',
-          createdAt: { $gte: startDate }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: period === 'year' ? '%Y-%m' : period === 'month' ? '%Y-%m-%d' : '%Y-%m-%d', date: '$createdAt' }
-          },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
+    // 1, 2, 3. Fetch base data in parallel
+    const [totalB2BVendors, b2bVendorsInPeriod, b2bVendorIds] = await Promise.all([
+      Vendor.countDocuments({ vendorType: 'b2b' }),
+      Vendor.countDocuments({
+        vendorType: 'b2b',
+        createdAt: { $gte: startDate }
+      }),
+      Vendor.find({ vendorType: 'b2b' }).select('_id').lean()
     ]);
 
-    // 8. Get transaction volume trend data
-    let transactionVolumeTrend = [];
-    try {
-      const Order = (await import('../models/Order.model.js')).default;
-      transactionVolumeTrend = await Order.aggregate([
-        {
-          $match: {
-            'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds },
-            status: { $ne: 'cancelled' },
-            createdAt: { $gte: startDate }
-          }
-        },
-        { $unwind: '$vendorBreakdown' },
-        {
-          $match: {
-            'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds }
-          }
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: period === 'year' ? '%Y-%m' : period === 'month' ? '%Y-%m-%d' : '%Y-%m-%d', date: '$createdAt' }
-            },
-            volume: { $sum: '$vendorBreakdown.subtotal' }
-          }
-        },
+    const b2bVendorObjectIds = b2bVendorIds.map(v => v._id);
+
+    // 4-8. Fetch remaining analytics data in parallel
+    const [
+      totalB2BProducts,
+      productsInPeriod,
+      totalB2BMessages,
+      messagesInPeriod,
+      onboardingTrend,
+      b2BOrdersResult,
+      transactionVolumeTrendResult
+    ] = await Promise.all([
+      Product.countDocuments({
+        vendorId: { $in: b2bVendorObjectIds },
+        isActive: true
+      }),
+      Product.countDocuments({
+        vendorId: { $in: b2bVendorObjectIds },
+        isActive: true,
+        createdAt: { $gte: startDate }
+      }),
+      Message.countDocuments({
+        $or: [
+          { senderRole: 'vendor', 'senderId': { $in: b2bVendorObjectIds } },
+          { receiverRole: 'vendor', 'receiverId': { $in: b2bVendorObjectIds } }
+        ]
+      }),
+      Message.countDocuments({
+        $or: [
+          { senderRole: 'vendor', 'senderId': { $in: b2bVendorObjectIds }, createdAt: { $gte: startDate } },
+          { receiverRole: 'vendor', 'receiverId': { $in: b2bVendorObjectIds }, createdAt: { $gte: startDate } }
+        ]
+      }),
+      Vendor.aggregate([
+        { $match: { vendorType: 'b2b', createdAt: { $gte: startDate } } },
+        { $group: { _id: { $dateToString: { format: period === 'year' ? '%Y-%m' : '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } }
-      ]);
-    } catch (error) {
-      console.log('Transaction volume trend calculation: Order model not available');
-    }
+      ]),
+      // B2B Volume (revenue)
+      (async () => {
+        try {
+          const Order = (await import('../models/Order.model.js')).default;
+          return await Order.aggregate([
+            { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds }, status: { $ne: 'cancelled' } } },
+            { $unwind: '$vendorBreakdown' },
+            { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds } } },
+            { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
+          ]);
+        } catch (e) { return []; }
+      })(),
+      // Transaction Volume Trend
+      (async () => {
+        try {
+          const Order = (await import('../models/Order.model.js')).default;
+          return await Order.aggregate([
+            { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds }, status: { $ne: 'cancelled' }, createdAt: { $gte: startDate } } },
+            { $unwind: '$vendorBreakdown' },
+            { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds } } },
+            { $group: { _id: { $dateToString: { format: period === 'year' ? '%Y-%m' : '%Y-%m-%d', date: '$createdAt' } }, volume: { $sum: '$vendorBreakdown.subtotal' } } },
+            { $sort: { _id: 1 } }
+          ]);
+        } catch (e) { return []; }
+      })()
+    ]);
+
+    const b2BVolume = b2BOrdersResult[0]?.total || 0;
+    const transactionVolumeTrend = transactionVolumeTrendResult;
 
     // Format chart data
     const formatChartData = (data, dateKey = '_id', valueKey = 'count') => {

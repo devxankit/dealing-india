@@ -11,8 +11,7 @@ import {
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { IndianRupee } from "lucide-react";
-import * as analyticsService from "../../../shared/services/analyticsService";
-import { getVendorPerformanceMetrics } from "../services/performanceService";
+import { useVendorDashboard } from "../hooks/useVendorData";
 import { useCommissionStore } from "../../../shared/store/commissionStore";
 import { toast } from "react-hot-toast";
 import TimePeriodFilter from "../../Admin/components/Analytics/TimePeriodFilter";
@@ -22,50 +21,28 @@ const VendorDashboard = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
   const [period, setPeriod] = useState('month');
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState({
-    metrics: {
+
+  const vendorId = vendor?.id;
+
+  const { data: dashboardData, isLoading: loading, error: queryError } = useVendorDashboard(period);
+
+  const data = useMemo(() => ({
+    metrics: dashboardData?.metrics || {
       totalRevenue: 0,
       totalOrders: 0,
       totalProducts: 0,
       avgOrderValue: 0,
       customerCount: 0,
     },
-    earnings: {
+    earnings: dashboardData?.earnings || {
       totalEarnings: 0,
       pendingEarnings: 0,
       paidEarnings: 0,
     },
-    revenueData: [],
-    topProducts: [],
-    recentOrders: [],
-  });
-
-  const [error, setError] = useState(null);
-
-  const vendorId = vendor?.id;
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!vendorId) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await analyticsService.getVendorDashboardData(period);
-        if (response && response.success) {
-          setData(response.data);
-        }
-      } catch (error) {
-        console.error("Error fetching vendor dashboard data:", error);
-        setError("Failed to load dashboard data. Please try again.");
-        // toast.error is handled by api interceptor
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, [vendorId, period]);
+    revenueData: dashboardData?.revenueData || [],
+    topProducts: dashboardData?.topProducts || [],
+    recentOrders: dashboardData?.recentOrders || [],
+  }), [dashboardData]);
 
   // Access commission store for accurate earnings/orders
   const { fetchEarningsStats, stats } = useCommissionStore();
@@ -98,21 +75,20 @@ const VendorDashboard = () => {
     },
     {
       icon: FiTrendingUp,
-      label: "Avg Order Value",
-      value: formatPrice(data.metrics.avgOrderValue || 0),
-      color: "bg-orange-500",
-      bgColor: "bg-orange-50",
-      textColor: "text-orange-700",
-      link: "/vendor/orders",
-    },
-    {
-      icon: IndianRupee,
-      label: "Total Earnings",
-      // Use store stats if available, otherwise fall back to metrics
-      value: formatPrice(stats?.totalEarnings || data.earnings.totalEarnings || 0),
+      label: "Total Revenue",
+      value: formatPrice(data.metrics.totalRevenue),
       color: "bg-purple-500",
       bgColor: "bg-purple-50",
       textColor: "text-purple-700",
+      link: "/vendor/analytics",
+    },
+    {
+      icon: FiDollarSign,
+      label: "Total Earnings",
+      value: formatPrice(data.earnings.totalEarnings),
+      color: "bg-amber-500",
+      bgColor: "bg-amber-50",
+      textColor: "text-amber-700",
       link: "/vendor/earnings",
     },
   ];
@@ -120,21 +96,15 @@ const VendorDashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
-  if (error) {
+  if (queryError) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="text-red-500 text-xl font-semibold">{error}</div>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200"
-        >
-          Try Again
-        </button>
+      <div className="text-center py-12">
+        <p className="text-red-500">Failed to load dashboard data. Please try again.</p>
       </div>
     );
   }

@@ -11,6 +11,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { upload } from '../utils/upload.util.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -19,8 +20,8 @@ router.use(authenticate);
 router.use(authorize('admin'));
 
 // Offers (Campaigns) routes
-router.get('/', asyncHandler(getOffers));
-router.get('/:id', asyncHandler(getOffer));
+router.get('/', redisService.cacheMiddleware('admin:offers:list', 600), asyncHandler(getOffers));
+router.get('/:id', redisService.cacheMiddleware('admin:offers:details', 600), asyncHandler(getOffer));
 router.post('/', upload.single('image'), asyncHandler(createOffer));
 router.put('/:id', upload.single('image'), asyncHandler(updateOffer));
 router.patch('/:id/status', asyncHandler(updateOfferStatus));

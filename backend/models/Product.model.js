@@ -477,14 +477,17 @@ productSchema.pre('findOneAndUpdate', function (next) {
 productSchema.index({ name: 1 });
 productSchema.index({ vendorId: 1, isActive: 1 });
 productSchema.index({ stock: 1, stockQuantity: 1 });
-productSchema.index({ categoryId: 1, isVisible: 1 });
 productSchema.index({ subcategoryId: 1, isVisible: 1 });
-productSchema.index({ brandId: 1, isVisible: 1 });
-productSchema.index({ flashSale: 1, isVisible: 1 });
-productSchema.index({ isTrending: 1, isVisible: 1 });
 productSchema.index({ isNew: 1, isVisible: 1 });
 productSchema.index({ rating: -1, reviewCount: -1 });
 
-const Product = mongoose.model('Product', productSchema);
+// Compound Indexes for high-performance filtering
+productSchema.index({ categoryId: 1, isVisible: 1, price: 1 });
+productSchema.index({ vendorId: 1, isVisible: 1, createdAt: -1 });
+productSchema.index({ brandId: 1, isVisible: 1 });
+productSchema.index({ isActive: 1, isVisible: 1, isFeatured: 1 });
+productSchema.index({ isActive: 1, isVisible: 1, isTrending: 1 });
+productSchema.index({ isActive: 1, isVisible: 1, flashSale: 1 });
+productSchema.index({ name: 'text', description: 'text', brandName: 'text' }); // Search index
 
-export default Product;
+export default mongoose.model('Product', productSchema);

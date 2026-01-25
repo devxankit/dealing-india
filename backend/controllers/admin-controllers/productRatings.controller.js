@@ -5,6 +5,29 @@ import {
   updateReview,
   deleteReview,
 } from '../../services/productRatings.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear review-related cache
+ */
+const clearReviewCache = async (productId = null) => {
+  try {
+    const patterns = [
+      'admin:reviews:list:*',
+      'admin:reviews:details:*'
+    ];
+
+    if (productId) {
+      patterns.push(`public:reviews:*${productId}*`);
+    } else {
+      patterns.push('public:reviews:*');
+    }
+
+    await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+  } catch (error) {
+    console.error('Error clearing review cache:', error);
+  }
+};
 
 /**
  * Get all reviews/ratings
@@ -64,6 +87,10 @@ export const getReview = async (req, res, next) => {
 export const create = async (req, res, next) => {
   try {
     const review = await createReview(req.body);
+
+    // Clear cache
+    await clearReviewCache(review.productId);
+
     res.status(201).json({
       success: true,
       message: 'Review created successfully',
@@ -82,6 +109,10 @@ export const update = async (req, res, next) => {
   try {
     const { id } = req.params;
     const review = await updateReview(id, req.body);
+
+    // Clear cache
+    await clearReviewCache(review.productId);
+
     res.status(200).json({
       success: true,
       message: 'Review updated successfully',
@@ -99,7 +130,12 @@ export const update = async (req, res, next) => {
 export const remove = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const review = await getReviewById(id);
     await deleteReview(id);
+
+    // Clear cache
+    await clearReviewCache(review?.productId);
+
     res.status(200).json({
       success: true,
       message: 'Review deleted successfully',

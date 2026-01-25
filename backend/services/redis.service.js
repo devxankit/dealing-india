@@ -171,7 +171,16 @@ class RedisService {
                 return next();
             }
 
-            const key = `${keyPrefix}:${req.originalUrl || req.url}`;
+            // Create a unique key based on URL and optionally user ID/vendor ID
+            let key = `${keyPrefix}:${req.originalUrl || req.url}`;
+            
+            // If user is authenticated, append user info to key for user-specific caching
+            if (req.user) {
+                const userId = req.user.id || req.user._id || req.user.userId;
+                const vendorId = req.user.vendorId;
+                if (userId) key += `:u:${userId}`;
+                if (vendorId) key += `:v:${vendorId}`;
+            }
 
             try {
                 const cachedData = await this.get(key);

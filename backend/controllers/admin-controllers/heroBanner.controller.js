@@ -1,4 +1,16 @@
 import * as heroBannerService from '../../services/heroBanner.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear banner-related cache
+ */
+const clearBannerCache = async () => {
+  try {
+    await redisService.clearPattern('public:banners:*');
+  } catch (error) {
+    console.error('Error clearing banner cache:', error);
+  }
+};
 
 export const getSlots = async (req, res, next) => {
   try {
@@ -23,6 +35,9 @@ export const updateSlot = async (req, res, next) => {
     const slotData = req.body;
     const slot = await heroBannerService.updateSlot(id, slotData);
 
+    // Clear cache
+    await clearBannerCache();
+
     res.status(200).json({
       success: true,
       message: 'Banner slot updated successfully',
@@ -45,6 +60,9 @@ export const updateSettings = async (req, res, next) => {
 
     const settingsData = req.body;
     const settings = await heroBannerService.updateBannerSettings(settingsData, adminId);
+
+    // Clear cache
+    await clearBannerCache();
 
     res.status(200).json({
       success: true,

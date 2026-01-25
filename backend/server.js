@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import connectDB from './config/database.js';
@@ -112,6 +113,7 @@ dotenv.config();
 
 // Initialize Express app
 const app = express();
+app.use(compression());
 
 // Trust proxy for Render/Vercel to get correct IP and protocol
 app.set('trust proxy', true);

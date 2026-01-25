@@ -11,24 +11,21 @@ import { formatPrice, getPlaceholderImage } from "../../../../shared/utils/helpe
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../../shared/store/brandStore";
-import { getVendorProducts, deleteVendorProduct } from "../../services/productService";
+import { useVendorProducts } from "../../hooks/useVendorData";
+import { deleteVendorProduct } from "../../services/productService";
 import toast from "react-hot-toast";
 
 const ManageProducts = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const { categories, initialize: initCategories } = useCategoryStore();
-  const { brands, initialize: initBrands } = useBrandStore();
+  const { initialize: initCategories } = useCategoryStore();
+  const { initialize: initBrands } = useBrandStore();
 
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     productId: null,
@@ -37,38 +34,31 @@ const ManageProducts = () => {
   const vendorId = vendor?.id;
   const isResettingPageRef = useRef(false);
 
-  const loadProducts = useCallback(async () => {
-    if (!vendorId) return;
+  // Debounce search query
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    setLoading(true);
-    try {
-      const response = await getVendorProducts({
-        search: searchQuery,
-        stock: selectedStatus !== "all" ? selectedStatus : undefined,
-        categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
-        brandId: selectedBrand !== "all" ? selectedBrand : undefined,
-        page: currentPage,
-        limit: 10,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
+  const filters = useMemo(() => ({
+    search: debouncedSearch,
+    stock: selectedStatus !== "all" ? selectedStatus : undefined,
+    categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+    brandId: selectedBrand !== "all" ? selectedBrand : undefined,
+    page: currentPage,
+    limit: 10,
+    sortBy: "createdAt",
+    sortOrder: "desc",
+  }), [debouncedSearch, selectedStatus, selectedCategory, selectedBrand, currentPage]);
 
-      // API interceptor returns response.data, so response structure is:
-      // { success, message, data: { products }, pagination }
-      const productsData = response.data?.products || [];
-      const paginationData = response.pagination || {};
+  const { data: productsResponse, isLoading: loading, refetch } = useVendorProducts(filters);
 
-      setProducts(productsData);
-      setTotalPages(paginationData.pages || 1);
-      setTotal(paginationData.total || 0);
-    } catch (error) {
-      console.error("Error loading products:", error);
-      toast.error("Failed to load products");
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [vendorId, searchQuery, selectedStatus, selectedCategory, selectedBrand, currentPage]);
+  const products = useMemo(() => productsResponse?.data?.products || [], [productsResponse]);
+  const totalPages = useMemo(() => productsResponse?.pagination?.pages || 1, [productsResponse]);
+  const total = useMemo(() => productsResponse?.pagination?.total || 0, [productsResponse]);
 
   useEffect(() => {
     if (vendorId) {
@@ -77,27 +67,10 @@ const ManageProducts = () => {
     }
   }, [vendorId, initCategories, initBrands]);
 
-  // Reset page to 1 when filters/search change (but not when page changes)
+  // Reset page to 1 when filters change
   useEffect(() => {
-    isResettingPageRef.current = true;
     setCurrentPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, selectedStatus, selectedCategory, selectedBrand]);
-
-  // Debounce search query changes only
-  useEffect(() => {
-    if (!vendorId) return;
-
-    const timer = setTimeout(() => {
-      loadProducts();
-      isResettingPageRef.current = false;
-    }, 500);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
-
-  // Load products immediately when non-search filters change (no debounce)
+  }, [debouncedSearch, selectedStatus, selectedCategory, selectedBrand]);
   useEffect(() => {
     if (!vendorId) return;
     if (isResettingPageRef.current) {
@@ -211,7 +184,7 @@ const ManageProducts = () => {
       await deleteVendorProduct(deleteModal.productId);
       toast.success("Product deleted successfully");
       setDeleteModal({ isOpen: false, productId: null });
-      loadProducts();
+      refetch();
     } catch (error) {
       console.error("Error deleting product:", error);
       toast.error("Failed to delete product");

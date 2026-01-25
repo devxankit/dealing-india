@@ -14,6 +14,7 @@ import {
 } from '../controllers/user-controllers/userAuth.controller.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 import { rateLimiter } from '../middleware/rateLimiter.middleware.js';
 
@@ -30,7 +31,7 @@ router.post('/reset-password', rateLimiter('reset-password', 5, 600), asyncHandl
 // Protected routes (require authentication)
 // Logout uses optional authentication to allow logout even with expired tokens
 router.post('/logout', optionalAuthenticate, asyncHandler(logout));
-router.get('/me', authenticate, asyncHandler(getMe));
+router.get('/me', authenticate, redisService.cacheMiddleware('user:profile:me', 600), asyncHandler(getMe));
 router.put('/profile', authenticate, asyncHandler(updateProfile));
 router.put('/change-password', authenticate, asyncHandler(changePassword));
 router.put('/switch-marketplace', authenticate, asyncHandler(switchMarketplace));

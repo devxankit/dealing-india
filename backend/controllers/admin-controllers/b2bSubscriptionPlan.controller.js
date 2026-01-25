@@ -1,6 +1,24 @@
 import b2bSubscriptionPlanService from '../../services/b2bSubscriptionPlan.service.js';
+import redisService from '../../services/redis.service.js';
 
 class AdminB2BSubscriptionPlanController {
+  /**
+   * Helper to clear B2B plan cache
+   */
+  async clearPlanCache(planId = null) {
+    try {
+      const patterns = ['public:b2b-plans:*'];
+      if (planId) {
+        patterns.push(`b2b-plan:details:*${planId}*`);
+      } else {
+        patterns.push('b2b-plan:details:*');
+      }
+      await Promise.all(patterns.map(pattern => redisService.clearPattern(pattern)));
+    } catch (error) {
+      console.error('Error clearing B2B plan cache:', error);
+    }
+  }
+
   /**
    * Get all B2B subscription plans
    * GET /admin/b2b-subscription-plans
@@ -76,6 +94,9 @@ class AdminB2BSubscriptionPlanController {
       const adminId = req.userDoc?._id || req.user?.adminId;
       const plan = await b2bSubscriptionPlanService.createPlan(req.body, adminId);
       
+      // Clear cache
+      await this.clearPlanCache();
+
       res.status(201).json({
         success: true,
         data: plan,
@@ -100,6 +121,9 @@ class AdminB2BSubscriptionPlanController {
       const adminId = req.userDoc?._id || req.user?.adminId;
       const plan = await b2bSubscriptionPlanService.updatePlan(id, req.body, adminId);
       
+      // Clear cache
+      await this.clearPlanCache(id);
+
       res.status(200).json({
         success: true,
         data: plan,
@@ -124,6 +148,9 @@ class AdminB2BSubscriptionPlanController {
       const adminId = req.userDoc?._id || req.user?.adminId;
       const plan = await b2bSubscriptionPlanService.deletePlan(id, adminId);
       
+      // Clear cache
+      await this.clearPlanCache(id);
+
       res.status(200).json({
         success: true,
         data: plan,
@@ -147,6 +174,9 @@ class AdminB2BSubscriptionPlanController {
       const adminId = req.userDoc?._id || req.user?.adminId;
       const plans = await b2bSubscriptionPlanService.ensureDefaultPlans(adminId);
       
+      // Clear cache
+      await this.clearPlanCache();
+
       res.status(200).json({
         success: true,
         data: plans,

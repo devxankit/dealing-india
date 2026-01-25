@@ -16,6 +16,19 @@ export const getPublicVendors = async (req, res, next) => {
       vendorType, // Extract vendorType
     } = req.query;
 
+    // Try to get from cache first
+    const cacheKey = `vendors:list:${JSON.stringify(req.query)}`;
+    try {
+      const cachedData = await redisService.get(cacheKey);
+      if (cachedData) return res.status(200).json({
+        success: true,
+        message: 'Vendors retrieved successfully (cached)',
+        data: cachedData,
+      });
+    } catch (cacheError) {
+      console.error('Redis GET error (getPublicVendors):', cacheError);
+    }
+
     // CRITICAL: If vendorType is not explicitly 'b2b', exclude B2B vendors
     // This ensures B2B vendors only show in B2B app, not in regular user app
     let effectiveVendorType = vendorType;
@@ -108,16 +121,25 @@ export const getPublicVendors = async (req, res, next) => {
     const finalTotal = effectiveVendorType !== 'b2b' ? enrichedVendors.length : result.total;
     const finalTotalPages = Math.ceil(finalTotal / parseInt(limit));
 
+    const responseData = {
+      vendors: enrichedVendors,
+      total: finalTotal,
+      page: result.page,
+      limit: result.limit,
+      totalPages: finalTotalPages,
+    };
+
+    // Cache the result for 10 minutes
+    try {
+      await redisService.set(cacheKey, responseData, 600);
+    } catch (cacheError) {
+      console.error('Redis SET error (getPublicVendors):', cacheError);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Vendors retrieved successfully',
-      data: {
-        vendors: enrichedVendors,
-        total: finalTotal,
-        page: result.page,
-        limit: result.limit,
-        totalPages: finalTotalPages,
-      },
+      data: responseData,
     });
   } catch (error) {
     next(error);
@@ -137,6 +159,24 @@ import redisService from '../../services/redis.service.js';
 export const getPublicVendor = async (req, res, next) => {
   try {
     const { id } = req.params;
+    
+    // Try to get from cache first
+    const cacheKey = `vendor:details:${id}`;
+    try {
+      const cachedVendor = await redisService.get(cacheKey);
+      if (cachedVendor) {
+        // Increment vendor views in Redis even if cached
+        await redisService.incr(`vendor:views:${id}`);
+        return res.status(200).json({
+          success: true,
+          message: 'Vendor retrieved successfully (cached)',
+          data: cachedVendor,
+        });
+      }
+    } catch (cacheError) {
+      console.error('Redis GET error (getPublicVendor):', cacheError);
+    }
+
     const vendor = await getVendorById(id);
 
     if (!vendor || vendor.status !== 'approved' || vendor.isActive === false) {
@@ -196,6 +236,13 @@ export const getPublicVendor = async (req, res, next) => {
       createdAt: vendor.createdAt,
       updatedAt: vendor.updatedAt,
     };
+
+    // Cache the result for 1 hour
+    try {
+      await redisService.set(cacheKey, publicVendor, 3600);
+    } catch (cacheError) {
+      console.error('Redis SET error (getPublicVendor):', cacheError);
+    }
 
     res.status(200).json({
       success: true,

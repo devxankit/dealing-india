@@ -5,9 +5,11 @@ import DataTable from "../../components/DataTable";
 import B2BVendorDetailModal from "./components/B2BVendorDetailModal";
 import { useB2BVendorManagementStore } from "../../store/b2bVendorManagementStore";
 import toast from "react-hot-toast";
+import useDebounce from "../../../../shared/hooks/useDebounce";
 
 const ManageB2BVendors = () => {
     const [searchQuery, setSearchQuery] = useState("");
+    const debouncedSearchQuery = useDebounce(searchQuery, 500);
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { b2bVendors, isLoading, fetchB2BVendors } = useB2BVendorManagementStore();
@@ -17,7 +19,7 @@ const ManageB2BVendors = () => {
             try {
                 await fetchB2BVendors({
                     status: 'all',
-                    search: searchQuery,
+                    search: debouncedSearchQuery,
                     page: 1,
                     limit: 100,
                 });
@@ -26,13 +28,8 @@ const ManageB2BVendors = () => {
             }
         };
 
-        // Debounce search
-        const timeoutId = setTimeout(() => {
-            loadVendors();
-        }, 500);
-
-        return () => clearTimeout(timeoutId);
-    }, [searchQuery, fetchB2BVendors]);
+        loadVendors();
+    }, [debouncedSearchQuery, fetchB2BVendors]);
 
     const handleViewDetails = (vendor) => {
         setSelectedVendor(vendor);

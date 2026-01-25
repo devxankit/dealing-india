@@ -10,19 +10,21 @@ import AnimatedSelect from "../../components/AnimatedSelect";
 import StatCard from "../../../../shared/components/StatCard";
 import { formatPrice, getPlaceholderImage } from "../../../../shared/utils/helpers";
 
-import { useCategoryStore } from "../../../../shared/store/categoryStore";
-import { useVendorManagementStore } from "../../store/vendorManagementStore";
+import { useCategories, useVendors, useAdminProducts } from "../../../../shared/hooks/useSharedData";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api.js";
+import useDebounce from "../../../../shared/hooks/useDebounce";
 
 const ManageProducts = () => {
   const navigate = useNavigate();
-  const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const { categories, initialize: initCategories } = useCategoryStore();
-  const { vendors, fetchVendors } = useVendorManagementStore();
+  
+  // Use TanStack Query hooks for data fetching and caching
+  const { data: categories = [], isLoading: isCategoriesLoading } = useCategories();
+  const { data: vendors = [], isLoading: isVendorsLoading } = useVendors();
+  const { data: products = [], isLoading: isProductsLoading, refetch: refetchProducts } = useAdminProducts();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedVendor, setSelectedVendor] = useState("all");
@@ -31,52 +33,14 @@ const ManageProducts = () => {
     productId: null,
   });
 
-  useEffect(() => {
-    initCategories();
-    fetchVendors({ limit: 1000 }); // Fetch all vendors for the dropdown
-    loadProducts();
-  }, []);
-
-  // Helper to transform MongoDB _id to id and flatten relationships
-  const transformProduct = (product) => {
-    if (!product) return null;
-    return {
-      ...product,
-      id: product._id || product.id,
-      categoryId: product.categoryId?._id || product.categoryId?.id || product.categoryId,
-      subcategoryId: product.subcategoryId?._id || product.subcategoryId?.id || product.subcategoryId,
-      subSubCategoryId: product.subSubCategoryId?._id || product.subSubCategoryId?.id || product.subSubCategoryId,
-      vendorId: product.vendorId?._id || product.vendorId?.id || product.vendorId,
-    };
-  };
-
-  const loadProducts = async () => {
-    setIsLoading(true);
-    try {
-      const response = await api.get("/admin/products", {
-        params: {
-          limit: 1000, // Get all products for client-side filtering
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        },
-      });
-      const transformedProducts = (response.data.products || []).map(transformProduct);
-      setProducts(transformedProducts);
-    } catch (error) {
-      console.error("Failed to load products:", error);
-      toast.error("Failed to load products");
-      setProducts([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const isLoading = isCategoriesLoading || isVendorsLoading || isProductsLoading;
 
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
-    if (searchQuery) {
+    if (debouncedSearchQuery) {
       filtered = filtered.filter((product) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase())
+        product.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
       );
     }
 
@@ -233,7 +197,7 @@ const ManageProducts = () => {
     try {
       const productId = deleteModal.productId?.toString() || deleteModal.productId;
       await api.delete(`/admin/products/${productId}`);
-      await loadProducts(); // Reload products
+      await refetchProducts(); // Reload products
       setDeleteModal({ isOpen: false, productId: null });
       toast.success("Product deleted successfully");
     } catch (error) {

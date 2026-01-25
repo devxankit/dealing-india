@@ -1,48 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { FiPackage, FiAlertCircle, FiTrendingDown } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import ExportButton from '../../components/ExportButton';
 import { formatPrice, getPlaceholderImage } from '../../../../shared/utils/helpers';
-import api from '../../../../shared/utils/api';
+import { useInventoryReport } from '../../../../shared/hooks/useAdminAnalytics';
 
 const InventoryReport = () => {
-  const [products, setProducts] = useState([]);
-  const [lowStockProducts, setLowStockProducts] = useState([]);
-  const [inventoryStats, setInventoryStats] = useState({
+  const { data: reportResponse, isLoading } = useInventoryReport();
+
+  const products = useMemo(() => reportResponse?.data?.products || reportResponse?.products || [], [reportResponse]);
+  const lowStockProducts = useMemo(() => reportResponse?.data?.lowStockProducts || reportResponse?.lowStockProducts || [], [reportResponse]);
+  const inventoryStats = useMemo(() => reportResponse?.data?.stats || reportResponse?.stats || {
     totalProducts: 0,
     inStock: 0,
     lowStock: 0,
     outOfStock: 0,
     totalValue: 0,
-  });
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    fetchInventoryReport();
-  }, []);
-
-  const fetchInventoryReport = async () => {
-    setIsLoading(true);
-    try {
-      const response = await api.get('/admin/reports/inventory');
-      if (response.success && response.data) {
-        setProducts(response.data.products || []);
-        setLowStockProducts(response.data.lowStockProducts || []);
-        setInventoryStats(response.data.stats || {
-          totalProducts: 0,
-          inStock: 0,
-          lowStock: 0,
-          outOfStock: 0,
-          totalValue: 0,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch inventory report:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [reportResponse]);
 
   const columns = [
     {

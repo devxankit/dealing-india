@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FiPlus, FiSearch, FiTrash2, FiEdit } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { useCategoryStore } from '../../../../shared/store/categoryStore';
+import { useCategories } from '../../../../shared/hooks/useSharedData';
 import CategoryForm from '../../components/Categories/CategoryForm';
 import CategoryTree from '../../components/Categories/CategoryTree';
 import ExportButton from '../../components/ExportButton';
@@ -10,11 +10,8 @@ import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
 
 const ManageCategories = () => {
-  const {
-    categories,
-    initialize,
-    deleteCategory,
-  } = useCategoryStore();
+  const { data: categories = [], isLoading, refetch: initialize } = useCategories();
+  const { deleteCategory } = useCategoryStore(); // Keep for mutations for now
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');

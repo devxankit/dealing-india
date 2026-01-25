@@ -8,6 +8,7 @@ import {
 } from '../controllers/user-controllers/order.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -21,10 +22,10 @@ router.post('/create', asyncHandler(createOrder));
 router.post('/verify-payment', asyncHandler(verifyPayment));
 
 // Get all orders for authenticated user
-router.get('/', asyncHandler(getOrders));
+router.get('/', redisService.cacheMiddleware('user:orders:list', 300), asyncHandler(getOrders));
 
 // Get order by ID
-router.get('/:orderId', asyncHandler(getOrder));
+router.get('/:orderId', redisService.cacheMiddleware('user:orders:details', 300), asyncHandler(getOrder));
 
 // Cancel order
 router.post('/:orderId/cancel', asyncHandler(cancelOrder));

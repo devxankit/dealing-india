@@ -1,4 +1,18 @@
 import notificationService from '../../services/notification.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear notification-related cache
+ */
+const clearNotificationCache = async (userId, role = 'user') => {
+  try {
+    if (userId) {
+      await redisService.clearPattern(`${role}:notifications:*:u:${userId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing notification cache:', error);
+  }
+};
 
 /**
  * Get user notifications
@@ -58,6 +72,9 @@ export const markAsRead = async (req, res, next) => {
 
     const notification = await notificationService.markAsRead(id, userId, 'user', io);
 
+    // Clear cache
+    await clearNotificationCache(userId, 'user');
+
     return res.status(200).json({
       success: true,
       data: notification,
@@ -78,6 +95,9 @@ export const markAllAsRead = async (req, res, next) => {
     const io = req.app.get('io');
 
     const result = await notificationService.markAllAsRead(userId, 'user', io);
+
+    // Clear cache
+    await clearNotificationCache(userId, 'user');
 
     return res.status(200).json({
       success: true,
@@ -101,6 +121,9 @@ export const deleteNotification = async (req, res, next) => {
 
     await notificationService.deleteNotification(id, userId, 'user', io);
 
+    // Clear cache
+    await clearNotificationCache(userId, 'user');
+
     return res.status(200).json({
       success: true,
       message: 'Notification deleted successfully',
@@ -120,6 +143,9 @@ export const deleteAllRead = async (req, res, next) => {
     const io = req.app.get('io');
 
     const result = await notificationService.deleteAllRead(userId, 'user', io);
+
+    // Clear cache
+    await clearNotificationCache(userId, 'user');
 
     return res.status(200).json({
       success: true,

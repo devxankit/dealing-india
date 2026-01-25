@@ -2,6 +2,7 @@ import express from 'express';
 import ChatController from '../controllers/user-controllers/chat.controller.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import { uploadChatFile } from '../utils/upload.util.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -10,8 +11,8 @@ router.use(authenticate);
 router.use(authorize('user'));
 
 router.post('/conversations', ChatController.createOrGetConversation);
-router.get('/conversations', ChatController.getConversations);
-router.get('/conversations/:id/messages', ChatController.getMessages);
+router.get('/conversations', redisService.cacheMiddleware('user:chat:conversations', 120), ChatController.getConversations);
+router.get('/conversations/:id/messages', redisService.cacheMiddleware('user:chat:messages', 60), ChatController.getMessages);
 router.post('/messages', ChatController.sendMessage);
 router.put('/messages/:id/read', ChatController.markMessageAsRead);
 router.put('/conversations/:id/read-all', ChatController.markAllAsRead);
@@ -77,6 +78,6 @@ router.post('/upload', (req, res, next) => {
         }
     });
 });
-router.get('/inquiries/check/:productId', ChatController.checkInquiryForProduct);
+router.get('/inquiries/check/:productId', redisService.cacheMiddleware('user:chat:inquiry', 300), ChatController.checkInquiryForProduct);
 
 export default router;

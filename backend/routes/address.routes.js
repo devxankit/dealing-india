@@ -9,6 +9,7 @@ import {
 } from '../controllers/user-controllers/address.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 const router = express.Router();
 
@@ -16,13 +17,13 @@ const router = express.Router();
 router.use(authenticate);
 
 // Get all addresses
-router.get('/', asyncHandler(getAddresses));
+router.get('/', redisService.cacheMiddleware('user:addresses:list', 600), asyncHandler(getAddresses));
 
 // Create new address
 router.post('/', asyncHandler(createAddressController));
 
 // Get address by ID
-router.get('/:id', asyncHandler(getAddress));
+router.get('/:id', redisService.cacheMiddleware('user:addresses:details', 600), asyncHandler(getAddress));
 
 // Update address
 router.put('/:id', asyncHandler(updateAddressController));

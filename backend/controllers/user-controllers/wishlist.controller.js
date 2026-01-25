@@ -5,6 +5,20 @@ import {
   clearWishlist,
   isInWishlist,
 } from '../../services/wishlist.service.js';
+import redisService from '../../services/redis.service.js';
+
+/**
+ * Helper to clear wishlist-related cache
+ */
+const clearWishlistCache = async (userId) => {
+  try {
+    if (userId) {
+      await redisService.clearPattern(`user:wishlist:*:u:${userId}*`);
+    }
+  } catch (error) {
+    console.error('Error clearing wishlist cache:', error);
+  }
+};
 
 /**
  * Get user's wishlist
@@ -57,6 +71,9 @@ export const addToWishlistController = async (req, res, next) => {
 
     const wishlist = await addToWishlist(userId, productId);
 
+    // Clear cache
+    await clearWishlistCache(userId);
+
     res.status(200).json({
       success: true,
       message: 'Product added to wishlist',
@@ -97,6 +114,9 @@ export const removeFromWishlistController = async (req, res, next) => {
 
     const wishlist = await removeFromWishlist(userId, productId);
 
+    // Clear cache
+    await clearWishlistCache(userId);
+
     res.status(200).json({
       success: true,
       message: 'Product removed from wishlist',
@@ -120,6 +140,9 @@ export const clearWishlistController = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const wishlist = await clearWishlist(userId);
+
+    // Clear cache
+    await clearWishlistCache(userId);
 
     res.status(200).json({
       success: true,
