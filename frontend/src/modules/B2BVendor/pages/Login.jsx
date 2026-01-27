@@ -80,71 +80,42 @@ const B2BVendorLogin = () => {
 
         setLocalLoading(true);
         try {
-            const { login } = useB2BVendorAuthStore.getState();
-            console.log('[B2B Vendor Login Page] Calling login function');
-            const result = await login(formData.email, formData.password);
-            console.log('[B2B Vendor Login Page] Login result:', result);
-
-            if (result && result.success) {
-                // Wait for Zustand persist to save to localStorage (persist middleware is async)
-                // Try multiple times to ensure state is persisted
-                let retries = 0;
-                const maxRetries = 10;
-                let stateReady = false;
-                
-                while (retries < maxRetries && !stateReady) {
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    
-                    const { isAuthenticated, token } = useB2BVendorAuthStore.getState();
-                    const storedToken = localStorage.getItem('b2b-vendor-token');
-                    
-                    stateReady = isAuthenticated && storedToken && token;
-                    
-                    if (stateReady) {
-                        console.log('[B2B Vendor Login Page] State confirmed ready after', retries + 1, 'retries');
-                        break;
-                    }
-                    
-                    retries++;
-                }
-                
-                // Final check
-                const { isAuthenticated, token } = useB2BVendorAuthStore.getState();
-                const storedToken = localStorage.getItem('b2b-vendor-token');
-                console.log('[B2B Vendor Login Page] Final state check - isAuthenticated:', isAuthenticated, 'token:', storedToken ? 'exists' : 'missing', 'state token:', token ? 'exists' : 'missing');
-                
-                if (isAuthenticated && storedToken && token) {
-                    toast.success('B2B Vendor Login successful!');
-                    // Small delay before navigation to ensure everything is settled
-                    await new Promise(resolve => setTimeout(resolve, 50));
-                    const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
-                    navigate(from, { replace: true });
-                } else {
-                    console.error('[B2B Vendor Login Page] State not properly updated after login', {
-                        isAuthenticated,
-                        hasStoredToken: !!storedToken,
-                        hasStateToken: !!token
-                    });
-                    toast.error('Login successful but state not updated. Please refresh the page.');
-                }
+            const result = await useB2BVendorAuthStore.getState().login(formData.email, formData.password);
+            
+            if (result.success) {
+                toast.success('Login successful! Welcome to your dashboard.', {
+                    id: 'login-success'
+                });
+                const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
+                navigate(from, { replace: true });
             } else {
                 const errorMsg = result?.message || 'Invalid B2B vendor credentials.';
                 const errorCode = result?.code;
                 
-                // If account is pending approval
+                // If account is pending approval or inactive
                 if (errorMsg.toLowerCase().includes('pending')) {
                     toast.error('Account Pending: Your registration is under review. Please wait for admin approval.', {
-                        duration: 6000,
-                        icon: '⏳'
+                        duration: 8000,
+                        icon: '⏳',
+                        id: 'auth-pending'
+                    });
+                } else if (errorMsg.toLowerCase().includes('not approved') || errorMsg.toLowerCase().includes('inactive')) {
+                    toast.error(errorMsg, {
+                        duration: 8000,
+                        icon: '🚫',
+                        id: 'auth-error'
                     });
                 } else if (errorCode === 'SUBSCRIPTION_EXPIRED') {
                     console.log('[B2B Vendor Login Page] Subscription expired, showing plans');
                     setShowPlans(true);
                     loadPlans();
-                    toast.error('Your subscription has expired. Please renew to continue.');
+                    toast.error('Your subscription has expired. Please renew to continue.', {
+                        duration: 8000,
+                        id: 'subscription-expired'
+                    });
                 } else {
                     console.error('[B2B Vendor Login Page] Login failed:', errorMsg);
-                    toast.error(errorMsg);
+                    toast.error(errorMsg, { id: 'login-error' });
                 }
             }
         } catch (error) {

@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { FiX, FiUser, FiBriefcase, FiMapPin, FiFileText, FiDownload, FiEye, FiPhone, FiMail, FiStar, FiCalendar, FiCreditCard, FiCheckCircle } from "react-icons/fi";
 import toast from "react-hot-toast";
+import api from "../../../../../shared/utils/api";
 
 const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) => {
     if (!vendor) return null;
@@ -30,17 +31,36 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
     const displayedDocUrls = [panCardDoc?.url, businessLicenseDoc?.url].filter(Boolean);
     const otherDocs = documentsArray.filter(doc => !displayedDocUrls.includes(doc.url));
 
-    const handleDownload = async (url, filename, docType = 'application/pdf') => {
+    const handleDownload = async (url, filename, docType = 'application/pdf', publicId = null) => {
         if (!url) {
             console.error('No URL provided for download');
             toast.error('Document URL not found');
             return;
         }
 
-        const toastId = toast.loading('Preparing download...');
+        const toastId = toast.loading('Starting download...');
 
         try {
-            // For base64 data URLs
+            // Check if it's a Cloudinary URL
+            if (url.includes('cloudinary.com')) {
+                // User requirement: Public raw Cloudinary URLs must be used as-is.
+                // User requirement: Filename should be set using the download attribute.
+
+                // Use anchor tag with download attribute
+                const link = document.createElement("a");
+                link.href = url;
+                link.setAttribute('download', filename || 'document');
+                link.target = "_blank"; // Important for cross-origin to try and trigger download or open in new tab if blocked
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                toast.success('Document opened', { id: toastId });
+                return;
+            }
+
+            // Fallback for non-Cloudinary or if API fails silently
+            // For base64, keep existing logic
             if (url.startsWith('data:')) {
                 const link = document.createElement("a");
                 link.href = url;
@@ -52,59 +72,24 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                 return;
             }
 
-            // For Cloudinary URLs, ensure fl_attachment is present for download
-            let downloadUrl = url;
-            if (downloadUrl.includes('cloudinary.com')) {
-                if (!downloadUrl.includes('fl_attachment')) {
-                    downloadUrl = downloadUrl.replace('/upload/', '/upload/fl_attachment/');
-                }
-            }
-
-            // Fetch the file as blob
-            const response = await fetch(downloadUrl);
-            if (!response.ok) {
-                throw new Error('Failed to fetch document');
-            }
-
-            const blob = await response.blob();
-
-            // Ensure correct MIME type for PDF
-            const isPDF = docType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf');
-            const finalBlob = isPDF ? new Blob([blob], { type: 'application/pdf' }) : blob;
-
-            // Create blob URL and download
-            const blobUrl = window.URL.createObjectURL(finalBlob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-
-            // Ensure correct filename with extension
-            let fileName = filename || 'document';
-            const ext = isPDF ? 'pdf' : (docType?.split('/')[1] || 'pdf');
-
-            // Clean filename and add extension if missing
-            const cleanName = fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            const finalFileName = cleanName.endsWith(`.${ext}`) ? cleanName : `${cleanName}.${ext}`;
-
-            a.download = finalFileName;
-            document.body.appendChild(a);
-            a.click();
-
-            // Cleanup
-            setTimeout(() => {
-                window.URL.revokeObjectURL(blobUrl);
-                document.body.removeChild(a);
-            }, 100);
-
+            // For all other URLs, use the anchor tag with download attribute
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute('download', filename || 'document');
+            link.target = "_blank";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
             toast.success('Download started', { id: toastId });
+
         } catch (err) {
             console.error('Download error:', err);
-            toast.error('Download failed. Opening in new tab.', { id: toastId });
-            // Fallback: open in new tab
-            window.open(url, '_blank');
+            window.open(url, '_blank'); // Fallback to opening in new tab if download fails
+            toast.error('Download might act differently. Opening in new tab.', { id: toastId });
         }
     };
 
-    const handleView = async (url, docType = 'application/pdf') => {
+    const handleView = async (url, docType = 'application/pdf', publicId = null) => {
         if (!url) {
             console.error('No URL provided for view');
             toast.error('Document URL not found');
@@ -115,6 +100,14 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
         const toastId = toast.loading(`Opening ${isPDF ? 'PDF' : 'document'}...`);
 
         try {
+            // Check if it's a Cloudinary URL
+            if (url.includes('cloudinary.com')) {
+                // User requirement: Public raw Cloudinary URLs must be used as-is.
+                window.open(url, '_blank');
+                toast.success('Opening in new tab...', { id: toastId });
+                return;
+            }
+
             // For base64 data URLs
             if (url.startsWith('data:')) {
                 const newWindow = window.open();
@@ -125,19 +118,9 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                 return;
             }
 
-            // For Cloudinary URLs
-            let viewUrl = url;
-            if (viewUrl.includes('cloudinary.com')) {
-                viewUrl = viewUrl.replace('/upload/fl_attachment/', '/upload/');
-                // Force PDF view inline
-                if (isPDF) {
-                    // Try to ensure it's not set to 'download' if possible, though Cloudinary defaults are usually view
-                }
-            }
-
-            // Simple Window Open is often most reliable for PDFs in various browsers
-            window.open(viewUrl, '_blank');
-            toast.dismiss(toastId);
+            // Fallback
+            window.open(url, '_blank');
+            toast.success('Opening in new tab...', { id: toastId });
 
         } catch (err) {
             console.error('View error:', err);
@@ -339,14 +322,14 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <button
-                                                            onClick={() => handleView(panCardDoc.url, panCardDoc.type)}
+                                                            onClick={() => handleView(panCardDoc.url, panCardDoc.type, panCardDoc.publicId)}
                                                             className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
                                                             title="View Document"
                                                         >
                                                             <FiEye size={16} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDownload(panCardDoc.url, (panCardDoc.name || "PAN_CARD") + ".pdf", panCardDoc.type)}
+                                                            onClick={() => handleDownload(panCardDoc.url, (panCardDoc.name || "PAN_CARD") + ".pdf", panCardDoc.type, panCardDoc.publicId)}
                                                             className="p-2.5 bg-slate-50 text-slate-400 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all active:scale-90"
                                                             title="Download Document"
                                                         >
@@ -370,14 +353,14 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <button
-                                                            onClick={() => handleView(businessLicenseDoc.url, businessLicenseDoc.type)}
+                                                            onClick={() => handleView(businessLicenseDoc.url, businessLicenseDoc.type, businessLicenseDoc.publicId)}
                                                             className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
                                                             title="View Document"
                                                         >
                                                             <FiEye size={16} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDownload(businessLicenseDoc.url, (businessLicenseDoc.name || "LICENSE") + ".pdf", businessLicenseDoc.type)}
+                                                            onClick={() => handleDownload(businessLicenseDoc.url, (businessLicenseDoc.name || "LICENSE") + ".pdf", businessLicenseDoc.type, businessLicenseDoc.publicId)}
                                                             className="p-2.5 bg-slate-50 text-slate-400 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all active:scale-90"
                                                             title="Download Document"
                                                         >
@@ -401,14 +384,14 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <button
-                                                            onClick={() => handleView(doc.url, doc.type)}
+                                                            onClick={() => handleView(doc.url, doc.type, doc.publicId)}
                                                             className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
                                                             title="View Document"
                                                         >
                                                             <FiEye size={16} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDownload(doc.url, (doc.name || `doc_${idx}`) + ".pdf", doc.type)}
+                                                            onClick={() => handleDownload(doc.url, (doc.name || `doc_${idx}`) + ".pdf", doc.type, doc.publicId)}
                                                             className="p-2.5 bg-slate-50 text-slate-400 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all active:scale-90"
                                                             title="Download Document"
                                                         >
@@ -446,16 +429,30 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                 >
                                     Cancel
                                 </button>
-                                {(vendorData.status || vendor.status) === 'Pending' && (
+                                {String(vendorData.status || vendor.status).toLowerCase() === 'pending' && (
                                     <>
                                         <button
-                                            onClick={onReject}
+                                            onClick={() => {
+                                                console.log("Rejecting vendor...");
+                                                if (onReject) {
+                                                    onReject();
+                                                } else {
+                                                    toast.error("Reject handler not provided");
+                                                }
+                                            }}
                                             className="px-8 py-3.5 bg-red-50 text-red-600 border border-red-100 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-red-600 hover:text-white transition-all shadow-sm active:scale-95"
                                         >
                                             Reject
                                         </button>
                                         <button
-                                            onClick={onApprove}
+                                            onClick={() => {
+                                                console.log("Approving vendor...");
+                                                if (onApprove) {
+                                                    onApprove();
+                                                } else {
+                                                    toast.error("Approve handler not provided");
+                                                }
+                                            }}
                                             className="px-10 py-3.5 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-primary-700 transition-all shadow-xl shadow-primary-200 active:scale-95"
                                         >
                                             Approve Access

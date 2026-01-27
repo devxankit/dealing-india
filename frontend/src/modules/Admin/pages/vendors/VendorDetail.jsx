@@ -701,31 +701,33 @@ const VendorDetail = () => {
                                   const toastId = toast.loading(`Opening ${isPDF ? 'PDF' : 'document'}...`);
                                   
                                   try {
-                                    // For Cloudinary, we can force inline view by removing fl_attachment and adding fl_inline
-                                    let viewUrl = doc.url.replace('/upload/fl_attachment/', '/upload/');
-                                    if (isPDF && !viewUrl.includes('fl_inline')) {
-                                      viewUrl = viewUrl.replace('/upload/', '/upload/fl_inline/');
+                                    // Clean up Cloudinary URL
+                                    let viewUrl = doc.url;
+                                    
+                                    if (viewUrl.includes('cloudinary.com') && viewUrl.includes('/upload/')) {
+                                      const parts = viewUrl.split('/upload/');
+                                      const baseUrl = parts[0] + '/upload/';
+                                      const path = parts[1];
+                                      
+                                      // Find the first occurrence of version (v + digits)
+                                      const versionMatch = path.match(/(^|\/)v\d+/);
+                                      
+                                      if (versionMatch) {
+                                          const versionIndex = versionMatch.index + (versionMatch[0].startsWith('/') ? 1 : 0);
+                                          const cleanPath = path.substring(versionIndex);
+                                          viewUrl = baseUrl + cleanPath;
+                                      }
+                                      
+                                      // If it's a PDF but doesn't end with .pdf, add it for better browser handling
+                                      // IMPORTANT: Only add .pdf if it's NOT a 'raw' resource, as raw resources 404 with extra extensions
+                                      if (isPDF && !viewUrl.toLowerCase().endsWith('.pdf') && !viewUrl.includes('/raw/upload/')) {
+                                          viewUrl = viewUrl + '.pdf';
+                                      }
                                     }
 
-                                    // For PDFs, we try to fetch and create a blob URL to ensure it opens in browser
-                                    if (isPDF) {
-                                      try {
-                                        const response = await fetch(viewUrl);
-                                        const blob = await response.blob();
-                                        const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-                                        const url = window.URL.createObjectURL(pdfBlob);
-                                        window.open(url, '_blank');
-                                        toast.success('PDF opened in new tab', { id: toastId });
-                                      } catch (fetchErr) {
-                                        console.warn('Fetch failed, falling back to direct link:', fetchErr);
-                                        window.open(viewUrl, '_blank');
-                                        toast.success('Opening document...', { id: toastId });
-                                      }
-                                    } else {
-                                      // For images, direct open with fl_inline is usually fine
-                                      window.open(viewUrl, '_blank');
-                                      toast.success('Image opened in new tab', { id: toastId });
-                                    }
+                                    // Direct window open is more reliable than fetch for 401/CORS issues
+                                    window.open(viewUrl, '_blank');
+                                    toast.success('Document opened in new tab', { id: toastId });
                                   } catch (err) {
                                     console.error('View error:', err);
                                     window.open(doc.url, '_blank');
@@ -745,45 +747,33 @@ const VendorDetail = () => {
                                 e.preventDefault();
                                 const toastId = toast.loading('Preparing download...');
                                 
-                                // For download, we WANT fl_attachment
+                                // For download, use clean URL
                                 let downloadUrl = doc.url;
-                                if (!downloadUrl.includes('fl_attachment')) {
-                                  downloadUrl = downloadUrl.replace('/upload/', '/upload/fl_attachment/');
+                                
+                                if (downloadUrl.includes('cloudinary.com') && downloadUrl.includes('/upload/')) {
+                                  const parts = downloadUrl.split('/upload/');
+                                  const baseUrl = parts[0] + '/upload/';
+                                  const path = parts[1];
+                                  
+                                  // Find the first occurrence of version (v + digits)
+                                  const versionMatch = path.match(/(^|\/)v\d+/);
+                                  
+                                  if (versionMatch) {
+                                      const versionIndex = versionMatch.index + (versionMatch[0].startsWith('/') ? 1 : 0);
+                                      const cleanPath = path.substring(versionIndex);
+                                      downloadUrl = baseUrl + cleanPath;
+                                  }
+                                  
+                                  // If it's a PDF but doesn't end with .pdf, add it for better browser handling
+                                  // IMPORTANT: Only add .pdf if it's NOT a 'raw' resource, as raw resources 404 with extra extensions
+                                  if (isPDF && !downloadUrl.toLowerCase().endsWith('.pdf') && !downloadUrl.includes('/raw/upload/')) {
+                                      downloadUrl = downloadUrl + '.pdf';
+                                  }
                                 }
 
-                                fetch(downloadUrl)
-                                  .then(res => res.blob())
-                                  .then(blob => {
-                                    // Ensure correct MIME type for PDF
-                                    const finalBlob = isPDF ? new Blob([blob], { type: 'application/pdf' }) : blob;
-                                    const url = window.URL.createObjectURL(finalBlob);
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    
-                                    // Ensure correct filename with extension
-                                    let fileName = doc.name || 'document';
-                                    const ext = isPDF ? 'pdf' : (doc.type?.split('/')[1] || 'jpg');
-                                    
-                                    // Clean filename (remove spaces, special chars) and add extension if missing
-                                    const cleanName = fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                                    const finalFileName = cleanName.endsWith(`.${ext}`) ? cleanName : `${cleanName}.${ext}`;
-                                    
-                                    a.download = finalFileName;
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    
-                                    // Cleanup
-                                    setTimeout(() => {
-                                      window.URL.revokeObjectURL(url);
-                                      document.body.removeChild(a);
-                                    }, 100);
-                                    toast.success('Download started', { id: toastId });
-                                  })
-                                  .catch(err => {
-                                    console.error('Download error:', err);
-                                    toast.error('Download failed. Opening in new tab.', { id: toastId });
-                                    window.open(downloadUrl, '_blank');
-                                  });
+                                // Direct window open is more reliable for Cloudinary downloads
+                                window.open(downloadUrl, '_blank');
+                                toast.success('Download started', { id: toastId });
                               }}
                               className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
                               title="Download"

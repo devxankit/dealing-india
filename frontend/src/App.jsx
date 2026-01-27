@@ -4,9 +4,9 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import React, { lazy, Suspense } from 'react';
-import { Toaster, useToasterStore, toast } from "react-hot-toast";
-import { useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const SupportTickets = lazyWithRetry(() => import("./shared/components/Support/SupportTickets"));
@@ -245,16 +245,20 @@ const SellerTypeSelection = lazyWithRetry(() => import("./modules/B2BUserApp/pag
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
-  const { toasts } = useToasterStore();
+  // Test System Toast
+  useEffect(() => {
+    // toast.success("System Connected");
+  }, []);
 
   // Initialize time warp testing cheat
   useTimeWarpCheat();
 
+  /*
   useEffect(() => {
     // Only apply toast limiting for non-B2B routes or general toasts
     // This allows multiple important toasts to stack if needed, or prevents aggressive clearing
     const isB2BRoute = window.location.pathname.includes('b2b-vendor');
-    
+ 
     if (!isB2BRoute) {
       toasts
         .filter((t) => t.visible) // Only consider visible toasts
@@ -262,6 +266,7 @@ const AppRoutes = () => {
         .forEach((t) => toast.dismiss(t.id)); // Dismiss the extra ones
     }
   }, [toasts]);
+  */
 
   return (
     <>
@@ -927,46 +932,54 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-    <ErrorBoundary>
-      <Router
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}>
-        <ScrollToTop />
-        <Suspense fallback={
-          <div className="flex items-center justify-center min-h-screen bg-[#121212]">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        }>
-          <AppRoutes />
-        </Suspense>
-        <CartDrawer />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: "#212121",
-              color: "#fff",
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: "#388E3C",
-                secondary: "#fff",
+      <ErrorBoundary>
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}>
+          <ScrollToTop />
+          <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-[#121212]">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          }>
+            <AppRoutes />
+          </Suspense>
+          <CartDrawer />
+          <Toaster
+            position="top-center"
+            reverseOrder={false}
+            gutter={8}
+            containerStyle={{
+              zIndex: 99999
+            }}
+            toastOptions={{
+              duration: 5000,
+              style: {
+                background: "#212121",
+                color: "#fff",
+                zIndex: 99999,
+                fontSize: '14px',
+                maxWidth: '90%',
               },
-            },
-            error: {
-              duration: 4000,
-              iconTheme: {
-                primary: "#FF6161",
-                secondary: "#fff",
+              success: {
+                duration: 6000,
+                iconTheme: {
+                  primary: "#4ade80",
+                  secondary: "#fff",
+                },
               },
-            },
-          }}
-        />
-      </Router>
+              error: {
+                duration: 7000,
+                iconTheme: {
+                  primary: "#f87171",
+                  secondary: "#fff",
+                },
+              },
+            }}
+          />
+        </Router>
       </ErrorBoundary>
     </QueryClientProvider>
   );

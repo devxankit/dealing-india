@@ -90,13 +90,22 @@ const B2BVendorPendingApprovals = () => {
     }, [searchQuery]);
 
     const handleApprove = async (id) => {
+        console.log("Handle Approve triggered for ID:", id);
+        if (!id) {
+            toast.error("Error: Vendor ID is missing");
+            return;
+        }
+
+        const toastId = toast.loading("Approving vendor...");
         try {
+            console.log(`Sending PUT request to /admin/vendors/${id}/status`);
             const response = await api.put(`/admin/vendors/${id}/status`, {
                 status: 'approved'
             });
+            console.log("Approve response:", response);
 
             if (response.success) {
-                toast.success("B2B Vendor approved successfully!");
+                toast.success("B2B Vendor approved successfully!", { id: toastId });
                 // Remove approved vendor from list
                 setApprovals(prev => prev.filter(v => v._id !== id));
             } else {
@@ -104,7 +113,7 @@ const B2BVendorPendingApprovals = () => {
             }
         } catch (error) {
             console.error('Error approving vendor:', error);
-            toast.error(error.response?.data?.message || error.message || 'Failed to approve vendor');
+            toast.error(error.response?.data?.message || error.message || 'Failed to approve vendor', { id: toastId });
         }
     };
 

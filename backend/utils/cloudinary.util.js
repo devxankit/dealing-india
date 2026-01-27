@@ -22,7 +22,7 @@ export const uploadToCloudinary = async (buffer, folderName, options = {}) => {
     return new Promise((resolve, reject) => {
       // Ensure folder name is provided and clean
       const folder = folderName || 'general';
-      
+
       const uploadOptions = {
         folder: folder,
         resource_type: 'auto',
@@ -42,7 +42,7 @@ export const uploadToCloudinary = async (buffer, folderName, options = {}) => {
             console.error('[Cloudinary Result Error]: No secure_url in result');
             return reject(new Error('Cloudinary Upload Failed: No URL returned from server'));
           }
-          
+
           // Return only what is needed, focusing on secure_url
           resolve({
             secure_url: result.secure_url,
@@ -83,19 +83,47 @@ export const uploadBase64ToCloudinary = async (base64String, folderName, options
     }
 
     // Basic base64 validation
-    if (typeof base64String !== 'string' || !base64String.startsWith('data:image')) {
+    if (typeof base64String !== 'string') {
+      throw new Error('Invalid base64 data. Must be a string.');
+    }
+
+    const isImage = base64String.startsWith('data:image');
+    const isPDF = base64String.startsWith('data:application/pdf');
+    // Add other non-image types if needed (e.g. docs)
+    const isDoc = base64String.startsWith('data:application/msword') ||
+      base64String.startsWith('data:application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+    if (!isImage && !isPDF && !isDoc) {
       // If it's already a URL, return it as is but this shouldn't happen in a strict upload flow
       if (base64String.startsWith('http')) {
         return { secure_url: base64String, public_id: null };
       }
-      throw new Error('Invalid image format. Must be a valid base64 data URL.');
+      // If it doesn't have a known prefix but looks like base64, we'll try to upload it anyway
+      // but log a warning
+      if (!base64String.includes(';base64,')) {
+        throw new Error('Invalid file format. Must be a valid base64 data URL (Image or PDF).');
+      }
+    }
+
+    // Determine resource_type based on mime type
+    // Requirement: PDFs must be uploaded as resource_type: "image" to allow inline viewing.
+    // Cloudinary 'auto' usually correctly identifies PDFs as image-like resources.
+    // We explicitly avoid 'raw' for PDFs now.
+
+    let resourceType = 'auto'; // Default
+
+    // Explicitly set image for PDF to ensure it's viewable
+    if (isPDF) {
+      resourceType = 'image';
+    }
+    // Doc/Docx still needs to be raw usually as they can't be rendered inline by Cloudinary unless converted
+    else if (isDoc) {
+      resourceType = 'raw';
     }
 
     const uploadOptions = {
       folder: folderName || 'general',
-      resource_type: 'image',
-      fetch_format: 'auto',
-      quality: 'auto',
+      resource_type: resourceType,
       ...options,
     };
 
@@ -108,6 +136,7 @@ export const uploadBase64ToCloudinary = async (base64String, folderName, options
     return {
       secure_url: result.secure_url,
       public_id: result.public_id,
+      resource_type: result.resource_type || resourceType // Return the actual resource type used
     };
   } catch (error) {
     console.error('[Cloudinary Base64 Upload Error]:', error);
@@ -211,5 +240,56 @@ export const isBase64DataUrl = (str) => {
     return false;
   }
   return str.startsWith('data:image/') || str.startsWith('data:application/');
+};
+
+/**
+ * Create a signed URL for a Cloudinary resource
+ * @param {String} publicId - Public ID of the resource
+ * @param {Object} options - URL options
+ * @returns {String} Signed URL
+ */
+export const getSignedUrl = (publicId, options = {}) => {
+  try {
+    if (!publicId) return null;
+
+    // Separate URL generation options
+    // Default to 'image' if not specified, BUT check if we can infer 'raw' from extension in publicId if present?
+    // User wants "raw" used for PDFs.
+
+    const urlOptions = {
+      sign_url: true, // Generate signed URL
+      secure: true,   // Use HTTPS
+      resource_type: 'image', // Default to image
+      ...options
+    };
+
+    // Cloudinary SDK handles flags as an array or string
+    // If we want forced download (attachment)
+    if (options.download) {
+      // Append 'attachment' to existing flags or create new
+      const currentFlags = urlOptions.flags ? (Array.isArray(urlOptions.flags) ? urlOptions.flags : [urlOptions.flags]) : [];
+
+      // remove any existing attachment flags to avoid duplicates/conflicts
+      const filteredFlags = currentFlags.filter(f => !f.toString().startsWith('attachment'));
+
+      if (options.attachment_filename) {
+        filteredFlags.push(`attachment:${options.attachment_filename}`);
+      } else {
+        filteredFlags.push('attachment');
+      }
+
+      urlOptions.flags = filteredFlags;
+      delete urlOptions.download;
+      delete urlOptions.attachment_filename;
+    }
+
+    // Extract just the public ID if a full URL was passed by mistake
+    const extractedId = extractPublicIdFromUrl(publicId) || publicId;
+
+    return cloudinary.url(extractedId, urlOptions);
+  } catch (error) {
+    console.error('Error generating signed URL:', error);
+    return null;
+  }
 };
 

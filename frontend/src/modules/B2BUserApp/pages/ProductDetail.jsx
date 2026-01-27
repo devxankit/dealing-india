@@ -175,7 +175,7 @@ const B2BProductDetail = () => {
                 if (productData.minimumOrderQuantity && !productData.moq) {
                     productData.moq = productData.minimumOrderQuantity;
                 }
-                
+
                 console.log('Product Data:', productData);
                 console.log('Product Images:', productData.images, 'Product Image:', productData.image);
                 setProduct(productData);
@@ -447,14 +447,14 @@ const B2BProductDetail = () => {
                                     <span className="text-sm font-bold text-gray-600">Select Quantity</span>
                                     <div className="flex items-center gap-4">
                                         <button
-                                            onClick={() => setQuantity(Math.max(product.moq || 1, quantity - (product.moq >= 50 ? 50 : 1)))}
+                                            onClick={() => setQuantity(Math.max(product.moq || 1, quantity - 1))}
                                             className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
                                         >
                                             <FiMinus />
                                         </button>
                                         <span className="w-16 text-center font-black text-lg text-gray-800">{quantity}</span>
                                         <button
-                                            onClick={() => setQuantity(quantity + (product.moq >= 50 ? 50 : 1))}
+                                            onClick={() => setQuantity(quantity + 1)}
                                             className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
                                         >
                                             <FiPlus />
@@ -529,7 +529,7 @@ const B2BProductDetail = () => {
                                     <FiMessageSquare className="text-lg" />
                                     Chat
                                 </button>
-                                
+
                                 {product.vendorId?.phone && (
                                     <>
                                         <a

@@ -6,6 +6,7 @@ import B2BVendorDetailModal from "./components/B2BVendorDetailModal";
 import { useB2BVendorManagementStore } from "../../store/b2bVendorManagementStore";
 import toast from "react-hot-toast";
 import useDebounce from "../../../../shared/hooks/useDebounce";
+import api from "../../../../shared/utils/api";
 
 const ManageB2BVendors = () => {
     const [searchQuery, setSearchQuery] = useState("");
@@ -13,6 +14,58 @@ const ManageB2BVendors = () => {
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { b2bVendors, isLoading, fetchB2BVendors, deleteB2BVendor } = useB2BVendorManagementStore();
+
+    const handleApprove = async (id) => {
+        if (!id) return;
+        const toastId = toast.loading("Approving vendor...");
+        try {
+            const response = await api.put(`/admin/vendors/${id}/status`, {
+                status: 'approved'
+            });
+
+            if (response.success) {
+                toast.success("B2B Vendor approved successfully!", { id: toastId });
+                // Refresh list
+                fetchB2BVendors({
+                    status: 'all',
+                    search: debouncedSearchQuery,
+                    page: 1,
+                    limit: 100,
+                });
+            } else {
+                throw new Error(response.message || 'Failed to approve vendor');
+            }
+        } catch (error) {
+            console.error('Error approving vendor:', error);
+            toast.error(error.response?.data?.message || error.message || 'Failed to approve vendor', { id: toastId });
+        }
+    };
+
+    const handleReject = async (id) => {
+        if (!id) return;
+        const toastId = toast.loading("Rejecting vendor...");
+        try {
+            const response = await api.put(`/admin/vendors/${id}/status`, {
+                status: 'rejected'
+            });
+
+            if (response.success) {
+                toast.success("B2B Vendor rejected successfully!", { id: toastId });
+                // Refresh list
+                fetchB2BVendors({
+                    status: 'all',
+                    search: debouncedSearchQuery,
+                    page: 1,
+                    limit: 100,
+                });
+            } else {
+                throw new Error(response.message || 'Failed to reject vendor');
+            }
+        } catch (error) {
+            console.error('Error rejecting vendor:', error);
+            toast.error(error.response?.data?.message || error.message || 'Failed to reject vendor', { id: toastId });
+        }
+    };
 
     useEffect(() => {
         const loadVendors = async () => {
@@ -152,6 +205,14 @@ const ManageB2BVendors = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 vendor={selectedVendor}
+                onApprove={() => {
+                    handleApprove(selectedVendor?._id || selectedVendor?.id);
+                    setIsModalOpen(false);
+                }}
+                onReject={() => {
+                    handleReject(selectedVendor?._id || selectedVendor?.id);
+                    setIsModalOpen(false);
+                }}
             />
         </motion.div>
     );

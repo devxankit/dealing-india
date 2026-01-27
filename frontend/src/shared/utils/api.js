@@ -340,18 +340,23 @@ api.interceptors.response.use(
       url.includes('/auth/vendor/b2b-vendor/register') ||
       url.includes('/auth/vendor/b2b-vendor/login');
 
-    // Show error toast for non-401 errors, but not on auth pages or auth requests (to avoid duplicates)
     const currentPath = window.location.pathname;
+    const isB2BRoute = currentPath.includes('/b2b-vendor');
+    
     const isAuthPage = (currentPath.includes('/login') ||
       currentPath.includes('/register') ||
       currentPath.includes('/forgot-password') ||
       currentPath.includes('/reset-password')) && 
-      !currentPath.includes('/b2b-vendor'); // Allow toasts on B2B auth pages as they might not have local handlers for all errors
+      !isB2BRoute;
 
-    // Don't show toast for auth requests or auth pages - let components handle their own errors
-    // But for B2B, we'll be more permissive if it's a conflict error (like existing phone)
+    // Show toast for non-auth requests or if explicitly requested via status (like 409 Conflict)
+    // For B2B routes, we generally allow the local component to handle toasts, 
+    // but 409 is special as it's often a duplicate field error
     if ((!isAuthRequest && !isAuthPage) || error.response?.status === 409) {
       toast.error(message, { id: 'api-error' });
+    } else if (isB2BRoute && (error.response?.status === 403 || error.response?.status === 401)) {
+      // For B2B, let the local handler deal with 403 (Pending) and 401 (Invalid)
+      // We don't show toast here to avoid duplicates
     }
 
     return Promise.reject(error);

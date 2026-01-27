@@ -14,6 +14,7 @@ import {
   getVendorOrders,
 } from '../../services/vendorAnalytics.service.js';
 import redisService from '../../services/redis.service.js';
+import { getSignedUrl } from '../../utils/cloudinary.util.js';
 
 /**
  * Helper to clear vendor-related cache
@@ -366,6 +367,78 @@ export const removeB2BVendor = async (req, res, next) => {
       message: 'B2B Vendor deleted successfully',
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get signed document URL
+ * POST /api/admin/b2b-vendors/document-url
+ */
+export const getSignedDocumentUrl = async (req, res, next) => {
+  try {
+    const { url, publicId, download = false, format, resourceType, filename } = req.body;
+
+    // We prefer publicId, but if only url is provided, we'll try to use it directly 
+    // or extract publicId if possible, though backend extraction is safer.
+    // For now, let's assume the frontend sends the publicId if available, 
+    // or we might need to rely on the URL if it's a private URL we just want to sign.
+
+    // Actually, getSignedUrl deals with publicId.
+    // If we receive a full URL, we might need to extract the publicId.
+    // Let's rely on the frontend sending the publicId if possible, 
+    // or we try to extract it here if 'url' is sent.
+
+    const idToSign = publicId || (url ? url.split('/').pop().split('.')[0] : null);
+    // Simple split might fail for complex URLs, but let's see. 
+    // Better to use the util's extractor if we had exported it.
+    // But wait, the frontend has the publicId usually.
+
+    if (!url && !publicId) {
+      return res.status(400).json({
+        success: false,
+        message: 'URL or Public ID is required'
+      });
+    }
+
+    // Pass options to getSignedUrl
+    // If it's a PDF, we might want format: 'pdf' explicitly if using public_id
+    const options = {
+      download: download === true,
+      resource_type: resourceType || 'image', // Use provided resource type or default to image
+    };
+
+    // If downloading, try to provide a friendly filename
+    if (download && filename) {
+      // Sanitize filename
+      let safeFilename = filename.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+
+      // Ensure extension exists if we know the format or it's PDF
+      if (resourceType === 'raw' || format === 'pdf' || (url && url.toLowerCase().endsWith('.pdf'))) {
+        if (!safeFilename.toLowerCase().endsWith('.pdf')) {
+          safeFilename += '.pdf';
+        }
+      }
+
+      options.attachment_filename = safeFilename;
+    }
+
+    if (format) {
+      options.format = format;
+    }
+
+    // Use the url/publicId passed
+    const signedUrl = getSignedUrl(publicId || url, options);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        signedUrl
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getSignedDocumentUrl:', error);
     next(error);
   }
 };

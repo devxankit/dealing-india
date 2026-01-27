@@ -146,44 +146,67 @@ const B2BVendorRegister = () => {
                 businessTypes: businessTypes,
                 gstNumber: formData.gstNumber,
                 documents: {
-                    panCard: panCard.data,
-                    businessLicense: businessLicense.data
+                    panCard: {
+                        data: panCard.data,
+                        name: panCard.name,
+                        type: panCard.type
+                    },
+                    businessLicense: {
+                        data: businessLicense.data,
+                        name: businessLicense.name,
+                        type: businessLicense.type
+                    }
                 }
             };
-
-            console.log('📤 Sending registration data to backend:', {
-                email: registrationData.email,
-            });
 
             const response = await api.post('/auth/vendor/b2b-vendor/register', registrationData);
 
             if (response.success) {
+                // Show success toast with longer duration to ensure it's seen
                 toast.success('Registration successful! Your account is now waiting for admin approval.', {
-                    duration: 8000,
-                    icon: '🚀'
+                    duration: 10000,
+                    icon: '🚀',
+                    id: 'registration-success-toast'
                 });
-                
-                // Clear any leftover payment data if any
+
+                // Clear temporary storage
                 localStorage.removeItem('b2b_payment_data');
                 localStorage.removeItem('b2b_paid_plan_id');
                 localStorage.removeItem('b2b_subscription_id');
                 localStorage.removeItem('b2b_payment_email');
                 localStorage.removeItem('b2b_payment_phone');
                 
-                // Navigate to login page
-                navigate('/b2b-vendor/login', {
-                    state: {
-                        message: 'Registration successful! Your account is pending admin approval. You will be able to login once approved.',
-                        email: formData.email
-                    }
-                });
+                // Small delay to let user see the success toast before navigation
+                setTimeout(() => {
+                    navigate('/b2b-vendor/login', {
+                        state: {
+                            message: 'Registration successful! Your account is pending admin approval. You will be able to login once approved.',
+                            email: formData.email,
+                            autoFill: true
+                        }
+                    });
+                }, 1000);
             } else {
-                toast.error(response.message || 'Registration failed');
+                toast.error(response.message || 'Registration failed', { id: 'registration-error-toast' });
             }
         } catch (error) {
             console.error('Registration error:', error);
             const message = error.response?.data?.message || error.message || 'Registration failed';
-            toast.error(message);
+            
+            // Check for specific duplicate field errors
+            if (message.toLowerCase().includes('phone') || message.toLowerCase().includes('mobile')) {
+                toast.error('Mobile number already registered. Please use a different number or login.', {
+                    id: 'duplicate-phone-error',
+                    duration: 6000
+                });
+            } else if (message.toLowerCase().includes('email')) {
+                toast.error('Email already registered. Please use a different email or login.', {
+                    id: 'duplicate-email-error',
+                    duration: 6000
+                });
+            } else {
+                toast.error(message, { id: 'registration-catch-error' });
+            }
         } finally {
             setLocalLoading(false);
         }

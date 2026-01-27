@@ -68,11 +68,31 @@ export const registerB2BVendor = async (vendorData) => {
     let processedDocuments = [];
     if (documents && typeof documents === 'object') {
       const docArray = [];
+
+      // Handle panCard (can be string or object)
       if (documents.panCard) {
-        docArray.push({ name: 'PAN Card', data: documents.panCard, type: 'application/pdf' });
+        if (typeof documents.panCard === 'object' && documents.panCard.data) {
+          docArray.push({
+            name: documents.panCard.name || 'PAN Card',
+            data: documents.panCard.data,
+            type: documents.panCard.type || 'application/pdf'
+          });
+        } else if (typeof documents.panCard === 'string') {
+          docArray.push({ name: 'PAN Card', data: documents.panCard, type: 'application/pdf' });
+        }
       }
+
+      // Handle businessLicense (can be string or object)
       if (documents.businessLicense) {
-        docArray.push({ name: 'Business License', data: documents.businessLicense, type: 'application/pdf' });
+        if (typeof documents.businessLicense === 'object' && documents.businessLicense.data) {
+          docArray.push({
+            name: documents.businessLicense.name || 'Business License',
+            data: documents.businessLicense.data,
+            type: documents.businessLicense.type || 'application/pdf'
+          });
+        } else if (typeof documents.businessLicense === 'string') {
+          docArray.push({ name: 'Business License', data: documents.businessLicense, type: 'application/pdf' });
+        }
       }
 
       for (const doc of docArray) {
@@ -80,23 +100,39 @@ export const registerB2BVendor = async (vendorData) => {
           try {
             const fileType = doc.type || 'application/pdf';
             const isImage = fileType.startsWith('image/');
-            const isPDF = fileType === 'application/pdf';
+            const isPDF = fileType === 'application/pdf' || fileType.includes('pdf');
 
-            if (!isImage && !isPDF) continue;
+            // Skip if not image or PDF
+            if (!isImage && !isPDF) {
+              console.log(`Skipping file ${doc.name} due to unsupported type: ${fileType}`);
+              continue;
+            }
 
-            let resourceType = 'auto';
             let folderName = 'vendor-documents/b2b';
+            let resourceType = 'auto';
+            let uploadOptions = {};
 
             if (isPDF) {
-              resourceType = 'auto';
+              // User requirement: PDFs must be uploaded as 'image' for inline viewing
+              resourceType = 'image';
+              folderName = 'vendor-documents/b2b'; // Keep standard folder
+
+              uploadOptions = {
+                resource_type: 'image',
+                folder: folderName,
+                format: 'pdf', // Explicitly request PDF format
+                // No need to manually force public_id extension; Cloudinary image upload handles this
+              };
             } else if (isImage) {
               resourceType = 'image';
               folderName = 'vendor-documents/b2b/images';
+              uploadOptions = {
+                resource_type: 'image',
+                folder: folderName
+              };
             }
 
-            const result = await uploadBase64ToCloudinary(doc.data, folderName, {
-              resource_type: resourceType,
-            });
+            const result = await uploadBase64ToCloudinary(doc.data, null, uploadOptions);
 
             processedDocuments.push({
               name: doc.name,
@@ -217,7 +253,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       });
     } else {
       console.log('ℹ️ No existing subscription found, will create new one during registration');
-      
+
       // Validate payment data if no existing subscription
       if (!paymentData || !paymentData.razorpayPaymentId) {
         const error = new Error('Payment data is required');
@@ -286,11 +322,31 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     let processedDocuments = [];
     if (documents && typeof documents === 'object') {
       const docArray = [];
+
+      // Handle panCard (can be string or object)
       if (documents.panCard) {
-        docArray.push({ name: 'PAN Card', data: documents.panCard, type: 'application/pdf' });
+        if (typeof documents.panCard === 'object' && documents.panCard.data) {
+          docArray.push({
+            name: documents.panCard.name || 'PAN Card',
+            data: documents.panCard.data,
+            type: documents.panCard.type || 'application/pdf'
+          });
+        } else if (typeof documents.panCard === 'string') {
+          docArray.push({ name: 'PAN Card', data: documents.panCard, type: 'application/pdf' });
+        }
       }
+
+      // Handle businessLicense (can be string or object)
       if (documents.businessLicense) {
-        docArray.push({ name: 'Business License', data: documents.businessLicense, type: 'application/pdf' });
+        if (typeof documents.businessLicense === 'object' && documents.businessLicense.data) {
+          docArray.push({
+            name: documents.businessLicense.name || 'Business License',
+            data: documents.businessLicense.data,
+            type: documents.businessLicense.type || 'application/pdf'
+          });
+        } else if (typeof documents.businessLicense === 'string') {
+          docArray.push({ name: 'Business License', data: documents.businessLicense, type: 'application/pdf' });
+        }
       }
 
       for (const doc of docArray) {
@@ -298,23 +354,38 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
           try {
             const fileType = doc.type || 'application/pdf';
             const isImage = fileType.startsWith('image/');
-            const isPDF = fileType === 'application/pdf';
+            const isPDF = fileType === 'application/pdf' || fileType.includes('pdf');
 
-            if (!isImage && !isPDF) continue;
+            // Skip if not image or PDF
+            if (!isImage && !isPDF) {
+              console.log(`Skipping file ${doc.name} due to unsupported type: ${fileType}`);
+              continue;
+            }
 
-            let resourceType = 'auto';
             let folderName = 'vendor-documents/b2b';
+            let resourceType = 'auto';
+            let uploadOptions = {};
 
             if (isPDF) {
-              resourceType = 'auto';
+              // User requirement: PDFs must be uploaded as 'image' for inline viewing
+              resourceType = 'image';
+              folderName = 'vendor-documents/b2b';
+
+              uploadOptions = {
+                resource_type: 'image',
+                folder: folderName,
+                format: 'pdf',
+              };
             } else if (isImage) {
               resourceType = 'image';
               folderName = 'vendor-documents/b2b/images';
+              uploadOptions = {
+                resource_type: 'image',
+                folder: folderName
+              };
             }
 
-            const result = await uploadBase64ToCloudinary(doc.data, folderName, {
-              resource_type: resourceType,
-            });
+            const result = await uploadBase64ToCloudinary(doc.data, null, uploadOptions);
 
             processedDocuments.push({
               name: doc.name,
@@ -379,18 +450,18 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     // Create subscription
     // Note: For B2B subscriptions, we use planId (not tierId)
     // Validation in model ensures either tierId or planId is present
-    
+
     // Ensure plan._id is a valid ObjectId
     if (!plan._id || !mongoose.Types.ObjectId.isValid(plan._id)) {
       const error = new Error('Invalid plan ID');
       error.statusCode = 400;
       throw error;
     }
-    
-    const planObjectId = plan._id instanceof mongoose.Types.ObjectId 
-      ? plan._id 
+
+    const planObjectId = plan._id instanceof mongoose.Types.ObjectId
+      ? plan._id
       : new mongoose.Types.ObjectId(plan._id);
-    
+
     console.log('Plan details for subscription:', {
       planId: planObjectId.toString(),
       planName: plan.name,
@@ -435,7 +506,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     let subscription;
     try {
       subscription = await VendorSubscription.create([subscriptionData], { session });
-      
+
       console.log('✅ New subscription created successfully:', {
         subscriptionId: subscription[0]._id.toString(),
         vendorId: subscription[0].vendorId.toString(),
@@ -464,7 +535,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       }
       throw subError;
     }
-    
+
     // Verify subscription has payment data
     if (!subscription[0].razorpayPaymentId) {
       console.error('⚠️ WARNING: Payment ID missing in subscription!');
@@ -479,11 +550,11 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
 
     // Commit transaction
     await session.commitTransaction();
-    
+
     // Verify data was saved after commit (outside transaction)
     const finalVendor = await Vendor.findById(createdVendor._id).lean();
     const finalSubscription = await VendorSubscription.findById(subscription[0]._id).lean();
-    
+
     console.log('✅ Transaction committed successfully. Vendor and subscription created:', {
       vendorId: createdVendor._id.toString(),
       vendorEmail: finalVendor?.email,
@@ -532,7 +603,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       stack: error.stack,
       errors: error.errors,
     });
-    
+
     // Re-throw with proper error message
     if (error.statusCode) {
       throw error;
@@ -596,8 +667,8 @@ export const createB2BSubscriptionAfterPayment = async (planId, paymentData, ema
     // Create subscription with email/phone reference (vendorId will be linked later)
     const subscriptionData = {
       vendorId: null, // Will be linked during registration
-      planId: plan._id instanceof mongoose.Types.ObjectId 
-        ? plan._id 
+      planId: plan._id instanceof mongoose.Types.ObjectId
+        ? plan._id
         : new mongoose.Types.ObjectId(plan._id),
       tierId: null,
       pendingVendorEmail: email,
@@ -628,9 +699,9 @@ export const createB2BSubscriptionAfterPayment = async (planId, paymentData, ema
     });
 
     const subscription = await VendorSubscription.create([subscriptionData], { session });
-    
+
     await session.commitTransaction();
-    
+
     console.log('✅ Subscription created successfully after payment:', {
       subscriptionId: subscription[0]._id.toString(),
       email: subscription[0].pendingVendorEmail,
@@ -685,7 +756,7 @@ export const initializeB2BRegistrationPayment = async (planId) => {
       }
 
       const orderCode = `B2B-REG-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      
+
       // Check if razorpayService is available
       if (!razorpayService || typeof razorpayService.createOrder !== 'function') {
         const error = new Error('Payment service is not available');
@@ -710,14 +781,14 @@ export const initializeB2BRegistrationPayment = async (planId) => {
         stack: razorpayError.stack,
         statusCode: razorpayError.statusCode,
       });
-      
+
       // Check if it's a Razorpay configuration error
       if (razorpayError.message && razorpayError.message.includes('Razorpay not configured')) {
         const error = new Error('Payment gateway is not configured. Please contact support.');
         error.statusCode = 500;
         throw error;
       }
-      
+
       const error = new Error(razorpayError.message || 'Failed to initialize payment gateway');
       error.statusCode = razorpayError.statusCode || 500;
       throw error;
