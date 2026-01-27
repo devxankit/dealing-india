@@ -35,8 +35,10 @@ export const useCategoryStore = create(
       // Initialize categories - fetch from API
       initialize: async (forceRefresh = false) => {
         const currentState = get();
-        // Don't set loading if this is a background refresh and we already have categories
-        if (!forceRefresh || currentState.categories.length === 0) {
+        // Only show loader if we have NO categories and it's a force refresh
+        // OR if we explicitly want to show it.
+        // For background refreshes (forceRefresh=false), never show loader.
+        if (forceRefresh && currentState.categories.length === 0) {
           set({ isLoading: true });
         }
         try {

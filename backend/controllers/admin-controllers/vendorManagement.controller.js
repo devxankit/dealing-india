@@ -7,6 +7,7 @@ import {
   getPendingVendors,
   getApprovedVendors,
   getB2BVendors,
+  deleteB2BVendor,
 } from '../../services/vendorManagement.service.js';
 import {
   getVendorAnalytics,
@@ -346,6 +347,25 @@ export const getPendingB2BVendors = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error in getPendingB2BVendors:', error);
+    next(error);
+  }
+};
+
+/**
+ * Delete B2B vendor
+ * DELETE /api/admin/b2b-vendors/:id
+ */
+export const removeB2BVendor = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    await deleteB2BVendor(id);
+
+    res.status(200).json({
+      success: true,
+      message: 'B2B Vendor deleted successfully',
+    });
+  } catch (error) {
     next(error);
   }
 };

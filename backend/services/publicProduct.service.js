@@ -276,7 +276,7 @@ export const getPublicProducts = async (filters = {}) => {
         .populate('subcategoryId', 'name image icon')
         .populate('subSubCategoryId', 'name image icon') // Also populate deepest subcategory
         .populate('brandId', 'name')
-        .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status address')
+        .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status address phone')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))
@@ -336,7 +336,7 @@ export const getPublicProductById = async (productId) => {
       .populate('categoryId', 'name image icon')
       .populate('subcategoryId', 'name image icon')
       .populate('brandId', 'name')
-      .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status address createdAt')
+      .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status address createdAt phone')
       .populate('attributes.attributeId', 'name type')
       .populate('attributes.values', 'value')
       .lean();

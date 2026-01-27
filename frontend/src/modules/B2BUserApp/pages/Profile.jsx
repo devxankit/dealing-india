@@ -56,13 +56,18 @@ const Profile = () => {
                 {/* Profile Header */}
                 <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm mb-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
-                    <div className="relative flex flex-col items-center">
-                        <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-700 rounded-[2rem] flex items-center justify-center mb-4 shadow-xl shadow-primary-100">
+                    <div 
+                        className="relative flex flex-col items-center cursor-pointer group"
+                        onClick={() => navigate('/b2b/personal-profile')}
+                    >
+                        <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-primary-700 rounded-[2rem] flex items-center justify-center mb-4 shadow-xl shadow-primary-100 group-hover:scale-105 transition-transform">
                             <span className="text-3xl font-extrabold text-white">
                                 {user?.name?.charAt(0) || 'U'}
                             </span>
                         </div>
-                        <h2 className="text-2xl font-extrabold text-gray-800">{user?.name || 'User Name'}</h2>
+                        <h2 className="text-2xl font-extrabold text-gray-800 group-hover:text-primary-600 transition-colors">
+                            {user?.name || 'User Name'}
+                        </h2>
                         <p className="text-gray-500 font-medium mb-4">{user?.email || 'user@example.com'}</p>
                         <span className="px-4 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-widest">
                             Verified Buyer

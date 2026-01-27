@@ -233,6 +233,7 @@ const B2BUserDashboard = lazyWithRetry(() => import("./modules/B2BUserApp/pages/
 const B2BProductCatalog = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ProductCatalog"));
 const B2BInquiries = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Inquiries"));
 const B2BUserProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Profile"));
+const B2BPersonalProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/PersonalProfile"));
 const B2BCompanyProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/CompanyProfile"));
 const B2BNotifications = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Notifications"));
 
@@ -250,10 +251,16 @@ const AppRoutes = () => {
   useTimeWarpCheat();
 
   useEffect(() => {
-    toasts
-      .filter((t) => t.visible) // Only consider visible toasts
-      .filter((_, i) => i >= 1) // Limit to 1 toast
-      .forEach((t) => toast.dismiss(t.id)); // Dismiss the extra ones
+    // Only apply toast limiting for non-B2B routes or general toasts
+    // This allows multiple important toasts to stack if needed, or prevents aggressive clearing
+    const isB2BRoute = window.location.pathname.includes('b2b-vendor');
+    
+    if (!isB2BRoute) {
+      toasts
+        .filter((t) => t.visible) // Only consider visible toasts
+        .filter((_, i) => i >= 1) // Limit to 1 toast
+        .forEach((t) => toast.dismiss(t.id)); // Dismiss the extra ones
+    }
   }, [toasts]);
 
   return (
@@ -433,6 +440,7 @@ const AppRoutes = () => {
         <Route path="/b2b/catalog" element={<ProtectedRoute><B2BProductCatalog /></ProtectedRoute>} />
         <Route path="/b2b/inquiries" element={<ProtectedRoute><B2BInquiries /></ProtectedRoute>} />
         <Route path="/b2b/profile" element={<ProtectedRoute><B2BUserProfile /></ProtectedRoute>} />
+        <Route path="/b2b/personal-profile" element={<ProtectedRoute><B2BPersonalProfile /></ProtectedRoute>} />
         <Route path="/b2b/seller-selection" element={<ProtectedRoute><SellerTypeSelection /></ProtectedRoute>} />
         <Route path="/b2b/company" element={<ProtectedRoute><B2BCompanyProfile /></ProtectedRoute>} />
         <Route path="/b2b/notifications" element={<ProtectedRoute><B2BNotifications /></ProtectedRoute>} />

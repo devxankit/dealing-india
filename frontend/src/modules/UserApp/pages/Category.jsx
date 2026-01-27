@@ -24,15 +24,22 @@ const MobileCategory = () => {
 
   // Initialize store on mount and refresh periodically
   useEffect(() => {
-    initialize(true); // Force refresh on mount
+    // Only fetch if we don't have categories or if they are very old
+    // Removing forceRefresh(true) to avoid blocking UI with a loader
+    if (categories.length === 0) {
+      initialize(); 
+    } else {
+      // Refresh in background if we already have data
+      initialize(false);
+    }
 
-    // Refresh categories every 30 seconds to catch new additions
+    // Background refresh every 60 seconds (less frequent)
     const refreshInterval = setInterval(() => {
-      initialize(true);
-    }, 30000);
+      initialize(false);
+    }, 60000);
 
     return () => clearInterval(refreshInterval);
-  }, [initialize]);
+  }, [initialize, categories.length]);
 
   // Get category from store
   const category = useMemo(() => {
@@ -608,6 +615,19 @@ const MobileCategory = () => {
     };
   }, [showFilters]);
 
+  if (!category && isLoadingCategories) {
+    return (
+      <PageTransition>
+        <MobileLayout showBottomNav={false} showCartBar={false}>
+          <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
+            <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 font-medium">Loading categories...</p>
+          </div>
+        </MobileLayout>
+      </PageTransition>
+    );
+  }
+
   if (!category) {
     return (
       <PageTransition>
@@ -687,9 +707,6 @@ const MobileCategory = () => {
                 <div className="relative">
                   <button
                     onClick={() => {
-                      if (!showFilters) {
-                        initialize(true);
-                      }
                       setShowFilters(!showFilters);
                     }}
                     className={`p-1.5 glass-card rounded-lg hover:bg-white/80 transition-colors ${showFilters ? "bg-white/80" : ""

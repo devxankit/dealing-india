@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown } from 'react-icons/fi';
+import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import B2BBanner from '../components/B2BBanner';
@@ -211,9 +212,15 @@ const ProductCatalog = () => {
             if (response.success && response.data) {
                 // The API returns a paginated object { products, total, page, totalPages }
                 const productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
+                
+                // Normalize MOQ for catalog display
+                const normalizedProducts = productsData.map(p => ({
+                    ...p,
+                    moq: p.moq || p.minimumOrderQuantity || 1
+                }));
 
                 // Use API data directly - no fallback mock data
-                setProducts(productsData);
+                setProducts(normalizedProducts);
             }
         } catch (error) {
             toast.error('Failed to load products');
@@ -958,7 +965,7 @@ const ProductCatalog = () => {
                                     <div className="flex items-center gap-4 mb-6 mt-auto">
                                         <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
                                             <FiTruck className="text-primary-500 text-sm" />
-                                            <span>Min. 100</span>
+                                            <span>Min. {product.moq || 1}</span>
                                         </div>
                                         <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
                                             <FiShield className="text-primary-500 text-sm" />
@@ -976,26 +983,38 @@ const ProductCatalog = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-3 pt-6 border-t border-gray-50 mt-auto">
+                                    <div className="flex items-center gap-2 pt-6 border-t border-gray-50 mt-auto">
                                         {productInquiries[product._id || product.id] ? (
-                                            <div className="flex-1 py-4 bg-green-50 border-2 border-green-200 text-green-700 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                                            <div className="flex-1 py-3 bg-green-50 border-2 border-green-200 text-green-700 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1">
                                                 <span>✓ Sent</span>
                                             </div>
                                         ) : (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); openInquiry(product); }}
-                                                className="flex-1 py-4 bg-white border-2 border-primary-600 text-primary-600 rounded-2xl hover:bg-primary-600 hover:text-white transition-all duration-300 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transform active:scale-95"
+                                                className="flex-1 py-3 bg-white border-2 border-primary-600 text-primary-600 rounded-xl hover:bg-primary-600 hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1 transform active:scale-95"
                                             >
                                                 Inquiry
                                             </button>
                                         )}
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleChatDirect(product); }}
-                                            className="p-4 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all duration-300 transform active:scale-90"
+                                            className="p-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all duration-300 transform active:scale-90"
                                             title="Chat with Seller"
                                         >
-                                            <FiMessageSquare className="text-lg" />
+                                            <FiMessageSquare className="text-base" />
                                         </button>
+                                        {product.vendorId?.phone && (
+                                            <a
+                                                href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="p-3 bg-[#25D366] text-white rounded-xl hover:bg-[#128C7E] shadow-lg shadow-green-200 transition-all duration-300 transform active:scale-90"
+                                                title="Chat on WhatsApp"
+                                            >
+                                                <FaWhatsapp className="text-lg" />
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>
@@ -1116,10 +1135,10 @@ const ProductCatalog = () => {
                                         <input
                                             type="number"
                                             name="quantity"
-                                            placeholder="Min. 100 units"
+                                            placeholder={`Min. ${selectedProduct?.moq || 1} units`}
                                             className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
                                             required
-                                            min="1"
+                                            min={selectedProduct?.moq || 1}
                                         />
                                     </div>
                                     <div>

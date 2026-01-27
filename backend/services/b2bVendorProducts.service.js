@@ -3,6 +3,7 @@ import Product from '../models/Product.model.js';
 import Vendor from '../models/Vendor.model.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.util.js';
 import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
+import subscriptionService from './subscription.service.js';
 
 /**
  * Verify vendor is B2B type
@@ -179,6 +180,39 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     // Verify vendor is B2B
     const vendor = await verifyB2BVendor(vendorId);
 
+    // ---------------------------------------------------------
+    // B2B SUBSCRIPTION PLAN RESTRICTION LOGIC
+    // ---------------------------------------------------------
+    const subscription = await subscriptionService.getVendorSubscription(vendorId);
+
+    // 1. Strictly check for an ACTIVE B2B subscription
+    if (!subscription || subscription.status !== 'active' || !subscription.planId) {
+      const err = new Error('Please purchase a subscription plan to add products.');
+      err.status = 403;
+      throw err;
+    }
+
+    const planName = subscription.planId.name ? subscription.planId.name.trim() : '';
+    const activeProductCount = await Product.countDocuments({ vendorId, isActive: true });
+
+    // 2. Apply plan-specific limits
+    if (planName.toLowerCase().includes('basic')) {
+      if (activeProductCount >= 50) {
+        const err = new Error('You have reached your Basic plan limit (50 products). Please upgrade your plan.');
+        err.status = 403;
+        throw err;
+      }
+    } else if (planName.toLowerCase().includes('silver')) {
+      if (activeProductCount >= 100) {
+        const err = new Error('You have reached your Silver plan limit (100 products). Please upgrade your plan.');
+        err.status = 403;
+        throw err;
+      }
+    } else if (planName.toLowerCase().includes('diamond')) {
+      // Diamond plan has unlimited products - no restriction
+    }
+    // ---------------------------------------------------------
+
     const {
       name,
       category,
@@ -209,26 +243,66 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     const imageUrls = [];
     const imagePublicIds = [];
 
+    // Helper for safe uploads
+    const safeUpload = async (base64Data, folder) => {
+      try {
+        if (!base64Data) return null;
+        
+        // Ensure it is a valid base64 data URI
+        if (!base64Data.startsWith('data:image')) {
+          if (base64Data.startsWith('http')) return { secure_url: base64Data, public_id: null };
+          console.warn('[B2B Product Upload] Skipping invalid image data format');
+          return null;
+        }
+        
+        const result = await uploadBase64ToCloudinary(base64Data, folder);
+        if (!result || !result.secure_url) {
+          throw new Error('Cloudinary upload returned invalid result');
+        }
+        return result;
+      } catch (err) {
+        console.error('[B2B Product Upload] Individual image upload failed:', err.message);
+        throw err;
+      }
+    };
+
     if (images && images.length > 0) {
       // First image is the main image
       const mainImage = images[0];
-      if (mainImage && (mainImage.startsWith('data:') || mainImage.startsWith('http'))) {
-        const uploadResult = await uploadBase64ToCloudinary(mainImage, 'products/b2b');
-        imageUrl = uploadResult.secure_url;
-        imagePublicId = uploadResult.public_id;
+      if (mainImage) {
+        const uploadResult = await safeUpload(mainImage, 'products/b2b');
+        if (uploadResult) {
+          imageUrl = uploadResult.secure_url;
+          imagePublicId = uploadResult.public_id;
+        }
       }
 
       // Upload remaining gallery images
-      for (let i = 1; i < images.length; i++) {
-        const img = images[i];
-        if (img && (img.startsWith('data:') || img.startsWith('http'))) {
-          const uploadResult = await uploadBase64ToCloudinary(img, 'products/b2b/gallery');
-          imageUrls.push(uploadResult.secure_url);
-          imagePublicIds.push(uploadResult.public_id);
-        } else if (img && img.startsWith('http')) {
-          imageUrls.push(img);
-        }
+      const galleryUploads = images.slice(1).map(img => safeUpload(img, 'products/b2b/gallery'));
+      const results = await Promise.allSettled(galleryUploads);
+      
+      // Check for failures
+      const failedUploads = results.filter(r => r.status === 'rejected');
+      if (failedUploads.length > 0) {
+        console.error(`[B2B Product Upload] ${failedUploads.length} gallery images failed to upload.`);
+        const firstError = failedUploads[0].reason;
+        throw new Error(`Image upload failed: ${firstError.message}`);
       }
+
+      // Collect successful uploads
+      results.forEach(res => {
+        if (res.status === 'fulfilled' && res.value) {
+          imageUrls.push(res.value.secure_url);
+          if (res.value.public_id) {
+            imagePublicIds.push(res.value.public_id);
+          }
+        }
+      });
+    }
+
+    // Validate that we have a main image if images were provided
+    if (images && images.length > 0 && !imageUrl) {
+      throw new Error('Failed to upload main product image');
     }
 
     // Process specifications into attributes array
@@ -364,21 +438,46 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
 
     // Process images if provided
     if (images !== undefined && Array.isArray(images)) {
-      // Delete old images from Cloudinary
-      if (existingProduct.imagePublicId) {
+      // Helper for safe uploads during update
+      const safeUpload = async (base64Data, folder) => {
         try {
-          await deleteFromCloudinary(existingProduct.imagePublicId);
-        } catch (e) {
-          console.error('Failed to delete old main image:', e.message);
-        }
-      }
-      if (existingProduct.imagesPublicIds && existingProduct.imagesPublicIds.length > 0) {
-        for (const publicId of existingProduct.imagesPublicIds) {
-          try {
-            await deleteFromCloudinary(publicId);
-          } catch (e) {
-            console.error('Failed to delete old gallery image:', e.message);
+          if (!base64Data) return null;
+          if (!base64Data.startsWith('data:image')) {
+            // If it's already an HTTP URL, check if it's one of the existing ones
+            if (base64Data.startsWith('http')) {
+              return { secure_url: base64Data, public_id: null, isExisting: true };
+            }
+            return null;
           }
+          return await uploadBase64ToCloudinary(base64Data, folder);
+        } catch (err) {
+          console.error('[B2B Product Update] Image upload failed:', err.message);
+          throw err;
+        }
+      };
+
+      // Identify images to delete (those not in the new list)
+      const newImageUrls = images.filter(img => img.startsWith('http'));
+      const publicIdsToDelete = [];
+      
+      if (existingProduct.imagePublicId && !newImageUrls.includes(existingProduct.image)) {
+        publicIdsToDelete.push(existingProduct.imagePublicId);
+      }
+      if (existingProduct.imagesPublicIds) {
+        existingProduct.imagesPublicIds.forEach((pid, idx) => {
+          if (!newImageUrls.includes(existingProduct.images[idx])) {
+            publicIdsToDelete.push(pid);
+          }
+        });
+      }
+
+      // Delete images no longer used
+      if (publicIdsToDelete.length > 0) {
+        try {
+          const { deleteMultipleFromCloudinary } = await import('../utils/cloudinary.util.js');
+          await deleteMultipleFromCloudinary(publicIdsToDelete);
+        } catch (e) {
+          console.error('Failed to cleanup old images:', e.message);
         }
       }
 
@@ -390,24 +489,27 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
 
       if (images.length > 0) {
         const mainImage = images[0];
-        if (mainImage && (mainImage.startsWith('data:') || mainImage.startsWith('http'))) {
-          const uploadResult = await uploadBase64ToCloudinary(mainImage, 'products/b2b');
+        const uploadResult = await safeUpload(mainImage, 'products/b2b');
+        if (uploadResult) {
           imageUrl = uploadResult.secure_url;
-          imagePublicId = uploadResult.public_id;
-        } else if (mainImage && mainImage.startsWith('http')) {
-          imageUrl = mainImage;
+          imagePublicId = uploadResult.public_id || (uploadResult.isExisting ? existingProduct.imagePublicId : null);
         }
 
-        for (let i = 1; i < images.length; i++) {
-          const img = images[i];
-          if (img && (img.startsWith('data:') || img.startsWith('http'))) {
-            const uploadResult = await uploadBase64ToCloudinary(img, 'products/b2b/gallery');
-            imageUrls.push(uploadResult.secure_url);
-            imagePublicIds.push(uploadResult.public_id);
-          } else if (img && img.startsWith('http')) {
-            imageUrls.push(img);
-          }
+        const galleryUploads = images.slice(1).map(img => safeUpload(img, 'products/b2b/gallery'));
+        const results = await Promise.allSettled(galleryUploads);
+        
+        const failedUploads = results.filter(r => r.status === 'rejected');
+        if (failedUploads.length > 0) {
+          throw new Error(`Image upload failed: ${failedUploads[0].reason.message}`);
         }
+
+        results.forEach((res, idx) => {
+          if (res.status === 'fulfilled' && res.value) {
+            imageUrls.push(res.value.secure_url);
+            const pid = res.value.public_id || (res.value.isExisting ? (existingProduct.imagesPublicIds ? existingProduct.imagesPublicIds[existingProduct.images.indexOf(res.value.secure_url)] : null) : null);
+            if (pid) imagePublicIds.push(pid);
+          }
+        });
       }
 
       updateData.image = imageUrl;
@@ -507,11 +609,10 @@ export const deleteB2BVendorProduct = async (productId, vendorId) => {
     // Verify vendor is B2B
     await verifyB2BVendor(vendorId);
 
-    // Find product
+    // Find product and verify ownership (check both active and inactive just in case)
     const product = await Product.findOne({
       _id: productId,
       vendorId,
-      isActive: true,
     });
 
     if (!product) {
@@ -520,21 +621,26 @@ export const deleteB2BVendorProduct = async (productId, vendorId) => {
       throw err;
     }
 
-    // Collect image public IDs for deletion
+    // Collect image public IDs for deletion from Cloudinary
     const imagePublicIds = [];
     if (product.imagePublicId) {
       imagePublicIds.push(product.imagePublicId);
     }
     if (product.imagesPublicIds && product.imagesPublicIds.length > 0) {
-      imagePublicIds.push(...product.imagesPublicIds);
+      // Filter out any null/undefined IDs
+      imagePublicIds.push(...product.imagesPublicIds.filter(id => id));
     }
 
-    // Soft delete - set isActive to false
-    product.isActive = false;
-    await product.save();
+    // Hard delete - permanently remove from database as requested by user
+    await Product.findByIdAndDelete(productId);
 
     return { imagePublicIds };
   } catch (error) {
+    if (error.name === 'CastError') {
+      const err = new Error('Invalid product ID');
+      err.status = 400;
+      throw err;
+    }
     throw error;
   }
 };

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiSearch, FiClock, FiTrendingUp } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getAllProducts } from '../../data/products';
+import { getProducts } from '../services/productService';
 import useDebounce from '../hooks/useDebounce';
 
 const RECENT_SEARCHES_KEY = 'recent-searches';
@@ -19,6 +19,7 @@ const SearchBar = () => {
   const [isFocused, setIsFocused] = useState(false);
   const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
   const [recentSearches, setRecentSearches] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,8 +29,41 @@ const SearchBar = () => {
   const suggestionsRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Popular searches (can be made dynamic later)
-  const popularSearches = ['Diapers', 'Vegetables', 'Meat', 'Fruits', 'Baby Care'];
+  // Popular searches (dynamic from backend)
+  const [popularSearches, setPopularSearches] = useState([]);
+
+  // Fetch popular searches (trending products) on mount
+  useEffect(() => {
+    const fetchPopularSearches = async () => {
+      try {
+        // Fetch trending products, fallback to top rated if no trending
+        const response = await getProducts({
+          isTrending: true,
+          limit: 6,
+          sortOrder: 'desc',
+          sortBy: 'rating'
+        });
+
+        if (response.products && response.products.length > 0) {
+          // Extract unique short names or categories to function as search terms
+          const terms = response.products
+            .map(p => p.name)
+            .slice(0, 6); // Limit to 6 chips
+
+          setPopularSearches(terms);
+        } else {
+          // Fallback if no products found (optional, to avoid empty section)
+          setPopularSearches([]);
+        }
+      } catch (error) {
+        console.error('Error fetching popular searches:', error);
+        // Fallback to empty or keep empty
+        setPopularSearches([]);
+      }
+    };
+
+    fetchPopularSearches();
+  }, []);
 
   // Animated placeholder texts
   const placeholderTexts = [
@@ -65,29 +99,42 @@ const SearchBar = () => {
     setRecentSearches([]);
   };
 
-  // Get product suggestions based on query
-  const getProductSuggestions = (query) => {
-    if (!query.trim()) return [];
-    const lowerQuery = query.toLowerCase();
-    return getAllProducts().filter((product) => product.name.toLowerCase().includes(lowerQuery))
-      .slice(0, MAX_SUGGESTIONS)
-      .map((product) => ({
-        type: 'product',
-        id: product.id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-      }));
-  };
-
   // Update suggestions when query changes
   useEffect(() => {
-    if (debouncedSearchQuery.trim()) {
-      const productSuggestions = getProductSuggestions(debouncedSearchQuery);
-      setSuggestions(productSuggestions);
-    } else {
-      setSuggestions([]);
-    }
+    const fetchSuggestions = async () => {
+      if (!debouncedSearchQuery.trim()) {
+        setSuggestions([]);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await getProducts({
+          search: debouncedSearchQuery,
+          limit: MAX_SUGGESTIONS
+        });
+
+        // Filter out products without names just in case
+        const validProducts = (response.products || [])
+          .filter(p => p.name)
+          .map(product => ({
+            type: 'product',
+            id: product._id || product.id,
+            name: product.name,
+            image: product.images?.[0]?.url || product.image || 'https://via.placeholder.com/150',
+            price: product.price || product.salePrice,
+          }));
+
+        setSuggestions(validProducts);
+      } catch (error) {
+        console.error('Error fetching search suggestions:', error);
+        setSuggestions([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSuggestions();
     setSelectedIndex(-1);
   }, [debouncedSearchQuery]);
 

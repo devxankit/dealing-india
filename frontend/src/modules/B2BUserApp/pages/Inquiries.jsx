@@ -102,7 +102,7 @@ const Inquiries = () => {
 
     return (
         <div className="fixed inset-0 bg-gray-50 flex flex-col overflow-hidden h-screen">
-            <B2BHeader title="Inquiries & Messages" sticky={false} />
+            <B2BHeader title="Inquiries & Messages" sticky={false} showBack={true} />
 
             <main className="flex-1 flex max-w-7xl mx-auto w-full overflow-hidden relative min-h-0">
                 {/* Chat List */}

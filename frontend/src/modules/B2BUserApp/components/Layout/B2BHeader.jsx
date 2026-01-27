@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { appLogo } from '../../../../data/logos';
 
 const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit }) => {
     const navigate = useNavigate();
@@ -30,7 +31,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     const handleSearchSubmit = (e) => {
         e.preventDefault();
         const query = searchQuery.trim();
-        
+
         if (onSearchSubmit) {
             // If parent component provides submit handler, use it
             onSearchSubmit(query);
@@ -53,11 +54,28 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             <FiArrowLeft className="text-xl text-gray-700" />
                         </button>
                     ) : (
-                        <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200">
-                            <FiGrid className="text-white text-xl" />
-                        </div>
+                        title !== "Bulk Marketplace" && (
+                            <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200">
+                                <FiGrid className="text-white text-xl" />
+                            </div>
+                        )
                     )}
-                    <h1 className="text-xl font-bold text-gray-800 truncate">{title}</h1>
+                    {title === "Bulk Marketplace" ? (
+                        <Link to="/b2b" className="flex items-center">
+                            <img
+                                src={appLogo.src}
+                                alt="Dealing India"
+                                className="h-10 w-auto object-contain min-w-[120px]"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'block';
+                                }}
+                            />
+                            <span className="text-xl font-bold text-gray-800" style={{ display: 'none' }}>Dealing India</span>
+                        </Link>
+                    ) : (
+                        <h1 className="text-xl font-bold text-gray-800 truncate">{title}</h1>
+                    )}
                 </div>
 
                 <div className="flex-1 max-w-md hidden md:block">

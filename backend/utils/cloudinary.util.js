@@ -10,126 +10,68 @@ import cloudinary from '../config/cloudinary.js';
 export const uploadToCloudinary = async (buffer, folderName, options = {}) => {
   try {
     if (!buffer) {
-      throw new Error('Buffer is required for upload');
+      throw new Error('No file buffer provided for upload');
     }
 
-    // Check Cloudinary configuration
+    // Check Cloudinary configuration explicitly
     const cloudinaryConfig = cloudinary.config();
     if (!cloudinaryConfig.cloud_name || !cloudinaryConfig.api_key || !cloudinaryConfig.api_secret) {
-      console.error('[Cloudinary] Configuration missing:', {
-        hasCloudName: !!cloudinaryConfig.cloud_name,
-        hasApiKey: !!cloudinaryConfig.api_key,
-        hasApiSecret: !!cloudinaryConfig.api_secret
-      });
-      throw new Error('Cloudinary is not properly configured. Please check environment variables.');
+      throw new Error('Cloudinary configuration is missing or invalid');
     }
 
     return new Promise((resolve, reject) => {
-      try {
-        // Ensure buffer is a Buffer object
-        let fileBuffer;
-        if (Buffer.isBuffer(buffer)) {
-          fileBuffer = buffer;
-        } else if (buffer instanceof Uint8Array) {
-          fileBuffer = Buffer.from(buffer);
-        } else if (typeof buffer === 'string') {
-          fileBuffer = Buffer.from(buffer, 'base64');
-        } else {
-          fileBuffer = Buffer.from(buffer);
-        }
-        
-        if (!fileBuffer || fileBuffer.length === 0) {
-          reject(new Error('Invalid or empty buffer'));
-          return;
-        }
+      // Ensure folder name is provided and clean
+      const folder = folderName || 'general';
+      
+      const uploadOptions = {
+        folder: folder,
+        resource_type: 'auto',
+        fetch_format: 'auto',
+        quality: 'auto',
+        ...options,
+      };
 
-        const uploadOptions = {
-          folder: folderName,
-          resource_type: 'auto',
-          timeout: 120000, // 2 minutes timeout for communication with Cloudinary
-          ...options,
-        };
-
-        console.log('[Cloudinary] Starting upload:', {
-          folder: folderName,
-          bufferSize: fileBuffer.length,
-          options: uploadOptions
-        });
-
-        const uploadStream = cloudinary.uploader.upload_stream(
-          uploadOptions,
-          (error, result) => {
-            if (error) {
-              console.error('[Cloudinary] Upload callback error:', {
-                message: error.message,
-                http_code: error.http_code,
-                name: error.name
-              });
-              reject(new Error(`Cloudinary upload failed: ${error.message || 'Unknown error'}`));
-            } else if (!result) {
-              console.error('[Cloudinary] Upload returned null result');
-              reject(new Error('Cloudinary upload returned no result'));
-            } else {
-              console.log('[Cloudinary] Upload successful:', {
-                public_id: result.public_id,
-                format: result.format,
-                resource_type: result.resource_type,
-                hasSecureUrl: !!result.secure_url
-              });
-              resolve({
-                secure_url: result.secure_url,
-                url: result.url,
-                public_id: result.public_id,
-                format: result.format,
-                resource_type: result.resource_type,
-              });
-            }
+      const uploadStream = cloudinary.uploader.upload_stream(
+        uploadOptions,
+        (error, result) => {
+          if (error) {
+            console.error('[Cloudinary Upload Error]:', error);
+            return reject(new Error(`Cloudinary Upload Failed: ${error.message}`));
           }
-        );
-
-        // Handle stream errors
-        uploadStream.on('error', (streamError) => {
-          console.error('[Cloudinary] Stream error event:', {
-            message: streamError.message,
-            code: streamError.code,
-            name: streamError.name
+          if (!result || !result.secure_url) {
+            console.error('[Cloudinary Result Error]: No secure_url in result');
+            return reject(new Error('Cloudinary Upload Failed: No URL returned from server'));
+          }
+          
+          // Return only what is needed, focusing on secure_url
+          resolve({
+            secure_url: result.secure_url,
+            public_id: result.public_id,
+            format: result.format,
+            width: result.width,
+            height: result.height
           });
-          reject(new Error(`Upload stream error: ${streamError.message || 'Unknown stream error'}`));
-        });
-
-        // Handle stream finish
-        uploadStream.on('finish', () => {
-          console.log('[Cloudinary] Stream finished');
-        });
-
-        // Write buffer to stream
-        try {
-          uploadStream.end(fileBuffer);
-        } catch (writeError) {
-          console.error('[Cloudinary] Error writing to stream:', writeError);
-          reject(new Error(`Failed to write buffer to stream: ${writeError.message}`));
         }
-      } catch (error) {
-        console.error('[Cloudinary] Setup error:', {
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        });
-        reject(new Error(`Failed to setup upload: ${error.message}`));
+      );
+
+      // Write buffer to stream
+      try {
+        const streamifier = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+        uploadStream.end(streamifier);
+      } catch (streamErr) {
+        console.error('[Cloudinary Stream Error]:', streamErr);
+        reject(new Error(`Failed to process image stream: ${streamErr.message}`));
       }
     });
   } catch (error) {
-    console.error('[Cloudinary] Outer catch error:', {
-      message: error.message,
-      stack: error.stack
-    });
-    throw new Error(`Failed to upload to Cloudinary: ${error.message}`);
+    console.error('[Cloudinary Utility Error]:', error);
+    throw error;
   }
 };
 
 /**
  * Upload base64 string to Cloudinary
- * @param {String} base64String - Base64 data URL (e.g., 'data:image/png;base64,...')
+ * @param {String} base64String - Base64 data URL
  * @param {String} folderName - Folder name in Cloudinary
  * @param {Object} options - Additional Cloudinary options
  * @returns {Promise<Object>} { secure_url, public_id }
@@ -137,35 +79,43 @@ export const uploadToCloudinary = async (buffer, folderName, options = {}) => {
 export const uploadBase64ToCloudinary = async (base64String, folderName, options = {}) => {
   try {
     if (!base64String) {
-      throw new Error('Base64 string is required for upload');
+      throw new Error('No base64 data provided for upload');
     }
 
-    // Check if it's a base64 data URL
-    if (!base64String.startsWith('data:')) {
-      // If it's already a URL (Cloudinary or other), return as is
-      if (base64String.startsWith('http://') || base64String.startsWith('https://')) {
-        return {
-          secure_url: base64String,
-          public_id: extractPublicIdFromUrl(base64String),
-        };
+    // Basic base64 validation
+    if (typeof base64String !== 'string' || !base64String.startsWith('data:image')) {
+      // If it's already a URL, return it as is but this shouldn't happen in a strict upload flow
+      if (base64String.startsWith('http')) {
+        return { secure_url: base64String, public_id: null };
       }
-      throw new Error('Invalid base64 format. Expected data URL format (data:image/... or data:video/... or data:application/...)');
+      throw new Error('Invalid image format. Must be a valid base64 data URL.');
     }
 
     const uploadOptions = {
-      folder: folderName,
-      resource_type: 'auto',
+      folder: folderName || 'general',
+      resource_type: 'image',
+      fetch_format: 'auto',
+      quality: 'auto',
       ...options,
     };
 
     const result = await cloudinary.uploader.upload(base64String, uploadOptions);
+
+    if (!result || !result.secure_url) {
+      throw new Error('Cloudinary upload failed: No secure_url returned');
+    }
 
     return {
       secure_url: result.secure_url,
       public_id: result.public_id,
     };
   } catch (error) {
-    throw new Error(`Failed to upload base64 to Cloudinary: ${error.message}`);
+    console.error('[Cloudinary Base64 Upload Error]:', error);
+    // Re-throw with a more user-friendly message if it's a Cloudinary specific error
+    if (error.http_code) {
+      throw new Error(`Cloudinary Error (${error.http_code}): ${error.message}`);
+    }
+    throw error;
   }
 };
 

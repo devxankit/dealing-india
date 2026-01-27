@@ -303,37 +303,28 @@ export const loginVendor = async (email, password) => {
       throw error;
     }
 
-    // For B2B vendors, check subscription status
+    // For B2B vendors, check subscription status (Optional - allow login without subscription for simplified registration)
     if (vendor.vendorType === 'b2b') {
-      const subscription = await SubscriptionService.getVendorSubscription(vendor._id);
+      try {
+        const subscription = await SubscriptionService.getVendorSubscription(vendor._id);
 
-      // B2B vendors must have an active subscription to login
-      if (!subscription) {
-        console.log(`[Login Blocked] No subscription found for B2B vendor: ${email}`);
-        const error = new Error('You must have an active subscription plan to login. Please subscribe to a plan first.');
-        error.statusCode = 403;
-        error.code = 'NO_SUBSCRIPTION';
-        throw error;
-      }
-
-      // Check if subscription is approved (status must be 'active')
-      if (subscription.status !== 'active') {
-        console.log(`[Login Blocked] Subscription not approved - Status: ${subscription.status} for: ${email}`);
-        const error = new Error('Your subscription plan is not approved yet. Please wait for admin approval before logging in.');
-        error.statusCode = 403;
-        error.code = 'SUBSCRIPTION_NOT_APPROVED';
-        throw error;
-      }
-
-      // Check if subscription is expired
-      const now = new Date();
-      if (subscription.endDate && new Date(subscription.endDate) < now) {
-        console.log(`[Login Blocked] Subscription expired for: ${email}, Expiry: ${subscription.endDate}`);
-        const error = new Error('Your subscription plan has expired. Please renew your subscription to continue.');
-        error.statusCode = 403;
-        error.code = 'SUBSCRIPTION_EXPIRED';
-        error.expiredDate = subscription.endDate;
-        throw error;
+        if (!subscription) {
+          console.log(`[Login Warning] No subscription found for B2B vendor: ${email}. Allowing login due to simplified registration.`);
+          // Don't throw error - allow login
+        } else if (subscription.status !== 'active') {
+          console.log(`[Login Warning] Subscription not approved - Status: ${subscription.status} for: ${email}. Allowing login.`);
+          // Don't throw error - allow login
+        } else {
+          // Check if subscription is expired
+          const now = new Date();
+          if (subscription.endDate && new Date(subscription.endDate) < now) {
+            console.log(`[Login Warning] Subscription expired for: ${email}, Expiry: ${subscription.endDate}. Allowing login.`);
+            // Optionally, we could still allow login but show expired status in frontend
+          }
+        }
+      } catch (subError) {
+        console.warn(`[Login Warning] Subscription check failed for B2B vendor ${email}:`, subError.message);
+        // Don't block login if subscription check fails
       }
     }
 

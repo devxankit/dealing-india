@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  register,
+  register as registerVendor,
   login,
   logout,
   getMe,
@@ -12,7 +12,13 @@ import {
   checkSubscriptionByEmail,
   checkVendorStatusByEmail,
 } from '../controllers/vendor-controllers/vendorAuth.controller.js';
-import { registerWithPayment, initializePayment, createSubscriptionAfterPayment, verifySubscription } from '../controllers/vendor-controllers/b2bVendorRegistration.controller.js';
+import { 
+  registerWithPayment, 
+  register as registerB2BVendor, 
+  initializePayment, 
+  createSubscriptionAfterPayment, 
+  verifySubscription 
+} from '../controllers/vendor-controllers/b2bVendorRegistration.controller.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { vendorApproved } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -22,7 +28,8 @@ import { rateLimiter } from '../middleware/rateLimiter.middleware.js';
 const router = express.Router();
 
 // Public routes
-router.post('/register', rateLimiter('vendor-register', 5, 600), asyncHandler(register));
+router.post('/register', rateLimiter('vendor-register', 5, 600), asyncHandler(registerVendor));
+router.post('/b2b-vendor/register', rateLimiter('b2b-vendor-register', 5, 600), asyncHandler(registerB2BVendor));
 router.post('/b2b-vendor/initialize-payment', rateLimiter('b2b-vendor-payment', 10, 600), asyncHandler(initializePayment));
 router.post('/b2b-vendor/create-subscription-after-payment', rateLimiter('b2b-vendor-subscription', 5, 600), asyncHandler(createSubscriptionAfterPayment));
 router.get('/b2b-vendor/verify-subscription/:subscriptionId', rateLimiter('b2b-vendor-verify', 10, 60), asyncHandler(verifySubscription));

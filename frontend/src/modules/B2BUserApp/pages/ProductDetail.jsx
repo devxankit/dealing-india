@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiArrowLeft, FiMessageSquare, FiTruck, FiShield,
     FiCheckCircle, FiShare2, FiInfo, FiSend, FiX,
-    FiPlus, FiMinus, FiShoppingBag, FiStar, FiPaperclip, FiFile
+    FiPlus, FiMinus, FiShoppingBag, FiStar, FiPaperclip, FiFile, FiPhone
 } from 'react-icons/fi';
+import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import api from '../../../shared/utils/api';
@@ -21,7 +22,7 @@ const B2BProductDetail = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
-    const [quantity, setQuantity] = useState(100); // Default B2B MOQ
+    const [quantity, setQuantity] = useState(1); // Will be updated from product.moq
     const [showInquiryModal, setShowInquiryModal] = useState(false);
     const [inquiryAttachment, setInquiryAttachment] = useState(null);
     const [uploadingInquiryFile, setUploadingInquiryFile] = useState(false);
@@ -157,7 +158,11 @@ const B2BProductDetail = () => {
                         ]
                     }
                 };
-                setProduct(mockProducts[id] || mockProducts['m1']);
+                const mockProduct = mockProducts[id] || mockProducts['m1'];
+                setProduct(mockProduct);
+                if (mockProduct.moq) {
+                    setQuantity(Number(mockProduct.moq));
+                }
                 return;
             }
 
@@ -166,9 +171,17 @@ const B2BProductDetail = () => {
             if (response.success && response.data) {
                 // Handle both response.data (object) and response.data.product
                 const productData = response.data.product || response.data;
+                // Normalize MOQ field
+                if (productData.minimumOrderQuantity && !productData.moq) {
+                    productData.moq = productData.minimumOrderQuantity;
+                }
+                
                 console.log('Product Data:', productData);
                 console.log('Product Images:', productData.images, 'Product Image:', productData.image);
                 setProduct(productData);
+                if (productData.moq) {
+                    setQuantity(Number(productData.moq));
+                }
             } else {
                 console.error('Invalid API response structure:', response);
             }
@@ -425,7 +438,7 @@ const B2BProductDetail = () => {
                                 </div>
                                 <div className="text-right">
                                     <span className="text-xs text-gray-400 font-bold uppercase tracking-tight mb-1 block">MOQ</span>
-                                    <span className="text-lg font-bold text-gray-700">{product.moq || 100} Units</span>
+                                    <span className="text-lg font-bold text-gray-700">{product.moq || 1} Units</span>
                                 </div>
                             </div>
 
@@ -434,14 +447,14 @@ const B2BProductDetail = () => {
                                     <span className="text-sm font-bold text-gray-600">Select Quantity</span>
                                     <div className="flex items-center gap-4">
                                         <button
-                                            onClick={() => setQuantity(Math.max(product.moq || 100, quantity - 50))}
+                                            onClick={() => setQuantity(Math.max(product.moq || 1, quantity - (product.moq >= 50 ? 50 : 1)))}
                                             className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
                                         >
                                             <FiMinus />
                                         </button>
                                         <span className="w-16 text-center font-black text-lg text-gray-800">{quantity}</span>
                                         <button
-                                            onClick={() => setQuantity(quantity + 50)}
+                                            onClick={() => setQuantity(quantity + (product.moq >= 50 ? 50 : 1))}
                                             className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
                                         >
                                             <FiPlus />
@@ -495,28 +508,48 @@ const B2BProductDetail = () => {
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-1 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                                 {hasInquiry ? (
-                                    <div className="w-full py-5 bg-green-50 border-2 border-green-200 text-green-700 rounded-[1.25rem] font-bold text-lg flex items-center justify-center gap-3 cursor-not-allowed">
+                                    <div className="py-4 bg-green-50 border-2 border-green-200 text-green-700 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
                                         <span>✓ Inquiry Done</span>
                                     </div>
                                 ) : (
                                     <button
                                         onClick={() => setShowInquiryModal(true)}
-                                        className="w-full py-5 bg-primary-600 text-white rounded-[1.25rem] font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={hasInquiry}
+                                        className="py-4 bg-primary-600 text-white rounded-2xl font-bold text-sm hover:bg-primary-700 shadow-lg shadow-primary-100 transition-all flex items-center justify-center gap-2"
                                     >
-                                        <FiSend className="text-xl" />
-                                        Send Inquiry Request
+                                        <FiSend className="text-lg" />
+                                        Inquiry
                                     </button>
                                 )}
                                 <button
                                     onClick={() => navigate(`/b2b/inquiries?vendorId=${product.vendorId?._id || product.vendorId}`)}
-                                    className="w-full py-5 bg-white border-2 border-primary-600 text-primary-600 rounded-[1.25rem] font-bold text-lg hover:bg-primary-50 transition-all flex items-center justify-center gap-3"
+                                    className="py-4 bg-white border-2 border-primary-600 text-primary-600 rounded-2xl font-bold text-sm hover:bg-primary-50 transition-all flex items-center justify-center gap-2"
                                 >
-                                    <FiMessageSquare className="text-xl" />
-                                    Chat with Seller
+                                    <FiMessageSquare className="text-lg" />
+                                    Chat
                                 </button>
+                                
+                                {product.vendorId?.phone && (
+                                    <>
+                                        <a
+                                            href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="py-4 bg-[#25D366] text-white rounded-2xl font-bold text-sm hover:bg-[#128C7E] shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <FaWhatsapp className="text-xl" />
+                                            WhatsApp
+                                        </a>
+                                        <a
+                                            href={`tel:${product.vendorId.phone}`}
+                                            className="py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <FiPhone className="text-xl" />
+                                            Call Now
+                                        </a>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -672,6 +705,7 @@ const B2BProductDetail = () => {
                                             name="quantity"
                                             type="number"
                                             defaultValue={quantity}
+                                            min={product.moq || 1}
                                             className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
                                             required
                                         />

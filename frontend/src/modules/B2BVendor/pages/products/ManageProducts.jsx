@@ -40,8 +40,9 @@ const ManageProducts = () => {
                     return {
                         _id: product._id,
                         name: product.name,
+                        image: product.image,
                         price: product.price,
-                        moq: product.minimumOrderQuantity || 0,
+                        moq: product.minimumOrderQuantity || 1,
                         category: category,
                         visibility: product.isVisible ? 'Visible' : 'Hidden',
                     };
@@ -63,8 +64,20 @@ const ManageProducts = () => {
             sortable: true,
             render: (value, row) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <FiPackage className="text-gray-400" />
+                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100">
+                        {row.image ? (
+                            <img 
+                                src={row.image} 
+                                alt={value} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = 'https://via.placeholder.com/150?text=No+Image';
+                                }}
+                            />
+                        ) : (
+                            <FiPackage className="text-gray-400 text-xl" />
+                        )}
                     </div>
                     <span className="font-medium text-gray-800">{value}</span>
                 </div>

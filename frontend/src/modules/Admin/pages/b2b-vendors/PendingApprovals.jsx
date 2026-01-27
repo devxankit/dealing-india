@@ -138,7 +138,8 @@ const B2BVendorPendingApprovals = () => {
     };
 
     const columns = [
-        { key: "companyName", label: "B2B Vendor Name", render: (val) => <span className="font-bold text-gray-800">{val}</span> },
+        { key: "name", label: "B2B Vendor Name", render: (val) => <span className="font-bold text-gray-800">{val}</span> },
+        { key: "companyName", label: "Company Name", render: (val) => <span className="font-bold text-gray-500 text-sm">{val}</span> },
         { key: "email", label: "Email Address" },
         {
             key: "documents",
@@ -217,6 +218,14 @@ const B2BVendorPendingApprovals = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 vendor={selectedVendor}
+                onApprove={() => {
+                    handleApprove(selectedVendor._id || selectedVendor.id);
+                    setIsModalOpen(false);
+                }}
+                onReject={() => {
+                    handleReject(selectedVendor._id || selectedVendor.id);
+                    setIsModalOpen(false);
+                }}
             />
         </motion.div>
     );

@@ -2,33 +2,33 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiX, FiUser, FiBriefcase, FiMapPin, FiFileText, FiDownload, FiEye, FiPhone, FiMail, FiStar, FiCalendar, FiCreditCard, FiCheckCircle } from "react-icons/fi";
 import toast from "react-hot-toast";
 
-const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
+const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) => {
     if (!vendor) return null;
 
     // Extract documents from vendor object
     // Documents can be in vendor.documents (array) or vendor.vendor.documents (array)
     const vendorData = vendor.vendor || vendor;
     const documentsArray = vendorData.documents || [];
-    
+
     // Debug logging
     console.log('Modal vendor data:', vendorData);
     console.log('Documents array:', documentsArray);
-    
+
     // Find specific documents by name
     const findDocument = (docName) => {
         const found = documentsArray.find(doc => {
             const name = (doc.name || '').toLowerCase();
             return name.includes(docName.toLowerCase());
         });
-        console.log(`Finding document "${docName}":`, found);
         return found;
     };
 
-    const panCardDoc = findDocument('pan');
-    const businessLicenseDoc = findDocument('business') || findDocument('license') || findDocument('trade');
-    
-    console.log('PAN Card doc:', panCardDoc);
-    console.log('Business License doc:', businessLicenseDoc);
+    const panCardDoc = findDocument('pan') || findDocument('tax');
+    const businessLicenseDoc = findDocument('business') || findDocument('license') || findDocument('trade') || findDocument('gst') || findDocument('registration');
+
+    // Filter out documents that are already displayed as PAN or License to avoid duplicates, or show all if none match specifically
+    const displayedDocUrls = [panCardDoc?.url, businessLicenseDoc?.url].filter(Boolean);
+    const otherDocs = documentsArray.filter(doc => !displayedDocUrls.includes(doc.url));
 
     const handleDownload = async (url, filename, docType = 'application/pdf') => {
         if (!url) {
@@ -38,7 +38,7 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
         }
 
         const toastId = toast.loading('Preparing download...');
-        
+
         try {
             // For base64 data URLs
             if (url.startsWith('data:')) {
@@ -67,34 +67,34 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
             }
 
             const blob = await response.blob();
-            
+
             // Ensure correct MIME type for PDF
             const isPDF = docType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf');
             const finalBlob = isPDF ? new Blob([blob], { type: 'application/pdf' }) : blob;
-            
+
             // Create blob URL and download
             const blobUrl = window.URL.createObjectURL(finalBlob);
             const a = document.createElement('a');
             a.href = blobUrl;
-            
+
             // Ensure correct filename with extension
             let fileName = filename || 'document';
             const ext = isPDF ? 'pdf' : (docType?.split('/')[1] || 'pdf');
-            
+
             // Clean filename and add extension if missing
             const cleanName = fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             const finalFileName = cleanName.endsWith(`.${ext}`) ? cleanName : `${cleanName}.${ext}`;
-            
+
             a.download = finalFileName;
             document.body.appendChild(a);
             a.click();
-            
+
             // Cleanup
             setTimeout(() => {
                 window.URL.revokeObjectURL(blobUrl);
                 document.body.removeChild(a);
             }, 100);
-            
+
             toast.success('Download started', { id: toastId });
         } catch (err) {
             console.error('Download error:', err);
@@ -113,7 +113,7 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
 
         const isPDF = docType === 'application/pdf' || url.toLowerCase().includes('.pdf');
         const toastId = toast.loading(`Opening ${isPDF ? 'PDF' : 'document'}...`);
-        
+
         try {
             // For base64 data URLs
             if (url.startsWith('data:')) {
@@ -125,43 +125,28 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
                 return;
             }
 
-            // For Cloudinary URLs, force inline view by removing fl_attachment and adding fl_inline
+            // For Cloudinary URLs
             let viewUrl = url;
             if (viewUrl.includes('cloudinary.com')) {
                 viewUrl = viewUrl.replace('/upload/fl_attachment/', '/upload/');
-                if (isPDF && !viewUrl.includes('fl_inline')) {
-                    viewUrl = viewUrl.replace('/upload/', '/upload/fl_inline/');
+                // Force PDF view inline
+                if (isPDF) {
+                    // Try to ensure it's not set to 'download' if possible, though Cloudinary defaults are usually view
                 }
             }
 
-            // For PDFs, fetch and create blob URL to ensure it opens in browser
-            if (isPDF) {
-                try {
-                    const response = await fetch(viewUrl);
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch PDF');
-                    }
-                    const blob = await response.blob();
-                    const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-                    const blobUrl = window.URL.createObjectURL(pdfBlob);
-                    window.open(blobUrl, '_blank');
-                    toast.success('PDF opened in new tab', { id: toastId });
-                } catch (fetchErr) {
-                    console.warn('Fetch failed, falling back to direct link:', fetchErr);
-                    window.open(viewUrl, '_blank');
-                    toast.success('Opening document...', { id: toastId });
-                }
-            } else {
-                // For images, direct open with fl_inline is usually fine
-                window.open(viewUrl, '_blank');
-                toast.success('Image opened in new tab', { id: toastId });
-            }
+            // Simple Window Open is often most reliable for PDFs in various browsers
+            window.open(viewUrl, '_blank');
+            toast.dismiss(toastId);
+
         } catch (err) {
             console.error('View error:', err);
             window.open(url, '_blank');
             toast.dismiss(toastId);
         }
     };
+
+    const subscription = vendorData.subscription || vendorData.currentSubscription;
 
     return (
         <AnimatePresence>
@@ -204,7 +189,7 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                                 {/* Left Column: Contact & Business & Subscription */}
                                 <div className="lg:col-span-1 space-y-10">
-                                    {/* Subscription Section - Added */}
+                                    {/* Subscription Section */}
                                     <section>
                                         <div className="flex items-center gap-3 mb-5">
                                             <div className="p-2 bg-yellow-50 text-yellow-600 rounded-xl shadow-sm">
@@ -212,28 +197,34 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
                                             </div>
                                             <h3 className="font-black text-gray-800 uppercase tracking-[0.15em] text-xs">Subscription Plan</h3>
                                         </div>
-                                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-[2rem] shadow-xl relative overflow-hidden group">
-                                            <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/5 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-                                            <div className="relative z-10">
-                                                <div className="flex justify-between items-center mb-4">
-                                                    <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Active Plan</p>
-                                                    <FiCheckCircle className="text-green-500" />
-                                                </div>
-                                                <h4 className="text-white text-xl font-black mb-1">{(vendorData.subscription || vendor.subscription)?.name || "Premium Gold"}</h4>
-                                                <div className="flex items-baseline gap-2 mb-4">
-                                                    <span className="text-primary-400 text-2xl font-black">₹{(vendorData.subscription || vendor.subscription)?.price || "14,999"}</span>
-                                                    <span className="text-gray-500 text-[10px] font-bold">/ {(vendorData.subscription || vendor.subscription)?.duration || 6} Months</span>
-                                                </div>
-                                                <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                                                    <div className="flex items-center gap-2 text-gray-400 text-[10px] font-bold uppercase">
-                                                        <FiCalendar /> Expires: Dec 20, 2024
+                                        {subscription ? (
+                                            <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-[2rem] shadow-xl relative overflow-hidden group">
+                                                <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/5 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+                                                <div className="relative z-10">
+                                                    <div className="flex justify-between items-center mb-4">
+                                                        <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Active Plan</p>
+                                                        <FiCheckCircle className="text-green-500" />
                                                     </div>
-                                                    <div className="text-primary-400">
-                                                        <FiCreditCard size={16} />
+                                                    <h4 className="text-white text-xl font-black mb-1">{subscription.name || "Custom Plan"}</h4>
+                                                    <div className="flex items-baseline gap-2 mb-4">
+                                                        <span className="text-primary-400 text-2xl font-black">₹{subscription.price || "0"}</span>
+                                                        <span className="text-gray-500 text-[10px] font-bold">/ {subscription.duration || 1} Months</span>
+                                                    </div>
+                                                    <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 text-gray-400 text-[10px] font-bold uppercase">
+                                                            <FiCalendar /> Expires: {vendorData.subscriptionExpiry ? new Date(vendorData.subscriptionExpiry).toLocaleDateString() : 'N/A'}
+                                                        </div>
+                                                        <div className="text-primary-400">
+                                                            <FiCreditCard size={16} />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 text-center">
+                                                <p className="text-gray-500 font-medium text-sm">No active subscription plan</p>
+                                            </div>
+                                        )}
                                     </section>
 
                                     {/* Contact Person */}
@@ -273,12 +264,12 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
                                     <section className="bg-primary-50/50 p-6 rounded-[2.5rem] border border-primary-100/50 flex flex-wrap gap-10">
                                         <div>
                                             <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-2">GST Identification</p>
-                                            <p className="text-lg font-black text-primary-900 leading-none">{vendorData.gstNumber || vendor.gstNumber || "22AAAAA0000A1Z5"}</p>
+                                            <p className="text-lg font-black text-primary-900 leading-none">{vendorData.gstNumber || vendor.gstNumber || "N/A"}</p>
                                         </div>
                                         <div>
                                             <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-2">Business Type</p>
                                             <div className="flex flex-wrap gap-2">
-                                                {((vendorData.businessTypes || vendor.businessTypes) || ["Manufacturer", "Wholesaler"]).map((type, idx) => (
+                                                {((vendorData.businessTypes || vendor.businessTypes) || ["N/A"]).map((type, idx) => (
                                                     <span key={idx} className="px-3 py-1 bg-white border border-primary-200 rounded-full text-[10px] font-black text-primary-700 uppercase tracking-tighter shadow-sm">
                                                         {type}
                                                     </span>
@@ -287,7 +278,7 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
                                         </div>
                                     </section>
 
-                                    {/* Business Address - Redesigned */}
+                                    {/* Business Address */}
                                     <section>
                                         <div className="flex items-center gap-3 mb-5">
                                             <div className="p-2 bg-orange-50 text-orange-600 rounded-xl shadow-sm">
@@ -304,20 +295,20 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
                                                     <div>
                                                         <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Premises Details</p>
                                                         <p className="text-sm font-black text-gray-700 leading-relaxed uppercase">
-                                                            {(vendorData.address || vendor.address)?.street || "123 Business Park, Main Road"}<br />
-                                                            <span className="text-gray-500 font-medium text-xs normal-case">{(vendorData.address || vendor.address)?.landmark || "Near Metro Station"}</span>
+                                                            {(vendorData.address || vendor.address)?.street || "N/A"}<br />
+                                                            <span className="text-gray-500 font-medium text-xs normal-case">{(vendorData.address || vendor.address)?.landmark || ""}</span>
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2 mt-0">
                                                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
                                                         <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Region</p>
-                                                        <p className="text-sm font-black text-gray-700 uppercase truncate">{(vendorData.address || vendor.address)?.city || "Mumbai"}</p>
-                                                        <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">{(vendorData.address || vendor.address)?.state || "Maharashtra"}</p>
+                                                        <p className="text-sm font-black text-gray-700 uppercase truncate">{(vendorData.address || vendor.address)?.city || "N/A"}</p>
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">{(vendorData.address || vendor.address)?.state || ""}</p>
                                                     </div>
                                                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
                                                         <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Zip Code</p>
-                                                        <p className="text-sm font-black text-gray-700">{(vendorData.address || vendor.address)?.pincode || (vendorData.address || vendor.address)?.zipCode || "400001"}</p>
+                                                        <p className="text-sm font-black text-gray-700">{(vendorData.address || vendor.address)?.pincode || (vendorData.address || vendor.address)?.zipCode || "N/A"}</p>
                                                         <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">{(vendorData.address || vendor.address)?.country || "INDIA"}</p>
                                                     </div>
                                                 </div>
@@ -335,66 +326,103 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {/* PAN Card */}
-                                            <div className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-primary-200 transition-all group shadow-sm hover:shadow-md">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all border border-transparent group-hover:border-primary-100 shadow-inner">
-                                                        <FiFileText size={20} />
+                                            {panCardDoc ? (
+                                                <div className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-primary-200 transition-all group shadow-sm hover:shadow-md">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all border border-transparent group-hover:border-primary-100 shadow-inner">
+                                                            <FiFileText size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-black text-gray-800 uppercase tracking-tighter">{panCardDoc.name || 'Income Tax PAN'}</p>
+                                                            <p className="text-[9px] text-primary-400 font-bold tracking-widest uppercase">Verified format</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-xs font-black text-gray-800 uppercase tracking-tighter">Income Tax PAN</p>
-                                                        <p className="text-[9px] text-primary-400 font-bold tracking-widest uppercase">Verified format</p>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleView(panCardDoc.url, panCardDoc.type)}
+                                                            className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
+                                                            title="View Document"
+                                                        >
+                                                            <FiEye size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDownload(panCardDoc.url, (panCardDoc.name || "PAN_CARD") + ".pdf", panCardDoc.type)}
+                                                            className="p-2.5 bg-slate-50 text-slate-400 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all active:scale-90"
+                                                            title="Download Document"
+                                                        >
+                                                            <FiDownload size={16} />
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => panCardDoc?.url ? handleView(panCardDoc.url, panCardDoc.type || 'application/pdf') : toast.error('PAN Card document not found')}
-                                                        className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="View Document"
-                                                        disabled={!panCardDoc?.url}
-                                                    >
-                                                        <FiEye size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => panCardDoc?.url ? handleDownload(panCardDoc.url, "PAN_CARD.pdf", panCardDoc.type || 'application/pdf') : toast.error('PAN Card document not found')}
-                                                        className="p-2.5 bg-slate-50 text-slate-400 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="Download Document"
-                                                        disabled={!panCardDoc?.url}
-                                                    >
-                                                        <FiDownload size={16} />
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            ) : null}
 
                                             {/* Business License */}
-                                            <div className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-primary-200 transition-all group shadow-sm hover:shadow-md">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all border border-transparent group-hover:border-primary-100 shadow-inner">
-                                                        <FiFileText size={20} />
+                                            {businessLicenseDoc ? (
+                                                <div className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-primary-200 transition-all group shadow-sm hover:shadow-md">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all border border-transparent group-hover:border-primary-100 shadow-inner">
+                                                            <FiFileText size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-black text-gray-800 uppercase tracking-tighter">{businessLicenseDoc.name || 'Trade License'}</p>
+                                                            <p className="text-[9px] text-primary-400 font-bold tracking-widest uppercase">Official proof</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-xs font-black text-gray-800 uppercase tracking-tighter">Trade License</p>
-                                                        <p className="text-[9px] text-primary-400 font-bold tracking-widest uppercase">Official proof</p>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleView(businessLicenseDoc.url, businessLicenseDoc.type)}
+                                                            className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
+                                                            title="View Document"
+                                                        >
+                                                            <FiEye size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDownload(businessLicenseDoc.url, (businessLicenseDoc.name || "LICENSE") + ".pdf", businessLicenseDoc.type)}
+                                                            className="p-2.5 bg-slate-50 text-slate-400 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all active:scale-90"
+                                                            title="Download Document"
+                                                        >
+                                                            <FiDownload size={16} />
+                                                        </button>
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => businessLicenseDoc?.url ? handleView(businessLicenseDoc.url, businessLicenseDoc.type || 'application/pdf') : toast.error('Business License document not found')}
-                                                        className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="View Document"
-                                                        disabled={!businessLicenseDoc?.url}
-                                                    >
-                                                        <FiEye size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => businessLicenseDoc?.url ? handleDownload(businessLicenseDoc.url, "BUSINESS_LICENSE.pdf", businessLicenseDoc.type || 'application/pdf') : toast.error('Business License document not found')}
-                                                        className="p-2.5 bg-slate-50 text-slate-400 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="Download Document"
-                                                        disabled={!businessLicenseDoc?.url}
-                                                    >
-                                                        <FiDownload size={16} />
-                                                    </button>
+                                            ) : null}
+
+                                            {/* Other Documents */}
+                                            {otherDocs.map((doc, idx) => (
+                                                <div key={idx} className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-primary-200 transition-all group shadow-sm hover:shadow-md">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center group-hover:bg-primary-50 group-hover:text-primary-600 transition-all border border-transparent group-hover:border-primary-100 shadow-inner">
+                                                            <FiFileText size={20} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs font-black text-gray-800 uppercase tracking-tighter truncate max-w-[120px]">{doc.name || `Document ${idx + 1}`}</p>
+                                                            <p className="text-[9px] text-primary-400 font-bold tracking-widest uppercase">Other</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleView(doc.url, doc.type)}
+                                                            className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-90"
+                                                            title="View Document"
+                                                        >
+                                                            <FiEye size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDownload(doc.url, (doc.name || `doc_${idx}`) + ".pdf", doc.type)}
+                                                            className="p-2.5 bg-slate-50 text-slate-400 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all active:scale-90"
+                                                            title="Download Document"
+                                                        >
+                                                            <FiDownload size={16} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ))}
+
+                                            {!panCardDoc && !businessLicenseDoc && otherDocs.length === 0 && (
+                                                <div className="col-span-2 text-center p-8 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+                                                    <p className="text-gray-400 font-bold text-sm">No documents submitted</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </section>
                                 </div>
@@ -420,10 +448,16 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor }) => {
                                 </button>
                                 {(vendorData.status || vendor.status) === 'Pending' && (
                                     <>
-                                        <button className="px-8 py-3.5 bg-red-50 text-red-600 border border-red-100 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-red-600 hover:text-white transition-all shadow-sm active:scale-95">
+                                        <button
+                                            onClick={onReject}
+                                            className="px-8 py-3.5 bg-red-50 text-red-600 border border-red-100 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-red-600 hover:text-white transition-all shadow-sm active:scale-95"
+                                        >
                                             Reject
                                         </button>
-                                        <button className="px-10 py-3.5 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-primary-700 transition-all shadow-xl shadow-primary-200 active:scale-95">
+                                        <button
+                                            onClick={onApprove}
+                                            className="px-10 py-3.5 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-primary-700 transition-all shadow-xl shadow-primary-200 active:scale-95"
+                                        >
                                             Approve Access
                                         </button>
                                     </>

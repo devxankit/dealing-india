@@ -336,17 +336,21 @@ api.interceptors.response.use(
       url.includes('/auth/vendor/login') ||
       url.includes('/auth/admin/login') ||
       url.includes('/auth/user/register') ||
-      url.includes('/auth/vendor/register');
+      url.includes('/auth/vendor/register') ||
+      url.includes('/auth/vendor/b2b-vendor/register') ||
+      url.includes('/auth/vendor/b2b-vendor/login');
 
     // Show error toast for non-401 errors, but not on auth pages or auth requests (to avoid duplicates)
     const currentPath = window.location.pathname;
-    const isAuthPage = currentPath.includes('/login') ||
+    const isAuthPage = (currentPath.includes('/login') ||
       currentPath.includes('/register') ||
       currentPath.includes('/forgot-password') ||
-      currentPath.includes('/reset-password');
+      currentPath.includes('/reset-password')) && 
+      !currentPath.includes('/b2b-vendor'); // Allow toasts on B2B auth pages as they might not have local handlers for all errors
 
     // Don't show toast for auth requests or auth pages - let components handle their own errors
-    if (!isAuthRequest && !isAuthPage) {
+    // But for B2B, we'll be more permissive if it's a conflict error (like existing phone)
+    if ((!isAuthRequest && !isAuthPage) || error.response?.status === 409) {
       toast.error(message, { id: 'api-error' });
     }
 

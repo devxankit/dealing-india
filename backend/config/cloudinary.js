@@ -13,9 +13,14 @@ cloudinary.config({
 
 // Verify configuration
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-  console.warn('⚠️  Cloudinary credentials not found in environment variables');
-  console.warn('   Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your .env file');
-  console.warn('   See backend/CLOUDINARY_SETUP.md for instructions');
+  const missingKeys = [];
+  if (!process.env.CLOUDINARY_CLOUD_NAME) missingKeys.push('CLOUDINARY_CLOUD_NAME');
+  if (!process.env.CLOUDINARY_API_KEY) missingKeys.push('CLOUDINARY_API_KEY');
+  if (!process.env.CLOUDINARY_API_SECRET) missingKeys.push('CLOUDINARY_API_SECRET');
+  
+  const errorMessage = `❌ Cloudinary configuration failed. Missing environment variables: ${missingKeys.join(', ')}. Server cannot start without valid Cloudinary config.`;
+  console.error(errorMessage);
+  throw new Error(errorMessage);
 } else {
   console.log('✅ Cloudinary configured successfully');
 }

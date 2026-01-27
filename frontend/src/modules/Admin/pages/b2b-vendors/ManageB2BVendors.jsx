@@ -12,7 +12,7 @@ const ManageB2BVendors = () => {
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const { b2bVendors, isLoading, fetchB2BVendors } = useB2BVendorManagementStore();
+    const { b2bVendors, isLoading, fetchB2BVendors, deleteB2BVendor } = useB2BVendorManagementStore();
 
     useEffect(() => {
         const loadVendors = async () => {
@@ -36,16 +36,34 @@ const ManageB2BVendors = () => {
         setIsModalOpen(true);
     };
 
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to permanently delete this B2B vendor? This action cannot be undone.")) {
+            return;
+        }
+
+        const toastId = toast.loading("Deleting vendor...");
+        try {
+            await deleteB2BVendor(id);
+            toast.success("B2B Vendor deleted successfully", { id: toastId });
+        } catch (error) {
+            console.error('Error deleting vendor:', error);
+            toast.error(error.message || "Failed to delete vendor", { id: toastId });
+        }
+    };
+
     const columns = [
         {
             key: "companyName",
             label: "Company",
-            render: (val) => (
+            render: (val, row) => (
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
                         <FiUser className="text-slate-400" />
                     </div>
-                    <span className="font-bold text-gray-800">{val}</span>
+                    <div>
+                        <p className="font-bold text-gray-800">{val || row.storeName || row.name || 'N/A'}</p>
+                        <p className="text-xs text-gray-400 font-medium">{row.name}</p>
+                    </div>
                 </div>
             )
         },
@@ -60,8 +78,12 @@ const ManageB2BVendors = () => {
                 </span>
             )
         },
-        { key: "products", label: "Products" },
-        { key: "joinDate", label: "Joined On" },
+        { key: "products", label: "Products", render: (val) => val || 0 },
+        {
+            key: "joinDate",
+            label: "Joined On",
+            render: (val) => val ? new Date(val).toLocaleDateString() : 'N/A'
+        },
         {
             key: "actions",
             label: "Actions",
@@ -75,7 +97,13 @@ const ManageB2BVendors = () => {
                         <FiEye />
                     </button>
                     <button className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg"><FiEdit2 /></button>
-                    <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><FiTrash2 /></button>
+                    <button
+                        onClick={() => handleDelete(row._id || row.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        title="Delete Vendor"
+                    >
+                        <FiTrash2 />
+                    </button>
                 </div>
             )
         }

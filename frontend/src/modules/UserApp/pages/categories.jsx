@@ -16,8 +16,13 @@ const MobileCategories = () => {
 
   // Initialize store on mount
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    // Only initialize if we don't have categories, otherwise refresh in background
+    if (categories.length === 0) {
+      initialize();
+    } else {
+      initialize(false);
+    }
+  }, [initialize, categories.length]);
 
   // Get root categories (categories without parent)
   const rootCategories = useMemo(() => {

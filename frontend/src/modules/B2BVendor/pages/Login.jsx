@@ -131,8 +131,13 @@ const B2BVendorLogin = () => {
                 const errorMsg = result?.message || 'Invalid B2B vendor credentials.';
                 const errorCode = result?.code;
                 
-                // If subscription expired, show plans
-                if (errorCode === 'SUBSCRIPTION_EXPIRED') {
+                // If account is pending approval
+                if (errorMsg.toLowerCase().includes('pending')) {
+                    toast.error('Account Pending: Your registration is under review. Please wait for admin approval.', {
+                        duration: 6000,
+                        icon: '⏳'
+                    });
+                } else if (errorCode === 'SUBSCRIPTION_EXPIRED') {
                     console.log('[B2B Vendor Login Page] Subscription expired, showing plans');
                     setShowPlans(true);
                     loadPlans();

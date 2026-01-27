@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { FiMenu, FiBell, FiLogOut, FiBriefcase, FiUser, FiSettings, FiChevronDown } from "react-icons/fi";
+import { FiMenu, FiBell, FiLogOut, FiBriefcase, FiUser, FiSettings, FiChevronDown, FiShoppingBag } from "react-icons/fi";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -7,6 +7,7 @@ import Button from "../../../Admin/components/Button";
 import NotificationWindow from "../../../Admin/components/Layout/NotificationWindow";
 
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
+import { useAuthStore } from "../../../../shared/store/authStore";
 
 const B2BVendorHeader = ({ onMenuClick }) => {
     const location = useLocation();
@@ -31,6 +32,23 @@ const B2BVendorHeader = ({ onMenuClick }) => {
         logout();
         toast.success("Logged out successfully");
         navigate("/b2b-vendor/login");
+    };
+
+    const handleSwitch = (path) => {
+        setShowUserMenu(false);
+
+        // 1. Logout from Buyer session (Fire and forget)
+        useAuthStore.getState().logout().catch(console.error);
+
+        // 2. Manually clear Vendor session data from storage
+        // We do this manually instead of calling logout() to avoid triggering 
+        // the ProtectedRoute's immediate redirect before our navigation happens.
+        localStorage.removeItem('b2b-vendor-token');
+        localStorage.removeItem('b2b-vendor-auth-storage');
+        sessionStorage.removeItem('b2b-vendor-login-timestamp');
+
+        // 3. Hard redirect to the target page
+        window.location.href = path;
     };
 
     const getPageName = (pathname) => {
@@ -103,6 +121,22 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                                         <FiUser className="text-lg" />
                                         <span className="font-medium">My Profile</span>
                                     </Link>
+                                    <div className="h-px bg-gray-50 my-1"></div>
+
+                                    <button
+                                        onClick={() => handleSwitch('/app/login')}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                                        <FiShoppingBag className="text-lg text-blue-500" />
+                                        <span className="font-medium">Switch to B2C Buyer</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => handleSwitch('/b2b/login')}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                                        <FiBriefcase className="text-lg text-purple-500" />
+                                        <span className="font-medium">Switch to B2B Buyer</span>
+                                    </button>
+
                                     <div className="h-px bg-gray-50 my-1"></div>
                                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
                                         <FiLogOut className="text-lg" />

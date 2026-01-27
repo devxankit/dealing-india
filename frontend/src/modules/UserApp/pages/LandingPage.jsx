@@ -17,19 +17,19 @@ const LandingPage = () => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
-        // Redirect if already authenticated
+        // We only redirect if specifically coming from a login attempt or if we want to force dashboard
+        // For the root /app path, we allow vendors to see the landing page/marketplace
+        /* 
         if (isUserAuth) {
             if (userType === 'b2b') {
                 navigate('/b2b/catalog', { replace: true });
-            } else if (!isMobile) {
-                // For B2C Buyer on desktop, we'll show MobileHome later in the render
-                // but we stay on /app. If we were on / we might want to go to /app
             }
         } else if (isVendorAuth) {
             navigate('/vendor/dashboard', { replace: true });
         } else if (isB2BVendorAuth) {
             navigate('/b2b-vendor/dashboard', { replace: true });
         }
+        */
     }, [isUserAuth, isVendorAuth, isB2BVendorAuth, userType, isMobile, navigate]);
 
     useEffect(() => {
@@ -42,9 +42,17 @@ const LandingPage = () => {
 
     const handleVendorTypeSelection = (vendorType) => {
         if (vendorType === 'b2b') {
-            navigate('/b2b-vendor/login', { state: { from: { pathname: '/b2b-vendor/dashboard' } } });
+            if (isB2BVendorAuth) {
+                navigate('/b2b-vendor/dashboard');
+            } else {
+                navigate('/b2b-vendor/login', { state: { from: { pathname: '/b2b-vendor/dashboard' } } });
+            }
         } else {
-            navigate('/vendor/login', { state: { from: { pathname: '/vendor/dashboard' } } });
+            if (isVendorAuth) {
+                navigate('/vendor/dashboard');
+            } else {
+                navigate('/vendor/login', { state: { from: { pathname: '/vendor/dashboard' } } });
+            }
         }
     };
 
@@ -52,11 +60,14 @@ const LandingPage = () => {
         if (type === 'b2b') {
             navigate('/b2b/login', { state: { from: { pathname: '/b2b/catalog' } } });
         } else {
+            // Navigate to the B2C login page as requested
             navigate('/app/login', { state: { from: { pathname: '/app' } } });
         }
     };
 
-    // If authenticated as B2C Buyer on desktop, show MobileHome (the marketplace)
+    // Show marketplace (MobileHome) if:
+    // 1. User is on a mobile device
+    // 2. User is already logged in as a B2C buyer
     if (isMobile || (isUserAuth && userType === 'b2c')) {
         return <MobileHome />;
     }

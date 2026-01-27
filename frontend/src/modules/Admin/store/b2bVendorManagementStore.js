@@ -69,5 +69,22 @@ export const useB2BVendorManagementStore = create((set, get) => ({
     }
   },
 
+  deleteB2BVendor: async (id) => {
+    try {
+      const response = await api.delete(`/admin/b2b-vendors/${id}`);
+      if (response.success) {
+        set((state) => ({
+          b2bVendors: state.b2bVendors.filter((vendor) => (vendor._id || vendor.id) !== id),
+          total: state.total - 1,
+        }));
+        return true;
+      }
+      throw new Error(response.message || 'Failed to delete B2B vendor');
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to delete B2B vendor';
+      throw new Error(errorMessage);
+    }
+  },
+
   clearError: () => set({ error: null }),
 }));

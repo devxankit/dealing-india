@@ -2,6 +2,17 @@ import b2bSubscriptionPlanService from '../../services/b2bSubscriptionPlan.servi
 import redisService from '../../services/redis.service.js';
 
 class AdminB2BSubscriptionPlanController {
+  constructor() {
+    this.getPlans = this.getPlans.bind(this);
+    this.getActivePlans = this.getActivePlans.bind(this);
+    this.getPlanById = this.getPlanById.bind(this);
+    this.createPlan = this.createPlan.bind(this);
+    this.updatePlan = this.updatePlan.bind(this);
+    this.deletePlan = this.deletePlan.bind(this);
+    this.initializeDefaultPlans = this.initializeDefaultPlans.bind(this);
+    this.clearPlanCache = this.clearPlanCache.bind(this);
+  }
+
   /**
    * Helper to clear B2B plan cache
    */

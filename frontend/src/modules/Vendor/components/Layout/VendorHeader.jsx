@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { FiMenu, FiBell, FiLogOut, FiShoppingBag, FiUser, FiSettings, FiChevronDown, FiCreditCard } from "react-icons/fi";
+import { FiMenu, FiBell, FiLogOut, FiShoppingBag, FiUser, FiSettings, FiChevronDown, FiCreditCard, FiBriefcase } from "react-icons/fi";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { useAuthStore } from "../../../../shared/store/authStore";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import Button from "../../../Admin/components/Button";
@@ -30,6 +31,20 @@ const VendorHeader = ({ onMenuClick }) => {
     logout();
     toast.success("Logged out successfully");
     navigate("/vendor/login");
+  };
+
+  const handleSwitch = async (path) => {
+    setShowUserMenu(false);
+    try {
+      // Clear both buyer and vendor sessions
+      await useAuthStore.getState().logout();
+      await logout();
+      // Use window.location.href to ensure a full clean state and avoid any route guard interference
+      window.location.href = path;
+    } catch (error) {
+      console.error("Error during switch:", error);
+      navigate(path);
+    }
   };
 
   const toggleNotifications = () => {
@@ -145,6 +160,23 @@ const VendorHeader = ({ onMenuClick }) => {
                       <FiUser className="text-lg" />
                       <span className="font-medium">My Profile</span>
                     </Link>
+
+                    <div className="h-px bg-gray-50 my-1 mx-4"></div>
+                    <p className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Buyer Panels</p>
+
+                    <button
+                      onClick={() => handleSwitch('/app/login')}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiShoppingBag className="text-lg text-blue-500" />
+                      <span className="font-medium">Switch to B2C Buyer</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleSwitch('/b2b/login')}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
+                      <FiBriefcase className="text-lg text-purple-500" />
+                      <span className="font-medium">Switch to B2B Buyer</span>
+                    </button>
 
                     <div className="h-px bg-gray-50 my-1 mx-4"></div>
                     <p className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Store Settings</p>

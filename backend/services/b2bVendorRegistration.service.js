@@ -8,6 +8,172 @@ import razorpayService from './razorpay.service.js';
 import mongoose from 'mongoose';
 
 /**
+ * Register B2B vendor without immediate subscription/payment
+ * @param {Object} vendorData - Vendor registration data
+ * @returns {Promise<Object>} { vendor, token }
+ */
+export const registerB2BVendor = async (vendorData) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      name,
+      email,
+      phone,
+      password,
+      storeName,
+      storeDescription,
+      address,
+      documents,
+      businessTypes,
+      gstNumber,
+    } = vendorData;
+
+    // Validate required fields
+    if (!name || !email || !phone || !password || !storeName) {
+      const error = new Error('Name, email, phone, password, and store name are required');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!businessTypes || !Array.isArray(businessTypes) || businessTypes.length === 0) {
+      const error = new Error('At least one business type is required for B2B vendors');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Check if vendor already exists
+    const existingVendor = await Vendor.findOne({
+      $or: [{ email: email.toLowerCase() }, { phone }],
+    }).session(session);
+
+    if (existingVendor) {
+      if (existingVendor.email === email.toLowerCase()) {
+        const error = new Error('Email already registered');
+        error.statusCode = 409;
+        throw error;
+      }
+      if (existingVendor.phone === phone) {
+        const error = new Error('Phone number already registered');
+        error.statusCode = 409;
+        throw error;
+      }
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Process documents
+    let processedDocuments = [];
+    if (documents && typeof documents === 'object') {
+      const docArray = [];
+      if (documents.panCard) {
+        docArray.push({ name: 'PAN Card', data: documents.panCard, type: 'application/pdf' });
+      }
+      if (documents.businessLicense) {
+        docArray.push({ name: 'Business License', data: documents.businessLicense, type: 'application/pdf' });
+      }
+
+      for (const doc of docArray) {
+        if (doc.data) {
+          try {
+            const fileType = doc.type || 'application/pdf';
+            const isImage = fileType.startsWith('image/');
+            const isPDF = fileType === 'application/pdf';
+
+            if (!isImage && !isPDF) continue;
+
+            let resourceType = 'auto';
+            let folderName = 'vendor-documents/b2b';
+
+            if (isPDF) {
+              resourceType = 'auto';
+            } else if (isImage) {
+              resourceType = 'image';
+              folderName = 'vendor-documents/b2b/images';
+            }
+
+            const result = await uploadBase64ToCloudinary(doc.data, folderName, {
+              resource_type: resourceType,
+            });
+
+            processedDocuments.push({
+              name: doc.name,
+              url: result.secure_url,
+              publicId: result.public_id,
+              type: fileType,
+              uploadedAt: new Date(),
+            });
+          } catch (uploadError) {
+            console.error(`Failed to upload file ${doc.name}:`, uploadError.message);
+          }
+        }
+      }
+    }
+
+    // Prepare address data
+    const addressData = address || {};
+    if (addressData.pincode && !addressData.zipCode) {
+      addressData.zipCode = addressData.pincode;
+    }
+    if (addressData.zipCode && !addressData.pincode) {
+      addressData.pincode = addressData.zipCode;
+    }
+
+    // Create vendor with status 'pending' (requires admin approval)
+    const newVendorData = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
+      password: hashedPassword,
+      storeName: storeName.trim(),
+      storeDescription: storeDescription ? storeDescription.trim() : undefined,
+      address: addressData,
+      documents: processedDocuments,
+      businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()).filter(bt => bt.length > 0) : [],
+      gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
+      vendorType: 'b2b',
+      status: 'pending', // Requires admin approval
+      isEmailVerified: false, // Will be verified later or by admin
+      isActive: true,
+      role: 'vendor',
+      commissionRate: 0,
+    };
+
+    const vendor = await Vendor.create([newVendorData], { session });
+    const createdVendor = vendor[0];
+
+    await session.commitTransaction();
+
+    // Generate token
+    const token = generateToken({
+      vendorId: createdVendor._id.toString(),
+      email: createdVendor.email,
+      role: createdVendor.role,
+    });
+
+    // Return vendor without password
+    const vendorObj = createdVendor.toObject();
+    delete vendorObj.password;
+
+    return {
+      vendor: vendorObj,
+      token,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('❌ Error in registerB2BVendor:', error);
+    if (error.statusCode) throw error;
+    const wrappedError = new Error(error.message || 'Failed to register B2B vendor');
+    wrappedError.statusCode = 500;
+    throw wrappedError;
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
  * Register B2B vendor with subscription after payment
  * @param {Object} vendorData - Vendor registration data
  * @param {String} planId - B2B subscription plan ID

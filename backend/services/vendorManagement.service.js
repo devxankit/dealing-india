@@ -336,12 +336,12 @@ export const getB2BVendors = async (filters = {}) => {
       } else {
         vendorType = vendor.vendorType;
       }
-      
+
       // STRICT: Only return vendors with vendorType='b2b' (exact string match)
       // Reject if vendorType is undefined, null, 'b2c', or anything other than 'b2b'
       const isB2B = vendorType === 'b2b';
       const isActive = vendor.isActive === true;
-      
+
       // Log rejected vendors for debugging
       if (!isB2B) {
         console.warn(`⚠️ REJECTED non-B2B vendor from B2B list:`, {
@@ -351,7 +351,7 @@ export const getB2BVendors = async (filters = {}) => {
           expected: 'b2b'
         });
       }
-      
+
       return isB2B && isActive;
     });
 
@@ -359,7 +359,7 @@ export const getB2BVendors = async (filters = {}) => {
     if (vendors.length !== verifiedB2BVendors.length) {
       console.warn(`⚠️ WARNING: Filtered out ${vendors.length - verifiedB2BVendors.length} non-B2B vendors from B2B vendor list`);
       console.warn(`⚠️ Original count: ${vendors.length}, Filtered count: ${verifiedB2BVendors.length}`);
-      
+
       // Log all rejected vendors for debugging
       vendors.forEach(vendor => {
         const vendorType = vendor.vendorType || (vendor.toObject && vendor.toObject().vendorType);
@@ -371,18 +371,18 @@ export const getB2BVendors = async (filters = {}) => {
 
     // Get product counts for all vendors
     const vendorIds = verifiedB2BVendors.map(v => v._id);
-    
+
     // Count products for each vendor in parallel
     const productCounts = await Promise.all(
       vendorIds.map(async (vendorId) => {
-        const count = await Product.countDocuments({ 
-          vendorId: vendorId, 
-          isActive: true 
+        const count = await Product.countDocuments({
+          vendorId: vendorId,
+          isActive: true
         });
         return { vendorId: vendorId.toString(), count };
       })
     );
-    
+
     // Create a map for quick lookup
     const productCountMap = new Map();
     productCounts.forEach(({ vendorId, count }) => {
@@ -402,32 +402,32 @@ export const getB2BVendors = async (filters = {}) => {
         return true;
       })
       .map(vendor => {
-      try {
-        // Safely access subscription data
-        const subscription = vendor.currentSubscription;
-        const plan = subscription?.planId;
-        
-        // Final vendorType check - if it's not 'b2b', exclude it
-        const finalVendorType = vendor.vendorType || (vendor.toObject && vendor.toObject().vendorType);
-        if (finalVendorType !== 'b2b') {
-          console.error(`❌ CRITICAL: Non-B2B vendor in formatting: ${vendor.email}`);
-          return null; // Return null to filter out later
-        }
-        
-        return {
-          _id: vendor._id,
-          id: vendor._id.toString(),
-          name: vendor.name || 'N/A',
-          companyName: vendor.storeName || vendor.name || 'N/A',
-          email: vendor.email || 'N/A',
-          phone: vendor.phone || 'N/A',
-          status: vendor.status === 'approved' ? 'Active' : vendor.status === 'pending' ? 'Pending' : vendor.status || 'Inactive',
-          products: productCountMap.get(vendor._id.toString()) || 0,
-          joinDate: vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : null,
-          gstNumber: vendor.gstNumber || 'N/A',
-          businessTypes: vendor.businessTypes || [],
-          subscription: subscription
-            ? {
+        try {
+          // Safely access subscription data
+          const subscription = vendor.currentSubscription;
+          const plan = subscription?.planId;
+
+          // Final vendorType check - if it's not 'b2b', exclude it
+          const finalVendorType = vendor.vendorType || (vendor.toObject && vendor.toObject().vendorType);
+          if (finalVendorType !== 'b2b') {
+            console.error(`❌ CRITICAL: Non-B2B vendor in formatting: ${vendor.email}`);
+            return null; // Return null to filter out later
+          }
+
+          return {
+            _id: vendor._id,
+            id: vendor._id.toString(),
+            name: vendor.name || 'N/A',
+            companyName: vendor.storeName || vendor.name || 'N/A',
+            email: vendor.email || 'N/A',
+            phone: vendor.phone || 'N/A',
+            status: vendor.status === 'approved' ? 'Active' : vendor.status === 'pending' ? 'Pending' : vendor.status || 'Inactive',
+            products: productCountMap.get(vendor._id.toString()) || 0,
+            joinDate: vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : null,
+            gstNumber: vendor.gstNumber || 'N/A',
+            businessTypes: vendor.businessTypes || [],
+            subscription: subscription
+              ? {
                 _id: subscription._id,
                 name: plan?.name || 'N/A',
                 price: plan?.price || 0,
@@ -450,33 +450,33 @@ export const getB2BVendors = async (filters = {}) => {
                   ? new Date(subscription.nextBillingDate).toISOString().split('T')[0]
                   : null,
               }
-            : null,
-          address: vendor.address || {},
-          documents: Array.isArray(vendor.documents) ? vendor.documents : [],
-          vendorType: 'b2b', // Explicitly set to ensure it's B2B
-        };
-      } catch (error) {
-        console.error('Error formatting vendor:', vendor._id, error);
-        // Return minimal vendor data if formatting fails
-        return {
-          _id: vendor._id,
-          id: vendor._id?.toString() || 'N/A',
-          name: vendor.name || 'N/A',
-          companyName: vendor.storeName || 'N/A',
-          email: vendor.email || 'N/A',
-          phone: vendor.phone || 'N/A',
-          status: vendor.status || 'Unknown',
-          products: 0,
-          joinDate: null,
-          gstNumber: 'N/A',
-          businessTypes: [],
-          subscription: null,
-          address: {},
-          documents: [],
-        };
-      }
-    })
-    .filter(vendor => vendor !== null); // Remove any null entries from formatting errors
+              : null,
+            address: vendor.address || {},
+            documents: Array.isArray(vendor.documents) ? vendor.documents : [],
+            vendorType: 'b2b', // Explicitly set to ensure it's B2B
+          };
+        } catch (error) {
+          console.error('Error formatting vendor:', vendor._id, error);
+          // Return minimal vendor data if formatting fails
+          return {
+            _id: vendor._id,
+            id: vendor._id?.toString() || 'N/A',
+            name: vendor.name || 'N/A',
+            companyName: vendor.storeName || 'N/A',
+            email: vendor.email || 'N/A',
+            phone: vendor.phone || 'N/A',
+            status: vendor.status || 'Unknown',
+            products: 0,
+            joinDate: null,
+            gstNumber: 'N/A',
+            businessTypes: [],
+            subscription: null,
+            address: {},
+            documents: [],
+          };
+        }
+      })
+      .filter(vendor => vendor !== null); // Remove any null entries from formatting errors
 
     // Recalculate total based on verified B2B vendors
     const verifiedTotal = formattedVendors.length;
@@ -498,3 +498,45 @@ export const getB2BVendors = async (filters = {}) => {
     throw error;
   }
 };
+
+/**
+ * Delete B2B Vendor
+ * @param {String} vendorId - Vendor ID to delete
+ * @returns {Promise<Boolean>} True if deleted successfully
+ */
+export const deleteB2BVendor = async (vendorId) => {
+    try {
+      const vendor = await Vendor.findById(vendorId);
+
+      if (!vendor) {
+        throw new Error('B2B Vendor not found');
+      }
+
+      // Ensure it is a B2B vendor
+      if (vendor.vendorType !== 'b2b') {
+        throw new Error('Cannot delete non-B2B vendor through this endpoint');
+      }
+
+      // Optional: Delete associated products (can be done via middleware/hooks too)
+      await Product.deleteMany({ vendorId: vendor._id });
+
+      // Delete the vendor
+      await Vendor.findByIdAndDelete(vendorId);
+
+      // Cache Invalidation
+      try {
+        await redisService.del(`vendor:details:${vendorId}`);
+        await redisService.clearPattern('vendors:list:*');
+        await redisService.clearPattern('admin:vendors:list:*');
+      } catch (cacheError) {
+        console.error('Cache invalidation error (deleteB2BVendor):', cacheError);
+      }
+
+      return true;
+    } catch (error) {
+      if (error.name === 'CastError') {
+        throw new Error('Invalid vendor ID');
+      }
+      throw error;
+    }
+  };

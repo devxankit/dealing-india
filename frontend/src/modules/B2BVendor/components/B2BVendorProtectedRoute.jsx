@@ -31,17 +31,18 @@ const B2BVendorProtectedRoute = ({ children }) => {
                         if (subscription && subscription.endDate) {
                             const now = new Date();
                             const endDate = new Date(subscription.endDate);
-                            if (endDate < now || subscription.status !== 'active') {
-                                console.log('[B2BVendorProtectedRoute] Subscription expired or inactive, logging out');
-                                logout();
-                                // Redirect to login with expired flag
-                                window.location.href = '/b2b-vendor/login?expired=true';
+                            if (endDate < now) {
+                                console.log('[B2BVendorProtectedRoute] Subscription expired, warning only');
+                                // In simplified registration, we might want to allow login but limit features
+                                // For now, we'll allow access but backend will restrict product additions
+                            }
+                            
+                            if (subscription.status !== 'active') {
+                                console.log('[B2BVendorProtectedRoute] Subscription inactive:', subscription.status);
                             }
                         } else if (subscription === null) {
-                            // No subscription found for B2B vendor
-                            console.log('[B2BVendorProtectedRoute] No subscription found for B2B vendor, logging out');
-                            logout();
-                            window.location.href = '/b2b-vendor/login?expired=true';
+                            // No subscription found for B2B vendor - allow access in simplified registration flow
+                            console.log('[B2BVendorProtectedRoute] No subscription found for B2B vendor, allowing access (simplified registration)');
                         }
                     }
                 } catch (error) {

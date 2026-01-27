@@ -1,6 +1,90 @@
-import { registerB2BVendorWithSubscription, initializeB2BRegistrationPayment, createB2BSubscriptionAfterPayment } from '../../services/b2bVendorRegistration.service.js';
+import { 
+  registerB2BVendor,
+  registerB2BVendorWithSubscription, 
+  initializeB2BRegistrationPayment, 
+  createB2BSubscriptionAfterPayment
+} from '../../services/b2bVendorRegistration.service.js';
 import VendorSubscription from '../../models/VendorSubscription.model.js';
 import mongoose from 'mongoose';
+
+/**
+ * Register B2B vendor (Direct registration, no payment)
+ * POST /api/auth/b2b-vendor/register
+ */
+export const register = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      password,
+      storeName,
+      storeDescription,
+      address,
+      documents,
+      businessTypes,
+      gstNumber,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !password || !storeName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email, phone, password, and store name are required',
+      });
+    }
+
+    // Validate business types for B2B
+    if (!businessTypes || !Array.isArray(businessTypes) || businessTypes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one business type is required for B2B vendors',
+      });
+    }
+
+    console.log('📝 Calling registerB2BVendor service...');
+    
+    const result = await registerB2BVendor({
+      name,
+      email,
+      phone,
+      password,
+      storeName,
+      storeDescription,
+      address,
+      documents,
+      businessTypes,
+      gstNumber,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'B2B vendor registered successfully. Your account is pending admin approval.',
+      data: {
+        vendor: result.vendor,
+        token: result.token,
+      },
+    });
+  } catch (error) {
+    console.error('Error in register:', error);
+    
+    if (error.statusCode === 409) {
+      return res.status(409).json({
+        success: false,
+        message: error.message || 'Vendor already exists',
+      });
+    }
+
+    if (error.statusCode === 400) {
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Invalid registration data',
+      });
+    }
+
+    next(error);
+  }
+};
 
 /**
  * Register B2B vendor with subscription after payment
