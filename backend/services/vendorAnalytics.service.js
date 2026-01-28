@@ -233,7 +233,6 @@ export const getVendorOrders = async (vendorId, filters = {}) => {
 
     const query = {
       'vendorBreakdown.vendorId': vendorId,
-      status: { $ne: 'cancelled' } // Exclude cancelled orders
     };
 
     if (status) {
@@ -242,14 +241,59 @@ export const getVendorOrders = async (vendorId, filters = {}) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const [orders, total] = await Promise.all([
+    const [ordersRaw, total] = await Promise.all([
       Order.find(query)
+        .populate('customerId', 'name email phone')
+        .populate('shippingAddress')
+        .populate('items.productId', 'name images slug vendorId vendorName')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
         .lean(),
       Order.countDocuments(query),
     ]);
+
+    // Transform orders for frontend compatibility
+    const orders = ordersRaw.map((order) => {
+      const orderObj = {
+        ...order,
+        id: order._id.toString(),
+        orderDate: order.orderDate || order.date || order.createdAt,
+      };
+
+      // Transform vendorBreakdown to vendorItems for frontend compatibility
+      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+        orderObj.vendorItems = order.vendorBreakdown.map((vb) => {
+          // Get items for this vendor
+          const vendorItems = (order.items || []).filter((item) => {
+            const productVendorId = item.productId?.vendorId?._id || item.productId?.vendorId || item.productId?.vendorId;
+            const vendorIdStr = (vb.vendorId?._id || vb.vendorId)?.toString();
+            return vendorIdStr && productVendorId && productVendorId.toString() === vendorIdStr;
+          });
+
+          return {
+            vendorId: vb.vendorId?._id || vb.vendorId,
+            vendorName: vb.vendorName || vb.vendorId?.name || vb.vendorId?.storeName || 'Unknown Vendor',
+            items: vendorItems.map((item) => ({
+              id: item.productId?._id || item.productId || item._id,
+              productId: item.productId?._id || item.productId,
+              name: item.name || item.productId?.name,
+              quantity: item.quantity,
+              price: item.price,
+              image: item.image || item.productId?.images?.[0],
+              variant: item.variant,
+            })),
+            subtotal: vb.subtotal || 0,
+            shipping: vb.shipping || 0,
+            tax: vb.tax || 0,
+            discount: vb.discount || 0,
+            commission: vb.commission || 0,
+          };
+        });
+      }
+
+      return orderObj;
+    });
 
     const totalPages = Math.ceil(total / parseInt(limit));
 

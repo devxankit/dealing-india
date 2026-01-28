@@ -323,12 +323,13 @@ const VendorDetail = () => {
       key: "id",
       label: "Order ID",
       sortable: true,
+      render: (value, row) => row.id || row._id || "N/A",
     },
     {
-      key: "date",
+      key: "orderDate",
       label: "Date",
       sortable: true,
-      render: (value) => new Date(value).toLocaleDateString(),
+      render: (value) => value ? new Date(value).toLocaleDateString() : "N/A",
     },
     {
       key: "status",
@@ -355,9 +356,9 @@ const VendorDetail = () => {
       sortable: true,
       render: (_, row) => {
         const vendorItem = row.vendorItems?.find(
-          (vi) => vi.vendorId === vendor.id
+          (vi) => vi.vendorId === vendor.id || vi.vendorId?.toString() === vendor.id?.toString()
         );
-        return formatPrice(vendorItem?.subtotal || 0);
+        return formatPrice(vendorItem?.subtotal || row.pricing?.subtotal || 0);
       },
     },
     {
@@ -366,7 +367,7 @@ const VendorDetail = () => {
       sortable: false,
       render: (_, row) => (
         <button
-          onClick={() => navigate(`/admin/orders/${row.id}`)}
+          onClick={() => navigate(`/admin/orders/${row.id || row._id}`)}
           className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
           View
         </button>

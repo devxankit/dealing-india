@@ -324,6 +324,7 @@ const transformVendor = (vendor) => {
     bankDetails: vendor.bankDetails || {},
     commissionRate: vendor.commissionRate || 0.1,
     joinDate: vendor.createdAt || vendor.joinDate || new Date().toISOString(),
+    performance: vendor.performance || { totalOrders: 0, totalEarnings: 0 },
     createdAt: vendor.createdAt,
     updatedAt: vendor.updatedAt,
   };

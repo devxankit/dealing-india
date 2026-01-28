@@ -61,22 +61,6 @@ const ManageVendors = () => {
     loadVendors();
   }, [selectedStatus, debouncedSearchQuery, fetchVendors]);
 
-  // Get vendor statistics (simplified - will be enhanced when orders are available)
-  const getVendorStats = (vendorId) => {
-    const vendor = vendors.find((v) => v.id === vendorId);
-    return {
-      totalOrders: 0, // Will be populated when orders are available
-      totalEarnings: 0,
-      pendingEarnings: 0,
-      commissionRate: vendor?.commissionRate || 0,
-    };
-  };
-
-  const filteredVendors = useMemo(() => {
-    // Filtering is now done on backend, but we can add client-side filtering if needed
-    return vendors;
-  }, [vendors]);
-
   const columns = [
     {
       key: "id",
@@ -155,11 +139,11 @@ const ManageVendors = () => {
       ),
     },
     {
-      key: "stats",
+      key: "performance",
       label: "Performance",
       sortable: false,
       render: (_, row) => {
-        const stats = getVendorStats(row.id);
+        const stats = row.performance || { totalOrders: 0, totalEarnings: 0 };
         return (
           <div className="text-xs">
             <p className="text-gray-700">
@@ -460,7 +444,7 @@ const ManageVendors = () => {
 
             <div className="w-full sm:w-auto">
               <ExportButton
-                data={filteredVendors}
+                data={vendors}
                 headers={[
                   { label: "ID", accessor: (row) => row.id },
                   {
@@ -491,9 +475,9 @@ const ManageVendors = () => {
           <div className="text-center py-12">
             <p className="text-gray-500">Loading vendors...</p>
           </div>
-        ) : filteredVendors.length > 0 ? (
+        ) : vendors.length > 0 ? (
           <DataTable
-            data={filteredVendors}
+            data={vendors}
             columns={columns}
             pagination={true}
             itemsPerPage={10}

@@ -1,6 +1,8 @@
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
+import Order from '../models/Order.model.js';
 import redisService from './redis.service.js';
+import mongoose from 'mongoose';
 
 /**
  * Get all vendors with optional filters
@@ -60,7 +62,7 @@ export const getAllVendors = async (filters = {}) => {
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
     // Execute query
-    const [vendors, total] = await Promise.all([
+    const [vendorsRaw, total] = await Promise.all([
       Vendor.find(query)
         .sort(sortOptions)
         .skip(skip)
@@ -68,6 +70,53 @@ export const getAllVendors = async (filters = {}) => {
         .lean(),
       Vendor.countDocuments(query),
     ]);
+
+    // Fetch performance stats for these vendors
+    const vendorIds = vendorsRaw.map(v => v._id);
+    
+    const stats = await Order.aggregate([
+      { 
+        $match: { 
+          'vendorBreakdown.vendorId': { $in: vendorIds }
+        } 
+      },
+      { $unwind: '$vendorBreakdown' },
+      { $match: { 'vendorBreakdown.vendorId': { $in: vendorIds } } },
+      {
+        $group: {
+          _id: '$vendorBreakdown.vendorId',
+          totalOrders: { $sum: 1 },
+          totalEarnings: { 
+            $sum: { 
+              $cond: [
+                { $not: [{ $in: ['$status', ['cancelled', 'refunded']] }] },
+                { 
+                  $subtract: [
+                    { $ifNull: ['$vendorBreakdown.subtotal', 0] },
+                    { $ifNull: ['$vendorBreakdown.commission', 0] }
+                  ] 
+                },
+                0
+              ]
+            } 
+          }
+        }
+      }
+    ]);
+
+    // Map stats back to vendors
+    const statsMap = stats.reduce((acc, curr) => {
+      acc[curr._id.toString()] = {
+        totalOrders: curr.totalOrders,
+        totalEarnings: curr.totalEarnings
+      };
+      return acc;
+    }, {});
+
+    const vendors = vendorsRaw.map(vendor => ({
+      ...vendor,
+      performance: statsMap[vendor._id.toString()] || { totalOrders: 0, totalEarnings: 0 }
+    }));
 
     const totalPages = Math.ceil(total / parseInt(limit));
 
