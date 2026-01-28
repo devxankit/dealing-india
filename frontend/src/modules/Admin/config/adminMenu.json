@@ -9,6 +9,16 @@
     "route": "/admin/orders",
     "children": [
       "All Orders",
+      "Awaiting",
+      "Received",
+      "Processed",
+      "Shipped",
+      "Delivered",
+      "Cancelled",
+      "Returned",
+      "Total Items",
+      "Total Revenue",
+      "Average Order Value",
       "Order Tracking",
       "Order Notifications"
     ]

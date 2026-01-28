@@ -330,22 +330,37 @@ export const getStats = async (req, res, next) => {
     // Transform to object format
     const statusStats = {
       total: 0,
-      pending: 0,
-      processing: 0,
-      ready_to_ship: 0,
-      dispatched: 0,
-      shipped_seller: 0,
+      awaiting: 0,
+      received: 0,
+      processed: 0,
       shipped: 0,
       delivered: 0,
       cancelled: 0,
-      refunded: 0,
+      returned: 0,
       on_hold: 0,
+      // Keep old keys for safety during transition
+      pending: 0,
+      processing: 0,
+      ready_to_ship: 0,
     };
 
     stats.forEach((stat) => {
       if (stat._id) {
-        statusStats[stat._id] = stat.count;
-        statusStats.total += stat.count;
+        const count = stat.count || 0;
+        let mappedStatus = stat._id;
+
+        // Map old/legacy statuses to new UI terms for consolidation
+        if (mappedStatus === 'pending') mappedStatus = 'awaiting';
+        if (mappedStatus === 'processing') mappedStatus = 'processed';
+        if (mappedStatus === 'ready_to_ship') mappedStatus = 'processed'; // or shipped
+        if (mappedStatus === 'refunded') mappedStatus = 'returned';
+
+        if (statusStats.hasOwnProperty(mappedStatus)) {
+          statusStats[mappedStatus] += count;
+        } else {
+          statusStats[mappedStatus] = count;
+        }
+        statusStats.total += count;
       }
     });
 

@@ -13,7 +13,9 @@ export const useCommissionStore = create(
       stats: {
         totalEarnings: 0,
         pendingEarnings: 0,
+        deliveredEarnings: 0,
         paidEarnings: 0,
+        outstandingAmount: 0,
         totalOrders: 0
       },
       isLoading: false,
@@ -24,13 +26,16 @@ export const useCommissionStore = create(
         set({ isLoading: true, error: null });
         try {
           const data = await getVendorEarningsStats();
-          
+
           if (data) {
             set({
               stats: {
                 ...get().stats,
                 pendingEarnings: data.pendingEarnings || 0,
                 totalEarnings: data.totalOrderEarnings || 0,
+                deliveredEarnings: data.deliveredEarnings || 0,
+                paidEarnings: data.paidEarnings || 0,
+                outstandingAmount: data.outstandingAmount || 0,
                 totalOrders: data.totalOrders || 0
               }
             });

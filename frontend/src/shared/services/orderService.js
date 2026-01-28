@@ -109,6 +109,7 @@ export const getVendorOrders = async (filters = {}) => {
     if (filters.page) params.append('page', filters.page);
     if (filters.limit) params.append('limit', filters.limit);
     if (filters.search) params.append('search', filters.search);
+    if (filters.paymentMethod) params.append('paymentMethod', filters.paymentMethod);
 
     const response = await api.get(`/vendor/orders?${params.toString()}`);
     return response;
@@ -200,7 +201,7 @@ export const getVendorEarningsStats = async () => {
 export const getAdminOrders = async (filters = {}) => {
   try {
     const params = new URLSearchParams();
-    
+
     // Helper to check if a value is worth sending
     const isValuable = (val) => val !== undefined && val !== null && val !== 'undefined' && val !== 'null' && val !== '' && val !== 'all';
 

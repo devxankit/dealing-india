@@ -59,6 +59,16 @@ const getChildRoute = (parentRoute, childName) => {
   const routeMap = {
     "/admin/orders": {
       "All Orders": "/admin/orders/all-orders",
+      "Awaiting": "/admin/orders/awaiting",
+      "Received": "/admin/orders/received",
+      "Processed": "/admin/orders/processed",
+      "Shipped": "/admin/orders/shipped",
+      "Delivered": "/admin/orders/delivered",
+      "Cancelled": "/admin/orders/cancelled",
+      "Returned": "/admin/orders/returned",
+      "Total Items": "/admin/orders/total-items",
+      "Total Revenue": "/admin/orders/total-revenue",
+      "Average Order Value": "/admin/orders/average-order-value",
       "Order Tracking": "/admin/orders/order-tracking",
       "Order Notifications": "/admin/orders/order-notifications",
     },

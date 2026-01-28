@@ -68,8 +68,7 @@ const LandingPage = () => {
 
     // Show marketplace (MobileHome) if:
     // 1. User is on a mobile device
-    // 2. User is already logged in as a B2C buyer
-    if (isMobile || (isUserAuth && userType === 'b2c')) {
+    if (isMobile) {
         return <MobileHome />;
     }
 
@@ -79,9 +78,9 @@ const LandingPage = () => {
             <div className="bg-white sticky top-0 z-50 px-8 py-4 flex items-center justify-between shadow-sm border-b border-gray-50 flex-shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="h-10 md:h-12">
-                        <img 
-                            src={appLogo.src} 
-                            alt={appLogo.alt} 
+                        <img
+                            src={appLogo.src}
+                            alt={appLogo.alt}
                             className="h-full object-contain cursor-pointer"
                             onClick={() => navigate('/app')}
                             onError={(e) => {
@@ -95,13 +94,13 @@ const LandingPage = () => {
 
                 <div className="flex items-center gap-3">
                     {/* Buyer Buttons */}
-                    <button 
+                    <button
                         onClick={() => handleBuyerLogin('b2c')}
                         className="px-6 py-2.5 bg-primary-600 border border-primary-600 rounded-xl text-sm font-bold text-white hover:bg-primary-700 transition-all flex items-center gap-2 shadow-sm"
                     >
                         <FiUser className="text-lg" /> B2C Buyer
                     </button>
-                    <button 
+                    <button
                         onClick={() => handleBuyerLogin('b2b')}
                         className="px-6 py-2.5 bg-orange-600 border border-orange-600 rounded-xl text-sm font-bold text-white hover:bg-orange-700 transition-all flex items-center gap-2 shadow-sm"
                     >
@@ -109,13 +108,13 @@ const LandingPage = () => {
                     </button>
 
                     {/* Vendor Buttons */}
-                    <button 
+                    <button
                         onClick={() => handleVendorTypeSelection('b2b')}
                         className="px-6 py-2.5 bg-orange-600 border border-orange-600 rounded-xl text-sm font-bold text-white hover:bg-orange-700 transition-all flex items-center gap-2 shadow-sm"
                     >
                         <FiBriefcase className="text-lg" /> B2B Vendor
                     </button>
-                    <button 
+                    <button
                         onClick={() => handleVendorTypeSelection('vendor')}
                         className="px-6 py-2.5 bg-green-600 border border-green-600 rounded-xl text-sm font-bold text-white hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm"
                     >
@@ -137,24 +136,24 @@ const LandingPage = () => {
                         transition={{ duration: 0.6 }}
                     >
                         <h1 className="text-7xl font-black text-gray-900 leading-[1.1] mb-8">
-                            Your Ultimate <br/>
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-500">B2B & B2C</span> <br/>
+                            Your Ultimate <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-orange-500">B2B & B2C</span> <br />
                             Marketplace for <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-green-500">Bharat</span>
                         </h1>
-                        
+
                         <p className="text-gray-600 text-xl mb-10 max-w-lg leading-relaxed font-medium">
-                            Buy at Wholesale Prices or Sell at 0% Commission. <br/>
+                            Buy at Wholesale Prices or Sell at 0% Commission. <br />
                             Empowering millions of Buyers and Sellers across India.
                         </p>
 
                         <div className="flex items-center gap-4">
-                            <button 
+                            <button
                                 onClick={() => handleBuyerLogin('b2c')}
                                 className="px-8 py-4 bg-green-600 text-white rounded-2xl font-bold text-lg hover:bg-green-700 transition-all shadow-lg shadow-green-200 flex items-center gap-2"
                             >
                                 Start Shopping <FiShoppingCart />
                             </button>
-                            <button 
+                            <button
                                 onClick={() => handleVendorTypeSelection('vendor')}
                                 className="px-8 py-4 bg-orange-600 text-white rounded-2xl font-bold text-lg hover:bg-orange-700 transition-all shadow-lg shadow-orange-200 flex items-center gap-2"
                             >
@@ -190,20 +189,18 @@ const LandingPage = () => {
                         { title: "Thousands of", desc: "Serviceable pincodes across India", color: "orange" },
                         { title: "Hundreds of", desc: "Categories for every need", color: "green" }
                     ].map((stat, idx) => (
-                        <motion.div 
+                        <motion.div
                             key={idx}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 + (idx * 0.1) }}
-                            className={`p-8 rounded-3xl border transition-all hover:shadow-xl hover:-translate-y-1 ${
-                                stat.color === 'orange' 
-                                ? 'bg-orange-50 border-orange-100' 
-                                : 'bg-green-50 border-green-100'
-                            }`}
+                            className={`p-8 rounded-3xl border transition-all hover:shadow-xl hover:-translate-y-1 ${stat.color === 'orange'
+                                    ? 'bg-orange-50 border-orange-100'
+                                    : 'bg-green-50 border-green-100'
+                                }`}
                         >
-                            <div className={`text-2xl font-black mb-2 ${
-                                stat.color === 'orange' ? 'text-orange-600' : 'text-green-600'
-                            }`}>{stat.title}</div>
+                            <div className={`text-2xl font-black mb-2 ${stat.color === 'orange' ? 'text-orange-600' : 'text-green-600'
+                                }`}>{stat.title}</div>
                             <div className="text-gray-600 font-semibold leading-snug">{stat.desc}</div>
                         </motion.div>
                     ))}

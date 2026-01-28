@@ -582,7 +582,7 @@ export const getOrderById = async (orderId, userId = null) => {
       .populate('customerId', 'name email phone')
       .populate('shippingAddress')
       .populate('items.productId', 'name images slug vendorId vendorName')
-      .populate('vendorBreakdown.vendorId', 'name storeName')
+      .populate('vendorBreakdown.vendorId', 'name storeName email phone')
       .lean();
 
     if (!order) {
@@ -601,7 +601,9 @@ export const getOrderById = async (orderId, userId = null) => {
 
         return {
           vendorId: vb.vendorId?._id || vb.vendorId,
-          vendorName: vb.vendorName || vb.vendorId?.name || vb.vendorId?.storeName || 'Unknown Vendor',
+          vendorName: vb.vendorName || vb.vendorId?.storeName || vb.vendorId?.name || 'Unknown Vendor',
+          vendorEmail: vb.vendorId?.email || 'N/A',
+          vendorPhone: vb.vendorId?.phone || 'N/A',
           items: vendorItems.map((item) => ({
             id: item.productId?._id || item.productId || item._id,
             productId: item.productId?._id || item.productId,
@@ -1177,17 +1179,38 @@ export const getAdminOrders = async (filters = {}) => {
       .populate('customerId', 'name email phone')
       .populate('shippingAddress')
       .populate('items.productId', 'name images slug vendorId vendorName')
-      .populate('vendorBreakdown.vendorId', 'name storeName')
+      .populate('vendorBreakdown.vendorId', 'name storeName email phone')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .lean();
 
+    // Transform orders to include vendorItems for frontend compatibility
+    const transformedOrders = orders.map(order => {
+      const orderObj = { ...order };
+      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
+        orderObj.vendorItems = order.vendorBreakdown.map(vb => ({
+          vendorId: vb.vendorId?._id || vb.vendorId,
+          vendorName: vb.vendorName || vb.vendorId?.storeName || vb.vendorId?.name || 'Unknown Vendor',
+          vendorEmail: vb.vendorId?.email || 'N/A',
+          vendorPhone: vb.vendorId?.phone || 'N/A',
+          subtotal: vb.subtotal || 0,
+          shipping: vb.shipping || 0,
+          tax: vb.tax || 0,
+          discount: vb.discount || 0,
+          commission: vb.commission || 0,
+        }));
+      } else {
+        orderObj.vendorItems = [];
+      }
+      return orderObj;
+    });
+
     const total = await Order.countDocuments(query);
 
     console.log(`getAdminOrders - Found ${orders.length} orders out of ${total} total`); // Debug log
 
-    return { orders, total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) };
+    return { orders: transformedOrders, total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit) };
   } catch (error) {
     throw error;
   }

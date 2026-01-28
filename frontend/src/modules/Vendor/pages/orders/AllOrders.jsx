@@ -44,6 +44,7 @@ const AllOrders = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [paymentMethod, setPaymentMethod] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0); // To trigger re-fetch
   const [stats, setStats] = useState({
     totalProducts: 0,
@@ -58,19 +59,36 @@ const AllOrders = () => {
   // Update selected status based on URL path
   useEffect(() => {
     const path = location.pathname;
-    if (path.includes('/vendor/orders/hold-order')) setSelectedStatus('on_hold');
-    else if (path.includes('/vendor/orders/pending-order')) setSelectedStatus('pending');
-    else if (path.includes('/vendor/orders/ready-to-ship')) setSelectedStatus('ready_to_ship');
-    else if (path.includes('/vendor/orders/dispatch-order')) setSelectedStatus('dispatched');
-    else if (path.includes('/vendor/orders/shipped-seller')) setSelectedStatus('shipped_seller');
-    else if (path.includes('/vendor/orders/canceled-order')) setSelectedStatus('cancelled');
-    else setSelectedStatus('all');
+
+    // Default values
+    let newStatus = 'all';
+    let newPaymentMethod = null;
+
+    if (path.includes('/vendor/orders/hold-order')) newStatus = 'on_hold';
+    else if (path.includes('/vendor/orders/pending-order')) newStatus = 'pending';
+    else if (path.includes('/vendor/orders/processing')) newStatus = 'processing';
+    else if (path.includes('/vendor/orders/ready-to-ship')) newStatus = 'ready_to_ship';
+    else if (path.includes('/vendor/orders/dispatch-order')) newStatus = 'dispatched';
+    else if (path.includes('/vendor/orders/shipped-seller')) newStatus = 'shipped_seller';
+    else if (path.includes('/vendor/orders/canceled-order')) newStatus = 'cancelled';
+    else if (path.includes('/vendor/orders/prepaid-orders')) {
+      newStatus = 'all';
+      newPaymentMethod = 'prepaid';
+    }
+    else if (path.includes('/vendor/orders/cod-orders')) {
+      newStatus = 'all';
+      newPaymentMethod = 'cod';
+    }
+
+    setSelectedStatus(newStatus);
+    setPaymentMethod(newPaymentMethod);
   }, [location.pathname]);
 
   const vendorId = vendor?.id;
 
   // Fetch vendor orders from API
   useEffect(() => {
+    let ignore = false;
     const fetchOrders = async () => {
       if (!vendorId) {
         setVendorOrders([]);
@@ -82,10 +100,13 @@ const AllOrders = () => {
         setLoading(true);
         const filters = {
           status: selectedStatus === 'all' ? undefined : selectedStatus,
+          paymentMethod: paymentMethod || undefined,
           page: 1,
           limit: 1000, // Get all orders for vendor
         };
         const response = await getVendorOrders(filters);
+
+        if (ignore) return;
 
         // Handle potentially wrapped or unwrapped response
         const data = response.data || response;
@@ -97,15 +118,17 @@ const AllOrders = () => {
           setVendorOrders([]);
         }
       } catch (error) {
+        if (ignore) return;
         console.error('Error fetching vendor orders:', error);
         toast.error('Failed to load orders');
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     };
 
     fetchOrders();
-  }, [vendorId, selectedStatus, refreshKey]);
+    return () => { ignore = true; };
+  }, [vendorId, selectedStatus, paymentMethod, refreshKey]);
 
   // Get vendor-specific order data
   const getVendorOrderData = (order) => {
@@ -201,8 +224,21 @@ const AllOrders = () => {
       );
     }
 
+    // Payment method filtering (client-side safety net)
+    if (paymentMethod) {
+      filtered = filtered.filter((order) => {
+        const method = order.paymentMethod?.toLowerCase();
+        if (paymentMethod === 'cod') {
+          return method === 'cod' || method === 'cash';
+        } else if (paymentMethod === 'prepaid') {
+          return method && method !== 'cod' && method !== 'cash';
+        }
+        return true;
+      });
+    }
+
     return filtered;
-  }, [vendorOrders, searchQuery, selectedStatus]);
+  }, [vendorOrders, searchQuery, selectedStatus, paymentMethod]);
 
   const handleStatusUpdate = async (e, orderId, newStatus) => {
     e.stopPropagation();
@@ -577,11 +613,15 @@ const AllOrders = () => {
       'dispatched': 'Dispatched Orders',
       'shipped_seller': 'Shipped Orders',
       'cancelled': 'Canceled Orders',
+      'prepaid': 'Prepaid orders',
+      'cod': 'COD orders',
     };
 
-    const currentLabel = statusLabels[selectedStatus] || 'Orders';
+    const currentLabel = paymentMethod
+      ? statusLabels[paymentMethod]
+      : (statusLabels[selectedStatus] || 'Orders');
 
-    if (selectedStatus === 'all') {
+    if (selectedStatus === 'all' && !paymentMethod) {
       // All Orders page - show general stats
       return [
         {

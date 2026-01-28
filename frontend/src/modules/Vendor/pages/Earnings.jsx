@@ -265,7 +265,7 @@ const Earnings = () => {
           {/* Earnings Summary Cards - Show on Overview tab */}
           {activeTab === "overview" && (
             <div className="mb-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 shadow-sm border border-green-200">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm text-green-700 font-medium">
@@ -294,21 +294,38 @@ const Earnings = () => {
                       : formatPrice(0)}
                   </p>
                   <p className="text-xs text-yellow-600 mt-1">
-                    Awaiting settlement
+                    Undelivered orders
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-6 shadow-sm border border-orange-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-orange-700 font-medium">
+                      Outstanding
+                    </p>
+                    <FiClock className="text-orange-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-orange-800">
+                    {earningsSummary
+                      ? formatPrice(earningsSummary.outstandingAmount)
+                      : formatPrice(0)}
+                  </p>
+                  <p className="text-xs text-orange-600 mt-1">
+                    Awaiting payment
                   </p>
                 </div>
 
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 shadow-sm border border-blue-200">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-blue-700 font-medium">Paid</p>
+                    <p className="text-sm text-blue-700 font-medium">Already Paid</p>
                     <FiCheckCircle className="text-blue-600" />
                   </div>
                   <p className="text-2xl font-bold text-blue-800">
                     {earningsSummary
-                      ? formatPrice(earningsSummary.totalEarnings - earningsSummary.pendingEarnings)
+                      ? formatPrice(earningsSummary.paidEarnings)
                       : formatPrice(0)}
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">Settled</p>
+                  <p className="text-xs text-blue-600 mt-1">Via settlements</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 shadow-sm border border-purple-200">

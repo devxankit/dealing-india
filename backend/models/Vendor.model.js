@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const addressSchema = new mongoose.Schema(
   {
     street: { type: String, trim: true },
+    area: { type: String, trim: true }, // Added area field
     landmark: { type: String, trim: true },
     city: { type: String, trim: true },
     state: { type: String, trim: true },
@@ -101,12 +102,12 @@ const vendorSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
       validate: {
-        validator: function(v) {
-      // GST number is optional, no format validation
-      if (!v) return true; // Optional field
-      return true; // Accept any format
-    },
-    message: 'GST number is optional',
+        validator: function (v) {
+          // GST number is optional, no format validation
+          if (!v) return true; // Optional field
+          return true; // Accept any format
+        },
+        message: 'GST number is optional',
       },
     },
     documents: [{
@@ -166,13 +167,13 @@ vendorSchema.pre('save', function (next) {
 // Pre-update middleware: Prevent commission updates for B2B vendors
 vendorSchema.pre(['updateOne', 'findOneAndUpdate', 'updateMany'], function (next) {
   const update = this.getUpdate();
-  
+
   // Check if commissionRate is being updated
   if (update && update.$set && update.$set.commissionRate !== undefined) {
     // If updating commission, we need to check vendorType
     // This will be validated in the service layer for better error handling
   }
-  
+
   next();
 });
 

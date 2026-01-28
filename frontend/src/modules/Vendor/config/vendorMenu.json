@@ -11,10 +11,13 @@
       "All orders",
       "Hold order",
       "Pending order",
+      "Processing",
       "Ready to ship",
       "Dispatch order",
       "Shipped seller",
-      "Canceled order"
+      "Canceled order",
+      "Prepaid orders",
+      "COD orders"
     ]
   },
   {

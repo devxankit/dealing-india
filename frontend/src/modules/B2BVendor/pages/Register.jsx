@@ -27,6 +27,7 @@ const B2BVendorRegister = () => {
         gstNumber: '',
         address: {
             street: '',
+            area: '',
             city: '',
             state: '',
             zipCode: '',
@@ -169,13 +170,13 @@ const B2BVendorRegister = () => {
                     id: 'registration-success-toast'
                 });
 
-                // Clear temporary storage
+                // Clear temporary storage and leftover payment data
                 localStorage.removeItem('b2b_payment_data');
                 localStorage.removeItem('b2b_paid_plan_id');
                 localStorage.removeItem('b2b_subscription_id');
                 localStorage.removeItem('b2b_payment_email');
                 localStorage.removeItem('b2b_payment_phone');
-                
+
                 // Small delay to let user see the success toast before navigation
                 setTimeout(() => {
                     navigate('/b2b-vendor/login', {
@@ -192,7 +193,7 @@ const B2BVendorRegister = () => {
         } catch (error) {
             console.error('Registration error:', error);
             const message = error.response?.data?.message || error.message || 'Registration failed';
-            
+
             // Check for specific duplicate field errors
             if (message.toLowerCase().includes('phone') || message.toLowerCase().includes('mobile')) {
                 toast.error('Mobile number already registered. Please use a different number or login.', {
@@ -219,13 +220,13 @@ const B2BVendorRegister = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="glass-card rounded-3xl p-8 w-full max-w-3xl shadow-2xl max-h-[95vh] overflow-y-auto relative"
             >
-             {/* Back Button */}
-            <button 
-                onClick={() => navigate(-1)} 
-                className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
-            >
-                <FiArrowLeft size={24} />
-            </button>
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate(-1)}
+                    className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+                >
+                    <FiArrowLeft size={24} />
+                </button>
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                         <FiBriefcase className="text-white text-2xl" />
@@ -376,6 +377,7 @@ const B2BVendorRegister = () => {
                             <div className="md:col-span-2">
                                 <input type="text" name="address.street" value={formData.address.street} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="Street Address" />
                             </div>
+                            <input type="text" name="address.area" value={formData.address.area} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="Area / Locality" />
                             <input type="text" name="address.city" value={formData.address.city} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="City" />
                             <input type="text" name="address.state" value={formData.address.state} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="State" />
                             <input type="text" name="address.zipCode" value={formData.address.zipCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="Zip Code" />

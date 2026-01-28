@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import VendorSidebar from './VendorSidebar';
 import VendorHeader from './VendorHeader';
@@ -40,7 +40,13 @@ const VendorLayout = () => {
           }}
         >
           <div className={`w-full max-w-full overflow-x-hidden min-w-0 ${isChatPage ? 'h-full' : ''}`}>
-            <Outlet />
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-full min-h-[400px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500"></div>
+              </div>
+            }>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>
