@@ -15,7 +15,8 @@ import {
   FiClock,
   FiMail,
   FiUser,
-  FiFileText
+  FiFileText,
+  FiBriefcase
 } from 'react-icons/fi';
 import { getPlaceholderImage } from '../../../shared/utils/helpers';
 import { motion } from 'framer-motion';
@@ -346,6 +347,45 @@ const OrderDetail = () => {
             </div>
           </div>
 
+          {/* Vendor Details */}
+          {order.vendorItems && order.vendorItems.length > 0 && order.vendorItems.map((v, idx) => (
+            <div key={v.vendorId || idx} className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <FiBriefcase className="text-primary-500" />
+                Vendor Details
+              </h2>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-gray-50 rounded-lg">
+                    <FiBriefcase className="text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Store Name</p>
+                    <p className="font-medium text-gray-800">{v.vendorName}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-gray-50 rounded-lg">
+                    <FiMail className="text-gray-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Email</p>
+                    <p className="font-medium text-gray-800 truncate">{v.vendorEmail || 'N/A'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-gray-50 rounded-lg">
+                    <FiPhone className="text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Phone</p>
+                    <p className="font-medium text-gray-800">{v.vendorPhone || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
           {/* Shipping Address */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -378,4 +418,3 @@ const OrderDetail = () => {
 };
 
 export default OrderDetail;
-

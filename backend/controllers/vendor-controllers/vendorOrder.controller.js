@@ -7,6 +7,7 @@ import { transformOrderWithVendorItems } from '../../services/vendorOrders.servi
 import Order from '../../models/Order.model.js';
 import Product from '../../models/Product.model.js';
 import Vendor from '../../models/Vendor.model.js';
+import VendorWalletTransaction from '../../models/VendorWalletTransaction.model.js';
 import mongoose from 'mongoose';
 
 /**
@@ -16,10 +17,11 @@ import mongoose from 'mongoose';
 export const getOrders = async (req, res, next) => {
   try {
     const vendorId = req.user.vendorId || req.user.id;
-    const { status, page, limit, search } = req.query;
+    const { status, page, limit, search, paymentMethod } = req.query;
 
     const filters = {
       status,
+      paymentMethod,
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 50,
     };
@@ -230,7 +232,7 @@ export const getStats = async (req, res, next) => {
       }
     });
 
-    // Build aggregation pipeline
+    // Build aggregation pipeline for status
     const matchStage = {
       $or: [
         { 'vendorBreakdown.vendorId': new mongoose.Types.ObjectId(vendorId.toString()) },
@@ -238,13 +240,26 @@ export const getStats = async (req, res, next) => {
       ]
     };
 
-    const stats = await Order.aggregate([
+    const statusStats = await Order.aggregate([
       {
         $match: matchStage,
       },
       {
         $group: {
           _id: '$status',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Aggregate for payment methods
+    const paymentStats = await Order.aggregate([
+      {
+        $match: matchStage,
+      },
+      {
+        $group: {
+          _id: '$paymentMethod',
           count: { $sum: 1 },
         },
       },
@@ -262,11 +277,21 @@ export const getStats = async (req, res, next) => {
       delivered: 0,
       cancelled: 0,
       on_hold: 0,
+      prepaid: 0,
+      cod: 0,
     };
 
-    stats.forEach((stat) => {
+    statusStats.forEach((stat) => {
       statsObject[stat._id] = stat.count;
       statsObject.total += stat.count;
+    });
+
+    paymentStats.forEach((stat) => {
+      if (stat._id === 'cod' || stat._id === 'cash') {
+        statsObject.cod += stat.count;
+      } else {
+        statsObject.prepaid += stat.count;
+      }
     });
 
     res.status(200).json({
@@ -420,14 +445,33 @@ export const getEarningsStats = async (req, res, next) => {
     const result = await Order.aggregate(pipeline);
     const stats = result[0] || { totalOrders: 0, totalOrderEarnings: 0, pendingEarnings: 0 };
 
+    // Calculate delivered earnings (earnings from delivered/completed orders)
+    const deliveredEarnings = stats.totalOrderEarnings - stats.pendingEarnings;
+
+    // Get total paid amount from approved withdrawals
+    const withdrawals = await VendorWalletTransaction.find({
+      vendorId: vendorId,
+      transactionType: 'withdrawal',
+      status: 'approved'
+    }).lean();
+
+    const paidEarnings = withdrawals.reduce((sum, w) => sum + w.amount, 0);
+
+    // Outstanding is delivered but not yet paid
+    const outstandingAmount = deliveredEarnings - paidEarnings;
+
     // Log the result to console for debugging
-    console.log(`[Earnings Aggregation] Vendor: ${vendorId}, Found:`, stats);
+    console.log(`[Earnings Aggregation] Vendor: ${vendorId}, Found Orders:`, stats);
+    console.log(`[Earnings Details] Delivered: ${deliveredEarnings}, Paid: ${paidEarnings}, Outstanding: ${outstandingAmount}`);
 
     res.status(200).json({
       success: true,
       data: {
         pendingEarnings: Math.round(stats.pendingEarnings * 100) / 100,
         totalOrderEarnings: Math.round(stats.totalOrderEarnings * 100) / 100,
+        deliveredEarnings: Math.round(deliveredEarnings * 100) / 100,
+        paidEarnings: Math.round(paidEarnings * 100) / 100,
+        outstandingAmount: Math.round(outstandingAmount * 100) / 100,
         totalOrders: stats.totalOrders
       }
     });

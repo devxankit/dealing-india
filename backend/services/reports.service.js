@@ -126,7 +126,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
   try {
     const endDate = new Date();
     endDate.setHours(23, 59, 59, 999);
-    
+
     const startDate = new Date();
     startDate.setHours(0, 0, 0, 0);
 
@@ -157,7 +157,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     const previousStartDate = new Date(startDate);
     const diff = endDate.getTime() - startDate.getTime();
     previousStartDate.setTime(startDate.getTime() - diff);
-    
+
     const previousEndDate = new Date(startDate);
     previousEndDate.setMilliseconds(-1);
 
@@ -208,7 +208,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     // Get previous period vendor/platform earnings for comparison
     let prevVendorEarnings = 0;
     let prevPlatformEarnings = 0;
-    
+
     prevOrders.forEach(order => {
       if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
         order.vendorBreakdown.forEach(vb => {
@@ -242,14 +242,14 @@ export const getAdminDashboardSummary = async (period = 'month') => {
 
     // Get top products
     const topProducts = await Order.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           $or: [
             { orderDate: { $gte: startDate, $lte: endDate } },
             { createdAt: { $gte: startDate, $lte: endDate } }
           ],
-          status: { $nin: ['cancelled', 'refunded'] } 
-        } 
+          status: { $nin: ['cancelled', 'refunded'] }
+        }
       },
       { $unwind: '$items' },
       {
@@ -267,14 +267,14 @@ export const getAdminDashboardSummary = async (period = 'month') => {
 
     // Generate revenue trends (daily for month/week, monthly for year)
     const trends = await Order.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           $or: [
             { orderDate: { $gte: startDate, $lte: endDate } },
             { createdAt: { $gte: startDate, $lte: endDate } }
           ],
-          status: { $nin: ['cancelled', 'refunded'] } 
-        } 
+          status: { $nin: ['cancelled', 'refunded'] }
+        }
       },
       {
         $group: {
@@ -293,13 +293,13 @@ export const getAdminDashboardSummary = async (period = 'month') => {
 
     // Order status breakdown
     const statusBreakdown = await Order.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           $or: [
             { orderDate: { $gte: startDate, $lte: endDate } },
             { createdAt: { $gte: startDate, $lte: endDate } }
           ]
-        } 
+        }
       },
       {
         $group: {
@@ -310,7 +310,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     ]);
 
     // Recent orders
-    const recentOrders = await Order.find({ 
+    const recentOrders = await Order.find({
       $or: [
         { orderDate: { $gte: startDate, $lte: endDate } },
         { createdAt: { $gte: startDate, $lte: endDate } }
@@ -320,6 +320,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
       .limit(10)
       .populate('customerId', 'name email phone')
       .populate('shippingAddress')
+      .populate('vendorBreakdown.vendorId', 'name storeName email phone')
       .lean();
 
     return {
@@ -394,6 +395,12 @@ export const getAdminDashboardSummary = async (period = 'month') => {
         shippingAddress: order.shippingAddress,
         tax: order.pricing?.tax || 0,
         shippingFee: order.pricing?.shipping || 0,
+        vendorItems: (order.vendorBreakdown || []).map(vb => ({
+          vendorId: vb.vendorId?._id || vb.vendorId,
+          vendorName: vb.vendorName || vb.vendorId?.storeName || vb.vendorId?.name || 'Unknown Vendor',
+          vendorEmail: vb.vendorId?.email || 'N/A',
+          vendorPhone: vb.vendorId?.phone || 'N/A',
+        }))
       })),
     };
   } catch (error) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import B2BVendorSidebar from './B2BVendorSidebar';
 import B2BVendorHeader from './B2BVendorHeader';
@@ -32,7 +32,13 @@ const B2BVendorLayout = () => {
                     }}
                 >
                     <div className={`w-full max-w-full overflow-x-hidden min-w-0 ${isChatPage ? 'h-full' : ''}`}>
-                        <Outlet />
+                        <Suspense fallback={
+                            <div className="flex items-center justify-center h-full min-h-[400px]">
+                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                            </div>
+                        }>
+                            <Outlet />
+                        </Suspense>
                     </div>
                 </main>
             </div>

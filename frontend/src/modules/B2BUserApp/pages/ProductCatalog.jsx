@@ -212,7 +212,7 @@ const ProductCatalog = () => {
             if (response.success && response.data) {
                 // The API returns a paginated object { products, total, page, totalPages }
                 const productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
-                
+
                 // Normalize MOQ for catalog display
                 const normalizedProducts = productsData.map(p => ({
                     ...p,
@@ -677,9 +677,9 @@ const ProductCatalog = () => {
                 {/* Search & Filter Bar */}
                 <div className="space-y-6 mb-10">
                     {/* Location Filters */}
-                    <div className="flex gap-3 flex-wrap">
+                    <div className="flex gap-4 items-center">
                         {/* City Searchable Dropdown */}
-                        <div className="relative min-w-[200px]" ref={cityDropdownRef}>
+                        <div className="relative flex-shrink-0 min-w-[200px]" ref={cityDropdownRef}>
                             <button
                                 onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
                                 disabled={locationsLoading}
@@ -748,6 +748,31 @@ const ProductCatalog = () => {
                                     </motion.div>
                                 )}
                             </AnimatePresence>
+                        </div>
+
+                        {/* Horizontal Scrollable Cities List */}
+                        <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                            <button
+                                onClick={() => setSelectedCity('All Cities')}
+                                className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 ${selectedCity === 'All Cities'
+                                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
+                                    : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-100 hover:text-primary-600'
+                                    }`}
+                            >
+                                All Cities
+                            </button>
+                            {uniqueCities.map((city, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => setSelectedCity(city)}
+                                    className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 ${selectedCity === city
+                                        ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 scale-105'
+                                        : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-100 hover:text-primary-600'
+                                        }`}
+                                >
+                                    {city}
+                                </button>
+                            ))}
                         </div>
                     </div>
 

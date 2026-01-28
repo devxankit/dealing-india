@@ -183,7 +183,7 @@ export const transformOrderWithVendorItems = async (order, vendorId) => {
  */
 export const getVendorOrdersTransformed = async (vendorId, filters = {}) => {
   try {
-    const { page = 1, limit = 1000, status } = filters;
+    const { page = 1, limit = 1000, status, paymentMethod } = filters;
 
     // Convert vendorId to ObjectId if needed
     // Handle both string and ObjectId formats
@@ -227,6 +227,16 @@ export const getVendorOrdersTransformed = async (vendorId, filters = {}) => {
 
     if (status) {
       query.status = status;
+    }
+
+    if (paymentMethod) {
+      if (paymentMethod === 'cod') {
+        query.paymentMethod = { $in: ['cod', 'cash'] };
+      } else if (paymentMethod === 'prepaid') {
+        query.paymentMethod = { $nin: ['cod', 'cash'] };
+      } else {
+        query.paymentMethod = paymentMethod;
+      }
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -285,7 +295,7 @@ export const getVendorOrdersTransformed = async (vendorId, filters = {}) => {
  */
 export const getAllVendorOrdersTransformed = async (vendorId, filters = {}) => {
   try {
-    const { status } = filters;
+    const { status, paymentMethod } = filters;
 
     // Convert vendorId to ObjectId if needed
     let vendorIdQuery;
@@ -317,6 +327,16 @@ export const getAllVendorOrdersTransformed = async (vendorId, filters = {}) => {
 
     if (status) {
       query.status = status;
+    }
+
+    if (paymentMethod) {
+      if (paymentMethod === 'cod') {
+        query.paymentMethod = { $in: ['cod', 'cash'] };
+      } else if (paymentMethod === 'prepaid') {
+        query.paymentMethod = { $nin: ['cod', 'cash'] };
+      } else {
+        query.paymentMethod = paymentMethod;
+      }
     }
 
     // Get all orders (no pagination)

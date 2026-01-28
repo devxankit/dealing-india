@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiUser, FiMapPin, FiPackage, FiCreditCard, FiClock } from 'react-icons/fi';
+import { FiX, FiUser, FiMapPin, FiPackage, FiCreditCard, FiClock, FiBriefcase, FiMail, FiPhone } from 'react-icons/fi';
 import { formatCurrency, formatDateTime, getStatusColor } from '../utils/adminHelpers';
 import Badge from '../../../shared/components/Badge';
 
@@ -64,7 +64,7 @@ const OrderDetailsModal = ({ order, isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* Customer and Shipping */}
+              {/* Customer, Vendor and Shipping */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h3 className="flex items-center gap-2 font-bold text-gray-800 border-b pb-2">
@@ -72,9 +72,9 @@ const OrderDetailsModal = ({ order, isOpen, onClose }) => {
                     Customer Information
                   </h3>
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-gray-800">{typeof order.customer === 'object' ? order.customer.name : order.customer}</p>
-                    {order.customer?.email && <p className="text-sm text-gray-600">{order.customer.email}</p>}
-                    {order.customer?.phone && <p className="text-sm text-gray-600">{order.customer.phone}</p>}
+                    <p className="text-sm font-semibold text-gray-800">{typeof order.customer === 'object' ? order.customer.name : (order.customerSnapshot?.name || order.customer)}</p>
+                    {(order.customer?.email || order.customerSnapshot?.email) && <p className="text-sm text-gray-600">{order.customer?.email || order.customerSnapshot?.email}</p>}
+                    {(order.customer?.phone || order.customerSnapshot?.phone) && <p className="text-sm text-gray-600">{order.customer?.phone || order.customerSnapshot?.phone}</p>}
                   </div>
                 </div>
 
@@ -86,17 +86,40 @@ const OrderDetailsModal = ({ order, isOpen, onClose }) => {
                   <div className="text-sm text-gray-600 leading-relaxed">
                     {order.shippingAddress ? (
                       <>
-                        <p className="font-medium text-gray-800">{order.shippingAddress.fullName}</p>
-                        <p>{order.shippingAddress.address}</p>
+                        <p className="font-medium text-gray-800">{order.shippingAddress.fullName || order.shippingAddress.name || order.customerSnapshot?.name}</p>
+                        <p>{order.shippingAddress.address || order.shippingAddress.street}</p>
                         <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
-                        <p>{order.shippingAddress.country}</p>
-                        {order.shippingAddress.phone && <p>Phone: {order.shippingAddress.phone}</p>}
+                        <p>{order.shippingAddress.country || 'India'}</p>
+                        {(order.shippingAddress.phone || order.customerSnapshot?.phone) && <p>Phone: {order.shippingAddress.phone || order.customerSnapshot?.phone}</p>}
                       </>
                     ) : (
                       <p className="italic text-gray-400">Address details not provided</p>
                     )}
                   </div>
                 </div>
+
+                {/* Vendor Details */}
+                {order.vendorItems && order.vendorItems.length > 0 && (
+                  <div className="md:col-span-2 space-y-4">
+                    <h3 className="flex items-center gap-2 font-bold text-gray-800 border-b pb-2">
+                      <FiBriefcase className="text-primary-500" />
+                      Vendor Details
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {order.vendorItems.map((vendor, idx) => (
+                        <div key={idx} className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col gap-1">
+                          <p className="text-sm font-bold text-gray-800">{vendor.vendorName}</p>
+                          <p className="text-xs text-gray-600 flex items-center gap-1">
+                            <FiMail className="text-[10px]" /> {vendor.vendorEmail || 'N/A'}
+                          </p>
+                          <p className="text-xs text-gray-600 flex items-center gap-1">
+                            <FiPhone className="text-[10px]" /> {vendor.vendorPhone || 'N/A'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Order Items */}

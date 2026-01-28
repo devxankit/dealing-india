@@ -35,6 +35,7 @@ const VendorRegister = () => {
     storeDescription: '',
     address: {
       street: '',
+      area: '',
       city: '',
       state: '',
       zipCode: '',
@@ -251,11 +252,11 @@ const VendorRegister = () => {
         className="glass-card rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto relative"
       >
         {/* Back Button */}
-        <button 
-            onClick={() => navigate(-1)} 
-            className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
         >
-            <FiArrowLeft size={24} />
+          <FiArrowLeft size={24} />
         </button>
         {/* Header */}
         <div className="text-center mb-8">
@@ -387,6 +388,18 @@ const VendorRegister = () => {
                       className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Area / Locality</label>
+                  <input
+                    type="text"
+                    name="address.area"
+                    value={formData.address.area}
+                    onChange={handleChange}
+                    placeholder="Sector 12 / Near Park"
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
+                  />
                 </div>
 
                 <div>

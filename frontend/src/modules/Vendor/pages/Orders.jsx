@@ -9,6 +9,8 @@ import {
   FiXCircle,
   FiList,
   FiMapPin,
+  FiCreditCard,
+  FiDollarSign,
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
@@ -32,6 +34,8 @@ const Orders = () => {
     dispatched: stats?.dispatched || 0,
     shipped_seller: stats?.shipped_seller || 0,
     on_hold: stats?.on_hold || 0,
+    prepaid: stats?.prepaid || 0,
+    cod: stats?.cod || 0,
   }), [stats]);
 
   // Analytics cards configuration
@@ -79,7 +83,7 @@ const Orders = () => {
       color: 'bg-teal-500',
       bgColor: 'bg-teal-50',
       textColor: 'text-teal-700',
-      path: '/vendor/orders/all-orders', // Fallback
+      path: '/vendor/orders/processing',
     },
     {
       title: 'Dispatch Order',
@@ -125,6 +129,24 @@ const Orders = () => {
       bgColor: 'bg-red-50',
       textColor: 'text-red-700',
       path: '/vendor/orders/canceled-order',
+    },
+    {
+      title: 'Prepaid orders',
+      value: orderStats.prepaid,
+      icon: FiCreditCard,
+      color: 'bg-indigo-600',
+      bgColor: 'bg-indigo-50',
+      textColor: 'text-indigo-700',
+      path: '/vendor/orders/prepaid-orders',
+    },
+    {
+      title: 'COD orders',
+      value: orderStats.cod,
+      icon: FiDollarSign,
+      color: 'bg-amber-600',
+      bgColor: 'bg-amber-50',
+      textColor: 'text-amber-700',
+      path: '/vendor/orders/cod-orders',
     },
   ];
 
@@ -177,7 +199,7 @@ const Orders = () => {
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {analyticsCards.map((card, index) => {
           const Icon = card.icon;
           return (

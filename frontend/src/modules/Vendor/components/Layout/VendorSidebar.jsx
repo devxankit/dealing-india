@@ -1,32 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  FiHome,
-  FiPackage,
-  FiShoppingBag,
-  FiBarChart2,
-  FiSettings,
-  FiUser,
-  FiChevronDown,
-  FiX,
-  FiTrendingDown,
-  FiClock,
-  FiMapPin,
-  FiMessageCircle,
-  FiRefreshCw,
-  FiStar,
-  FiFileText,
-  FiTag,
-  FiBell,
-  FiVideo,
-  FiHelpCircle,
-  FiTruck,
-  FiUsers,
-  FiMessageSquare,
-  FiLayers,
-  FiTrendingUp,
-} from "react-icons/fi";
+import { FiHome, FiPackage, FiShoppingBag, FiBarChart2, FiSettings, FiUser, FiChevronDown, FiX, FiTrendingDown, FiClock, FiMapPin, FiMessageCircle, FiRefreshCw, FiStar, FiFileText, FiTag, FiBell, FiVideo, FiHelpCircle, FiTruck, FiUsers, FiMessageSquare, FiLayers, FiTrendingUp, FiCreditCard, FiDollarSign } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
 import { IndianRupee } from "lucide-react";
@@ -39,10 +14,13 @@ const iconMap = {
   "All orders": FiShoppingBag,
   "Hold order": FiClock,
   "Pending order": FiClock,
+  "Processing": FiClock,
   "Ready to ship": FiPackage,
   "Dispatch order": FiTruck,
   "Shipped seller": FiTruck,
   "Canceled order": FiX,
+  "Prepaid orders": FiCreditCard,
+  "COD orders": FiDollarSign,
   Returns: FiRefreshCw,
   "Product Reviews": FiStar,
   "Stock Management": FiTrendingDown,
@@ -83,10 +61,13 @@ const getChildRoute = (parentRoute, childName) => {
       "All orders": "/vendor/orders/all-orders",
       "Hold order": "/vendor/orders/hold-order",
       "Pending order": "/vendor/orders/pending-order",
+      "Processing": "/vendor/orders/processing",
       "Ready to ship": "/vendor/orders/ready-to-ship",
       "Dispatch order": "/vendor/orders/dispatch-order",
       "Shipped seller": "/vendor/orders/shipped-seller",
       "Canceled order": "/vendor/orders/canceled-order",
+      "Prepaid orders": "/vendor/orders/prepaid-orders",
+      "COD orders": "/vendor/orders/cod-orders",
     },
     "/vendor/reels": {
       "All Reels": "/vendor/reels/all-reels",

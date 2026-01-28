@@ -35,6 +35,11 @@ const RecentOrders = ({ orders, onViewOrder }) => {
                 <Badge variant={order.status}>{order.status}</Badge>
               </div>
               <p className="text-sm text-gray-600 truncate">{order.customer.name}</p>
+              {order.vendorItems && order.vendorItems.length > 0 && (
+                <p className="text-[10px] font-bold text-primary-600 uppercase tracking-tight mt-0.5">
+                  Vendor: {order.vendorItems.map(v => v.vendorName).join(', ')}
+                </p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 {formatDateTime(order.date)} • {Array.isArray(order.items) ? order.items.length : (typeof order.items === 'number' ? order.items : 0)} items
               </p>

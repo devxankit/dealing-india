@@ -38,6 +38,16 @@ const Banners = lazyWithRetry(() => import("./modules/Admin/pages/Banners"));
 const Reviews = lazyWithRetry(() => import("./modules/Admin/pages/Reviews"));
 const Analytics = lazyWithRetry(() => import("./modules/Admin/pages/Analytics"));
 const Content = lazyWithRetry(() => import("./modules/Admin/pages/Content"));
+
+// Orders child pages
+const AwaitingOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Awaiting"));
+const ReceivedOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Received"));
+const ProcessedOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Processed"));
+const ShippedOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Shipped"));
+const DeliveredOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Delivered"));
+const CancelledOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Cancelled"));
+const ReturnedOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Returned"));
+
 const Settings = lazyWithRetry(() => import("./modules/Admin/pages/Settings"));
 const More = lazyWithRetry(() => import("./modules/Admin/pages/More"));
 const PromoCodes = lazyWithRetry(() => import("./modules/Admin/pages/PromoCodes"));
@@ -258,7 +268,7 @@ const AppRoutes = () => {
     // Only apply toast limiting for non-B2B routes or general toasts
     // This allows multiple important toasts to stack if needed, or prevents aggressive clearing
     const isB2BRoute = window.location.pathname.includes('b2b-vendor');
- 
+
     if (!isB2BRoute) {
       toasts
         .filter((t) => t.visible) // Only consider visible toasts
@@ -322,6 +332,14 @@ const AppRoutes = () => {
           <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="orders/:id/invoice" element={<Invoice />} />
           <Route path="orders/all-orders" element={<AllOrders />} />
+          <Route path="orders/awaiting" element={<AwaitingOrders />} />
+          <Route path="orders/received" element={<ReceivedOrders />} />
+          <Route path="orders/processed" element={<ProcessedOrders />} />
+          <Route path="orders/shipped" element={<ShippedOrders />} />
+          <Route path="orders/delivered" element={<DeliveredOrders />} />
+          <Route path="orders/cancelled" element={<CancelledOrders />} />
+          <Route path="orders/returned" element={<ReturnedOrders />} />
+
           <Route path="orders/order-tracking" element={<OrderTracking />} />
           <Route
             path="orders/order-notifications"
@@ -492,10 +510,13 @@ const AppRoutes = () => {
           <Route path="orders/all-orders" element={<VendorAllOrders />} />
           <Route path="orders/hold-order" element={<VendorAllOrders />} />
           <Route path="orders/pending-order" element={<VendorAllOrders />} />
+          <Route path="orders/processing" element={<VendorAllOrders />} />
           <Route path="orders/ready-to-ship" element={<VendorAllOrders />} />
           <Route path="orders/dispatch-order" element={<VendorAllOrders />} />
           <Route path="orders/shipped-seller" element={<VendorAllOrders />} />
           <Route path="orders/canceled-order" element={<VendorAllOrders />} />
+          <Route path="orders/prepaid-orders" element={<VendorAllOrders />} />
+          <Route path="orders/cod-orders" element={<VendorAllOrders />} />
           <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
           <Route path="orders/:id" element={<VendorOrderDetail />} />
           <Route path="orders/:id/invoice" element={<VendorInvoice />} />
@@ -948,6 +969,7 @@ function App() {
           </Suspense>
           <CartDrawer />
           <Toaster
+<<<<<<< Updated upstream
             position="top-center"
             reverseOrder={false}
             gutter={8}
@@ -967,13 +989,32 @@ function App() {
                 duration: 6000,
                 iconTheme: {
                   primary: "#4ade80",
+=======
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: "#212121",
+                color: "#fff",
+              },
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: "#388E3C",
+>>>>>>> Stashed changes
                   secondary: "#fff",
                 },
               },
               error: {
+<<<<<<< Updated upstream
                 duration: 7000,
                 iconTheme: {
                   primary: "#f87171",
+=======
+                duration: 4000,
+                iconTheme: {
+                  primary: "#FF6161",
+>>>>>>> Stashed changes
                   secondary: "#fff",
                 },
               },
