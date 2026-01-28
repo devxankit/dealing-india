@@ -5,6 +5,17 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 
+/**
+ * B2B Vendor Registration Page
+ * 
+ * STRICT ARCHITECTURE RULE:
+ * This page must ONLY contain registration fields.
+ * DO NOT fetch or render subscription plans here.
+ * Subscription selection happens strictly AFTER login in the dashboard.
+ * 
+ * Production Fix: Removed all subscription plan logic.
+ */
+
 const B2BVendorRegister = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -172,6 +183,7 @@ const B2BVendorRegister = () => {
 
                 // Clear temporary storage and leftover payment data
                 localStorage.removeItem('b2b_payment_data');
+                sessionStorage.removeItem('b2b_registration_data'); // Added this line
                 localStorage.removeItem('b2b_paid_plan_id');
                 localStorage.removeItem('b2b_subscription_id');
                 localStorage.removeItem('b2b_payment_email');
