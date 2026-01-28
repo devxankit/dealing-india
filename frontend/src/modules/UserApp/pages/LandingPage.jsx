@@ -7,6 +7,7 @@ import { appLogo } from "../../../data/logos";
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useVendorAuthStore } from "../../Vendor/store/vendorAuthStore";
 import { useB2BVendorAuthStore } from "../../B2BVendor/store/b2bVendorAuthStore";
+import dealingLanding from '../../../assets/landing/dealingindia.png';
 
 const LandingPage = () => {
     const navigate = useNavigate();
@@ -171,13 +172,10 @@ const LandingPage = () => {
                         className="relative"
                     >
                         <div className="absolute inset-0 bg-gradient-to-tr from-orange-200/20 to-green-200/20 rounded-[3rem] blur-2xl"></div>
-                        <img 
-                            src="https://img.freepik.com/free-photo/young-indian-student-woman-holding-shopping-bags-feeling-happy-isolated-white-background_496169-2516.jpg" 
-                            alt="Happy Buyer and Seller"
+                        <img
+                            src={dealingLanding}
+                            alt="Dealing India"
                             className="max-h-[75vh] w-auto object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[2.5rem] relative z-10"
-                            onError={(e) => {
-                                e.target.src = "https://img.freepik.com/free-photo/indian-delivery-man-holding-cardboard-boxes-showing-thumb-up_496169-1647.jpg";
-                            }}
                         />
                     </motion.div>
                 </div>

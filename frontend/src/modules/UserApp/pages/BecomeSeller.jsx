@@ -9,6 +9,7 @@ import { useB2BVendorAuthStore } from '../../B2BVendor/store/b2bVendorAuthStore'
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 import { appLogo } from "../../../data/logos";
+import dealingLanding from '../../../assets/landing/dealingindia.png';
 
 const BecomeSeller = () => {
   const navigate = useNavigate();
@@ -97,12 +98,9 @@ const BecomeSeller = () => {
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
-                src="https://img.freepik.com/free-photo/indian-delivery-man-holding-cardboard-boxes-showing-thumb-up_496169-1647.jpg" 
-                alt="Happy Seller"
+                src={dealingLanding}
+                alt="Dealing India"
                 className="h-full max-h-48 md:max-h-[85%] object-contain drop-shadow-2xl"
-                onError={(e) => {
-                    e.target.style.display = 'none'; // Hide if fails, don't show cartoon
-                }}
             />
           </div>
         </div>
