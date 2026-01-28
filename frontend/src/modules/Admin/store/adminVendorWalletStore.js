@@ -3,6 +3,7 @@ import api from "../../../shared/utils/api";
 
 export const useAdminVendorWalletStore = create((set, get) => ({
     requests: [],
+    wallets: [],
     stats: {
         totalWithdrawn: 0,
         pendingCount: 0,
@@ -24,6 +25,24 @@ export const useAdminVendorWalletStore = create((set, get) => ({
                 });
             } else {
                 throw new Error(response.message || 'Failed to fetch pending requests');
+            }
+        } catch (error) {
+            set({ error: error.message, isLoading: false });
+        }
+    },
+
+    // Fetch all vendor wallets
+    fetchAllWallets: async () => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await api.get('/admin/vendor-wallets');
+            if (response.success) {
+                set({
+                    wallets: response.data,
+                    isLoading: false
+                });
+            } else {
+                throw new Error(response.message || 'Failed to fetch wallets');
             }
         } catch (error) {
             set({ error: error.message, isLoading: false });

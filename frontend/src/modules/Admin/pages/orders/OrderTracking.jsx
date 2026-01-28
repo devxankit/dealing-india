@@ -86,11 +86,13 @@ const OrderTracking = () => {
     const orderCode = order.orderCode || order.id || '';
     const customerName = order.customerSnapshot?.name || order.customerId?.name || '';
     const customerEmail = order.customerSnapshot?.email || order.customerId?.email || '';
+    const vendorNames = (order.vendorItems || []).map(v => v.vendorName || '').join(' ').toLowerCase();
     
     return (
       orderCode.toString().toLowerCase().includes(searchLower) ||
       customerName.toLowerCase().includes(searchLower) ||
-      customerEmail.toLowerCase().includes(searchLower)
+      customerEmail.toLowerCase().includes(searchLower) ||
+      vendorNames.includes(searchLower)
     );
   });
 
@@ -139,6 +141,28 @@ const OrderTracking = () => {
       render: (value, row) => (
         <span className="font-semibold">{value || row.id || row._id}</span>
       ),
+    },
+    {
+      key: "vendor",
+      label: "Vendor",
+      sortable: false,
+      render: (_, row) => {
+        const vendors = row.vendorItems || [];
+        if (vendors.length === 0) return <span className="text-gray-400">N/A</span>;
+        
+        // Use a Set to show unique vendor names if there are multiple items from same vendor
+        const uniqueVendorNames = [...new Set(vendors.map(v => v.vendorName || 'Unknown'))];
+        
+        return (
+          <div className="flex flex-col gap-0.5">
+            {uniqueVendorNames.map((name, i) => (
+              <p key={i} className="text-xs font-medium text-gray-700 truncate max-w-[120px]">
+                {name}
+              </p>
+            ))}
+          </div>
+        );
+      },
     },
     {
       key: "customer",
@@ -252,6 +276,20 @@ const OrderTracking = () => {
                 <p className="font-semibold text-gray-800">
                   {selectedOrder.orderCode || selectedOrder.id}
                 </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Vendor</p>
+                <div className="font-semibold text-gray-800">
+                  {selectedOrder.vendorItems?.length > 0 ? (
+                    <div className="flex flex-col">
+                      {[...new Set(selectedOrder.vendorItems.map(v => v.vendorName || 'Unknown'))].map((name, i) => (
+                        <span key={i}>{name}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span>N/A</span>
+                  )}
+                </div>
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Customer</p>

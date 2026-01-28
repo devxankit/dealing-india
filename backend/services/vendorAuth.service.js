@@ -306,20 +306,22 @@ export const loginVendor = async (email, password) => {
     // For B2B vendors, check subscription status (Optional - allow login without subscription for simplified registration)
     if (vendor.vendorType === 'b2b') {
       try {
+        // PRODUCTION FIX: Always allow B2B login regardless of subscription status
+        // This is critical for users who registered but haven't paid yet,
+        // or for testing/production simplified flows.
+        console.log(`[Login Info] B2B vendor login: ${email}. Bypassing strict subscription check for login access.`);
+
         const subscription = await SubscriptionService.getVendorSubscription(vendor._id);
 
         if (!subscription) {
-          console.log(`[Login Warning] No subscription found for B2B vendor: ${email}. Allowing login due to simplified registration.`);
-          // Don't throw error - allow login
+          console.log(`[Login Info] No subscription found for B2B vendor: ${email}. allowed login.`);
         } else if (subscription.status !== 'active') {
-          console.log(`[Login Warning] Subscription not approved - Status: ${subscription.status} for: ${email}. Allowing login.`);
-          // Don't throw error - allow login
+          console.log(`[Login Info] Subscription not active - Status: ${subscription.status} for: ${email}. allowed login.`);
         } else {
           // Check if subscription is expired
           const now = new Date();
           if (subscription.endDate && new Date(subscription.endDate) < now) {
-            console.log(`[Login Warning] Subscription expired for: ${email}, Expiry: ${subscription.endDate}. Allowing login.`);
-            // Optionally, we could still allow login but show expired status in frontend
+            console.log(`[Login Info] Subscription expired for: ${email}, Expiry: ${subscription.endDate}. allowed login.`);
           }
         }
       } catch (subError) {

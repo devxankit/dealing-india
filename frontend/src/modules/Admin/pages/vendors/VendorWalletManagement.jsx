@@ -20,9 +20,11 @@ import { toast } from "react-hot-toast";
 const AdminVendorWallet = () => {
     const {
         requests,
+        wallets,
         stats,
         isLoading,
         fetchPendingRequests,
+        fetchAllWallets,
         approveWithdrawal,
         rejectWithdrawal
     } = useAdminVendorWalletStore();
@@ -37,7 +39,8 @@ const AdminVendorWallet = () => {
 
     useEffect(() => {
         fetchPendingRequests();
-    }, [fetchPendingRequests]);
+        fetchAllWallets();
+    }, [fetchPendingRequests, fetchAllWallets]);
 
     const filteredRequests = requests.filter(req =>
         req.vendorId?.name?.toLowerCase().includes(filter.toLowerCase()) ||
@@ -215,6 +218,65 @@ const AdminVendorWallet = () => {
                                 <tr>
                                     <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
                                         {isLoading ? "Loading requests..." : "No pending withdrawal requests found."}
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Wallets Table */}
+            <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-gray-50 flex flex-wrap gap-4 items-center justify-between">
+                    <h3 className="font-bold text-gray-800">Vendor Wallet Balances (B2C Only)</h3>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="bg-gray-50/50 text-gray-400 text-xs uppercase tracking-wider">
+                                <th className="px-6 py-4 font-medium">Vendor / Store</th>
+                                <th className="px-6 py-4 font-medium">Balance (Withdrawable)</th>
+                                <th className="px-6 py-4 font-medium">Pending (Returns)</th>
+                                <th className="px-6 py-4 font-medium">Total Withdrawn</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {wallets && wallets.length > 0 ? (
+                                wallets
+                                    .filter(w =>
+                                        w.vendorId?.name?.toLowerCase().includes(filter.toLowerCase()) ||
+                                        w.vendorId?.storeName?.toLowerCase().includes(filter.toLowerCase())
+                                    )
+                                    .map((wallet) => (
+                                        <tr key={wallet._id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                                                        {wallet.vendorId?.name?.charAt(0) || 'V'}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-800">{wallet.vendorId?.name || 'Unknown'}</p>
+                                                        <p className="text-xs text-gray-500">{wallet.vendorId?.storeName || 'N/A'}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-base font-bold text-green-600">{formatPrice(wallet.balance)}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-base font-medium text-amber-600">{formatPrice(wallet.pendingBalance)}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-base font-medium text-gray-600">{formatPrice(wallet.totalWithdrawn)}</span>
+                                            </td>
+                                        </tr>
+                                    ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                                        {isLoading ? "Loading wallets..." : "No vendor wallets found."}
                                     </td>
                                 </tr>
                             )}

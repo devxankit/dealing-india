@@ -20,17 +20,17 @@ const LandingPage = () => {
     useEffect(() => {
         // We only redirect if specifically coming from a login attempt or if we want to force dashboard
         // For the root /app path, we allow vendors to see the landing page/marketplace
-        /* 
         if (isUserAuth) {
             if (userType === 'b2b') {
                 navigate('/b2b/catalog', { replace: true });
+            } else if (userType === 'b2c') {
+                navigate('/app/home', { replace: true });
             }
         } else if (isVendorAuth) {
             navigate('/vendor/dashboard', { replace: true });
         } else if (isB2BVendorAuth) {
             navigate('/b2b-vendor/dashboard', { replace: true });
         }
-        */
     }, [isUserAuth, isVendorAuth, isB2BVendorAuth, userType, isMobile, navigate]);
 
     useEffect(() => {
@@ -62,7 +62,7 @@ const LandingPage = () => {
             navigate('/b2b/login', { state: { from: { pathname: '/b2b/catalog' } } });
         } else {
             // Navigate to the B2C login page as requested
-            navigate('/app/login', { state: { from: { pathname: '/app' } } });
+            navigate('/app/login', { state: { from: { pathname: '/app/home' } } });
         }
     };
 
@@ -195,8 +195,8 @@ const LandingPage = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 + (idx * 0.1) }}
                             className={`p-8 rounded-3xl border transition-all hover:shadow-xl hover:-translate-y-1 ${stat.color === 'orange'
-                                    ? 'bg-orange-50 border-orange-100'
-                                    : 'bg-green-50 border-green-100'
+                                ? 'bg-orange-50 border-orange-100'
+                                : 'bg-green-50 border-green-100'
                                 }`}
                         >
                             <div className={`text-2xl font-black mb-2 ${stat.color === 'orange' ? 'text-orange-600' : 'text-green-600'

@@ -636,6 +636,14 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/app/home"
+          element={
+            <RouteWrapper>
+              <MobileHome />
+            </RouteWrapper>
+          }
+        />
+        <Route
           path="/app/product/:id"
           element={
             <RouteWrapper>

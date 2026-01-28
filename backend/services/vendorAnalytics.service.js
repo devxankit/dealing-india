@@ -121,7 +121,22 @@ const getSingleVendorAnalytics = async (vendorId) => {
  */
 const getAllVendorsAnalytics = async () => {
   try {
-    const approvedVendors = await Vendor.find({ status: 'approved' }).lean();
+    // STRICT FILTER: Only approved B2C vendors
+    // Exclude any vendor that has businessTypes populated (indicates B2B even if vendorType is wrong)
+    // Fetch all approved vendors first to ensure robust filtering
+    const allApprovedVendors = await Vendor.find({ status: 'approved' }).lean();
+
+    // Filter in memory to strictly exclude B2B vendors
+    const approvedVendors = allApprovedVendors.filter(vendor => {
+      // Must be explicitly B2C or missing vendorType (defaults to B2C)
+      const isNotB2BType = vendor.vendorType !== 'b2b';
+
+      // Must not have B2B-specific fields
+      const hasNoBusinessTypes = !vendor.businessTypes || vendor.businessTypes.length === 0;
+      const hasNoSubscription = !vendor.currentSubscription;
+
+      return isNotB2BType && hasNoBusinessTypes && hasNoSubscription;
+    });
 
     // Get all orders
     let orders = [];

@@ -385,9 +385,16 @@ class VendorWalletService {
      * Get all vendor wallets (Admin)
      */
     async getAllVendorWallets() {
-        return await VendorWallet.find()
-            .populate('vendorId', 'name storeName email phone')
+        const wallets = await VendorWallet.find()
+            .populate({
+                path: 'vendorId',
+                match: { vendorType: 'b2c' },
+                select: 'name storeName email phone'
+            })
             .sort({ balance: -1 });
+
+        // Filter out wallets where vendorId is null (meaning it didn't match 'b2c')
+        return wallets.filter(wallet => wallet.vendorId);
     }
 
     /**
