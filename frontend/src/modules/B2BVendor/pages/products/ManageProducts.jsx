@@ -36,13 +36,14 @@ const ManageProducts = () => {
                     // Extract category from attributes
                     const categoryAttr = product.attributes?.find(attr => attr.name === 'category');
                     const category = categoryAttr?.value || 'N/A';
-                    
+
                     return {
                         _id: product._id,
                         name: product.name,
                         image: product.image,
                         price: product.price,
                         moq: product.minimumOrderQuantity || 1,
+                        unit: product.unit || 'Pcs',
                         category: category,
                         visibility: product.isVisible ? 'Visible' : 'Hidden',
                     };
@@ -66,9 +67,9 @@ const ManageProducts = () => {
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100">
                         {row.image ? (
-                            <img 
-                                src={row.image} 
-                                alt={value} 
+                            <img
+                                src={row.image}
+                                alt={value}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                     e.target.onerror = null;
@@ -98,6 +99,7 @@ const ManageProducts = () => {
             key: "moq",
             label: "Min. Order (MOQ)",
             sortable: true,
+            render: (value, row) => `${value} ${row.unit}`,
         },
         {
             key: "visibility",
@@ -169,7 +171,7 @@ const ManageProducts = () => {
                     </div>
                 ) : (
                     <DataTable
-                        data={products.filter(p => 
+                        data={products.filter(p =>
                             p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             p.category.toLowerCase().includes(searchQuery.toLowerCase())
                         )}

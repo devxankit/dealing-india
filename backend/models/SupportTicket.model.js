@@ -16,14 +16,14 @@ const supportTicketSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: function() {
+      required: function () {
         return this.createdByRole === 'user';
       },
     },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',
-      required: function() {
+      required: function () {
         return this.createdByRole === 'vendor';
       },
     },
@@ -132,7 +132,6 @@ const supportTicketSchema = new mongoose.Schema(
 supportTicketSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
 supportTicketSchema.index({ userId: 1, status: 1, createdAt: -1 });
 supportTicketSchema.index({ createdByRole: 1, status: 1, createdAt: -1 });
-supportTicketSchema.index({ ticketNumber: 1 });
 supportTicketSchema.index({ category: 1, status: 1 });
 supportTicketSchema.index({ priority: 1, status: 1 });
 

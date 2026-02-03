@@ -12,7 +12,6 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'Duration is required'],
       enum: [3, 6, 12],
-      index: true,
     },
     price: {
       type: Number,

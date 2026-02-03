@@ -1,5 +1,5 @@
 import express from 'express';
-import { getProducts, getProduct } from '../controllers/public-controllers/publicProduct.controller.js';
+import { getProducts, getProduct, getB2BSuggestions } from '../controllers/public-controllers/publicProduct.controller.js';
 import { getRecommended } from '../controllers/public-controllers/recommendedProducts.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
@@ -12,6 +12,7 @@ router.get('/', redisService.cacheMiddleware('products:list', 300), asyncHandler
 // Recommended products - authentication optional (better recommendations if logged in)
 // Route should be before /:id to avoid matching "recommended" as an ID
 router.get('/recommended', redisService.cacheMiddleware('products:recommended', 300), asyncHandler(getRecommended));
+router.get('/b2b-suggestions', asyncHandler(getB2BSuggestions));
 router.get('/:id', redisService.cacheMiddleware('product:details', 180), asyncHandler(getProduct));
 
 export default router;

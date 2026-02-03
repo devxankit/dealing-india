@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
+import B2BCategory from '../models/B2BCategory.model.js';
 import Brand from '../models/Brand.model.js';
 import Vendor from '../models/Vendor.model.js';
 import redisService from './redis.service.js';
@@ -383,6 +384,109 @@ export const getPublicProductById = async (productId) => {
       throw new Error('Invalid product ID');
     }
     throw error;
+  }
+};
+
+/**
+ * Get B2B search suggestions (Categories, Subcategories, Products)
+ * @param {String} keyword - Search keyword
+ * @returns {Promise<Array>} List of suggestions
+ */
+export const getB2BSearchSuggestions = async (keyword) => {
+  try {
+    if (!keyword || keyword.trim().length < 1) return [];
+
+    const query = keyword.trim();
+    const regex = new RegExp(query, 'i');
+
+    const suggestions = [];
+
+    // 1. Get Matching B2B Categories & Subcategories
+    const b2bCategories = await B2BCategory.find({
+      isActive: true,
+      $or: [
+        { name: regex },
+        { subcategories: regex }
+      ]
+    }).limit(10).lean();
+
+    b2bCategories.forEach(cat => {
+      // If category name matches
+      if (cat.name.match(regex)) {
+        suggestions.push({
+          type: 'category',
+          text: cat.name,
+          category: cat.name,
+          subcategory: null,
+          display: cat.name,
+          context: 'in B2B Categories'
+        });
+      }
+
+      // If any subcategory matches
+      if (cat.subcategories && Array.isArray(cat.subcategories)) {
+        cat.subcategories.forEach(sub => {
+          if (sub.match(regex)) {
+            suggestions.push({
+              type: 'subcategory',
+              text: sub,
+              category: cat.name,
+              subcategory: sub,
+              display: sub,
+              context: `in ${cat.name}`
+            });
+          }
+        });
+      }
+    });
+
+    // 2. Get Matching B2B Products
+    const b2bVendors = await Vendor.find({ vendorType: 'b2b', isActive: true, status: 'approved' }).select('_id');
+    const b2bVendorIds = b2bVendors.map(v => v._id);
+
+    const b2bProducts = await Product.find({
+      vendorId: { $in: b2bVendorIds },
+      isVisible: true,
+      name: regex
+    })
+      .limit(10)
+      .select('name image')
+      .lean();
+
+    b2bProducts.forEach(prod => {
+      suggestions.push({
+        type: 'product',
+        text: prod.name,
+        productId: prod._id,
+        image: prod.image,
+        display: prod.name,
+        context: 'Product'
+      });
+    });
+
+    // Sort by type priority (Category > Subcategory > Product) and remove duplicates
+    const uniqueSuggestions = [];
+    const seen = new Set();
+
+    // Priority order and deduplication
+    const sorted = suggestions.sort((a, b) => {
+      const priority = { 'category': 1, 'subcategory': 2, 'product': 3 };
+      return priority[a.type] - priority[b.type];
+    });
+
+    for (const s of sorted) {
+      const key = `${s.type}:${s.text}:${s.category || ''}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueSuggestions.push(s);
+      }
+      if (uniqueSuggestions.length >= 10) break;
+    }
+
+    return uniqueSuggestions;
+  } catch (error) {
+    console.error('Error getting B2B suggestions:', error);
+    return [];
   }
 };
 

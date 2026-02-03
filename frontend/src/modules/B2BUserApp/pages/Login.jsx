@@ -72,9 +72,9 @@ const B2BUserLogin = () => {
             >
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-400 to-primary-600"></div>
 
-                 {/* Back Button */}
-                <button 
-                    onClick={() => navigate(-1)} 
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate(-1)}
                     className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors z-10"
                 >
                     <FiArrowLeft size={24} />
@@ -154,8 +154,8 @@ const B2BUserLogin = () => {
                     <div className="pt-8 border-t border-gray-100 text-center space-y-4">
                         <p className="text-sm text-gray-600">
                             New to Bulk Marketplace?{' '}
-                            <Link 
-                                to="/b2b/register" 
+                            <Link
+                                to="/b2b/register"
                                 state={{ from: location.state?.from }}
                                 className="text-primary-600 hover:text-primary-700 font-bold"
                             >

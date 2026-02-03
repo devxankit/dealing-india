@@ -21,7 +21,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         specifications: [{ name: "", value: "" }],
         bulkPricing: [{ minQty: "", price: "" }],
         brand: "",
-        availability: "In Stock"
+        availability: "In Stock",
+        unit: ""
     });
 
     const [categories, setCategories] = useState([]);
@@ -183,6 +184,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 bulkPricing: formData.bulkPricing.filter(tier => tier.minQty && tier.price),
                 brand: formData.brand || "",
                 availability: formData.availability || "In Stock",
+                unit: formData.unit || "Pcs",
             };
 
             if (isEdit && productId) {
@@ -457,15 +459,49 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Min. Order Qty (MOQ) <span className="text-red-500">*</span></label>
-                                <input
-                                    type="number"
-                                    name="moq"
-                                    value={formData.moq}
-                                    onChange={handleChange}
-                                    required
-                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
-                                    placeholder="100"
-                                />
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        name="moq"
+                                        value={formData.moq}
+                                        onChange={handleChange}
+                                        required
+                                        className="flex-1 px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
+                                        placeholder="100"
+                                    />
+                                    <select
+                                        name="unit"
+                                        value={formData.unit}
+                                        onChange={handleChange}
+                                        className="w-40 px-3 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all font-bold text-gray-700"
+                                    >
+                                        <option value="">Select Unit</option>
+                                        <option value="pieces">Pieces</option>
+                                        <option value="pcs">PCS</option>
+                                        <option value="nos">NOS</option>
+                                        <option value="kg">Kilogram (Kg)</option>
+                                        <option value="gram">Gram (g)</option>
+                                        <option value="ton">Ton</option>
+                                        <option value="meter">Meter (m)</option>
+                                        <option value="cm">Centimeter (cm)</option>
+                                        <option value="feet">Feet (ft)</option>
+                                        <option value="yard">Yard</option>
+                                        <option value="litre">Litre (L)</option>
+                                        <option value="ml">Milliliter (ml)</option>
+                                        <option value="gallon">Gallon</option>
+                                        <option value="box">Box</option>
+                                        <option value="pack">Pack</option>
+                                        <option value="set">Set</option>
+                                        <option value="pair">Pair</option>
+                                        <option value="dozen">Dozen</option>
+                                        <option value="carton">Carton</option>
+                                        <option value="bundle">Bundle</option>
+                                        <option value="roll">Roll</option>
+                                        <option value="sheet">Sheet</option>
+                                        <option value="sqft">Square Feet (sqft)</option>
+                                        <option value="sqm">Square Meter (sqm)</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div className="pt-6 border-t border-gray-100">

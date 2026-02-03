@@ -49,22 +49,22 @@ const MobileProfile = () => {
       // Default to 'b2c' if currentMarketplace is undefined (user is on B2C profile page)
       const currentMarketplace = user?.currentMarketplace || 'b2c';
       const targetMarketplace = currentMarketplace === 'b2c' ? 'b2b' : 'b2c';
-      
+
       // Only switch if we're actually changing marketplaces
       if (currentMarketplace === targetMarketplace) {
         toast.error('Already on this marketplace');
         setIsSwitching(false);
         return;
       }
-      
+
       const result = await switchMarketplace(targetMarketplace);
       if (result.success) {
         toast.success(`Switched to ${targetMarketplace === 'b2b' ? 'Bulk' : 'Retail'} Marketplace`);
-        
+
         // Use hard navigation to ensure store is fully updated and prevent race conditions
         // This forces a full page reload with the new marketplace setting
-        const targetUrl = targetMarketplace === 'b2b' ? '/b2b/catalog' : '/app';
-        
+        const targetUrl = targetMarketplace === 'b2b' ? '/b2b/landing' : '/app';
+
         // Small delay to ensure toast is visible, then navigate
         setTimeout(() => {
           window.location.href = targetUrl;

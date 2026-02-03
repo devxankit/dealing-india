@@ -252,6 +252,7 @@ const B2BSupport = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Suppor
 const B2BProductDetail = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ProductDetail"));
 const B2BVendorStore = lazyWithRetry(() => import("./modules/B2BUserApp/pages/B2BVendorStore"));
 const SellerTypeSelection = lazyWithRetry(() => import("./modules/B2BUserApp/pages/SellerTypeSelection"));
+const B2BLanding = lazyWithRetry(() => import("./modules/B2BUserApp/pages/B2BLanding"));
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -460,6 +461,7 @@ const AppRoutes = () => {
         <Route path="/b2b/verification" element={<B2BUserVerification />} />
 
         <Route path="/b2b" element={<ProtectedRoute><B2BUserDashboard /></ProtectedRoute>} />
+        <Route path="/b2b/landing" element={<ProtectedRoute><B2BLanding /></ProtectedRoute>} />
         <Route path="/b2b/catalog" element={<ProtectedRoute><B2BProductCatalog /></ProtectedRoute>} />
         <Route path="/b2b/inquiries" element={<ProtectedRoute><B2BInquiries /></ProtectedRoute>} />
         <Route path="/b2b/profile" element={<ProtectedRoute><B2BUserProfile /></ProtectedRoute>} />

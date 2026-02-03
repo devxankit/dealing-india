@@ -1,4 +1,4 @@
-import { getPublicProducts, getPublicProductById } from '../../services/publicProduct.service.js';
+import { getPublicProducts, getPublicProductById, getB2BSearchSuggestions } from '../../services/publicProduct.service.js';
 
 /**
  * Get all public products with filters
@@ -73,6 +73,23 @@ export const getProduct = async (req, res, next) => {
       success: true,
       message: 'Product retrieved successfully',
       data: { product },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get B2B search suggestions
+ * GET /api/products/b2b-suggestions
+ */
+export const getB2BSuggestions = async (req, res, next) => {
+  try {
+    const { q = '' } = req.query;
+    const suggestions = await getB2BSearchSuggestions(q);
+    res.status(200).json({
+      success: true,
+      data: suggestions,
     });
   } catch (error) {
     next(error);

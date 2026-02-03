@@ -1,7 +1,11 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
+import dns from 'dns';
 dotenv.config();
+
+// Set Google DNS to fix querySrv ECONNREFUSED issues with some ISPs
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const connectDB = async () => {
   try {

@@ -16,20 +16,20 @@ const EditProduct = () => {
             setLoading(true);
             try {
                 const response = await api.get(`/b2b-vendor/products/${id}`);
-                
+
                 if (response.success && response.data?.product) {
                     const productData = response.data.product;
-                    
+
                     // Extract category and subcategory from attributes
                     const categoryAttr = productData.attributes?.find(attr => attr.name === 'category');
                     const subcategoryAttr = productData.attributes?.find(attr => attr.name === 'subcategory');
                     const bulkPricingAttr = productData.attributes?.find(attr => attr.name === 'bulkPricing');
-                    
+
                     // Extract specifications (excluding category, subcategory, bulkPricing)
-                    const specifications = productData.attributes?.filter(attr => 
+                    const specifications = productData.attributes?.filter(attr =>
                         !['category', 'subcategory', 'bulkPricing'].includes(attr.name)
                     ) || [];
-                    
+
                     // Parse bulk pricing if exists
                     let bulkPricing = [{ minQty: "", price: "" }];
                     if (bulkPricingAttr?.value) {
@@ -39,7 +39,7 @@ const EditProduct = () => {
                             console.error('Failed to parse bulk pricing:', e);
                         }
                     }
-                    
+
                     // Determine availability from stock
                     let availability = "In Stock";
                     if (productData.stock === 'out_of_stock') {
@@ -47,14 +47,14 @@ const EditProduct = () => {
                     } else if (productData.stock === 'pre_order') {
                         availability = "Available on Order";
                     }
-                    
+
                     // Prepare images array
                     const images = [];
                     if (productData.image) images.push(productData.image);
                     if (productData.images && productData.images.length > 0) {
                         images.push(...productData.images);
                     }
-                    
+
                     setProduct({
                         name: productData.name || "",
                         category: categoryAttr?.value || "",
@@ -65,10 +65,11 @@ const EditProduct = () => {
                         availability: availability,
                         description: productData.description || "",
                         images: images,
-                        specifications: specifications.length > 0 
+                        specifications: specifications.length > 0
                             ? specifications.map(spec => ({ name: spec.name, value: spec.value }))
                             : [{ name: "", value: "" }],
                         bulkPricing: bulkPricing.length > 0 ? bulkPricing : [{ minQty: "", price: "" }],
+                        unit: productData.unit || "Pcs",
                     });
                 } else {
                     toast.error("Product not found");
@@ -82,7 +83,7 @@ const EditProduct = () => {
                 setLoading(false);
             }
         };
-        
+
         if (id) {
             loadProduct();
         }

@@ -18,8 +18,8 @@ import toast from "react-hot-toast";
 const ManageProducts = () => {
   const navigate = useNavigate();
   const { vendor } = useVendorAuthStore();
-  const { initialize: initCategories } = useCategoryStore();
-  const { initialize: initBrands } = useBrandStore();
+  const { categories, initialize: initCategories } = useCategoryStore();
+  const { brands, initialize: initBrands } = useBrandStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -71,27 +71,7 @@ const ManageProducts = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch, selectedStatus, selectedCategory, selectedBrand]);
-  useEffect(() => {
-    if (!vendorId) return;
-    if (isResettingPageRef.current) {
-      loadProducts();
-      isResettingPageRef.current = false;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStatus, selectedCategory, selectedBrand, vendorId]);
-
-  // Load products immediately when page changes (no debounce)
-  // Skip if page is being reset due to filter changes
-  useEffect(() => {
-    if (!vendorId) return;
-    if (isResettingPageRef.current) {
-      // Page is being reset due to filter change, don't load here
-      // The filter effect or debounce effect will handle loading
-      return;
-    }
-    loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, vendorId]);
+  // No need for manual loadProducts calls, useVendorProducts hook handles data fetching automatically when filters change
 
   // Products are already filtered by API, no need for client-side filtering
   const filteredProducts = products;
@@ -247,9 +227,21 @@ const ManageProducts = () => {
               onChange={(e) => setSelectedCategory(e.target.value)}
               options={[
                 { value: "all", label: "All Categories" },
-                ...categories
+                ...(categories || [])
                   .filter((cat) => cat.isActive !== false)
-                  .map((cat) => ({ value: String(cat.id), label: cat.name })),
+                  .map((cat) => ({ value: String(cat.id || cat._id), label: cat.name })),
+              ]}
+              className="w-full sm:w-auto min-w-[160px]"
+            />
+
+            <AnimatedSelect
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              options={[
+                { value: "all", label: "All Brands" },
+                ...(brands || [])
+                  .filter((brand) => brand.isActive !== false)
+                  .map((brand) => ({ value: String(brand.id || brand._id), label: brand.name })),
               ]}
               className="w-full sm:w-auto min-w-[160px]"
             />

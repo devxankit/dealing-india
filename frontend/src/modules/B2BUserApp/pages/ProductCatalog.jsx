@@ -9,6 +9,7 @@ import B2BBanner from '../components/B2BBanner';
 import api from '../../../shared/utils/api';
 import chatService from '../../../shared/services/chatService';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { debounce } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
 
 const ProductCatalog = () => {
@@ -35,6 +36,10 @@ const ProductCatalog = () => {
     const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
     const [citySearchQuery, setCitySearchQuery] = useState('');
     const cityDropdownRef = useRef(null);
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
+
 
     // Define functions before useEffect hooks that use them
     const fetchAvailableLocations = async () => {
@@ -227,6 +232,47 @@ const ProductCatalog = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Debounced suggestion fetch
+    const debouncedFetchSuggestions = useRef(
+        debounce(async (query) => {
+            if (query.trim().length < 1) {
+                setSuggestions([]);
+                setIsSearchingSuggestions(false);
+                return;
+            }
+            setIsSearchingSuggestions(true);
+            try {
+                const response = await api.get(`/products/b2b-suggestions?q=${encodeURIComponent(query)}`);
+                if (response.success) {
+                    setSuggestions(response.data || []);
+                }
+            } catch (error) {
+                console.error('Error fetching suggestions:', error);
+            } finally {
+                setIsSearchingSuggestions(false);
+            }
+        }, 300)
+    ).current;
+
+    const handleSearchInputChange = (e) => {
+        const value = e.target.value;
+        setSearchQuery(value);
+        if (value.trim().length > 0) {
+            setShowSuggestions(true);
+            debouncedFetchSuggestions(value);
+        } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+    };
+
+    const handleSuggestionClick = (suggestion) => {
+        const query = suggestion.text;
+        setSearchQuery(query);
+        setShowSuggestions(false);
+        handleHeaderSearchSubmit(query);
     };
 
     // Read search query from URL on mount
@@ -785,14 +831,62 @@ const ProductCatalog = () => {
                                 placeholder="Search bulk products, wholesalers or items..."
                                 className="w-full pl-14 pr-6 py-4 bg-white border border-gray-100 rounded-[2rem] focus:ring-4 focus:ring-primary-100 focus:border-primary-300 shadow-xl shadow-gray-100/50 transition-all text-lg font-medium outline-none"
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                // Add Enter key listener to search
+                                onChange={handleSearchInputChange}
+                                onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                         handleHeaderSearchSubmit(searchQuery);
+                                        setShowSuggestions(false);
                                     }
                                 }}
                             />
+
+                            {/* Suggestions Dropdown */}
+                            <AnimatePresence>
+                                {showSuggestions && (suggestions.length > 0 || isSearchingSuggestions) && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="absolute top-full left-0 right-0 mt-3 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-[60] py-3"
+                                    >
+                                        {isSearchingSuggestions && suggestions.length === 0 ? (
+                                            <div className="px-6 py-4 text-sm text-gray-500 flex items-center gap-3">
+                                                <div className="w-5 h-5 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                                                Finding matches...
+                                            </div>
+                                        ) : (
+                                            suggestions.map((suggestion, index) => (
+                                                <button
+                                                    key={index}
+                                                    type="button"
+                                                    onClick={() => handleSuggestionClick(suggestion)}
+                                                    className="w-full px-6 py-3.5 hover:bg-primary-50/50 flex items-center gap-4 text-left transition-all group"
+                                                >
+                                                    {suggestion.type === 'product' ? (
+                                                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 border border-gray-50 shadow-sm transition-transform group-hover:scale-105">
+                                                            <img src={suggestion.image} alt={suggestion.text} className="w-full h-full object-cover" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary-50 text-primary-600 shadow-sm group-hover:bg-primary-100 transition-colors">
+                                                            <FiSearch className="text-xl" />
+                                                        </div>
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-base font-bold text-gray-800 truncate group-hover:text-primary-700 transition-colors">
+                                                            {suggestion.text}
+                                                        </div>
+                                                        <div className="text-[11px] font-black text-gray-400 uppercase tracking-[0.1em] mt-0.5">
+                                                            {suggestion.context}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar w-full lg:w-auto">

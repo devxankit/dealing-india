@@ -72,7 +72,6 @@ reviewSchema.index({ userId: 1, productId: 1, orderId: 1 }, { unique: true });
 
 // Indexes
 reviewSchema.index({ productId: 1, status: 1 });
-reviewSchema.index({ userId: 1 });
 reviewSchema.index({ rating: 1 });
 reviewSchema.index({ createdAt: -1 });
 

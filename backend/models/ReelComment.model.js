@@ -6,7 +6,6 @@ const reelCommentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       refPath: 'reelModel',
       required: [true, 'Reel ID is required'],
-      index: true,
     },
     reelModel: {
       type: String,
@@ -18,7 +17,6 @@ const reelCommentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'User ID is required'],
-      index: true,
     },
     text: {
       type: String,

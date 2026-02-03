@@ -59,7 +59,6 @@ const megaRewardWinnerSchema = new mongoose.Schema({
 
 // Indexes
 megaRewardWinnerSchema.index({ megaRewardId: 1, prizeRank: 1 });
-megaRewardWinnerSchema.index({ userId: 1 });
 megaRewardWinnerSchema.index({ declaredAt: -1 });
 
 // Compound index to prevent same user winning multiple times in same campaign

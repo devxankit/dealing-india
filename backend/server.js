@@ -4,6 +4,10 @@ import cors from 'cors';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Fix for querySrv ECONNREFUSED issues (SRV DNS resolution)
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 import connectDB from './config/database.js';
 import { errorHandler } from './middleware/errorHandler.middleware.js';
 import { setupSocketIO } from './config/socket.io.js';

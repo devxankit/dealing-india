@@ -18,7 +18,6 @@ const megaRewardEntrySchema = new mongoose.Schema({
     // Unique ticket ID format: MR-YYYYMM-XXXX
     ticketId: {
         type: String,
-        unique: true,
         required: true
     },
     status: {

@@ -62,7 +62,6 @@ const addressSchema = new mongoose.Schema(
 );
 
 // Indexes
-addressSchema.index({ userId: 1 });
 addressSchema.index({ userId: 1, isDefault: 1 });
 
 const Address = mongoose.model('Address', addressSchema);

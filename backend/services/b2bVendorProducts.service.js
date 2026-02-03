@@ -225,6 +225,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       bulkPricing = [],
       brand,
       availability,
+      unit,
     } = productData;
 
     // Validate required fields
@@ -247,14 +248,14 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     const safeUpload = async (base64Data, folder) => {
       try {
         if (!base64Data) return null;
-        
+
         // Ensure it is a valid base64 data URI
         if (!base64Data.startsWith('data:image')) {
           if (base64Data.startsWith('http')) return { secure_url: base64Data, public_id: null };
           console.warn('[B2B Product Upload] Skipping invalid image data format');
           return null;
         }
-        
+
         const result = await uploadBase64ToCloudinary(base64Data, folder);
         if (!result || !result.secure_url) {
           throw new Error('Cloudinary upload returned invalid result');
@@ -280,7 +281,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       // Upload remaining gallery images
       const galleryUploads = images.slice(1).map(img => safeUpload(img, 'products/b2b/gallery'));
       const results = await Promise.allSettled(galleryUploads);
-      
+
       // Check for failures
       const failedUploads = results.filter(r => r.status === 'rejected');
       if (failedUploads.length > 0) {
@@ -373,6 +374,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       stock: stock,
       attributes: processedAttributes,
       brandName: brand || '',
+      unit: unit || 'Pcs',
       vendorId,
       vendorName: vendor.storeName || vendor.name,
       isActive: true,
@@ -435,6 +437,7 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
     if (description !== undefined) updateData.description = description || '';
     if (brand !== undefined) updateData.brandName = brand || '';
     if (moq !== undefined) updateData.minimumOrderQuantity = parseInt(moq) || 1;
+    if (productData.unit !== undefined) updateData.unit = productData.unit;
 
     // Process images if provided
     if (images !== undefined && Array.isArray(images)) {
@@ -459,7 +462,7 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
       // Identify images to delete (those not in the new list)
       const newImageUrls = images.filter(img => img.startsWith('http'));
       const publicIdsToDelete = [];
-      
+
       if (existingProduct.imagePublicId && !newImageUrls.includes(existingProduct.image)) {
         publicIdsToDelete.push(existingProduct.imagePublicId);
       }
@@ -497,7 +500,7 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
 
         const galleryUploads = images.slice(1).map(img => safeUpload(img, 'products/b2b/gallery'));
         const results = await Promise.allSettled(galleryUploads);
-        
+
         const failedUploads = results.filter(r => r.status === 'rejected');
         if (failedUploads.length > 0) {
           throw new Error(`Image upload failed: ${failedUploads[0].reason.message}`);
