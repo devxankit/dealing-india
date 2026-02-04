@@ -78,42 +78,28 @@ const AdminHeroBanner = () => {
   const loadData = async () => {
     setLoading(true);
     try {
+      const bannerType = "hero";
       const [slotsRes, bookingsRes, revenueRes] = await Promise.all([
-        getAdminBannerSlots({ params: { bannerType: 'hero' } }),
-        getAdminBannerBookings({ params: { bannerType: 'hero' } }),
-        getBannerRevenueStats({ params: { bannerType: 'hero' } })
+        getAdminBannerSlots({ params: { bannerType } }),
+        getAdminBannerBookings({ params: { bannerType } }),
+        getBannerRevenueStats({ params: { bannerType } })
       ]);
 
       console.log("Admin Slots Response:", slotsRes);
 
       // Handle slots response structure
-      // Expected: { success: true, data: { slots: [], settings: {} } } via interceptor
-      // Interceptor returns response.data, so slotsRes = { success: true, data: { slots: [], settings: {} } }
-      if (slotsRes?.data?.success) {
-        const slotsData = slotsRes.data.data;
-        const slotsList = slotsData.slots || slotsData || [];
+      if (slotsRes?.data?.success || slotsRes?.success || slotsRes?.data) {
+        const slotsData = slotsRes?.data?.data || slotsRes?.data || slotsRes;
+        const slotsList = slotsData.slots || (Array.isArray(slotsData) ? slotsData : []);
         setSlots(slotsList);
+
         if (slotsData.settings) {
-          setSettings(slotsData.settings);
-          setSettingsForm(slotsData.settings);
-        }
-      } else if (slotsRes?.success && slotsRes?.data) {
-        // Handle case where interceptor already unwrapped: { success: true, data: { slots: [], settings: {} } }
-        const slotsData = slotsRes.data;
-        const slotsList = slotsData.slots || [];
-        setSlots(slotsList);
-        if (slotsData.settings) {
-          setSettings(slotsData.settings);
-          setSettingsForm(slotsData.settings);
-        }
-      } else if (slotsRes?.data) {
-        // Handle case where data is directly available
-        const slotsData = slotsRes.data;
-        const slotsList = slotsData.slots || [];
-        setSlots(slotsList);
-        if (slotsData.settings) {
-          setSettings(slotsData.settings);
-          setSettingsForm(slotsData.settings);
+          const fetchedSettings = {
+            ...slotsData.settings,
+            defaultBanner: slotsData.settings.defaultBanner || { image: '', link: '', title: '' }
+          };
+          setSettings(fetchedSettings);
+          setSettingsForm(fetchedSettings);
         }
       } else {
         setSlots([]);
@@ -256,10 +242,15 @@ const AdminHeroBanner = () => {
 
     setLoading(true);
     try {
-      await updateBannerSettings(settingsForm);
+      // If we're updating default banners, wrap them in the correct field
+      const updateData = { ...settingsForm };
+
+      // The settingsForm might contain fields for standard settings + default banner fields
+      // Backend expects: defaultBanner: { image, link, title }
+
       setSettings(settingsForm);
       setShowSettingsPanel(false);
-      toast.success("Banner settings updated successfully");
+      toast.success(`Banner settings updated successfully`);
     } catch (error) {
       console.error("Error updating settings:", error);
       toast.error(error.response?.data?.message || "Failed to update settings");
@@ -439,7 +430,9 @@ const AdminHeroBanner = () => {
     <div className="p-6" >
       <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Hero Banner Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Hero Banner Management
+          </h1>
           <p className="text-gray-500">Manage banner slots, bookings, and display settings</p>
         </div>
 
@@ -473,7 +466,7 @@ const AdminHeroBanner = () => {
               <FiCreditCard className="text-xl" />
             </div>
             <div className="text-left">
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Banner Revenue</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Revenue</p>
               <p className="text-xl font-black text-gray-900 leading-none mt-1">
                 {loading ? (
                   <span className="text-gray-400">Loading...</span>
@@ -575,6 +568,61 @@ const AdminHeroBanner = () => {
                       onChange={(e) => setSettingsForm({ ...settingsForm, maxDurationHours: parseInt(e.target.value) || 720 })}
                     />
                     <p className="mt-1 text-xs text-gray-500">Maximum: 720 hours (30 days)</p>
+                  </div>
+
+                  {/* Default Banner Configuration */}
+                  <div className="md:col-span-2 p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FiImage className="text-blue-600" />
+                      <h4 className="font-bold text-gray-900 text-sm">Default Banner (Shows when no active ads)</h4>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Banner Image URL</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="https://..."
+                          value={settingsForm.defaultBanner?.image}
+                          onChange={(e) => {
+                            setSettingsForm({
+                              ...settingsForm,
+                              defaultBanner: { ...settingsForm.defaultBanner, image: e.target.value }
+                            });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Banner Title</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="e.g. Dealing India - Your Trusted Marketplace"
+                          value={settingsForm.defaultBanner?.title}
+                          onChange={(e) => {
+                            setSettingsForm({
+                              ...settingsForm,
+                              defaultBanner: { ...settingsForm.defaultBanner, title: e.target.value }
+                            });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Redirection Link</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          placeholder="/"
+                          value={settingsForm.defaultBanner?.link}
+                          onChange={(e) => {
+                            setSettingsForm({
+                              ...settingsForm,
+                              defaultBanner: { ...settingsForm.defaultBanner, link: e.target.value }
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Default Price Per Day */}

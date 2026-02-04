@@ -166,7 +166,7 @@ const processExpiredSlots = async (slots) => {
 
       if (endDate < now) {
         console.log(`⌛ Slot ${slot.slotNumber} (${slot.bannerType}) booking ${booking.referenceId} has expired. Clearing slot.`);
-        
+
         // 1. Update the booking status to 'completed' if it's still 'active'
         if (booking.status === 'active') {
           await BannerBooking.findByIdAndUpdate(booking._id, { status: 'completed' });
@@ -174,7 +174,7 @@ const processExpiredSlots = async (slots) => {
 
         // 2. Clear the currentBooking reference in BannerSlot model
         await BannerSlot.findByIdAndUpdate(slot._id, { currentBooking: null });
-        
+
         // 3. Return the slot as empty for the current response
         const slotObj = slot.toObject ? slot.toObject() : JSON.parse(JSON.stringify(slot));
         slotObj.currentBooking = null;
@@ -205,6 +205,16 @@ export const getBannerSettings = async () => {
       '24': 1999,
       '168': 13000,
       '720': 50000
+    },
+    defaultBanner: bannerSettings.defaultBanner || {
+      image: 'http://localhost:5000/upload/landing_default.png',
+      link: '/',
+      title: 'Dealing India - Your Trusted Marketplace'
+    },
+    defaultB2BBanner: bannerSettings.defaultB2BBanner || {
+      image: 'http://localhost:5000/upload/landing_default.png',
+      link: '/b2b/landing',
+      title: "India's Biggest Wholesale Network"
     }
   };
 };
@@ -266,6 +276,22 @@ export const updateBannerSettings = async (settingsData, adminId) => {
   if (settingsData.pricingStructure !== undefined) {
     settings.banners.pricingStructure = settingsData.pricingStructure;
     changes.pricingStructure = { from: oldBannerSettings.pricingStructure, to: settingsData.pricingStructure };
+  }
+
+  if (settingsData.defaultBanner !== undefined) {
+    settings.banners.defaultBanner = {
+      ...oldBannerSettings.defaultBanner,
+      ...settingsData.defaultBanner
+    };
+    changes.defaultBanner = { from: oldBannerSettings.defaultBanner, to: settings.banners.defaultBanner };
+  }
+
+  if (settingsData.defaultB2BBanner !== undefined) {
+    settings.banners.defaultB2BBanner = {
+      ...oldBannerSettings.defaultB2BBanner,
+      ...settingsData.defaultB2BBanner
+    };
+    changes.defaultB2BBanner = { from: oldBannerSettings.defaultB2BBanner, to: settings.banners.defaultB2BBanner };
   }
 
   // Add audit log if there are changes and adminId is provided
@@ -804,14 +830,14 @@ export const getActiveBanners = async (bannerType = 'hero') => {
 
     // Double check bannerType match (though query already handles it)
     if (filterType !== effectiveBannerType) {
-        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType mismatch: ${effectiveBannerType} vs ${filterType}`);
-        return false;
+      console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - bannerType mismatch: ${effectiveBannerType} vs ${filterType}`);
+      return false;
     }
 
     // Additional vendor type check for B2B banners
     if (filterType === 'b2b' && booking.vendorId.vendorType !== 'b2b') {
-        console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - B2B banner but vendor is ${booking.vendorId.vendorType}`);
-        return false;
+      console.log(`⚠️ Skipping banner ${booking._id} (${booking.referenceId}) - B2B banner but vendor is ${booking.vendorId.vendorType}`);
+      return false;
     }
 
     return true;
@@ -819,7 +845,7 @@ export const getActiveBanners = async (bannerType = 'hero') => {
 
   console.log(`✅ Returning ${filteredBookings.length} active ${filterType} banners`);
 
-  return filteredBookings.map(booking => ({
+  const banners = filteredBookings.map(booking => ({
     _id: booking._id,
     id: booking._id.toString(), // Also provide id as string for compatibility
     slotNumber: booking.slotId?.slotNumber || 0,
@@ -833,6 +859,28 @@ export const getActiveBanners = async (bannerType = 'hero') => {
     startDate: booking.startDate,
     endDate: booking.endDate
   }));
+
+  // FALLBACK: If no banners are purchased/active, return the default banner
+  if (banners.length === 0) {
+    const settings = await getBannerSettings();
+    const defaultData = filterType === 'b2b' ? settings.defaultB2BBanner : settings.defaultBanner;
+
+    // Use a robust fallback image if none provided
+    const bannerImage = (defaultData && defaultData.image) ? defaultData.image : '/upload/landing_default.png';
+
+    return [{
+      _id: 'default-banner',
+      id: 'default-banner',
+      slotNumber: 0,
+      image: bannerImage,
+      bannerImage: bannerImage,
+      link: defaultData?.link || (filterType === 'b2b' ? '/b2b/landing' : '/'),
+      title: defaultData?.title || (filterType === 'b2b' ? "India's Biggest Wholesale Network" : "Dealing India - Your Trusted Marketplace"),
+      isDefault: true
+    }];
+  }
+
+  return banners;
 };
 
 

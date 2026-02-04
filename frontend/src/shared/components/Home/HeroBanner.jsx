@@ -105,8 +105,7 @@ const HeroBanner = () => {
             {banners.map((banner, index) => (
               <div
                 key={banner.id}
-                className="flex-shrink-0 cursor-pointer"
-                onClick={() => handleBannerClick(banner)}
+                className="flex-shrink-0"
                 style={{
                   width: `${100 / banners.length}%`,
                   height: "100%",
@@ -187,8 +186,7 @@ const HeroBanner = () => {
             {banners.map((banner, index) => (
               <div
                 key={banner.id}
-                className="flex-shrink-0 cursor-pointer"
-                onClick={() => handleBannerClick(banner)}
+                className="flex-shrink-0"
                 style={{
                   width: `${100 / banners.length}%`,
                   height: "100%",

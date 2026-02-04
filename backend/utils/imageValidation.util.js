@@ -40,7 +40,7 @@ export const validateImageUrls = async (imageUrls) => {
   }
 
   // Validate all images in parallel (with limit to avoid overwhelming)
-  const validationPromises = imageUrls.map(url => 
+  const validationPromises = imageUrls.map(url =>
     validateImageUrl(url).then(isValid => ({ url, isValid }))
   );
 
@@ -71,11 +71,21 @@ export const sanitizeImageUrl = (imageUrl) => {
     return null;
   }
 
+  // Allow relative paths (e.g. /uploads/...) or data URIs
+  if (trimmed.startsWith('/') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+
   // Check if it's a valid URL format
   try {
     new URL(trimmed);
     return trimmed;
   } catch {
+    // If it's a Cloudinary-like string without a protocol, consider it potentially valid
+    // but for now, we follow a safer approach: if it has a dot or slash, it might be a path
+    if (trimmed.includes('/') || trimmed.includes('.')) {
+      return trimmed;
+    }
     // Invalid URL format
     return null;
   }

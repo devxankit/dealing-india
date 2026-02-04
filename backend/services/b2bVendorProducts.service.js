@@ -305,7 +305,6 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     if (images && images.length > 0 && !imageUrl) {
       throw new Error('Failed to upload main product image');
     }
-
     // Process specifications into attributes array
     const processedAttributes = [];
     if (specifications && Array.isArray(specifications)) {
@@ -320,7 +319,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       });
     }
 
-    // Add category and subcategory to attributes
+    // Restore B2B specific attributes required by frontend
     if (category) {
       processedAttributes.push({
         attributeName: 'category',
@@ -335,18 +334,12 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
         value: subcategory,
       });
     }
-
-    // Process bulk pricing - store in variants or attributes
-    // Store bulk pricing as custom attribute for easy access
     if (bulkPricing && Array.isArray(bulkPricing) && bulkPricing.length > 0) {
-      const validBulkPricing = bulkPricing.filter(tier => tier.minQty && tier.price);
-      if (validBulkPricing.length > 0) {
-        processedAttributes.push({
-          attributeName: 'bulkPricing',
-          name: 'bulkPricing',
-          value: JSON.stringify(validBulkPricing),
-        });
-      }
+      processedAttributes.push({
+        attributeName: 'bulkPricing',
+        name: 'bulkPricing',
+        value: bulkPricing,
+      });
     }
 
     // Determine stock status
@@ -522,8 +515,9 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
     }
 
     // Process specifications
-    if (specifications !== undefined) {
-      const processedAttributes = [];
+    const processedAttributes = [];
+    if (specifications !== undefined || category !== undefined || subcategory !== undefined || bulkPricing !== undefined) {
+      // Add standard specifications
       if (Array.isArray(specifications)) {
         specifications.forEach(spec => {
           if (spec.name && spec.value) {
@@ -536,32 +530,32 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
         });
       }
 
-      // Add category and subcategory
-      if (category) {
+      // Restore/Update B2B specific attributes
+      const finalCategory = category !== undefined ? category : existingProduct.attributes?.find(a => a.name === 'category')?.value;
+      if (finalCategory) {
         processedAttributes.push({
           attributeName: 'category',
           name: 'category',
-          value: category,
-        });
-      }
-      if (subcategory) {
-        processedAttributes.push({
-          attributeName: 'subcategory',
-          name: 'subcategory',
-          value: subcategory,
+          value: finalCategory,
         });
       }
 
-      // Add bulk pricing
-      if (bulkPricing && Array.isArray(bulkPricing) && bulkPricing.length > 0) {
-        const validBulkPricing = bulkPricing.filter(tier => tier.minQty && tier.price);
-        if (validBulkPricing.length > 0) {
-          processedAttributes.push({
-            attributeName: 'bulkPricing',
-            name: 'bulkPricing',
-            value: JSON.stringify(validBulkPricing),
-          });
-        }
+      const finalSubcategory = subcategory !== undefined ? subcategory : existingProduct.attributes?.find(a => a.name === 'subcategory')?.value;
+      if (finalSubcategory) {
+        processedAttributes.push({
+          attributeName: 'subcategory',
+          name: 'subcategory',
+          value: finalSubcategory,
+        });
+      }
+
+      const finalBulkPricing = bulkPricing !== undefined ? bulkPricing : existingProduct.attributes?.find(a => a.name === 'bulkPricing')?.value;
+      if (finalBulkPricing) {
+        processedAttributes.push({
+          attributeName: 'bulkPricing',
+          name: 'bulkPricing',
+          value: finalBulkPricing,
+        });
       }
 
       updateData.attributes = processedAttributes;

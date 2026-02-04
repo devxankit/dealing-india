@@ -36,10 +36,12 @@ export const getOrderColumns = (handlers) => {
             sortable: true,
             render: (value, row) => {
                 const customer = row.customerSnapshot || row.customerId || value || {};
+                const name = customer.name || (typeof customer === 'string' ? 'User' : 'Guest');
+                const email = customer.email || '';
                 return (
                     <div>
-                        <p className="font-medium text-gray-800">{customer.name || 'Guest'}</p>
-                        <p className="text-xs text-gray-500">{customer.email || ''}</p>
+                        <p className="font-medium text-gray-800">{name}</p>
+                        <p className="text-xs text-gray-500">{email}</p>
                     </div>
                 );
             },
@@ -71,6 +73,22 @@ export const getOrderColumns = (handlers) => {
                     {Array.isArray(value) ? `${value.length} items` : (typeof value === 'number' ? `${value} items` : '0 items')}
                 </span>
             ),
+        },
+        {
+            key: "reason",
+            label: "Cancel Reason",
+            sortable: false,
+            render: (_, row) => {
+                const reason = row.cancellation?.reason || row.statusHistory?.find(h => h.status === 'cancelled')?.note;
+                if (row.status !== 'cancelled' || !reason) return <span className="text-gray-400">-</span>;
+                return (
+                    <div className="max-w-[150px]">
+                        <p className="text-xs text-red-600 font-medium line-clamp-2 italic" title={reason}>
+                            {reason}
+                        </p>
+                    </div>
+                );
+            }
         },
         {
             key: "finalTotal",

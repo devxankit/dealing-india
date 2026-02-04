@@ -43,12 +43,16 @@ const settingsSchema = new mongoose.Schema(
           '720': 50000    // 1 month (30 days)
         }
       },
-      auditLogs: [{
-        action: { type: String, required: true },
-        performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', required: true },
-        changes: { type: mongoose.Schema.Types.Mixed },
-        timestamp: { type: Date, default: Date.now }
-      }]
+      defaultBanner: {
+        image: { type: String, default: 'http://localhost:5000/upload/landing_default.png' },
+        link: { type: String, default: '/' },
+        title: { type: String, default: 'Dealing India - Your Trusted Marketplace' }
+      },
+      defaultB2BBanner: {
+        image: { type: String, default: 'http://localhost:5000/upload/landing_default.png' },
+        link: { type: String, default: '/b2b/landing' },
+        title: { type: String, default: "India's Biggest Wholesale Network" }
+      }
     },
     tax: {
       taxName: { type: String, default: 'Tax', trim: true },

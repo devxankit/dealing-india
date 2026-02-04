@@ -275,11 +275,16 @@ const ProductCatalog = () => {
         handleHeaderSearchSubmit(query);
     };
 
-    // Read search query from URL on mount
+    // Read search query and city from URL on mount
     useEffect(() => {
         const urlSearch = searchParams.get('search');
+        const urlCity = searchParams.get('city');
+
         if (urlSearch) {
             setSearchQuery(urlSearch);
+        }
+        if (urlCity) {
+            setSelectedCity(urlCity);
         }
     }, [searchParams]);
 
@@ -716,8 +721,7 @@ const ProductCatalog = () => {
                 onSearchSubmit={handleHeaderSearchSubmit}
             />
 
-            {/* B2B Banner Carousel */}
-            <B2BBanner />
+            {/* B2B Banner Carousel removed */}
 
             <main className="max-w-7xl mx-auto px-4 py-6">
                 {/* Search & Filter Bar */}

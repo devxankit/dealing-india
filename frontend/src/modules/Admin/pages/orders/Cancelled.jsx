@@ -9,6 +9,8 @@ import { useOrderData } from "../../hooks/useOrderData";
 import { getOrderColumns } from "../../utils/orderColumns";
 import { formatPrice } from "../../../../shared/utils/helpers";
 
+import { useMemo } from "react";
+
 const Cancelled = () => {
     const navigate = useNavigate();
     const {
@@ -22,15 +24,16 @@ const Cancelled = () => {
         calculateFinalTotal
     } = useOrderData("cancelled");
 
-    const handlers = {
+    const handlers = useMemo(() => ({
         handleOrderDetails: (id) => navigate(`/admin/orders/${id}`),
+        handleViewPage: (id) => navigate(`/admin/orders/${id}`),
         handleGenerateInvoice: (order) => navigate(`/admin/orders/${order._id || order.id}/invoice`),
         handleOrderTracking: (id) => navigate(`/admin/orders/order-tracking?orderId=${id}`),
         handleDeleteOrder: (id) => { },
         calculateFinalTotal
-    };
+    }), [navigate, calculateFinalTotal]);
 
-    const columns = getOrderColumns(handlers);
+    const columns = useMemo(() => getOrderColumns(handlers), [handlers]);
 
     const statCards = [
         {
@@ -103,8 +106,9 @@ const Cancelled = () => {
                         data={orders}
                         filename="cancelled-orders"
                         headers={[
-                            { label: "Order ID", accessor: "orderCode" },
-                            { label: "Customer", accessor: (row) => row.customerSnapshot?.name || "Guest" },
+                            { label: "Order ID", accessor: (row) => row.orderCode || row.id || row._id },
+                            { label: "Customer", accessor: (row) => row.customerSnapshot?.name || row.customerId?.name || "Guest" },
+                            { label: "Cancel Reason", accessor: (row) => row.cancellation?.reason || "N/A" },
                             { label: "Total", accessor: (row) => calculateFinalTotal(row) },
                             { label: "Date", accessor: (row) => new Date(row.createdAt).toLocaleDateString() }
                         ]}

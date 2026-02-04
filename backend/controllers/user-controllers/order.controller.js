@@ -391,8 +391,9 @@ export const cancelOrder = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id;
     const { orderId } = req.params;
+    const { reason } = req.body;
 
-    const cancelledOrder = await cancelOrderService(orderId, userId);
+    const cancelledOrder = await cancelOrderService(orderId, userId, reason);
 
     // Clear cache
     await clearOrderCache(userId);

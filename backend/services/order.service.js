@@ -727,7 +727,7 @@ export const getUserOrders = async (userId, filters = {}) => {
  * @param {String} userId - User ID (for authorization)
  * @returns {Promise<Object>} Cancelled order
  */
-export const cancelOrder = async (orderId, userId) => {
+export const cancelOrder = async (orderId, userId, reason = 'Order cancelled by user') => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -754,6 +754,7 @@ export const cancelOrder = async (orderId, userId) => {
       cancelledAt: new Date(),
       cancelledBy: userId,
       cancelledByRole: 'user',
+      reason: reason,
       refundStatus: order.paymentStatus === 'completed' ? 'completed' : undefined, // Mark completed as we credit wallet
       refundAmount: order.paymentStatus === 'completed' ? order.total : undefined,
     };
@@ -770,7 +771,7 @@ export const cancelOrder = async (orderId, userId) => {
             changedBy: userId,
             changedByRole: 'user',
             timestamp: new Date(),
-            note: 'Order cancelled by user',
+            note: reason,
           },
         },
       },

@@ -40,11 +40,6 @@ const orderSchema = new mongoose.Schema(
         },
       },
     ],
-    total: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
     status: {
       type: String,
       enum: ['awaiting', 'received', 'processed', 'shipped', 'delivered', 'cancelled', 'returned', 'on_hold', 'pending', 'processing', 'ready_to_ship'],

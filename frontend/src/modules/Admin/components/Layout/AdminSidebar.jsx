@@ -40,7 +40,7 @@ const iconMap = {
   Brands: FiTag,
   Customers: FiUsers,
   Vendors: FiUsers,
-  "Offers & Sliders": FiImage,
+  "Hero Banner Management": FiImage,
   "Mega Reward": FiGift,
   "Promo Codes": FiPercent,
   Subscriptions: FiBarChart2,

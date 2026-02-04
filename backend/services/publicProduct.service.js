@@ -103,12 +103,7 @@ export const getPublicProducts = async (filters = {}) => {
 
     // Search filter
     if (search) {
-      andConditions.push({
-        $or: [
-          { name: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } },
-        ],
-      });
+      query.$text = { $search: search };
     }
 
     // Category filter - intelligently check based on category depth
@@ -338,8 +333,6 @@ export const getPublicProductById = async (productId) => {
       .populate('subcategoryId', 'name image icon')
       .populate('brandId', 'name')
       .populate('vendorId', 'businessName storeName storeLogo isEmailVerified status address createdAt phone')
-      .populate('attributes.attributeId', 'name type')
-      .populate('attributes.values', 'value')
       .lean();
 
     if (!product) {

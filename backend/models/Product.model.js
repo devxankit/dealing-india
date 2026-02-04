@@ -191,8 +191,7 @@ const productSchema = new mongoose.Schema(
       type: [
         {
           attributeId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Attribute',
+            type: mongoose.Schema.Types.Mixed,
             default: null,
           },
           attributeName: {
@@ -201,8 +200,7 @@ const productSchema = new mongoose.Schema(
           },
           values: [
             {
-              type: mongoose.Schema.Types.ObjectId,
-              ref: 'AttributeValue',
+              type: mongoose.Schema.Types.Mixed,
             },
           ],
           name: {
@@ -247,10 +245,6 @@ const productSchema = new mongoose.Schema(
         default: [],
       },
       colors: {
-        type: [String],
-        default: [],
-      },
-      materials: {
         type: [String],
         default: [],
       },

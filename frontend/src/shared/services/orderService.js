@@ -82,9 +82,9 @@ export const getUserOrders = async (filters = {}) => {
  * @param {String} orderId - Order ID
  * @returns {Promise<Object>} Cancelled order
  */
-export const cancelOrder = async (orderId) => {
+export const cancelOrder = async (orderId, reason = '') => {
   try {
-    const response = await api.post(`/user/orders/${orderId}/cancel`);
+    const response = await api.post(`/user/orders/${orderId}/cancel`, { reason });
     return response;
   } catch (error) {
     console.error('Error cancelling order:', error);

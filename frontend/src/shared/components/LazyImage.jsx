@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { getPlaceholderImage } from "../utils/helpers";
 import {
   getOptimizedImagePath,
@@ -28,19 +28,44 @@ const LazyImage = ({
   );
 
   // Get initial optimized source
-  const optimizedSrc = src ? getOptimizedImagePath(src, context) : null;
+  const optimizedSrc = useMemo(() => {
+    if (!src) return null;
+    return getOptimizedImagePath(src, context);
+  }, [src, context]);
+
   const loadingStrategy = getImageLoadingStrategy(context);
   const isPriority = loadingStrategy.fetchpriority === 'high';
   const isCached = optimizedSrc ? loadedImages.has(optimizedSrc) : false;
 
   const [imageSrc, setImageSrc] = useState(() => {
     if (!optimizedSrc) return getLocalPlaceholder();
+    // If priority or cached, load immediately
     return (isPriority || isCached) ? optimizedSrc : null;
   });
 
   const [isLoaded, setIsLoaded] = useState(isCached || !optimizedSrc);
   const [hasError, setHasError] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
+
+  // Re-sync state if src/context changes
+  useEffect(() => {
+    if (!optimizedSrc) {
+      setImageSrc(getLocalPlaceholder());
+      setIsLoaded(true);
+      return;
+    }
+
+    if (isCached || isPriority) {
+      setImageSrc(optimizedSrc);
+      setIsLoaded(true);
+      setHasError(false);
+    } else {
+      // Reset for lazy loading if it's a new un-cached image
+      setImageSrc(null);
+      setIsLoaded(false);
+      setHasError(false);
+    }
+  }, [optimizedSrc, isPriority]);
   const imgRef = useRef(null);
 
   useEffect(() => {

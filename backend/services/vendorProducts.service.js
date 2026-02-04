@@ -2,8 +2,6 @@ import mongoose from 'mongoose';
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
-import Attribute from '../models/Attribute.model.js';
-import AttributeValue from '../models/AttributeValue.model.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.util.js';
 import { sanitizeImageUrl, sanitizeImageUrls } from '../utils/imageValidation.util.js';
 
@@ -103,8 +101,7 @@ export const getVendorProducts = async (vendorId, filters = {}) => {
         .populate('categoryId', 'name')
         .populate('subcategoryId', 'name')
         .populate('brandId', 'name')
-        .populate('attributes.attributeId', 'name type')
-        .populate('attributes.values', 'value')
+        .populate('brandId', 'name')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))
@@ -149,8 +146,7 @@ export const getVendorProductById = async (productId, vendorId) => {
       .populate('categoryId', 'name')
       .populate('subcategoryId', 'name')
       .populate('brandId', 'name')
-      .populate('attributes.attributeId', 'name type')
-      .populate('attributes.values', 'value')
+      .populate('brandId', 'name')
       .lean();
 
     if (!product) {
@@ -364,45 +360,8 @@ export const createVendorProduct = async (productData, vendorId) => {
     const processedAttributes = [];
     if (attributes && attributes.length > 0) {
       for (const attr of attributes) {
-        // Option 1: Predefined attribute (with attributeId)
-        if (attr.attributeId) {
-          // Verify attribute exists and is active
-          const attribute = await Attribute.findById(attr.attributeId);
-          if (!attribute || attribute.status !== 'active') {
-            const err = new Error(`Attribute ${attr.attributeId} not found or inactive`);
-            err.status = 400;
-            throw err;
-          }
-
-          // Validate attribute values
-          let validValues = [];
-          if (attr.values && attr.values.length > 0) {
-            validValues = await AttributeValue.find({
-              _id: { $in: attr.values },
-              attributeId: attr.attributeId,
-              status: 'active',
-            });
-
-            if (validValues.length !== attr.values.length) {
-              const err = new Error('Some attribute values are invalid or inactive');
-              err.status = 400;
-              throw err;
-            }
-          }
-
-          processedAttributes.push({
-            attributeId: attribute._id,
-            attributeName: attr.attributeName || attribute.name,
-            values: (attr.values || []).map(val => {
-              const valueObj = validValues?.find(v =>
-                v._id.toString() === val.toString() || v._id.toString() === val
-              );
-              return valueObj ? valueObj._id : val;
-            }),
-          });
-        }
-        // Option 2: Custom attribute (with name and value)
-        else if (attr.name && attr.value) {
+        // Only allow custom attributes (with name and value)
+        if (attr.name && attr.value) {
           processedAttributes.push({
             name: attr.name,
             value: attr.value,
@@ -443,7 +402,7 @@ export const createVendorProduct = async (productData, vendorId) => {
           return { secure_url: img, public_id: null };
         }
       });
-      
+
       const galleryResults = (await Promise.all(galleryUploadPromises)).filter(r => r !== null);
       imageUrls = galleryResults.map(r => r.secure_url);
       imagePublicIds = galleryResults.map(r => r.public_id).filter(id => id !== null);
@@ -510,7 +469,7 @@ export const createVendorProduct = async (productData, vendorId) => {
             }
             return null;
           });
-          
+
           const variantResults = (await Promise.all(variantImagePromises)).filter(r => r !== null);
           variantImageUrls = variantResults.map(r => r.secure_url);
           variantImagePublicIds = variantResults.map(r => r.public_id).filter(id => id !== null);
@@ -1027,7 +986,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
             return { secure_url: img, public_id: null };
           }
         });
-        
+
         const galleryResults = (await Promise.all(galleryUploadPromises)).filter(r => r !== null);
         imageUrls = galleryResults.map(r => r.secure_url);
         imagePublicIds = galleryResults.map(r => r.public_id).filter(id => id !== null);
@@ -1095,7 +1054,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
               }
               return null;
             });
-            
+
             const variantResults = (await Promise.all(variantImagePromises)).filter(r => r !== null);
             variantImageUrls = variantResults.map(r => r.secure_url);
             variantImagePublicIds = variantResults.map(r => r.public_id).filter(id => id !== null);
@@ -1300,8 +1259,7 @@ export const updateVendorProduct = async (productId, productData, vendorId) => {
       .populate('categoryId', 'name')
       .populate('subcategoryId', 'name')
       .populate('brandId', 'name')
-      .populate('attributes.attributeId', 'name type')
-      .populate('attributes.values', 'value')
+      .populate('brandId', 'name')
       .lean();
 
     return updatedProduct;

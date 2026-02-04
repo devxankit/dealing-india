@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiPackage, FiTruck, FiMapPin, FiCreditCard, FiRotateCw, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
 import { getOrderById, cancelOrder } from '../../../shared/services/orderService';
 import { useCartStore } from '../../../shared/store/useStore';
@@ -27,6 +27,21 @@ const MobileOrderDetail = () => {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [selectedProductForReview, setSelectedProductForReview] = useState(null);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // Cancellation Modal State
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [otherReason, setOtherReason] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const CANCELLATION_REASONS = [
+    "Changed my mind",
+    "Ordered by mistake",
+    "Found a better price elsewhere",
+    "Delivery time is too long",
+    "Wrong shipping address",
+    "Others"
+  ];
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -146,39 +161,55 @@ const MobileOrderDetail = () => {
     }
   };
 
-  const handleCancel = async () => {
-    if (window.confirm('Are you sure you want to cancel this order?')) {
-      const cancellableStatuses = ['pending', 'processing'];
-      if (cancellableStatuses.includes(order.status?.toLowerCase())) {
-        try {
-          const response = await cancelOrder(order._id || order.id || order.orderCode);
-          // Check if response has success property or data wrapping
-          if (response.success || response.order || response.data?.order) {
-            toast.success('Order cancelled successfully');
+  const handleCancelClick = () => {
+    const cancellableStatuses = ['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped', 'shipped_seller', 'on_hold'];
+    if (cancellableStatuses.includes(order.status?.toLowerCase())) {
+      setIsCancelModalOpen(true);
+    } else {
+      toast.error(`Orders in ${order.status} status cannot be cancelled`);
+    }
+  };
 
-            // If it was a prepaid order, let them know about the refund
-            const isPrepaid = order.paymentStatus === 'completed' ||
-              (order.paymentMethod && !['cod', 'cash'].includes(order.paymentMethod.toLowerCase()));
+  const processCancel = async () => {
+    if (!cancelReason) {
+      toast.error('Please select a reason for cancellation');
+      return;
+    }
 
-            if (isPrepaid) {
-              toast.success('Refund has been credited to your wallet balance', {
-                duration: 6000,
-                icon: '💳'
-              });
-            }
+    const finalReason = cancelReason === 'Others' ? otherReason : cancelReason;
+    if (cancelReason === 'Others' && !otherReason.trim()) {
+      toast.error('Please specify your reason');
+      return;
+    }
 
-            navigate('/app/orders');
-          } else {
-            toast.error(response.message || 'Failed to cancel order');
-          }
-        } catch (error) {
-          console.error('Error cancelling order:', error);
-          const errorMsg = error.response?.data?.message || error.message || 'Failed to cancel order';
-          toast.error(errorMsg);
+    try {
+      setIsCancelling(true);
+      const response = await cancelOrder(order._id || order.id || order.orderCode, finalReason);
+
+      if (response.success || response.order || response.data?.order) {
+        toast.success('Order cancelled successfully');
+
+        const isPrepaid = order.paymentStatus === 'completed' ||
+          (order.paymentMethod && !['cod', 'cash'].includes(order.paymentMethod.toLowerCase()));
+
+        if (isPrepaid) {
+          toast.success('Refund has been credited to your wallet balance', {
+            duration: 6000,
+            icon: '💳'
+          });
         }
+
+        setIsCancelModalOpen(false);
+        navigate('/app/orders');
       } else {
-        toast.error(`Orders in ${order.status} status cannot be cancelled`);
+        toast.error(response.message || 'Failed to cancel order');
       }
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to cancel order';
+      toast.error(errorMsg);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -464,7 +495,7 @@ const MobileOrderDetail = () => {
                 {/* Cancel button for all pre-delivery statuses */}
                 {['pending', 'processing', 'ready_to_ship', 'dispatched', 'shipped', 'shipped_seller', 'on_hold'].includes(order.status) && (
                   <button
-                    onClick={handleCancel}
+                    onClick={handleCancelClick}
                     className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-semibold hover:bg-red-100 transition-colors"
                   >
                     Cancel Order
@@ -507,6 +538,99 @@ const MobileOrderDetail = () => {
         isSubmitting={isSubmittingReview}
         product={selectedProductForReview}
       />
+
+      {/* Cancellation Modal */}
+      <AnimatePresence>
+        {isCancelModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isCancelling && setIsCancelModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-lg bg-white rounded-t-[32px] sm:rounded-[32px] p-6 shadow-2xl overflow-hidden"
+            >
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 sm:hidden" />
+
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <FiPackage className="text-3xl text-red-500" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900">Cancel Order</h3>
+                <p className="text-gray-500 mt-2">Please tell us why you want to cancel this order</p>
+              </div>
+
+              <div className="space-y-3 mb-8 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                {CANCELLATION_REASONS.map((reason) => (
+                  <button
+                    key={reason}
+                    onClick={() => setCancelReason(reason)}
+                    className={`w-full p-4 rounded-2xl border-2 transition-all text-left flex items-center justify-between group ${cancelReason === reason
+                      ? 'border-primary-500 bg-primary-50/50'
+                      : 'border-gray-100 bg-gray-50 hover:border-primary-200 hover:bg-white'
+                      }`}
+                  >
+                    <span className={`font-bold ${cancelReason === reason ? 'text-primary-700' : 'text-gray-700'}`}>
+                      {reason}
+                    </span>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${cancelReason === reason
+                      ? 'border-primary-500 bg-primary-500'
+                      : 'border-gray-300 group-hover:border-primary-300'
+                      }`}>
+                      {cancelReason === reason && <div className="w-2 h-2 bg-white rounded-full" />}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {cancelReason === 'Others' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mb-6"
+                >
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Please specify your reason</label>
+                  <textarea
+                    value={otherReason}
+                    onChange={(e) => setOtherReason(e.target.value)}
+                    placeholder="Enter your cancellation reason here..."
+                    className="w-full p-4 rounded-2xl border-2 border-gray-100 bg-gray-50 focus:border-primary-500 focus:bg-white transition-all resize-none h-24 text-gray-800 font-medium"
+                  />
+                </motion.div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setIsCancelModalOpen(false)}
+                  disabled={isCancelling}
+                  className="py-4 rounded-2xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all disabled:opacity-50"
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={processCancel}
+                  disabled={isCancelling || !cancelReason || (cancelReason === 'Others' && !otherReason.trim())}
+                  className="py-4 rounded-2xl font-bold text-white gradient-red shadow-lg shadow-red-200 hover:shadow-red-300 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isCancelling ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Cancelling...
+                    </>
+                  ) : 'Confirm Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </ProtectedRoute >
   );
 };

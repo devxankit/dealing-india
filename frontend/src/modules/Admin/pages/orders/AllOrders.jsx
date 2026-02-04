@@ -171,8 +171,8 @@ const AllOrders = () => {
             data={orders}
             filename="all-orders"
             headers={[
-              { label: "Order ID", accessor: "orderCode" },
-              { label: "Customer", accessor: (row) => row.customerSnapshot?.name || "Guest" },
+              { label: "Order ID", accessor: (row) => row.orderCode || row.id || row._id },
+              { label: "Customer", accessor: (row) => row.customerSnapshot?.name || row.customerId?.name || "Guest" },
               { label: "Total", accessor: (row) => calculateFinalTotal(row) },
               { label: "Date", accessor: (row) => new Date(row.createdAt).toLocaleDateString() }
             ]}

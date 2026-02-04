@@ -19,25 +19,34 @@ const B2BBanner = () => {
                 setLoading(true);
                 console.log('🖼️ Loading B2B banners...');
                 const response = await getActiveBanners('b2b');
-                
+
                 console.log('🖼️ B2B banners API response:', response);
-                
+
                 if (response.success && response.data) {
                     const bannerData = response.data.banners || [];
                     console.log('🖼️ Banners received:', bannerData.length, bannerData);
-                    
+
                     // Transform API data to component format
-                    const transformedBanners = bannerData.map(banner => ({
-                        id: banner._id || banner.id,
-                        image: banner.bannerImage || banner.image,
-                        title: banner.title || banner.vendorId?.storeName || banner.vendorId?.name || 'B2B Featured Banner',
-                        vendorId: banner.vendorId?._id || banner.vendorId,
-                        link: banner.link || banner.redirectUrl || (banner.vendorId?._id ? `/b2b/vendor/${banner.vendorId._id}` : '#'),
-                    }));
-                    
+                    const transformedBanners = bannerData.map(banner => {
+                        const rawImage = banner.bannerImage || banner.image;
+                        // Handle local paths by ensuring they point to the backend 
+                        // In dev, the vite proxy handles /upload, but as a fallback/safety:
+                        const image = rawImage?.startsWith('/upload')
+                            ? (import.meta.env.MODE === 'development' ? `http://localhost:5000${rawImage}` : rawImage)
+                            : rawImage;
+
+                        return {
+                            id: banner._id || banner.id,
+                            image: image,
+                            title: banner.title || banner.vendorId?.storeName || banner.vendorId?.name || 'B2B Featured Banner',
+                            vendorId: banner.vendorId?._id || banner.vendorId,
+                            link: banner.link || banner.redirectUrl || (banner.vendorId?._id ? `/b2b/vendor/${banner.vendorId._id}` : '#'),
+                        };
+                    });
+
                     console.log('🖼️ Transformed banners:', transformedBanners.length, transformedBanners);
                     setBanners(transformedBanners);
-                    
+
                     // Get display time from settings if available
                     if (response.data.settings?.displayTime) {
                         setDisplayTime(response.data.settings.displayTime * 1000); // Convert seconds to milliseconds
@@ -101,7 +110,7 @@ const B2BBanner = () => {
         console.log('⚠️ No active B2B banners to display');
         return null;
     }
-    
+
     console.log('✅ Displaying', banners.length, 'B2B banners');
 
     return (
@@ -135,8 +144,7 @@ const B2BBanner = () => {
                         {banners.map((banner, index) => (
                             <div
                                 key={banner.id || banner._id || `banner-${index}`}
-                                className="flex-shrink-0 cursor-pointer relative"
-                                onClick={() => handleBannerClick(banner)}
+                                className="flex-shrink-0 relative"
                                 style={{
                                     width: `${100 / banners.length}%`,
                                     height: "100%",
@@ -230,8 +238,7 @@ const B2BBanner = () => {
                         {banners.map((banner, index) => (
                             <div
                                 key={banner.id || banner._id || `banner-${index}`}
-                                className="flex-shrink-0 cursor-pointer relative"
-                                onClick={() => handleBannerClick(banner)}
+                                className="flex-shrink-0 relative"
                                 style={{
                                     width: `${100 / banners.length}%`,
                                     height: "100%",

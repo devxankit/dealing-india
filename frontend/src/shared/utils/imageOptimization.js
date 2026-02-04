@@ -14,38 +14,52 @@ export const IMAGE_FORMATS = {
   low: ['webp', 'png', 'jpg']
 };
 
+/**
+ * Injects Cloudinary transformations into a URL
+ * Adds f_auto,q_auto and optional resizing/cropping
+ */
+const injectCloudinaryTransformations = (url, transformations = 'f_auto,q_auto') => {
+  if (!url || !url.includes('cloudinary.com') || !url.includes('/upload/')) {
+    return url;
+  }
+
+  // Prevent double injection
+  if (url.includes('f_auto') || url.includes('q_auto')) {
+    return url;
+  }
+
+  return url.replace('/upload/', `/upload/${transformations}/`);
+};
+
 // Get optimized image path based on context
 export const getOptimizedImagePath = (originalPath, context = 'listing') => {
-  if (!originalPath) return originalPath;
+  if (!originalPath || typeof originalPath !== 'string') return originalPath;
 
-  // For hero images, use compressed versions if available
-  if (context === 'hero' && originalPath.includes('/hero/')) {
-    const filename = originalPath.split('/').pop();
-    const compressedPath = originalPath.replace('.png', '_compressed.webp');
-
-    // Check if compressed version exists (client-side check)
-    if (typeof window !== 'undefined') {
-      // For now, return original - compressed versions need to be created manually
-      return originalPath;
-    }
+  // Don't optimize data URIs or non-cloudinary URLs
+  if (originalPath.startsWith('data:') || !originalPath.includes('cloudinary.com')) {
     return originalPath;
   }
 
-  // For product listings, use compressed versions if available
-  if (context === 'product-listing' && originalPath.includes('/products/')) {
-    const filename = originalPath.split('/').pop();
-    const compressedPath = originalPath.replace('.png', '_listing.webp');
+  let transformations = 'f_auto,q_auto';
 
-    // Check if compressed version exists (client-side check)
-    if (typeof window !== 'undefined') {
-      // For now, return original - compressed versions need to be created manually
-      return originalPath;
-    }
-    return originalPath;
+  switch (context) {
+    case 'hero':
+      transformations += ',w_1200,c_limit';
+      break;
+    case 'product-detail':
+      transformations += ',w_800,c_limit';
+      break;
+    case 'product-listing':
+      transformations += ',w_400,c_fill,g_auto';
+      break;
+    case 'thumbnail':
+      transformations += ',w_150,h_150,c_fill,g_auto';
+      break;
+    default:
+      break;
   }
 
-  // For product detail, use original high-quality
-  return originalPath;
+  return injectCloudinaryTransformations(originalPath, transformations);
 };
 
 // Get loading priority based on context

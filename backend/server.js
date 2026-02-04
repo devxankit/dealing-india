@@ -22,9 +22,6 @@ import vendorManagementRoutes from './routes/vendorManagement.routes.js';
 import brandManagementRoutes from './routes/brandManagement.routes.js';
 import policyRoutes from './routes/policy.routes.js';
 import promoCodeRoutes from './routes/promoCode.routes.js';
-import attributeRoutes from './routes/attribute.routes.js';
-import attributeValueRoutes from './routes/attributeValue.routes.js';
-import attributeSetRoutes from './routes/attributeSet.routes.js';
 import customerManagementRoutes from './routes/customerManagement.routes.js';
 import reportsRoutes from './routes/reports.routes.js';
 import offersRoutes from './routes/offers.routes.js';
@@ -43,8 +40,6 @@ import vendorCustomersRoutes from './routes/vendorCustomers.routes.js';
 import vendorInventoryRoutes from './routes/vendorInventory.routes.js';
 import vendorPerformanceRoutes from './routes/vendorPerformance.routes.js';
 import publicCategoryRoutes from './routes/publicCategory.routes.js';
-import publicAttributeRoutes from './routes/publicAttribute.routes.js';
-import publicAttributeValueRoutes from './routes/publicAttributeValue.routes.js';
 import publicBrandRoutes from './routes/publicBrand.routes.js';
 import publicProductRoutes from './routes/publicProduct.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
@@ -286,8 +281,6 @@ app.use('/api/auth/admin', adminAuthRoutes);
 
 // Public routes
 app.use('/api/categories', publicCategoryRoutes);
-app.use('/api/attributes', publicAttributeRoutes);
-app.use('/api/attribute-values', publicAttributeValueRoutes);
 app.use('/api/brands', publicBrandRoutes);
 app.use('/api/products', publicProductRoutes);
 app.use('/api/vendors', publicVendorRoutes);
@@ -357,9 +350,6 @@ app.use('/api/user/returns', returnRequestRoutes);
 
 // Vendor management routes (require vendor authentication)
 app.use('/api/vendor/products', vendorProductsRoutes);
-app.use('/api/vendor/attributes', attributeRoutes);
-app.use('/api/vendor/attribute-values', attributeValueRoutes);
-app.use('/api/vendor/attribute-sets', attributeSetRoutes);
 app.use('/api/vendor/reels', vendorReelsRoutes);
 app.use('/api/vendor/reviews', vendorReviewsRoutes);
 app.use('/api/vendor/stock', vendorStockRoutes);

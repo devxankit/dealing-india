@@ -132,12 +132,12 @@ const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrappe
 const Chat = lazyWithRetry(() => import("./shared/components/Chat/Chat"));
 const ScrollToTop = lazyWithRetry(() => import("./shared/components/ScrollToTop"));
 
-// Mobile App Routes (Eager Loaded for Instant Nav)
-import LandingPage from "./modules/UserApp/pages/LandingPage";
-import MobileHome from "./modules/UserApp/pages/Home";
-import MobileCategories from "./modules/UserApp/pages/categories";
-import MobileSearch from "./modules/UserApp/pages/Search";
-import MobileReels from "./modules/UserApp/pages/Reels";
+// Mobile App Routes (Eager Loaded for Instant Nav - Refactored to Lazy for Performance)
+const LandingPage = lazyWithRetry(() => import("./modules/UserApp/pages/LandingPage"));
+const MobileHome = lazyWithRetry(() => import("./modules/UserApp/pages/Home"));
+const MobileCategories = lazyWithRetry(() => import("./modules/UserApp/pages/categories"));
+const MobileSearch = lazyWithRetry(() => import("./modules/UserApp/pages/Search"));
+const MobileReels = lazyWithRetry(() => import("./modules/UserApp/pages/Reels"));
 const MobileProfile = lazyWithRetry(() => import("./modules/UserApp/pages/Profile"));
 const MobileBecomeSeller = lazyWithRetry(() => import("./modules/UserApp/pages/BecomeSeller"));
 const MobileLogin = lazyWithRetry(() => import("./modules/UserApp/pages/Login"));
@@ -280,7 +280,20 @@ const AppRoutes = () => {
   */
 
   return (
-    <>
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-50/50 backdrop-blur-sm fixed inset-0 z-[9999]">
+        <div className="flex flex-col items-center gap-4 p-8 rounded-3xl bg-white shadow-xl">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-lg font-bold text-gray-900">Loading Experience</span>
+            <span className="text-sm text-gray-500">Preparing your marketplace...</span>
+          </div>
+        </div>
+      </div>
+    }>
       <Routes>
         {/* Redirect old UserWeb routes to UserApp */}
         <Route path="/" element={<Navigate to="/app" replace />} />
@@ -946,7 +959,7 @@ const AppRoutes = () => {
           element={<Navigate to="/app" replace />}
         />
       </Routes>
-    </>
+    </Suspense>
   );
 };
 

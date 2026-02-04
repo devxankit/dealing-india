@@ -99,7 +99,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         </button>
                     ) : (
                         title === "Business Dashboard" ? (
-                            <Link to="/" className="flex-shrink-0">
+                            <Link to="/b2b/landing" className="flex-shrink-0">
                                 <img
                                     src={appLogo.src}
                                     alt="Dealing India"
@@ -113,7 +113,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         )
                     )}
                     {title === "Bulk Marketplace" ? (
-                        <Link to="/b2b" className="flex items-center">
+                        <Link to="/b2b/landing" className="flex items-center">
                             <img
                                 src={appLogo.src}
                                 alt="Dealing India"
