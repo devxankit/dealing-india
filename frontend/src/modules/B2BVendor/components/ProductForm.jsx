@@ -22,7 +22,10 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         bulkPricing: [{ minQty: "", price: "" }],
         brand: "",
         availability: "In Stock",
-        unit: ""
+        unit: "",
+        color: "",
+        pattern: "",
+        fabric: ""
     });
 
     const [categories, setCategories] = useState([]);
@@ -180,7 +183,12 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 price: parseFloat(formData.price),
                 description: formData.description || "",
                 images: formData.images,
-                specifications: formData.specifications.filter(spec => spec.name && spec.value),
+                specifications: [
+                    ...formData.specifications.filter(spec => spec.name && spec.value),
+                    ...(formData.color ? [{ name: "Color", value: formData.color }] : []),
+                    ...(formData.pattern ? [{ name: "Pattern", value: formData.pattern }] : []),
+                    ...(formData.fabric ? [{ name: "Fabric", value: formData.fabric }] : [])
+                ],
                 bulkPricing: formData.bulkPricing.filter(tier => tier.minQty && tier.price),
                 brand: formData.brand || "",
                 availability: formData.availability || "In Stock",
@@ -262,6 +270,51 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     <option value="In Stock">In Stock</option>
                                     <option value="Out of Stock">Out of Stock</option>
                                     <option value="Available on Order">Available on Order</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Color</label>
+                                <select
+                                    name="color"
+                                    value={formData.color || ""}
+                                    onChange={handleChange}
+                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
+                                >
+                                    <option value="">Select Color</option>
+                                    {["Red", "Blue", "Green", "Black", "White", "Yellow", "Orange", "Purple", "Pink", "Brown", "Grey", "Multicolor"].map(c => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Pattern</label>
+                                <select
+                                    name="pattern"
+                                    value={formData.pattern || ""}
+                                    onChange={handleChange}
+                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
+                                >
+                                    <option value="">Select Pattern</option>
+                                    {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
+                                        <option key={p} value={p}>{p}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Fabric</label>
+                                <select
+                                    name="fabric"
+                                    value={formData.fabric || ""}
+                                    onChange={handleChange}
+                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
+                                >
+                                    <option value="">Select Fabric</option>
+                                    {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
+                                        <option key={f} value={f}>{f}</option>
+                                    ))}
                                 </select>
                             </div>
 

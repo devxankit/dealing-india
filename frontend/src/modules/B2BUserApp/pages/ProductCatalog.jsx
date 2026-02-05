@@ -39,6 +39,22 @@ const ProductCatalog = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
+    const [selectedPriceRange, setSelectedPriceRange] = useState(null);
+    const [customPriceRange, setCustomPriceRange] = useState({ min: '', max: '' });
+    const [businessCredentials, setBusinessCredentials] = useState({ gst: false, turnover: false });
+    const [selectedPattern, setSelectedPattern] = useState(null);
+    const [selectedFabric, setSelectedFabric] = useState(null);
+    const [selectedColor, setSelectedColor] = useState(null);
+    const [openFilters, setOpenFilters] = useState({
+        price: true,
+        pattern: false, // Default closed to save space
+        fabric: false,
+        color: false
+    });
+
+    const toggleFilter = (section) => {
+        setOpenFilters(prev => ({ ...prev, [section]: !prev[section] }));
+    };
 
 
     // Define functions before useEffect hooks that use them
@@ -577,6 +593,33 @@ const ProductCatalog = () => {
 
     const productsList = Array.isArray(products) ? products : [];
 
+    // Helper to get all attributes including specifications
+    const getProductAttributes = (p) => [
+        ...(p.attributes || []),
+        ...(p.specifications || [])
+    ];
+
+    // Predefined Filter Options (ensure these always show)
+    const PREDEFINED_PATTERNS = ["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"];
+    const PREDEFINED_FABRICS = ["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"];
+    const PREDEFINED_COLORS = ["Red", "Blue", "Green", "Black", "White", "Yellow", "Orange", "Purple", "Pink", "Brown", "Grey", "Multicolor"];
+
+    // Derive unique filter options (Predefined + Actual)
+    const uniquePatterns = [...new Set([
+        ...PREDEFINED_PATTERNS,
+        ...productsList.flatMap(p => getProductAttributes(p).filter(a => a.name === 'Pattern').map(a => a.value))
+    ])].filter(Boolean).sort();
+
+    const uniqueFabrics = [...new Set([
+        ...PREDEFINED_FABRICS,
+        ...productsList.flatMap(p => getProductAttributes(p).filter(a => a.name === 'Fabric').map(a => a.value))
+    ])].filter(Boolean).sort();
+
+    const uniqueColors = [...new Set([
+        ...PREDEFINED_COLORS,
+        ...productsList.flatMap(p => getProductAttributes(p).filter(a => a.name === 'Color').map(a => a.value))
+    ])].filter(Boolean).sort();
+
     const filteredProducts = productsList.filter(product => {
         const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             product.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -596,44 +639,43 @@ const ProductCatalog = () => {
             const categoryMatch = productCategory.toLowerCase() === targetCategory.toLowerCase();
 
             if (selectedSubcategory) {
-                // CRITICAL: When subcategory is selected, product MUST match BOTH category AND subcategory
-                // Get subcategory from attributes array
                 const subcategoryAttr = product.attributes?.find(attr =>
                     (attr.name?.toLowerCase() === 'subcategory' || attr.attributeName?.toLowerCase() === 'subcategory')
                 );
-                const productSubcategory = (subcategoryAttr?.value || product.subcategory || product.subcategoryId?.name || '').toString().trim();
+                const productSubcategory = (subcategoryAttr?.value || '').toString().trim();
                 const targetSubcategory = selectedSubcategory.toString().trim();
 
-                // STRICT FILTERING: 
-                // 1. Category must match
-                // 2. Product MUST have a subcategory attribute
-                // 3. Product's subcategory MUST exactly match the selected subcategory
-                // If product doesn't have subcategory, it should NOT show when a specific subcategory is selected
-                const hasSubcategory = productSubcategory && productSubcategory.length > 0;
-                const subcategoryMatch = hasSubcategory && (productSubcategory.toLowerCase() === targetSubcategory.toLowerCase());
-
-                // Only show product if category matches AND subcategory matches exactly
-                matchesCategory = categoryMatch && subcategoryMatch;
-
-                // Debug log for mismatches (only in development)
-                if (process.env.NODE_ENV === 'development' && categoryMatch && !subcategoryMatch) {
-                    console.log('Product filtered out - category matches but subcategory does not:', {
-                        productName: product.name,
-                        productCategory,
-                        productSubcategory: productSubcategory || '(no subcategory)',
-                        targetCategory,
-                        targetSubcategory,
-                        hasSubcategory
-                    });
-                }
+                matchesCategory = categoryMatch && (productSubcategory.toLowerCase() === targetSubcategory.toLowerCase());
             } else {
-                // Filter by category only (Show all products in category, regardless of subcategory)
-                // This includes products with or without subcategory
                 matchesCategory = categoryMatch;
             }
         }
 
-        return matchesSearch && matchesCategory;
+        // Price Filter Logic
+        let matchesPrice = true;
+        const price = Number(product.price);
+        if (selectedPriceRange) {
+            if (selectedPriceRange.min !== null && price < selectedPriceRange.min) matchesPrice = false;
+            if (selectedPriceRange.max !== null && price > selectedPriceRange.max) matchesPrice = false;
+        } else if (customPriceRange.min || customPriceRange.max) {
+            if (customPriceRange.min && price < Number(customPriceRange.min)) matchesPrice = false;
+            if (customPriceRange.max && price > Number(customPriceRange.max)) matchesPrice = false;
+        }
+
+        // Business Credential Filter Logic
+        let matchesCredentials = true;
+        if (businessCredentials.gst && !product.vendorId?.gstNumber) {
+            matchesCredentials = false;
+        }
+
+        // Attribute Filters (Pattern, Fabric, Color)
+        const pAttrs = getProductAttributes(product);
+
+        if (selectedPattern && !pAttrs.some(a => a.name === 'Pattern' && a.value === selectedPattern)) return false;
+        if (selectedFabric && !pAttrs.some(a => a.name === 'Fabric' && a.value === selectedFabric)) return false;
+        if (selectedColor && !pAttrs.some(a => a.name === 'Color' && a.value === selectedColor)) return false;
+
+        return matchesSearch && matchesCategory && matchesPrice && matchesCredentials;
     });
 
     const openInquiry = (product) => {
@@ -719,6 +761,7 @@ const ProductCatalog = () => {
                 searchQuery={searchQuery}
                 onSearchChange={handleHeaderSearchChange}
                 onSearchSubmit={handleHeaderSearchSubmit}
+                hideSearch={false}
             />
 
             {/* B2B Banner Carousel removed */}
@@ -804,9 +847,9 @@ const ProductCatalog = () => {
                         <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar pb-1">
                             <button
                                 onClick={() => setSelectedCity('All Cities')}
-                                className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 ${selectedCity === 'All Cities'
-                                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
-                                    : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-100 hover:text-primary-600'
+                                className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 border ${selectedCity === 'All Cities'
+                                    ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200'
+                                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-600 hover:shadow-md'
                                     }`}
                             >
                                 All Cities
@@ -815,9 +858,9 @@ const ProductCatalog = () => {
                                 <button
                                     key={index}
                                     onClick={() => setSelectedCity(city)}
-                                    className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 ${selectedCity === city
-                                        ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 scale-105'
-                                        : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-100 hover:text-primary-600'
+                                    className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 border ${selectedCity === city
+                                        ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-600 hover:shadow-md'
                                         }`}
                                 >
                                     {city}
@@ -826,83 +869,18 @@ const ProductCatalog = () => {
                         </div>
                     </div>
 
-                    {/* Search & Category Header */}
+                    {/* Category Tabs */}
                     <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-                        <div className="relative flex-1 group w-full">
-                            <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-primary-400 group-focus-within:text-primary-600 transition-colors text-xl" />
-                            <input
-                                type="text"
-                                placeholder="Search bulk products, wholesalers or items..."
-                                className="w-full pl-14 pr-6 py-4 bg-white border border-gray-100 rounded-[2rem] focus:ring-4 focus:ring-primary-100 focus:border-primary-300 shadow-xl shadow-gray-100/50 transition-all text-lg font-medium outline-none"
-                                value={searchQuery}
-                                onChange={handleSearchInputChange}
-                                onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
-                                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        handleHeaderSearchSubmit(searchQuery);
-                                        setShowSuggestions(false);
-                                    }
-                                }}
-                            />
-
-                            {/* Suggestions Dropdown */}
-                            <AnimatePresence>
-                                {showSuggestions && (suggestions.length > 0 || isSearchingSuggestions) && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full left-0 right-0 mt-3 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-[60] py-3"
-                                    >
-                                        {isSearchingSuggestions && suggestions.length === 0 ? (
-                                            <div className="px-6 py-4 text-sm text-gray-500 flex items-center gap-3">
-                                                <div className="w-5 h-5 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-                                                Finding matches...
-                                            </div>
-                                        ) : (
-                                            suggestions.map((suggestion, index) => (
-                                                <button
-                                                    key={index}
-                                                    type="button"
-                                                    onClick={() => handleSuggestionClick(suggestion)}
-                                                    className="w-full px-6 py-3.5 hover:bg-primary-50/50 flex items-center gap-4 text-left transition-all group"
-                                                >
-                                                    {suggestion.type === 'product' ? (
-                                                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 border border-gray-50 shadow-sm transition-transform group-hover:scale-105">
-                                                            <img src={suggestion.image} alt={suggestion.text} className="w-full h-full object-cover" />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary-50 text-primary-600 shadow-sm group-hover:bg-primary-100 transition-colors">
-                                                            <FiSearch className="text-xl" />
-                                                        </div>
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-base font-bold text-gray-800 truncate group-hover:text-primary-700 transition-colors">
-                                                            {suggestion.text}
-                                                        </div>
-                                                        <div className="text-[11px] font-black text-gray-400 uppercase tracking-[0.1em] mt-0.5">
-                                                            {suggestion.context}
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            ))
-                                        )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar w-full lg:w-auto">
+                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar w-full">
                             <button
                                 onClick={() => {
                                     setSelectedCategory('All');
                                     setExpandedCategory(null);
                                     setSelectedSubcategory(null);
                                 }}
-                                className={`px-8 py-4 rounded-2xl whitespace-nowrap font-bold transition-all duration-300 ${selectedCategory === 'All' && !selectedSubcategory
-                                    ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-xl shadow-primary-200 scale-105'
-                                    : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-200 hover:text-primary-600'
+                                className={`px-6 py-2.5 rounded-xl whitespace-nowrap text-xs font-bold transition-all duration-300 ${selectedCategory === 'All' && !selectedSubcategory
+                                    ? 'bg-primary-600 text-white shadow-md shadow-primary-200'
+                                    : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-100'
                                     }`}
                             >
                                 All Products
@@ -916,14 +894,14 @@ const ProductCatalog = () => {
                                     <button
                                         key={cat.id}
                                         onClick={(e) => handleCategoryClick(cat.name, e)}
-                                        className={`px-8 py-4 rounded-2xl whitespace-nowrap font-bold transition-all duration-300 flex items-center gap-2 ${isSelected
-                                            ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-xl shadow-primary-200 scale-105'
-                                            : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-200 hover:text-primary-600'
+                                        className={`px-6 py-2.5 rounded-xl whitespace-nowrap text-xs font-bold transition-all duration-300 flex items-center gap-2 ${isSelected
+                                            ? 'bg-primary-600 text-white shadow-md shadow-primary-200'
+                                            : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-100'
                                             }`}
                                     >
                                         {cat.name}
                                         {hasSubcategories && (
-                                            <FiChevronDown className={`text-sm transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                                            <FiChevronDown className={`text-xs transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                                         )}
                                     </button>
                                 );
@@ -1004,146 +982,345 @@ const ProductCatalog = () => {
                     </AnimatePresence>
                 </div>
 
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-32">
-                        <div className="relative">
-                            <div className="w-20 h-20 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="w-10 h-10 bg-primary-50 rounded-full animate-pulse"></div>
+                <div className="flex flex-col lg:flex-row gap-8">
+                    {/* IndiaMart Style Sidebar */}
+                    <aside className="w-full lg:w-72 flex-shrink-0 space-y-6">
+                        {/* Price Filter Block */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Price</h3>
+                                {(selectedPriceRange || customPriceRange.min || customPriceRange.max) && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedPriceRange(null);
+                                            setCustomPriceRange({ min: '', max: '' });
+                                        }}
+                                        className="text-[10px] font-bold text-primary-600 hover:text-primary-700"
+                                    >
+                                        RESET
+                                    </button>
+                                )}
+                            </div>
+                            <div className="p-5 space-y-3">
+                                {[
+                                    { label: 'Below ₹100', min: 0, max: 100 },
+                                    { label: '₹101 - ₹200', min: 101, max: 200 },
+                                    { label: '₹201 - ₹500', min: 201, max: 500 },
+                                    { label: 'Above ₹501', min: 501, max: null }
+                                ].map((range) => (
+                                    <button
+                                        key={range.label}
+                                        onClick={() => {
+                                            setSelectedPriceRange(range);
+                                            setCustomPriceRange({ min: '', max: '' });
+                                        }}
+                                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedPriceRange?.label === range.label
+                                            ? 'bg-primary-50 text-primary-600'
+                                            : 'text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        {range.label}
+                                    </button>
+                                ))}
+
+                                <div className="pt-4 mt-4 border-t border-gray-50">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1">
+                                            <input
+                                                type="number"
+                                                placeholder="₹ min"
+                                                value={customPriceRange.min}
+                                                onChange={(e) => {
+                                                    setCustomPriceRange(prev => ({ ...prev, min: e.target.value }));
+                                                    setSelectedPriceRange(null);
+                                                }}
+                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <input
+                                                type="number"
+                                                placeholder="₹ max"
+                                                value={customPriceRange.max}
+                                                onChange={(e) => {
+                                                    setCustomPriceRange(prev => ({ ...prev, max: e.target.value }));
+                                                    setSelectedPriceRange(null);
+                                                }}
+                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                            />
+                                        </div>
+                                        <button className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                                            GO
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <p className="text-gray-500 font-bold mt-8 text-lg tracking-wide uppercase">Discovering Premium Goods...</p>
-                    </div>
-                ) : filteredProducts.length === 0 ? (
-                    <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
-                        <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 transform rotate-12">
-                            <FiSearch className="text-4xl text-gray-200" />
-                        </div>
-                        <h3 className="text-2xl font-black text-gray-800 mb-2">No matching gems found</h3>
-                        <p className="text-gray-400 font-medium max-w-sm mx-auto">Try broadening your search or choosing a different category to see more products.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {filteredProducts.map((product) => (
-                            <motion.div
-                                key={product._id}
-                                layout
-                                initial={{ opacity: 0, y: 30 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                onClick={() => navigate(`/b2b/product/${product._id}`)}
-                                className="group bg-white rounded-[2.5rem] overflow-hidden border border-gray-100/50 hover:shadow-[0_20px_50px_rgba(114,46,209,0.15)] transition-all duration-500 cursor-pointer flex flex-col h-full"
+
+                        {/* Pattern Filter */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <button
+                                onClick={() => toggleFilter('pattern')}
+                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
                             >
-                                <div className="relative aspect-[4/3] overflow-hidden">
-                                    <img
-                                        src={
-                                            (Array.isArray(product.images) && product.images.length > 0)
-                                                ? product.images[0]
-                                                : product.image || 'https://via.placeholder.com/400x300'
-                                        }
-                                        alt={product.name}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                    />
-                                    <div className="absolute top-4 left-4 px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black text-primary-600 uppercase tracking-[0.1em] shadow-sm">
-                                        Bulk Only
-                                    </div>
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                </div>
-                                <div className="p-6 flex flex-col flex-1">
-                                    <div className="mb-3">
-                                        <h3 className="text-lg font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase tracking-tight">{product.name}</h3>
-                                        <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">
-                                            {product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
-                                        </p>
-                                    </div>
-
-                                    <p className="text-sm text-gray-500 line-clamp-2 mb-4 font-medium leading-relaxed">
-                                        {product.description}
-                                    </p>
-
-                                    {/* Vendor Company Name and City */}
-                                    {(product.vendorId?.storeName || product.vendorId?.address?.city) && (
-                                        <div className="mb-4 pb-4 border-b border-gray-100">
-                                            <div className="flex items-center gap-2 text-xs text-gray-600">
-                                                {product.vendorId?.storeName && (
-                                                    <Link
-                                                        to={`/b2b/vendor/${product.vendorId?._id || product.vendorId}`}
-                                                        className="font-bold text-primary-600 hover:text-primary-700 hover:underline transition-colors cursor-pointer relative z-10"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        {product.vendorId.storeName}
-                                                    </Link>
-                                                )}
-                                                {product.vendorId?.storeName && product.vendorId?.address?.city && (
-                                                    <span className="text-gray-400">•</span>
-                                                )}
-                                                {product.vendorId?.address?.city && (
-                                                    <span className="text-gray-500">
-                                                        {product.vendorId.address.city}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
+                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Pattern</h3>
+                                <div className="flex items-center gap-2">
+                                    {selectedPattern && (
+                                        <span onClick={(e) => { e.stopPropagation(); setSelectedPattern(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
                                     )}
-
-                                    <div className="flex items-center gap-4 mb-6 mt-auto">
-                                        <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
-                                            <FiTruck className="text-primary-500 text-sm" />
-                                            <span>Min. {product.moq || 1}</span>
+                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.pattern ? 'rotate-180' : ''}`} />
+                                </div>
+                            </button>
+                            <AnimatePresence>
+                                {openFilters.pattern && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
+                                            {uniquePatterns.map(pattern => (
+                                                <label key={pattern} className="flex items-center gap-3 cursor-pointer group">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="radio"
+                                                            name="pattern"
+                                                            className="peer sr-only"
+                                                            checked={selectedPattern === pattern}
+                                                            onChange={() => setSelectedPattern(pattern)}
+                                                        />
+                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                                    </div>
+                                                    <span className={`text-xs font-bold transition-colors ${selectedPattern === pattern ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{pattern}</span>
+                                                </label>
+                                            ))}
                                         </div>
-                                        <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
-                                            <FiShield className="text-primary-500 text-sm" />
-                                            <span>Verified</span>
-                                        </div>
-                                    </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
-                                    <div className="flex items-end justify-between mb-6">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-1">MOQ Price</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-2xl font-black text-primary-600">₹{product.price}</span>
-                                                <span className="text-xs text-gray-400 font-bold uppercase tracking-tighter">/ unit</span>
-                                            </div>
+                        {/* Fabric Filter */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <button
+                                onClick={() => toggleFilter('fabric')}
+                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                            >
+                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Fabric</h3>
+                                <div className="flex items-center gap-2">
+                                    {selectedFabric && (
+                                        <span onClick={(e) => { e.stopPropagation(); setSelectedFabric(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                                    )}
+                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.fabric ? 'rotate-180' : ''}`} />
+                                </div>
+                            </button>
+                            <AnimatePresence>
+                                {openFilters.fabric && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
+                                            {uniqueFabrics.map(fabric => (
+                                                <label key={fabric} className="flex items-center gap-3 cursor-pointer group">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="radio"
+                                                            name="fabric"
+                                                            className="peer sr-only"
+                                                            checked={selectedFabric === fabric}
+                                                            onChange={() => setSelectedFabric(fabric)}
+                                                        />
+                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                                    </div>
+                                                    <span className={`text-xs font-bold transition-colors ${selectedFabric === fabric ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{fabric}</span>
+                                                </label>
+                                            ))}
                                         </div>
-                                    </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
-                                    <div className="flex items-center gap-2 pt-6 border-t border-gray-50 mt-auto">
-                                        {productInquiries[product._id || product.id] ? (
-                                            <div className="flex-1 py-3 bg-green-50 border-2 border-green-200 text-green-700 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1">
-                                                <span>✓ Sent</span>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); openInquiry(product); }}
-                                                className="flex-1 py-3 bg-white border-2 border-primary-600 text-primary-600 rounded-xl hover:bg-primary-600 hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1 transform active:scale-95"
-                                            >
-                                                Inquiry
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleChatDirect(product); }}
-                                            className="p-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all duration-300 transform active:scale-90"
-                                            title="Chat with Seller"
-                                        >
-                                            <FiMessageSquare className="text-base" />
-                                        </button>
-                                        {product.vendorId?.phone && (
-                                            <a
-                                                href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="p-3 bg-[#25D366] text-white rounded-xl hover:bg-[#128C7E] shadow-lg shadow-green-200 transition-all duration-300 transform active:scale-90"
-                                                title="Chat on WhatsApp"
-                                            >
-                                                <FaWhatsapp className="text-lg" />
-                                            </a>
-                                        )}
+                        {/* Color Filter */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <button
+                                onClick={() => toggleFilter('color')}
+                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                            >
+                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Color</h3>
+                                <div className="flex items-center gap-2">
+                                    {selectedColor && (
+                                        <span onClick={(e) => { e.stopPropagation(); setSelectedColor(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                                    )}
+                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.color ? 'rotate-180' : ''}`} />
+                                </div>
+                            </button>
+                            <AnimatePresence>
+                                {openFilters.color && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
+                                            {uniqueColors.map(color => (
+                                                <label key={color} className="flex items-center gap-3 cursor-pointer group">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="radio"
+                                                            name="color"
+                                                            className="peer sr-only"
+                                                            checked={selectedColor === color}
+                                                            onChange={() => setSelectedColor(color)}
+                                                        />
+                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                                    </div>
+                                                    <span className={`text-xs font-bold transition-colors ${selectedColor === color ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{color}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </aside>
+
+                    {/* Product Listing Area */}
+                    <div className="flex-1">
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-32">
+                                <div className="relative">
+                                    <div className="w-20 h-20 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="w-10 h-10 bg-primary-50 rounded-full animate-pulse"></div>
                                     </div>
                                 </div>
-                            </motion.div>
-                        ))}
+                                <p className="text-gray-500 font-bold mt-8 text-lg tracking-wide uppercase">Discovering Premium Goods...</p>
+                            </div>
+                        ) : filteredProducts.length === 0 ? (
+                            <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
+                                <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 transform rotate-12">
+                                    <FiSearch className="text-4xl text-gray-200" />
+                                </div>
+                                <h3 className="text-2xl font-black text-gray-800 mb-2">No matching gems found</h3>
+                                <p className="text-gray-400 font-medium max-w-sm mx-auto">Try broadening your search or choosing a different category to see more products.</p>
+                                {(selectedPriceRange || customPriceRange.min || customPriceRange.max) && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedPriceRange(null);
+                                            setCustomPriceRange({ min: '', max: '' });
+                                        }}
+                                        className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-primary-700 transition-all"
+                                    >
+                                        Clear Price Filter
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                                {filteredProducts.map((product) => (
+                                    <motion.div
+                                        key={product._id}
+                                        layout
+                                        initial={{ opacity: 0, scale: 0.98 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        whileHover={{ y: -4, shadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
+                                        onClick={() => navigate(`/b2b/product/${product._id}`)}
+                                        className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-fit"
+                                    >
+                                        {/* Image Container - More defined */}
+                                        <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50">
+                                            <img
+                                                src={(Array.isArray(product.images) && product.images.length > 0) ? product.images[0] : product.image || 'https://via.placeholder.com/400x300'}
+                                                alt={product.name}
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                            />
+                                            <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm">
+                                                Bulk
+                                            </div>
+                                            <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100">
+                                                <div className="flex items-baseline gap-0.5">
+                                                    <span className="text-[8px] font-black text-primary-600">₹</span>
+                                                    <span className="text-sm font-black text-gray-800">{product.price}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Content Body - Ultra Compact */}
+                                        <div className="p-2.5 flex flex-col gap-2">
+                                            <div className="min-w-0">
+                                                <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
+                                                    {product.name}
+                                                </h3>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
+                                                        {product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
+                                                    </p>
+                                                    {product.vendorId?.address?.city && (
+                                                        <span className="text-[8px] text-gray-300 font-bold">• {product.vendorId.address.city}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Info Row: MOQ and Vendor */}
+                                            <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
+                                                <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
+                                                    <FiTruck className="text-primary-500" size={10} />
+                                                    <span>Min. {product.moq || 1}</span>
+                                                </div>
+                                                <div className="text-[7px] font-black text-gray-300 truncate max-w-[60px] uppercase">
+                                                    {product.vendorId?.storeName || 'Vendor'}
+                                                </div>
+                                            </div>
+
+                                            {/* Tight Action Buttons */}
+                                            <div className="flex items-center gap-1">
+                                                {productInquiries[product._id || product.id] ? (
+                                                    <div className="flex-1 py-1.5 bg-green-50 text-green-600 rounded-lg font-black text-[8px] uppercase tracking-widest flex items-center justify-center border border-green-100">
+                                                        <span>✓ Sent</span>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); openInquiry(product); }}
+                                                        className="flex-1 py-1.5 bg-primary-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95 shadow-sm shadow-primary-100"
+                                                    >
+                                                        Inquiry
+                                                    </button>
+                                                )}
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleChatDirect(product); }}
+                                                        className="p-1.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-all border border-gray-100"
+                                                        title="Chat"
+                                                    >
+                                                        <FiMessageSquare size={12} />
+                                                    </button>
+                                                    {product.vendorId?.phone && (
+                                                        <a
+                                                            href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="p-1.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-green-50 hover:text-[#25D366] transition-all border border-gray-100"
+                                                            title="WhatsApp"
+                                                        >
+                                                            <FaWhatsapp size={12} />
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </main>
 
             <B2BBottomNav />

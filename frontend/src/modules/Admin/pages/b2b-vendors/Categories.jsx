@@ -12,10 +12,11 @@ const B2BCategories = () => {
     const [editingSubcategory, setEditingSubcategory] = useState({ categoryId: null, index: null });
     const [addingSubcategory, setAddingSubcategory] = useState(null); // Track which category is adding subcategory
     const [newSubcategoryName, setNewSubcategoryName] = useState(''); // Store new subcategory name
-    
+
     const [formData, setFormData] = useState({
         categoryName: '',
-        subcategoryName: ''
+        subcategoryName: '',
+        image: ''
     });
 
     useEffect(() => {
@@ -56,11 +57,12 @@ const B2BCategories = () => {
             setLoading(true);
             const response = await api.post('/admin/b2b-categories', {
                 name: formData.categoryName.trim(),
-                subcategoryName: formData.subcategoryName.trim()
+                subcategoryName: formData.subcategoryName.trim(),
+                image: formData.image.trim() || null
             });
             if (response.success) {
                 toast.success('Category added successfully');
-                setFormData({ categoryName: '', subcategoryName: '' });
+                setFormData({ categoryName: '', subcategoryName: '', image: '' });
                 setShowAddForm(false);
                 loadCategories();
             }
@@ -255,6 +257,23 @@ const B2BCategories = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        Category Image URL
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.image}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
+                                        placeholder="https://example.com/image.jpg"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                                    />
+                                    {formData.image && (
+                                        <div className="mt-2">
+                                            <img src={formData.image} alt="Preview" className="w-20 h-20 object-cover rounded-lg border border-gray-200" onError={(e) => e.target.style.display = 'none'} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                                         Subcategory Name <span className="text-red-500">*</span>
                                     </label>
                                     <input
@@ -321,6 +340,12 @@ const B2BCategories = () => {
                             animate={{ opacity: 1, y: 0 }}
                             className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-lg transition-all"
                         >
+                            {/* Category Image */}
+                            {category.image && (
+                                <div className="mb-4">
+                                    <img src={category.image} alt={category.name} className="w-full h-32 object-cover rounded-xl" onError={(e) => e.target.style.display = 'none'} />
+                                </div>
+                            )}
                             {/* Category Header */}
                             <div className="flex items-start justify-between mb-4">
                                 {editingCategory?.id === category.id ? (
@@ -381,7 +406,7 @@ const B2BCategories = () => {
                                         </button>
                                     )}
                                 </div>
-                                
+
                                 {/* Add Subcategory Input */}
                                 {addingSubcategory === category.id && (
                                     <div className="flex items-center gap-2 p-2 bg-primary-50 border border-primary-200 rounded-lg mb-2">

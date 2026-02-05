@@ -16,8 +16,16 @@ const HeroBanner = () => {
     const loadBanners = async () => {
       try {
         const response = await getActiveBanners();
-        if (response.success) {
-          setBanners(response.data.banners || []);
+        if (response.success && response.data) {
+          const bannerData = response.data.banners || [];
+          const transformedBanners = bannerData.map(banner => ({
+            ...banner,
+            id: banner._id || banner.id,
+            image: (banner.bannerImage || banner.image)?.startsWith('/upload')
+              ? (import.meta.env.MODE === 'development' ? `http://localhost:5000${banner.bannerImage || banner.image}` : (banner.bannerImage || banner.image))
+              : (banner.bannerImage || banner.image)
+          }));
+          setBanners(transformedBanners);
           setDisplayTime(response.data.settings?.universalDisplayTime || 2000);
         }
       } catch (error) {

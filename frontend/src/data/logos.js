@@ -1,6 +1,8 @@
-import logoImage from "../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
+import dealingIndiaLogo from "../../data/logos/dealing-india-logo.png";
 
 export const appLogo = {
-  src: logoImage,
-  alt: "App Logo",
+  src: dealingIndiaLogo, // Default for backward compatibility
+  icon: dealingIndiaLogo,
+  text: dealingIndiaLogo,
+  alt: "Dealing India Logo",
 };

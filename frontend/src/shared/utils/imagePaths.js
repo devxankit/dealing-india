@@ -46,7 +46,7 @@ import accessoriesCategory from "../../../data/categories/accessories.png";
 import athleticsCategory from "../../../data/categories/Athletics.png";
 
 // Logo images
-import appLogo from "../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
+import appLogo from "../../../data/logos/dealing-india-logo.png";
 
 // Hero images
 import heroSlide1 from "../../../data/hero/slide1.png";
@@ -114,6 +114,7 @@ export const imageMap = {
   // Logos
   "/images/logos/logo.png": appLogo,
   "/images/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png": appLogo,
+  "/images/logos/dealing-india-logo.png": appLogo,
 
   // Hero
   "/images/hero/slide1.png": heroSlide1,

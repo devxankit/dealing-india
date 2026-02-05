@@ -1,5 +1,6 @@
 import BannerSlot from '../models/BannerSlot.model.js';
 import BannerBooking from '../models/BannerBooking.model.js';
+import Banner from '../models/Banner.model.js';
 import Settings from '../models/Settings.model.js';
 import { uploadToCloudinary } from '../utils/cloudinary.util.js';
 import razorpayService from './razorpay.service.js';
@@ -860,12 +861,44 @@ export const getActiveBanners = async (bannerType = 'hero') => {
     endDate: booking.endDate
   }));
 
-  // FALLBACK: If no banners are purchased/active, return the default banner
+  // FALLBACK: If no banners are purchased/active, return default banners from Banner model
   if (banners.length === 0) {
+    const defaultBanners = await Banner.find({
+      bannerType: filterType,
+      isActive: true,
+      $and: [
+        {
+          $or: [
+            { startDate: null },
+            { startDate: { $lte: now } }
+          ]
+        },
+        {
+          $or: [
+            { endDate: null },
+            { endDate: { $gte: now } }
+          ]
+        }
+      ]
+    }).sort({ order: 1 }).limit(4);
+
+    if (defaultBanners.length > 0) {
+      return defaultBanners.map(b => ({
+        _id: b._id,
+        id: b._id.toString(),
+        slotNumber: b.order || 0,
+        image: b.image,
+        bannerImage: b.image,
+        link: b.link || (filterType === 'b2b' ? '/b2b/landing' : '/'),
+        title: b.title,
+        isDefault: true
+      }));
+    }
+
+    // Secondary fallback: static settings if no Banner records found
     const settings = await getBannerSettings();
     const defaultData = filterType === 'b2b' ? settings.defaultB2BBanner : settings.defaultBanner;
 
-    // Use a robust fallback image if none provided
     const bannerImage = (defaultData && defaultData.image) ? defaultData.image : '/upload/landing_default.png';
 
     return [{

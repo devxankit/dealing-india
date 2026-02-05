@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FiPlus, FiSearch, FiTrash2, FiEdit } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { useCategories } from '../../../../shared/hooks/useSharedData';
+import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import CategoryForm from '../../components/Categories/CategoryForm';
 import CategoryTree from '../../components/Categories/CategoryTree';
 import ExportButton from '../../components/ExportButton';
@@ -10,8 +10,12 @@ import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
 
 const ManageCategories = () => {
-  const { data: categories = [], isLoading, refetch: initialize } = useCategories();
-  const { deleteCategory } = useCategoryStore(); // Keep for mutations for now
+  const {
+    categories,
+    initialize,
+    deleteCategory,
+    isLoading
+  } = useCategoryStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -24,15 +28,17 @@ const ManageCategories = () => {
 
   useEffect(() => {
     initialize();
-  }, []);
+  }, [initialize]);
 
   const filteredCategories = useMemo(() => {
     return categories.filter((category) => {
+      const name = category.name || '';
+      const description = category.description || '';
+
       const matchesSearch =
         !searchQuery ||
-        category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (category.description &&
-          category.description.toLowerCase().includes(searchQuery.toLowerCase()));
+        name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        description.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus =
         selectedStatus === 'all' ||
@@ -59,10 +65,6 @@ const ManageCategories = () => {
   }, [searchQuery, selectedStatus]);
 
   const handleCreate = () => {
-    // Prevent opening multiple forms
-    if (showForm) {
-      return;
-    }
     setEditingCategory(null);
     setParentCategoryId(null);
     setShowForm(true);
@@ -83,7 +85,6 @@ const ManageCategories = () => {
   const handleDelete = (id) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       deleteCategory(id);
-      toast.success('Category deleted');
     }
   };
 
@@ -100,13 +101,13 @@ const ManageCategories = () => {
       className="space-y-6"
     >
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="lg:hidden">
+        <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Manage Categories</h1>
           <p className="text-sm sm:text-base text-gray-600">View and manage product categories</p>
         </div>
         <button
           onClick={handleCreate}
-          className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all font-semibold text-sm shadow-sm"
         >
           <FiPlus />
           <span>Add Category</span>
@@ -143,8 +144,8 @@ const ManageCategories = () => {
             <button
               onClick={() => setViewMode('tree')}
               className={`flex-1 sm:flex-initial px-3 py-2 rounded text-sm font-medium transition-colors ${viewMode === 'tree'
-                  ? 'bg-white text-primary-600 shadow-sm'
-                  : 'text-gray-600'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-600'
                 }`}
             >
               Tree View
@@ -152,8 +153,8 @@ const ManageCategories = () => {
             <button
               onClick={() => setViewMode('list')}
               className={`flex-1 sm:flex-initial px-3 py-2 rounded text-sm font-medium transition-colors ${viewMode === 'list'
-                  ? 'bg-white text-primary-600 shadow-sm'
-                  : 'text-gray-600'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-600'
                 }`}
             >
               List View
@@ -175,10 +176,17 @@ const ManageCategories = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        {filteredCategories.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No categories found</p>
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 min-h-[400px]">
+        {isLoading && categories.length === 0 ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-10 h-10 border-4 border-primary-100 border-t-primary-600 rounded-full animate-spin"></div>
+          </div>
+        ) : filteredCategories.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiSearch className="text-3xl text-gray-300" />
+            </div>
+            <p className="text-gray-500 font-medium">No categories found matching your criteria</p>
           </div>
         ) : viewMode === 'tree' ? (
           <CategoryTree
@@ -194,33 +202,37 @@ const ManageCategories = () => {
               {paginatedCategories.map((category) => (
                 <div
                   key={category.id}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100"
                 >
                   {category.image && (
                     <img
                       src={category.image}
                       alt={category.name}
-                      className="w-10 h-10 object-cover rounded-lg"
+                      className="w-12 h-12 object-cover rounded-lg border border-gray-100"
                     />
                   )}
                   <div className="flex-1">
-                    <p className="font-semibold text-gray-800">{category.name}</p>
+                    <p className="font-bold text-gray-800">{category.name}</p>
                     {category.description && (
-                      <p className="text-xs text-gray-500">{category.description}</p>
+                      <p className="text-xs text-gray-500 line-clamp-1">{category.description}</p>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleEdit(category)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <FiEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(category.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <FiTrash2 />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEdit(category)}
+                      className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                      title="Edit Category"
+                    >
+                      <FiEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(category.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete Category"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -231,7 +243,7 @@ const ManageCategories = () => {
                 totalItems={filteredCategories.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
-                className="mt-4"
+                className="mt-6 border-t pt-6"
               />
             )}
           </>
@@ -243,11 +255,7 @@ const ManageCategories = () => {
           category={editingCategory}
           parentId={parentCategoryId}
           onClose={handleFormClose}
-          onSave={async () => {
-            // Force refresh categories list
-            await initialize(true);
-            handleFormClose();
-          }}
+          onSave={handleFormClose}
         />
       )}
     </motion.div>
@@ -255,4 +263,3 @@ const ManageCategories = () => {
 };
 
 export default ManageCategories;
-

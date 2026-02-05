@@ -6,7 +6,7 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { getVendorOrderById } from "../../../../shared/services/orderService";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import toast from "react-hot-toast";
-import logoImage from "../../../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
+import logoImage from "../../../../../data/logos/dealing-india-logo.png";
 
 const VendorInvoice = () => {
     const navigate = useNavigate();

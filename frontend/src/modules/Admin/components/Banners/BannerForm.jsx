@@ -15,6 +15,7 @@ const BannerForm = ({ banner, onClose, onSave }) => {
 
   const [formData, setFormData] = useState({
     type: "hero",
+    bannerType: "hero",
     title: "",
     subtitle: "",
     description: "",
@@ -25,11 +26,13 @@ const BannerForm = ({ banner, onClose, onSave }) => {
     startDate: "",
     endDate: "",
   });
+  const [selectedFile, setSelectedFile] = useState(null);
 
   useEffect(() => {
     if (banner) {
       setFormData({
         type: banner.type || "hero",
+        bannerType: banner.bannerType || "hero",
         title: banner.title || "",
         subtitle: banner.subtitle || "",
         description: banner.description || "",
@@ -44,17 +47,21 @@ const BannerForm = ({ banner, onClose, onSave }) => {
   }, [banner]);
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === "checkbox" ? checked : value,
-    });
+    const { name, value, type, checked, files } = e.target;
+    if (name === "imageFile") {
+      setSelectedFile(files[0]);
+    } else {
+      setFormData({
+        ...formData,
+        [name]: type === "checkbox" ? checked : value,
+      });
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.image.trim()) {
+    if (!formData.image.trim() && !selectedFile) {
       toast.error("Banner image is required");
       return;
     }
@@ -67,21 +74,25 @@ const BannerForm = ({ banner, onClose, onSave }) => {
     }
 
     try {
-      const bannerData = {
-        ...formData,
-        startDate: formData.startDate
-          ? new Date(formData.startDate).toISOString()
-          : null,
-        endDate: formData.endDate
-          ? new Date(formData.endDate).toISOString()
-          : null,
-        order: parseInt(formData.order),
-      };
+      const data = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'startDate' || key === 'endDate') {
+          if (formData[key]) data.append(key, new Date(formData[key]).toISOString());
+        } else if (key !== 'image') {
+          data.append(key, formData[key]);
+        }
+      });
+
+      if (selectedFile) {
+        data.append('image', selectedFile);
+      } else if (formData.image) {
+        data.append('image', formData.image);
+      }
 
       if (isEdit) {
-        updateBanner(banner.id, bannerData);
+        await updateBanner(banner.id, data);
       } else {
-        createBanner(bannerData);
+        await createBanner(data);
       }
       onSave?.();
       onClose();
@@ -108,9 +119,8 @@ const BannerForm = ({ banner, onClose, onSave }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className={`fixed inset-0 z-[10000] flex ${
-            isAppRoute ? "items-start pt-[10px]" : "items-end"
-          } sm:items-center justify-center p-4 pointer-events-none`}>
+          className={`fixed inset-0 z-[10000] flex ${isAppRoute ? "items-start pt-[10px]" : "items-end"
+            } sm:items-center justify-center p-4 pointer-events-none`}>
           <motion.div
             variants={{
               hidden: {
@@ -144,9 +154,8 @@ const BannerForm = ({ banner, onClose, onSave }) => {
             animate="visible"
             exit="exit"
             onClick={(e) => e.stopPropagation()}
-            className={`bg-white ${
-              isAppRoute ? "rounded-b-3xl" : "rounded-t-3xl"
-            } sm:rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-admin pointer-events-auto`}
+            className={`bg-white ${isAppRoute ? "rounded-b-3xl" : "rounded-t-3xl"
+              } sm:rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-admin pointer-events-auto`}
             style={{ willChange: "transform" }}>
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between z-10">
               <h2 className="text-2xl font-bold text-gray-800">
@@ -167,20 +176,37 @@ const BannerForm = ({ banner, onClose, onSave }) => {
                   Basic Information
                 </h3>
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Banner Type <span className="text-red-500">*</span>
-                    </label>
-                    <AnimatedSelect
-                      name="type"
-                      value={formData.type}
-                      onChange={handleChange}
-                      required
-                      options={[
-                        { value: "hero", label: "Hero Banner" },
-                        { value: "promotional", label: "Promotional Banner" },
-                      ]}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Placement Type <span className="text-red-500">*</span>
+                      </label>
+                      <AnimatedSelect
+                        name="type"
+                        value={formData.type}
+                        onChange={handleChange}
+                        required
+                        options={[
+                          { value: "hero", label: "Hero Slider" },
+                          { value: "promotional", label: "Promotional Banner" },
+                        ]}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Application <span className="text-red-500">*</span>
+                      </label>
+                      <AnimatedSelect
+                        name="bannerType"
+                        value={formData.bannerType}
+                        onChange={handleChange}
+                        required
+                        options={[
+                          { value: "hero", label: "B2C Home Page" },
+                          { value: "b2b", label: "B2B Home Page" },
+                        ]}
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -232,23 +258,37 @@ const BannerForm = ({ banner, onClose, onSave }) => {
                 <h3 className="text-lg font-bold text-gray-800 mb-4">
                   Banner Image
                 </h3>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Image URL <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="image"
-                    value={formData.image}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="data/banners/banner.png"
-                  />
-                  {formData.image && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Upload File
+                    </label>
+                    <input
+                      type="file"
+                      name="imageFile"
+                      onChange={handleChange}
+                      accept="image/*"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Or Image URL
+                    </label>
+                    <input
+                      type="text"
+                      name="image"
+                      value={formData.image}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="https://example.com/banner.png"
+                    />
+                  </div>
+                  {(selectedFile || formData.image) && (
                     <div className="mt-4">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">Preview:</p>
                       <img
-                        src={formData.image}
+                        src={selectedFile ? URL.createObjectURL(selectedFile) : formData.image}
                         alt="Preview"
                         className="w-full h-48 object-cover rounded-lg border border-gray-200"
                         onError={(e) => {

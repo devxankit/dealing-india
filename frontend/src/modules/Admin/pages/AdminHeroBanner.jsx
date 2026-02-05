@@ -14,11 +14,12 @@ import {
   FiChevronUp,
   FiPlus,
   FiTrash2,
+  FiImage,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { formatPrice } from "../../../shared/utils/helpers";
-import { IndianRupee } from "lucide-react";
+import { IndianRupee, LayoutDashboard, Settings2, Image as ImageIcon } from "lucide-react";
 import {
   getAdminBannerSlots,
   getAdminBannerBookings,
@@ -106,12 +107,13 @@ const AdminHeroBanner = () => {
       }
 
       // Handle bookings response
-      if (bookingsRes?.data?.success) {
-        setBookings(bookingsRes.data.data || []);
-      } else if (bookingsRes?.success && bookingsRes?.data) {
-        setBookings(bookingsRes.data || []);
+      const bookingsData = bookingsRes?.data?.data || bookingsRes?.data || bookingsRes;
+      if (Array.isArray(bookingsData)) {
+        setBookings(bookingsData);
+      } else if (bookingsData?.bookings && Array.isArray(bookingsData.bookings)) {
+        setBookings(bookingsData.bookings);
       } else {
-        setBookings(bookingsRes?.data || []);
+        setBookings([]);
       }
 
       // Handle revenue stats response
@@ -433,7 +435,17 @@ const AdminHeroBanner = () => {
           <h1 className="text-2xl font-bold text-gray-900">
             Hero Banner Management
           </h1>
-          <p className="text-gray-500">Manage banner slots, bookings, and display settings</p>
+          <p className="text-gray-500">Manage B2C retail banner slots and bookings</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+
+          <button
+            onClick={() => navigate('/admin/banners')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2"
+          >
+            <ImageIcon size={16} /> Manage Defaults
+          </button>
         </div>
 
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-6">
@@ -570,59 +582,23 @@ const AdminHeroBanner = () => {
                     <p className="mt-1 text-xs text-gray-500">Maximum: 720 hours (30 days)</p>
                   </div>
 
-                  {/* Default Banner Configuration */}
-                  <div className="md:col-span-2 p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FiImage className="text-blue-600" />
-                      <h4 className="font-bold text-gray-900 text-sm">Default Banner (Shows when no active ads)</h4>
+                  {/* Default Banner Configuration INFO */}
+                  <div className="md:col-span-2 p-6 bg-blue-50/50 rounded-xl border border-blue-100 flex flex-col items-center text-center space-y-4">
+                    <div className="p-3 bg-blue-100 text-blue-600 rounded-full">
+                      <FiImage size={24} />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Banner Image URL</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          placeholder="https://..."
-                          value={settingsForm.defaultBanner?.image}
-                          onChange={(e) => {
-                            setSettingsForm({
-                              ...settingsForm,
-                              defaultBanner: { ...settingsForm.defaultBanner, image: e.target.value }
-                            });
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Banner Title</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          placeholder="e.g. Dealing India - Your Trusted Marketplace"
-                          value={settingsForm.defaultBanner?.title}
-                          onChange={(e) => {
-                            setSettingsForm({
-                              ...settingsForm,
-                              defaultBanner: { ...settingsForm.defaultBanner, title: e.target.value }
-                            });
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Redirection Link</label>
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          placeholder="/"
-                          value={settingsForm.defaultBanner?.link}
-                          onChange={(e) => {
-                            setSettingsForm({
-                              ...settingsForm,
-                              defaultBanner: { ...settingsForm.defaultBanner, link: e.target.value }
-                            });
-                          }}
-                        />
-                      </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900">System Default Banners</h4>
+                      <p className="text-sm text-gray-600 max-w-md mt-1">
+                        Default banners (fallbacks) are now managed globally. You can set multiple rotating banners for both B2C and B2B platforms.
+                      </p>
                     </div>
+                    <button
+                      onClick={() => navigate('/admin/banners')}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-all flex items-center gap-2"
+                    >
+                      <FiSettings /> Manage System Banners
+                    </button>
                   </div>
 
                   {/* Default Price Per Day */}
@@ -788,7 +764,7 @@ const AdminHeroBanner = () => {
             </motion.div>
           )}
         </AnimatePresence>
-      </div >
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-10">
         {slots.map((slot) => {

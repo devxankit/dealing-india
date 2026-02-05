@@ -140,8 +140,47 @@ export const getBannerRevenueStats = async (options = {}) => {
 };
 
 /**
+ * Admin: Get all default system banners
+ */
+export const getAdminDefaultBanners = async (params = {}) => {
+  const response = await api.get('/admin/hero-banners/default-banners', { params });
+  return response;
+};
+
+/**
+ * Admin: Create a new default system banner
+ */
+export const createAdminDefaultBanner = async (formData) => {
+  const response = await api.post('/admin/hero-banners/default-banners', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response;
+};
+
+/**
+ * Admin: Update a default system banner
+ */
+export const updateAdminDefaultBanner = async (id, formData) => {
+  const response = await api.put(`/admin/hero-banners/default-banners/${id}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response;
+};
+
+/**
+ * Admin: Delete a default system banner
+ */
+export const deleteAdminDefaultBanner = async (id) => {
+  const response = await api.delete(`/admin/hero-banners/default-banners/${id}`);
+  return response;
+};
+
+/**
  * Admin: Get banner transactions for wallet page
- * @param {Object} params - { search, limit, skip, bannerType }
  */
 export const getBannerTransactions = async (params = {}) => {
   const response = await api.get('/admin/hero-banners/transactions', { params });

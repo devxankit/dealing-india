@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import Badge from '../../../shared/components/Badge';
 import { formatDateTime } from '../utils/adminHelpers';
 import toast from 'react-hot-toast';
+import AnimatedSelect from '../components/AnimatedSelect';
 
 const Banners = () => {
   const {
@@ -202,89 +203,89 @@ const Banners = () => {
                 // Find the index in filteredBanners for move up/down functionality
                 const filteredIndex = filteredBanners.findIndex((b) => b.id === banner.id);
                 return (
-            <div
-              key={banner.id}
-              className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow"
-            >
-              <div className="relative h-48 bg-gray-100">
-                {banner.image && (
-                  <img
-                    src={banner.image}
-                    alt={banner.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                )}
-                <div className="absolute top-2 right-2">
-                  <Badge variant={banner.isActive ? 'success' : 'error'}>
-                    {banner.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-                <div className="absolute top-2 left-2">
-                  <Badge variant="info">
-                    {banner.type === 'hero' ? 'Hero' : 'Promo'}
-                  </Badge>
-                </div>
-              </div>
+                  <div
+                    key={banner.id}
+                    className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow"
+                  >
+                    <div className="relative h-48 bg-gray-100">
+                      {banner.image && (
+                        <img
+                          src={banner.image}
+                          alt={banner.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <Badge variant={banner.isActive ? 'success' : 'error'}>
+                          {banner.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                      <div className="absolute top-2 left-2">
+                        <Badge variant="info">
+                          {banner.type === 'hero' ? 'Hero' : 'Promo'}
+                        </Badge>
+                      </div>
+                    </div>
 
-              <div className="p-4">
-                <h3 className="font-bold text-gray-800 mb-1">{banner.title || 'Untitled'}</h3>
-                {banner.subtitle && (
-                  <p className="text-sm text-gray-600 mb-2">{banner.subtitle}</p>
-                )}
-                {banner.link && (
-                  <p className="text-xs text-primary-600 mb-2 truncate">{banner.link}</p>
-                )}
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                  <span>Order: {banner.order}</span>
-                  {banner.startDate && banner.endDate && (
-                    <span>
-                      {formatDateTime(banner.startDate)} - {formatDateTime(banner.endDate)}
-                    </span>
-                  )}
-                </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-gray-800 mb-1">{banner.title || 'Untitled'}</h3>
+                      {banner.subtitle && (
+                        <p className="text-sm text-gray-600 mb-2">{banner.subtitle}</p>
+                      )}
+                      {banner.link && (
+                        <p className="text-xs text-primary-600 mb-2 truncate">{banner.link}</p>
+                      )}
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                        <span>Order: {banner.order}</span>
+                        {banner.startDate && banner.endDate && (
+                          <span>
+                            {formatDateTime(banner.startDate)} - {formatDateTime(banner.endDate)}
+                          </span>
+                        )}
+                      </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleMoveUp(banner)}
-                    disabled={filteredIndex === 0}
-                    className="flex-1 p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Move Up"
-                  >
-                    <FiArrowUp />
-                  </button>
-                  <button
-                    onClick={() => handleMoveDown(banner)}
-                    disabled={filteredIndex === filteredBanners.length - 1}
-                    className="flex-1 p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Move Down"
-                  >
-                    <FiArrowDown />
-                  </button>
-                  <button
-                    onClick={() => toggleBannerStatus(banner.id)}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    title={banner.isActive ? 'Deactivate' : 'Activate'}
-                  >
-                    {banner.isActive ? <FiEye /> : <FiEyeOff />}
-                  </button>
-                  <button
-                    onClick={() => handleEdit(banner)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <FiEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(banner.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <FiTrash2 />
-                  </button>
-                </div>
-              </div>
-            </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleMoveUp(banner)}
+                          disabled={filteredIndex === 0}
+                          className="flex-1 p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Move Up"
+                        >
+                          <FiArrowUp />
+                        </button>
+                        <button
+                          onClick={() => handleMoveDown(banner)}
+                          disabled={filteredIndex === filteredBanners.length - 1}
+                          className="flex-1 p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Move Down"
+                        >
+                          <FiArrowDown />
+                        </button>
+                        <button
+                          onClick={() => toggleBannerStatus(banner.id)}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          title={banner.isActive ? 'Deactivate' : 'Activate'}
+                        >
+                          {banner.isActive ? <FiEye /> : <FiEyeOff />}
+                        </button>
+                        <button
+                          onClick={() => handleEdit(banner)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <FiEdit />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(banner.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>

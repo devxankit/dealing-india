@@ -382,32 +382,12 @@ const MobileHeader = () => {
               className="flex items-center overflow-visible relative z-[10002]">
               <div
                 ref={logoRef}
-                className="overflow-visible relative z-[10003]">
-                {appLogo.src ? (
-                  <img
-                    src={appLogo.src}
-                    alt={appLogo.alt}
-                    className="h-10 sm:h-12 w-[150px] object-contain origin-left relative z-[10004]"
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                      const parent = e.target.parentElement;
-                      if (
-                        parent &&
-                        !parent.querySelector(".logo-text-fallback")
-                      ) {
-                        const fallback = document.createElement("span");
-                        fallback.className =
-                          "logo-text-fallback text-primary-600 font-bold text-sm sm:text-lg";
-                        fallback.textContent = "LOGO";
-                        parent.appendChild(fallback);
-                      }
-                    }}
-                  />
-                ) : (
-                  <span className="logo-text-fallback text-primary-600 font-bold text-sm sm:text-lg">
-                    LOGO
-                  </span>
-                )}
+                className="overflow-visible relative z-[10003] flex items-center gap-2">
+                <img
+                  src={appLogo.src}
+                  alt="Dealing India"
+                  className="h-12 sm:h-14 w-auto object-contain origin-left relative z-[10004]"
+                />
               </div>
             </Link>
           </div>

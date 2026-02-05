@@ -80,15 +80,10 @@ const LandingPage = () => {
                     <div className="h-10 md:h-12">
                         <img
                             src={appLogo.src}
-                            alt={appLogo.alt}
+                            alt="Dealing India"
                             className="h-full object-contain cursor-pointer"
                             onClick={() => navigate('/app')}
-                            onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'block';
-                            }}
                         />
-                        <span className="hidden text-2xl font-bold text-secondary-600">Dealing India</span>
                     </div>
                 </div>
 

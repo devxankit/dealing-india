@@ -1,173 +1,148 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
-import heroSlide1 from "../../../data/hero/slide1.png";
+import {
+  getAdminDefaultBanners,
+  createAdminDefaultBanner,
+  updateAdminDefaultBanner,
+  deleteAdminDefaultBanner
+} from "../../modules/Vendor/services/heroBannerService";
 
 export const useBannerStore = create(
-  persist(
-    (set, get) => ({
-      banners: [],
-      isLoading: false,
+  (set, get) => ({
+    banners: [],
+    isLoading: false,
 
-      // Initialize banners
-      initialize: () => {
-        const savedBanners = localStorage.getItem("admin-banners");
-        if (savedBanners) {
-          set({ banners: JSON.parse(savedBanners) });
+    // Initialize/Fetch banners from API
+    initialize: async (params = {}) => {
+      set({ isLoading: true });
+      try {
+        const response = await getAdminDefaultBanners(params);
+        if (response.success) {
+          // Normalize IDs to match frontend expectations (some might use _id)
+          const normalizedBanners = response.data.map(b => ({
+            ...b,
+            id: b._id || b.id
+          }));
+          set({ banners: normalizedBanners, isLoading: false });
         } else {
-          // Initialize with some default banners
-          const defaultBanners = [
-            {
-              id: 1,
-              type: "hero",
-              title: "Welcome to Our Store",
-              subtitle: "Discover Amazing Products",
-              image: heroSlide1,
-              link: "/",
-              order: 1,
-              isActive: true,
-              startDate: null,
-              endDate: null,
-            },
-          ];
-          set({ banners: defaultBanners });
-          localStorage.setItem("admin-banners", JSON.stringify(defaultBanners));
+          set({ isLoading: false });
         }
-      },
+      } catch (error) {
+        set({ isLoading: false });
+        console.error("Failed to fetch banners:", error);
+      }
+    },
 
-      // Get all banners
-      getBanners: () => {
-        const state = get();
-        if (state.banners.length === 0) {
-          state.initialize();
+    // Create banner
+    createBanner: async (bannerData) => {
+      set({ isLoading: true });
+      try {
+        // Handle both JSON and FormData
+        let response;
+        if (bannerData instanceof FormData) {
+          response = await createAdminDefaultBanner(bannerData);
+        } else {
+          // Convert object to FormData if needed (service expects FormData for images)
+          const formData = new FormData();
+          Object.keys(bannerData).forEach(key => {
+            if (bannerData[key] !== null && bannerData[key] !== undefined) {
+              formData.append(key, bannerData[key]);
+            }
+          });
+          response = await createAdminDefaultBanner(formData);
         }
-        return get().banners;
-      },
 
-      // Get banner by ID
-      getBannerById: (id) => {
-        return get().banners.find((banner) => banner.id === parseInt(id));
-      },
-
-      // Get banners by type
-      getBannersByType: (type) => {
-        return get().banners.filter((banner) => banner.type === type);
-      },
-
-      // Create banner
-      createBanner: (bannerData) => {
-        set({ isLoading: true });
-        try {
-          const banners = get().banners;
-          const newId =
-            banners.length > 0 ? Math.max(...banners.map((b) => b.id)) + 1 : 1;
-
+        if (response.success) {
           const newBanner = {
-            id: newId,
-            type: bannerData.type, // 'hero', 'promotional'
-            title: bannerData.title || "",
-            subtitle: bannerData.subtitle || "",
-            description: bannerData.description || "",
-            image: bannerData.image || "",
-            link: bannerData.link || "",
-            order: bannerData.order || banners.length + 1,
-            isActive:
-              bannerData.isActive !== undefined ? bannerData.isActive : true,
-            startDate: bannerData.startDate || null,
-            endDate: bannerData.endDate || null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            ...response.data,
+            id: response.data._id || response.data.id
           };
-
-          const updatedBanners = [...banners, newBanner];
-          set({ banners: updatedBanners, isLoading: false });
-          localStorage.setItem("admin-banners", JSON.stringify(updatedBanners));
+          set(state => ({
+            banners: [...state.banners, newBanner],
+            isLoading: false
+          }));
           toast.success("Banner created successfully");
           return newBanner;
-        } catch (error) {
-          set({ isLoading: false });
-          toast.error("Failed to create banner");
-          throw error;
         }
-      },
+        set({ isLoading: false });
+      } catch (error) {
+        set({ isLoading: false });
+        toast.error(error.message || "Failed to create banner");
+        throw error;
+      }
+    },
 
-      // Update banner
-      updateBanner: (id, bannerData) => {
-        set({ isLoading: true });
-        try {
-          const banners = get().banners;
-          const updatedBanners = banners.map((banner) =>
-            banner.id === parseInt(id)
-              ? {
-                  ...banner,
-                  ...bannerData,
-                  updatedAt: new Date().toISOString(),
-                }
-              : banner
-          );
-          set({ banners: updatedBanners, isLoading: false });
-          localStorage.setItem("admin-banners", JSON.stringify(updatedBanners));
+    // Update banner
+    updateBanner: async (id, bannerData) => {
+      set({ isLoading: true });
+      try {
+        let response;
+        if (bannerData instanceof FormData) {
+          response = await updateAdminDefaultBanner(id, bannerData);
+        } else {
+          const formData = new FormData();
+          Object.keys(bannerData).forEach(key => {
+            if (bannerData[key] !== null && bannerData[key] !== undefined) {
+              formData.append(key, bannerData[key]);
+            }
+          });
+          response = await updateAdminDefaultBanner(id, formData);
+        }
+
+        if (response.success) {
+          const updatedBanner = {
+            ...response.data,
+            id: response.data._id || response.data.id
+          };
+          set(state => ({
+            banners: state.banners.map(b => b.id === id ? updatedBanner : b),
+            isLoading: false
+          }));
           toast.success("Banner updated successfully");
-          return updatedBanners.find((banner) => banner.id === parseInt(id));
-        } catch (error) {
-          set({ isLoading: false });
-          toast.error("Failed to update banner");
-          throw error;
+          return updatedBanner;
         }
-      },
+        set({ isLoading: false });
+      } catch (error) {
+        set({ isLoading: false });
+        toast.error(error.message || "Failed to update banner");
+        throw error;
+      }
+    },
 
-      // Delete banner
-      deleteBanner: (id) => {
-        set({ isLoading: true });
-        try {
-          const banners = get().banners;
-          const updatedBanners = banners.filter(
-            (banner) => banner.id !== parseInt(id)
-          );
-          set({ banners: updatedBanners, isLoading: false });
-          localStorage.setItem("admin-banners", JSON.stringify(updatedBanners));
+    // Delete banner
+    deleteBanner: async (id) => {
+      set({ isLoading: true });
+      try {
+        const response = await deleteAdminDefaultBanner(id);
+        if (response.success) {
+          set(state => ({
+            banners: state.banners.filter(b => b.id !== id),
+            isLoading: false
+          }));
           toast.success("Banner deleted successfully");
           return true;
-        } catch (error) {
-          set({ isLoading: false });
-          toast.error("Failed to delete banner");
-          throw error;
         }
-      },
+        set({ isLoading: false });
+      } catch (error) {
+        set({ isLoading: false });
+        toast.error("Failed to delete banner");
+        throw error;
+      }
+    },
 
-      // Reorder banners
-      reorderBanners: (bannerIds) => {
-        set({ isLoading: true });
-        try {
-          const banners = get().banners;
-          const updatedBanners = banners.map((banner) => {
-            const newOrder = bannerIds.indexOf(banner.id);
-            return newOrder !== -1
-              ? { ...banner, order: newOrder + 1 }
-              : banner;
-          });
-          set({ banners: updatedBanners, isLoading: false });
-          localStorage.setItem("admin-banners", JSON.stringify(updatedBanners));
-          toast.success("Banners reordered successfully");
-          return true;
-        } catch (error) {
-          set({ isLoading: false });
-          toast.error("Failed to reorder banners");
-          throw error;
-        }
-      },
+    // Reorder/Toggle (can be handled by updating individual banners or implementing better backend support)
+    toggleBannerStatus: async (id) => {
+      const banner = get().banners.find(b => b.id === id);
+      if (banner) {
+        await get().updateBanner(id, { isActive: !banner.isActive });
+      }
+    },
 
-      // Toggle banner status
-      toggleBannerStatus: (id) => {
-        const banner = get().getBannerById(id);
-        if (banner) {
-          get().updateBanner(id, { isActive: !banner.isActive });
-        }
-      },
-    }),
-    {
-      name: "banner-storage",
-      storage: createJSONStorage(() => localStorage),
+    reorderBanners: async (bannerIds) => {
+      // For now, this just updates order but doesn't have a bulk API
+      // A proper implementation would have api.post('/reorder-banners', bannerIds)
+      toast.info("Reordering manually. In a real app, we'd sync this with backend.");
+      // Logic to sync order with backend individually (placeholder)
     }
-  )
+  })
 );

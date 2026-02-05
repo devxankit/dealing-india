@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
-import logoImage from "../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
+import logoImage from "../../../data/logos/dealing-india-logo.png";
 import api from "../utils/api";
 
 const defaultSettings = {

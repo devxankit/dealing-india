@@ -42,7 +42,7 @@ export const getB2BCategoryById = async (categoryId) => {
  */
 export const createB2BCategory = async (categoryData) => {
   try {
-    const { name, subcategoryName } = categoryData;
+    const { name, subcategoryName, image } = categoryData;
 
     if (!name || !name.trim()) {
       throw new Error('Category name is required');
@@ -71,6 +71,12 @@ export const createB2BCategory = async (categoryData) => {
       }
 
       category.subcategories.push(trimmedSubcategoryName);
+
+      // Update image if provided
+      if (image) {
+        category.image = image.trim();
+      }
+
       await category.save();
       return category.toObject();
     } else {
@@ -78,6 +84,7 @@ export const createB2BCategory = async (categoryData) => {
       category = await B2BCategory.create({
         name: trimmedName,
         subcategories: [trimmedSubcategoryName],
+        image: image ? image.trim() : null,
       });
       return category.toObject();
     }
@@ -231,7 +238,7 @@ export const updateB2BSubcategory = async (categoryId, index, newName) => {
     }
 
     const trimmedNewName = newName.trim();
-    
+
     // Check if new name already exists (excluding current index)
     const subcategoryExists = category.subcategories.some(
       (sub, idx) => idx !== index && sub.toLowerCase() === trimmedNewName.toLowerCase()

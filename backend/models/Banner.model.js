@@ -7,6 +7,11 @@ const bannerSchema = new mongoose.Schema(
       enum: ['hero', 'promotional'],
       required: true,
     },
+    bannerType: {
+      type: String,
+      enum: ['hero', 'b2b'],
+      default: 'hero',
+    },
     title: {
       type: String,
       trim: true,

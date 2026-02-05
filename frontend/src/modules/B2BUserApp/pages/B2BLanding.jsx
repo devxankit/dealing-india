@@ -1,43 +1,97 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiArrowRight, FiMenu, FiX, FiChevronDown, FiMapPin, FiShoppingBag } from 'react-icons/fi';
+import {
+    FiSearch, FiMenu, FiX, FiChevronDown, FiGrid, FiShoppingBag,
+    FiUser, FiArrowRight, FiBriefcase, FiTrendingUp, FiHome, FiMapPin, FiFilter
+} from 'react-icons/fi';
 import { appLogo } from '../../../data/logos';
 import B2BBanner from '../components/B2BBanner';
 import api from '../../../shared/utils/api';
 import { debounce } from '../../../shared/utils/helpers';
+import { useCategoryStore } from '../../../shared/store/categoryStore';
+
+// Dummy data for Header Popups
+const HEADER_POPUP_DATA = {
+    lots: [
+        { id: 'l1', name: 'Mixed Electronics Lot', type: 'lot' },
+        { id: 'l2', name: 'Textile Surplus', type: 'lot' },
+        { id: 'l3', name: 'Liquidation Stock', type: 'lot' },
+        { id: 'l4', name: 'Industrial Machinery', type: 'lot' },
+    ],
+    realEstate: [
+        { id: 'r1', name: 'Warehouses', type: 'realEstate' },
+        { id: 'r2', name: 'Retail Spaces', type: 'realEstate' },
+        { id: 'r3', name: 'Commercial Offices', type: 'realEstate' },
+        { id: 'r4', name: 'Industrial Plots', type: 'realEstate' },
+    ]
+};
 
 const B2BLanding = () => {
     const navigate = useNavigate();
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [availableStates, setAvailableStates] = useState([]);
-    const [selectedCity, setSelectedCity] = useState('All Cities');
-    const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+    const { categories, initialize: fetchCategories } = useCategoryStore();
+
+    // State
     const [searchQuery, setSearchQuery] = useState('');
-    const [citySearchQuery, setCitySearchQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
-    const cityDropdownRef = useRef(null);
-    const headerCityDropdownRef = useRef(null);
+    // Popup States
+    const [activePopup, setActivePopup] = useState(null); // 'subcategories' | 'products' | 'lots' | 'realEstate'
+    const [selectedRootCategory, setSelectedRootCategory] = useState(null);
+    const [popupProducts, setPopupProducts] = useState([]);
+
+    // Dropdown States
+    const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+    const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+    const [isPriceFilterOpen, setIsPriceFilterOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Filter Data
+    const [availableCities, setAvailableCities] = useState(['All Cities', 'Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad']);
+    const [selectedCity, setSelectedCity] = useState('All Cities');
+    const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+
+    // Refs
     const searchRef = useRef(null);
+    const categoryRef = useRef(null);
+    const cityRef = useRef(null);
+    const priceRef = useRef(null);
 
+    // Fetch categories on mount
     useEffect(() => {
-        const fetchLocations = async () => {
+        // Ensure we fetch the latest categories that vendors have added
+        fetchCategories();
+
+        // Fetch cities used in actual products
+        const fetchCities = async () => {
             try {
-                const response = await api.get('/public/b2b-locations');
-                if (response.success && response.data) {
-                    setAvailableStates(response.data.states || []);
+                const res = await api.get('/public/b2b-locations');
+                if (res.success && res.data?.cities) {
+                    setAvailableCities(['All Cities', ...res.data.cities]);
                 }
-            } catch (error) {
-                console.error('Error fetching locations:', error);
+            } catch (e) {
+                console.error("Error fetching cities", e);
             }
         };
-        fetchLocations();
-    }, []);
+        fetchCities();
+    }, [fetchCategories]);
 
-    // Debounced suggestion fetch
+    // Derived State: Root Categories
+    const rootCategories = useMemo(() => {
+        // Filter out categories that don't have subcategories or parents ensuring we only show valid B2B trees
+        // Assuming 'store' fetches all categories flat or nested.
+        return categories.filter(c => !c.parentId);
+    }, [categories]);
+
+    // Derived State: Subcategories of selected root
+    const activeSubcategories = useMemo(() => {
+        if (!selectedRootCategory) return [];
+        return categories.filter(c => c.parentId === selectedRootCategory.id || c.parent === selectedRootCategory.id);
+    }, [categories, selectedRootCategory]);
+
+    // --- Search Logic ---
     const debouncedFetchSuggestions = useMemo(
         () => debounce(async (query) => {
             if (query.trim().length < 1) {
@@ -72,388 +126,525 @@ const B2BLanding = () => {
         }
     };
 
-    const handleSuggestionClick = (suggestion) => {
-        const query = suggestion.text;
-        setSearchQuery(query);
-        setShowSuggestions(false);
-        const params = new URLSearchParams();
-        params.append('search', query);
-        if (selectedCity !== 'All Cities') params.append('city', selectedCity);
-        navigate(`/b2b/catalog?${params.toString()}`);
+    const handleSearchProductPopup = async (queryOrProduct) => {
+        setIsSearching(true);
+        setActivePopup('products');
+
+        try {
+            const searchTerm = typeof queryOrProduct === 'string' ? queryOrProduct : queryOrProduct.text;
+            const response = await api.get(`/products/b2b-suggestions?q=${encodeURIComponent(searchTerm)}&limit=6`);
+
+            if (response.success && response.data) {
+                setPopupProducts(response.data.map((item, idx) => ({
+                    id: item.id || idx,
+                    name: item.text,
+                    image: item.image || 'https://via.placeholder.com/150',
+                    price: '₹' + (Math.floor(Math.random() * 5000) + 500)
+                })));
+            } else {
+                setPopupProducts([]);
+            }
+        } catch (e) {
+            console.error("Error fetching popup products", e);
+            setPopupProducts([
+                { id: 1, name: 'Sample Bulk Item 1', price: '₹1,200', image: 'https://via.placeholder.com/150' },
+                { id: 2, name: 'Sample Bulk Item 2', price: '₹800', image: 'https://via.placeholder.com/150' },
+                { id: 3, name: 'Sample Bulk Item 3', price: '₹2,500', image: 'https://via.placeholder.com/150' },
+                { id: 4, name: 'Sample Bulk Item 4', price: '₹550', image: 'https://via.placeholder.com/150' },
+            ]);
+        } finally {
+            setIsSearching(false);
+            setShowSuggestions(false);
+        }
     };
 
-    // Close dropdowns when clicking outside
+    const handleCategoryClick = (category) => {
+        // Check if this category has subcategories
+        const hasSubcategories = categories.some(c => c.parentId === category.id || c.parent === category.id);
+
+        if (hasSubcategories) {
+            setSelectedRootCategory(category);
+            setIsCategoryDropdownOpen(false);
+            setActivePopup('subcategories');
+        } else {
+            // No subcategories, navigate directly
+            setIsCategoryDropdownOpen(false);
+            const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
+            navigate(`/b2b/catalog?category=${category.id}${cityParam}`);
+        }
+    };
+
+    const handleSubCategoryClick = (subCat) => {
+        setActivePopup(null);
+        const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
+        navigate(`/b2b/catalog?category=${subCat.id}${cityParam}`);
+    };
+
+    const handleProductClick = (product) => {
+        setActivePopup(null);
+        navigate(`/b2b/catalog`);
+    };
+
+    const handleHeaderPopupItemClick = (item) => {
+        setActivePopup(null);
+        navigate(`/b2b/catalog?type=${item.type}&filter=${item.id}`);
+    };
+
+    const closePopup = () => setActivePopup(null);
+
+    // Click outside handler
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
-                setIsCityDropdownOpen(false);
-            }
-            if (headerCityDropdownRef.current && !headerCityDropdownRef.current.contains(event.target)) {
-                // We'll reuse the same state for both city dropdowns for simplicity or separate if needed
-                // For now, let's keep it robust
-            }
             if (searchRef.current && !searchRef.current.contains(event.target)) {
                 setShowSuggestions(false);
             }
+            if (categoryRef.current && !categoryRef.current.contains(event.target)) {
+                setIsCategoryDropdownOpen(false);
+            }
+            if (cityRef.current && !cityRef.current.contains(event.target)) {
+                setIsCityDropdownOpen(false);
+            }
+            if (priceRef.current && !priceRef.current.contains(event.target)) {
+                setIsPriceFilterOpen(false);
+            }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const uniqueCities = availableStates
-        .flatMap(state => state.cities || [])
-        .filter((city, index, self) => {
-            if (!city || typeof city !== 'string') return false;
-            const cleanCity = city.trim();
-            if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
-            return self.findIndex(c => c.trim() === cleanCity) === index;
-        })
-        .sort();
 
-    const filteredCitiesList = citySearchQuery
-        ? uniqueCities.filter(city => city.toLowerCase().includes(citySearchQuery.toLowerCase()))
-        : uniqueCities;
+    // --- Render Components ---
 
-    const handleSearchSubmit = (e) => {
-        if (e) e.preventDefault();
-        const params = new URLSearchParams();
-        if (searchQuery.trim()) params.append('search', searchQuery.trim());
-        if (selectedCity !== 'All Cities') params.append('city', selectedCity);
-        navigate(`/b2b/catalog?${params.toString()}`);
-    };
+    const SubCategoryPopup = () => (
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            onClick={closePopup}
+        >
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 className="text-xl font-bold text-gray-800">{selectedRootCategory?.name} - Subcategories</h3>
+                    <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
+                </div>
+                <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto">
+                    {activeSubcategories.length > 0 ? (
+                        activeSubcategories.map(sub => (
+                            <button
+                                key={sub.id}
+                                onClick={() => handleSubCategoryClick(sub)}
+                                className="p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all group"
+                            >
+                                <span className="font-semibold text-gray-700 group-hover:text-blue-700">{sub.name}</span>
+                            </button>
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center py-8 text-gray-500">No subcategories found.</div>
+                    )}
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+
+    const GenericHeaderPopup = ({ title, data }) => (
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            onClick={closePopup}
+        >
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+                    <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
+                </div>
+                <div className="p-6 grid grid-cols-2 gap-4">
+                    {data.map(item => (
+                        <button
+                            key={item.id}
+                            onClick={() => handleHeaderPopupItemClick(item)}
+                            className="p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all"
+                        >
+                            <span className="font-semibold text-gray-700">{item.name}</span>
+                        </button>
+                    ))}
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+
+    const ProductPopup = () => (
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            onClick={closePopup}
+        >
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                    <h3 className="text-xl font-bold text-gray-800">Related Products</h3>
+                    <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
+                </div>
+                <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-6 max-h-[70vh] overflow-y-auto">
+                    {popupProducts.map((product) => (
+                        <div
+                            key={product.id}
+                            onClick={() => handleProductClick(product)}
+                            className="border border-gray-100 rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-all group"
+                        >
+                            <div className="aspect-square bg-gray-100 overflow-hidden relative">
+                                <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                            </div>
+                            <div className="p-3">
+                                <h4 className="font-bold text-sm text-gray-800 truncate">{product.name}</h4>
+                                <p className="text-blue-600 font-bold text-sm mt-1">{product.price}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="p-4 border-t border-gray-100 bg-gray-50 text-center">
+                    <button
+                        onClick={() => navigate('/b2b/catalog')}
+                        className="text-blue-600 font-bold hover:underline flex items-center justify-center gap-2"
+                    >
+                        View All Products <FiArrowRight />
+                    </button>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
 
     return (
-        <div className="min-h-screen bg-white font-sans text-gray-900">
-            {/* Sticky Header - REFINED */}
-            <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
-                <div className="max-w-7xl mx-auto px-4 h-16 md:h-20 flex items-center gap-4 md:gap-8">
-                    {/* Logo */}
-                    <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => navigate('/b2b/landing')}>
-                        <div className="h-8 md:h-10">
-                            <img
-                                src={appLogo.src}
-                                alt={appLogo.alt}
-                                className="h-full object-contain"
-                            />
-                        </div>
+        <div className="min-h-screen bg-white font-sans text-gray-900 overflow-x-hidden">
+
+            {/* --- HEADER --- */}
+            <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-20 flex items-center gap-4 justify-between">
+
+                    {/* 1. Logo */}
+                    <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => navigate('/b2b/landing')}>
+                        <img src={appLogo.src} alt="Dealing India" className="h-12 w-auto" />
                     </div>
 
-                    {/* Header City & Search Container */}
-                    <div className="flex-1 flex items-center bg-gray-50 rounded-full border border-gray-100 px-2 group focus-within:ring-2 focus-within:ring-blue-100 focus-within:bg-white transition-all max-w-3xl hidden md:flex">
-                        {/* City Selector in Header */}
-                        <div className="relative" ref={headerCityDropdownRef}>
-                            <button
-                                onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 border-r border-gray-200 hover:text-blue-600 transition-colors whitespace-nowrap"
-                            >
-                                <FiMapPin className="text-blue-500" />
-                                <span className="max-w-[100px] truncate">{selectedCity}</span>
-                                <FiChevronDown className={`transition-transform duration-200 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            <AnimatePresence>
-                                {isCityDropdownOpen && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full left-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60]"
-                                    >
-                                        <div className="p-3 border-b border-gray-50">
-                                            <div className="relative">
-                                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
-                                                <input
-                                                    autoFocus
-                                                    type="text"
-                                                    placeholder="Search city..."
-                                                    className="w-full pl-8 pr-3 py-2 bg-gray-50 border-none rounded-lg text-xs font-medium outline-none focus:ring-1 focus:ring-blue-500"
-                                                    value={citySearchQuery}
-                                                    onChange={(e) => setCitySearchQuery(e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                                            <button
-                                                type="button"
-                                                onClick={() => { setSelectedCity('All Cities'); setIsCityDropdownOpen(false); }}
-                                                className="w-full px-4 py-2.5 text-left text-xs font-bold text-gray-700 hover:bg-blue-50"
-                                            >
-                                                All Cities
-                                            </button>
-                                            {filteredCitiesList.map((city, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    type="button"
-                                                    onClick={() => { setSelectedCity(city); setIsCityDropdownOpen(false); }}
-                                                    className="w-full px-4 py-2.5 text-left text-xs font-medium text-gray-600 hover:bg-blue-50"
-                                                >
-                                                    {city}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Search Input in Header */}
-                        <div className="flex-1 relative" ref={searchRef}>
-                            <form onSubmit={handleSearchSubmit} className="flex items-center">
-                                <input
-                                    type="text"
-                                    placeholder="Search brands, products or wholesalers..."
-                                    className="w-full bg-transparent py-2.5 px-4 rounded-full text-sm font-medium outline-none"
-                                    value={searchQuery}
-                                    onChange={handleSearchChange}
-                                    onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
-                                />
-                                <button type="submit" className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all mr-1">
-                                    <FiSearch size={16} />
-                                </button>
-                            </form>
-
-                            {/* Suggestions Dropdown */}
-                            <AnimatePresence>
-                                {showSuggestions && (suggestions.length > 0 || isSearching) && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60] py-2"
-                                    >
-                                        {isSearching && suggestions.length === 0 ? (
-                                            <div className="px-4 py-3 text-xs text-gray-500 flex items-center gap-2">
-                                                <div className="w-3 h-3 border-2 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-                                                Searching...
-                                            </div>
-                                        ) : (
-                                            suggestions.map((suggestion, index) => (
-                                                <button
-                                                    key={index}
-                                                    type="button"
-                                                    onClick={() => handleSuggestionClick(suggestion)}
-                                                    className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 text-left transition-colors group"
-                                                >
-                                                    {suggestion.type === 'product' ? (
-                                                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 border border-gray-50 flex-shrink-0">
-                                                            <img src={suggestion.image} alt={suggestion.text} className="w-full h-full object-cover" />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-50 text-blue-600 flex-shrink-0">
-                                                            <FiSearch className="text-xs" />
-                                                        </div>
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-sm font-bold text-gray-800 truncate">
-                                                            {suggestion.text}
-                                                        </div>
-                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">
-                                                            {suggestion.context}
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            ))
-                                        )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-
-                    {/* Single Action Button */}
-                    <div className="flex items-center gap-2 md:gap-4">
+                    {/* 2. City Dropdown (Search Station) */}
+                    <div className="relative hidden md:block" ref={cityRef}>
                         <button
-                            onClick={() => navigate('/b2b/catalog')}
-                            className="flex items-center gap-2 px-4 md:px-6 py-2 md:py-2.5 bg-blue-600 text-white font-black rounded-full shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 whitespace-nowrap text-xs md:text-sm"
+                            onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                            className="flex items-center gap-2 px-4 py-2 border border-blue-200 rounded-full text-sm font-bold text-gray-700 hover:bg-blue-50 transition-all min-w-[140px] justify-between"
                         >
-                            <FiShoppingBag className="hidden md:block" />
-                            Shop Now
-                        </button>
-
-                        <button
-                            className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            aria-label="Toggle Menu"
-                        >
-                            {isMenuOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Mobile Search Bar - ALWAYS VISIBLE ONLY ON MOBILE */}
-                <div className="md:hidden border-t border-gray-50 bg-white px-4 py-3 relative">
-                    <form onSubmit={handleSearchSubmit} className="relative">
-                        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search products, brands..."
-                            className="w-full bg-gray-50 border border-gray-100 py-2.5 pl-11 pr-4 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-blue-100 focus:bg-white transition-all"
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                            onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
-                        />
-                    </form>
-
-                    {/* Mobile Suggestions Dropdown */}
-                    <AnimatePresence>
-                        {showSuggestions && (suggestions.length > 0 || isSearching) && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 10 }}
-                                className="absolute top-full left-4 right-4 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60] py-2"
-                            >
-                                {isSearching && suggestions.length === 0 ? (
-                                    <div className="px-4 py-3 text-xs text-gray-500 flex items-center gap-2">
-                                        <div className="w-3 h-3 border-2 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-                                        Searching...
-                                    </div>
-                                ) : (
-                                    suggestions.map((suggestion, index) => (
-                                        <button
-                                            key={index}
-                                            type="button"
-                                            onClick={() => handleSuggestionClick(suggestion)}
-                                            className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 text-left transition-colors group"
-                                        >
-                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-50 text-blue-600 flex-shrink-0">
-                                                <FiSearch className="text-xs" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-bold text-gray-800 truncate">
-                                                    {suggestion.text}
-                                                </div>
-                                                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">
-                                                    {suggestion.context}
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Mobile Tablet Expanded Menu */}
-                <AnimatePresence>
-                    {isMenuOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="md:hidden bg-white border-b border-gray-100 overflow-hidden shadow-xl"
-                        >
-                            <div className="p-4 space-y-6 bg-gray-50/50">
-                                <div className="space-y-3">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Actions</p>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button
-                                            onClick={() => { navigate('/b2b/login'); setIsMenuOpen(false); }}
-                                            className="flex items-center justify-center gap-2 py-3 bg-white border border-gray-100 text-gray-700 font-bold rounded-2xl text-sm shadow-sm active:scale-95 transition-all"
-                                        >
-                                            Log In
-                                        </button>
-                                        <button
-                                            onClick={() => { navigate('/b2b/catalog'); setIsMenuOpen(false); }}
-                                            className="flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-blue-100 active:scale-95 transition-all"
-                                        >
-                                            Browse All
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3 pb-2">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Select Location</p>
-                                    <div className="bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-                                        <button
-                                            onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                                            className="w-full flex items-center justify-between p-3 text-sm font-bold text-gray-700"
-                                        >
-                                            <div className="flex items-center gap-3 text-blue-600">
-                                                <FiMapPin />
-                                                <span>{selectedCity}</span>
-                                            </div>
-                                            <FiChevronDown className={isCityDropdownOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
-                                        </button>
-
-                                        {isCityDropdownOpen && (
-                                            <div className="mt-2 border-t border-gray-50 pt-3 max-h-48 overflow-y-auto px-2 custom-scrollbar">
-                                                <button
-                                                    onClick={() => { setSelectedCity('All Cities'); setIsCityDropdownOpen(false); }}
-                                                    className="w-full text-left py-2 px-3 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-lg"
-                                                >
-                                                    All Cities
-                                                </button>
-                                                {uniqueCities.map(city => (
-                                                    <button
-                                                        key={city}
-                                                        onClick={() => { setSelectedCity(city); setIsCityDropdownOpen(false); }}
-                                                        className="w-full text-left py-2 px-3 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg"
-                                                    >
-                                                        {city}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                            <div className="flex items-center gap-2">
+                                <FiMapPin className="text-blue-600" />
+                                <span className="truncate max-w-[100px]">{selectedCity}</span>
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                            <FiChevronDown className={`transition-transform flex-shrink-0 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                            {isCityDropdownOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                                    className="absolute top-full left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-40 max-h-60 overflow-y-auto"
+                                >
+                                    {availableCities.map(city => (
+                                        <button
+                                            key={city}
+                                            onClick={() => {
+                                                setSelectedCity(city);
+                                                setIsCityDropdownOpen(false);
+                                                // Optional: Navigate immediately if user wants instant filter
+                                                // navigate(`/b2b/catalog?city=${encodeURIComponent(city)}`);
+                                            }}
+                                            className={`w-full text-left px-4 py-3 hover:bg-blue-50 text-sm font-medium border-b border-gray-50 last:border-0 ${selectedCity === city ? 'text-blue-600 bg-blue-50' : 'text-gray-700'}`}
+                                        >
+                                            {city}
+                                        </button>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* 3. Lot / SOT & Real Estate */}
+                    <div className="hidden lg:flex items-center gap-1 xl:gap-2">
+                        <button
+                            onClick={() => setActivePopup('lots')}
+                            className="px-3 py-2 text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                            <FiTrendingUp size={16} /> Lot / SOT
+                        </button>
+                        <button
+                            onClick={() => setActivePopup('realEstate')}
+                            className="px-3 py-2 text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                            <FiHome size={16} /> Real Estate Only
+                        </button>
+                    </div>
+
+                    {/* 4. Become Seller & Profile */}
+                    <div className="flex items-center gap-3 ml-auto">
+                        <button
+                            onClick={() => navigate('/b2b-vendor/register')}
+                            className="hidden md:flex bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-gray-800 transition-colors whitespace-nowrap"
+                        >
+                            Become Seller
+                        </button>
+
+                        <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
+
+                        <button
+                            onClick={() => navigate('/b2b/profile')}
+                            className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors"
+                        >
+                            <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-700 border border-gray-200">
+                                <FiUser size={18} />
+                            </div>
+                            <span className="text-sm font-bold text-gray-700 hidden md:block">Profile</span>
+                        </button>
+
+                        <button className="lg:hidden p-2" onClick={() => setIsMobileMenuOpen(true)}>
+                            <FiMenu size={24} />
+                        </button>
+                    </div>
+                </div>
             </header>
 
-            {/* Banner Section */}
-            <main className="flex-1 bg-gray-50">
-                <div className="w-full py-4 md:py-10">
-                    <div className="max-w-7xl mx-auto md:px-4">
-                        <B2BBanner />
-                    </div>
-                </div>
-
-                {/* Mobile Features Bar (Responsive Addition) */}
-                <div className="md:hidden bg-white border-y border-gray-100 py-6 px-4 mb-4 grid grid-cols-2 gap-4">
-                    <div className="flex flex-col items-center text-center p-4 bg-blue-50/50 rounded-2xl">
-                        <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mb-2 shadow-lg shadow-blue-100">
-                            <FiShoppingBag className="text-xl" />
+            {/* --- MOBILE MENU --- */}
+            <AnimatePresence>
+                {isMobileMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }}
+                        className="fixed inset-0 z-[60] bg-white"
+                    >
+                        <div className="p-4 flex items-center justify-between border-b border-gray-100">
+                            <span className="font-bold text-lg">Menu</span>
+                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-gray-100 rounded-full">
+                                <FiX />
+                            </button>
                         </div>
-                        <p className="text-xs font-black text-gray-800 uppercase tracking-wider">Bulk Pricing</p>
-                    </div>
-                    <div className="flex flex-col items-center text-center p-4 bg-indigo-50/50 rounded-2xl">
-                        <div className="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center mb-2 shadow-lg shadow-indigo-100">
-                            <FiMapPin className="text-xl" />
+                        <div className="p-4 space-y-4 overflow-y-auto">
+                            <div className="bg-gray-50 p-3 rounded-xl">
+                                <h4 className="font-bold text-gray-500 text-xs uppercase mb-2">Location</h4>
+                                <select
+                                    value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}
+                                    className="w-full p-2 rounded-lg border border-gray-200 bg-white"
+                                >
+                                    {availableCities.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <button onClick={() => { setActivePopup('lots'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Lot / SOT</button>
+                            <button onClick={() => { setActivePopup('realEstate'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Commercial Real Estate Only</button>
+                            <div className="h-px bg-gray-100 my-2"></div>
+                            <button onClick={() => navigate('/b2b-vendor/register')} className="w-full text-left p-3 font-bold text-white bg-black rounded-xl">Become Seller</button>
+                            <button onClick={() => navigate('/b2b/profile')} className="w-full text-left p-3 font-bold text-gray-700 rounded-xl">Profile</button>
                         </div>
-                        <p className="text-xs font-black text-gray-800 uppercase tracking-wider">Local Sourcing</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* --- TOOLBAR (Categories, Search, Price) --- */}
+            <section className="bg-white border-b border-gray-100 shadow-sm relative z-40">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-4 flex flex-col md:flex-row items-stretch md:items-center gap-4">
+
+                    {/* 1. Category Dropdown */}
+                    <div className="relative" ref={categoryRef}>
+                        <button
+                            onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                            className="flex items-center justify-between md:justify-start gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-bold text-gray-800 transition-colors w-full md:w-auto"
+                        >
+                            <FiGrid /> Categories <FiChevronDown className={`transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                            {isCategoryDropdownOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                                    className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
+                                >
+                                    {rootCategories.map(cat => (
+                                        <button
+                                            key={cat.id}
+                                            onClick={() => handleCategoryClick(cat)}
+                                            className="w-full text-left px-5 py-3 hover:bg-blue-50 text-sm font-medium text-gray-700 border-b border-gray-50 last:border-0"
+                                        >
+                                            {cat.name}
+                                        </button>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
-                </div>
-            </main>
 
-            {/* Sticky Footer */}
-            <footer className="bg-white border-t border-gray-100 py-10 text-center">
-                <div className="max-w-7xl mx-auto px-4">
-                    <p className="text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-4 italic">Dealing India Wholesale Network</p>
-                    <p className="text-xs text-gray-400 font-medium italic">© 2026 Dealing India. Connect. Source. Grow.</p>
-                </div>
-            </footer>
+                    {/* 2. Product Search (Full Width) */}
+                    <div className="flex-1 relative" ref={searchRef}>
+                        <div className="flex items-center bg-white rounded-xl border border-gray-200 px-4 py-1 transition-all focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 shadow-sm">
+                            <FiSearch className="text-gray-400 mr-3" size={20} />
+                            <input
+                                type="text"
+                                placeholder="Search products, brands..."
+                                className="w-full bg-transparent py-2.5 text-sm font-medium outline-none placeholder:text-gray-400 h-10"
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearchProductPopup(searchQuery)}
+                                onFocus={() => setShowSuggestions(true)}
+                            />
+                        </div>
+                        {/* Suggestions */}
+                        <AnimatePresence>
+                            {(showSuggestions && suggestions.length > 0) && (
+                                <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                                    <div className="max-h-60 overflow-y-auto">
+                                        {suggestions.map((s, i) => (
+                                            <div
+                                                key={i}
+                                                onClick={() => handleSearchProductPopup(s)}
+                                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0"
+                                            >
+                                                <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-400">
+                                                    <FiShoppingBag />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-800">{s.text}</p>
+                                                    <p className="text-[10px] text-gray-500 uppercase">{s.context}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
-            <style dangerouslySetInnerHTML={{
-                __html: `
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #ddd;
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #ccc;
-        }
-      `}} />
+                    {/* 3. Price Filter */}
+                    <div className="relative" ref={priceRef}>
+                        <button
+                            onClick={() => setIsPriceFilterOpen(!isPriceFilterOpen)}
+                            className="flex items-center justify-between md:justify-start gap-2 px-5 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:border-blue-300 transition-all w-full md:w-auto"
+                        >
+                            Price <FiChevronDown className={`transition-transform ${isPriceFilterOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                            {isPriceFilterOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                                    className="absolute top-full right-0 md:left-auto mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
+                                >
+                                    <h4 className="font-bold text-gray-800 mb-4 text-sm uppercase tracking-wide">Price</h4>
+
+                                    <div className="space-y-3 mb-6">
+                                        {['Below ₹100', '₹101 - ₹200', '₹201 - ₹500', 'Above ₹501'].map((range, i) => (
+                                            <div key={i} className="flex items-center gap-3 cursor-pointer group">
+                                                <div className="w-4 h-4 rounded-full border border-gray-300 group-hover:border-blue-500"></div>
+                                                <span className="text-sm font-medium text-gray-600 group-hover:text-blue-600">{range}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number" placeholder="₹ min"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-400"
+                                            value={priceRange.min} onChange={e => setPriceRange({ ...priceRange, min: e.target.value })}
+                                        />
+                                        <input
+                                            type="number" placeholder="₹ max"
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-400"
+                                            value={priceRange.max} onChange={e => setPriceRange({ ...priceRange, max: e.target.value })}
+                                        />
+                                        <button
+                                            className="bg-blue-600 text-white font-bold p-2 px-4 rounded-lg hover:bg-blue-700"
+                                            onClick={() => { setIsPriceFilterOpen(false); navigate(`/b2b/catalog?min=${priceRange.min}&max=${priceRange.max}`); }}
+                                        >
+                                            GO
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                </div>
+            </section>
+
+            {/* --- BANNER SECTION --- */}
+            <section className="w-full bg-gray-50 py-4 md:py-6">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6">
+                    <B2BBanner />
+                </div>
+            </section>
+
+            {/* --- CATEGORIES SHOWCASE --- */}
+            <section className="w-full bg-white py-8 md:py-12">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Shop by Category</h2>
+                            <p className="text-gray-500 mt-1">Explore our wide range of B2B products</p>
+                        </div>
+                    </div>
+
+                    {rootCategories.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
+                            {rootCategories.map((category) => (
+                                <motion.div
+                                    key={category.id}
+                                    whileHover={{ y: -5, scale: 1.02 }}
+                                    onClick={() => handleCategoryClick(category)}
+                                    className="bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all group"
+                                >
+                                    {/* Category Image */}
+                                    <div className="aspect-square bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden relative">
+                                        {category.image ? (
+                                            <img
+                                                src={category.image}
+                                                alt={category.name}
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><FiGrid class="text-4xl text-gray-300" /></div>`;
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <FiGrid className="text-4xl text-gray-300" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* Category Name */}
+                                    <div className="p-3 text-center">
+                                        <h3 className="font-bold text-sm md:text-base text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-2">
+                                            {category.name}
+                                        </h3>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 bg-gray-50 rounded-2xl">
+                            <FiGrid className="text-5xl text-gray-300 mx-auto mb-4" />
+                            <p className="text-gray-500">No categories available</p>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* --- POPUPS --- */}
+            <AnimatePresence>
+                {activePopup === 'subcategories' && <SubCategoryPopup />}
+                {activePopup === 'products' && <ProductPopup />}
+                {activePopup === 'lots' && <GenericHeaderPopup title="Explore Lot / SOT" data={HEADER_POPUP_DATA.lots} />}
+                {activePopup === 'realEstate' && <GenericHeaderPopup title="Commercial Real Estate" data={HEADER_POPUP_DATA.realEstate} />}
+            </AnimatePresence>
+
         </div>
     );
 };
