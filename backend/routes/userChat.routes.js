@@ -25,7 +25,7 @@ const handleMulterError = (err, req, res, next) => {
             field: err.field,
             name: err.name
         });
-        
+
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
                 success: false,
@@ -59,7 +59,7 @@ router.post('/upload', (req, res, next) => {
         if (err) {
             return handleMulterError(err, req, res, next);
         }
-        
+
         // Call controller with proper error handling
         try {
             await ChatController.uploadAttachment(req, res, next);
@@ -78,6 +78,6 @@ router.post('/upload', (req, res, next) => {
         }
     });
 });
-router.get('/inquiries/check/:productId', redisService.cacheMiddleware('user:chat:inquiry', 300), ChatController.checkInquiryForProduct);
+
 
 export default router;

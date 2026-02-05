@@ -4,8 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     FiHome,
     FiPackage,
-    FiShoppingBag,
-    FiBarChart2,
     FiSettings,
     FiUser,
     FiChevronDown,
@@ -25,8 +23,8 @@ const iconMap = {
     "Product Listings": FiPackage,
     "Manage Products": FiPackage,
     "Add Product": FiPackage,
-    "B2B Inquiries": FiMessageCircle,
-    Analytics: FiBarChart2,
+
+
     Subscription: FiCreditCard,
     "Banner Booking": FiImage,
     "Account Settings": FiSettings,

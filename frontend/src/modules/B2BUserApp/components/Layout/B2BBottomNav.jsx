@@ -4,9 +4,8 @@ import { FiHome, FiGrid, FiMessageSquare, FiUser } from 'react-icons/fi';
 
 const B2BBottomNav = () => {
     const navItems = [
-        { icon: FiHome, label: 'Home', path: '/b2b' },
+        { icon: FiHome, label: 'Home', path: '/b2b/landing' },
         { icon: FiGrid, label: 'Browse', path: '/b2b/catalog' },
-        { icon: FiMessageSquare, label: 'Inquiries', path: '/b2b/inquiries' },
         { icon: FiUser, label: 'Profile', path: '/b2b/profile' },
     ];
 

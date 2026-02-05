@@ -309,7 +309,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     const processedAttributes = [];
     if (specifications && Array.isArray(specifications)) {
       specifications.forEach(spec => {
-        if (spec.name && spec.value) {
+        if (spec.name && spec.value && spec.name.toLowerCase() !== 'color') {
           processedAttributes.push({
             attributeName: spec.name,
             name: spec.name,
@@ -520,7 +520,7 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
       // Add standard specifications
       if (Array.isArray(specifications)) {
         specifications.forEach(spec => {
-          if (spec.name && spec.value) {
+          if (spec.name && spec.value && spec.name.toLowerCase() !== 'color') {
             processedAttributes.push({
               attributeName: spec.name,
               name: spec.name,

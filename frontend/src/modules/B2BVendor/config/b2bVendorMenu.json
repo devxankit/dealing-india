@@ -13,16 +13,6 @@
         ]
     },
     {
-        "title": "B2B Inquiries",
-        "route": "/b2b-vendor/messages",
-        "children": []
-    },
-    {
-        "title": "Analytics",
-        "route": "/b2b-vendor/analytics",
-        "children": []
-    },
-    {
         "title": "Subscription",
         "route": "/b2b-vendor/subscription",
         "children": []

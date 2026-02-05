@@ -9,7 +9,7 @@ import { appLogo } from '../../../data/logos';
 import B2BBanner from '../components/B2BBanner';
 import api from '../../../shared/utils/api';
 import { debounce } from '../../../shared/utils/helpers';
-import { useCategoryStore } from '../../../shared/store/categoryStore';
+import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 
 // Dummy data for Header Popups
 const HEADER_POPUP_DATA = {
@@ -29,7 +29,7 @@ const HEADER_POPUP_DATA = {
 
 const B2BLanding = () => {
     const navigate = useNavigate();
-    const { categories, initialize: fetchCategories } = useCategoryStore();
+    const { categories, initialize: fetchCategories } = useB2BCategoryStore();
 
     // State
     const [searchQuery, setSearchQuery] = useState('');
@@ -56,8 +56,12 @@ const B2BLanding = () => {
     // Refs
     const searchRef = useRef(null);
     const categoryRef = useRef(null);
-    const cityRef = useRef(null);
+    const cityDropdownRef = useRef(null);
     const priceRef = useRef(null);
+
+    const [availableStates, setAvailableStates] = useState([]);
+    const [locationsLoading, setLocationsLoading] = useState(false);
+    const [citySearchQuery, setCitySearchQuery] = useState('');
 
     // Fetch categories on mount
     useEffect(() => {
@@ -65,31 +69,61 @@ const B2BLanding = () => {
         fetchCategories();
 
         // Fetch cities used in actual products
-        const fetchCities = async () => {
+        const fetchAvailableLocations = async () => {
+            setLocationsLoading(true);
             try {
-                const res = await api.get('/public/b2b-locations');
-                if (res.success && res.data?.cities) {
-                    setAvailableCities(['All Cities', ...res.data.cities]);
+                const response = await api.get('/public/b2b-locations');
+                if (response.success && response.data) {
+                    const states = (response.data.states || []).map(state => ({
+                        ...state,
+                        name: (state.name || '').trim()
+                    }));
+                    setAvailableStates(states);
                 }
-            } catch (e) {
-                console.error("Error fetching cities", e);
+            } catch (error) {
+                console.error('Error fetching locations:', error);
+            } finally {
+                setLocationsLoading(false);
             }
         };
-        fetchCities();
+        fetchAvailableLocations();
     }, [fetchCategories]);
+
+    const uniqueCities = useMemo(() => {
+        return (availableStates || [])
+            .flatMap(state => state.cities || [])
+            .filter((city, index, self) => {
+                if (!city || typeof city !== 'string') return false;
+                const cleanCity = city.trim();
+                if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
+                return self.findIndex(c => c.trim() === cleanCity) === index;
+            })
+            .sort();
+    }, [availableStates]);
+
+    const filteredCitiesList = useMemo(() => {
+        return citySearchQuery
+            ? uniqueCities.filter(city => city.toLowerCase().includes(citySearchQuery.toLowerCase()))
+            : uniqueCities;
+    }, [citySearchQuery, uniqueCities]);
 
     // Derived State: Root Categories
     const rootCategories = useMemo(() => {
-        // Filter out categories that don't have subcategories or parents ensuring we only show valid B2B trees
-        // Assuming 'store' fetches all categories flat or nested.
-        return categories.filter(c => !c.parentId);
+        // B2B categories from the new store don't have parentId, they are all roots
+        return categories;
     }, [categories]);
 
     // Derived State: Subcategories of selected root
     const activeSubcategories = useMemo(() => {
         if (!selectedRootCategory) return [];
-        return categories.filter(c => c.parentId === selectedRootCategory.id || c.parent === selectedRootCategory.id);
-    }, [categories, selectedRootCategory]);
+        // In B2B, subcategories are an array of strings within the category object
+        // Transform them into objects with id and name for the UI to handle
+        return (selectedRootCategory.subcategories || []).map((sub, index) => ({
+            id: `${selectedRootCategory.id}-sub-${index}`,
+            name: sub,
+            originalName: sub // Store original name for filtering
+        }));
+    }, [selectedRootCategory]);
 
     // --- Search Logic ---
     const debouncedFetchSuggestions = useMemo(
@@ -160,7 +194,7 @@ const B2BLanding = () => {
 
     const handleCategoryClick = (category) => {
         // Check if this category has subcategories
-        const hasSubcategories = categories.some(c => c.parentId === category.id || c.parent === category.id);
+        const hasSubcategories = category.subcategories && category.subcategories.length > 0;
 
         if (hasSubcategories) {
             setSelectedRootCategory(category);
@@ -170,14 +204,15 @@ const B2BLanding = () => {
             // No subcategories, navigate directly
             setIsCategoryDropdownOpen(false);
             const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-            navigate(`/b2b/catalog?category=${category.id}${cityParam}`);
+            navigate(`/b2b/catalog?category=${encodeURIComponent(category.name)}${cityParam}`);
         }
     };
 
     const handleSubCategoryClick = (subCat) => {
         setActivePopup(null);
         const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-        navigate(`/b2b/catalog?category=${subCat.id}${cityParam}`);
+        // Pass subcategory name as well
+        navigate(`/b2b/catalog?category=${encodeURIComponent(selectedRootCategory.name)}&subcategory=${encodeURIComponent(subCat.originalName)}${cityParam}`);
     };
 
     const handleProductClick = (product) => {
@@ -201,7 +236,7 @@ const B2BLanding = () => {
             if (categoryRef.current && !categoryRef.current.contains(event.target)) {
                 setIsCategoryDropdownOpen(false);
             }
-            if (cityRef.current && !cityRef.current.contains(event.target)) {
+            if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
                 setIsCityDropdownOpen(false);
             }
             if (priceRef.current && !priceRef.current.contains(event.target)) {
@@ -336,38 +371,75 @@ const B2BLanding = () => {
                     </div>
 
                     {/* 2. City Dropdown (Search Station) */}
-                    <div className="relative hidden md:block" ref={cityRef}>
+                    <div className="relative hidden md:block" ref={cityDropdownRef}>
                         <button
                             onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                            className="flex items-center gap-2 px-4 py-2 border border-blue-200 rounded-full text-sm font-bold text-gray-700 hover:bg-blue-50 transition-all min-w-[140px] justify-between"
+                            disabled={locationsLoading}
+                            className="flex items-center gap-2 px-4 py-2 border border-blue-200 rounded-full text-sm font-bold text-gray-700 hover:bg-blue-50 transition-all min-w-[140px] justify-between outline-none"
                         >
                             <div className="flex items-center gap-2">
                                 <FiMapPin className="text-blue-600" />
                                 <span className="truncate max-w-[100px]">{selectedCity}</span>
                             </div>
-                            <FiChevronDown className={`transition-transform flex-shrink-0 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
+                            <FiChevronDown className={`transition-transform duration-200 border-l border-blue-100 pl-1 ml-1 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         <AnimatePresence>
                             {isCityDropdownOpen && (
                                 <motion.div
-                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                    className="absolute top-full left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-40 max-h-60 overflow-y-auto"
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-[100]"
                                 >
-                                    {availableCities.map(city => (
+                                    <div className="p-3 border-b border-gray-50">
+                                        <div className="relative">
+                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                placeholder="Search city..."
+                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-xl text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none"
+                                                value={citySearchQuery}
+                                                onChange={(e) => setCitySearchQuery(e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
                                         <button
-                                            key={city}
                                             onClick={() => {
-                                                setSelectedCity(city);
+                                                setSelectedCity('All Cities');
                                                 setIsCityDropdownOpen(false);
-                                                // Optional: Navigate immediately if user wants instant filter
-                                                // navigate(`/b2b/catalog?city=${encodeURIComponent(city)}`);
+                                                setCitySearchQuery('');
                                             }}
-                                            className={`w-full text-left px-4 py-3 hover:bg-blue-50 text-sm font-medium border-b border-gray-50 last:border-0 ${selectedCity === city ? 'text-blue-600 bg-blue-50' : 'text-gray-700'}`}
+                                            className={`w-full px-4 py-2.5 text-left text-xs font-bold transition-colors hover:bg-blue-50 ${selectedCity === 'All Cities' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-600'}`}
                                         >
-                                            {city}
+                                            All Cities
                                         </button>
-                                    ))}
+
+                                        {filteredCitiesList.length > 0 ? (
+                                            filteredCitiesList.map((city, index) => (
+                                                <button
+                                                    key={`${city}-${index}`}
+                                                    onClick={() => {
+                                                        setSelectedCity(city);
+                                                        setIsCityDropdownOpen(false);
+                                                        setCitySearchQuery('');
+                                                    }}
+                                                    className={`w-full px-4 py-2.5 text-left text-xs font-medium transition-colors hover:bg-blue-50 ${selectedCity === city ? 'text-blue-600 bg-blue-50/50' : 'text-gray-600'}`}
+                                                >
+                                                    {city}
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-4 py-6 text-center">
+                                                <p className="text-xs text-gray-400 font-medium">No cities found</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -582,60 +654,7 @@ const B2BLanding = () => {
                 </div>
             </section>
 
-            {/* --- CATEGORIES SHOWCASE --- */}
-            <section className="w-full bg-white py-8 md:py-12">
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Shop by Category</h2>
-                            <p className="text-gray-500 mt-1">Explore our wide range of B2B products</p>
-                        </div>
-                    </div>
 
-                    {rootCategories.length > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
-                            {rootCategories.map((category) => (
-                                <motion.div
-                                    key={category.id}
-                                    whileHover={{ y: -5, scale: 1.02 }}
-                                    onClick={() => handleCategoryClick(category)}
-                                    className="bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all group"
-                                >
-                                    {/* Category Image */}
-                                    <div className="aspect-square bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden relative">
-                                        {category.image ? (
-                                            <img
-                                                src={category.image}
-                                                alt={category.name}
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none';
-                                                    e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center"><FiGrid class="text-4xl text-gray-300" /></div>`;
-                                                }}
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <FiGrid className="text-4xl text-gray-300" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    {/* Category Name */}
-                                    <div className="p-3 text-center">
-                                        <h3 className="font-bold text-sm md:text-base text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-2">
-                                            {category.name}
-                                        </h3>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-12 bg-gray-50 rounded-2xl">
-                            <FiGrid className="text-5xl text-gray-300 mx-auto mb-4" />
-                            <p className="text-gray-500">No categories available</p>
-                        </div>
-                    )}
-                </div>
-            </section>
 
             {/* --- POPUPS --- */}
             <AnimatePresence>

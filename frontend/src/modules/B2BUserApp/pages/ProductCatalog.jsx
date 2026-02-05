@@ -21,12 +21,9 @@ const ProductCatalog = () => {
     const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-    const [showInquiryModal, setShowInquiryModal] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState(null);
     const [b2bVendors, setB2bVendors] = useState([]);
     const [categories, setCategories] = useState([]);
     const [expandedCategory, setExpandedCategory] = useState(null);
-    const [productInquiries, setProductInquiries] = useState({}); // Track which products have inquiries { productId: true/false }
     const categoryDropdownRefs = useRef({}); // Refs for each category dropdown
     const [selectedState, setSelectedState] = useState('All States');
     const [selectedCity, setSelectedCity] = useState('All Cities');
@@ -44,12 +41,10 @@ const ProductCatalog = () => {
     const [businessCredentials, setBusinessCredentials] = useState({ gst: false, turnover: false });
     const [selectedPattern, setSelectedPattern] = useState(null);
     const [selectedFabric, setSelectedFabric] = useState(null);
-    const [selectedColor, setSelectedColor] = useState(null);
     const [openFilters, setOpenFilters] = useState({
         price: true,
         pattern: false, // Default closed to save space
-        fabric: false,
-        color: false
+        fabric: false
     });
 
     const toggleFilter = (section) => {
@@ -333,23 +328,11 @@ const ProductCatalog = () => {
     useEffect(() => {
         if (products.length > 0) {
             fetchB2BCategories();
-            if (isAuthenticated) {
-                checkInquiriesForProducts();
-            }
         }
-    }, [products, isAuthenticated]);
+    }, [products]);
 
     // Recheck inquiries when modal closes (in case inquiry was just sent)
-    useEffect(() => {
-        if (!showInquiryModal && isAuthenticated && products.length > 0) {
-            // Small delay to ensure backend has processed the inquiry
-            const timeoutId = setTimeout(() => {
-                checkInquiriesForProducts();
-            }, 1000);
-            return () => clearTimeout(timeoutId);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showInquiryModal, isAuthenticated, products.length]);
+
 
     // Refetch products when location filters change
     useEffect(() => {
@@ -554,42 +537,7 @@ const ProductCatalog = () => {
         return category ? category.subcategories : [];
     };
 
-    const checkInquiriesForProducts = async () => {
-        if (!isAuthenticated || products.length === 0) return;
 
-        try {
-            // Check inquiry status for all products in parallel
-            const inquiryChecks = await Promise.all(
-                products.map(async (product) => {
-                    try {
-                        const productId = product._id || product.id;
-                        if (!productId) return { productId: null, hasInquiry: false };
-
-                        const response = await api.get(`/user/chat/inquiries/check/${productId}`);
-                        return {
-                            productId,
-                            hasInquiry: response.success && response.data?.hasInquiry
-                        };
-                    } catch (error) {
-                        // If error (e.g., not authenticated), treat as no inquiry
-                        return { productId: product._id || product.id, hasInquiry: false };
-                    }
-                })
-            );
-
-            // Convert array to object for easy lookup
-            const inquiryMap = {};
-            inquiryChecks.forEach(check => {
-                if (check.productId) {
-                    inquiryMap[check.productId] = check.hasInquiry;
-                }
-            });
-
-            setProductInquiries(inquiryMap);
-        } catch (error) {
-            console.error('Error checking inquiries:', error);
-        }
-    };
 
     const productsList = Array.isArray(products) ? products : [];
 
@@ -602,7 +550,7 @@ const ProductCatalog = () => {
     // Predefined Filter Options (ensure these always show)
     const PREDEFINED_PATTERNS = ["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"];
     const PREDEFINED_FABRICS = ["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"];
-    const PREDEFINED_COLORS = ["Red", "Blue", "Green", "Black", "White", "Yellow", "Orange", "Purple", "Pink", "Brown", "Grey", "Multicolor"];
+
 
     // Derive unique filter options (Predefined + Actual)
     const uniquePatterns = [...new Set([
@@ -615,10 +563,7 @@ const ProductCatalog = () => {
         ...productsList.flatMap(p => getProductAttributes(p).filter(a => a.name === 'Fabric').map(a => a.value))
     ])].filter(Boolean).sort();
 
-    const uniqueColors = [...new Set([
-        ...PREDEFINED_COLORS,
-        ...productsList.flatMap(p => getProductAttributes(p).filter(a => a.name === 'Color').map(a => a.value))
-    ])].filter(Boolean).sort();
+
 
     const filteredProducts = productsList.filter(product => {
         const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -673,7 +618,6 @@ const ProductCatalog = () => {
 
         if (selectedPattern && !pAttrs.some(a => a.name === 'Pattern' && a.value === selectedPattern)) return false;
         if (selectedFabric && !pAttrs.some(a => a.name === 'Fabric' && a.value === selectedFabric)) return false;
-        if (selectedColor && !pAttrs.some(a => a.name === 'Color' && a.value === selectedColor)) return false;
 
         return matchesSearch && matchesCategory && matchesPrice && matchesCredentials;
     });
@@ -1145,49 +1089,7 @@ const ProductCatalog = () => {
                             </AnimatePresence>
                         </div>
 
-                        {/* Color Filter */}
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <button
-                                onClick={() => toggleFilter('color')}
-                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                            >
-                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Color</h3>
-                                <div className="flex items-center gap-2">
-                                    {selectedColor && (
-                                        <span onClick={(e) => { e.stopPropagation(); setSelectedColor(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                                    )}
-                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.color ? 'rotate-180' : ''}`} />
-                                </div>
-                            </button>
-                            <AnimatePresence>
-                                {openFilters.color && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
-                                            {uniqueColors.map(color => (
-                                                <label key={color} className="flex items-center gap-3 cursor-pointer group">
-                                                    <div className="relative">
-                                                        <input
-                                                            type="radio"
-                                                            name="color"
-                                                            className="peer sr-only"
-                                                            checked={selectedColor === color}
-                                                            onChange={() => setSelectedColor(color)}
-                                                        />
-                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                                    </div>
-                                                    <span className={`text-xs font-bold transition-colors ${selectedColor === color ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{color}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
+
                     </aside>
 
                     {/* Product Listing Area */}
@@ -1278,41 +1180,20 @@ const ProductCatalog = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Tight Action Buttons */}
-                                            <div className="flex items-center gap-1">
-                                                {productInquiries[product._id || product.id] ? (
-                                                    <div className="flex-1 py-1.5 bg-green-50 text-green-600 rounded-lg font-black text-[8px] uppercase tracking-widest flex items-center justify-center border border-green-100">
-                                                        <span>✓ Sent</span>
-                                                    </div>
-                                                ) : (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openInquiry(product); }}
-                                                        className="flex-1 py-1.5 bg-primary-600 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-primary-700 transition-all active:scale-95 shadow-sm shadow-primary-100"
+                                            <div className="flex items-center gap-1 mt-1">
+                                                {product.vendorId?.phone && (
+                                                    <a
+                                                        href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="flex-1 py-1.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-green-50 hover:text-[#25D366] transition-all border border-gray-100 flex items-center justify-center gap-2 font-black text-[8px] uppercase tracking-widest"
+                                                        title="WhatsApp"
                                                     >
-                                                        Inquiry
-                                                    </button>
+                                                        <FaWhatsapp size={12} />
+                                                        <span>Contact Vendor</span>
+                                                    </a>
                                                 )}
-                                                <div className="flex gap-1">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); handleChatDirect(product); }}
-                                                        className="p-1.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-all border border-gray-100"
-                                                        title="Chat"
-                                                    >
-                                                        <FiMessageSquare size={12} />
-                                                    </button>
-                                                    {product.vendorId?.phone && (
-                                                        <a
-                                                            href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="p-1.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-green-50 hover:text-[#25D366] transition-all border border-gray-100"
-                                                            title="WhatsApp"
-                                                        >
-                                                            <FaWhatsapp size={12} />
-                                                        </a>
-                                                    )}
-                                                </div>
                                             </div>
                                         </div>
                                     </motion.div>
@@ -1324,146 +1205,6 @@ const ProductCatalog = () => {
             </main>
 
             <B2BBottomNav />
-
-            {/* Inquiry Modal */}
-            <AnimatePresence>
-                {showInquiryModal && (
-                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 overflow-hidden">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowInquiryModal(false)}
-                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                        />
-                        <motion.div
-                            initial={{ y: "100%", opacity: 0.5 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: "100%", opacity: 0.5 }}
-                            className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden"
-                        >
-                            <div className="p-8">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center">
-                                            <FiMessageSquare className="text-2xl text-primary-600" />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-gray-800">Send Inquiry</h2>
-                                            <p className="text-gray-500 text-sm">{selectedProduct?.name}</p>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => setShowInquiryModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400">
-                                        <FiX className="text-2xl" />
-                                    </button>
-                                </div>
-
-                                <form className="space-y-6" onSubmit={async (e) => {
-                                    e.preventDefault();
-                                    // Use FormData or named inputs to properly extract form values
-                                    const formData = new FormData(e.target);
-                                    const quantity = formData.get('quantity') || e.target.quantity?.value || '';
-                                    const message = formData.get('message') || e.target.message?.value || '';
-
-                                    if (!quantity || !message.trim()) {
-                                        toast.error('Please fill in all required fields');
-                                        return;
-                                    }
-
-                                    try {
-                                        const vendorId = selectedProduct.vendorId?._id || selectedProduct.vendorId;
-                                        if (!vendorId) throw new Error('Vendor ID missing');
-
-                                        // Validate ID format
-                                        if (!/^[0-9a-fA-F]{24}$/.test(vendorId)) {
-                                            throw new Error('Invalid Vendor ID format');
-                                        }
-
-                                        const convResponse = await chatService.createOrGetConversation(vendorId);
-                                        const conversation = convResponse.data || convResponse;
-                                        const conversationId = conversation._id;
-
-                                        const metadata = {
-                                            productId: selectedProduct._id,
-                                            productName: selectedProduct.name || '',
-                                            productImage: selectedProduct.images?.[0] || selectedProduct.image || null,
-                                            productPrice: selectedProduct.price ? Number(selectedProduct.price) : null,
-                                            quantity: Number(quantity) || 0,
-                                            clientMessage: message.trim() || '' // Ensure message is properly included
-                                        };
-
-                                        const inquiryMessage = `📦 *INQUIRY FOR: ${selectedProduct.name}*\n` +
-                                            `🔢 *Quantity:* ${quantity} units\n` +
-                                            `💬 *Message:* ${message.trim()}`;
-
-                                        await chatService.sendMessage(conversationId, vendorId, inquiryMessage, 'inquiry', metadata);
-
-                                        // Update inquiry status for this product immediately
-                                        const productId = selectedProduct._id || selectedProduct.id;
-                                        if (productId) {
-                                            setProductInquiries(prev => ({
-                                                ...prev,
-                                                [productId]: true
-                                            }));
-                                        }
-
-                                        // Recheck inquiry status to ensure persistence
-                                        try {
-                                            const checkResponse = await api.get(`/user/chat/inquiries/check/${productId}`);
-                                            if (checkResponse.success && checkResponse.data?.hasInquiry) {
-                                                setProductInquiries(prev => ({
-                                                    ...prev,
-                                                    [productId]: true
-                                                }));
-                                            }
-                                        } catch (checkError) {
-                                            console.error('Error rechecking inquiry status:', checkError);
-                                        }
-
-                                        toast.success('Inquiry sent successfully!');
-                                        setShowInquiryModal(false);
-
-                                        // Optional: Navigate to inquiries page, or stay on catalog
-                                        // navigate(`/b2b/inquiries?vendorId=${vendorId}`);
-                                    } catch (err) {
-                                        console.error('Inquiry failed:', err);
-                                        toast.error(err.response?.data?.message || err.message || 'Failed to send inquiry via chat');
-                                    }
-                                }}>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Quantity Needed</label>
-                                        <input
-                                            type="number"
-                                            name="quantity"
-                                            placeholder={`Min. ${selectedProduct?.moq || 1} units`}
-                                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
-                                            required
-                                            min={selectedProduct?.moq || 1}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Message to Vendor</label>
-                                        <textarea
-                                            name="message"
-                                            rows="4"
-                                            placeholder="Write your requirements here..."
-                                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium resize-none"
-                                            required
-                                        ></textarea>
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        className="w-full py-4 bg-primary-600 text-white rounded-2xl font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <FiMessageSquare />
-                                        Submit Quote Request
-                                    </button>
-                                </form>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

@@ -23,7 +23,6 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         brand: "",
         availability: "In Stock",
         unit: "",
-        color: "",
         pattern: "",
         fabric: ""
     });
@@ -185,7 +184,6 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 images: formData.images,
                 specifications: [
                     ...formData.specifications.filter(spec => spec.name && spec.value),
-                    ...(formData.color ? [{ name: "Color", value: formData.color }] : []),
                     ...(formData.pattern ? [{ name: "Pattern", value: formData.pattern }] : []),
                     ...(formData.fabric ? [{ name: "Fabric", value: formData.fabric }] : [])
                 ],
@@ -273,20 +271,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Color</label>
-                                <select
-                                    name="color"
-                                    value={formData.color || ""}
-                                    onChange={handleChange}
-                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
-                                >
-                                    <option value="">Select Color</option>
-                                    {["Red", "Blue", "Green", "Black", "White", "Yellow", "Orange", "Purple", "Pink", "Brown", "Grey", "Multicolor"].map(c => (
-                                        <option key={c} value={c}>{c}</option>
-                                    ))}
-                                </select>
-                            </div>
+
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Pattern</label>

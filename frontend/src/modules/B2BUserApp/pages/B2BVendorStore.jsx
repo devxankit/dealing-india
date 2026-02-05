@@ -34,9 +34,7 @@ const B2BVendorStore = () => {
     const [sortBy, setSortBy] = useState("popular");
     const [showFilters, setShowFilters] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [showInquiryModal, setShowInquiryModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
-    const [productInquiries, setProductInquiries] = useState({});
 
     // Fetch vendor details and products
     useEffect(() => {
@@ -77,41 +75,7 @@ const B2BVendorStore = () => {
         }
     }, [id]);
 
-    // Check inquiries for current products
-    useEffect(() => {
-        if (isAuthenticated && products.length > 0) {
-            checkInquiriesForProducts();
-        }
-    }, [products, isAuthenticated]);
 
-    const checkInquiriesForProducts = async () => {
-        try {
-            const inquiryChecks = await Promise.all(
-                products.map(async (product) => {
-                    try {
-                        const productId = product._id || product.id;
-                        const response = await api.get(`/user/chat/inquiries/check/${productId}`);
-                        return {
-                            productId,
-                            hasInquiry: response.success && response.data?.hasInquiry
-                        };
-                    } catch (error) {
-                        return { productId: product._id || product.id, hasInquiry: false };
-                    }
-                })
-            );
-
-            const inquiryMap = {};
-            inquiryChecks.forEach(check => {
-                if (check.productId) {
-                    inquiryMap[check.productId] = check.hasInquiry;
-                }
-            });
-            setProductInquiries(inquiryMap);
-        } catch (error) {
-            console.error('Error checking inquiries:', error);
-        }
-    };
 
     // Filter and sort products
     const filteredProducts = useMemo(() => {
@@ -141,28 +105,7 @@ const B2BVendorStore = () => {
         return filtered;
     }, [products, searchQuery, sortBy]);
 
-    const openInquiry = (product) => {
-        if (!isAuthenticated) {
-            toast.error('Please login to send inquiries');
-            navigate('/b2b/login');
-            return;
-        }
-        setSelectedProduct(product);
-        setShowInquiryModal(true);
-    };
 
-    const handleChatDirect = (product) => {
-        if (!isAuthenticated) {
-            toast.error('Please login to chat with vendors');
-            navigate('/b2b/login');
-            return;
-        }
-
-        const vId = product.vendorId?._id || product.vendorId;
-        if (vId) {
-            navigate(`/b2b/inquiries?vendorId=${vId}`);
-        }
-    };
 
     if (loading) {
         return (
@@ -272,12 +215,17 @@ const B2BVendorStore = () => {
 
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-3 w-full md:w-auto">
-                            <button
-                                onClick={() => navigate(`/b2b/inquiries?vendorId=${vendor._id}`)}
-                                className="w-full md:px-8 py-4 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-200"
-                            >
-                                Contact Head Office
-                            </button>
+                            {vendor.phone && (
+                                <a
+                                    href={`https://wa.me/${vendor.phone.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full md:px-8 py-4 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-xl shadow-green-100 flex items-center justify-center gap-2"
+                                >
+                                    <FaWhatsapp size={18} />
+                                    Contact on WhatsApp
+                                </a>
+                            )}
                             <button className="w-full md:px-8 py-4 bg-white border-2 border-gray-100 text-gray-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:border-primary-100 transition-all">
                                 Request Catalogue
                             </button>
@@ -389,24 +337,18 @@ const B2BVendorStore = () => {
                                     </div>
 
                                     <div className="flex items-center gap-3 pt-6 border-t border-gray-100">
-                                        {productInquiries[product._id] ? (
-                                            <div className="flex-1 py-3.5 bg-green-50 border-2 border-green-200 text-green-700 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-                                                <span>✓ Sent</span>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); openInquiry(product); }}
-                                                className="flex-1 py-3.5 bg-white border-2 border-primary-600 text-primary-600 rounded-2xl hover:bg-primary-600 hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
+                                        {vendor?.phone && (
+                                            <a
+                                                href={`https://wa.me/${vendor.phone.replace(/\D/g, '')}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="flex-1 py-3.5 bg-green-50 text-[#25D366] rounded-2xl hover:bg-[#25D366] hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-2 border-green-100"
                                             >
-                                                Inquiry
-                                            </button>
+                                                <FaWhatsapp size={16} />
+                                                Order on WhatsApp
+                                            </a>
                                         )}
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleChatDirect(product); }}
-                                            className="p-3.5 bg-primary-600 text-white rounded-2xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all"
-                                        >
-                                            <FiMessageSquare className="text-lg" />
-                                        </button>
                                     </div>
                                 </div>
                             </motion.div>
@@ -417,117 +359,7 @@ const B2BVendorStore = () => {
 
             <B2BBottomNav />
 
-            {/* Inquiry Modal */}
-            <AnimatePresence>
-                {showInquiryModal && (
-                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 overflow-hidden">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowInquiryModal(false)}
-                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                        />
-                        <motion.div
-                            initial={{ y: "100%", opacity: 0.5 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: "100%", opacity: 0.5 }}
-                            className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden"
-                        >
-                            <div className="p-8">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center">
-                                            <FiMessageSquare className="text-2xl text-primary-600" />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-gray-800">Send Inquiry</h2>
-                                            <p className="text-gray-500 text-sm">{selectedProduct?.name}</p>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => setShowInquiryModal(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400">
-                                        <FiX className="text-2xl" />
-                                    </button>
-                                </div>
 
-                                <form className="space-y-6" onSubmit={async (e) => {
-                                    e.preventDefault();
-                                    const formData = new FormData(e.target);
-                                    const quantity = formData.get('quantity');
-                                    const message = formData.get('message');
-
-                                    if (!quantity || !message) {
-                                        toast.error('Please fill in all required fields');
-                                        return;
-                                    }
-
-                                    try {
-                                        const vendorId = selectedProduct.vendorId?._id || selectedProduct.vendorId;
-                                        const convResponse = await chatService.createOrGetConversation(vendorId);
-                                        const conversation = convResponse.data || convResponse;
-                                        const conversationId = conversation._id;
-
-                                        const metadata = {
-                                            productId: selectedProduct._id,
-                                            productName: selectedProduct.name,
-                                            productImage: selectedProduct.images?.[0] || selectedProduct.image,
-                                            productPrice: selectedProduct.price,
-                                            quantity: Number(quantity),
-                                            clientMessage: message
-                                        };
-
-                                        const inquiryMessage = `📦 *INQUIRY FOR: ${selectedProduct.name}*\n` +
-                                            `🔢 *Quantity:* ${quantity} units\n` +
-                                            `💬 *Message:* ${message}`;
-
-                                        await chatService.sendMessage(conversationId, vendorId, inquiryMessage, 'inquiry', metadata);
-
-                                        setProductInquiries(prev => ({
-                                            ...prev,
-                                            [selectedProduct._id]: true
-                                        }));
-
-                                        toast.success('Inquiry sent successfully!');
-                                        setShowInquiryModal(false);
-                                    } catch (err) {
-                                        console.error('Inquiry failed:', err);
-                                        toast.error('Failed to send inquiry');
-                                    }
-                                }}>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-widest">Quantity Needed</label>
-                                        <input
-                                            type="number"
-                                            name="quantity"
-                                            placeholder="Min. 100 units"
-                                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
-                                            required
-                                            min="1"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-widest">Message to Vendor</label>
-                                        <textarea
-                                            name="message"
-                                            rows="4"
-                                            placeholder="Write your requirements here..."
-                                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium resize-none"
-                                            required
-                                        ></textarea>
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        className="w-full py-4 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <FiMessageSquare />
-                                        Submit Quote Request
-                                    </button>
-                                </form>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

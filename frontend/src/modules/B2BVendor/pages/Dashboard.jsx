@@ -87,24 +87,6 @@ const B2BVendorDashboard = () => {
             textColor: "text-blue-700",
             link: "/b2b-vendor/products",
         },
-        {
-            icon: FiMessageCircle,
-            label: "Buyer Inquiries",
-            value: data.metrics.totalInquiries,
-            color: "bg-green-500",
-            bgColor: "bg-green-50",
-            textColor: "text-green-700",
-            link: "/b2b-vendor/messages",
-        },
-        {
-            icon: FiTrendingUp,
-            label: "Active Chats",
-            value: data.metrics.activeConversations,
-            color: "bg-orange-500",
-            bgColor: "bg-orange-50",
-            textColor: "text-orange-700",
-            link: "/b2b-vendor/messages",
-        },
     ];
 
     return (
@@ -117,13 +99,13 @@ const B2BVendorDashboard = () => {
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">B2B Vendor Dashboard</h1>
                     <p className="text-sm sm:text-base text-gray-600">
-                        Welcome, {vendor?.name}! Manage your B2B listings and retailer relations.
+                        Welcome, {vendor?.name}! Manage your B2B listings and connect with retailers directly.
                     </p>
                 </div>
                 <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {statCards.map((stat, index) => (
                     <motion.div
                         key={index}
@@ -147,38 +129,8 @@ const B2BVendorDashboard = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-lg font-bold text-gray-800">Recent Buyer Inquiries</h2>
-                            <button onClick={() => navigate("/b2b-vendor/messages")} className="text-sm text-primary-600 font-bold hover:underline">View All</button>
-                        </div>
-                        <div className="space-y-4">
-                            {loading ? (
-                                <div className="text-center py-8 text-gray-500">Loading inquiries...</div>
-                            ) : data.recentInquiries.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500">No recent inquiries</div>
-                            ) : (
-                                data.recentInquiries.map((inq) => (
-                                    <div key={inq.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200" onClick={() => navigate("/b2b-vendor/messages")}>
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-gray-200">
-                                                <FiUsers className="text-primary-500" />
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-gray-800">{inq.vendor}</p>
-                                                <p className="text-xs text-gray-500">{inq.product}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-gray-400 mb-1">{new Date(inq.date).toLocaleDateString()}</p>
-                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${inq.status === 'new' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                {inq.status}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
+                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 italic text-gray-400 text-center py-12">
+                        Retailers will contact you directly via WhatsApp or Call for business inquiries.
                     </div>
                 </div>
 

@@ -23,61 +23,14 @@ const B2BProductDetail = () => {
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
     const [quantity, setQuantity] = useState(1); // Will be updated from product.moq
-    const [showInquiryModal, setShowInquiryModal] = useState(false);
-    const [inquiryAttachment, setInquiryAttachment] = useState(null);
-    const [uploadingInquiryFile, setUploadingInquiryFile] = useState(false);
-    const [hasInquiry, setHasInquiry] = useState(false);
 
-    const handleInquiryFileSelect = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
 
-        if (file.size > 10 * 1024 * 1024) {
-            toast.error('File size too large. Max 10MB.');
-            return;
-        }
-
-        try {
-            setUploadingInquiryFile(true);
-            const response = await chatService.uploadAttachment(file);
-            if (response.success) {
-                setInquiryAttachment(response.data);
-                toast.success('File attached');
-            }
-        } catch (error) {
-            console.error('File upload error:', error);
-            toast.error('Failed to upload file');
-        } finally {
-            setUploadingInquiryFile(false);
-        }
-    };
 
     useEffect(() => {
         fetchProductDetails();
     }, [id]);
 
-    useEffect(() => {
-        if (product && isAuthenticated) {
-            checkInquiryStatus();
-        }
-    }, [product, isAuthenticated, id]);
 
-    const checkInquiryStatus = async () => {
-        if (!product || !isAuthenticated) return;
-
-        try {
-            const productId = product._id || product.id;
-            if (!productId) return;
-
-            const response = await api.get(`/user/chat/inquiries/check/${productId}`);
-            if (response.success && response.data) {
-                setHasInquiry(response.data.hasInquiry || false);
-            }
-        } catch (error) {
-            // If error (e.g., not authenticated), treat as no inquiry
-            setHasInquiry(false);
-        }
-    };
 
     const fetchProductDetails = async () => {
         setLoading(true);
@@ -306,7 +259,7 @@ const B2BProductDetail = () => {
             return product.attributes
                 .filter(attr => {
                     const name = attr.name || attr.attributeName || '';
-                    return name && !['category', 'subcategory', 'bulkPricing'].includes(name);
+                    return name && !['category', 'subcategory', 'bulkPricing', 'Color', 'color'].includes(name);
                 })
                 .map(attr => ({
                     name: attr.name || attr.attributeName || 'Specification',
@@ -508,30 +461,9 @@ const B2BProductDetail = () => {
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                {hasInquiry ? (
-                                    <div className="py-4 bg-green-50 border-2 border-green-200 text-green-700 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
-                                        <span>✓ Inquiry Done</span>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => setShowInquiryModal(true)}
-                                        className="py-4 bg-primary-600 text-white rounded-2xl font-bold text-sm hover:bg-primary-700 shadow-lg shadow-primary-100 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <FiSend className="text-lg" />
-                                        Inquiry
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => navigate(`/b2b/inquiries?vendorId=${product.vendorId?._id || product.vendorId}`)}
-                                    className="py-4 bg-white border-2 border-primary-600 text-primary-600 rounded-2xl font-bold text-sm hover:bg-primary-50 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <FiMessageSquare className="text-lg" />
-                                    Chat
-                                </button>
-
+                            <div className="flex flex-col gap-3">
                                 {product.vendorId?.phone && (
-                                    <>
+                                    <div className="grid grid-cols-2 gap-3 w-full">
                                         <a
                                             href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
                                             target="_blank"
@@ -548,7 +480,7 @@ const B2BProductDetail = () => {
                                             <FiPhone className="text-xl" />
                                             Call Now
                                         </a>
-                                    </>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -658,128 +590,6 @@ const B2BProductDetail = () => {
             </main>
 
             <B2BBottomNav />
-
-            {/* Inquiry Modal */}
-            <AnimatePresence>
-                {showInquiryModal && (
-                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 overflow-hidden">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => {
-                                setShowInquiryModal(false);
-                                setInquiryAttachment(null);
-                            }}
-                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                        />
-                        <motion.div
-                            initial={{ y: "100%", opacity: 0.5 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: "100%", opacity: 0.5 }}
-                            className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden"
-                        >
-                            <div className="p-8">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center">
-                                            <FiMessageSquare className="text-2xl text-primary-600" />
-                                        </div>
-                                        <div>
-                                            <h2 className="text-2xl font-bold text-gray-800">Send Inquiry</h2>
-                                            <p className="text-gray-500 text-sm">Bulk Quote Request</p>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => {
-                                        setShowInquiryModal(false);
-                                        setInquiryAttachment(null);
-                                    }} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
-                                        <FiX className="text-2xl" />
-                                    </button>
-                                </div>
-
-                                <form className="space-y-6" onSubmit={handleInquirySubmit}>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Quantity Needed</label>
-                                        <input
-                                            name="quantity"
-                                            type="number"
-                                            defaultValue={quantity}
-                                            min={product.moq || 1}
-                                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <label className="block text-sm font-bold text-gray-700">Message to Vendor</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="file"
-                                                    id="inquiry-file"
-                                                    onChange={handleInquiryFileSelect}
-                                                    className="hidden"
-                                                    accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => document.getElementById('inquiry-file').click()}
-                                                    disabled={uploadingInquiryFile}
-                                                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border-2 transition-all ${inquiryAttachment ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-primary-600 border-primary-100 hover:bg-primary-50'}`}
-                                                >
-                                                    {uploadingInquiryFile ? (
-                                                        <div className="w-3 h-3 border-2 border-primary-600/30 border-t-primary-600 rounded-full animate-spin" />
-                                                    ) : inquiryAttachment ? (
-                                                        <FiCheckCircle />
-                                                    ) : (
-                                                        <FiPaperclip />
-                                                    )}
-                                                    {inquiryAttachment ? 'File Attached' : 'Attach File'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <textarea
-                                            name="message"
-                                            rows="4"
-                                            placeholder="Write your specific requirements here (e.g. delivery time, branding need)..."
-                                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium resize-none shadow-inner"
-                                            required
-                                        ></textarea>
-
-                                        {inquiryAttachment && (
-                                            <div className="mt-3 flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-primary-600 shadow-sm border border-gray-100">
-                                                        <FiFile />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="text-xs font-bold text-gray-800 truncate">{inquiryAttachment.originalName}</p>
-                                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-tighter">{inquiryAttachment.format} • Max 10MB</p>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setInquiryAttachment(null)}
-                                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                >
-                                                    <FiX />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <button
-                                        type="submit"
-                                        className="w-full py-4 bg-primary-600 text-white rounded-[1.25rem] font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all flex items-center justify-center gap-2 active:scale-95"
-                                    >
-                                        <FiSend />
-                                        Submit Quote Request
-                                    </button>
-                                </form>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

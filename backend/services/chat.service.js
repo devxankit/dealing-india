@@ -34,6 +34,13 @@ class ChatService {
       const userObjectId = new mongoose.Types.ObjectId(userId);
       const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
 
+      // Block B2B vendors from chat
+      const Vendor = (await import('../models/Vendor.model.js')).default;
+      const vendor = await Vendor.findById(vendorId).select('vendorType').lean();
+      if (vendor && vendor.vendorType === 'b2b') {
+        throw new Error('Chat and Inquiry features are disabled for B2B vendors. Please contact them via WhatsApp or Phone.');
+      }
+
       if (userObjectId.equals(vendorObjectId)) {
         throw new Error('Cannot create a chat with yourself');
       }
@@ -200,6 +207,14 @@ class ChatService {
         : null;
 
       console.log('Converted vendorObjectId:', vendorObjectId);
+
+      // Block B2B vendors from retrieving conversations
+      const Vendor = (await import('../models/Vendor.model.js')).default;
+      const vendor = await Vendor.findById(vendorId).select('vendorType').lean();
+      if (vendor && vendor.vendorType === 'b2b') {
+        console.log('Chat access denied for B2B vendor:', vendorId);
+        return [];
+      }
 
       const query = {
         participants: {
@@ -414,19 +429,10 @@ class ChatService {
       // Create notification for receiver if it's an inquiry related message
       try {
         if (messageType === 'inquiry' || (metadata && metadata.productId)) {
-          // Determine actionUrl based on receiver role and type
+          // Determine actionUrl based on receiver role
           let actionUrl;
           if (receiverRole === 'user') {
-            actionUrl = `/b2b/chat/${conversationId}`;
-          } else if (receiverRole === 'vendor') {
-            // Check if vendor is B2B vendor
-            const Vendor = (await import('../models/Vendor.model.js')).default;
-            const receiverVendor = await Vendor.findById(receiverId).select('vendorType').lean();
-            if (receiverVendor && receiverVendor.vendorType === 'b2b') {
-              actionUrl = `/b2b-vendor/messages`;
-            } else {
-              actionUrl = `/vendor/chat/${conversationId}`;
-            }
+            actionUrl = `/app/chat/${conversationId}`; // Default path for users
           } else {
             actionUrl = `/vendor/chat/${conversationId}`;
           }

@@ -27,7 +27,7 @@ const EditProduct = () => {
 
                     // Extract specifications (excluding category, subcategory, bulkPricing)
                     const specifications = productData.attributes?.filter(attr =>
-                        !['category', 'subcategory', 'bulkPricing'].includes(attr.name)
+                        !['category', 'subcategory', 'bulkPricing', 'Color', 'color'].includes(attr.name)
                     ) || [];
 
                     // Parse bulk pricing if exists

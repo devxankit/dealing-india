@@ -228,7 +228,7 @@ const B2BVendorManageProducts = lazyWithRetry(() => import("./modules/B2BVendor/
 const B2BVendorAddProduct = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/AddProduct"));
 const B2BVendorEditProduct = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/EditProduct"));
 const B2BVendorMessages = lazyWithRetry(() => import("./modules/B2BVendor/pages/Messages"));
-const B2BVendorAnalytics = lazyWithRetry(() => import("./modules/B2BVendor/pages/Analytics"));
+
 const B2BVendorSettings = lazyWithRetry(() => import("./modules/B2BVendor/pages/Settings"));
 const B2BVendorProfile = lazyWithRetry(() => import("./modules/B2BVendor/pages/Profile"));
 const B2BVendorSubscription = lazyWithRetry(() => import("./modules/B2BVendor/pages/Subscription"));
@@ -239,7 +239,7 @@ const B2BVendorPaymentPage = lazyWithRetry(() => import("./modules/B2BVendor/pag
 const B2BUserLogin = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Login"));
 const B2BUserRegister = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Register"));
 const B2BUserVerification = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Verification"));
-const B2BUserDashboard = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Dashboard"));
+
 const B2BProductCatalog = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ProductCatalog"));
 const B2BInquiries = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Inquiries"));
 const B2BUserProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Profile"));
@@ -473,10 +473,10 @@ const AppRoutes = () => {
         <Route path="/b2b/register" element={<B2BUserRegister />} />
         <Route path="/b2b/verification" element={<B2BUserVerification />} />
 
-        <Route path="/b2b" element={<ProtectedRoute><B2BUserDashboard /></ProtectedRoute>} />
+        <Route path="/b2b" element={<Navigate to="/b2b/landing" replace />} />
         <Route path="/b2b/landing" element={<ProtectedRoute><B2BLanding /></ProtectedRoute>} />
         <Route path="/b2b/catalog" element={<ProtectedRoute><B2BProductCatalog /></ProtectedRoute>} />
-        <Route path="/b2b/inquiries" element={<ProtectedRoute><B2BInquiries /></ProtectedRoute>} />
+
         <Route path="/b2b/profile" element={<ProtectedRoute><B2BUserProfile /></ProtectedRoute>} />
         <Route path="/b2b/personal-profile" element={<ProtectedRoute><B2BPersonalProfile /></ProtectedRoute>} />
         <Route path="/b2b/seller-selection" element={<ProtectedRoute><SellerTypeSelection /></ProtectedRoute>} />
@@ -615,8 +615,8 @@ const AppRoutes = () => {
           <Route path="products/manage-products" element={<B2BVendorManageProducts />} />
           <Route path="products/add-product" element={<B2BVendorAddProduct />} />
           <Route path="products/edit/:id" element={<B2BVendorEditProduct />} />
-          <Route path="messages" element={<B2BVendorMessages />} />
-          <Route path="analytics" element={<B2BVendorAnalytics />} />
+
+
           <Route path="settings" element={<B2BVendorSettings />} />
           <Route path="settings/profile" element={<B2BVendorSettings />} />
           <Route path="settings/business" element={<Navigate to="/b2b-vendor/settings/profile" replace />} />

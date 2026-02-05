@@ -68,13 +68,13 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
         if (onSearchSubmit) {
             onSearchSubmit(query);
         } else {
-            navigate(`/b2b?search=${encodeURIComponent(query)}`);
+            navigate(`/b2b/landing?search=${encodeURIComponent(query)}`);
         }
     };
 
     const handleSearchSubmit = (e) => {
         e.preventDefault();
-        const query = searchQuery.trim();
+        const query = localSearchQuery.trim();
 
         if (onSearchSubmit) {
             // If parent component provides submit handler, use it
@@ -82,9 +82,9 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
         } else {
             // Otherwise, navigate to product catalog with search query
             if (query) {
-                navigate(`/b2b?search=${encodeURIComponent(query)}`);
+                navigate(`/b2b/landing?search=${encodeURIComponent(query)}`);
             } else {
-                navigate('/b2b');
+                navigate('/b2b/landing');
             }
         }
     };
@@ -194,13 +194,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                 )}
 
                 <div className="flex items-center gap-2">
-                    <Link to="/b2b" className="p-2.5 text-gray-600 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all" title="Business Dashboard">
-                        <FiLayout className="text-xl" />
-                    </Link>
-                    <Link to="/b2b/inquiries" className="p-2.5 text-gray-600 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all relative">
-                        <FiMessageSquare className="text-xl" />
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                    </Link>
+
                     <Link to="/b2b/profile" className="p-2.5 text-gray-600 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all">
                         <FiUser className="text-xl" />
                     </Link>

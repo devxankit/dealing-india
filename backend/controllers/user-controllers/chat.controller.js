@@ -355,60 +355,7 @@ class ChatController {
         }
     }
 
-    /**
-     * Check if user has sent inquiry for a product
-     * GET /api/user/inquiries/check/:productId
-     */
-    async checkInquiryForProduct(req, res) {
-        try {
-            const userId = req.user?.userId || req.user?._id;
-            const { productId } = req.params;
 
-            if (!userId) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'User not authenticated'
-                });
-            }
-
-            if (!productId) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Product ID is required'
-                });
-            }
-
-            // Import Message model
-            const Message = (await import('../../models/Message.model.js')).default;
-
-            // Check if user has sent an inquiry message with this productId in metadata
-            const inquiryMessage = await Message.findOne({
-                senderId: userId,
-                senderRole: 'user',
-                messageType: { $in: ['inquiry', 'file'] }, // file type can also contain inquiry
-                $or: [
-                    { 'metadata.productId': productId },
-                    { 'metadata.productId': new mongoose.Types.ObjectId(productId) }
-                ]
-            }).lean();
-
-            const hasInquiry = !!inquiryMessage;
-
-            res.status(200).json({
-                success: true,
-                data: {
-                    hasInquiry,
-                    inquiryId: inquiryMessage?._id || null
-                }
-            });
-        } catch (error) {
-            console.error('[ChatController] Error checking inquiry:', error);
-            res.status(500).json({
-                success: false,
-                message: error.message || 'Failed to check inquiry status'
-            });
-        }
-    }
 }
 
 export default new ChatController();
