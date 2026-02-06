@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import StatsCards from '../components/Analytics/StatsCards';
 import RevenueLineChart from '../components/Analytics/RevenueLineChart';
 import SalesBarChart from '../components/Analytics/SalesBarChart';
-import OrderStatusPieChart from '../components/Analytics/OrderStatusPieChart';
+// import OrderStatusPieChart from '../components/Analytics/OrderStatusPieChart';
 import CustomerGrowthAreaChart from '../components/Analytics/CustomerGrowthAreaChart';
 import RevenueVsOrdersChart from '../components/Analytics/RevenueVsOrdersChart';
 import TopProducts from '../components/Analytics/TopProducts';
@@ -21,13 +21,13 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { isAuthenticated, initialize } = useAdminAuthStore();
   const [period, setPeriod] = useState('month');
-  
+
   // Use TanStack Query for dashboard data
-  const { 
-    data: dashboardResponse, 
-    isLoading: loading, 
+  const {
+    data: dashboardResponse,
+    isLoading: loading,
     error: queryError,
-    refetch 
+    refetch
   } = useDashboardSummary(period);
 
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -84,7 +84,7 @@ const Dashboard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-red-500 text-xl font-semibold">{error}</div>
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
@@ -132,7 +132,7 @@ const Dashboard = () => {
       {/* Secondary Charts Row - Combined and Order Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RevenueVsOrdersChart data={data.revenueData} period={period} />
-        <OrderStatusPieChart data={data.orderStatus} />
+        {/* <OrderStatusPieChart data={data.orderStatus} /> */}
       </div>
 
       {/* Customer Growth Chart - Full Width */}

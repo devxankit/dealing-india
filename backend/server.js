@@ -41,6 +41,7 @@ import vendorAnalyticsRoutes from './routes/vendor-routes/analytics.routes.js';
 import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
 import b2bVendorDashboardRoutes from './routes/b2bVendorDashboard.routes.js';
 import adminB2BProductManagementRoutes from './routes/adminB2BProductManagement.routes.js';
+import adminReportsRoutes from './routes/admin-routes/reports.routes.js';
 
 import vendorAuthRoutes from './routes/vendorAuth.routes.js';
 import adminAuthRoutes from './routes/adminAuth.routes.js';
@@ -243,6 +244,7 @@ app.use('/api/admin/policies', policyRoutes);
 app.use('/api/admin/settings', settingsRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/admin/media', adminMediaRoutes);
+app.use('/api/admin/reports', adminReportsRoutes);
 
 
 // User management routes (require user authentication)
