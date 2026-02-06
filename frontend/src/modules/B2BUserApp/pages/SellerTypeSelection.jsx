@@ -4,7 +4,6 @@ import { FiBriefcase, FiShoppingBag, FiArrowLeft, FiCheckCircle } from 'react-ic
 import { useNavigate, useLocation } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { useVendorAuthStore } from '../../Vendor/store/vendorAuthStore';
 import { useB2BVendorAuthStore } from '../../B2BVendor/store/b2bVendorAuthStore';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
@@ -37,107 +36,58 @@ const SellerTypeSelection = () => {
             if (response.success && response.data) {
                 const { exists, isApproved, vendorType: existingVendorType, status } = response.data;
 
-                const normalizedSelectedType = vendorType === 'b2b' ? 'b2b' : 'b2c';
-                const normalizedExistingType = existingVendorType === 'b2b' ? 'b2b' : 'b2c';
-
-                // Case 1: Existing Vendor of same type
-                if (exists && normalizedExistingType === normalizedSelectedType) {
-                    if (isApproved) {
-                        toast.success(`${vendorType === 'b2b' ? 'B2B Vendor' : 'Vendor'} account exists. Please login.`);
-
-                        // FORCE LOGOUT to ensure login page is shown
-                        if (vendorType === 'b2b') {
-                            useB2BVendorAuthStore.getState().logout();
-                            navigate('/b2b-vendor/login', {
-                                state: {
-                                    email: user.email,
-                                    autoFill: true,
-                                    message: 'Please login to access your B2B Vendor dashboard'
-                                }
-                            });
-                        } else {
-                            useVendorAuthStore.getState().logout();
-                            navigate('/vendor/login', {
-                                state: {
-                                    email: user.email,
-                                    autoFill: true,
-                                    message: 'Please login to access your Vendor dashboard'
-                                }
-                            });
-                        }
-                        return;
-                    }
-
-                    if (status === 'pending') {
-                        toast.success('Your vendor account is pending admin approval.');
-                        if (vendorType === 'b2b') {
-                            useB2BVendorAuthStore.getState().logout();
-                            navigate('/b2b-vendor/login', {
-                                state: { email: user.email, autoFill: true }
-                            });
-                        } else {
-                            useVendorAuthStore.getState().logout();
-                            navigate('/vendor/login', {
-                                state: { email: user.email, autoFill: true }
-                            });
-                        }
-                        return;
-                    }
+                // Only check for B2B vendor type
+                if (vendorType !== 'b2b') {
+                    toast.error('Only B2B vendor registration is available');
+                    return;
                 }
 
-                // Case 2: Existing Vendor of DIFFERENT type
-                if (exists && normalizedExistingType !== normalizedSelectedType) {
-                    toast.success(`You already have a ${normalizedExistingType === 'b2b' ? 'B2B Vendor' : 'Vendor'} account.`);
+                // Case 1: Existing B2B Vendor
+                if (exists && existingVendorType === 'b2b') {
+                    if (isApproved) {
+                        toast.success('B2B Vendor account exists. Please login.');
 
-                    // Update: Always navigate to the REQUESTED vendor type login page, even if mismatch.
-                    // This allows users to try logging in or upgrading if supported by backend.
-                    if (vendorType === 'b2b') {
+                        // FORCE LOGOUT to ensure login page is shown
                         useB2BVendorAuthStore.getState().logout();
                         navigate('/b2b-vendor/login', {
                             state: {
                                 email: user.email,
                                 autoFill: true,
-                                message: 'Please login to proceed.'
+                                message: 'Please login to access your B2B Vendor dashboard'
                             }
                         });
-                    } else {
-                        useVendorAuthStore.getState().logout();
-                        navigate('/vendor/login', {
-                            state: {
-                                email: user.email,
-                                autoFill: true,
-                                message: 'Please login to proceed.'
-                            }
-                        });
+                        return;
                     }
+
+                    if (status === 'pending') {
+                        toast.success('Your B2B vendor account is pending admin approval.');
+                        useB2BVendorAuthStore.getState().logout();
+                        navigate('/b2b-vendor/login', {
+                            state: { email: user.email, autoFill: true }
+                        });
+                        return;
+                    }
+                }
+
+                // Case 2: Vendor of different type exists - not supported
+                if (exists && existingVendorType !== 'b2b') {
+                    toast.error('You have a different vendor account type. Please contact support.');
+                    navigate('/b2b/landing');
                     return;
                 }
             }
 
-            // Case 3: No vendor account exists - Register new
-            if (vendorType === 'b2b') {
-                navigate('/b2b-vendor/register', {
-                    state: {
-                        preFilledData: {
-                            name: user.name,
-                            email: user.email,
-                            phone: user.phone
-                        },
-                        isUpgrade: true
-                    }
-                });
-            } else {
-                navigate('/vendor/register', {
-                    state: {
-                        preFilledData: {
-                            name: user.name,
-                            email: user.email,
-                            phone: user.phone
-                        },
-                        isUpgrade: true
-                    }
-                });
-            }
+            // Case 3: No vendor account exists - Register new B2B vendor
+            navigate('/b2b-vendor/register', {
+                state: {
+                    preFilledData: {
+                        name: user.name,
+                        email: user.email,
+                        phone: user.phone
+                    },
+                    isUpgrade: true
+                }
+            });
         } catch (error) {
             console.error('Error checking vendor status:', error);
             toast.error('Failed to check vendor status. Please try again.');
@@ -188,43 +138,6 @@ const SellerTypeSelection = () => {
                                     <li className="flex items-center text-xs text-gray-600">
                                         <FiCheckCircle className="text-green-500 mr-2" />
                                         Minimum order quantities
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </motion.button>
-
-                    {/* Regular Vendor Option */}
-                    <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleVendorTypeSelection('vendor')}
-                        disabled={isChecking}
-                        className="w-full relative overflow-hidden bg-white p-6 rounded-2xl shadow-sm border-2 border-transparent hover:border-blue-600 transition-all group text-left"
-                    >
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <FiShoppingBag className="w-24 h-24 text-blue-600" />
-                        </div>
-
-                        <div className="relative z-10 flex items-start gap-4">
-                            <div className="w-14 h-14 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
-                                <FiShoppingBag className="text-2xl" />
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-lg font-bold text-gray-900 mb-1">Regular Vendor</h3>
-                                <p className="text-sm text-gray-500 mb-3">Retail & individual seller</p>
-                                <ul className="space-y-1">
-                                    <li className="flex items-center text-xs text-gray-600">
-                                        <FiCheckCircle className="text-green-500 mr-2" />
-                                        Sell directly to customers
-                                    </li>
-                                    <li className="flex items-center text-xs text-gray-600">
-                                        <FiCheckCircle className="text-green-500 mr-2" />
-                                        Simple listing process
-                                    </li>
-                                    <li className="flex items-center text-xs text-gray-600">
-                                        <FiCheckCircle className="text-green-500 mr-2" />
-                                        No minimum quantity
                                     </li>
                                 </ul>
                             </div>

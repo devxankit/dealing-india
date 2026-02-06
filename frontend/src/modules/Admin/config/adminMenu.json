@@ -52,37 +52,6 @@
     ]
   },
   {
-    "title": "Customers",
-    "route": "/admin/customers",
-    "children": [
-      "View Customers",
-      "Addresses",
-      "Transactions",
-      "Customer Analysis"
-    ]
-  },
-  {
-    "title": "Subscriptions",
-    "route": "/admin/subscriptions",
-    "children": [
-      "Analytics",
-      "Tier Config",
-      "Monitoring",
-      "Support Tools"
-    ]
-  },
-  {
-    "title": "Vendors",
-    "route": "/admin/vendors",
-    "children": [
-      "Manage Vendors",
-      "Pending Approvals",
-      "Commission Rates",
-      "Vendor Wallet",
-      "Vendor Analytics"
-    ]
-  },
-  {
     "title": "B2B Vendors",
     "route": "/admin/b2b-vendors",
     "children": [

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  FiArrowLeft, 
-  FiSearch, 
-  FiArrowDownLeft, 
+import {
+  FiArrowLeft,
+  FiSearch,
+  FiArrowDownLeft,
   FiCreditCard,
   FiClock,
   FiDownload,
@@ -61,7 +61,7 @@ const B2BWallet = () => {
       {/* Header & Navigation */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={() => navigate(-1)}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
@@ -79,7 +79,7 @@ const B2BWallet = () => {
 
       {/* Financial Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group"
@@ -108,7 +108,7 @@ const B2BWallet = () => {
           )}
         </motion.div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -134,7 +134,7 @@ const B2BWallet = () => {
           </div>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -162,13 +162,13 @@ const B2BWallet = () => {
             <h3 className="text-xl font-black text-gray-900">B2B Transaction History</h3>
             <p className="text-sm text-gray-500 font-medium">Detailed logs of all B2B banner financial movements</p>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
             <div className="relative flex-1 sm:w-96">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search by ID, Vendor or Reference..." 
+              <input
+                type="text"
+                placeholder="Search by ID, Vendor or Reference..."
                 className="pl-11 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-sm w-full focus:ring-2 focus:ring-gray-900 transition-all outline-none"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -200,7 +200,7 @@ const B2BWallet = () => {
               ) : (
                 <>
                   {transactions.map((txn, index) => (
-                    <motion.tr 
+                    <motion.tr
                       key={txn.id || txn.transactionId}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -268,7 +268,7 @@ const B2BWallet = () => {
             </tbody>
           </table>
         </div>
-        
+
         {/* Footer info */}
         <div className="p-8 bg-gray-50/50 border-t border-gray-50 flex justify-center">
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">End of B2B statement for current period</p>

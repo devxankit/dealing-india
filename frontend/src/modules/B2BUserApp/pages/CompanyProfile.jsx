@@ -4,7 +4,7 @@ import { FiBriefcase, FiMapPin, FiAward, FiEdit2, FiCheck, FiX, FiLoader, FiPlus
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { getAddresses } from '../../../shared/services/addressService';
+import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 
 const CompanyProfile = () => {
@@ -24,16 +24,23 @@ const CompanyProfile = () => {
     useEffect(() => {
         const fetchAddresses = async () => {
             try {
-                const data = await getAddresses();
-                setAddresses(data);
+                // Try to fetch addresses from API
+                const response = await api.get('/user/addresses');
+                if (response.success && response.data) {
+                    setAddresses(response.data);
+                }
             } catch (error) {
                 console.error('Error fetching addresses:', error);
+                // Use addresses from user profile if API fails
+                if (user?.addresses && Array.isArray(user.addresses)) {
+                    setAddresses(user.addresses);
+                }
             } finally {
                 setLoading(false);
             }
         };
         fetchAddresses();
-    }, []);
+    }, [user]);
 
     const handleUpdate = async () => {
         if (!formData.companyName.trim()) {

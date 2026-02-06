@@ -7,14 +7,11 @@ import {
     FiCheckCircle,
     FiFilter,
     FiGrid,
-    FiList,
     FiLoader,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { formatPrice } from "../../utils/helpers";
 import ProductCard from "../ProductCard";
-import ProductListItem from "../../../modules/UserApp/components/Mobile/ProductListItem";
-import MobileLayout from "../../../modules/UserApp/components/Layout/MobileLayout";
 import PageTransition from "../PageTransition";
 import useInfiniteScroll from "../../hooks/useInfiniteScroll";
 import Badge from "../Badge";
@@ -28,7 +25,6 @@ const VendorStore = () => {
     const [vendor, setVendor] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState("grid");
     const [sortBy, setSortBy] = useState("popular");
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters] = useState({
@@ -159,27 +155,27 @@ const VendorStore = () => {
     if (!vendor) {
         return (
             <PageTransition>
-                <MobileLayout showBottomNav={true} showCartBar={true}>
+                <div className="min-h-screen bg-gray-50">
                     <div className="w-full flex items-center justify-center min-h-[60vh] px-4">
                         <div className="text-center">
                             <h2 className="text-xl font-bold text-gray-800 mb-4">
                                 Vendor Not Found
                             </h2>
                             <button
-                                onClick={() => navigate("/app")}
+                                onClick={() => navigate("/b2b/landing")}
                                 className="gradient-green text-white px-6 py-3 rounded-xl font-semibold">
                                 Go Back Home
                             </button>
                         </div>
                     </div>
-                </MobileLayout>
+                </div>
             </PageTransition>
         );
     }
 
     return (
         <PageTransition>
-            <MobileLayout showBottomNav={true} showCartBar={true}>
+            <div className="min-h-screen bg-gray-50">
                 <div className="w-full pb-24">
                     {/* Back Button */}
                     <div className="px-4 pt-4">
@@ -250,7 +246,7 @@ const VendorStore = () => {
                         </div>
                     </div>
 
-                    {/* Filters and View Options */}
+                    {/* Filters and Sort */}
                     <div className="px-4 mb-4">
                         <div className="flex items-center justify-between gap-2">
                             <button
@@ -272,24 +268,6 @@ const VendorStore = () => {
                                 <option value="rating">Highest Rated</option>
                                 <option value="newest">Newest</option>
                             </select>
-                            <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-300 p-1">
-                                <button
-                                    onClick={() => setViewMode("grid")}
-                                    className={`p-1.5 rounded transition-colors ${viewMode === "grid"
-                                        ? "bg-primary-100 text-primary-700"
-                                        : "text-gray-600"
-                                        }`}>
-                                    <FiGrid className="text-base" />
-                                </button>
-                                <button
-                                    onClick={() => setViewMode("list")}
-                                    className={`p-1.5 rounded transition-colors ${viewMode === "list"
-                                        ? "bg-primary-100 text-primary-700"
-                                        : "text-gray-600"
-                                        }`}>
-                                    <FiList className="text-base" />
-                                </button>
-                            </div>
                         </div>
                     </div>
 
@@ -382,27 +360,15 @@ const VendorStore = () => {
                         </motion.div>
                     )}
 
-                    {/* Products Grid/List */}
+                    {/* Products Grid */}
                     <div className="px-4 pb-4">
                         {filteredProducts.length > 0 ? (
                             <>
-                                {viewMode === "grid" ? (
-                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
-                                        {displayedItems.map((product) => (
-                                            <ProductCard key={product.id} product={product} />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {displayedItems.map((product, index) => (
-                                            <ProductListItem
-                                                key={product.id}
-                                                product={product}
-                                                index={index}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
+                                    {displayedItems.map((product) => (
+                                        <ProductCard key={product.id} product={product} />
+                                    ))}
+                                </div>
                                 {hasMore && (
                                     <div ref={loadMoreRef} className="text-center py-8">
                                         <p className="text-gray-500 text-sm">
@@ -424,8 +390,8 @@ const VendorStore = () => {
                         )}
                     </div>
                 </div>
-            </MobileLayout>
-        </PageTransition >
+            </div>
+        </PageTransition>
     );
 };
 
