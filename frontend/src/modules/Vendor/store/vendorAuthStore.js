@@ -93,7 +93,7 @@ export const useVendorAuthStore = create(
             storeDescription: vendorData.storeDescription || '',
             address: vendorData.address || {},
             documents: vendorData.documents || [],
-            vendorType: vendorData.vendorType || 'b2c',
+            vendorType: vendorData.vendorType || 'b2b',
             subscriptionPlan: vendorData.subscriptionPlan || null,
           });
 

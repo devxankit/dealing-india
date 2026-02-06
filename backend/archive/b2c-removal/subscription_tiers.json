@@ -1,0 +1,137 @@
+[
+  {
+    "_id": "6954d6c1ed3e2b3c19ffe9c1",
+    "name": "Starter",
+    "description": "Ideal for small vendors starting with video content.",
+    "priceMonthly": 99,
+    "reelLimit": 30,
+    "extraReelPrice": 10,
+    "features": [
+      {
+        "name": "30 reels per month",
+        "included": true,
+        "limit": -1,
+        "_id": "697320d975797dcee38a8a57"
+      },
+      {
+        "name": "Additional reels at ₹10 each",
+        "included": true,
+        "limit": -1,
+        "_id": "697320d975797dcee38a8a58"
+      },
+      {
+        "name": "Standard features",
+        "included": true,
+        "limit": -1,
+        "_id": "697320d975797dcee38a8a59"
+      }
+    ],
+    "isActive": true,
+    "billingCycle": "monthly",
+    "__v": 0,
+    "createdAt": "2025-12-31T07:54:41.083Z",
+    "updatedAt": "2026-01-23T07:18:49.682Z",
+    "razorpayPlanId": "plan_S7Ed8TW5bExvJT"
+  },
+  {
+    "_id": "6954d6c1ed3e2b3c19ffe9c5",
+    "name": "Professional",
+    "description": "For active vendors with regular video content.",
+    "priceMonthly": 299,
+    "reelLimit": 100,
+    "extraReelPrice": 10,
+    "features": [
+      {
+        "name": "100 reels per month",
+        "included": true,
+        "limit": -1,
+        "_id": "695b5af206501276e8257a23"
+      },
+      {
+        "name": "Additional reels at ₹10 each",
+        "included": true,
+        "limit": -1,
+        "_id": "695b5af206501276e8257a24"
+      },
+      {
+        "name": "Enhanced features",
+        "included": true,
+        "limit": -1,
+        "_id": "695b5af206501276e8257a25"
+      }
+    ],
+    "isActive": true,
+    "billingCycle": "monthly",
+    "__v": 0,
+    "createdAt": "2025-12-31T07:54:41.083Z",
+    "updatedAt": "2026-01-05T06:32:18.800Z",
+    "razorpayPlanId": "plan_S7ELh7bmKVjxgG"
+  },
+  {
+    "_id": "6954d6c1ed3e2b3c19ffe9bd",
+    "name": "Free",
+    "description": "Default plan for all vendors. Pay per upload.",
+    "priceMonthly": 0,
+    "reelLimit": 0,
+    "extraReelPrice": 10,
+    "features": [
+      {
+        "name": "Cost per reel upload: ₹10",
+        "included": true,
+        "limit": -1,
+        "_id": "6954d6c1ed3e2b3c19ffe9be"
+      },
+      {
+        "name": "Basic features",
+        "included": true,
+        "limit": -1,
+        "_id": "6954d6c1ed3e2b3c19ffe9bf"
+      },
+      {
+        "name": "Automatic activation",
+        "included": true,
+        "limit": -1,
+        "_id": "6954d6c1ed3e2b3c19ffe9c0"
+      }
+    ],
+    "isActive": true,
+    "billingCycle": "monthly",
+    "__v": 0,
+    "createdAt": "2025-12-31T07:54:41.082Z",
+    "updatedAt": "2025-12-31T07:54:41.082Z"
+  },
+  {
+    "_id": "6954d6c1ed3e2b3c19ffe9c9",
+    "name": "Premium",
+    "description": "For power users with unlimited content needs.",
+    "priceMonthly": 499,
+    "reelLimit": -1,
+    "extraReelPrice": 0,
+    "features": [
+      {
+        "name": "Unlimited reel uploads",
+        "included": true,
+        "limit": -1,
+        "_id": "6954d6c1ed3e2b3c19ffe9ca"
+      },
+      {
+        "name": "Premium features",
+        "included": true,
+        "limit": -1,
+        "_id": "6954d6c1ed3e2b3c19ffe9cb"
+      },
+      {
+        "name": "Priority support",
+        "included": true,
+        "limit": -1,
+        "_id": "6954d6c1ed3e2b3c19ffe9cc"
+      }
+    ],
+    "isActive": true,
+    "billingCycle": "monthly",
+    "__v": 0,
+    "createdAt": "2025-12-31T07:54:41.083Z",
+    "updatedAt": "2025-12-31T07:54:41.083Z",
+    "razorpayPlanId": "plan_S7EM0Xy71x35aJ"
+  }
+]

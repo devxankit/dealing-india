@@ -1,0 +1,76 @@
+[
+  {
+    "_id": "695ca4d6f86e592574cc1da5",
+    "reelId": "695ca494c23349647253f7f7",
+    "userId": "694f9a9c06dba2234744db79",
+    "text": "good",
+    "isActive": true,
+    "createdAt": "2026-01-06T05:59:50.038Z",
+    "updatedAt": "2026-01-06T05:59:50.038Z",
+    "__v": 0
+  },
+  {
+    "_id": "695ca8e215b0d547fca3a18d",
+    "reelId": "695ca494c23349647253f7f7",
+    "userId": "694f9a9c06dba2234744db79",
+    "text": "best modal",
+    "isActive": true,
+    "createdAt": "2026-01-06T06:17:06.031Z",
+    "updatedAt": "2026-01-06T06:17:06.031Z",
+    "__v": 0
+  },
+  {
+    "_id": "695cc526b0ae56e5cfb7e4c7",
+    "reelId": "695cc4bcb0ae56e5cfb7e2f7",
+    "userId": "694f9a9c06dba2234744db79",
+    "text": "good",
+    "isActive": true,
+    "createdAt": "2026-01-06T08:17:42.951Z",
+    "updatedAt": "2026-01-06T08:17:42.951Z",
+    "__v": 0
+  },
+  {
+    "_id": "6960953a82f5334e7b26473b",
+    "reelId": "6960952082f5334e7b2646ef",
+    "reelModel": "PromotionalReel",
+    "userId": "694f9a9c06dba2234744db79",
+    "text": "big",
+    "isActive": true,
+    "createdAt": "2026-01-09T05:42:18.117Z",
+    "updatedAt": "2026-01-09T05:42:18.117Z",
+    "__v": 0
+  },
+  {
+    "_id": "6960956182f5334e7b2647ad",
+    "reelId": "6960952082f5334e7b2646ef",
+    "reelModel": "PromotionalReel",
+    "userId": "694f9a9c06dba2234744db79",
+    "text": "best",
+    "isActive": true,
+    "createdAt": "2026-01-09T05:42:57.444Z",
+    "updatedAt": "2026-01-09T05:42:57.444Z",
+    "__v": 0
+  },
+  {
+    "_id": "6960e881f7aa8b4623cb3ce8",
+    "reelId": "695ca494c23349647253f7f7",
+    "reelModel": "Reel",
+    "userId": "694f9a9c06dba2234744db79",
+    "text": "Good",
+    "isActive": true,
+    "createdAt": "2026-01-09T11:37:37.223Z",
+    "updatedAt": "2026-01-09T11:37:37.223Z",
+    "__v": 0
+  },
+  {
+    "_id": "6974cb8379f1696a3ba5066c",
+    "reelId": "6974cb1479f1696a3ba505c1",
+    "reelModel": "PromotionalReel",
+    "userId": "694f9a9c06dba2234744db79",
+    "text": "Best",
+    "isActive": true,
+    "createdAt": "2026-01-24T13:39:15.307Z",
+    "updatedAt": "2026-01-24T13:39:15.307Z",
+    "__v": 0
+  }
+]

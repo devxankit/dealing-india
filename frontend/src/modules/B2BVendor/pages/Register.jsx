@@ -443,12 +443,6 @@ const B2BVendorRegister = () => {
                             Already registered? <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">Login here</Link>
                         </p>
 
-                        <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-2">
-                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Retail Vendor?</span>
-                            <Link to="/vendor/login" className="text-primary-600 font-bold hover:underline">
-                                Switch to B2C Vendor Panel
-                            </Link>
-                        </div>
                     </div>
                 </form>
             </motion.div>

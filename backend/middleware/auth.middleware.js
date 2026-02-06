@@ -1,5 +1,4 @@
 import { verifyToken } from '../utils/jwt.util.js';
-import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
 import Admin from '../models/Admin.model.js';
 
@@ -26,12 +25,7 @@ export const optionalAuthenticate = async (req, res, next) => {
       req.user = decoded;
 
       // Optionally fetch user document if token is valid
-      if (decoded.role === 'user' && decoded.userId) {
-        const user = await User.findById(decoded.userId);
-        if (user && user.isActive) {
-          req.userDoc = user;
-        }
-      } else if (decoded.role === 'vendor' && decoded.vendorId) {
+      if (decoded.role === 'vendor' && decoded.vendorId) {
         const vendor = await Vendor.findById(decoded.vendorId);
         if (vendor && vendor.isActive) {
           req.userDoc = vendor;
@@ -85,18 +79,8 @@ export const authenticate = async (req, res, next) => {
     req.user = decoded;
 
     // Optionally, fetch and attach full user document
-    // This can be useful if you need access to the full user object
     try {
-      if (decoded.role === 'user' && decoded.userId) {
-        const user = await User.findById(decoded.userId);
-        if (!user || !user.isActive) {
-          return res.status(401).json({
-            success: false,
-            message: 'User account not found or inactive',
-          });
-        }
-        req.userDoc = user;
-      } else if (decoded.role === 'vendor' && decoded.vendorId) {
+      if (decoded.role === 'vendor' && decoded.vendorId) {
         const vendor = await Vendor.findById(decoded.vendorId);
         if (!vendor || !vendor.isActive) {
           return res.status(401).json({
@@ -119,7 +103,7 @@ export const authenticate = async (req, res, next) => {
       console.error('Error fetching user document in auth middleware:', {
         message: dbError.message,
         role: decoded.role,
-        userId: decoded.userId || decoded.vendorId || decoded.adminId,
+        userId: decoded.vendorId || decoded.adminId,
       });
       // Continue without userDoc - some endpoints might not need it
     }
@@ -159,4 +143,3 @@ export const authorize = (...roles) => {
 // Role-specific authorization middlewares
 export const adminOnly = authorize('admin');
 export const vendorOnly = authorize('vendor');
-export const userOnly = authorize('user');

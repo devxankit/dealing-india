@@ -205,7 +205,7 @@ export const registerVendor = async (vendorData) => {
         storeDescription: storeDescription ? storeDescription.trim() : undefined,
         address: address || {},
         documents: processedDocuments, // Store processed documents
-        vendorType: vendorType || 'b2c',
+        vendorType: vendorType || 'b2b',
         // B2B-specific fields
         businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()) : undefined,
         gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
@@ -279,8 +279,7 @@ export const loginVendor = async (email, password) => {
       throw error;
     }
 
-    // For B2B vendor login, ensure vendorType is b2b
-    // Note: This allows both B2B and B2C vendors to use the same login endpoint
+    // Note: This allows B2B vendors to use the login endpoint
     // Frontend can filter based on vendorType if needed
 
     console.log(`[Login Progress] Vendor found - Email: ${vendor.email}, Type: ${vendor.vendorType}, Status: ${vendor.status}, isActive: ${vendor.isActive}`);
@@ -561,7 +560,7 @@ export const verifyVendorEmail = async (email, otp) => {
       isEmailVerified: true, // Set to true since OTP is verified
       isActive: true,
       role: 'vendor',
-      vendorType: tempRegistration.registrationData.vendorType || 'b2c',
+      vendorType: tempRegistration.registrationData.vendorType || 'b2b',
     };
 
     // Add B2B-specific fields if vendorType is b2b

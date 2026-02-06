@@ -4,14 +4,6 @@ import { FiShoppingBag, FiBriefcase, FiCheck } from 'react-icons/fi';
 const VendorTypeSelector = ({ selected, onSelect }) => {
     const types = [
         {
-            id: 'b2c',
-            title: 'B2C Vendor (Retail)',
-            description: 'Sell products directly to individual customers. Buy now / Add to cart functionality.',
-            icon: FiShoppingBag,
-            color: 'blue',
-            badge: 'Direct Selling'
-        },
-        {
             id: 'b2b',
             title: 'B2B Vendor (Business)',
             description: 'Sell bulk quantities to other businesses. Inquiry and chat-based negotiation.',
@@ -30,8 +22,8 @@ const VendorTypeSelector = ({ selected, onSelect }) => {
                     whileTap={{ scale: 0.98 }}
                     onClick={() => onSelect(type.id)}
                     className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all ${selected === type.id
-                            ? `border-${type.color === 'primary' ? 'primary-600' : 'blue-600'} bg-${type.color === 'primary' ? 'primary-50' : 'blue-50'} shadow-md`
-                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        ? `border-${type.color === 'primary' ? 'primary-600' : 'blue-600'} bg-${type.color === 'primary' ? 'primary-50' : 'blue-50'} shadow-md`
+                        : 'border-gray-200 bg-white hover:border-gray-300'
                         }`}
                 >
                     {selected === type.id && (

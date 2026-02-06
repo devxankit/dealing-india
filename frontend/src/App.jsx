@@ -12,8 +12,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const SupportTickets = lazyWithRetry(() => import("./shared/components/Support/SupportTickets"));
 const VendorStore = lazyWithRetry(() => import("./shared/components/Store/VendorStore"));
 const AdminSupportTickets = lazyWithRetry(() => import("./modules/Admin/pages/supportTickets/SupportTickets"));
-const CartDrawer = lazyWithRetry(() => import("./shared/components/Cart/CartDrawer"));
-import { useTimeWarpCheat } from "./shared/hooks/useTimeWarpCheat";
 const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
 const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
 const AdminLogin = lazyWithRetry(() => import("./modules/Admin/pages/Login"));
@@ -130,44 +128,6 @@ const AdminB2BCategories = lazyWithRetry(() => import("./modules/Admin/pages/b2b
 const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrapper"));
 // Mobile App Routes
 const Chat = lazyWithRetry(() => import("./shared/components/Chat/Chat"));
-const ScrollToTop = lazyWithRetry(() => import("./shared/components/ScrollToTop"));
-
-// Mobile App Routes (Eager Loaded for Instant Nav - Refactored to Lazy for Performance)
-const LandingPage = lazyWithRetry(() => import("./modules/UserApp/pages/LandingPage"));
-const MobileHome = lazyWithRetry(() => import("./modules/UserApp/pages/Home"));
-const MobileCategories = lazyWithRetry(() => import("./modules/UserApp/pages/categories"));
-const MobileSearch = lazyWithRetry(() => import("./modules/UserApp/pages/Search"));
-const MobileReels = lazyWithRetry(() => import("./modules/UserApp/pages/Reels"));
-const MobileProfile = lazyWithRetry(() => import("./modules/UserApp/pages/Profile"));
-const MobileBecomeSeller = lazyWithRetry(() => import("./modules/UserApp/pages/BecomeSeller"));
-const MobileLogin = lazyWithRetry(() => import("./modules/UserApp/pages/Login"));
-
-// Mobile App Routes (Lazy Loaded with Auto-Refresh on Fail)
-const MobileProductDetail = lazyWithRetry(() => import("./modules/UserApp/pages/ProductDetail"));
-const MobileCategory = lazyWithRetry(() => import("./modules/UserApp/pages/Category"));
-const MobileCheckout = lazyWithRetry(() => import("./modules/UserApp/pages/Checkout"));
-const MobileRegister = lazyWithRetry(() => import("./modules/UserApp/pages/Register"));
-const MobileVerification = lazyWithRetry(() => import("./modules/UserApp/pages/Verification"));
-const MobileOrders = lazyWithRetry(() => import("./modules/UserApp/pages/Orders"));
-const MobileOrderDetail = lazyWithRetry(() => import("./modules/UserApp/pages/OrderDetail"));
-const MobileAddresses = lazyWithRetry(() => import("./modules/UserApp/pages/Addresses"));
-const MobileNotifications = lazyWithRetry(() => import("./modules/UserApp/pages/Notifications"));
-const MobileWishlist = lazyWithRetry(() => import("./modules/UserApp/pages/Wishlist"));
-const MobileOffers = lazyWithRetry(() => import("./modules/UserApp/pages/Offers"));
-const MobileDailyDeals = lazyWithRetry(() => import("./modules/UserApp/pages/DailyDeals"));
-const MobileFlashSale = lazyWithRetry(() => import("./modules/UserApp/pages/FlashSale"));
-const MobileTrackOrder = lazyWithRetry(() => import("./modules/UserApp/pages/TrackOrder"));
-const MobileOrderConfirmation = lazyWithRetry(() => import("./modules/UserApp/pages/OrderConfirmation"));
-const MobileMegaReward = lazyWithRetry(() => import("./modules/UserApp/pages/MegaReward"));
-const MobileSettings = lazyWithRetry(() => import("./modules/UserApp/pages/Settings"));
-const MobileChangePassword = lazyWithRetry(() => import("./modules/UserApp/pages/ChangePassword"));
-const MobileContentPage = lazyWithRetry(() => import("./modules/UserApp/pages/ContentPage"));
-const MobileWallet = lazyWithRetry(() => import("./modules/UserApp/pages/Wallet"));
-const MobileReturnRequest = lazyWithRetry(() => import("./modules/UserApp/pages/ReturnRequest"));
-const MobileMyReturns = lazyWithRetry(() => import("./modules/UserApp/pages/MyReturns"));
-const MobileForgotPassword = lazyWithRetry(() => import("./modules/UserApp/pages/ForgotPassword"));
-const MobileSingleReel = lazyWithRetry(() => import("./modules/UserApp/pages/SingleReel"));
-
 // Vendor Routes
 const VendorLogin = lazyWithRetry(() => import("./modules/Vendor/pages/Login"));
 const VendorRegister = lazyWithRetry(() => import("./modules/Vendor/pages/Register"));
@@ -295,29 +255,12 @@ const AppRoutes = () => {
       </div>
     }>
       <Routes>
-        {/* Redirect old UserWeb routes to UserApp */}
-        <Route path="/" element={<Navigate to="/app" replace />} />
-        <Route path="/product/:id" element={<Navigate to="/app/product/:id" replace />} />
-        <Route path="/category/:id" element={<Navigate to="/app/category/:id" replace />} />
-        <Route path="/vendor/:id" element={<Navigate to="/app/vendor/:id" replace />} />
-        <Route path="/checkout" element={<Navigate to="/app/checkout" replace />} />
-        <Route path="/search" element={<Navigate to="/app/search" replace />} />
-        <Route path="/login" element={<Navigate to="/app/login" replace />} />
-        <Route path="/register" element={<Navigate to="/app/register" replace />} />
-        <Route path="/forgot-password" element={<Navigate to="/app/forgot-password" replace />} />
-        <Route path="/verification" element={<Navigate to="/app/verification" replace />} />
-        <Route path="/wishlist" element={<Navigate to="/app/wishlist" replace />} />
-        <Route path="/offers" element={<Navigate to="/app/offers" replace />} />
-        <Route path="/daily-deals" element={<Navigate to="/app/daily-deals" replace />} />
-        <Route path="/flash-sale" element={<Navigate to="/app/flash-sale" replace />} />
-        <Route path="/order-confirmation/:orderId" element={<Navigate to="/app/order-confirmation/:orderId" replace />} />
-        <Route path="/orders/:orderId" element={<Navigate to="/app/orders/:orderId" replace />} />
-        <Route path="/track-order/:orderId" element={<Navigate to="/app/track-order/:orderId" replace />} />
-        <Route path="/profile" element={<Navigate to="/app/profile" replace />} />
-        <Route path="/orders" element={<Navigate to="/app/orders" replace />} />
-        <Route path="/addresses" element={<Navigate to="/app/addresses" replace />} />
+        <Route path="/" element={<Navigate to="/b2b/landing" replace />} />
         <Route path="/b2b-vendors" element={<Navigate to="/admin/b2b-vendors" replace />} />
         <Route path="/wholesalers" element={<Navigate to="/admin/b2b-vendors" replace />} />
+        <Route path="/app/login" element={<Navigate to="/b2b/login" replace />} />
+        <Route path="/app/register" element={<Navigate to="/b2b/register" replace />} />
+        <Route path="/app/cart" element={<Navigate to="/b2b/landing" replace />} />
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
@@ -361,11 +304,9 @@ const AppRoutes = () => {
           />
           <Route path="return-requests" element={<ReturnRequests />} />
           <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
+          {/* B2B Customers management can stay if it's for B2B buyers, but typical B2C ones go */}
           <Route path="customers" element={<Customers />} />
           <Route path="customers/view-customers" element={<ViewCustomers />} />
-          <Route path="customers/addresses" element={<CustomerAddresses />} />
-          <Route path="customers/transactions" element={<Transactions />} />
-          <Route path="customers/analytics" element={<CustomerAnalytics />} />
           <Route path="customers/:id" element={<CustomerDetailPage />} />
           <Route path="stock" element={<Inventory />} />
           <Route path="inventory" element={<Inventory />} />
@@ -625,338 +566,9 @@ const AppRoutes = () => {
           <Route path="banner-booking" element={<B2BVendorBannerBooking />} />
           <Route path="profile" element={<B2BVendorProfile />} />
         </Route>
-        {/* Mobile App Routes */}
-        <Route
-          path="/app/chat"
-          element={
-            <RouteWrapper>
-              <Chat />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/chat/:vendorId"
-          element={
-            <RouteWrapper>
-              <Chat />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app"
-          element={
-            <RouteWrapper>
-              <LandingPage />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/home"
-          element={
-            <RouteWrapper>
-              <MobileHome />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/product/:id"
-          element={
-            <RouteWrapper>
-              <MobileProductDetail />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/category/:id"
-          element={
-            <RouteWrapper>
-              <MobileCategory />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/categories"
-          element={
-            <RouteWrapper>
-              <MobileCategories />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/vendor/:id"
-          element={
-            <RouteWrapper>
-              <VendorStore />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/checkout"
-          element={
-            <RouteWrapper>
-              <MobileCheckout />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/search"
-          element={
-            <RouteWrapper>
-              <MobileSearch />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/reels"
-          element={
-            <RouteWrapper>
-              <MobileReels />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/reels/:id"
-          element={
-            <RouteWrapper>
-              <MobileSingleReel />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/login"
-          element={
-            <RouteWrapper>
-              <MobileLogin />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/register"
-          element={
-            <RouteWrapper>
-              <MobileRegister />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/forgot-password"
-          element={
-            <RouteWrapper>
-              <MobileForgotPassword />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/verification"
-          element={
-            <RouteWrapper>
-              <MobileVerification />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/wishlist"
-          element={
-            <RouteWrapper>
-              <MobileWishlist />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/offers"
-          element={
-            <RouteWrapper>
-              <MobileOffers />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/daily-deals"
-          element={
-            <RouteWrapper>
-              <MobileDailyDeals />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/flash-sale"
-          element={
-            <RouteWrapper>
-              <MobileFlashSale />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/order-confirmation/:orderId"
-          element={
-            <RouteWrapper>
-              <MobileOrderConfirmation />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/orders/:orderId"
-          element={
-            <RouteWrapper>
-              <MobileOrderDetail />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/track-order/:orderId"
-          element={
-            <RouteWrapper>
-              <MobileTrackOrder />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/profile"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileProfile />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/become-seller"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileBecomeSeller />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/support-tickets"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <SupportTickets />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/returns"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileMyReturns />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/orders"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileOrders />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/addresses"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileAddresses />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/return-request/:orderId"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileReturnRequest />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/notifications"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileNotifications />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/mega-reward"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileMegaReward />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/settings"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileSettings />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/change-password"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileChangePassword />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/terms"
-          element={
-            <RouteWrapper>
-              <MobileContentPage title="Terms of Service" type="terms" />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/privacy"
-          element={
-            <RouteWrapper>
-              <MobileContentPage title="Privacy Policy" type="privacy" />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/about"
-          element={
-            <RouteWrapper>
-              <MobileContentPage title="About Us" type="about" />
-            </RouteWrapper>
-          }
-        />
-        <Route
-          path="/app/wallet"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <MobileWallet />
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
         <Route
           path="*"
-          element={<Navigate to="/app" replace />}
+          element={<Navigate to="/b2b/landing" replace />}
         />
       </Routes>
     </Suspense>
@@ -990,7 +602,6 @@ function App() {
           }>
             <AppRoutes />
           </Suspense>
-          <CartDrawer />
           <Toaster
             position="top-center"
             reverseOrder={false}

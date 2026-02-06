@@ -89,8 +89,8 @@ const vendorSchema = new mongoose.Schema(
     },
     vendorType: {
       type: String,
-      enum: ['b2c', 'b2b'],
-      default: 'b2c',
+      enum: ['b2b'], // Only B2B is supported now
+      default: 'b2b',
     },
     // B2B-specific fields
     businessTypes: [{

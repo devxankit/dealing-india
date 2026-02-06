@@ -1,6 +1,5 @@
 /**
- * B2C Vendor Subscription Service
- * Handles subscription API calls for B2C vendors
+ * B2B Vendor Subscription Service
  */
 
 import api from '../../../shared/utils/api';
@@ -11,7 +10,7 @@ import api from '../../../shared/utils/api';
  */
 export const getTiers = async () => {
     try {
-        const response = await api.get('/vendor/subscriptions/tiers');
+        const response = await api.get('/subscription/b2b-plans');
         if (response.success && response.data) {
             return response.data;
         }
@@ -28,13 +27,9 @@ export const getTiers = async () => {
  */
 export const getCurrentSubscription = async () => {
     try {
-        const response = await api.get('/subscription/getB2CSubscription');
-        if (response.success) {
-            // Return the first active subscription if exists
-            const activeSubscription = response.subscriptions?.find(
-                (sub) => sub.status === 'active'
-            );
-            return activeSubscription || null;
+        const response = await api.get('/subscription/getB2BSubscription');
+        if (response.success && response.data) {
+            return response.data;
         }
         return null;
     } catch (error) {
@@ -53,9 +48,9 @@ export const getCurrentSubscription = async () => {
  */
 export const createSubscription = async (planId) => {
     try {
-        const response = await api.post('/subscription/createB2CSubscription', { planId });
+        const response = await api.post('/subscription/createB2BSubscription', { planId });
         if (response.success) {
-            return response.subscription;
+            return response.data;
         }
         throw new Error(response.message || 'Failed to create subscription');
     } catch (error) {
@@ -70,9 +65,9 @@ export const createSubscription = async (planId) => {
  */
 export const getAllSubscriptions = async () => {
     try {
-        const response = await api.get('/subscription/getB2CSubscription');
+        const response = await api.get('/subscription/getB2BSubscription');
         if (response.success) {
-            return response.subscriptions || [];
+            return response.data ? [response.data] : [];
         }
         return [];
     } catch (error) {
@@ -88,7 +83,7 @@ export const getAllSubscriptions = async () => {
  */
 export const cancelSubscription = async (subscriptionId) => {
     try {
-        const response = await api.patch(`/subscription/cancelB2CSubscription/${subscriptionId}`);
+        const response = await api.patch(`/subscription/cancelB2BSubscription/${subscriptionId}`);
         if (response.success) {
             return response;
         }

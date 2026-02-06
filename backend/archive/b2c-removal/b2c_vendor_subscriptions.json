@@ -1,0 +1,457 @@
+[
+  {
+    "_id": "695b805a24af5eff3d8cea1a",
+    "vendorId": "6952230e25b9a947bdbc19a1",
+    "tierId": "6954d6c1ed3e2b3c19ffe9c1",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 5,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-05T09:11:54.506Z"
+    },
+    "startDate": "2026-01-05T09:11:54.506Z",
+    "endDate": "2026-07-05T09:11:54.506Z",
+    "autoRenew": true,
+    "paymentMethod": "razorpay",
+    "auditLogs": [
+      {
+        "action": "subscription_payment",
+        "timestamp": "2026-01-05T09:12:15.998Z",
+        "details": {
+          "amount": 99,
+          "status": "completed",
+          "razorpayOrderId": "order_S08wQX5cZo082f",
+          "razorpayPaymentId": "pay_S08wYAI3AcsRB7",
+          "razorpaySignature": "70bdc1e16ecffa5571c14aee118e801e627d20bf6e590a63a7be76d588c7938e",
+          "type": "subscription_payment",
+          "tierName": "Starter",
+          "paymentDate": "2026-01-05T09:12:15.998Z"
+        },
+        "_id": "695b807024af5eff3d8cea26"
+      },
+      {
+        "action": "manual_override_extend_30_days",
+        "timestamp": "2026-01-05T21:32:07.137Z",
+        "performedBy": "694cd4544d8c7e7472cff1ed",
+        "_id": "695c2dd73359d4bac5b014b8"
+      },
+      {
+        "action": "manual_override",
+        "timestamp": "2026-01-05T21:32:07.434Z",
+        "details": {
+          "subscriptionId": "695b805a24af5eff3d8cea1a",
+          "action": "extend_30_days"
+        },
+        "_id": "695c2dd73359d4bac5b014bd"
+      },
+      {
+        "action": "manual_override_extend_30_days",
+        "timestamp": "2026-01-05T21:37:40.390Z",
+        "performedBy": "694cd4544d8c7e7472cff1ed",
+        "_id": "695c2f24f99c5415d82d21e1"
+      },
+      {
+        "action": "manual_override",
+        "timestamp": "2026-01-05T21:37:40.786Z",
+        "details": {
+          "subscriptionId": "695b805a24af5eff3d8cea1a",
+          "action": "extend_30_days"
+        },
+        "_id": "695c2f24f99c5415d82d21e7"
+      },
+      {
+        "action": "manual_override_extend_30_days",
+        "timestamp": "2026-01-05T21:42:53.735Z",
+        "performedBy": "694cd4544d8c7e7472cff1ed",
+        "_id": "695c305d86780ac96206472a"
+      },
+      {
+        "action": "manual_override",
+        "timestamp": "2026-01-05T21:42:54.127Z",
+        "details": {
+          "subscriptionId": "695b805a24af5eff3d8cea1a",
+          "action": "extend_30_days"
+        },
+        "_id": "695c305e86780ac962064731"
+      },
+      {
+        "action": "manual_override_extend_30_days",
+        "timestamp": "2026-01-05T21:43:31.165Z",
+        "performedBy": "694cd4544d8c7e7472cff1ed",
+        "_id": "695c308386780ac9620647ad"
+      },
+      {
+        "action": "manual_override",
+        "timestamp": "2026-01-05T21:43:31.563Z",
+        "details": {
+          "subscriptionId": "695b805a24af5eff3d8cea1a",
+          "action": "extend_30_days"
+        },
+        "_id": "695c308386780ac9620647b4"
+      },
+      {
+        "action": "manual_override_extend_30_days",
+        "timestamp": "2026-01-05T21:44:03.145Z",
+        "performedBy": "694cd4544d8c7e7472cff1ed",
+        "_id": "695c30a386780ac962064837"
+      },
+      {
+        "action": "manual_override",
+        "timestamp": "2026-01-05T21:44:03.497Z",
+        "details": {
+          "subscriptionId": "695b805a24af5eff3d8cea1a",
+          "action": "extend_30_days"
+        },
+        "_id": "695c30a386780ac96206483e"
+      },
+      {
+        "action": "vendor_renewal_update",
+        "timestamp": "2026-01-06T05:51:59.365Z",
+        "details": {
+          "autoRenew": false
+        },
+        "_id": "695ca2ffc23349647253f716"
+      },
+      {
+        "action": "vendor_renewal_update",
+        "timestamp": "2026-01-06T05:55:08.949Z",
+        "details": {
+          "autoRenew": true
+        },
+        "_id": "695ca3bcc23349647253f754"
+      }
+    ],
+    "createdAt": "2026-01-05T09:11:54.532Z",
+    "updatedAt": "2026-01-13T09:10:47.187Z",
+    "__v": 6,
+    "razorpayOrderId": "order_S08wQX5cZo082f",
+    "lastPaymentDate": "2026-01-05T09:12:15.885Z",
+    "nextBillingDate": "2026-07-05T09:11:54.506Z",
+    "razorpayPaymentId": "pay_S08wYAI3AcsRB7",
+    "razorpaySignature": "70bdc1e16ecffa5571c14aee118e801e627d20bf6e590a63a7be76d588c7938e"
+  },
+  {
+    "_id": "695c9e50d33567a6d8183f7a",
+    "vendorId": "6952230e25b9a947bdbc19a1",
+    "tierId": "6954d6c1ed3e2b3c19ffe9c5",
+    "status": "pending",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-06T05:32:00.585Z"
+    },
+    "startDate": "2026-01-06T05:32:00.585Z",
+    "endDate": "2026-02-06T05:32:00.585Z",
+    "autoRenew": true,
+    "paymentMethod": "razorpay",
+    "auditLogs": [],
+    "createdAt": "2026-01-06T05:32:00.609Z",
+    "updatedAt": "2026-01-06T05:32:01.813Z",
+    "__v": 0,
+    "razorpayOrderId": "order_S0TjGw6xPxpoqo"
+  },
+  {
+    "_id": "695cb1276f6614eb2edb3744",
+    "vendorId": "695b7f3f4b44f79fe8387fb1",
+    "tierId": "6954d6c1ed3e2b3c19ffe9c1",
+    "status": "pending",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-06T06:52:23.117Z"
+    },
+    "startDate": "2026-01-06T06:52:23.117Z",
+    "endDate": "2026-02-06T06:52:23.117Z",
+    "autoRenew": true,
+    "paymentMethod": "razorpay",
+    "auditLogs": [],
+    "createdAt": "2026-01-06T06:52:23.119Z",
+    "updatedAt": "2026-01-06T06:52:24.719Z",
+    "__v": 0,
+    "razorpayOrderId": "order_S0V6BOlJsQKmiF"
+  },
+  {
+    "_id": "695cc420b0ae56e5cfb7e26e",
+    "vendorId": "695cbfa6b0ae56e5cfb7db09",
+    "tierId": "6954d6c1ed3e2b3c19ffe9bd",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 1,
+      "extraReelsCharged": 10,
+      "lastResetDate": "2026-01-06T08:13:20.243Z"
+    },
+    "startDate": "2026-01-06T08:13:20.243Z",
+    "endDate": "2026-02-06T08:13:20.243Z",
+    "autoRenew": true,
+    "paymentMethod": "free",
+    "lastPaymentDate": "2026-01-06T08:15:47.888Z",
+    "nextBillingDate": "2026-02-06T08:13:20.243Z",
+    "auditLogs": [
+      {
+        "action": "extra_reel_payment",
+        "timestamp": "2026-01-06T08:15:47.886Z",
+        "details": {
+          "amount": 10,
+          "status": "completed",
+          "razorpayOrderId": "order_S0WVoedV7Go1oQ",
+          "razorpayPaymentId": "pay_S0WVxXvrPWJtXU",
+          "razorpaySignature": "7acc394d25d1e4775a94a4d88fe460eae70efb95ff994b0b1db9ca4db07d5d6b",
+          "type": "extra_reel_charge",
+          "paymentDate": "2026-01-06T08:15:47.886Z"
+        },
+        "_id": "695cc4b3b0ae56e5cfb7e2ce"
+      }
+    ],
+    "createdAt": "2026-01-06T08:13:20.302Z",
+    "updatedAt": "2026-01-06T08:15:56.829Z",
+    "__v": 1
+  },
+  {
+    "_id": "696a0a7304eb902a084a511d",
+    "vendorId": null,
+    "pendingVendorEmail": "harshvardhanpanc145@gmail.com",
+    "pendingVendorPhone": "6268423925",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-16T09:52:51.656Z"
+    },
+    "startDate": "2026-01-16T09:52:51.656Z",
+    "endDate": "2026-04-16T09:52:51.656Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_S4VVaEN6j3Jxbz",
+    "razorpayPaymentId": "pay_S4VVi3SgHXWi4v",
+    "razorpaySignature": "33506768e0f4bdc758ea90601b2c3f682720ca51900fbe3be1f57528273f4917",
+    "lastPaymentDate": "2026-01-16T09:52:51.656Z",
+    "nextBillingDate": "2026-04-16T09:52:51.656Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-16T09:52:51.766Z",
+    "updatedAt": "2026-01-16T09:52:51.766Z",
+    "__v": 0
+  },
+  {
+    "_id": "696a0acd04eb902a084a5136",
+    "vendorId": "696a0acd04eb902a084a5132",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-16T09:54:21.339Z"
+    },
+    "startDate": "2026-01-16T09:54:21.339Z",
+    "endDate": "2026-04-16T09:54:21.339Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_S4VVaEN6j3Jxbz",
+    "razorpayPaymentId": "pay_S4VVi3SgHXWi4v",
+    "razorpaySignature": "33506768e0f4bdc758ea90601b2c3f682720ca51900fbe3be1f57528273f4917",
+    "lastPaymentDate": "2026-01-16T09:54:21.339Z",
+    "nextBillingDate": "2026-04-16T09:54:21.339Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-16T09:54:21.389Z",
+    "updatedAt": "2026-01-16T09:54:21.389Z",
+    "__v": 0
+  },
+  {
+    "_id": "6970eb2d729ae8c3e5476bc2",
+    "vendorId": null,
+    "pendingVendorEmail": "lalalraju99@gmail.com",
+    "pendingVendorPhone": "+918690904176",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-21T15:05:17.257Z"
+    },
+    "startDate": "2026-01-21T15:05:17.257Z",
+    "endDate": "2026-04-21T15:05:17.257Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_S6ZV9VrSI6GMS1",
+    "razorpayPaymentId": "pay_S6ZVJfx8GvrPgP",
+    "razorpaySignature": "e0c3787584fd9e12cfc4532876d77b5282b8935464ea6abc7964c43a834cd789",
+    "lastPaymentDate": "2026-01-21T15:05:17.257Z",
+    "nextBillingDate": "2026-04-21T15:05:17.257Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-21T15:05:17.258Z",
+    "updatedAt": "2026-01-21T15:05:17.258Z",
+    "__v": 0
+  },
+  {
+    "_id": "6970ebb7729ae8c3e5476bd8",
+    "vendorId": "6970ebb7729ae8c3e5476bd4",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-21T15:07:35.503Z"
+    },
+    "startDate": "2026-01-21T15:07:35.503Z",
+    "endDate": "2026-04-21T15:07:35.503Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_S6ZV9VrSI6GMS1",
+    "razorpayPaymentId": "pay_S6ZVJfx8GvrPgP",
+    "razorpaySignature": "e0c3787584fd9e12cfc4532876d77b5282b8935464ea6abc7964c43a834cd789",
+    "lastPaymentDate": "2026-01-21T15:07:35.503Z",
+    "nextBillingDate": "2026-04-21T15:07:35.503Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-21T15:07:35.505Z",
+    "updatedAt": "2026-01-21T15:07:35.505Z",
+    "__v": 0
+  },
+  {
+    "_id": "6971f20ad8114035b33fb16a",
+    "vendorId": null,
+    "pendingVendorEmail": "padmavatiprint2022@gmail.com",
+    "pendingVendorPhone": "+919879495663",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-22T09:46:50.228Z"
+    },
+    "startDate": "2026-01-22T09:46:50.228Z",
+    "endDate": "2026-04-22T09:46:50.228Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_S6sbve1g2008t1",
+    "razorpayPaymentId": "pay_S6sc3gYE0uYFoj",
+    "razorpaySignature": "9ae4400874eb1c5a3a3130c3633218c29cd78d0f74d515cce16578124917c239",
+    "lastPaymentDate": "2026-01-22T09:46:50.228Z",
+    "nextBillingDate": "2026-04-22T09:46:50.228Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-22T09:46:50.233Z",
+    "updatedAt": "2026-01-22T09:46:50.233Z",
+    "__v": 0
+  },
+  {
+    "_id": "6971f229d8114035b33fb173",
+    "vendorId": "6971f228d8114035b33fb16f",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-22T09:47:21.201Z"
+    },
+    "startDate": "2026-01-22T09:47:21.201Z",
+    "endDate": "2026-04-22T09:47:21.201Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_S6sbve1g2008t1",
+    "razorpayPaymentId": "pay_S6sc3gYE0uYFoj",
+    "razorpaySignature": "9ae4400874eb1c5a3a3130c3633218c29cd78d0f74d515cce16578124917c239",
+    "lastPaymentDate": "2026-01-22T09:47:21.201Z",
+    "nextBillingDate": "2026-04-22T09:47:21.201Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-22T09:47:21.203Z",
+    "updatedAt": "2026-01-22T09:47:21.203Z",
+    "__v": 0
+  },
+  {
+    "_id": "69722a7f3d34fcb12c71cab8",
+    "vendorId": null,
+    "pendingVendorEmail": "mohitbohra650@gmail.com",
+    "pendingVendorPhone": "9375623555",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-22T13:47:43.112Z"
+    },
+    "startDate": "2026-01-22T13:47:43.112Z",
+    "endDate": "2026-04-22T13:47:43.112Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_S6whzqubEyZOFl",
+    "razorpayPaymentId": "pay_S6wi6AwpqUm0VJ",
+    "razorpaySignature": "7e253343240de700e4cca4f789fcc2e0f55a0cb6928e242d893dda13d2f5410f",
+    "lastPaymentDate": "2026-01-22T13:47:43.112Z",
+    "nextBillingDate": "2026-04-22T13:47:43.112Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-22T13:47:43.120Z",
+    "updatedAt": "2026-01-22T13:47:43.120Z",
+    "__v": 0
+  },
+  {
+    "_id": "69722ab23d34fcb12c71cadc",
+    "vendorId": "69722ab13d34fcb12c71cad8",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-22T13:48:34.189Z"
+    },
+    "startDate": "2026-01-22T13:48:34.189Z",
+    "endDate": "2026-04-22T13:48:34.189Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_S6whzqubEyZOFl",
+    "razorpayPaymentId": "pay_S6wi6AwpqUm0VJ",
+    "razorpaySignature": "7e253343240de700e4cca4f789fcc2e0f55a0cb6928e242d893dda13d2f5410f",
+    "lastPaymentDate": "2026-01-22T13:48:34.189Z",
+    "nextBillingDate": "2026-04-22T13:48:34.189Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-22T13:48:34.191Z",
+    "updatedAt": "2026-01-22T13:48:34.191Z",
+    "__v": 0
+  },
+  {
+    "_id": "697e0b6582b8ba9fa9fc7ed7",
+    "vendorId": null,
+    "pendingVendorEmail": "mohitbohra650@gmail.com",
+    "pendingVendorPhone": "+919375623555",
+    "tierId": null,
+    "planId": "6969d564f084c5c30376c683",
+    "status": "active",
+    "billingCycle": "monthly",
+    "usage": {
+      "reelsUploaded": 0,
+      "extraReelsCharged": 0,
+      "lastResetDate": "2026-01-31T14:02:13.681Z"
+    },
+    "startDate": "2026-01-31T14:02:13.681Z",
+    "endDate": "2027-01-31T14:02:13.681Z",
+    "autoRenew": false,
+    "paymentMethod": "razorpay",
+    "razorpayOrderId": "order_SAVlnbwo5J8gvT",
+    "razorpayPaymentId": "pay_SAVlwQ8lAjWFAj",
+    "razorpaySignature": "cfb0568b002f55d88a9379b8531cf6701b2e8c22e7edff8efcb02361f4ddc3e3",
+    "lastPaymentDate": "2026-01-31T14:02:13.681Z",
+    "nextBillingDate": "2027-01-31T14:02:13.681Z",
+    "auditLogs": [],
+    "createdAt": "2026-01-31T14:02:13.687Z",
+    "updatedAt": "2026-01-31T14:02:13.687Z",
+    "__v": 0
+  }
+]

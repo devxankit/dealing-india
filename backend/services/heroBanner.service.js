@@ -131,21 +131,8 @@ export const getBannerSlots = async (bannerType = null) => {
     return await processExpiredSlots(slots);
   }
 
-  // Handle hero banners and other cases
-  const query = {};
-  if (bannerType) {
-    // Handle backward compatibility: if bannerType is 'hero', also include documents
-    // where bannerType is missing or null (since default is 'hero')
-    if (bannerType === 'hero') {
-      query.$or = [
-        { bannerType: 'hero' },
-        { bannerType: { $exists: false } },
-        { bannerType: null }
-      ];
-    } else {
-      query.bannerType = bannerType;
-    }
-  }
+  // Only B2B banners are supported now
+  query.bannerType = 'b2b';
 
   const slots = await BannerSlot.find(query).populate({
     path: 'currentBooking',
@@ -560,16 +547,8 @@ export const createBooking = async (vendorId, bookingData, file, paymentMethod =
 
   // Determine banner type from vendor or slot
   let bannerType = bookingData.bannerType;
-  if (!bannerType) {
-    // Check vendor type to determine banner type
-    const Vendor = (await import('../models/Vendor.model.js')).default;
-    const vendor = await Vendor.findById(vendorId);
-    if (vendor && vendor.vendorType === 'b2b') {
-      bannerType = 'b2b';
-    } else {
-      bannerType = 'hero';
-    }
-  }
+  // Default to B2B banner type
+  bannerType = 'b2b';
 
   // Verify slot matches banner type (if slot has bannerType set)
   if (slot.bannerType && slot.bannerType !== bannerType) {
@@ -758,12 +737,11 @@ export const confirmBookingPayment = async (bookingId, paymentData, paymentMetho
  * Only returns banners that are: paid + approved + within date range
  * @param {String} bannerType - Optional: 'hero' or 'b2b' to filter by type
  */
-export const getActiveBanners = async (bannerType = 'hero') => {
+export const getActiveBanners = async (bannerType = 'b2b') => {
   const now = new Date();
 
-  // Default to 'hero' if bannerType is null, undefined, or empty string
-  // This ensures we never return "mixed" results to the frontend
-  const filterType = bannerType || 'hero';
+  // Only 'b2b' banners are supported
+  const filterType = 'b2b';
 
   // For date comparison, we need to be precise
   // A banner is active if:

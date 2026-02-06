@@ -22,29 +22,7 @@ const router = express.Router();
 // Apply authentication to all routes
 router.use(authenticate);
 
-/* ============ B2C SUBSCRIPTION ROUTES ============ */
-
-// Get all B2C subscription plans (tiers)
-router.get('/plans', authorize('vendor', 'admin'), getAllPlans);
-
-// Create a B2C subscription (purchase)
-router.post('/createB2CSubscription', authorize('vendor'), createSubscription);
-
-// Get current vendor's subscriptions
-router.get('/getB2CSubscription', authorize('vendor', 'admin'), getSubscriptionByAdmin);
-
-// Get all subscriptions (admin only)
-router.get('/getAllB2CSubscriptions', authorize('admin'), getAllSubscriptions);
-
-// Get subscription details by ID
-router.get('/getB2CSubscription/:subscriptionId', authorize('vendor', 'admin'), getSubscriptionDetails);
-
-// Cancel subscription
-router.patch(
-  '/cancelB2CSubscription/:subscriptionId',
-  authorize('vendor', 'admin'),
-  cancelSubscription
-);
+// B2C routes removed for B2B-only focus
 
 
 /* ============ B2B SUBSCRIPTION ROUTES ============ */

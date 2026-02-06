@@ -30,7 +30,7 @@ const B2BVendorLogin = () => {
         // Check for existing authentication on mount
         const token = localStorage.getItem('b2b-vendor-token');
         const { isAuthenticated: storeAuth } = useB2BVendorAuthStore.getState();
-        
+
         if (storeAuth && token) {
             const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
             navigate(from, { replace: true });
@@ -63,7 +63,7 @@ const B2BVendorLogin = () => {
             ...formData,
             [e.target.name]: e.target.value,
         });
-        
+
         // If email changes and plans are shown, hide them
         if (e.target.name === 'email' && showPlans) {
             setShowPlans(false);
@@ -81,7 +81,7 @@ const B2BVendorLogin = () => {
         setLocalLoading(true);
         try {
             const result = await useB2BVendorAuthStore.getState().login(formData.email, formData.password);
-            
+
             if (result.success) {
                 toast.success('Login successful! Welcome to your dashboard.', {
                     id: 'login-success'
@@ -91,7 +91,7 @@ const B2BVendorLogin = () => {
             } else {
                 const errorMsg = result?.message || 'Invalid B2B vendor credentials.';
                 const errorCode = result?.code;
-                
+
                 // If account is pending approval or inactive
                 if (errorMsg.toLowerCase().includes('pending')) {
                     toast.error('Account Pending: Your registration is under review. Please wait for admin approval.', {
@@ -132,7 +132,7 @@ const B2BVendorLogin = () => {
         setIsLoadingPlans(true);
         try {
             const plans = await getActiveB2BPlans();
-            const filteredPlans = plans.filter(plan => 
+            const filteredPlans = plans.filter(plan =>
                 plan.duration === 3 || plan.duration === 6 || plan.duration === 12
             ).sort((a, b) => a.duration - b.duration);
             setAvailablePlans(filteredPlans);
@@ -176,13 +176,13 @@ const B2BVendorLogin = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl relative"
             >
-             {/* Back Button */}
-            <button 
-                onClick={() => navigate(-1)} 
-                className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
-            >
-                <FiArrowLeft size={24} />
-            </button>
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate(-1)}
+                    className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+                >
+                    <FiArrowLeft size={24} />
+                </button>
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                         <FiBriefcase className="text-white text-2xl" />
@@ -273,18 +273,11 @@ const B2BVendorLogin = () => {
                             </Link>
                         </p>
 
-                        <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-2">
-                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Retail Vendor?</span>
-                            <Link to="/vendor/login" className="text-primary-600 font-bold hover:underline">
-                                Switch to B2C Vendor Panel
+                        <div className="mt-2 pt-2 w-full border-t border-gray-100 flex flex-col items-center gap-1">
+                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">B2B Buyer?</span>
+                            <Link to="/b2b/login" className="text-primary-600 font-bold hover:underline">
+                                Switch to B2B Buyer Login
                             </Link>
-                            
-                            <div className="mt-2 pt-2 w-full border-t border-gray-100 flex flex-col items-center gap-1">
-                                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">B2B Buyer?</span>
-                                <Link to="/b2b/login" className="text-primary-600 font-bold hover:underline">
-                                    Switch to B2B Buyer Login
-                                </Link>
-                            </div>
                         </div>
                     </div>
                 </form>
@@ -318,11 +311,10 @@ const B2BVendorLogin = () => {
                                                 key={planId}
                                                 whileHover={{ y: -5 }}
                                                 onClick={() => handlePlanSelect(planId)}
-                                                className={`relative bg-white rounded-2xl p-6 shadow-sm border-2 cursor-pointer transition-all ${
-                                                    isSelected
+                                                className={`relative bg-white rounded-2xl p-6 shadow-sm border-2 cursor-pointer transition-all ${isSelected
                                                         ? 'border-primary-500 ring-4 ring-primary-50'
                                                         : 'border-gray-100 hover:border-primary-200'
-                                                }`}
+                                                    }`}
                                             >
                                                 {plan.duration === 6 && (
                                                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
@@ -331,9 +323,8 @@ const B2BVendorLogin = () => {
                                                 )}
 
                                                 <div className="mb-4">
-                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
-                                                        isSelected ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400'
-                                                    }`}>
+                                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${isSelected ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400'
+                                                        }`}>
                                                         <FiStar className="text-xl" />
                                                     </div>
                                                     <h3 className="text-lg font-bold text-gray-800 mb-2">{plan.name}</h3>
@@ -346,9 +337,8 @@ const B2BVendorLogin = () => {
                                                 <ul className="space-y-2 mb-4">
                                                     {plan.features && plan.features.slice(0, 3).map((feature, idx) => (
                                                         <li key={idx} className="flex items-start gap-2 text-gray-600">
-                                                            <div className={`mt-1 p-0.5 rounded-full ${
-                                                                isSelected ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'
-                                                            }`}>
+                                                            <div className={`mt-1 p-0.5 rounded-full ${isSelected ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-400'
+                                                                }`}>
                                                                 <FiCheck className="text-xs" />
                                                             </div>
                                                             <span className="text-xs font-medium">{feature}</span>

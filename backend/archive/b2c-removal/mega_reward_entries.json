@@ -1,0 +1,189 @@
+[
+  {
+    "_id": "6966299cbcc88a62358082ee",
+    "userId": "694f9a9c06dba2234744db79",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:16:44.590Z",
+    "ticketId": "MR-202601-V385",
+    "createdAt": "2026-01-13T11:16:44.593Z",
+    "updatedAt": "2026-01-13T12:13:38.829Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d6e28fea12caaec232d",
+    "userId": "69662d544861588d580687f3",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:02.884Z",
+    "ticketId": "MR-202601-4GKR",
+    "createdAt": "2026-01-13T11:33:02.886Z",
+    "updatedAt": "2026-01-13T11:36:08.328Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d6e28fea12caaec2332",
+    "userId": "69662d544861588d5806880f",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:02.896Z",
+    "ticketId": "MR-202601-1CPV",
+    "createdAt": "2026-01-13T11:33:02.897Z",
+    "updatedAt": "2026-01-13T12:13:41.947Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d6f28fea12caaec2334",
+    "userId": "69662d544861588d58068800",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:03.394Z",
+    "ticketId": "MR-202601-0AH5",
+    "createdAt": "2026-01-13T11:33:03.395Z",
+    "updatedAt": "2026-01-13T12:24:03.889Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d6f28fea12caaec233a",
+    "userId": "69662d544861588d58068802",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:03.405Z",
+    "ticketId": "MR-202601-ITP5",
+    "createdAt": "2026-01-13T11:33:03.406Z",
+    "updatedAt": "2026-01-13T12:24:05.483Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d6f28fea12caaec2336",
+    "userId": "69662d544861588d580687f7",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:03.398Z",
+    "ticketId": "MR-202601-VRAA",
+    "createdAt": "2026-01-13T11:33:03.399Z",
+    "updatedAt": "2026-01-13T12:13:43.517Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d7028fea12caaec235e",
+    "userId": "69662d544861588d580687fc",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:04.086Z",
+    "ticketId": "MR-202601-8GJG",
+    "createdAt": "2026-01-13T11:33:04.086Z",
+    "updatedAt": "2026-01-13T12:24:07.315Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d7028fea12caaec2367",
+    "userId": "69662d544861588d5806881c",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "active",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:04.104Z",
+    "ticketId": "MR-202601-1QG3",
+    "createdAt": "2026-01-13T11:33:04.104Z",
+    "updatedAt": "2026-01-13T11:33:04.104Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d7028fea12caaec2369",
+    "userId": "69662d544861588d580687f5",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:04.109Z",
+    "ticketId": "MR-202601-4TPI",
+    "createdAt": "2026-01-13T11:33:04.110Z",
+    "updatedAt": "2026-01-13T11:39:12.357Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d7028fea12caaec2379",
+    "userId": "69662d544861588d580687fe",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:04.149Z",
+    "ticketId": "MR-202601-2OK3",
+    "createdAt": "2026-01-13T11:33:04.149Z",
+    "updatedAt": "2026-01-13T11:35:20.798Z",
+    "__v": 0
+  },
+  {
+    "_id": "69662d7028fea12caaec237b",
+    "userId": "69662d544861588d580687f9",
+    "megaRewardId": "6965fc2a572bbb2fc369ce73",
+    "status": "winner",
+    "eligibilityMet": {
+      "whatsapp": true,
+      "instagram": true,
+      "facebook": true
+    },
+    "reelId": "6965fd7fc1382f1949792c29",
+    "generatedAt": "2026-01-13T11:33:04.190Z",
+    "ticketId": "MR-202601-T8P7",
+    "createdAt": "2026-01-13T11:33:04.191Z",
+    "updatedAt": "2026-01-13T12:13:40.376Z",
+    "__v": 0
+  }
+]

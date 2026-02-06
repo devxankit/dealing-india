@@ -435,7 +435,7 @@ const AdminHeroBanner = () => {
           <h1 className="text-2xl font-bold text-gray-900">
             Hero Banner Management
           </h1>
-          <p className="text-gray-500">Manage B2C retail banner slots and bookings</p>
+          <p className="text-gray-500">Manage B2B platform banner slots and bookings</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -590,7 +590,7 @@ const AdminHeroBanner = () => {
                     <div>
                       <h4 className="font-bold text-gray-900">System Default Banners</h4>
                       <p className="text-sm text-gray-600 max-w-md mt-1">
-                        Default banners (fallbacks) are now managed globally. You can set multiple rotating banners for both B2C and B2B platforms.
+                        Default banners (fallbacks) are now managed globally. You can set multiple rotating banners for the platform.
                       </p>
                     </div>
                     <button

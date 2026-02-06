@@ -9,10 +9,10 @@ export const useAuthStore = create(
       token: null,
       isAuthenticated: false,
       isLoading: false,
-      userType: null, // 'b2c' or 'b2b'
+      userType: 'b2b', // Only 'b2b' is supported now
 
       // Login action
-      login: async (identifier, password, rememberMe = false, userType = 'b2c') => {
+      login: async (identifier, password, rememberMe = false, userType = 'b2b') => {
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/login', {
@@ -34,7 +34,7 @@ export const useAuthStore = create(
               avatar: user.avatar || null,
               isEmailVerified: user.isEmailVerified || false,
               role: user.role || 'user',
-              currentMarketplace: user.currentMarketplace || userType || 'b2c',
+              currentMarketplace: user.currentMarketplace || 'b2b',
               businessInfo: user.businessInfo || null,
             };
 
@@ -43,7 +43,7 @@ export const useAuthStore = create(
               token: token,
               isAuthenticated: true,
               isLoading: false,
-              userType: user.currentMarketplace || userType,
+              userType: user.currentMarketplace || 'b2b',
             });
 
             localStorage.setItem('token', token);
@@ -69,7 +69,7 @@ export const useAuthStore = create(
       },
 
       // Register action
-      register: async (name, email, password, phone, userType = 'b2c', businessInfo = null) => {
+      register: async (name, email, password, phone, userType = 'b2b', businessInfo = null) => {
         set({ isLoading: true });
         try {
           const response = await api.post('/auth/user/register', {
@@ -125,18 +125,9 @@ export const useAuthStore = create(
             user: null,
             token: null,
             isAuthenticated: false,
-            userType: null,
+            userType: 'b2b',
           });
           localStorage.removeItem('token');
-          try {
-            const cartStoreModule = await import('./cartStore.js');
-            if (cartStoreModule?.useCartStore) {
-              const cartStore = cartStoreModule.useCartStore.getState();
-              if (cartStore?.reset) {
-                cartStore.reset();
-              }
-            }
-          } catch (e) { }
         }
       },
 
@@ -157,14 +148,14 @@ export const useAuthStore = create(
               avatar: user.avatar || null,
               isEmailVerified: user.isEmailVerified || false,
               role: user.role || 'user',
-              currentMarketplace: user.currentMarketplace || 'b2c',
+              currentMarketplace: user.currentMarketplace || 'b2b',
               businessInfo: user.businessInfo || null,
             };
 
             set({
               user: updatedUser,
               isLoading: false,
-              userType: updatedUser.currentMarketplace,
+              userType: updatedUser.currentMarketplace || 'b2b',
             });
 
             return { success: true, user: updatedUser };
@@ -213,7 +204,7 @@ export const useAuthStore = create(
               avatar: user.avatar || null,
               isEmailVerified: user.isEmailVerified || true,
               role: user.role || 'user',
-              currentMarketplace: user.currentMarketplace || 'b2c',
+              currentMarketplace: user.currentMarketplace || 'b2b',
               businessInfo: user.businessInfo || null,
             };
             set({
@@ -221,7 +212,7 @@ export const useAuthStore = create(
               token: token,
               isAuthenticated: true,
               isLoading: false,
-              userType: userData.currentMarketplace,
+              userType: userData.currentMarketplace || 'b2b',
             });
             localStorage.setItem('token', token);
             return { success: true, user: userData, message: response.message };
@@ -289,40 +280,6 @@ export const useAuthStore = create(
         }
       },
 
-      // Switch marketplace action
-      switchMarketplace: async (marketplace) => {
-        set({ isLoading: true });
-        try {
-          const response = await api.put('/auth/user/switch-marketplace', { marketplace });
-          if (response.success && response.data) {
-            const user = response.data.user;
-            const updatedUser = {
-              id: user._id || user.id,
-              _id: user._id,
-              name: user.name,
-              email: user.email,
-              phone: user.phone || '',
-              avatar: user.avatar || null,
-              isEmailVerified: user.isEmailVerified || false,
-              role: user.role || 'user',
-              currentMarketplace: user.currentMarketplace,
-              businessInfo: user.businessInfo || null,
-            };
-            set({
-              user: updatedUser,
-              isLoading: false,
-              userType: updatedUser.currentMarketplace,
-            });
-            return { success: true, user: updatedUser };
-          } else {
-            throw new Error(response.message || 'Failed to switch marketplace');
-          }
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
-      },
-
       // Initialize
       initialize: async () => {
         const token = localStorage.getItem('token');
@@ -334,7 +291,7 @@ export const useAuthStore = create(
               const exp = payload.exp;
               const now = Math.floor(Date.now() / 1000);
               if (exp && exp <= now) {
-                set({ user: null, token: null, isAuthenticated: false, userType: null });
+                set({ user: null, token: null, isAuthenticated: false, userType: 'b2b' });
                 localStorage.removeItem('token');
                 return;
               }
@@ -354,21 +311,21 @@ export const useAuthStore = create(
                 avatar: user.avatar || null,
                 isEmailVerified: user.isEmailVerified || false,
                 role: user.role || 'user',
-                currentMarketplace: user.currentMarketplace || 'b2c',
+                currentMarketplace: user.currentMarketplace || 'b2b',
                 businessInfo: user.businessInfo || null,
               };
               set({
                 user: userData,
                 token: token,
                 isAuthenticated: true,
-                userType: userData.currentMarketplace,
+                userType: userData.currentMarketplace || 'b2b',
               });
             } else {
-              set({ user: null, token: null, isAuthenticated: false, userType: null });
+              set({ user: null, token: null, isAuthenticated: false, userType: 'b2b' });
               localStorage.removeItem('token');
             }
           } catch (error) {
-            set({ user: null, token: null, isAuthenticated: false, userType: null });
+            set({ user: null, token: null, isAuthenticated: false, userType: 'b2b' });
             localStorage.removeItem('token');
           }
         }

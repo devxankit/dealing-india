@@ -16,7 +16,7 @@ const VendorRegister = () => {
   const preFilledData = location.state?.userData || {};
   const isUpgrade = location.state?.isUpgrade || false;
 
-  const [vendorType] = useState('b2c'); // Only 'b2c' now
+  const [vendorType] = useState('b2b'); // Enforce B2B now
   const [subscriptionPlan, setSubscriptionPlan] = useState('premium');
 
   useEffect(() => {
@@ -643,12 +643,6 @@ const VendorRegister = () => {
                 </Link>
               </p>
 
-              <div className="pt-4 border-t border-gray-100 flex flex-col items-center gap-2">
-                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Wholesale Vendor?</span>
-                <Link to="/b2b-vendor/register" className="text-primary-600 font-bold hover:underline">
-                  Switch to B2B Vendor Register
-                </Link>
-              </div>
             </div>
           </div>
         </form>

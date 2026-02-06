@@ -25,14 +25,8 @@ export const getAllVendors = async (filters = {}) => {
     // Build query
     const query = {};
 
-    // Exclude B2B vendors from regular vendor list (they have their own endpoint)
-    // Only include B2B vendors if explicitly requested via vendorType filter
-    if (vendorType) {
-      query.vendorType = vendorType;
-    } else {
-      // Default: exclude B2B vendors from regular vendor management
-      query.vendorType = { $ne: 'b2b' };
-    }
+    // Force B2B vendors only for this service
+    query.vendorType = 'b2b';
 
     // Filter by status
     if (status && status !== 'all') {
@@ -73,12 +67,12 @@ export const getAllVendors = async (filters = {}) => {
 
     // Fetch performance stats for these vendors
     const vendorIds = vendorsRaw.map(v => v._id);
-    
+
     const stats = await Order.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           'vendorBreakdown.vendorId': { $in: vendorIds }
-        } 
+        }
       },
       { $unwind: '$vendorBreakdown' },
       { $match: { 'vendorBreakdown.vendorId': { $in: vendorIds } } },
@@ -86,19 +80,19 @@ export const getAllVendors = async (filters = {}) => {
         $group: {
           _id: '$vendorBreakdown.vendorId',
           totalOrders: { $sum: 1 },
-          totalEarnings: { 
-            $sum: { 
+          totalEarnings: {
+            $sum: {
               $cond: [
                 { $not: [{ $in: ['$status', ['cancelled', 'refunded']] }] },
-                { 
+                {
                   $subtract: [
                     { $ifNull: ['$vendorBreakdown.subtotal', 0] },
                     { $ifNull: ['$vendorBreakdown.commission', 0] }
-                  ] 
+                  ]
                 },
                 0
               ]
-            } 
+            }
           }
         }
       }
@@ -387,7 +381,7 @@ export const getB2BVendors = async (filters = {}) => {
       }
 
       // STRICT: Only return vendors with vendorType='b2b' (exact string match)
-      // Reject if vendorType is undefined, null, 'b2c', or anything other than 'b2b'
+      // Reject if vendorType is undefined, null, or anything other than 'b2b'
       const isB2B = vendorType === 'b2b';
       const isActive = vendor.isActive === true;
 
@@ -554,38 +548,38 @@ export const getB2BVendors = async (filters = {}) => {
  * @returns {Promise<Boolean>} True if deleted successfully
  */
 export const deleteB2BVendor = async (vendorId) => {
-    try {
-      const vendor = await Vendor.findById(vendorId);
+  try {
+    const vendor = await Vendor.findById(vendorId);
 
-      if (!vendor) {
-        throw new Error('B2B Vendor not found');
-      }
-
-      // Ensure it is a B2B vendor
-      if (vendor.vendorType !== 'b2b') {
-        throw new Error('Cannot delete non-B2B vendor through this endpoint');
-      }
-
-      // Optional: Delete associated products (can be done via middleware/hooks too)
-      await Product.deleteMany({ vendorId: vendor._id });
-
-      // Delete the vendor
-      await Vendor.findByIdAndDelete(vendorId);
-
-      // Cache Invalidation
-      try {
-        await redisService.del(`vendor:details:${vendorId}`);
-        await redisService.clearPattern('vendors:list:*');
-        await redisService.clearPattern('admin:vendors:list:*');
-      } catch (cacheError) {
-        console.error('Cache invalidation error (deleteB2BVendor):', cacheError);
-      }
-
-      return true;
-    } catch (error) {
-      if (error.name === 'CastError') {
-        throw new Error('Invalid vendor ID');
-      }
-      throw error;
+    if (!vendor) {
+      throw new Error('B2B Vendor not found');
     }
-  };
+
+    // Ensure it is a B2B vendor
+    if (vendor.vendorType !== 'b2b') {
+      throw new Error('Cannot delete non-B2B vendor through this endpoint');
+    }
+
+    // Optional: Delete associated products (can be done via middleware/hooks too)
+    await Product.deleteMany({ vendorId: vendor._id });
+
+    // Delete the vendor
+    await Vendor.findByIdAndDelete(vendorId);
+
+    // Cache Invalidation
+    try {
+      await redisService.del(`vendor:details:${vendorId}`);
+      await redisService.clearPattern('vendors:list:*');
+      await redisService.clearPattern('admin:vendors:list:*');
+    } catch (cacheError) {
+      console.error('Cache invalidation error (deleteB2BVendor):', cacheError);
+    }
+
+    return true;
+  } catch (error) {
+    if (error.name === 'CastError') {
+      throw new Error('Invalid vendor ID');
+    }
+    throw error;
+  }
+};

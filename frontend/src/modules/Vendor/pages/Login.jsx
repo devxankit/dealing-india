@@ -118,13 +118,13 @@ const VendorLogin = () => {
         let retries = 0;
         const maxRetries = 10;
         let stateReady = false;
-        
+
         while (retries < maxRetries && !stateReady) {
-            await new Promise(resolve => setTimeout(resolve, 50));
-            const { isAuthenticated, token } = useVendorAuthStore.getState();
-            stateReady = isAuthenticated && token;
-            if (stateReady) break;
-            retries++;
+          await new Promise(resolve => setTimeout(resolve, 50));
+          const { isAuthenticated, token } = useVendorAuthStore.getState();
+          stateReady = isAuthenticated && token;
+          if (stateReady) break;
+          retries++;
         }
 
         toast.success('Login successful!');
@@ -153,11 +153,11 @@ const VendorLogin = () => {
         className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl relative"
       >
         {/* Back Button */}
-        <button 
-            onClick={() => navigate(-1)} 
-            className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
         >
-            <FiArrowLeft size={24} />
+          <FiArrowLeft size={24} />
         </button>
 
         {/* Logo/Header */}
@@ -261,13 +261,6 @@ const VendorLogin = () => {
               <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">
                 Switch to B2B Vendor Portal
               </Link>
-              
-              <div className="mt-2 pt-2 w-full border-t border-gray-100 flex flex-col items-center gap-1">
-                  <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">B2C Buyer?</span>
-                  <Link to="/app/login" className="text-primary-600 font-bold hover:underline">
-                    Switch to B2C Buyer Login
-                  </Link>
-              </div>
             </div>
           </div>
         </form>

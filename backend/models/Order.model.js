@@ -1,229 +1,126 @@
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema(
-  {
-    orderCode: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    customerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    items: [
-      {
-        productId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'Product',
-          required: true,
+    {
+        orderCode: {
+            type: String,
+            required: true,
+            unique: true,
         },
-        name: {
-          type: String,
-          required: true,
+        customerId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true,
         },
-        quantity: {
-          type: Number,
-          required: true,
-          min: 1,
+        items: [
+            {
+                productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+                name: String,
+                quantity: Number,
+                price: Number,
+                image: String,
+            },
+        ],
+        total: {
+            type: Number,
+            required: true,
         },
-        price: {
-          type: Number,
-          required: true,
-          min: 0,
-        },
-        image: String,
-        variant: {
-          type: Object,
-          default: null
-        },
-      },
-    ],
-    status: {
-      type: String,
-      enum: ['awaiting', 'received', 'processed', 'shipped', 'delivered', 'cancelled', 'returned', 'on_hold', 'pending', 'processing', 'ready_to_ship'],
-      default: 'awaiting',
-    },
-    paymentMethod: {
-      type: String,
-      enum: ['creditCard', 'debitCard', 'upi', 'wallet', 'cash', 'cod'],
-      required: true,
-    },
-    paymentStatus: {
-      type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
-      default: 'pending',
-    },
-    razorpayOrderId: {
-      type: String,
-    },
-    razorpayPaymentId: {
-      type: String,
-      sparse: true,
-    },
-    razorpaySignature: {
-      type: String,
-      sparse: true,
-    },
-    shippingAddress: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Address',
-    },
-    orderDate: {
-      type: Date,
-      default: Date.now,
-    },
-    // Pricing breakdown (denormalized for performance)
-    pricing: {
-      subtotal: {
-        type: Number,
-        min: 0,
-        default: 0,
-      },
-      tax: {
-        type: Number,
-        min: 0,
-        default: 0,
-      },
-      discount: {
-        type: Number,
-        min: 0,
-        default: 0,
-      },
-      shipping: {
-        type: Number,
-        min: 0,
-        default: 0,
-      },
-      platformFee: {
-        type: Number,
-        min: 0,
-        default: 0,
-      },
-      total: {
-        type: Number,
-        min: 0,
-        default: 0,
-      },
-      couponCode: {
-        type: String,
-        default: null,
-      },
-    },
-    // Customer snapshot (denormalized)
-    customerSnapshot: {
-      name: String,
-      email: String,
-      phone: String,
-    },
-    // Status history with timestamps
-    statusHistory: [
-      {
         status: {
-          type: String,
-          required: true,
+            type: String,
+            enum: [
+                'pending',
+                'processing',
+                'ready_to_ship',
+                'dispatched',
+                'shipped_seller',
+                'shipped',
+                'delivered',
+                'cancelled',
+                'returned',
+                'refunded',
+            ],
+            default: 'pending',
         },
-        changedBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          refPath: 'statusHistory.changedByModel',
+        paymentMethod: {
+            type: String,
+            required: true,
         },
-        changedByModel: {
-          type: String,
-          enum: ['User', 'Vendor', 'Admin'],
+        paymentStatus: {
+            type: String,
+            enum: ['pending', 'completed', 'failed', 'refunded'],
+            default: 'pending',
         },
-        changedByRole: {
-          type: String,
-          enum: ['user', 'vendor', 'admin'],
-          required: true,
+        shippingAddress: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Address',
         },
-        timestamp: {
-          type: Date,
-          default: Date.now,
+        pricing: {
+            subtotal: Number,
+            tax: Number,
+            discount: { type: Number, default: 0 },
+            shipping: { type: Number, default: 0 },
+            platformFee: { type: Number, default: 0 },
+            total: Number,
+            couponCode: String,
         },
-        note: String,
-      },
-    ],
-    // Cancellation info
-    cancellation: {
-      cancelledAt: Date,
-      cancelledBy: {
-        type: mongoose.Schema.Types.ObjectId,
-      },
-      cancelledByRole: {
-        type: String,
-        enum: ['user', 'vendor', 'admin'],
-      },
-      reason: String,
-      refundStatus: {
-        type: String,
-        enum: ['pending', 'processing', 'completed', 'failed'],
-      },
-      refundAmount: {
-        type: Number,
-        min: 0,
-      },
-      refundTransactionId: String,
+        customerSnapshot: {
+            name: String,
+            email: String,
+            phone: String,
+        },
+        statusHistory: [
+            {
+                status: String,
+                changedBy: { type: mongoose.Schema.Types.ObjectId, refPath: 'statusHistory.changedByRole' },
+                changedByRole: { type: String, enum: ['user', 'vendor', 'admin', 'system'] },
+                timestamp: { type: Date, default: Date.now },
+                note: String,
+            },
+        ],
+        fundsReleased: {
+            type: Boolean,
+            default: false,
+        },
+        vendorBreakdown: [
+            {
+                vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+                vendorName: String,
+                subtotal: Number,
+                shipping: Number,
+                tax: Number,
+                discount: Number,
+                commission: Number,
+            },
+        ],
+        orderDate: {
+            type: Date,
+            default: Date.now,
+        },
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String,
+        cancellation: {
+            cancelledAt: Date,
+            cancelledBy: { type: mongoose.Schema.Types.ObjectId },
+            cancelledByRole: String,
+            reason: String,
+            refundStatus: String,
+            refundAmount: Number,
+        },
+        tracking: {
+            deliveredAt: Date,
+        },
+        returnWindowExpiresAt: Date,
     },
-    // Tracking info
-    tracking: {
-      trackingNumber: String,
-      carrier: String,
-      estimatedDelivery: Date,
-      deliveredAt: Date,
-    },
-    // Return window and settlement tracking
-    returnWindowExpiresAt: {
-      type: Date,
-    },
-    fundsReleased: {
-      type: Boolean,
-      default: false,
-    },
-    // Vendor breakdown (for multi-vendor orders)
-    vendorBreakdown: [
-      {
-        vendorId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'Vendor',
-        },
-        vendorName: String,
-        subtotal: {
-          type: Number,
-          min: 0,
-        },
-        shipping: {
-          type: Number,
-          min: 0,
-        },
-        tax: {
-          type: Number,
-          min: 0,
-        },
-        discount: {
-          type: Number,
-          min: 0,
-        },
-        commission: {
-          type: Number,
-          min: 0,
-        },
-      },
-    ],
-  },
-  {
-    timestamps: true,
-  }
+    {
+        timestamps: true,
+    }
 );
 
-// Indexes (orderCode already has unique: true in field definition)
-orderSchema.index({ customerId: 1, createdAt: -1 });
-orderSchema.index({ status: 1, createdAt: -1 });
-orderSchema.index({ 'vendorBreakdown.vendorId': 1, status: 1 });
-orderSchema.index({ razorpayOrderId: 1 }, { sparse: true });
-orderSchema.index({ paymentStatus: 1, createdAt: -1 });
+// Fix for virtuals
+orderSchema.set('toJSON', { virtuals: true });
+orderSchema.set('toObject', { virtuals: true });
 
 const Order = mongoose.model('Order', orderSchema);
 
 export default Order;
-

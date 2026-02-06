@@ -15,38 +15,14 @@ import { connectRedis } from './config/redis.config.js';
 import redisClient from './config/redis.config.js';
 
 // Import routes
-import userAuthRoutes from './routes/userAuth.routes.js';
-import vendorAuthRoutes from './routes/vendorAuth.routes.js';
-import adminAuthRoutes from './routes/adminAuth.routes.js';
-import vendorManagementRoutes from './routes/vendorManagement.routes.js';
-import brandManagementRoutes from './routes/brandManagement.routes.js';
-import policyRoutes from './routes/policy.routes.js';
-import promoCodeRoutes from './routes/promoCode.routes.js';
-import customerManagementRoutes from './routes/customerManagement.routes.js';
-import reportsRoutes from './routes/reports.routes.js';
-import offersRoutes from './routes/offers.routes.js';
-import categoryManagementRoutes from './routes/categoryManagement.routes.js';
-import productManagementRoutes from './routes/productManagement.routes.js';
-import productRatingsRoutes from './routes/productRatings.routes.js';
-import vendorProductsRoutes from './routes/vendorProducts.routes.js';
-import vendorReelsRoutes from './routes/vendorReels.routes.js';
-import vendorReviewsRoutes from './routes/vendorReviews.routes.js';
 import vendorStockRoutes from './routes/vendorStock.routes.js';
-import vendorPromotionsRoutes from './routes/vendorPromotions.routes.js';
-import vendorCampaignsRoutes from './routes/vendorCampaigns.routes.js';
 import vendorFAQsRoutes from './routes/vendorFAQs.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
-import vendorCustomersRoutes from './routes/vendorCustomers.routes.js';
-import vendorInventoryRoutes from './routes/vendorInventory.routes.js';
-import vendorPerformanceRoutes from './routes/vendorPerformance.routes.js';
 import publicCategoryRoutes from './routes/publicCategory.routes.js';
 import publicBrandRoutes from './routes/publicBrand.routes.js';
 import publicProductRoutes from './routes/publicProduct.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
-import publicReviewRoutes from './routes/publicReview.routes.js';
-import wishlistRoutes from './routes/wishlist.routes.js';
-import cartRoutes from './routes/cart.routes.js';
-import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
+// import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
 import adminB2BSubscriptionPlanRoutes from './routes/adminB2BSubscriptionPlan.routes.js';
 import adminB2BVendorSubscriptionRoutes from './routes/adminB2BVendorSubscription.routes.js';
 import adminB2BVendorManagementRoutes from './routes/adminB2BVendorManagement.routes.js';
@@ -54,57 +30,34 @@ import adminB2BCategoryManagementRoutes from './routes/adminB2BCategoryManagemen
 import adminSupportTicketRoutes from './routes/adminSupportTicket.routes.js';
 import vendorSubscriptionRoutes from './routes/vendorSubscription.routes.js';
 import vendorSupportTicketRoutes from './routes/vendorSupportTicket.routes.js';
-import orderRoutes from './routes/order.routes.js';
-import addressRoutes from './routes/address.routes.js';
-import walletRoutes from './routes/wallet.routes.js';
-import heroBannerAdminRoutes from './routes/heroBannerAdmin.routes.js';
-import heroBannerVendorRoutes from './routes/heroBannerVendor.routes.js';
 import publicHeroBannerRoutes from './routes/publicHeroBanner.routes.js';
-import publicCampaignsRoutes from './routes/publicCampaigns.routes.js';
-import publicPromoCodeRoutes from './routes/publicPromoCode.routes.js';
-import publicDeliveryRoutes from './routes/publicDelivery.routes.js';
 import publicB2BCategoryRoutes from './routes/publicB2BCategory.routes.js';
 import publicB2BLocationRoutes from './routes/publicB2BLocation.routes.js';
 import publicB2BSubscriptionRoutes from './routes/publicB2BSubscription.routes.js';
 import SubscriptionRoutes from './routes/vendor-routes/SubscriptionRoute.js';
-import vendorOrderRoutes from './routes/vendorOrder.routes.js';
-import adminOrderRoutes from './routes/adminOrder.routes.js';
-import adminDeliveryRoutes from './routes/adminDelivery.routes.js';
 import publicSettingsRoutes from './routes/publicSettings.routes.js';
 import adminAnalyticsRoutes from './routes/admin-routes/analytics.routes.js';
 import vendorAnalyticsRoutes from './routes/vendor-routes/analytics.routes.js';
 import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
 import b2bVendorDashboardRoutes from './routes/b2bVendorDashboard.routes.js';
 import adminB2BProductManagementRoutes from './routes/adminB2BProductManagement.routes.js';
+import adminOrderRoutes from './routes/adminOrder.routes.js';
+import vendorOrderRoutes from './routes/vendorOrder.routes.js';
+import vendorAuthRoutes from './routes/vendorAuth.routes.js';
+import adminAuthRoutes from './routes/adminAuth.routes.js';
+import vendorManagementRoutes from './routes/vendorManagement.routes.js';
+import policyRoutes from './routes/policy.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
 
-import userReelsRoutes from './routes/userReels.routes.js';
-import reelCommentsRoutes from './routes/reelComments.routes.js';
-import userNotificationRoutes from './routes/userNotification.routes.js';
-import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
-import adminNotificationRoutes from './routes/adminNotification.routes.js';
-import vendorWalletRoutes from './routes/vendorWallet.routes.js';
-import adminVendorWalletRoutes from './routes/adminVendorWallet.routes.js';
-import walletAdminRoutes from './routes/wallet.admin.routes.js';
-import returnRequestRoutes from './routes/returnRequest.routes.js';
-import vendorReturnRoutes from './routes/vendorReturn.routes.js';
-import adminReturnRoutes from './routes/adminReturn.routes.js';
-import vendorChatRoutes from './routes/vendorChat.routes.js';
-import userSupportTicketRoutes from './routes/userSupportTicket.routes.js';
 import adminPromotionalReelRoutes from './routes/adminPromotionalReel.routes.js';
-import userPromotionalReelRoutes from './routes/userPromotionalReel.routes.js';
 import adminMediaRoutes from './routes/admin-routes/media.routes.js';
-import userChatRoutes from './routes/userChat.routes.js';
 import timeWarpRoutes from './routes/timeWarp.routes.js';
 
 // Mega Reward routes
 import adminMegaRewardRoutes from './routes/adminMegaReward.routes.js';
-import userMegaRewardRoutes from './routes/userMegaReward.routes.js';
-import publicMegaRewardRoutes from './routes/publicMegaReward.routes.js';
-import publicReelRoutes from './routes/publicReel.routes.js';
-import { B2BSubscriptionExpiryCron, subscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
+import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 
 
-subscriptionExpiryCron.start();
 B2BSubscriptionExpiryCron.start();
 
 // Load environment variables
@@ -275,7 +228,6 @@ app.get('/api/test-db', (req, res) => {
 import { razorpayWebhook } from "./controllers/SubscriptionCtrl.js";
 
 // Routes
-app.use('/api/auth/user', userAuthRoutes);
 app.use('/api/auth/vendor', vendorAuthRoutes);
 app.use('/api/auth/admin', adminAuthRoutes);
 
@@ -284,58 +236,24 @@ app.use('/api/categories', publicCategoryRoutes);
 app.use('/api/brands', publicBrandRoutes);
 app.use('/api/products', publicProductRoutes);
 app.use('/api/vendors', publicVendorRoutes);
-app.use('/api/reviews', publicReviewRoutes);
 app.use('/api/hero-banners', publicHeroBannerRoutes);
-app.use('/api/campaigns', publicCampaignsRoutes);
-app.use('/api/public/promocodes', publicPromoCodeRoutes);
-app.use('/api/public/delivery', publicDeliveryRoutes);
 app.use('/api/public/b2b-categories', publicB2BCategoryRoutes);
 app.use('/api/public', publicB2BLocationRoutes);
 app.use('/api/public/b2b-subscription-plans', publicB2BSubscriptionRoutes);
 app.use('/api/settings', publicSettingsRoutes);
-app.use('/api/mega-reward', publicMegaRewardRoutes);
-app.use('/api/public/reels', publicReelRoutes);
 app.use('/api/subscription', SubscriptionRoutes);
 
-// Admin management routes (require admin authentication)
 app.use('/api/admin/vendors', vendorManagementRoutes);
-app.use('/api/admin/brands', brandManagementRoutes);
 app.use('/api/admin/policies', policyRoutes);
-app.use('/api/admin/delivery-rules', adminDeliveryRoutes);
-app.use('/api/admin/promocodes', promoCodeRoutes);
-app.use('/api/admin/customers', customerManagementRoutes);
 app.use('/api/admin/reports', reportsRoutes);
-app.use('/api/admin/offers', offersRoutes);
-app.use('/api/admin/categories', categoryManagementRoutes);
-app.use('/api/admin/products', productManagementRoutes);
-app.use('/api/admin/product-ratings', productRatingsRoutes);
 app.use('/api/admin/settings', settingsRoutes);
-app.use('/api/admin/hero-banners', heroBannerAdminRoutes);
-app.use('/api/admin/orders', adminOrderRoutes);
-app.use('/api/admin/notifications', adminNotificationRoutes);
-app.use('/api/admin/vendor-wallets', adminVendorWalletRoutes);
-app.use('/api/admin/returns', adminReturnRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
-app.use('/api/admin/wallet', walletAdminRoutes);
-app.use('/api/admin/promotional-reels', adminPromotionalReelRoutes);
-app.use('/api/admin/mega-reward', adminMegaRewardRoutes);
 app.use('/api/admin/media', adminMediaRoutes);
 app.use('/api/dev/time', timeWarpRoutes);
 
 
 // User management routes (require user authentication)
-app.use('/api/user/wishlist', wishlistRoutes);
-app.use('/api/user/cart', cartRoutes);
-app.use('/api/user/orders', orderRoutes);
-app.use('/api/user/addresses', addressRoutes);
-app.use('/api/user/wallet', walletRoutes);
-app.use('/api/user/notifications', userNotificationRoutes);
-app.use('/api/user/reels', userReelsRoutes);
-app.use('/api/user/promotional-reels', userPromotionalReelRoutes);
-app.use('/api/user/reels', reelCommentsRoutes);
-app.use('/api/user/support-tickets', userSupportTicketRoutes);
-app.use('/api/user/mega-reward', userMegaRewardRoutes);
-app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
+// app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/admin/b2b-subscription-plans', adminB2BSubscriptionPlanRoutes);
 app.use('/api/admin/b2b-vendors/subscriptions', adminB2BVendorSubscriptionRoutes);
 app.use('/api/admin/b2b-vendors', adminB2BVendorManagementRoutes);
@@ -344,32 +262,19 @@ app.use('/api/admin/b2b-products', adminB2BProductManagementRoutes);
 app.use('/api/admin/support-tickets', adminSupportTicketRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 app.use('/api/vendor/support-tickets', vendorSupportTicketRoutes);
-app.use('/api/vendor/chat', vendorChatRoutes);
-app.use('/api/user/chat', userChatRoutes);
-app.use('/api/user/returns', returnRequestRoutes);
 
 // Vendor management routes (require vendor authentication)
-app.use('/api/vendor/products', vendorProductsRoutes);
-app.use('/api/vendor/reels', vendorReelsRoutes);
-app.use('/api/vendor/reviews', vendorReviewsRoutes);
 app.use('/api/vendor/stock', vendorStockRoutes);
-app.use('/api/vendor/promotions', vendorPromotionsRoutes);
-app.use('/api/vendor/campaigns', vendorCampaignsRoutes);
 app.use('/api/vendor/faqs', vendorFAQsRoutes);
-app.use('/api/vendor/customers', vendorCustomersRoutes);
-app.use('/api/vendor/inventory', vendorInventoryRoutes);
-app.use('/api/vendor/performance', vendorPerformanceRoutes);
-app.use('/api/vendor/hero-banners', heroBannerVendorRoutes);
-app.use('/api/vendor/orders', vendorOrderRoutes);
-app.use('/api/vendor/notifications', vendorNotificationRoutes);
-app.use('/api/vendor/wallet', vendorWalletRoutes);
-app.use('/api/vendor/returns', vendorReturnRoutes);
 app.use('/api/vendor/analytics', vendorAnalyticsRoutes);
-app.use('/api/subscription', SubscriptionRoutes);
 
 // B2B Vendor routes (separate from regular vendor routes)
 app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);
 app.use('/api/b2b-vendor/dashboard', b2bVendorDashboardRoutes);
+
+// Order Management routes
+app.use('/api/admin/orders', adminOrderRoutes);
+app.use('/api/vendor/orders', vendorOrderRoutes);
 
 
 // Global error handler for unhandled promise rejections

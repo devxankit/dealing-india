@@ -36,10 +36,9 @@ const VendorHeader = ({ onMenuClick }) => {
   const handleSwitch = async (path) => {
     setShowUserMenu(false);
     try {
-      // Clear both buyer and vendor sessions
-      await useAuthStore.getState().logout();
+      // Clear current sessions
       await logout();
-      // Use window.location.href to ensure a full clean state and avoid any route guard interference
+      // Use window.location.href to ensure a full clean state
       window.location.href = path;
     } catch (error) {
       console.error("Error during switch:", error);
@@ -164,12 +163,6 @@ const VendorHeader = ({ onMenuClick }) => {
                     <div className="h-px bg-gray-50 my-1 mx-4"></div>
                     <p className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Buyer Panels</p>
 
-                    <button
-                      onClick={() => handleSwitch('/app/login')}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                      <FiShoppingBag className="text-lg text-blue-500" />
-                      <span className="font-medium">Switch to B2C Buyer</span>
-                    </button>
 
                     <button
                       onClick={() => handleSwitch('/b2b/login')}

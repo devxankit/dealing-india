@@ -388,12 +388,12 @@ class VendorWalletService {
         const wallets = await VendorWallet.find()
             .populate({
                 path: 'vendorId',
-                match: { vendorType: 'b2c' },
+                match: { vendorType: 'b2b' },
                 select: 'name storeName email phone'
             })
             .sort({ balance: -1 });
 
-        // Filter out wallets where vendorId is null (meaning it didn't match 'b2c')
+        // Filter out wallets where vendorId is null (meaning it didn't match 'b2b')
         return wallets.filter(wallet => wallet.vendorId);
     }
 

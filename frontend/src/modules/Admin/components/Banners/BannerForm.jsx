@@ -202,7 +202,7 @@ const BannerForm = ({ banner, onClose, onSave }) => {
                         onChange={handleChange}
                         required
                         options={[
-                          { value: "hero", label: "B2C Home Page" },
+                          { value: "hero", label: "Public Home Page" },
                           { value: "b2b", label: "B2B Home Page" },
                         ]}
                       />

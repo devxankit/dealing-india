@@ -229,7 +229,7 @@ const AdminVendorWallet = () => {
             {/* Wallets Table */}
             <div className="mt-8 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="p-6 border-b border-gray-50 flex flex-wrap gap-4 items-center justify-between">
-                    <h3 className="font-bold text-gray-800">Vendor Wallet Balances (B2C Only)</h3>
+                    <h3 className="font-bold text-gray-800">Vendor Wallet Balances</h3>
                 </div>
 
                 <div className="overflow-x-auto">

@@ -62,7 +62,7 @@ const VendorVerification = () => {
       return;
     }
 
-    const vendorType = location.state?.vendorType || 'b2c';
+    const vendorType = location.state?.vendorType || 'b2b';
 
     if (!email || email === 'your email') {
       toast.error('Email not found. Please register again.');
@@ -90,7 +90,7 @@ const VendorVerification = () => {
 
   const handleResend = async () => {
     if (!email || email === 'your email') {
-      const vendorType = location.state?.vendorType || 'b2c';
+      const vendorType = location.state?.vendorType || 'b2b';
       toast.error('Email not found. Please register again.');
       navigate(vendorType === 'b2b' ? '/b2b-vendor/register' : '/vendor/register');
       return;

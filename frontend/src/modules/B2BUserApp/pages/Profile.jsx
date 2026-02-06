@@ -12,8 +12,7 @@ import api from '../../../shared/utils/api';
 
 const Profile = () => {
     const navigate = useNavigate();
-    const { user, logout, switchMarketplace } = useAuthStore();
-    const [isSwitching, setIsSwitching] = useState(false);
+    const { user, logout } = useAuthStore();
 
     const menuItems = [
         { icon: FiBriefcase, label: 'Company Profile', desc: 'Manage your business details & GST', path: '/b2b/company' },
@@ -27,27 +26,6 @@ const Profile = () => {
         navigate('/app/login');
     };
 
-    const handleSwitchMarketplace = async () => {
-        setIsSwitching(true);
-        try {
-            const result = await switchMarketplace('b2c');
-            if (result.success) {
-                toast.success('Switched to Retail Marketplace');
-
-                // Use hard navigation to ensure store is fully updated and prevent race conditions
-                // This forces a full page reload with the new marketplace setting
-                setTimeout(() => {
-                    window.location.href = '/app';
-                }, 300);
-            }
-        } catch (error) {
-            toast.error('Failed to switch marketplace');
-            setIsSwitching(false);
-        }
-    };
-
-
-
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <B2BHeader title="My Business Account" showBack={true} />
@@ -56,7 +34,7 @@ const Profile = () => {
                 {/* Profile Header */}
                 <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm mb-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
-                    <div 
+                    <div
                         className="relative flex flex-col items-center cursor-pointer group"
                         onClick={() => navigate('/b2b/personal-profile')}
                     >
@@ -74,33 +52,6 @@ const Profile = () => {
                         </span>
                     </div>
                 </div>
-
-                {/* Marketplace Switcher Card */}
-                <motion.div
-                    initial={{ scale: 0.98, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleSwitchMarketplace}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-800 rounded-3xl p-6 text-white shadow-xl mb-4 relative overflow-hidden cursor-pointer"
-                >
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-6 -mt-6 blur-2xl" />
-                    <div className="relative z-10 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/10 text-white">
-                                <FiShoppingBag size={24} />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-lg leading-tight">
-                                    {isSwitching ? "Switching..." : "Switch to Retail"}
-                                </h3>
-                                <p className="text-xs text-blue-100 font-medium opacity-80">
-                                    Buy for yourself at Retail Marketplace
-                                </p>
-                            </div>
-                        </div>
-                        <FiArrowRight size={20} className="text-blue-200" />
-                    </div>
-                </motion.div>
 
                 {/* Become a Seller Card */}
                 <motion.div
@@ -184,9 +135,6 @@ const Profile = () => {
             </main>
 
             <B2BBottomNav />
-
-            {/* Vendor Type Selection Modal */}
-
         </div>
     );
 };
