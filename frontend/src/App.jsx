@@ -11,6 +11,7 @@ import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const SupportTickets = lazyWithRetry(() => import("./shared/components/Support/SupportTickets"));
 const VendorStore = lazyWithRetry(() => import("./shared/components/Store/VendorStore"));
+const ScrollToTop = lazyWithRetry(() => import("./shared/components/ScrollToTop"));
 const AdminSupportTickets = lazyWithRetry(() => import("./modules/Admin/pages/supportTickets/SupportTickets"));
 const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
 const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
@@ -159,7 +160,7 @@ const AppRoutes = () => {
   }, []);
 
   // Initialize time warp testing cheat
-  useTimeWarpCheat();
+
 
   /*
   useEffect(() => {
@@ -254,7 +255,7 @@ const AppRoutes = () => {
             <Route path="analytics" element={<AdminB2BVendorAnalyticsPage />} />
             <Route path="subscriptions" element={<AdminB2BSubscriptions />} />
             <Route path="categories" element={<AdminB2BCategories />} />
-            <Route path=":id" element={<VendorDetail />} />
+
           </Route>
 
           <Route path="offers/festival-offers" element={<FestivalOffers />} />

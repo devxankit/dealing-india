@@ -9,10 +9,7 @@ import {
   getB2BVendors,
   deleteB2BVendor,
 } from '../../services/vendorManagement.service.js';
-import {
-  getVendorAnalytics,
-  getVendorOrders,
-} from '../../services/vendorAnalytics.service.js';
+
 import redisService from '../../services/redis.service.js';
 import { getSignedUrl } from '../../utils/cloudinary.util.js';
 
@@ -232,53 +229,9 @@ export const getApproved = async (req, res, next) => {
   }
 };
 
-/**
- * Get vendor analytics
- * GET /api/admin/vendors/analytics/:id?
- */
-export const getAnalytics = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const analytics = await getVendorAnalytics(id || null);
 
-    res.status(200).json({
-      success: true,
-      message: 'Vendor analytics retrieved successfully',
-      data: analytics,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
-/**
- * Get vendor orders
- * GET /api/admin/vendors/:id/orders
- */
-export const getOrders = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const {
-      page = 1,
-      limit = 10,
-      status,
-    } = req.query;
 
-    const result = await getVendorOrders(id, {
-      page,
-      limit,
-      status,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Vendor orders retrieved successfully',
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
 /**
  * Get B2B vendors with subscription information

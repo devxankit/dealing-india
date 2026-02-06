@@ -1,10 +1,10 @@
 import BannerSlot from '../models/BannerSlot.model.js';
 import BannerBooking from '../models/BannerBooking.model.js';
-import Banner from '../models/Banner.model.js';
+
 import Settings from '../models/Settings.model.js';
 import { uploadToCloudinary } from '../utils/cloudinary.util.js';
 import razorpayService from './razorpay.service.js';
-import vendorWalletService from './vendorWallet.service.js';
+
 import crypto from 'crypto';
 
 /**
@@ -607,59 +607,8 @@ export const createBooking = async (vendorId, bookingData, file, paymentMethod =
   });
 
   // Handle wallet payment
-  if (paymentMethod === 'wallet' && vendorId) {
-    try {
-      // Check vendor wallet balance
-      const wallet = await vendorWalletService.getOrCreateWallet(vendorId);
-
-      if (wallet.balance < amountNum) {
-        // Delete the booking if wallet payment fails
-        await BannerBooking.findByIdAndDelete(booking._id);
-        throw new Error('Insufficient wallet balance');
-      }
-
-      // Deduct from wallet
-      await vendorWalletService.debitPendingOrBalance(
-        vendorId,
-        amountNum,
-        `Banner Booking Payment - ${referenceId}`,
-        booking._id.toString(),
-        'banner_booking'
-      );
-
-      // Get the latest wallet transaction for this booking
-      const VendorWalletTransaction = (await import('../models/VendorWalletTransaction.model.js')).default;
-      const walletTransaction = await VendorWalletTransaction.findOne({
-        vendorId,
-        referenceId: booking._id.toString(),
-        referenceType: 'banner_booking'
-      }).sort({ createdAt: -1 });
-
-      // Update booking payment status
-      booking.paymentStatus = 'paid';
-      booking.paymentMethod = 'wallet';
-      // Store wallet transaction ID if available (paymentId is for Transaction model, but we can store wallet transaction _id as string)
-      if (walletTransaction) {
-        // Note: paymentId field references 'Transaction' model, but for wallet payments we store the wallet transaction ID
-        // This is acceptable as the reference is stored and we can query by it
-        booking.paymentId = walletTransaction._id;
-      }
-      await booking.save();
-
-      // Get Razorpay key ID for frontend (null for wallet payment)
-      const razorpayKeyId = null;
-
-      return {
-        ...booking.toObject(),
-        razorpayOrder: null,
-        razorpayKeyId,
-        walletTransactionId: walletResult._id
-      };
-    } catch (error) {
-      // If wallet payment fails, delete the booking
-      await BannerBooking.findByIdAndDelete(booking._id);
-      throw error;
-    }
+  if (paymentMethod === 'wallet') {
+    throw new Error('Wallet payment is no longer supported');
   }
 
   // Create Razorpay order (for non-wallet payments)
@@ -839,59 +788,27 @@ export const getActiveBanners = async (bannerType = 'b2b') => {
     endDate: booking.endDate
   }));
 
-  // FALLBACK: If no banners are purchased/active, return default banners from Banner model
-  if (banners.length === 0) {
-    const defaultBanners = await Banner.find({
-      bannerType: filterType,
-      isActive: true,
-      $and: [
-        {
-          $or: [
-            { startDate: null },
-            { startDate: { $lte: now } }
-          ]
-        },
-        {
-          $or: [
-            { endDate: null },
-            { endDate: { $gte: now } }
-          ]
-        }
-      ]
-    }).sort({ order: 1 }).limit(4);
 
-    if (defaultBanners.length > 0) {
-      return defaultBanners.map(b => ({
-        _id: b._id,
-        id: b._id.toString(),
-        slotNumber: b.order || 0,
-        image: b.image,
-        bannerImage: b.image,
-        link: b.link || (filterType === 'b2b' ? '/b2b/landing' : '/'),
-        title: b.title,
-        isDefault: true
-      }));
-    }
-
-    // Secondary fallback: static settings if no Banner records found
-    const settings = await getBannerSettings();
-    const defaultData = filterType === 'b2b' ? settings.defaultB2BBanner : settings.defaultBanner;
-
-    const bannerImage = (defaultData && defaultData.image) ? defaultData.image : '/upload/landing_default.png';
-
-    return [{
-      _id: 'default-banner',
-      id: 'default-banner',
-      slotNumber: 0,
-      image: bannerImage,
-      bannerImage: bannerImage,
-      link: defaultData?.link || (filterType === 'b2b' ? '/b2b/landing' : '/'),
-      title: defaultData?.title || (filterType === 'b2b' ? "India's Biggest Wholesale Network" : "Dealing India - Your Trusted Marketplace"),
-      isDefault: true
-    }];
+  if (banners.length > 0) {
+    return banners;
   }
 
-  return banners;
+  // Secondary fallback: static settings if no Banner records found
+  const settings = await getBannerSettings();
+  const defaultData = filterType === 'b2b' ? settings.defaultB2BBanner : settings.defaultBanner;
+
+  const bannerImage = (defaultData && defaultData.image) ? defaultData.image : '/upload/landing_default.png';
+
+  return [{
+    _id: 'default-banner',
+    id: 'default-banner',
+    slotNumber: 0,
+    image: bannerImage,
+    bannerImage: bannerImage,
+    link: defaultData?.link || (filterType === 'b2b' ? '/b2b/landing' : '/'),
+    title: defaultData?.title || (filterType === 'b2b' ? "India's Biggest Wholesale Network" : "Dealing India - Your Trusted Marketplace"),
+    isDefault: true
+  }];
 };
 
 

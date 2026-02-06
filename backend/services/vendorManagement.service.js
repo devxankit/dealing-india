@@ -1,6 +1,6 @@
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
-import Order from '../models/Order.model.js';
+
 import redisService from './redis.service.js';
 import mongoose from 'mongoose';
 
@@ -65,51 +65,9 @@ export const getAllVendors = async (filters = {}) => {
       Vendor.countDocuments(query),
     ]);
 
-    // Fetch performance stats for these vendors
-    const vendorIds = vendorsRaw.map(v => v._id);
-
-    const stats = await Order.aggregate([
-      {
-        $match: {
-          'vendorBreakdown.vendorId': { $in: vendorIds }
-        }
-      },
-      { $unwind: '$vendorBreakdown' },
-      { $match: { 'vendorBreakdown.vendorId': { $in: vendorIds } } },
-      {
-        $group: {
-          _id: '$vendorBreakdown.vendorId',
-          totalOrders: { $sum: 1 },
-          totalEarnings: {
-            $sum: {
-              $cond: [
-                { $not: [{ $in: ['$status', ['cancelled', 'refunded']] }] },
-                {
-                  $subtract: [
-                    { $ifNull: ['$vendorBreakdown.subtotal', 0] },
-                    { $ifNull: ['$vendorBreakdown.commission', 0] }
-                  ]
-                },
-                0
-              ]
-            }
-          }
-        }
-      }
-    ]);
-
-    // Map stats back to vendors
-    const statsMap = stats.reduce((acc, curr) => {
-      acc[curr._id.toString()] = {
-        totalOrders: curr.totalOrders,
-        totalEarnings: curr.totalEarnings
-      };
-      return acc;
-    }, {});
-
     const vendors = vendorsRaw.map(vendor => ({
       ...vendor,
-      performance: statsMap[vendor._id.toString()] || { totalOrders: 0, totalEarnings: 0 }
+      performance: { totalOrders: 0, totalEarnings: 0 }
     }));
 
     const totalPages = Math.ceil(total / parseInt(limit));

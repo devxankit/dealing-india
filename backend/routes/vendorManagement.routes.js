@@ -7,8 +7,7 @@ import {
   toggleActive,
   getPending,
   getApproved,
-  getAnalytics,
-  getOrders,
+
   getB2BVendorsList,
 } from '../controllers/admin-controllers/vendorManagement.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
@@ -26,10 +25,9 @@ router.use(authorize('admin'));
 router.get('/', redisService.cacheMiddleware('admin:vendors:list', 300), asyncHandler(getVendors));
 router.get('/pending', redisService.cacheMiddleware('admin:vendors:pending', 300), asyncHandler(getPending));
 router.get('/approved', redisService.cacheMiddleware('admin:vendors:approved', 300), asyncHandler(getApproved));
-router.get('/analytics', redisService.cacheMiddleware('admin:vendors:analytics', 600), asyncHandler(getAnalytics));
-router.get('/analytics/:id', redisService.cacheMiddleware('admin:vendors:analytics:details', 600), asyncHandler(getAnalytics));
+
 router.get('/:id', redisService.cacheMiddleware('admin:vendors:details', 300), asyncHandler(getVendor));
-router.get('/:id/orders', redisService.cacheMiddleware('admin:vendors:orders', 300), asyncHandler(getOrders));
+
 router.put('/:id/status', asyncHandler(updateStatus));
 router.put('/:id/commission', asyncHandler(updateCommission));
 router.patch('/:id/toggle-active', asyncHandler(toggleActive));

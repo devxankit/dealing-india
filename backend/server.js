@@ -16,10 +16,10 @@ import redisClient from './config/redis.config.js';
 
 // Import routes
 import vendorStockRoutes from './routes/vendorStock.routes.js';
-import vendorFAQsRoutes from './routes/vendorFAQs.routes.js';
+
 import settingsRoutes from './routes/settings.routes.js';
 import publicCategoryRoutes from './routes/publicCategory.routes.js';
-import publicBrandRoutes from './routes/publicBrand.routes.js';
+
 import publicProductRoutes from './routes/publicProduct.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
 // import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
@@ -41,20 +41,14 @@ import vendorAnalyticsRoutes from './routes/vendor-routes/analytics.routes.js';
 import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
 import b2bVendorDashboardRoutes from './routes/b2bVendorDashboard.routes.js';
 import adminB2BProductManagementRoutes from './routes/adminB2BProductManagement.routes.js';
-import adminOrderRoutes from './routes/adminOrder.routes.js';
-import vendorOrderRoutes from './routes/vendorOrder.routes.js';
+
 import vendorAuthRoutes from './routes/vendorAuth.routes.js';
 import adminAuthRoutes from './routes/adminAuth.routes.js';
 import vendorManagementRoutes from './routes/vendorManagement.routes.js';
 import policyRoutes from './routes/policy.routes.js';
-import reportsRoutes from './routes/reports.routes.js';
 
-import adminPromotionalReelRoutes from './routes/adminPromotionalReel.routes.js';
+
 import adminMediaRoutes from './routes/admin-routes/media.routes.js';
-import timeWarpRoutes from './routes/timeWarp.routes.js';
-
-// Mega Reward routes
-import adminMegaRewardRoutes from './routes/adminMegaReward.routes.js';
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 
 
@@ -233,7 +227,7 @@ app.use('/api/auth/admin', adminAuthRoutes);
 
 // Public routes
 app.use('/api/categories', publicCategoryRoutes);
-app.use('/api/brands', publicBrandRoutes);
+
 app.use('/api/products', publicProductRoutes);
 app.use('/api/vendors', publicVendorRoutes);
 app.use('/api/hero-banners', publicHeroBannerRoutes);
@@ -245,11 +239,10 @@ app.use('/api/subscription', SubscriptionRoutes);
 
 app.use('/api/admin/vendors', vendorManagementRoutes);
 app.use('/api/admin/policies', policyRoutes);
-app.use('/api/admin/reports', reportsRoutes);
+
 app.use('/api/admin/settings', settingsRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/admin/media', adminMediaRoutes);
-app.use('/api/dev/time', timeWarpRoutes);
 
 
 // User management routes (require user authentication)
@@ -265,7 +258,7 @@ app.use('/api/vendor/support-tickets', vendorSupportTicketRoutes);
 
 // Vendor management routes (require vendor authentication)
 app.use('/api/vendor/stock', vendorStockRoutes);
-app.use('/api/vendor/faqs', vendorFAQsRoutes);
+
 app.use('/api/vendor/analytics', vendorAnalyticsRoutes);
 
 // B2B Vendor routes (separate from regular vendor routes)
@@ -273,8 +266,7 @@ app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);
 app.use('/api/b2b-vendor/dashboard', b2bVendorDashboardRoutes);
 
 // Order Management routes
-app.use('/api/admin/orders', adminOrderRoutes);
-app.use('/api/vendor/orders', vendorOrderRoutes);
+
 
 
 // Global error handler for unhandled promise rejections

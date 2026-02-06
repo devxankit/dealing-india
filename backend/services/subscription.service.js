@@ -1,7 +1,7 @@
 import SubscriptionTier from '../models/SubscriptionTier.model.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
 import Vendor from '../models/Vendor.model.js';
-import Transaction from '../models/Transaction.model.js';
+
 import razorpayService from './razorpay.service.js';
 import NotificationService from './notification.service.js';
 import mongoose from 'mongoose';
@@ -51,7 +51,7 @@ class SubscriptionService {
           interval: 1,
           description: description
         });
-console.log("plan",plan)
+        console.log("plan", plan)
         updateData.razorpayPlanId = plan.id;
       } catch (error) {
         console.error('Failed to create new Razorpay plan during tier update:', error);

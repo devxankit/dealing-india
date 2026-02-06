@@ -1,15 +1,9 @@
 import express from 'express';
 import {
-  createSubscription,
-  getSubscriptionByAdmin,
-  getAllSubscriptions,
-  cancelSubscription,
   createB2BSubscription,
   getB2BSubscription,
   getAllB2BSubscriptions,
   cancelB2BSubscription,
-  getAllPlans,
-  getSubscriptionDetails,
   getAllB2BPlans,
   getB2BSubscriptionDetails,
 } from '../../controllers/SubscriptionCtrl.js';

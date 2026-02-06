@@ -1,21 +1,17 @@
-import * as analyticsService from '../../services/analytics.service.js';
+
+// import * as analyticsService from '../../services/analytics.service.js'; // Removed broken service dependency
 
 export const getVendorAnalyticsSummary = async (req, res) => {
   try {
-    const { period } = req.query;
-    const vendorId = req.user.vendorId; // Extract vendorId from JWT payload
-    
-    if (!vendorId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vendor ID is required'
-      });
-    }
-
-    const summary = await analyticsService.getVendorAnalyticsSummary(vendorId, period);
+    // Stubbed response for B2B transition
     res.status(200).json({
       success: true,
-      data: summary
+      data: {
+        totalRevenue: 0,
+        pendingEarnings: 0,
+        totalOrders: 0,
+        totalProducts: 0
+      }
     });
   } catch (error) {
     console.error('Error in getVendorAnalyticsSummary:', error);
@@ -29,20 +25,10 @@ export const getVendorAnalyticsSummary = async (req, res) => {
 
 export const getVendorChartData = async (req, res) => {
   try {
-    const { period } = req.query;
-    const vendorId = req.user.vendorId;
-
-    if (!vendorId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vendor ID is required'
-      });
-    }
-
-    const chartData = await analyticsService.getVendorChartData(vendorId, period);
+    // Stubbed response for B2B transition
     res.status(200).json({
       success: true,
-      data: chartData
+      data: []
     });
   } catch (error) {
     console.error('Error in getVendorChartData:', error);
@@ -56,20 +42,26 @@ export const getVendorChartData = async (req, res) => {
 
 export const getVendorDashboardData = async (req, res) => {
   try {
-    const { period } = req.query;
-    const vendorId = req.user.vendorId;
-
-    if (!vendorId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vendor ID is required'
-      });
-    }
-
-    const dashboardData = await analyticsService.getVendorDashboardData(vendorId, period);
+    // Stubbed response for B2B transition
     res.status(200).json({
       success: true,
-      data: dashboardData
+      data: {
+        metrics: {
+          totalRevenue: 0,
+          totalOrders: 0,
+          totalProducts: 0,
+          avgOrderValue: 0,
+          customerCount: 0,
+        },
+        earnings: {
+          totalEarnings: 0,
+          pendingEarnings: 0,
+          paidEarnings: 0,
+        },
+        revenueData: [],
+        topProducts: [],
+        recentOrders: []
+      }
     });
   } catch (error) {
     console.error('Error in getVendorDashboardData:', error);
@@ -80,3 +72,4 @@ export const getVendorDashboardData = async (req, res) => {
     });
   }
 };
+
