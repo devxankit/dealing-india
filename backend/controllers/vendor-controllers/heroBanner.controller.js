@@ -3,23 +3,8 @@ import * as heroBannerService from '../../services/heroBanner.service.js';
 export const getAvailableSlots = async (req, res, next) => {
   try {
     // Get banner type from query or determine from vendor
-    let bannerType = req.query.bannerType;
-    
-    if (!bannerType) {
-      // Determine from vendor type
-      const vendorId = req.user.vendorId || req.user.id;
-      if (vendorId) {
-        const Vendor = (await import('../../models/Vendor.model.js')).default;
-        const vendor = await Vendor.findById(vendorId);
-        if (vendor && vendor.vendorType === 'b2b') {
-          bannerType = 'b2b';
-        } else {
-          bannerType = 'hero';
-        }
-      } else {
-        bannerType = 'hero'; // Default
-      }
-    }
+    // Force B2B banner type
+    const bannerType = 'b2b';
 
     const slots = await heroBannerService.getBannerSlots(bannerType);
     const settings = await heroBannerService.getBannerSettings();
@@ -92,16 +77,8 @@ export const getMyBookings = async (req, res, next) => {
     }
 
     // Get banner type from query or determine from vendor
-    let bannerType = req.query.bannerType;
-    if (!bannerType) {
-      const Vendor = (await import('../../models/Vendor.model.js')).default;
-      const vendor = await Vendor.findById(vendorId);
-      if (vendor && vendor.vendorType === 'b2b') {
-        bannerType = 'b2b';
-      } else {
-        bannerType = 'hero';
-      }
-    }
+    // Force B2B banner type
+    const bannerType = 'b2b';
 
     const bookings = await heroBannerService.getVendorBookings(vendorId, bannerType);
     res.status(200).json({

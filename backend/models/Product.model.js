@@ -141,18 +141,12 @@ const productSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
-    flashSale: {
-      type: Boolean,
-      default: false,
-    },
+
     isNew: {
       type: Boolean,
       default: false,
     },
-    isTrending: {
-      type: Boolean,
-      default: false,
-    },
+
     isFeatured: {
       type: Boolean,
       default: false,

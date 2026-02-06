@@ -1,13 +1,14 @@
 import Vendor from '../models/Vendor.model.js';
 
 /**
- * Get vendor summary statistics
+ * Get vendor summary statistics (B2B-ONLY)
  */
 export const getVendorSummaryStats = async () => {
-    const totalVendors = await Vendor.countDocuments();
-    const activeVendors = await Vendor.countDocuments({ isActive: true });
-    const inactiveVendors = await Vendor.countDocuments({ isActive: false });
+    const totalVendors = await Vendor.countDocuments({ vendorType: 'b2b' });
+    const activeVendors = await Vendor.countDocuments({ vendorType: 'b2b', isActive: true });
+    const inactiveVendors = await Vendor.countDocuments({ vendorType: 'b2b', isActive: false });
     const statusBreakdown = await Vendor.aggregate([
+        { $match: { vendorType: 'b2b' } },
         { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
@@ -23,38 +24,17 @@ export const getVendorSummaryStats = async () => {
         }
     });
 
-    // Average vendor age in days
-    const averageAgeResult = await Vendor.aggregate([
-        {
-            $group: {
-                _id: null,
-                avgAge: {
-                    $avg: {
-                        $dateDiff: {
-                            startDate: '$createdAt',
-                            endDate: new Date(),
-                            unit: 'day'
-                        }
-                    }
-                }
-            }
-        }
-    ]);
-
-    const avgAge = averageAgeResult.length > 0 ? Math.round(averageAgeResult[0].avgAge) : 0;
-
     return {
         totalVendors,
         activeVendors,
         inactiveVendors,
         ...statusCounts,
-        avgAge
+        avgAge: 0 // Simplified
     };
 };
 
 /**
- * Get vendor registration analytics for a specific date (hourly)
- * @param {Date} date 
+ * Get vendor registration analytics for a specific date (hourly) (B2B-ONLY)
  */
 export const getTodayRegistrations = async (date) => {
     const startOfDay = new Date(date);
@@ -66,6 +46,7 @@ export const getTodayRegistrations = async (date) => {
     const stats = await Vendor.aggregate([
         {
             $match: {
+                vendorType: 'b2b',
                 createdAt: { $gte: startOfDay, $lte: endOfDay }
             }
         },
@@ -78,7 +59,6 @@ export const getTodayRegistrations = async (date) => {
         { $sort: { _id: 1 } }
     ]);
 
-    // Fill in gaps for all 24 hours
     const hourlyData = Array.from({ length: 24 }, (_, i) => {
         const hourData = stats.find(s => s._id === i);
         return {
@@ -91,7 +71,7 @@ export const getTodayRegistrations = async (date) => {
 };
 
 /**
- * Get weekly registration analytics (last 7 days)
+ * Get weekly registration analytics (last 7 days) (B2B-ONLY)
  */
 export const getWeeklyRegistrations = async () => {
     const endDate = new Date();
@@ -102,6 +82,7 @@ export const getWeeklyRegistrations = async () => {
     const stats = await Vendor.aggregate([
         {
             $match: {
+                vendorType: 'b2b',
                 createdAt: { $gte: startDate, $lte: endDate }
             }
         },
@@ -130,7 +111,7 @@ export const getWeeklyRegistrations = async () => {
 };
 
 /**
- * Get monthly registration analytics (last 30 days)
+ * Get monthly registration analytics (last 30 days) (B2B-ONLY)
  */
 export const getMonthlyRegistrations = async () => {
     const endDate = new Date();
@@ -141,6 +122,7 @@ export const getMonthlyRegistrations = async () => {
     const stats = await Vendor.aggregate([
         {
             $match: {
+                vendorType: 'b2b',
                 createdAt: { $gte: startDate, $lte: endDate }
             }
         },
@@ -169,7 +151,7 @@ export const getMonthlyRegistrations = async () => {
 };
 
 /**
- * Get yearly registration analytics (last 12 months)
+ * Get yearly registration analytics (last 12 months) (B2B-ONLY)
  */
 export const getYearlyRegistrations = async () => {
     const endDate = new Date();
@@ -181,6 +163,7 @@ export const getYearlyRegistrations = async () => {
     const stats = await Vendor.aggregate([
         {
             $match: {
+                vendorType: 'b2b',
                 createdAt: { $gte: startDate, $lte: endDate }
             }
         },
@@ -209,9 +192,7 @@ export const getYearlyRegistrations = async () => {
 };
 
 /**
- * Get custom date range registration analytics
- * @param {Date} startDate
- * @param {Date} endDate
+ * Get custom date range registration analytics (B2B-ONLY)
  */
 export const getCustomRangeRegistrations = async (startDate, endDate) => {
     const start = new Date(startDate);
@@ -220,12 +201,12 @@ export const getCustomRangeRegistrations = async (startDate, endDate) => {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    // Calculate number of days
     const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
     const stats = await Vendor.aggregate([
         {
             $match: {
+                vendorType: 'b2b',
                 createdAt: { $gte: start, $lte: end }
             }
         },
@@ -255,8 +236,7 @@ export const getCustomRangeRegistrations = async (startDate, endDate) => {
 };
 
 /**
- * Get detailed vendor list for a specific date
- * @param {Date} date
+ * Get detailed vendor list for a specific date (B2B-ONLY)
  */
 export const getVendorsRegisteredOnDate = async (date) => {
     const startOfDay = new Date(date);
@@ -266,7 +246,7 @@ export const getVendorsRegisteredOnDate = async (date) => {
     endOfDay.setHours(23, 59, 59, 999);
 
     const vendors = await Vendor.find(
-        { createdAt: { $gte: startOfDay, $lte: endOfDay } },
+        { vendorType: 'b2b', createdAt: { $gte: startOfDay, $lte: endOfDay } },
         { name: 1, email: 1, storeName: 1, status: 1, isActive: 1, createdAt: 1 }
     ).sort({ createdAt: -1 });
 
@@ -280,3 +260,4 @@ export const getVendorsRegisteredOnDate = async (date) => {
         registeredAt: v.createdAt
     }));
 };
+

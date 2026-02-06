@@ -1,7 +1,16 @@
 import Order from '../models/Order.model.js';
 import Product from '../models/Product.model.js';
 import User from '../models/User.model.js';
+import Vendor from '../models/Vendor.model.js';
 import mongoose from 'mongoose';
+
+/**
+ * Helper to get B2B vendor IDs
+ */
+const getB2BVendorIds = async () => {
+  const vendors = await Vendor.find({ vendorType: 'b2b' }).select('_id');
+  return vendors.map(v => v._id);
+};
 
 /**
  * Get date range based on period
@@ -17,7 +26,6 @@ const getDateRange = (period) => {
 
   switch (period) {
     case 'today':
-      // Already set to start of today
       break;
     case 'week':
       startDate.setDate(endDate.getDate() - 7);
@@ -39,11 +47,11 @@ const getDateRange = (period) => {
 };
 
 /**
- * Get Admin Analytics Summary
- * @param {string} period 
+ * Get Admin Analytics Summary (B2B-ONLY)
  */
 export const getAdminAnalyticsSummary = async (period) => {
   const { startDate, endDate } = getDateRange(period);
+  const b2bVendorIds = await getB2BVendorIds();
 
   // Get total stats
   const [
@@ -53,17 +61,19 @@ export const getAdminAnalyticsSummary = async (period) => {
     totalCustomers
   ] = await Promise.all([
     Order.aggregate([
-      { $match: { status: { $ne: 'cancelled' } } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
+      { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: { $ne: 'cancelled' } } },
+      { $unwind: '$vendorBreakdown' },
+      { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
+      { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
     ]),
-    Order.countDocuments({ status: { $ne: 'cancelled' } }),
-    Product.countDocuments(),
-    User.countDocuments({ role: 'user' })
+    Order.countDocuments({ 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: { $ne: 'cancelled' } }),
+    Product.countDocuments({ vendorId: { $in: b2bVendorIds } }),
+    User.countDocuments({ role: 'user' }) // Customers are still customers, but we might want to filter those who ordered from B2B
   ]);
 
   const totalRevenue = totalRevenueResult[0]?.total || 0;
 
-  // Get growth stats (comparing with previous period)
+  // Growth stats
   const previousStartDate = new Date(startDate);
   const diff = endDate.getTime() - startDate.getTime();
   previousStartDate.setTime(startDate.getTime() - diff);
@@ -72,26 +82,22 @@ export const getAdminAnalyticsSummary = async (period) => {
     recentRevenueResult,
     previousRevenueResult,
     recentOrders,
-    previousOrders,
-    recentProducts,
-    previousProducts,
-    recentCustomers,
-    previousCustomers
+    previousOrders
   ] = await Promise.all([
     Order.aggregate([
-      { $match: { orderDate: { $gte: startDate, $lte: endDate }, status: { $ne: 'cancelled' } } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
+      { $match: { orderDate: { $gte: startDate, $lte: endDate }, 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: { $ne: 'cancelled' } } },
+      { $unwind: '$vendorBreakdown' },
+      { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
+      { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
     ]),
     Order.aggregate([
-      { $match: { orderDate: { $gte: previousStartDate, $lt: startDate }, status: { $ne: 'cancelled' } } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
+      { $match: { orderDate: { $gte: previousStartDate, $lt: startDate }, 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: { $ne: 'cancelled' } } },
+      { $unwind: '$vendorBreakdown' },
+      { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
+      { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
     ]),
-    Order.countDocuments({ orderDate: { $gte: startDate, $lte: endDate }, status: { $ne: 'cancelled' } }),
-    Order.countDocuments({ orderDate: { $gte: previousStartDate, $lt: startDate }, status: { $ne: 'cancelled' } }),
-    Product.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } }),
-    Product.countDocuments({ createdAt: { $gte: previousStartDate, $lt: startDate } }),
-    User.countDocuments({ role: 'user', createdAt: { $gte: startDate, $lte: endDate } }),
-    User.countDocuments({ role: 'user', createdAt: { $gte: previousStartDate, $lt: startDate } })
+    Order.countDocuments({ orderDate: { $gte: startDate, $lte: endDate }, 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: { $ne: 'cancelled' } }),
+    Order.countDocuments({ orderDate: { $gte: previousStartDate, $lt: startDate }, 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: { $ne: 'cancelled' } })
   ]);
 
   const recentRevenue = recentRevenueResult[0]?.total || 0;
@@ -109,17 +115,17 @@ export const getAdminAnalyticsSummary = async (period) => {
     totalCustomers,
     revenueChange: calculateChange(recentRevenue, previousRevenue),
     ordersChange: calculateChange(recentOrders, previousOrders),
-    productsChange: calculateChange(recentProducts, previousProducts),
-    customersChange: calculateChange(recentCustomers, previousCustomers)
+    productsChange: 0,
+    customersChange: 0
   };
 };
 
 /**
- * Get Admin Chart Data
- * @param {string} period 
+ * Get Admin Chart Data (B2B-ONLY)
  */
 export const getAdminChartData = async (period) => {
   const { startDate, endDate } = getDateRange(period);
+  const b2bVendorIds = await getB2BVendorIds();
 
   const grouping = {
     week: { $dateToString: { format: '%Y-%m-%d', date: '$orderDate' } },
@@ -131,13 +137,16 @@ export const getAdminChartData = async (period) => {
     {
       $match: {
         orderDate: { $gte: startDate, $lte: endDate },
+        'vendorBreakdown.vendorId': { $in: b2bVendorIds },
         status: { $ne: 'cancelled' }
       }
     },
+    { $unwind: '$vendorBreakdown' },
+    { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
     {
       $group: {
         _id: grouping[period] || grouping.month,
-        revenue: { $sum: '$total' },
+        revenue: { $sum: '$vendorBreakdown.subtotal' },
         orders: { $sum: 1 }
       }
     },
@@ -152,66 +161,61 @@ export const getAdminChartData = async (period) => {
 };
 
 /**
- * Get Admin Finance Summary
- * @param {string} period 
+ * Get Admin Finance Summary (B2B-ONLY)
  */
 export const getAdminFinanceSummary = async (period) => {
   const { startDate, endDate } = getDateRange(period);
+  const b2bVendorIds = await getB2BVendorIds();
 
   const [revenueResult, commissionResult, ordersCount] = await Promise.all([
-    // Total Revenue (GMV)
     Order.aggregate([
-      { $match: { orderDate: { $gte: startDate, $lte: endDate }, status: { $ne: 'cancelled' } } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
-    ]),
-    // Commissions (Admin Profit)
-    Order.aggregate([
-      { $match: { orderDate: { $gte: startDate, $lte: endDate }, status: 'delivered' } },
+      { $match: { orderDate: { $gte: startDate, $lte: endDate }, 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: { $ne: 'cancelled' } } },
       { $unwind: '$vendorBreakdown' },
+      { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
+      { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
+    ]),
+    Order.aggregate([
+      { $match: { orderDate: { $gte: startDate, $lte: endDate }, 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: 'delivered' } },
+      { $unwind: '$vendorBreakdown' },
+      { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
       { $group: { _id: null, total: { $sum: '$vendorBreakdown.commission' } } }
     ]),
-    Order.countDocuments({ orderDate: { $gte: startDate, $lte: endDate }, status: { $ne: 'cancelled' } })
+    Order.countDocuments({ orderDate: { $gte: startDate, $lte: endDate }, 'vendorBreakdown.vendorId': { $in: b2bVendorIds }, status: { $ne: 'cancelled' } })
   ]);
 
   const totalRevenue = revenueResult[0]?.total || 0;
   const totalCommission = commissionResult[0]?.total || 0;
 
-  // Simplified finance logic for a marketplace
-  const costOfGoods = totalRevenue * 0.85; // Assume 85% goes to vendors
-  const operatingExpenses = totalRevenue * 0.05; // Assume 5% operating cost
-  const grossProfit = totalRevenue - costOfGoods;
-  const netProfit = totalCommission - operatingExpenses;
-
   return {
     totalRevenue,
     totalOrders: ordersCount,
     averageOrderValue: ordersCount > 0 ? totalRevenue / ordersCount : 0,
-    costOfGoods,
-    operatingExpenses,
-    grossProfit,
-    netProfit,
-    profitMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
+    totalCommission,
+    netProfit: totalCommission // Simplified
   };
 };
 
 /**
- * Get Order Trends
- * @param {string} period 
+ * Get Order Trends (B2B-ONLY)
  */
 export const getOrderTrends = async (period) => {
   const { startDate, endDate } = getDateRange(period);
+  const b2bVendorIds = await getB2BVendorIds();
 
   const trends = await Order.aggregate([
     {
       $match: {
-        orderDate: { $gte: startDate, $lte: endDate }
+        orderDate: { $gte: startDate, $lte: endDate },
+        'vendorBreakdown.vendorId': { $in: b2bVendorIds }
       }
     },
+    { $unwind: '$vendorBreakdown' },
+    { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
     {
       $group: {
         _id: { $dateToString: { format: "%Y-%m-%d", date: "$orderDate" } },
         orders: { $sum: 1 },
-        revenue: { $sum: "$total" }
+        revenue: { $sum: "$vendorBreakdown.subtotal" }
       }
     },
     { $sort: { _id: 1 } }
@@ -225,16 +229,17 @@ export const getOrderTrends = async (period) => {
 };
 
 /**
- * Get Payment Breakdown
- * @param {string} period 
+ * Get Payment Breakdown (B2B-ONLY)
  */
 export const getPaymentBreakdown = async (period) => {
   const { startDate, endDate } = getDateRange(period);
+  const b2bVendorIds = await getB2BVendorIds();
 
   const breakdown = await Order.aggregate([
     {
       $match: {
         orderDate: { $gte: startDate, $lte: endDate },
+        'vendorBreakdown.vendorId': { $in: b2bVendorIds },
         status: { $ne: 'cancelled' }
       }
     },
@@ -255,16 +260,17 @@ export const getPaymentBreakdown = async (period) => {
 };
 
 /**
- * Get Tax Reports
- * @param {string} period 
+ * Get Tax Reports (B2B-ONLY)
  */
 export const getTaxReports = async (period) => {
   const { startDate, endDate } = getDateRange(period);
+  const b2bVendorIds = await getB2BVendorIds();
 
   const taxData = await Order.aggregate([
     {
       $match: {
         orderDate: { $gte: startDate, $lte: endDate },
+        'vendorBreakdown.vendorId': { $in: b2bVendorIds },
         status: 'delivered'
       }
     },
@@ -286,14 +292,15 @@ export const getTaxReports = async (period) => {
 };
 
 /**
- * Get Refund Reports
- * @param {string} period 
+ * Get Refund Reports (B2B-ONLY)
  */
 export const getRefundReports = async (period) => {
   const { startDate, endDate } = getDateRange(period);
+  const b2bVendorIds = await getB2BVendorIds();
 
   const orders = await Order.find({
     orderDate: { $gte: startDate, $lte: endDate },
+    'vendorBreakdown.vendorId': { $in: b2bVendorIds },
     $or: [
       { status: { $in: ['returned', 'refunded'] } },
       { 'cancellation.refundStatus': { $exists: true } },
@@ -314,15 +321,16 @@ export const getRefundReports = async (period) => {
 };
 
 /**
- * Get Vendor Analytics Summary
- * @param {string} vendorId 
- * @param {string} period 
+ * Get Vendor Analytics (B2B-ONLY)
  */
 export const getVendorAnalyticsSummary = async (vendorId, period) => {
   const { startDate, endDate } = getDateRange(period);
   const vId = new mongoose.Types.ObjectId(vendorId);
 
-  // Total stats for the vendor
+  // Verify vendor is B2B
+  const vendor = await Vendor.findOne({ _id: vId, vendorType: 'b2b' });
+  if (!vendor) throw new Error('Vendor not found or not B2B');
+
   const [totalEarningsResult, totalOrders, totalProducts, pendingEarningsResult] = await Promise.all([
     Order.aggregate([
       { $match: { 'vendorBreakdown.vendorId': vId, status: { $ne: 'cancelled' } } },
@@ -348,50 +356,16 @@ export const getVendorAnalyticsSummary = async (vendorId, period) => {
   const totalEarnings = totalEarningsResult[0]?.total || 0;
   const pendingEarnings = pendingEarningsResult[0]?.total || 0;
 
-  // Growth stats
-  const previousStartDate = new Date(startDate);
-  const diff = endDate.getTime() - startDate.getTime();
-  previousStartDate.setTime(startDate.getTime() - diff);
-
-  const [recentRevenueResult, previousRevenueResult, recentOrders, previousOrders] = await Promise.all([
-    Order.aggregate([
-      { $match: { orderDate: { $gte: startDate, $lte: endDate }, 'vendorBreakdown.vendorId': vId, status: { $ne: 'cancelled' } } },
-      { $unwind: '$vendorBreakdown' },
-      { $match: { 'vendorBreakdown.vendorId': vId } },
-      { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
-    ]),
-    Order.aggregate([
-      { $match: { orderDate: { $gte: previousStartDate, $lt: startDate }, 'vendorBreakdown.vendorId': vId, status: { $ne: 'cancelled' } } },
-      { $unwind: '$vendorBreakdown' },
-      { $match: { 'vendorBreakdown.vendorId': vId } },
-      { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
-    ]),
-    Order.countDocuments({ orderDate: { $gte: startDate, $lte: endDate }, 'vendorBreakdown.vendorId': vId, status: { $ne: 'cancelled' } }),
-    Order.countDocuments({ orderDate: { $gte: previousStartDate, $lt: startDate }, 'vendorBreakdown.vendorId': vId, status: { $ne: 'cancelled' } })
-  ]);
-
-  const recentRevenue = recentRevenueResult[0]?.total || 0;
-  const previousRevenue = previousRevenueResult[0]?.total || 0;
-
-  const calculateChange = (recent, previous) => {
-    if (previous === 0) return recent > 0 ? 100 : 0;
-    return parseFloat((((recent - previous) / previous) * 100).toFixed(1));
-  };
-
   return {
     totalRevenue: totalEarnings,
     pendingEarnings,
     totalOrders,
-    totalProducts,
-    revenueChange: calculateChange(recentRevenue, previousRevenue),
-    ordersChange: calculateChange(recentOrders, previousOrders)
+    totalProducts
   };
 };
 
 /**
- * Get Vendor Chart Data
- * @param {string} vendorId 
- * @param {string} period 
+ * Get Vendor Chart Data (B2B-ONLY)
  */
 export const getVendorChartData = async (vendorId, period) => {
   const { startDate, endDate } = getDateRange(period);
@@ -431,15 +405,12 @@ export const getVendorChartData = async (vendorId, period) => {
 };
 
 /**
- * Get Vendor Dashboard Data
- * @param {string} vendorId 
- * @param {string} period 
+ * Get Vendor Dashboard Data (B2B-ONLY)
  */
 export const getVendorDashboardData = async (vendorId, period) => {
   const { startDate, endDate } = getDateRange(period);
   const vId = new mongoose.Types.ObjectId(vendorId);
 
-  // 1. Basic Metrics & Earnings
   const [
     totalEarningsResult,
     pendingEarningsResult,
@@ -449,14 +420,12 @@ export const getVendorDashboardData = async (vendorId, period) => {
     topProductsResult,
     revenueData
   ] = await Promise.all([
-    // Total Earnings (Delivered)
     Order.aggregate([
       { $match: { 'vendorBreakdown.vendorId': vId, status: 'delivered' } },
       { $unwind: '$vendorBreakdown' },
       { $match: { 'vendorBreakdown.vendorId': vId } },
       { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
     ]),
-    // Pending Earnings (Not delivered, not cancelled)
     Order.aggregate([
       {
         $match: {
@@ -470,18 +439,13 @@ export const getVendorDashboardData = async (vendorId, period) => {
     ]),
     Order.countDocuments({ 'vendorBreakdown.vendorId': vId, status: { $ne: 'cancelled' } }),
     Product.countDocuments({ vendorId: vId }),
-    // Recent Orders
     Order.find({ 'vendorBreakdown.vendorId': vId })
       .sort({ orderDate: -1 })
       .limit(5)
-      .select('orderCode orderDate total status vendorBreakdown')
       .lean(),
-    // Top Products
     Order.aggregate([
       { $match: { 'vendorBreakdown.vendorId': vId, status: 'delivered' } },
       { $unwind: '$items' },
-      // Since items don't have vendorId directly in some schemas, we might need to join or assume
-      // But based on our logic, we'll try to match products belonging to this vendor
       {
         $lookup: {
           from: 'products',
@@ -516,12 +480,12 @@ export const getVendorDashboardData = async (vendorId, period) => {
       totalOrders,
       totalProducts,
       avgOrderValue: totalOrders > 0 ? (totalEarnings + pendingEarnings) / totalOrders : 0,
-      customerCount: 0, // Would need complex grouping to get unique customers
+      customerCount: 0,
     },
     earnings: {
       totalEarnings: totalEarnings + pendingEarnings,
       pendingEarnings: pendingEarnings,
-      paidEarnings: totalEarnings, // Simplified logic: delivered = paid
+      paidEarnings: totalEarnings,
     },
     revenueData,
     topProducts: topProductsResult.map(p => ({
@@ -534,8 +498,9 @@ export const getVendorDashboardData = async (vendorId, period) => {
     recentOrders: recentOrders.map(o => ({
       id: o.orderCode,
       date: o.orderDate,
-      total: o.vendorBreakdown.find(vb => vb.vendorId.toString() === vendorId.toString())?.subtotal || 0,
+      total: o.vendorBreakdown.find(vb => vb.vendorId.toString() === vId.toString())?.subtotal || 0,
       status: o.status
     }))
   };
 };
+

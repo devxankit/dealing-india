@@ -1,9 +1,17 @@
 import mongoose from 'mongoose';
 import Order from '../models/Order.model.js';
+import Vendor from '../models/Vendor.model.js';
 
 /**
- * Get order analytics for a specific date (hourly)
- * @param {Date} date 
+ * Helper to get B2B vendor IDs
+ */
+const getB2BVendorIds = async () => {
+    const vendors = await Vendor.find({ vendorType: 'b2b' }).select('_id');
+    return vendors.map(v => v._id);
+};
+
+/**
+ * Get order analytics for a specific date (hourly) (B2B-ONLY)
  */
 export const getTodayOrdersAnalytics = async (date) => {
     const startOfDay = new Date(date);
@@ -12,9 +20,12 @@ export const getTodayOrdersAnalytics = async (date) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
+    const b2bVendorIds = await getB2BVendorIds();
+
     const stats = await Order.aggregate([
         {
             $match: {
+                'vendorBreakdown.vendorId': { $in: b2bVendorIds },
                 $or: [
                     { createdAt: { $gte: startOfDay, $lte: endOfDay } },
                     { orderDate: { $gte: startOfDay, $lte: endOfDay } }
@@ -22,19 +33,20 @@ export const getTodayOrdersAnalytics = async (date) => {
                 status: { $nin: ['cancelled', 'canceled', 'refunded'] }
             }
         },
+        { $unwind: '$vendorBreakdown' },
+        { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
         {
             $group: {
                 _id: { $hour: { $ifNull: ['$createdAt', '$orderDate'] } },
                 orders: { $sum: 1 },
-                revenue: { 
-                    $sum: { $ifNull: ['$pricing.total', '$total', 0] } 
+                revenue: {
+                    $sum: { $ifNull: ['$vendorBreakdown.subtotal', 0] }
                 }
             }
         },
         { $sort: { _id: 1 } }
     ]);
 
-    // Fill in the gaps for all 24 hours
     const hourlyData = Array.from({ length: 24 }, (_, i) => {
         const hourData = stats.find(s => s._id === i);
         return {
@@ -48,7 +60,7 @@ export const getTodayOrdersAnalytics = async (date) => {
 };
 
 /**
- * Get weekly order analytics (last 7 days)
+ * Get weekly order analytics (last 7 days) (B2B-ONLY)
  */
 export const getWeeklyOrdersAnalytics = async () => {
     const endDate = new Date();
@@ -56,9 +68,12 @@ export const getWeeklyOrdersAnalytics = async () => {
     startDate.setDate(endDate.getDate() - 6);
     startDate.setHours(0, 0, 0, 0);
 
+    const b2bVendorIds = await getB2BVendorIds();
+
     const stats = await Order.aggregate([
         {
             $match: {
+                'vendorBreakdown.vendorId': { $in: b2bVendorIds },
                 $or: [
                     { createdAt: { $gte: startDate, $lte: endDate } },
                     { orderDate: { $gte: startDate, $lte: endDate } }
@@ -66,24 +81,25 @@ export const getWeeklyOrdersAnalytics = async () => {
                 status: { $nin: ['cancelled', 'canceled', 'refunded'] }
             }
         },
+        { $unwind: '$vendorBreakdown' },
+        { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
         {
             $group: {
-                _id: { 
-                    $dateToString: { 
-                        format: '%Y-%m-%d', 
-                        date: { $ifNull: ['$createdAt', '$orderDate'] } 
-                    } 
+                _id: {
+                    $dateToString: {
+                        format: '%Y-%m-%d',
+                        date: { $ifNull: ['$createdAt', '$orderDate'] }
+                    }
                 },
                 orders: { $sum: 1 },
-                revenue: { 
-                    $sum: { $ifNull: ['$pricing.total', '$total', 0] } 
+                revenue: {
+                    $sum: { $ifNull: ['$vendorBreakdown.subtotal', 0] }
                 }
             }
         },
         { $sort: { _id: 1 } }
     ]);
 
-    // Fill the gaps for 7 days
     const dailyData = [];
     for (let i = 0; i < 7; i++) {
         const d = new Date(startDate);
@@ -101,7 +117,7 @@ export const getWeeklyOrdersAnalytics = async () => {
 };
 
 /**
- * Get monthly order analytics (last 30 days)
+ * Get monthly order analytics (last 30 days) (B2B-ONLY)
  */
 export const getMonthlyOrdersAnalytics = async () => {
     const endDate = new Date();
@@ -109,9 +125,12 @@ export const getMonthlyOrdersAnalytics = async () => {
     startDate.setDate(endDate.getDate() - 29);
     startDate.setHours(0, 0, 0, 0);
 
+    const b2bVendorIds = await getB2BVendorIds();
+
     const stats = await Order.aggregate([
         {
             $match: {
+                'vendorBreakdown.vendorId': { $in: b2bVendorIds },
                 $or: [
                     { createdAt: { $gte: startDate, $lte: endDate } },
                     { orderDate: { $gte: startDate, $lte: endDate } }
@@ -119,17 +138,19 @@ export const getMonthlyOrdersAnalytics = async () => {
                 status: { $nin: ['cancelled', 'canceled', 'refunded'] }
             }
         },
+        { $unwind: '$vendorBreakdown' },
+        { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
         {
             $group: {
-                _id: { 
-                    $dateToString: { 
-                        format: '%Y-%m-%d', 
-                        date: { $ifNull: ['$createdAt', '$orderDate'] } 
-                    } 
+                _id: {
+                    $dateToString: {
+                        format: '%Y-%m-%d',
+                        date: { $ifNull: ['$createdAt', '$orderDate'] }
+                    }
                 },
                 orders: { $sum: 1 },
-                revenue: { 
-                    $sum: { $ifNull: ['$pricing.total', '$total', 0] } 
+                revenue: {
+                    $sum: { $ifNull: ['$vendorBreakdown.subtotal', 0] }
                 }
             }
         },
@@ -153,7 +174,7 @@ export const getMonthlyOrdersAnalytics = async () => {
 };
 
 /**
- * Get yearly order analytics (last 12 months)
+ * Get yearly order analytics (last 12 months) (B2B-ONLY)
  */
 export const getYearlyOrdersAnalytics = async () => {
     const endDate = new Date();
@@ -162,9 +183,12 @@ export const getYearlyOrdersAnalytics = async () => {
     startDate.setDate(1);
     startDate.setHours(0, 0, 0, 0);
 
+    const b2bVendorIds = await getB2BVendorIds();
+
     const stats = await Order.aggregate([
         {
             $match: {
+                'vendorBreakdown.vendorId': { $in: b2bVendorIds },
                 $or: [
                     { createdAt: { $gte: startDate, $lte: endDate } },
                     { orderDate: { $gte: startDate, $lte: endDate } }
@@ -172,17 +196,19 @@ export const getYearlyOrdersAnalytics = async () => {
                 status: { $nin: ['cancelled', 'canceled', 'refunded'] }
             }
         },
+        { $unwind: '$vendorBreakdown' },
+        { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
         {
             $group: {
-                _id: { 
-                    $dateToString: { 
-                        format: '%Y-%m', 
-                        date: { $ifNull: ['$createdAt', '$orderDate'] } 
-                    } 
+                _id: {
+                    $dateToString: {
+                        format: '%Y-%m',
+                        date: { $ifNull: ['$createdAt', '$orderDate'] }
+                    }
                 },
                 orders: { $sum: 1 },
-                revenue: { 
-                    $sum: { $ifNull: ['$pricing.total', '$total', 0] } 
+                revenue: {
+                    $sum: { $ifNull: ['$vendorBreakdown.subtotal', 0] }
                 }
             }
         },
@@ -204,3 +230,4 @@ export const getYearlyOrdersAnalytics = async () => {
 
     return monthlyData;
 };
+

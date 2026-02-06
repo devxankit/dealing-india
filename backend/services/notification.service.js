@@ -308,10 +308,8 @@ class NotificationService {
 
       if (target === 'specific' && recipientIds.length > 0) {
         // Send to specific recipients
-        // Determine recipient type from first ID (or pass as parameter)
-        // For now, we'll try to find in all collections
-        const users = await User.find({ _id: { $in: recipientIds }, isActive: true }).select('_id').lean();
-        const vendors = await Vendor.find({ _id: { $in: recipientIds }, isActive: true }).select('_id').lean();
+        const users = await User.find({ _id: { $in: recipientIds }, isActive: true, currentMarketplace: 'b2b' }).select('_id').lean();
+        const vendors = await Vendor.find({ _id: { $in: recipientIds }, isActive: true, vendorType: 'b2b' }).select('_id').lean();
         const admins = await Admin.find({ _id: { $in: recipientIds }, isActive: true }).select('_id').lean();
 
         recipients = [
@@ -320,14 +318,14 @@ class NotificationService {
           ...admins.map((a) => ({ id: a._id, type: 'admin' })),
         ];
       } else if (target === 'users' || target === 'all') {
-        // Send to all active users
-        const users = await User.find({ isActive: true }).select('_id').lean();
+        // Send to all active B2B users
+        const users = await User.find({ isActive: true, currentMarketplace: 'b2b' }).select('_id').lean();
         recipients = users.map((u) => ({ id: u._id, type: 'user' }));
       }
 
       if (target === 'vendors' || target === 'all') {
-        // Send to all active vendors
-        const vendors = await Vendor.find({ isActive: true }).select('_id').lean();
+        // Send to all active B2B vendors
+        const vendors = await Vendor.find({ isActive: true, vendorType: 'b2b' }).select('_id').lean();
         recipients = [
           ...recipients,
           ...vendors.map((v) => ({ id: v._id, type: 'vendor' })),
@@ -339,6 +337,7 @@ class NotificationService {
         const admins = await Admin.find({ isActive: true }).select('_id').lean();
         recipients = admins.map((a) => ({ id: a._id, type: 'admin' }));
       }
+
 
       if (recipients.length === 0) {
         throw new Error('No recipients found for the specified target');

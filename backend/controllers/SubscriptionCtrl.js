@@ -71,10 +71,3 @@ export const razorpayWebhook = async (req, res, next) => {
     }
 };
 
-// Legacy B2C stubs to prevent crashes
-export const getAllPlans = (req, res) => res.status(403).json({ success: false, message: 'B2C not supported' });
-export const createSubscription = (req, res) => res.status(403).json({ success: false, message: 'B2C not supported' });
-export const getSubscriptionByAdmin = (req, res) => res.status(403).json({ success: false, message: 'B2C not supported' });
-export const getAllSubscriptions = (req, res) => res.status(403).json({ success: false, message: 'B2C not supported' });
-export const getSubscriptionDetails = (req, res) => res.status(403).json({ success: false, message: 'B2C not supported' });
-export const cancelSubscription = (req, res) => res.status(403).json({ success: false, message: 'B2C not supported' });

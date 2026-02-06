@@ -282,7 +282,7 @@ export const checkSubscriptionByEmail = async (req, res, next) => {
 
     // Find vendor by email
     const vendor = await getVendorById(null, email);
-    
+
     if (!vendor) {
       return res.status(404).json({
         success: false,
@@ -352,12 +352,12 @@ export const checkVendorStatusByEmail = async (req, res, next) => {
     // Find vendor by email
     try {
       const vendor = await getVendorById(null, email);
-      
+
       if (!vendor) {
         return res.status(200).json({
           success: true,
           message: 'Vendor not found',
-          data: { 
+          data: {
             exists: false,
             isApproved: false,
             vendorType: null,
@@ -372,7 +372,7 @@ export const checkVendorStatusByEmail = async (req, res, next) => {
         data: {
           exists: true,
           isApproved: vendor.status === 'approved',
-          vendorType: vendor.vendorType || 'b2c',
+          vendorType: vendor.vendorType || 'b2b', // Default to B2B
           status: vendor.status,
           isActive: vendor.isActive,
         },
@@ -383,7 +383,7 @@ export const checkVendorStatusByEmail = async (req, res, next) => {
         return res.status(200).json({
           success: true,
           message: 'Vendor not found',
-          data: { 
+          data: {
             exists: false,
             isApproved: false,
             vendorType: null,

@@ -2,16 +2,28 @@ import mongoose from 'mongoose';
 import Order from '../models/Order.model.js';
 import Product from '../models/Product.model.js';
 import User from '../models/User.model.js';
+import Vendor from '../models/Vendor.model.js';
 
 /**
- * Get sales report
+ * Helper to get B2B vendor IDs
+ */
+const getB2BVendorIds = async () => {
+  const vendors = await Vendor.find({ vendorType: 'b2b' }).select('_id');
+  return vendors.map(v => v._id);
+};
+
+/**
+ * Get sales report (B2B-ONLY)
  */
 export const getSalesReport = async (filters = {}) => {
   try {
     const { startDate, endDate } = filters;
+    const b2bVendorIds = await getB2BVendorIds();
 
     // Build query
-    const query = {};
+    const query = {
+      'vendorBreakdown.vendorId': { $in: b2bVendorIds }
+    };
     if (startDate || endDate) {
       const dateQuery = {};
       if (startDate) {
@@ -35,8 +47,16 @@ export const getSalesReport = async (filters = {}) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Calculate summary
-    const totalSales = orders.reduce((sum, order) => sum + (order.pricing?.total || order.total || 0), 0);
+    // Filter vendorBreakdown in summary calculation
+    let totalSales = 0;
+    orders.forEach(order => {
+      order.vendorBreakdown.forEach(vb => {
+        if (b2bVendorIds.some(id => id.toString() === vb.vendorId?.toString())) {
+          totalSales += (vb.subtotal || 0);
+        }
+      });
+    });
+
     const totalOrders = orders.length;
     const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
@@ -50,7 +70,8 @@ export const getSalesReport = async (filters = {}) => {
       },
       date: order.orderDate || order.createdAt,
       status: order.status,
-      total: order.total,
+      total: order.vendorBreakdown.reduce((sum, vb) =>
+        b2bVendorIds.some(id => id.toString() === vb.vendorId?.toString()) ? sum + vb.subtotal : sum, 0),
       items: order.items || [],
       shippingAddress: order.shippingAddress,
       tax: order.pricing?.tax || 0,
@@ -71,11 +92,12 @@ export const getSalesReport = async (filters = {}) => {
 };
 
 /**
- * Get inventory report
+ * Get inventory report (B2B-ONLY)
  */
 export const getInventoryReport = async () => {
   try {
-    const products = await Product.find().lean();
+    const b2bVendorIds = await getB2BVendorIds();
+    const products = await Product.find({ vendorId: { $in: b2bVendorIds } }).lean();
 
     // Calculate stats
     const totalProducts = products.length;
@@ -120,7 +142,7 @@ export const getInventoryReport = async () => {
 };
 
 /**
- * Get dashboard summary for admin
+ * Get dashboard summary for admin (B2B-ONLY)
  */
 export const getAdminDashboardSummary = async (period = 'month') => {
   try {
@@ -131,7 +153,6 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     startDate.setHours(0, 0, 0, 0);
 
     if (period === 'today') {
-      // Already set to start of today
     } else if (period === 'week') {
       startDate.setDate(endDate.getDate() - 7);
     } else if (period === 'month') {
@@ -144,8 +165,11 @@ export const getAdminDashboardSummary = async (period = 'month') => {
       startDate.setMonth(endDate.getMonth() - 1);
     }
 
-    // Get orders in the period
+    const b2bVendorIds = await getB2BVendorIds();
+
+    // Get orders in the period (B2B filtering)
     const orders = await Order.find({
+      'vendorBreakdown.vendorId': { $in: b2bVendorIds },
       $or: [
         { orderDate: { $gte: startDate, $lte: endDate } },
         { createdAt: { $gte: startDate, $lte: endDate } }
@@ -162,6 +186,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     previousEndDate.setMilliseconds(-1);
 
     const prevOrders = await Order.find({
+      'vendorBreakdown.vendorId': { $in: b2bVendorIds },
       $or: [
         { orderDate: { $gte: previousStartDate, $lte: previousEndDate } },
         { createdAt: { $gte: previousStartDate, $lte: previousEndDate } }
@@ -170,68 +195,60 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     }).lean();
 
     // Calculate stats
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.pricing?.total || o.total || 0), 0);
-    const prevRevenue = prevOrders.reduce((sum, o) => sum + (o.pricing?.total || o.total || 0), 0);
+    let totalRevenue = 0;
+    orders.forEach(o => {
+      o.vendorBreakdown.forEach(vb => {
+        if (b2bVendorIds.some(id => id.toString() === vb.vendorId?.toString())) {
+          totalRevenue += vb.subtotal;
+        }
+      });
+    });
 
-    // Calculate Vendor Earnings vs Platform Earnings (Commission)
+    let prevRevenue = 0;
+    prevOrders.forEach(o => {
+      o.vendorBreakdown.forEach(vb => {
+        if (b2bVendorIds.some(id => id.toString() === vb.vendorId?.toString())) {
+          prevRevenue += vb.subtotal;
+        }
+      });
+    });
+
     let totalVendorEarnings = 0;
     let totalPlatformEarnings = 0;
 
     orders.forEach(order => {
-      let orderVendorShare = 0;
-      let orderPlatformShare = 0;
-
-      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
-        order.vendorBreakdown.forEach(vb => {
-          orderVendorShare += (vb.subtotal - (vb.discount || 0) - vb.commission);
-          orderPlatformShare += vb.commission;
-        });
-        // Add tax, shipping and platform fees to platform share
-        orderPlatformShare += (order.pricing?.tax || 0);
-        orderPlatformShare += (order.pricing?.shipping || 0);
-        orderPlatformShare += (order.pricing?.platformFee || 0);
-      } else {
-        // Fallback: Assume flat 10% commission if no breakdown
-        const commissionRate = 0.1;
-        const subtotal = order.pricing?.subtotal || order.total || 0;
-        const commission = subtotal * commissionRate;
-        orderPlatformShare += commission + (order.pricing?.tax || 0) + (order.pricing?.shipping || 0);
-        orderVendorShare += (subtotal - (order.pricing?.discount || 0) - commission);
-      }
-
-      totalVendorEarnings += orderVendorShare;
-      // Total Revenue includes delivery, tax etc, but for simple split: Platform = Revenue - Vendor Share
-      // detailed accuracy requires summing up non-vendor line items, but this is a good approximation
-      totalPlatformEarnings += orderPlatformShare;
+      order.vendorBreakdown.forEach(vb => {
+        if (b2bVendorIds.some(id => id.toString() === vb.vendorId?.toString())) {
+          totalVendorEarnings += (vb.subtotal - (vb.discount || 0) - vb.commission);
+          totalPlatformEarnings += vb.commission;
+        }
+      });
+      // Simplified: platform also gets tax/shipping for B2B orders? 
+      // Usually vendors keep it or it's handled separately. For now, matching original logic but filtered.
+      totalPlatformEarnings += (order.pricing?.tax || 0) + (order.pricing?.shipping || 0) + (order.pricing?.platformFee || 0);
     });
 
-    // Get previous period vendor/platform earnings for comparison
     let prevVendorEarnings = 0;
     let prevPlatformEarnings = 0;
 
     prevOrders.forEach(order => {
-      if (order.vendorBreakdown && order.vendorBreakdown.length > 0) {
-        order.vendorBreakdown.forEach(vb => {
+      order.vendorBreakdown.forEach(vb => {
+        if (b2bVendorIds.some(id => id.toString() === vb.vendorId?.toString())) {
           prevVendorEarnings += (vb.subtotal - (vb.discount || 0) - vb.commission);
           prevPlatformEarnings += vb.commission;
-        });
-        prevPlatformEarnings += (order.pricing?.tax || 0) + (order.pricing?.shipping || 0) + (order.pricing?.platformFee || 0);
-      } else {
-        const commissionRate = 0.1;
-        const subtotal = order.pricing?.subtotal || order.total || 0;
-        const commission = subtotal * commissionRate;
-        prevPlatformEarnings += commission + (order.pricing?.tax || 0) + (order.pricing?.shipping || 0);
-        prevVendorEarnings += (subtotal - (order.pricing?.discount || 0) - commission);
-      }
+        }
+      });
+      prevPlatformEarnings += (order.pricing?.tax || 0) + (order.pricing?.shipping || 0) + (order.pricing?.platformFee || 0);
     });
 
     const totalOrders = orders.length;
     const prevOrdersCount = prevOrders.length;
 
-    // Get total customers
-    const totalCustomers = await User.countDocuments({ role: 'user' });
+    // Get total B2B customers
+    const totalCustomers = await User.countDocuments({ role: 'user', currentMarketplace: 'b2b' });
     const prevCustomers = await User.countDocuments({
       role: 'user',
+      currentMarketplace: 'b2b',
       createdAt: { $lt: startDate },
     });
 
@@ -240,10 +257,11 @@ export const getAdminDashboardSummary = async (period = 'month') => {
       return parseFloat((((recent - previous) / previous) * 100).toFixed(1));
     };
 
-    // Get top products
+    // Get top B2B products
     const topProducts = await Order.aggregate([
       {
         $match: {
+          'vendorBreakdown.vendorId': { $in: b2bVendorIds },
           $or: [
             { orderDate: { $gte: startDate, $lte: endDate } },
             { createdAt: { $gte: startDate, $lte: endDate } }
@@ -252,6 +270,16 @@ export const getAdminDashboardSummary = async (period = 'month') => {
         }
       },
       { $unwind: '$items' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'items.productId',
+          foreignField: '_id',
+          as: 'productInfo'
+        }
+      },
+      { $unwind: '$productInfo' },
+      { $match: { 'productInfo.vendorId': { $in: b2bVendorIds } } },
       {
         $group: {
           _id: '$items.productId',
@@ -265,10 +293,11 @@ export const getAdminDashboardSummary = async (period = 'month') => {
       { $limit: 5 },
     ]);
 
-    // Generate revenue trends (daily for month/week, monthly for year)
+    // Generate revenue trends
     const trends = await Order.aggregate([
       {
         $match: {
+          'vendorBreakdown.vendorId': { $in: b2bVendorIds },
           $or: [
             { orderDate: { $gte: startDate, $lte: endDate } },
             { createdAt: { $gte: startDate, $lte: endDate } }
@@ -276,6 +305,8 @@ export const getAdminDashboardSummary = async (period = 'month') => {
           status: { $nin: ['cancelled', 'refunded'] }
         }
       },
+      { $unwind: '$vendorBreakdown' },
+      { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorIds } } },
       {
         $group: {
           _id: {
@@ -284,17 +315,18 @@ export const getAdminDashboardSummary = async (period = 'month') => {
               date: { $ifNull: ['$orderDate', '$createdAt'] },
             },
           },
-          revenue: { $sum: { $ifNull: ['$pricing.total', '$total', 0] } },
+          revenue: { $sum: '$vendorBreakdown.subtotal' },
           orders: { $sum: 1 },
         },
       },
       { $sort: { _id: 1 } },
     ]);
 
-    // Order status breakdown
+    // Status breakdown
     const statusBreakdown = await Order.aggregate([
       {
         $match: {
+          'vendorBreakdown.vendorId': { $in: b2bVendorIds },
           $or: [
             { orderDate: { $gte: startDate, $lte: endDate } },
             { createdAt: { $gte: startDate, $lte: endDate } }
@@ -311,6 +343,7 @@ export const getAdminDashboardSummary = async (period = 'month') => {
 
     // Recent orders
     const recentOrders = await Order.find({
+      'vendorBreakdown.vendorId': { $in: b2bVendorIds },
       $or: [
         { orderDate: { $gte: startDate, $lte: endDate } },
         { createdAt: { $gte: startDate, $lte: endDate } }
@@ -390,7 +423,8 @@ export const getAdminDashboardSummary = async (period = 'month') => {
         },
         date: order.orderDate || order.createdAt,
         status: order.status,
-        total: order.total,
+        total: order.vendorBreakdown.reduce((sum, vb) =>
+          b2bVendorIds.some(id => id.toString() === vb.vendorId?.toString()) ? sum + vb.subtotal : sum, 0),
         items: order.items || [],
         shippingAddress: order.shippingAddress,
         tax: order.pricing?.tax || 0,
@@ -407,4 +441,5 @@ export const getAdminDashboardSummary = async (period = 'month') => {
     throw error;
   }
 };
+
 

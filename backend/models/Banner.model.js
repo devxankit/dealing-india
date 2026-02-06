@@ -4,13 +4,13 @@ const bannerSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ['hero', 'promotional'],
+      enum: ['promotional'], // 'hero' removed
       required: true,
     },
     bannerType: {
       type: String,
-      enum: ['hero', 'b2b'],
-      default: 'hero',
+      enum: ['b2b'],
+      default: 'b2b',
     },
     title: {
       type: String,

@@ -14,9 +14,9 @@ const bannerBookingSchema = new mongoose.Schema(
     },
     bannerType: {
       type: String,
-      enum: ['hero', 'b2b'],
+      enum: ['b2b'],
       required: true,
-      default: 'hero',
+      default: 'b2b',
     },
     referenceId: {
       type: String,
