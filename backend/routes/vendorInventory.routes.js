@@ -1,5 +1,5 @@
 import express from 'express';
-import { getInventoryReport } from '../controllers/vendor-controllers/vendorInventory.controller.js';
+import { getInventoryReport } from '../controllers/vendorInventory.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { vendorApproved } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

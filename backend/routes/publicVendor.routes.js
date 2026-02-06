@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPublicVendors, getPublicVendor } from '../controllers/public-controllers/publicVendor.controller.js';
+import { getPublicVendors, getPublicVendor } from '../controllers/publicVendor.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
 import redisService from '../services/redis.service.js';

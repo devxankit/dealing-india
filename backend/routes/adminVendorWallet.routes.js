@@ -6,7 +6,7 @@ import {
     getReports,
     getAllVendorWallets,
     getVendorWallet
-} from '../controllers/admin-controllers/adminVendorWallet.controller.js';
+} from '../controllers/adminVendorWallet.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

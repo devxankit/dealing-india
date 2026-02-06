@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPerformanceMetrics } from '../controllers/vendor-controllers/vendorPerformance.controller.js';
+import { getPerformanceMetrics } from '../controllers/vendorPerformance.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { vendorApproved } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

@@ -73,8 +73,6 @@ const ContentFeaturesSettings = () => {
     try {
       if (activeSection === 'features') {
         await updateSettings('features', featuresData);
-      } else if (activeSection === 'homepage') {
-        await updateSettings('homepage', homepageData);
       } else if (activeSection === 'reviews') {
         await updateSettings('reviews', reviewsData);
       }
@@ -89,7 +87,6 @@ const ContentFeaturesSettings = () => {
 
   const sections = [
     { id: 'features', label: 'Feature Toggles', icon: FiToggleRight },
-    { id: 'homepage', label: 'Home Page', icon: FiHome },
     { id: 'reviews', label: 'Reviews & Ratings', icon: FiStar },
   ];
 
@@ -101,7 +98,7 @@ const ContentFeaturesSettings = () => {
     >
       <div className="lg:hidden">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Content & Features</h1>
-        <p className="text-sm sm:text-base text-gray-600">Manage policies, features, homepage, and reviews</p>
+        <p className="text-sm sm:text-base text-gray-600">Manage platform features and reviews</p>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 max-w-full overflow-x-hidden">
@@ -132,22 +129,6 @@ const ContentFeaturesSettings = () => {
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-gray-800">Wishlist</h4>
-                  <p className="text-xs text-gray-600">Allow customers to save products to wishlist</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 sm:ml-4">
-                  <input
-                    type="checkbox"
-                    checked={featuresData.wishlistEnabled !== false}
-                    onChange={() => handleFeatureToggle('wishlistEnabled')}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
-                <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-gray-800">Product Reviews</h4>
                   <p className="text-xs text-gray-600">Allow customers to review products</p>
                 </div>
@@ -160,97 +141,6 @@ const ContentFeaturesSettings = () => {
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
                 </label>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-gray-800">Flash Sales</h4>
-                  <p className="text-xs text-gray-600">Enable flash sale feature</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 sm:ml-4">
-                  <input
-                    type="checkbox"
-                    checked={featuresData.flashSaleEnabled !== false}
-                    onChange={() => handleFeatureToggle('flashSaleEnabled')}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-gray-800">Daily Deals</h4>
-                  <p className="text-xs text-gray-600">Enable daily deals feature</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 sm:ml-4">
-                  <input
-                    type="checkbox"
-                    checked={featuresData.dailyDealsEnabled !== false}
-                    onChange={() => handleFeatureToggle('dailyDealsEnabled')}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-gray-800">Coupon Codes</h4>
-                  <p className="text-xs text-gray-600">Enable coupon codes and discounts</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 sm:ml-4">
-                  <input
-                    type="checkbox"
-                    checked={featuresData.couponCodesEnabled !== false}
-                    onChange={() => handleFeatureToggle('couponCodesEnabled')}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* Homepage Section */}
-          {activeSection === 'homepage' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 p-3 sm:p-4 border border-gray-200 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-gray-800">Hero Banner</h4>
-                  <p className="text-xs text-gray-600">Display hero banner on homepage</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 sm:ml-4">
-                  <input
-                    type="checkbox"
-                    checked={homepageData.heroBannerEnabled !== false}
-                    onChange={(e) => setHomepageData(prev => ({ ...prev, heroBannerEnabled: e.target.checked }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                </label>
-              </div>
-
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Homepage Sections</h3>
-                <div className="space-y-3">
-                  {homepageData.sections && Object.entries(homepageData.sections).map(([key, section]) => (
-                    <div key={key} className="flex items-center justify-between gap-3 p-3 sm:p-4 border border-gray-200 rounded-lg">
-                      <span className="text-sm font-semibold text-gray-700 capitalize flex-1 min-w-0">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}
-                      </span>
-                      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={section.enabled !== false}
-                          onChange={() => handleHomepageSectionToggle(key)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                      </label>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           )}

@@ -6,7 +6,7 @@ import {
   confirmPayment,
   cancelBooking,
   getBookingDetails
-} from '../controllers/vendor-controllers/heroBanner.controller.js';
+} from '../controllers/heroBanner.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

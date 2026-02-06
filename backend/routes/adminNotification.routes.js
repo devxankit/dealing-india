@@ -7,7 +7,7 @@ import {
   deleteNotification,
   deleteAllRead,
   sendCustomNotification,
-} from '../controllers/admin-controllers/notification.controller.js';
+} from '../controllers/adminNotification.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

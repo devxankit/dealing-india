@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     FiPlus,
@@ -50,8 +50,14 @@ const B2BBannerBooking = () => {
         durationType: "day",
     });
 
+    // Prevent duplicate API calls in React StrictMode
+    const hasLoadedData = useRef(false);
+
     useEffect(() => {
-        loadData();
+        if (!hasLoadedData.current) {
+            hasLoadedData.current = true;
+            loadData();
+        }
     }, []);
 
     const loadData = async () => {
@@ -217,7 +223,7 @@ const B2BBannerBooking = () => {
         // User selects date like "2026-01-21" - we want to store exactly that date
         // Send date-only string to backend, which will interpret it as UTC midnight
         // This ensures the date stored matches what user selected
-        
+
         // For validation, use local date comparison (user's perspective)
         const localSelectedDate = new Date(`${formData.startDate}T00:00:00`); // Local time for validation
         const now = new Date();
@@ -281,7 +287,7 @@ const B2BBannerBooking = () => {
             }
 
             const response = await createBannerBooking(formDataToSend);
-            
+
             console.log('Booking response:', response);
             console.log('Response type:', typeof response);
             console.log('Response keys:', Object.keys(response || {}));
@@ -289,14 +295,14 @@ const B2BBannerBooking = () => {
             // API interceptor returns response.data directly, so response is already unwrapped
             // Response structure: { success: true, message: '...', data: { ... } }
             const responseData = response;
-            
+
             console.log('Response data:', responseData);
             console.log('Response success:', responseData?.success);
-            
+
             if (responseData?.success) {
                 // Data is in responseData.data
                 const bookingData = responseData.data;
-                
+
                 console.log('Booking data:', bookingData);
                 console.log('Has razorpayOrder:', !!bookingData?.razorpayOrder);
                 console.log('Booking ID:', bookingData?._id);
@@ -335,19 +341,19 @@ const B2BBannerBooking = () => {
                 status: error?.response?.status,
                 config: error?.config
             });
-            
+
             // Show detailed error message
             let errorMessage = 'Failed to create banner booking';
-            
+
             if (error?.response?.data) {
-                errorMessage = error.response.data.message 
-                    || error.response.data.error 
-                    || error.response.data 
+                errorMessage = error.response.data.message
+                    || error.response.data.error
+                    || error.response.data
                     || errorMessage;
             } else if (error?.message) {
                 errorMessage = error.message;
             }
-            
+
             // Check for specific error cases
             if (error?.response?.status === 401) {
                 errorMessage = 'Authentication failed. Please login again.';
@@ -358,9 +364,9 @@ const B2BBannerBooking = () => {
             } else if (error?.isNetworkError) {
                 errorMessage = 'Network error. Please check your connection and try again.';
             }
-            
+
             toast.error(errorMessage, { duration: 5000 });
-            
+
             // Log full error for debugging
             if (error?.response?.data) {
                 console.error('Full error response:', JSON.stringify(error.response.data, null, 2));
@@ -561,7 +567,9 @@ const B2BBannerBooking = () => {
                             <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Slot {slot.slotNumber}</span>
                                 {isBooked ? (
-                                    <Badge variant="info">Active Now</Badge>
+                                    <Badge variant={slot.currentBooking.status === 'active' ? "info" : "warning"}>
+                                        {new Date(slot.currentBooking.startDate) > new Date() ? "Reserved" : "Occupied"}
+                                    </Badge>
                                 ) : (
                                     <Badge variant="success">Available</Badge>
                                 )}

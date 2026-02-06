@@ -1,5 +1,5 @@
 import express from 'express';
-import { getB2BVendorsList, getPendingB2BVendors, removeB2BVendor, getSignedDocumentUrl } from '../controllers/admin-controllers/vendorManagement.controller.js';
+import { getB2BVendorsList, getPendingB2BVendors, removeB2BVendor, getSignedDocumentUrl } from '../controllers/vendorManagement.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

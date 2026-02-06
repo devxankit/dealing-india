@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { getActiveBanners } from "../../../modules/Vendor/services/heroBannerService";
+import { getActiveBanners } from "../services/bannerService";
 
 const B2BBanner = () => {
     const navigate = useNavigate();

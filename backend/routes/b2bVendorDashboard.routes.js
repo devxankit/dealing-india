@@ -1,5 +1,5 @@
 import express from 'express';
-import { getB2BVendorDashboardData } from '../controllers/b2b-vendor-controllers/b2bVendorDashboard.controller.js';
+import { getB2BVendorDashboardData } from '../controllers/b2bVendorDashboard.controller.js';
 import { protectVendor } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

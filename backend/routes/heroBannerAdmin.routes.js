@@ -1,45 +1,42 @@
 import express from 'express';
 import {
-  getSlots,
-  updateSlot,
-  updateSettings,
-  getBookings,
-  getBooking,
-  approveBooking,
-  rejectBooking,
-  getRevenueStats,
-  getTransactions
-} from '../controllers/admin-controllers/heroBanner.controller.js';
-import {
-  getAllBanners as getDefaultBanners,
-  createBanner as createDefaultBanner,
-  updateBanner as updateDefaultBanner,
-  deleteBanner as deleteDefaultBanner
-} from '../controllers/admin-controllers/defaultBanner.controller.js';
+    getBannerRevenueStats,
+    getBannerTransactions,
+    getBannerTransactionDetails,
+    getAdminBannerSlots,
+    getAdminBannerBookings,
+    getAdminBannerBookingDetails,
+    updateBannerSlot,
+    updateBannerSettings,
+    approveBannerBooking,
+    rejectBannerBooking
+} from '../controllers/heroBanner.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
-import { upload } from '../utils/upload.util.js';
 
 const router = express.Router();
 
+// All routes require admin authentication
 router.use(authenticate);
 router.use(authorize('admin'));
 
-// Default Banners (System Fallbacks)
-router.get('/default-banners', asyncHandler(getDefaultBanners));
-router.post('/default-banners', upload.single('image'), asyncHandler(createDefaultBanner));
-router.put('/default-banners/:id', upload.single('image'), asyncHandler(updateDefaultBanner));
-router.delete('/default-banners/:id', asyncHandler(deleteDefaultBanner));
+// Analytics & Transactions
+router.get('/stats', asyncHandler(getBannerRevenueStats));
+router.get('/transactions', asyncHandler(getBannerTransactions));
+router.get('/transactions/:id', asyncHandler(getBannerTransactionDetails));
 
-router.get('/slots', asyncHandler(getSlots));
-router.get('/bookings', asyncHandler(getBookings));
-router.get('/bookings/:id', asyncHandler(getBooking));
-router.get('/revenue-stats', asyncHandler(getRevenueStats));
-router.get('/transactions', asyncHandler(getTransactions));
-router.put('/slots/:id', asyncHandler(updateSlot));
-router.put('/settings', asyncHandler(updateSettings));
-router.put('/bookings/:id/approve', asyncHandler(approveBooking));
-router.put('/bookings/:id/reject', asyncHandler(rejectBooking));
+// Slots Management
+router.get('/slots', asyncHandler(getAdminBannerSlots));
+router.patch('/slots/:id', asyncHandler(updateBannerSlot));
+
+// Bookings Management
+router.get('/bookings', asyncHandler(getAdminBannerBookings));
+router.get('/bookings/:id', asyncHandler(getAdminBannerBookingDetails));
+router.patch('/bookings/:id/approve', asyncHandler(approveBannerBooking));
+router.patch('/bookings/:id/reject', asyncHandler(rejectBannerBooking));
+
+// Settings
+router.patch('/settings', asyncHandler(updateBannerSettings));
 
 export default router;

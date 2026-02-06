@@ -216,17 +216,7 @@ const productSchema = new mongoose.Schema(
       ],
       default: [],
     },
-    isCouponEligible: {
-      type: Boolean,
-      default: false,
-    },
-    applicableCoupons: {
-      type: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'PromoCode',
-      }],
-      default: [],
-    },
+
     productType: {
       type: String,
       enum: ['standard', 'digital', 'service'],

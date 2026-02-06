@@ -6,7 +6,7 @@ import {
   update,
   remove,
   updateStatus,
-} from '../controllers/vendor-controllers/vendorProducts.controller.js';
+} from '../controllers/vendorProducts.controller.js';
 import { protectVendor } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import Badge from "../../../../shared/components/Badge";
-import { getBannerRevenueStats, getBannerTransactions } from "../../../Vendor/services/heroBannerService";
+import { getBannerRevenueStats, getBannerTransactions } from "../../services/heroBannerService";
 
 const B2BWallet = () => {
   const navigate = useNavigate();

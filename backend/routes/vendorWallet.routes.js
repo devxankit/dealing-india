@@ -4,7 +4,7 @@ import {
     requestWithdrawal,
     getWithdrawals,
     getTransactions
-} from '../controllers/vendor-controllers/vendorWallet.controller.js';
+} from '../controllers/vendorWallet.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

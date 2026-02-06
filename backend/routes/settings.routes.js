@@ -1,5 +1,5 @@
 import express from 'express';
-import { getSettingsController, updateSettingsController } from '../controllers/admin-controllers/settings.controller.js';
+import { getSettingsController, updateSettingsController } from '../controllers/settings.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

@@ -1,5 +1,5 @@
 import express from 'express';
-import AdminB2BSubscriptionPlanController from '../controllers/admin-controllers/b2bSubscriptionPlan.controller.js';
+import AdminB2BSubscriptionPlanController from '../controllers/b2bSubscriptionPlan.controller.js';
 import redisService from '../services/redis.service.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 

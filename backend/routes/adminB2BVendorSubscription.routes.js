@@ -1,5 +1,5 @@
 import express from 'express';
-import AdminB2BVendorSubscriptionController from '../controllers/admin-controllers/b2bVendorSubscription.controller.js';
+import AdminB2BVendorSubscriptionController from '../controllers/b2bVendorSubscription.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 

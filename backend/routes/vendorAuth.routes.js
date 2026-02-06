@@ -11,14 +11,14 @@ import {
   resetPassword,
   checkSubscriptionByEmail,
   checkVendorStatusByEmail,
-} from '../controllers/vendor-controllers/vendorAuth.controller.js';
-import { 
-  registerWithPayment, 
-  register as registerB2BVendor, 
-  initializePayment, 
-  createSubscriptionAfterPayment, 
-  verifySubscription 
-} from '../controllers/vendor-controllers/b2bVendorRegistration.controller.js';
+} from '../controllers/vendorAuth.controller.js';
+import {
+  registerWithPayment,
+  register as registerB2BVendor,
+  initializePayment,
+  createSubscriptionAfterPayment,
+  verifySubscription
+} from '../controllers/b2bVendorRegistration.controller.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { vendorApproved } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

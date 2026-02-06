@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     FiSettings,
@@ -30,7 +30,7 @@ import {
     approveBannerBooking,
     rejectBannerBooking,
     getBannerRevenueStats
-} from "../../../Vendor/services/heroBannerService";
+} from "../../services/heroBannerService";
 
 const B2BBannerManagement = () => {
     const navigate = useNavigate();
@@ -71,8 +71,14 @@ const B2BBannerManagement = () => {
     // Pricing structure editor state
     const [newPricingEntry, setNewPricingEntry] = useState({ hours: "", price: "" });
 
+    // Prevent duplicate API calls in React StrictMode
+    const hasLoadedData = useRef(false);
+
     useEffect(() => {
-        loadData();
+        if (!hasLoadedData.current) {
+            hasLoadedData.current = true;
+            loadData();
+        }
     }, []);
 
     const loadData = async () => {

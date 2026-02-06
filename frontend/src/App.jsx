@@ -9,95 +9,34 @@ import { Toaster } from "react-hot-toast";
 import toast from "react-hot-toast";
 import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-const SupportTickets = lazyWithRetry(() => import("./shared/components/Support/SupportTickets"));
 const VendorStore = lazyWithRetry(() => import("./shared/components/Store/VendorStore"));
 const ScrollToTop = lazyWithRetry(() => import("./shared/components/ScrollToTop"));
-const AdminSupportTickets = lazyWithRetry(() => import("./modules/Admin/pages/supportTickets/SupportTickets"));
-const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
-const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
 const AdminLogin = lazyWithRetry(() => import("./modules/Admin/pages/Login"));
 const AdminProtectedRoute = lazyWithRetry(() => import("./modules/Admin/components/AdminProtectedRoute"));
 const AdminLayout = lazyWithRetry(() => import("./modules/Admin/components/Layout/AdminLayout"));
 const Dashboard = lazyWithRetry(() => import("./modules/Admin/pages/Dashboard"));
-const Products = lazyWithRetry(() => import("./modules/Admin/pages/Products"));
-const ProductForm = lazyWithRetry(() => import("./modules/Admin/pages/ProductForm"));
-const AdminOrders = lazyWithRetry(() => import("./modules/Admin/pages/Orders"));
-const OrderDetail = lazyWithRetry(() => import("./modules/Admin/pages/OrderDetail"));
-const ReturnRequests = lazyWithRetry(() => import("./modules/Admin/pages/ReturnRequests"));
-const ReturnRequestDetail = lazyWithRetry(() => import("./modules/Admin/pages/ReturnRequestDetail"));
-const Categories = lazyWithRetry(() => import("./modules/Admin/pages/Categories"));
-const Brands = lazyWithRetry(() => import("./modules/Admin/pages/Brands"));
-const Inventory = lazyWithRetry(() => import("./modules/Admin/pages/Inventory"));
-const Campaigns = lazyWithRetry(() => import("./modules/Admin/pages/Campaigns"));
-const AdminHeroBanner = lazyWithRetry(() => import("./modules/Admin/pages/AdminHeroBanner"));
-const AdminHeroBannerDetail = lazyWithRetry(() => import("./modules/Admin/pages/AdminHeroBannerDetail"));
 const AdminWallet = lazyWithRetry(() => import("./modules/Admin/pages/AdminWallet"));
-const Banners = lazyWithRetry(() => import("./modules/Admin/pages/Banners"));
 const Reviews = lazyWithRetry(() => import("./modules/Admin/pages/Reviews"));
-const Analytics = lazyWithRetry(() => import("./modules/Admin/pages/Analytics"));
 const Content = lazyWithRetry(() => import("./modules/Admin/pages/Content"));
-
-// Orders child pages
-const AwaitingOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Awaiting"));
-const ReceivedOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Received"));
-const ProcessedOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Processed"));
-const ShippedOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Shipped"));
-const DeliveredOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Delivered"));
-const CancelledOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Cancelled"));
-const ReturnedOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/Returned"));
 
 const Settings = lazyWithRetry(() => import("./modules/Admin/pages/Settings"));
 const More = lazyWithRetry(() => import("./modules/Admin/pages/More"));
-const PromoCodes = lazyWithRetry(() => import("./modules/Admin/pages/PromoCodes"));
-// Orders child pages
-const AllOrders = lazyWithRetry(() => import("./modules/Admin/pages/orders/AllOrders"));
-const OrderTracking = lazyWithRetry(() => import("./modules/Admin/pages/orders/OrderTracking"));
-const OrderNotifications = lazyWithRetry(() => import("./modules/Admin/pages/orders/OrderNotifications"));
-const Invoice = lazyWithRetry(() => import("./modules/Admin/pages/orders/Invoice"));
-// Products child pages
-const ManageProducts = lazyWithRetry(() => import("./modules/Admin/pages/products/ManageProducts"));
-const ProductRatings = lazyWithRetry(() => import("./modules/Admin/pages/products/ProductRatings"));
-// Categories child pages
-const ManageCategories = lazyWithRetry(() => import("./modules/Admin/pages/categories/ManageCategories"));
-const CategoryOrder = lazyWithRetry(() => import("./modules/Admin/pages/categories/CategoryOrder"));
-// Brands child pages
-const ManageBrands = lazyWithRetry(() => import("./modules/Admin/pages/brands/ManageBrands"));
-// Offers & Sliders child pages
-const FestivalOffers = lazyWithRetry(() => import("./modules/Admin/pages/offers/FestivalOffers"));
-// Mega Reward child pages
-const MegaRewardEntries = lazyWithRetry(() => import("./modules/Admin/pages/mega-reward/Entries"));
-const MegaRewardWinners = lazyWithRetry(() => import("./modules/Admin/pages/mega-reward/Winners"));
-const MegaRewardSettings = lazyWithRetry(() => import("./modules/Admin/pages/mega-reward/Settings"));
-const MegaRewardPromotionalReels = lazyWithRetry(() => import("./modules/Admin/pages/mega-reward/PromotionalReels"));
 // Notifications child pages
 const PushNotifications = lazyWithRetry(() => import("./modules/Admin/pages/notifications/PushNotifications"));
 const CustomMessages = lazyWithRetry(() => import("./modules/Admin/pages/notifications/CustomMessages"));
-// Reports child pages
-const SalesReport = lazyWithRetry(() => import("./modules/Admin/pages/reports/SalesReport"));
-const InventoryReport = lazyWithRetry(() => import("./modules/Admin/pages/reports/InventoryReport"));
-// Analytics & Finance child pages
-const RevenueOverview = lazyWithRetry(() => import("./modules/Admin/pages/finance/RevenueOverview"));
-const ProfitLoss = lazyWithRetry(() => import("./modules/Admin/pages/finance/ProfitLoss"));
-const OrderTrends = lazyWithRetry(() => import("./modules/Admin/pages/finance/OrderTrends"));
-const PaymentBreakdown = lazyWithRetry(() => import("./modules/Admin/pages/finance/PaymentBreakdown"));
-const TaxReports = lazyWithRetry(() => import("./modules/Admin/pages/finance/TaxReports"));
-const RefundReports = lazyWithRetry(() => import("./modules/Admin/pages/finance/RefundReports"));
-const WalletRecharges = lazyWithRetry(() => import("./modules/Admin/pages/finance/WalletRecharges"));
+
+
 // Consolidated Settings pages
 const GeneralSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/GeneralSettings"));
-const PaymentShippingSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/PaymentShippingSettings"));
+
 const OrdersCustomersSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/OrdersCustomersSettings"));
-const ProductsInventorySettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/ProductsInventorySettings"));
+
 const ContentFeaturesSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/ContentFeaturesSettings"));
 const NotificationsSEOSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/NotificationsSEOSettings"));
-// Policies child pages
-const PrivacyPolicy = lazyWithRetry(() => import("./modules/Admin/pages/policies/PrivacyPolicy"));
-const RefundPolicy = lazyWithRetry(() => import("./modules/Admin/pages/policies/RefundPolicy"));
-const TermsConditions = lazyWithRetry(() => import("./modules/Admin/pages/policies/TermsConditions"));
+
 // Firebase child pages
 const PushConfig = lazyWithRetry(() => import("./modules/Admin/pages/firebase/PushConfig"));
 const Authentication = lazyWithRetry(() => import("./modules/Admin/pages/firebase/Authentication"));
-const DeliveryRules = lazyWithRetry(() => import("./modules/Admin/pages/DeliveryRules"));
 
 // Admin B2B Vendor Routes
 const AdminB2BVendors = lazyWithRetry(() => import("./modules/Admin/pages/B2BVendors"));
@@ -106,11 +45,14 @@ const AdminB2BVendorPendingApprovals = lazyWithRetry(() => import("./modules/Adm
 const AdminB2BVendorProductListings = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/ProductListings"));
 const AdminB2BVendorAnalyticsPage = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BVendorAnalytics"));
 const AdminB2BSubscriptions = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/Subscriptions"));
-const B2BBannerManagement = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BBannerManagement"));
-const AdminB2BBannerDetail = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail"));
+
 const B2BWallet = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BWallet"));
 const AdminB2BCategories = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/Categories"));
+const AdminB2BBannerManagement = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BBannerManagement"));
+const AdminB2BBannerDetail = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail"));
 const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrapper"));
+const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
+const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
 // Mobile App Routes
 const Chat = lazyWithRetry(() => import("./shared/components/Chat/Chat"));
 
@@ -208,40 +150,6 @@ const AppRoutes = () => {
           }>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="products" element={<Products />} />
-          <Route path="products/:id" element={<ProductForm />} />
-          <Route path="products/manage-products" element={<ManageProducts />} />
-          <Route path="products/product-ratings" element={<ProductRatings />} />
-          <Route path="more" element={<More />} />
-          <Route path="categories" element={<Categories />} />
-          <Route
-            path="categories/manage-categories"
-            element={<ManageCategories />}
-          />
-          <Route path="categories/category-order" element={<CategoryOrder />} />
-          <Route path="brands" element={<Brands />} />
-          <Route path="brands/manage-brands" element={<ManageBrands />} />
-          <Route path="orders" element={<AdminOrders />} />
-          <Route path="orders/:id" element={<OrderDetail />} />
-          <Route path="orders/:id/invoice" element={<Invoice />} />
-          <Route path="orders/all-orders" element={<AllOrders />} />
-          <Route path="orders/awaiting" element={<AwaitingOrders />} />
-          <Route path="orders/received" element={<ReceivedOrders />} />
-          <Route path="orders/processed" element={<ProcessedOrders />} />
-          <Route path="orders/shipped" element={<ShippedOrders />} />
-          <Route path="orders/delivered" element={<DeliveredOrders />} />
-          <Route path="orders/cancelled" element={<CancelledOrders />} />
-          <Route path="orders/returned" element={<ReturnedOrders />} />
-
-          <Route path="orders/order-tracking" element={<OrderTracking />} />
-          <Route
-            path="orders/order-notifications"
-            element={<OrderNotifications />}
-          />
-          <Route path="return-requests" element={<ReturnRequests />} />
-          <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
-          <Route path="stock" element={<Inventory />} />
-          <Route path="inventory" element={<Inventory />} />
 
           {/* Admin B2B Vendor Routes */}
           <Route path="b2b-vendors">
@@ -249,23 +157,15 @@ const AppRoutes = () => {
             <Route path="manage" element={<AdminManageB2BVendors />} />
             <Route path="pending" element={<AdminB2BVendorPendingApprovals />} />
             <Route path="products" element={<AdminB2BVendorProductListings />} />
-            <Route path="banner-bookings" element={<B2BBannerManagement />} />
-            <Route path="banner-bookings/details/:id" element={<AdminB2BBannerDetail />} />
             <Route path="wallet" element={<B2BWallet />} />
             <Route path="analytics" element={<AdminB2BVendorAnalyticsPage />} />
             <Route path="subscriptions" element={<AdminB2BSubscriptions />} />
             <Route path="categories" element={<AdminB2BCategories />} />
+            <Route path="banner-bookings" element={<AdminB2BBannerManagement />} />
+            <Route path="banner-bookings/details/:id" element={<AdminB2BBannerDetail />} />
 
           </Route>
 
-          <Route path="offers/festival-offers" element={<FestivalOffers />} />
-          {/* Mega Reward Routes */}
-          <Route path="mega-reward" element={<MegaRewardEntries />} />
-          <Route path="mega-reward/entries" element={<MegaRewardEntries />} />
-          <Route path="mega-reward/winners" element={<MegaRewardWinners />} />
-          <Route path="mega-reward/promotional-reels" element={<MegaRewardPromotionalReels />} />
-          <Route path="mega-reward/settings" element={<MegaRewardSettings />} />
-          <Route path="promocodes" element={<PromoCodes />} />
           <Route path="notifications" element={<PushNotifications />} />
           <Route
             path="notifications/push-notifications"
@@ -275,48 +175,23 @@ const AppRoutes = () => {
             path="notifications/custom-messages"
             element={<CustomMessages />}
           />
-          <Route path="reports" element={<SalesReport />} />
-          <Route path="reports/sales-report" element={<SalesReport />} />
-          <Route path="reports/inventory-report" element={<InventoryReport />} />
-          <Route path="finance" element={<RevenueOverview />} />
-          <Route path="finance/revenue-overview" element={<RevenueOverview />} />
-          <Route path="finance/profit-loss" element={<ProfitLoss />} />
-          <Route path="finance/order-trends" element={<OrderTrends />} />
-          <Route
-            path="finance/payment-breakdown"
-            element={<PaymentBreakdown />}
-          />
-          <Route path="finance/tax-reports" element={<TaxReports />} />
-          <Route path="finance/refund-reports" element={<RefundReports />} />
-          <Route path="finance/wallet-recharges" element={<WalletRecharges />} />
-          <Route path="delivery-rules" element={<DeliveryRules />} />
-          <Route path="analytics" element={<Analytics />} />
+
           <Route
             path="settings"
             element={<Navigate to="/admin/settings/general" replace />}
           />
           <Route path="settings/general" element={<Settings />} />
-          <Route path="settings/payment-shipping" element={<Settings />} />
+
           <Route path="settings/orders-customers" element={<Settings />} />
-          <Route path="settings/products-inventory" element={<Settings />} />
+
           <Route path="settings/content-features" element={<Settings />} />
           <Route path="settings/notifications-seo" element={<Settings />} />
           <Route path="settings/tax" element={<Settings />} />
-          <Route path="policies" element={<PrivacyPolicy />} />
-          <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="policies/refund-policy" element={<RefundPolicy />} />
-          <Route path="policies/terms-conditions" element={<TermsConditions />} />
+
           <Route path="firebase" element={<PushConfig />} />
           <Route path="firebase/push-config" element={<PushConfig />} />
           <Route path="firebase/authentication" element={<Authentication />} />
-          <Route path="campaigns" element={<Campaigns />} />
-          <Route path="hero-banners" element={<AdminHeroBanner />} />
-          <Route path="hero-banners/details/:id" element={<AdminHeroBannerDetail />} />
-          <Route path="support" element={<Navigate to="/admin/support/tickets" replace />} />
-          <Route path="support/tickets" element={<AdminSupportTickets />} />
-
           <Route path="wallet" element={<AdminWallet />} />
-          <Route path="banners" element={<Banners />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="content" element={<Content />} />
         </Route>

@@ -8,7 +8,7 @@ import {
   addSubcategory,
   removeSubcategory,
   updateSubcategory,
-} from '../controllers/admin-controllers/b2bCategoryManagement.controller.js';
+} from '../controllers/b2bCategoryManagement.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

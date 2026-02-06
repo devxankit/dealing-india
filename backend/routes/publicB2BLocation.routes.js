@@ -1,5 +1,5 @@
 import express from 'express';
-import { getB2BLocations } from '../controllers/public-controllers/publicB2BLocation.controller.js';
+import { getB2BLocations } from '../controllers/publicB2BLocation.controller.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import redisService from '../services/redis.service.js';
 

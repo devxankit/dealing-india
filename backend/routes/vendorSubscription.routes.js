@@ -1,5 +1,5 @@
 import express from 'express';
-import VendorSubscriptionController from '../controllers/vendor-controllers/vendorSubscription.controller.js';
+import VendorSubscriptionController from '../controllers/vendorSubscription.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { logSubscriptionChange } from '../middleware/subscriptionAudit.middleware.js';

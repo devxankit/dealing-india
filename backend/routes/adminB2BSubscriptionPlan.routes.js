@@ -1,5 +1,5 @@
 import express from 'express';
-import AdminB2BSubscriptionPlanController from '../controllers/admin-controllers/b2bSubscriptionPlan.controller.js';
+import AdminB2BSubscriptionPlanController from '../controllers/b2bSubscriptionPlan.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 

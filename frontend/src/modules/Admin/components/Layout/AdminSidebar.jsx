@@ -33,99 +33,36 @@ import adminMenu from "../../config/adminMenu.json";
 // Icon mapping for menu items
 const iconMap = {
   Dashboard: FiHome,
-  Orders: FiShoppingBag,
-  Returns: FiRotateCcw,
-  Products: FiPackage,
-  Categories: FiGrid,
-  Brands: FiTag,
   Customers: FiUsers,
   Vendors: FiUsers,
-  "Hero Banner Management": FiImage,
-  "Mega Reward": FiGift,
-  "Promo Codes": FiPercent,
   Subscriptions: FiBarChart2,
   Notifications: FiBell,
-  "Support Desk": FiMessageCircle,
-  Reports: FiFileText,
   "Analytics & Finance": FiBarChart2,
   Settings: FiSettings,
   Policies: FiShield,
   Firebase: FiDatabase,
-  "Delivery Rules": FiTruck,
 };
 
 // Helper function to convert child name to route path
 const getChildRoute = (parentRoute, childName) => {
   const routeMap = {
-    "/admin/orders": {
-      "All Orders": "/admin/orders/all-orders",
-      "Awaiting": "/admin/orders/awaiting",
-      "Received": "/admin/orders/received",
-      "Processed": "/admin/orders/processed",
-      "Shipped": "/admin/orders/shipped",
-      "Delivered": "/admin/orders/delivered",
-      "Cancelled": "/admin/orders/cancelled",
-      "Returned": "/admin/orders/returned",
-      "Total Items": "/admin/finance/order-trends",
-      "Total Revenue": "/admin/finance/revenue-overview",
-      "Average Order Value": "/admin/finance/order-trends",
-      "Order Tracking": "/admin/orders/order-tracking",
-      "Order Notifications": "/admin/orders/order-notifications",
-    },
-    "/admin/products": {
-      "Manage Products": "/admin/products/manage-products",
-      "Product Ratings": "/admin/products/product-ratings",
-    },
-    "/admin/categories": {
-      "Manage Categories": "/admin/categories/manage-categories",
-      "Category Order": "/admin/categories/category-order",
-    },
-    "/admin/brands": {
-      "Manage Brands": "/admin/brands/manage-brands",
-    },
     "/admin/b2b-vendors": {
       "Manage": "/admin/b2b-vendors/manage",
       "Pending": "/admin/b2b-vendors/pending",
       "Products": "/admin/b2b-vendors/products",
-      "Banner Bookings": "/admin/b2b-vendors/banner-bookings",
       "Wallet": "/admin/b2b-vendors/wallet",
       "Analytics": "/admin/b2b-vendors/analytics",
       "Subscriptions": "/admin/b2b-vendors/subscriptions",
       "Categories": "/admin/b2b-vendors/categories",
+      "Banner Bookings": "/admin/b2b-vendors/banner-bookings",
     },
     "/admin/locations": {
       Cities: "/admin/locations/cities",
       Zipcodes: "/admin/locations/zipcodes",
     },
-    "/admin/offers": {
-      "Festival Offers": "/admin/offers/festival-offers",
-    },
-    "/admin/mega-reward": {
-      "Entries": "/admin/mega-reward/entries",
-      "Winners": "/admin/mega-reward/winners",
-      "Promotional Reels": "/admin/mega-reward/promotional-reels",
-      "Settings": "/admin/mega-reward/settings",
-    },
     "/admin/notifications": {
       "Push Notifications": "/admin/notifications/push-notifications",
       "Custom Messages": "/admin/notifications/custom-messages",
-    },
-    "/admin/support": {
-      "Live Chat": "/admin/support/live-chat",
-      "Ticket Types": "/admin/support/ticket-types",
-      Tickets: "/admin/support/tickets",
-    },
-    "/admin/reports": {
-      "Sales Report": "/admin/reports/sales-report",
-      "Inventory Report": "/admin/reports/inventory-report",
-    },
-    "/admin/finance": {
-      "Revenue Overview": "/admin/finance/revenue-overview",
-      "Profit & Loss": "/admin/finance/profit-loss",
-      "Order Trends": "/admin/finance/order-trends",
-      "Payment Breakdown": "/admin/finance/payment-breakdown",
-      "Tax Reports": "/admin/finance/tax-reports",
-      "Refund Reports": "/admin/finance/refund-reports",
     },
     "/admin/settings": {
       General: "/admin/settings/general",

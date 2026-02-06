@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, logout, getMe } from '../controllers/admin-controllers/adminAuth.controller.js';
+import { login, logout, getMe } from '../controllers/adminAuth.controller.js';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';

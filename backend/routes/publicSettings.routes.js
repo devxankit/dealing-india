@@ -18,7 +18,6 @@ router.get('/public', redisService.cacheMiddleware('public:settings', 7200), asy
         products: settings.products,
         tax: settings.tax,
         shipping: settings.shipping,
-        banners: settings.banners,
         features: settings.features,
         homepage: settings.homepage,
         reviews: settings.reviews,

@@ -4,7 +4,6 @@ import { FiSettings } from 'react-icons/fi';
 import DataTable from '../../components/DataTable';
 import StatsCards from '../../components/Analytics/StatsCards';
 import RevenueChart from '../../components/Analytics/RevenueChart';
-import SupportTickets from '../supportTickets/SupportTickets';
 import EditTierModal from '../../components/EditTierModal';
 import api from '../../../../shared/utils/api';
 import toast from 'react-hot-toast';
@@ -323,8 +322,7 @@ const Subscriptions = () => {
           {[
             { id: 'analytics', label: 'Analytics' },
             { id: 'tiers', label: 'Tier Config' },
-            { id: 'monitoring', label: 'Monitoring' },
-            { id: 'support', label: 'Support Tools' }
+            { id: 'monitoring', label: 'Monitoring' }
           ].map((tab) => (
             <button 
               key={tab.id}
@@ -516,77 +514,6 @@ const Subscriptions = () => {
                 data={monitoringData} 
               />
             )}
-          </div>
-        </motion.div>
-      )}
-
-      {activeTab === 'support' && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold mb-4">Manual Override</h3>
-              <p className="text-sm text-gray-500 mb-6">Manually adjust subscription end dates or status for specific vendors.</p>
-              <form onSubmit={handleManualOverride} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Subscription ID
-                    <span className="text-red-500 ml-1">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    value={overrideForm.subscriptionId}
-                    onChange={(e) => setOverrideForm({ ...overrideForm, subscriptionId: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm" 
-                    placeholder="Click 'Use' button from monitoring table or paste full 24-character ID" 
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    💡 Tip: Use the "Use" button in the Monitoring table to automatically fill the correct ID
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
-                  <select 
-                    value={overrideForm.action}
-                    onChange={(e) => setOverrideForm({ ...overrideForm, action: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    required
-                  >
-                    <option value="">Select an action...</option>
-                    <option value="extend_30_days">Extend 30 Days</option>
-                    <option value="extend_custom">Extend Custom Days</option>
-                    <option value="grant_premium_trial">Grant Premium Trial</option>
-                    <option value="cancel_subscription">Cancel Subscription</option>
-                    <option value="reactivate">Reactivate Subscription</option>
-                  </select>
-                </div>
-                {overrideForm.action === 'extend_custom' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Number of Days</label>
-                    <input 
-                      type="number" 
-                      value={overrideForm.days}
-                      onChange={(e) => setOverrideForm({ ...overrideForm, days: e.target.value })}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-                      placeholder="Enter number of days..." 
-                      min="1"
-                      required
-                    />
-                  </div>
-                )}
-                <button 
-                  type="submit"
-                  disabled={overrideLoading}
-                  className="w-full py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {overrideLoading ? 'Processing...' : 'Apply Action'}
-                </button>
-              </form>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <SupportTickets />
-            </div>
           </div>
         </motion.div>
       )}

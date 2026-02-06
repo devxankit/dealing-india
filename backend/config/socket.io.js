@@ -3,7 +3,7 @@ import { verifyToken } from '../utils/jwt.util.js';
 import Admin from '../models/Admin.model.js';
 import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
-import Chat from '../models/Chat.model.js';
+// import Chat from '../models/Chat.model.js';
 
 let io;
 
@@ -107,70 +107,14 @@ export const setupSocketIO = (httpServer, allowedOrigins = []) => {
     // User/Vendor handlers
     if (userRole === 'user' || userRole === 'vendor') {
       // Chat event handlers
+      // Chat event handlers removed - Chat model functionality disabled
+
+      /*
       socket.on('join_chat_room', async (data) => {
-        const { conversationId } = data;
-        if (conversationId) {
-          try {
-            // Security: Verify that the user is a participant of this conversation
-            const conversation = await Chat.findById(conversationId);
-            if (!conversation) return;
-
-            let isParticipant = false;
-
-            // Check if this is vendor-to-vendor chat (new schema)
-            if (userRole === 'vendor' && conversation.participants[0]?.vendorId) {
-              isParticipant = conversation.participants.some(p =>
-                (p.vendorId._id || p.vendorId).toString() === userId.toString()
-              );
-            }
-            // Check if this is old user-vendor chat (old schema - for backward compatibility)
-            else if (conversation.participants[0]?.userId) {
-              isParticipant = conversation.participants.some(p =>
-                (p.userId._id || p.userId).toString() === userId.toString() && p.role === userRole
-              );
-            }
-
-            if (isParticipant) {
-              socket.join(`chat_${conversationId}`);
-              console.log(`Socket ${socket.id} (${userRole} ${userId}) joined chat room: chat_${conversationId}`);
-              socket.emit('joined_chat_room', { conversationId });
-            } else {
-              console.warn(`Unauthorized attempt to join chat ${conversationId} by ${userRole} ${userId}`);
-            }
-          } catch (error) {
-            console.error('Error joining chat room:', error);
-          }
-        }
+        // ... (removed)
       });
-
-      socket.on('leave_chat_room', (data) => {
-        const { conversationId } = data;
-        if (conversationId) {
-          socket.leave(`chat_${conversationId}`);
-        }
-      });
-
-      socket.on('typing_start', (data) => {
-        const { conversationId } = data;
-        if (conversationId) {
-          socket.to(`chat_${conversationId}`).emit('user_typing', {
-            conversationId,
-            userId,
-            userRole,
-          });
-        }
-      });
-
-      socket.on('typing_stop', (data) => {
-        const { conversationId } = data;
-        if (conversationId) {
-          socket.to(`chat_${conversationId}`).emit('user_stopped_typing', {
-            conversationId,
-            userId,
-            userRole,
-          });
-        }
-      });
+      // ... other chat handlers removed
+      */
     }
 
     // Support ticket event handlers

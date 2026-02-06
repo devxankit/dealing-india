@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     FiArrowLeft,
@@ -19,7 +19,7 @@ import {
     getAdminBannerBookingDetails,
     approveBannerBooking,
     rejectBannerBooking
-} from "../../../Vendor/services/heroBannerService";
+} from "../../services/heroBannerService";
 
 const AdminB2BBannerDetail = () => {
     const { id } = useParams();
@@ -27,9 +27,13 @@ const AdminB2BBannerDetail = () => {
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
+    const hasLoaded = useRef(false);
 
     useEffect(() => {
-        loadBooking();
+        if (!hasLoaded.current) {
+            hasLoaded.current = true;
+            loadBooking();
+        }
     }, [id]);
 
     const loadBooking = async () => {

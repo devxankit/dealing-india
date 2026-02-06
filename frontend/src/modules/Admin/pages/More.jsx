@@ -16,90 +16,30 @@ const More = () => {
   const navigate = useNavigate();
 
   const menuItems = [
-    { 
-      path: '/admin/categories', 
-      label: 'Categories', 
-      icon: FiGrid, 
+    {
+      path: '/admin/b2b-vendors/categories',
+      label: 'Categories',
+      icon: FiGrid,
       gradient: 'from-blue-500 via-blue-600 to-blue-700',
       lightGradient: 'from-blue-50 via-blue-100/80 to-blue-50',
       shadowColor: 'shadow-blue-500/20',
       hoverShadow: 'hover:shadow-blue-500/30',
-      description: 'Manage categories'
+      description: 'Manage B2B categories'
     },
-    { 
-      path: '/admin/brands', 
-      label: 'Brands', 
-      icon: FiTag, 
-      gradient: 'from-purple-500 via-purple-600 to-purple-700',
-      lightGradient: 'from-purple-50 via-purple-100/80 to-purple-50',
-      shadowColor: 'shadow-purple-500/20',
-      hoverShadow: 'hover:shadow-purple-500/30',
-      description: 'Manage brands'
-    },
-    { 
-      path: '/admin/customers', 
-      label: 'Customers', 
-      icon: FiUsers, 
-      gradient: 'from-emerald-500 via-emerald-600 to-emerald-700',
-      lightGradient: 'from-emerald-50 via-emerald-100/80 to-emerald-50',
-      shadowColor: 'shadow-emerald-500/20',
-      hoverShadow: 'hover:shadow-emerald-500/30',
-      description: 'View customers'
-    },
-    { 
-      path: '/admin/inventory', 
-      label: 'Inventory', 
-      icon: FiPackage, 
-      gradient: 'from-orange-500 via-orange-600 to-orange-700',
-      lightGradient: 'from-orange-50 via-orange-100/80 to-orange-50',
-      shadowColor: 'shadow-orange-500/20',
-      hoverShadow: 'hover:shadow-orange-500/30',
-      description: 'Track inventory'
-    },
-    { 
-      path: '/admin/campaigns', 
-      label: 'Campaigns', 
-      icon: FiTrendingUp, 
-      gradient: 'from-rose-500 via-rose-600 to-rose-700',
-      lightGradient: 'from-rose-50 via-rose-100/80 to-rose-50',
-      shadowColor: 'shadow-rose-500/20',
-      hoverShadow: 'hover:shadow-rose-500/30',
-      description: 'Create campaigns'
-    },
-    { 
-      path: '/admin/banners', 
-      label: 'Banners', 
-      icon: FiImage, 
-      gradient: 'from-pink-500 via-pink-600 to-pink-700',
-      lightGradient: 'from-pink-50 via-pink-100/80 to-pink-50',
-      shadowColor: 'shadow-pink-500/20',
-      hoverShadow: 'hover:shadow-pink-500/30',
-      description: 'Manage banners'
-    },
-    { 
-      path: '/admin/reviews', 
-      label: 'Reviews', 
-      icon: FiMessageSquare, 
+    {
+      path: '/admin/reviews',
+      label: 'Reviews',
+      icon: FiMessageSquare,
       gradient: 'from-amber-500 via-amber-600 to-amber-700',
-      lightGradient: 'from-amber-50 via-amber-100/80 to-amber-50',
+      lightGradient: 'from-amber-50 via-amber-100/80 to-blue-50',
       shadowColor: 'shadow-amber-500/20',
       hoverShadow: 'hover:shadow-amber-500/30',
       description: 'Moderate reviews'
     },
-    { 
-      path: '/admin/analytics', 
-      label: 'Analytics', 
-      icon: FiBarChart2, 
-      gradient: 'from-indigo-500 via-indigo-600 to-indigo-700',
-      lightGradient: 'from-indigo-50 via-indigo-100/80 to-indigo-50',
-      shadowColor: 'shadow-indigo-500/20',
-      hoverShadow: 'hover:shadow-indigo-500/30',
-      description: 'View analytics'
-    },
-    { 
-      path: '/admin/content', 
-      label: 'Content', 
-      icon: FiFileText, 
+    {
+      path: '/admin/content',
+      label: 'Content',
+      icon: FiFileText,
       gradient: 'from-cyan-500 via-cyan-600 to-cyan-700',
       lightGradient: 'from-cyan-50 via-cyan-100/80 to-cyan-50',
       shadowColor: 'shadow-cyan-500/20',
@@ -129,7 +69,7 @@ const More = () => {
               key={item.path}
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ 
+              transition={{
                 delay: index * 0.05,
                 type: 'spring',
                 stiffness: 200,
@@ -182,7 +122,7 @@ const More = () => {
                   before:rounded-xl sm:before:rounded-3xl
                 `}>
                   <Icon className="text-white text-lg sm:text-3xl relative z-10" strokeWidth={2.5} />
-                  
+
                   {/* Shine Effect */}
                   <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent rounded-xl sm:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </div>

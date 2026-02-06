@@ -5,92 +5,18 @@
     "children": []
   },
   {
-    "title": "Orders",
-    "route": "/admin/orders",
-    "children": [
-      "All Orders",
-      "Awaiting",
-      "Received",
-      "Processed",
-      "Shipped",
-      "Delivered",
-      "Cancelled",
-      "Returned",
-      "Total Items",
-      "Total Revenue",
-      "Average Order Value",
-      "Order Tracking",
-      "Order Notifications"
-    ]
-  },
-  {
-    "title": "Returns",
-    "route": "/admin/return-requests",
-    "children": []
-  },
-  {
-    "title": "Products",
-    "route": "/admin/products",
-    "children": [
-      "Manage Products",
-      "Product Ratings"
-    ]
-  },
-  {
-    "title": "Categories",
-    "route": "/admin/categories",
-    "children": [
-      "Manage Categories",
-      "Category Order"
-    ]
-  },
-  {
-    "title": "Brands",
-    "route": "/admin/brands",
-    "children": [
-      "Manage Brands"
-    ]
-  },
-  {
     "title": "B2B Vendors",
     "route": "/admin/b2b-vendors",
     "children": [
       "Manage",
       "Pending",
       "Products",
-      "Banner Bookings",
       "Wallet",
       "Analytics",
       "Subscriptions",
-      "Categories"
+      "Categories",
+      "Banner Bookings"
     ]
-  },
-  {
-    "title": "Offers & Sliders",
-    "route": "/admin/offers",
-    "children": [
-      "Festival Offers"
-    ]
-  },
-  {
-    "title": "Hero Banner Management",
-    "route": "/admin/hero-banners",
-    "children": []
-  },
-  {
-    "title": "Mega Reward",
-    "route": "/admin/mega-reward",
-    "children": [
-      "Entries",
-      "Winners",
-      "Promotional Reels",
-      "Settings"
-    ]
-  },
-  {
-    "title": "Promo Codes",
-    "route": "/admin/promocodes",
-    "children": []
   },
   {
     "title": "Notifications",
@@ -98,48 +24,6 @@
     "children": [
       "Push Notifications",
       "Custom Messages"
-    ]
-  },
-  {
-    "title": "Support",
-    "route": "/admin/support",
-    "children": [
-      "Tickets"
-    ]
-  },
-  {
-    "title": "Reports",
-    "route": "/admin/reports",
-    "children": [
-      "Sales Report",
-      "Inventory Report"
-    ]
-  },
-  {
-    "title": "Analytics & Finance",
-    "route": "/admin/finance",
-    "children": [
-      "Revenue Overview",
-      "Profit & Loss",
-      "Order Trends",
-      "Payment Breakdown",
-      "Tax Reports",
-      "Refund Reports",
-      "Wallet Recharges"
-    ]
-  },
-  {
-    "title": "Delivery Rules",
-    "route": "/admin/delivery-rules",
-    "children": []
-  },
-  {
-    "title": "Policies",
-    "route": "/admin/policies",
-    "children": [
-      "Privacy Policy",
-      "Refund Policy",
-      "Terms & Conditions"
     ]
   },
   {
