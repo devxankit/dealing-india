@@ -26,7 +26,6 @@ const ReturnRequests = lazyWithRetry(() => import("./modules/Admin/pages/ReturnR
 const ReturnRequestDetail = lazyWithRetry(() => import("./modules/Admin/pages/ReturnRequestDetail"));
 const Categories = lazyWithRetry(() => import("./modules/Admin/pages/Categories"));
 const Brands = lazyWithRetry(() => import("./modules/Admin/pages/Brands"));
-const Customers = lazyWithRetry(() => import("./modules/Admin/pages/Customers"));
 const Inventory = lazyWithRetry(() => import("./modules/Admin/pages/Inventory"));
 const Campaigns = lazyWithRetry(() => import("./modules/Admin/pages/Campaigns"));
 const AdminHeroBanner = lazyWithRetry(() => import("./modules/Admin/pages/AdminHeroBanner"));
@@ -62,21 +61,6 @@ const ManageCategories = lazyWithRetry(() => import("./modules/Admin/pages/categ
 const CategoryOrder = lazyWithRetry(() => import("./modules/Admin/pages/categories/CategoryOrder"));
 // Brands child pages
 const ManageBrands = lazyWithRetry(() => import("./modules/Admin/pages/brands/ManageBrands"));
-// Customers child pages
-const ViewCustomers = lazyWithRetry(() => import("./modules/Admin/pages/customers/ViewCustomers"));
-const CustomerAddresses = lazyWithRetry(() => import("./modules/Admin/pages/customers/Addresses"));
-const Transactions = lazyWithRetry(() => import("./modules/Admin/pages/customers/Transactions"));
-const CustomerDetailPage = lazyWithRetry(() => import("./modules/Admin/pages/customers/CustomerDetailPage"));
-const CustomerAnalytics = lazyWithRetry(() => import("./modules/Admin/pages/customers/CustomerAnalytics"));
-// Vendors child pages
-const Vendors = lazyWithRetry(() => import("./modules/Admin/pages/Vendors"));
-const ManageVendors = lazyWithRetry(() => import("./modules/Admin/pages/vendors/ManageVendors"));
-const PendingApprovals = lazyWithRetry(() => import("./modules/Admin/pages/vendors/PendingApprovals"));
-const VendorDetail = lazyWithRetry(() => import("./modules/Admin/pages/vendors/VendorDetail"));
-const CommissionRates = lazyWithRetry(() => import("./modules/Admin/pages/vendors/CommissionRates"));
-const AdminVendorAnalytics = lazyWithRetry(() => import("./modules/Admin/pages/vendors/VendorAnalytics"));
-const VendorWalletManagement = lazyWithRetry(() => import("./modules/Admin/pages/vendors/VendorWalletManagement"));
-const Subscriptions = lazyWithRetry(() => import("./modules/Admin/pages/vendors/Subscriptions"));
 // Offers & Sliders child pages
 const FestivalOffers = lazyWithRetry(() => import("./modules/Admin/pages/offers/FestivalOffers"));
 // Mega Reward child pages
@@ -128,53 +112,6 @@ const AdminB2BCategories = lazyWithRetry(() => import("./modules/Admin/pages/b2b
 const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrapper"));
 // Mobile App Routes
 const Chat = lazyWithRetry(() => import("./shared/components/Chat/Chat"));
-// Vendor Routes
-const VendorLogin = lazyWithRetry(() => import("./modules/Vendor/pages/Login"));
-const VendorRegister = lazyWithRetry(() => import("./modules/Vendor/pages/Register"));
-const VendorVerification = lazyWithRetry(() => import("./modules/Vendor/pages/Verification"));
-const VendorForgotPassword = lazyWithRetry(() => import("./modules/Vendor/pages/ForgotPassword"));
-const VendorProtectedRoute = lazyWithRetry(() => import("./modules/Vendor/components/VendorProtectedRoute"));
-const VendorLayout = lazyWithRetry(() => import("./modules/Vendor/components/Layout/VendorLayout"));
-const VendorReels = lazyWithRetry(() => import("./modules/Vendor/pages/Reels"));
-const VendorDashboard = lazyWithRetry(() => import("./modules/Vendor/pages/Dashboard"));
-const VendorProducts = lazyWithRetry(() => import("./modules/Vendor/pages/Products"));
-const VendorManageProducts = lazyWithRetry(() => import("./modules/Vendor/pages/products/ManageProducts"));
-const VendorAddProduct = lazyWithRetry(() => import("./modules/Vendor/pages/products/AddProduct"));
-const VendorProductForm = lazyWithRetry(() => import("./modules/Vendor/pages/products/ProductForm"));
-const VendorOrders = lazyWithRetry(() => import("./modules/Vendor/pages/Orders"));
-const VendorAllOrders = lazyWithRetry(() => import("./modules/Vendor/pages/orders/AllOrders"));
-const VendorOrderTracking = lazyWithRetry(() => import("./modules/Vendor/pages/orders/OrderTracking"));
-const VendorOrderDetail = lazyWithRetry(() => import("./modules/Vendor/pages/orders/OrderDetail"));
-const VendorInvoice = lazyWithRetry(() => import("./modules/Vendor/pages/orders/Invoice"));
-const VendorAnalytics = lazyWithRetry(() => import("./modules/Vendor/pages/Analytics"));
-const VendorEarnings = lazyWithRetry(() => import("./modules/Vendor/pages/Earnings"));
-const VendorSettings = lazyWithRetry(() => import("./modules/Vendor/pages/Settings"));
-const VendorSubscription = lazyWithRetry(() => import("./modules/Vendor/pages/Subscription"));
-const VendorSupportTickets = lazyWithRetry(() => import("./modules/Vendor/pages/SupportTickets"));
-const VendorHeroBannerBooking = lazyWithRetry(() => import("./modules/Vendor/pages/HeroBannerBooking"));
-const VendorHeroBannerBookingDetail = lazyWithRetry(() => import("./modules/Vendor/pages/HeroBannerBookingDetail"));
-const VendorStockManagement = lazyWithRetry(() => import("./modules/Vendor/pages/StockManagement"));
-
-const VendorPickupLocations = lazyWithRetry(() => import("./modules/Vendor/pages/PickupLocations"));
-const VendorReturnRequests = lazyWithRetry(() => import("./modules/Vendor/pages/ReturnRequests"));
-const VendorReturnRequestDetail = lazyWithRetry(() => import("./modules/Vendor/pages/returns/ReturnRequestDetail"));
-const VendorProductReviews = lazyWithRetry(() => import("./modules/Vendor/pages/ProductReviews"));
-const VendorPromotions = lazyWithRetry(() => import("./modules/Vendor/pages/Promotions"));
-const VendorNotifications = lazyWithRetry(() => import("./modules/Vendor/pages/Notifications"));
-const VendorChat = lazyWithRetry(() => import("./modules/Vendor/pages/Chat"));
-const VendorAllReels = lazyWithRetry(() => import("./modules/Vendor/pages/reels/AllReels"));
-const VendorAddReel = lazyWithRetry(() => import("./modules/Vendor/pages/reels/AddReel"));
-const VendorEditReel = lazyWithRetry(() => import("./modules/Vendor/pages/reels/EditReel"));
-const VendorProductFAQs = lazyWithRetry(() => import("./modules/Vendor/pages/ProductFAQs"));
-const VendorShippingManagement = lazyWithRetry(() => import("./modules/Vendor/pages/ShippingManagement"));
-const VendorCustomers = lazyWithRetry(() => import("./modules/Vendor/pages/Customers"));
-const VendorCustomerDetail = lazyWithRetry(() => import("./modules/Vendor/pages/CustomerDetail"));
-const VendorProductAttributes = lazyWithRetry(() => import("./modules/Vendor/pages/ProductAttributes"));
-const VendorAttributes = lazyWithRetry(() => import("./modules/Vendor/pages/attributes/Attributes"));
-const VendorAttributeValues = lazyWithRetry(() => import("./modules/Vendor/pages/attributes/AttributeValues"));
-const VendorAttributeSets = lazyWithRetry(() => import("./modules/Vendor/pages/attributes/AttributeSets"));
-const VendorInventoryReports = lazyWithRetry(() => import("./modules/Vendor/pages/InventoryReports"));
-const VendorPerformanceMetrics = lazyWithRetry(() => import("./modules/Vendor/pages/PerformanceMetrics"));
 
 // B2B Vendor Routes
 const B2BVendorLogin = lazyWithRetry(() => import("./modules/B2BVendor/pages/Login"));
@@ -258,9 +195,7 @@ const AppRoutes = () => {
         <Route path="/" element={<Navigate to="/b2b/landing" replace />} />
         <Route path="/b2b-vendors" element={<Navigate to="/admin/b2b-vendors" replace />} />
         <Route path="/wholesalers" element={<Navigate to="/admin/b2b-vendors" replace />} />
-        <Route path="/app/login" element={<Navigate to="/b2b/login" replace />} />
-        <Route path="/app/register" element={<Navigate to="/b2b/register" replace />} />
-        <Route path="/app/cart" element={<Navigate to="/b2b/landing" replace />} />
+
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
@@ -304,32 +239,8 @@ const AppRoutes = () => {
           />
           <Route path="return-requests" element={<ReturnRequests />} />
           <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
-          {/* B2B Customers management can stay if it's for B2B buyers, but typical B2C ones go */}
-          <Route path="customers" element={<Customers />} />
-          <Route path="customers/view-customers" element={<ViewCustomers />} />
-          <Route path="customers/:id" element={<CustomerDetailPage />} />
           <Route path="stock" element={<Inventory />} />
           <Route path="inventory" element={<Inventory />} />
-          <Route path="vendors" element={<Vendors />} />
-          <Route path="vendors/manage-vendors" element={<ManageVendors />} />
-          <Route
-            path="vendors/pending-approvals"
-            element={<PendingApprovals />}
-          />
-          <Route path="vendors/commission-rates" element={<CommissionRates />} />
-          <Route
-            path="vendors/vendor-analytics"
-            element={<AdminVendorAnalytics />}
-          />
-          <Route
-            path="vendors/vendor-wallet"
-            element={<VendorWalletManagement />}
-          />
-          <Route
-            path="subscriptions"
-            element={<Subscriptions />}
-          />
-          <Route path="vendors/:id" element={<VendorDetail />} />
 
           {/* Admin B2B Vendor Routes */}
           <Route path="b2b-vendors">
@@ -429,115 +340,6 @@ const AppRoutes = () => {
         <Route path="/b2b/product/:id" element={<ProtectedRoute><B2BProductDetail /></ProtectedRoute>} />
         <Route path="/b2b/vendor/:id" element={<ProtectedRoute><B2BVendorStore /></ProtectedRoute>} />
 
-        {/* Vendor Routes */}
-        <Route path="/vendor/login" element={<VendorLogin />} />
-        <Route path="/vendor/register" element={<VendorRegister />} />
-        <Route path="/vendor/verification" element={<VendorVerification />} />
-        <Route path="/vendor/forgot-password" element={<VendorForgotPassword />} />
-        <Route
-          path="/vendor"
-          element={
-            <VendorProtectedRoute>
-              <VendorLayout />
-            </VendorProtectedRoute>
-          }>
-          <Route index element={<Navigate to="/vendor/dashboard" replace />} />
-          <Route path="dashboard" element={<VendorDashboard />} />
-          <Route path="products" element={<VendorProducts />} />
-          <Route
-            path="products/manage-products"
-            element={<VendorManageProducts />}
-          />
-          <Route path="products/add-product" element={<VendorAddProduct />} />
-          <Route path="products/product-faqs" element={<VendorProductFAQs />} />
-          <Route
-            path="products/product-attributes"
-            element={<VendorProductAttributes />}
-          />
-          <Route path="attributes" element={<VendorAttributeSets />} />
-          <Route path="attributes/attribute-sets" element={<VendorAttributeSets />} />
-          <Route path="attributes/attributes" element={<VendorAttributes />} />
-          <Route
-            path="attributes/attribute-values"
-            element={<VendorAttributeValues />}
-          />
-          <Route path="products/:id" element={<VendorProductForm />} />
-          <Route path="orders" element={<VendorOrders />} />
-          <Route path="orders/all-orders" element={<VendorAllOrders />} />
-          <Route path="orders/hold-order" element={<VendorAllOrders />} />
-          <Route path="orders/pending-order" element={<VendorAllOrders />} />
-          <Route path="orders/processing" element={<VendorAllOrders />} />
-          <Route path="orders/ready-to-ship" element={<VendorAllOrders />} />
-          <Route path="orders/dispatch-order" element={<VendorAllOrders />} />
-          <Route path="orders/shipped-seller" element={<VendorAllOrders />} />
-          <Route path="orders/canceled-order" element={<VendorAllOrders />} />
-          <Route path="orders/prepaid-orders" element={<VendorAllOrders />} />
-          <Route path="orders/cod-orders" element={<VendorAllOrders />} />
-          <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
-          <Route path="orders/:id" element={<VendorOrderDetail />} />
-          <Route path="orders/:id/invoice" element={<VendorInvoice />} />
-          <Route path="chat" element={<VendorChat />} />
-          <Route path="chat/:userId" element={<VendorChat />} />
-          <Route path="support-tickets" element={<VendorSupportTickets />} />
-          <Route path="reels" element={<VendorReels />} />
-          <Route path="reels/all-reels" element={<VendorAllReels />} />
-          <Route path="reels/add-reel" element={<VendorAddReel />} />
-          <Route path="reels/edit-reel/:id" element={<VendorEditReel />} />
-          <Route path="analytics" element={<VendorAnalytics />} />
-          <Route path="earnings" element={<VendorEarnings />} />
-          <Route path="earnings/overview" element={<VendorEarnings />} />
-          <Route path="earnings/wallet" element={<VendorEarnings />} />
-          <Route
-            path="earnings/commission-history"
-            element={<VendorEarnings />}
-          />
-          <Route
-            path="earnings/settlement-history"
-            element={<VendorEarnings />}
-          />
-          <Route
-            path="earnings/advertisement-payment"
-            element={<VendorEarnings />}
-          />
-          <Route path="stock-management" element={<VendorStockManagement />} />
-          <Route path="stock-management/all" element={<VendorStockManagement />} />
-          <Route path="stock-management/in-stock" element={<VendorStockManagement />} />
-          <Route path="stock-management/low-stock" element={<VendorStockManagement />} />
-          <Route path="stock-management/out-of-stock" element={<VendorStockManagement />} />
-
-          <Route path="pickup-locations" element={<VendorPickupLocations />} />
-          <Route path="return-requests" element={<VendorReturnRequests />} />
-          <Route
-            path="return-requests/:id"
-            element={<VendorReturnRequestDetail />}
-          />
-          <Route path="product-reviews" element={<VendorProductReviews />} />
-          <Route path="promotions" element={<VendorPromotions />} />
-          <Route path="hero-banner-booking" element={<VendorHeroBannerBooking />} />
-          <Route path="hero-banner-booking/details/:id" element={<VendorHeroBannerBookingDetail />} />
-          <Route path="notifications" element={<VendorNotifications />} />
-          <Route
-            path="shipping-management"
-            element={<VendorShippingManagement />}
-          />
-          <Route path="customers/:id" element={<VendorCustomerDetail />} />
-          <Route path="customers" element={<VendorCustomers />} />
-          <Route path="inventory-reports" element={<VendorInventoryReports />} />
-          <Route
-            path="performance-metrics"
-            element={<VendorPerformanceMetrics />}
-          />
-          <Route path="settings" element={<VendorSettings />} />
-          <Route path="subscription" element={<VendorSubscription />} />
-          <Route path="settings/store" element={<VendorSettings />} />
-          <Route path="settings/payment" element={<VendorSettings />} />
-          <Route path="settings/payment-settings" element={<VendorSettings />} />
-          <Route path="settings/shipping" element={<VendorSettings />} />
-          <Route path="settings/shipping-settings" element={<VendorSettings />} />
-          <Route path="profile" element={<VendorSettings />} />
-
-          <Route path="profile" element={<VendorSettings />} />
-        </Route>
         {/* B2B Vendor Routes */}
         <Route path="/b2b-vendor/login" element={<B2BVendorLogin />} />
         <Route path="/b2b-vendor/register" element={<B2BVendorRegister />} />

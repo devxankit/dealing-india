@@ -99,7 +99,7 @@ const B2BBannerManagement = () => {
                 const slotsList = slotsData.slots || [];
                 console.log('B2B Banner Management - Slots loaded:', slotsList.length, slotsList);
                 setSlots(slotsList);
-                
+
                 if (slotsData.settings) {
                     setSettings({
                         universalDisplayTime: slotsData.settings?.universalDisplayTime || 3000,
@@ -133,7 +133,7 @@ const B2BBannerManagement = () => {
             } else if (Array.isArray(bookingsRes)) {
                 bookingsData = bookingsRes;
             }
-            
+
             console.log('B2B Banner Management - Bookings loaded:', bookingsData.length, bookingsData);
             setBookings(bookingsData);
 
@@ -149,7 +149,7 @@ const B2BBannerManagement = () => {
                 } else if (statsRes?.data) {
                     revenueData = statsRes.data;
                 }
-                
+
                 if (revenueData) {
                     // Ensure we're showing total revenue from B2B banner bookings only
                     setRevenueStats({

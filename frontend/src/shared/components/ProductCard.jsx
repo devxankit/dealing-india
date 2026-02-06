@@ -7,9 +7,6 @@ import { formatPrice, getPlaceholderImage, getMainProductVariant } from "../util
 import toast from "react-hot-toast";
 import LazyImage from "./LazyImage";
 import { useState, useRef, useMemo } from "react";
-import useLongPress from "../../modules/UserApp/hooks/useLongPress";
-import LongPressMenu from "../../modules/UserApp/components/Mobile/LongPressMenu";
-import FlyingItem from "../../modules/UserApp/components/Mobile/FlyingItem";
 import VendorBadge from "../../modules/Vendor/components/VendorBadge";
 import { getVendorById } from "../../data/vendors";
 
@@ -46,15 +43,7 @@ const ProductCard = ({ product, hideRating = false }) => {
   } = useWishlistStore();
   const isFavorite = isInWishlist(product.id);
   const [isAdding, setIsAdding] = useState(false);
-  const [showLongPressMenu, setShowLongPressMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const [showFlyingItem, setShowFlyingItem] = useState(false);
-  const [flyingItemPos, setFlyingItemPos] = useState({
-    start: { x: 0, y: 0 },
-    end: { x: 0, y: 0 },
-  });
   const buttonRef = useRef(null);
-  const cartIconRef = useRef(null);
 
   // Check if product is out of stock
   const isOutOfStock = (product.stockQuantity !== undefined && product.stockQuantity <= 0) || product.stock === "out_of_stock";
@@ -91,40 +80,6 @@ const ProductCard = ({ product, hideRating = false }) => {
       e.stopPropagation();
     }
 
-    setIsAdding(true);
-
-    // Get button position
-    const buttonRect = buttonRef.current?.getBoundingClientRect();
-    const startX = buttonRect ? buttonRect.left + buttonRect.width / 2 : 0;
-    const startY = buttonRect ? buttonRect.top + buttonRect.height / 2 : 0;
-
-    // Get cart bar position (prefer cart bar over header icon)
-    setTimeout(() => {
-      const cartBar = document.querySelector("[data-cart-bar]");
-      let endX = window.innerWidth / 2;
-      let endY = window.innerHeight - 100;
-
-      if (cartBar) {
-        const cartRect = cartBar.getBoundingClientRect();
-        endX = cartRect.left + cartRect.width / 2;
-        endY = cartRect.top + cartRect.height / 2;
-      } else {
-        // Fallback to cart icon in header
-        const cartIcon = document.querySelector("[data-cart-icon]");
-        if (cartIcon) {
-          const cartRect = cartIcon.getBoundingClientRect();
-          endX = cartRect.left + cartRect.width / 2;
-          endY = cartRect.top + cartRect.height / 2;
-        }
-      }
-
-      setFlyingItemPos({
-        start: { x: startX, y: startY },
-        end: { x: endX, y: endY },
-      });
-      setShowFlyingItem(true);
-    }, 50);
-
     try {
       // Add product to cart - pass product ID and let cartStore fetch full product data if needed
       await addItem({
@@ -147,29 +102,6 @@ const ProductCard = ({ product, hideRating = false }) => {
     }
   };
 
-  const handleLongPress = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setMenuPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    });
-    setShowLongPressMenu(true);
-  };
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: `Check out ${product.name}`,
-        url: window.location.origin + productLink,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.origin + productLink);
-      toast.success("Link copied to clipboard");
-    }
-  };
-
-  const longPressHandlers = useLongPress(handleLongPress, 500);
 
   const handleFavorite = (e) => {
     e.stopPropagation();
@@ -193,8 +125,7 @@ const ProductCard = ({ product, hideRating = false }) => {
         whileTap={{ scale: 0.98 }}
         style={{ willChange: "transform", transform: "translateZ(0)" }}
         className="glass-card rounded-lg overflow-hidden group cursor-pointer h-full flex flex-col"
-        onClick={handleCardClick}
-        {...longPressHandlers}>
+        onClick={handleCardClick}>
         <div className="relative">
           {/* Flash Sale Badge */}
           {product.isFlashSale === true && (
@@ -314,25 +245,6 @@ const ProductCard = ({ product, hideRating = false }) => {
           </div>
         </div>
       </motion.div>
-
-      <LongPressMenu
-        isOpen={showLongPressMenu}
-        onClose={() => setShowLongPressMenu(false)}
-        position={menuPosition}
-        onAddToCart={handleAddToCart}
-        onAddToWishlist={handleFavorite}
-        onShare={handleShare}
-        isInWishlist={isFavorite}
-      />
-
-      {showFlyingItem && (
-        <FlyingItem
-          image={product.image}
-          startPosition={flyingItemPos.start}
-          endPosition={flyingItemPos.end}
-          onComplete={() => setShowFlyingItem(false)}
-        />
-      )}
     </>
   );
 };

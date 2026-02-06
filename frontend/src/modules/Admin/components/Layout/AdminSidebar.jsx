@@ -83,25 +83,6 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/brands": {
       "Manage Brands": "/admin/brands/manage-brands",
     },
-    "/admin/customers": {
-      "View Customers": "/admin/customers/view-customers",
-      Addresses: "/admin/customers/addresses",
-      Transactions: "/admin/customers/transactions",
-      "Customer Analysis": "/admin/customers/analytics",
-    },
-    "/admin/vendors": {
-      "Manage Vendors": "/admin/vendors/manage-vendors",
-      "Pending Approvals": "/admin/vendors/pending-approvals",
-      "Commission Rates": "/admin/vendors/commission-rates",
-      "Vendor Wallet": "/admin/vendors/vendor-wallet",
-      "Vendor Analytics": "/admin/vendors/vendor-analytics",
-    },
-    "/admin/subscriptions": {
-      "Analytics": "/admin/subscriptions?tab=analytics",
-      "Tier Config": "/admin/subscriptions?tab=tiers",
-      "Monitoring": "/admin/subscriptions?tab=monitoring",
-      "Support Tools": "/admin/subscriptions?tab=support",
-    },
     "/admin/b2b-vendors": {
       "Manage": "/admin/b2b-vendors/manage",
       "Pending": "/admin/b2b-vendors/pending",

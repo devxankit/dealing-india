@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiMessageSquare, FiClock, FiCheckCircle, FiX, FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import MobileLayout from '../../../modules/UserApp/components/Layout/MobileLayout';
 import PageTransition from '../PageTransition';
 import ProtectedRoute from '../Auth/ProtectedRoute';
 import supportTicketService from '../../services/supportTicketService';
@@ -94,147 +93,141 @@ const SupportTickets = () => {
         }
     };
 
-    const content = (
-        <div className="min-h-screen bg-gray-50">
-            <div className="container mx-auto px-4 py-6 max-w-6xl">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 hover:bg-gray-200 rounded-full transition-colors"
-                        >
-                            <FiArrowLeft className="text-xl text-gray-700" />
-                        </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-800">Support Tickets</h1>
-                            <p className="text-gray-600 mt-1">Get help with your orders and account</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm">
-                        <FiPlus className="text-sm" />
-                        Create Ticket
-                    </button>
-                </div>
-
-                {/* Filters */}
-                <div className="flex gap-2 mb-6 flex-wrap">
-                    {['all', 'open', 'in_progress', 'resolved', 'closed'].map((status) => (
-                        <button
-                            key={status}
-                            onClick={() => setFilter(status)}
-                            className={`px-4 py-2 rounded-lg transition-colors ${filter === status
-                                ? 'bg-primary-600 text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100'
-                                }`}>
-                            {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Tickets List */}
-                {loading ? (
-                    <div className="text-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading tickets...</p>
-                    </div>
-                ) : tickets.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-lg">
-                        <FiMessageSquare className="text-6xl text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-600 mb-4">No tickets found</p>
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
-                            Create Your First Ticket
-                        </button>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {tickets.map((ticket) => (
-                            <motion.div
-                                key={ticket._id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                onClick={async () => {
-                                    try {
-                                        const response = await api.get(`/user/support-tickets/${ticket._id}`);
-                                        if (response.success) {
-                                            setSelectedTicket(response.data);
-                                            setShowDetailModal(true);
-                                        } else {
-                                            setSelectedTicket(ticket);
-                                            setShowDetailModal(true);
-                                        }
-                                    } catch (error) {
-                                        console.error('Error loading ticket details:', error);
-                                        setSelectedTicket(ticket);
-                                        setShowDetailModal(true);
-                                    }
-                                }}
-                                className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="text-lg font-semibold text-gray-800">{ticket.subject}</h3>
-                                            <Badge className={getStatusColor(ticket.status)}>
-                                                <div className="flex items-center gap-1">
-                                                    {getStatusIcon(ticket.status)}
-                                                    <span className="capitalize">{ticket.status.replace('_', ' ')}</span>
-                                                </div>
-                                            </Badge>
-                                        </div>
-                                        <p className="text-gray-600 mb-3 line-clamp-2">{ticket.description}</p>
-                                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                                            <span>Ticket: {ticket.ticketNumber}</span>
-                                            <span>•</span>
-                                            <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
-                                            {ticket.priority && (
-                                                <>
-                                                    <span>•</span>
-                                                    <span className="capitalize">Priority: {ticket.priority}</span>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {/* Create Ticket Modal */}
-            {showCreateModal && (
-                <CreateTicketModal
-                    onClose={() => setShowCreateModal(false)}
-                    onSuccess={() => {
-                        setShowCreateModal(false);
-                        loadTickets();
-                    }}
-                />
-            )}
-
-            {/* Ticket Detail Modal */}
-            <TicketDetailModal
-                isOpen={showDetailModal}
-                onClose={() => {
-                    setShowDetailModal(false);
-                    setSelectedTicket(null);
-                }}
-                ticket={selectedTicket}
-                onUpdate={handleTicketUpdate}
-            />
-        </div>
-    );
-
     return (
         <ProtectedRoute>
             <PageTransition>
-                <MobileLayout showBottomNav={false} showCartBar={false}>
-                    {content}
-                </MobileLayout>
+                <div className="min-h-screen bg-gray-50">
+                    <div className="container mx-auto px-4 py-6 max-w-6xl">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => navigate(-1)}
+                                    className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                                >
+                                    <FiArrowLeft className="text-xl text-gray-700" />
+                                </button>
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-800">Support Tickets</h1>
+                                    <p className="text-gray-600 mt-1">Get help with your orders and account</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm">
+                                <FiPlus className="text-sm" />
+                                Create Ticket
+                            </button>
+                        </div>
+
+                        {/* Filters */}
+                        <div className="flex gap-2 mb-6 flex-wrap">
+                            {['all', 'open', 'in_progress', 'resolved', 'closed'].map((status) => (
+                                <button
+                                    key={status}
+                                    onClick={() => setFilter(status)}
+                                    className={`px-4 py-2 rounded-lg transition-colors ${filter === status
+                                        ? 'bg-primary-600 text-white'
+                                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                                        }`}>
+                                    {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tickets List */}
+                        {loading ? (
+                            <div className="text-center py-12">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                                <p className="text-gray-600">Loading tickets...</p>
+                            </div>
+                        ) : tickets.length === 0 ? (
+                            <div className="text-center py-12 bg-white rounded-lg">
+                                <FiMessageSquare className="text-6xl text-gray-400 mx-auto mb-4" />
+                                <p className="text-gray-600 mb-4">No tickets found</p>
+                                <button
+                                    onClick={() => setShowCreateModal(true)}
+                                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                                    Create Your First Ticket
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {tickets.map((ticket) => (
+                                    <motion.div
+                                        key={ticket._id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        onClick={async () => {
+                                            try {
+                                                const response = await api.get(`/user/support-tickets/${ticket._id}`);
+                                                if (response.success) {
+                                                    setSelectedTicket(response.data);
+                                                    setShowDetailModal(true);
+                                                } else {
+                                                    setSelectedTicket(ticket);
+                                                    setShowDetailModal(true);
+                                                }
+                                            } catch (error) {
+                                                console.error('Error loading ticket details:', error);
+                                                setSelectedTicket(ticket);
+                                                setShowDetailModal(true);
+                                            }
+                                        }}
+                                        className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-200">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h3 className="text-lg font-semibold text-gray-800">{ticket.subject}</h3>
+                                                    <Badge className={getStatusColor(ticket.status)}>
+                                                        <div className="flex items-center gap-1">
+                                                            {getStatusIcon(ticket.status)}
+                                                            <span className="capitalize">{ticket.status.replace('_', ' ')}</span>
+                                                        </div>
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-gray-600 mb-3 line-clamp-2">{ticket.description}</p>
+                                                <div className="flex items-center gap-4 text-sm text-gray-500">
+                                                    <span>Ticket: {ticket.ticketNumber}</span>
+                                                    <span>•</span>
+                                                    <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
+                                                    {ticket.priority && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className="capitalize">Priority: {ticket.priority}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Create Ticket Modal */}
+                    {showCreateModal && (
+                        <CreateTicketModal
+                            onClose={() => setShowCreateModal(false)}
+                            onSuccess={() => {
+                                setShowCreateModal(false);
+                                loadTickets();
+                            }}
+                        />
+                    )}
+
+                    {/* Ticket Detail Modal */}
+                    <TicketDetailModal
+                        isOpen={showDetailModal}
+                        onClose={() => {
+                            setShowDetailModal(false);
+                            setSelectedTicket(null);
+                        }}
+                        ticket={selectedTicket}
+                        onUpdate={handleTicketUpdate}
+                    />
+                </div>
             </PageTransition>
         </ProtectedRoute>
     );

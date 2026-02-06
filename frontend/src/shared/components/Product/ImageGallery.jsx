@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { FiX, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import LazyImage from "../LazyImage";
-import useSwipeGesture from "../../../modules/UserApp/hooks/useSwipeGesture";
 
 const ImageGallery = ({ images, productName = "Product" }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -45,12 +44,6 @@ const ImageGallery = ({ images, productName = "Product" }) => {
     setIsLightboxOpen(true);
   };
 
-  // Swipe gestures for image navigation
-  const swipeHandlers = useSwipeGesture({
-    onSwipeLeft: handleNext,
-    onSwipeRight: handlePrevious,
-    threshold: 50,
-  });
 
   return (
     <>
@@ -62,10 +55,7 @@ const ImageGallery = ({ images, productName = "Product" }) => {
           <motion.div
             key={selectedIndex}
             className="w-full h-full"
-            onClick={handleImageClick}
-            onTouchStart={swipeHandlers.onTouchStart}
-            onTouchMove={swipeHandlers.onTouchMove}
-            onTouchEnd={swipeHandlers.onTouchEnd}>
+            onClick={handleImageClick}>
             <LazyImage
               src={imageArray[selectedIndex]}
               alt={`${productName} - Image ${selectedIndex + 1}`}
