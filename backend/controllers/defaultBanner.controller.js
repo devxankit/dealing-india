@@ -89,7 +89,8 @@ export const getActiveBannersCombined = asyncHandler(async (req, res) => {
         endDate: { $gte: now }
     })
         .populate('vendorId', 'name storeName')
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
 
     // 2. Decide what to return
     let bannersToReturn = [];
@@ -107,7 +108,9 @@ export const getActiveBannersCombined = asyncHandler(async (req, res) => {
         }));
     } else {
         // No vendor banners, get admin defaults
-        const adminBanners = await DefaultBanner.find({ isActive: true }).sort({ createdAt: -1 });
+        const adminBanners = await DefaultBanner.find({ isActive: true })
+            .sort({ createdAt: -1 })
+            .lean();
         bannersToReturn = adminBanners.map(b => ({
             _id: b._id,
             title: b.title || 'Special Offer',
