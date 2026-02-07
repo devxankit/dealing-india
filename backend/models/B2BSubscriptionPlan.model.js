@@ -47,6 +47,12 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    allowedBusinessTypes: [
+      {
+        type: String, // Storing Slugs for ease of use across environments
+        default: []
+      }
+    ],
   },
   {
     timestamps: true,
@@ -57,7 +63,7 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
 b2bSubscriptionPlanSchema.index({ isActive: 1, duration: 1 });
 
 // Prevent duplicate durations
-b2bSubscriptionPlanSchema.index({ duration: 1 }, { unique: true });
+// b2bSubscriptionPlanSchema.index({ duration: 1 }, { unique: true });
 
 const B2BSubscriptionPlan =
   mongoose.models.B2BSubscriptionPlan ||

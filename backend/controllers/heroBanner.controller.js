@@ -30,11 +30,14 @@ export const getAvailableSlots = asyncHandler(async (req, res) => {
 
     // Dynamically find most relevant booking for each slot (active or nearest upcoming)
     const slotsWithBookings = await Promise.all(slots.map(async (slot) => {
+        // Add 5.5 hours buffer for IST
+        const nowWithISTBuffer = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+
         // Try to find currently active booking first
         let relevantBooking = await BannerBooking.findOne({
             slotId: slot._id,
             status: 'active',
-            startDate: { $lte: now },
+            startDate: { $lte: nowWithISTBuffer },
             endDate: { $gte: now }
         });
 
@@ -100,13 +103,20 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
     // Calculate end date from start date + duration days
     // For 1 day: Start Feb 8 00:00 -> End Feb 8 23:59:59 (same day)
     // For 2 days: Start Feb 8 00:00 -> End Feb 9 23:59:59
+    // Normalize start date to 00:00 IST (India Standard Time)
+    // MongoDB stores in UTC. 00:00 IST = 18:30 UTC (previous day)
+    // If startDate is "2026-02-08", new Date(startDate) is 2026-02-08T00:00:00.000Z
     const start = new Date(startDate);
+    start.setUTCHours(0, 0, 0, 0);
+    // Subtract 5 hours 30 mins to get 00:00 IST in UTC
+    start.setUTCMinutes(start.getUTCMinutes() - 330);
+
     const durationInDays = parseInt(durationDays);
     const end = new Date(start);
-
-    // Add (durationDays - 1) days, then set to end of that day (23:59:59)
-    end.setDate(end.getDate() + (durationInDays - 1));
-    end.setHours(23, 59, 59, 999);
+    // Add duration in days (e.g., 1 day = ends 24 hours later)
+    end.setUTCHours(end.getUTCHours() + (durationInDays * 24));
+    // Set to 23:59:59.999 IST (which is 1ms before next IST day starts)
+    end.setUTCMilliseconds(end.getUTCMilliseconds() - 1);
 
     // Get slot to calculate amount
     const slot = await BannerSlot.findById(slotId);
@@ -330,10 +340,13 @@ export const getActiveBanners = asyncHandler(async (req, res) => {
     const { bannerType } = req.query;
     const now = new Date();
 
+    // Add 5.5 hours buffer for IST synchronization
+    const nowWithISTBuffer = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+
     const query = {
         status: 'active',
         paymentStatus: 'paid',
-        startDate: { $lte: now },
+        startDate: { $lte: nowWithISTBuffer },
         endDate: { $gte: now }
     };
     if (bannerType) query.bannerType = bannerType;
@@ -385,11 +398,14 @@ export const getAdminBannerSlots = asyncHandler(async (req, res) => {
 
     // Dynamically find most relevant booking for each slot (active or nearest upcoming)
     const slotsWithBookings = await Promise.all(slots.map(async (slot) => {
+        // Add 5.5 hours buffer for IST
+        const nowWithISTBuffer = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+
         // Try to find currently active booking first
         let relevantBooking = await BannerBooking.findOne({
             slotId: slot._id,
             status: 'active',
-            startDate: { $lte: now },
+            startDate: { $lte: nowWithISTBuffer },
             endDate: { $gte: now }
         }).populate('vendorId', 'name storeName email');
 

@@ -53,9 +53,9 @@ const DEFAULT_PLANS = [
     }
 ];
 
-// Cache for plans (to avoid multiple API calls)
-let plansCache = null;
-let cacheTimestamp = null;
+// Cache for plans (keyed by 'all' or businessType slug)
+let plansCache = {};
+let cacheTimestamps = {};
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -63,17 +63,29 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  * @param {Boolean} forceRefresh - Force refresh from API
  * @returns {Promise<Array>} Array of plans
  */
-export const getB2BPlans = async (forceRefresh = false) => {
+export const getB2BPlans = async (forceRefresh = false, options = {}) => {
     try {
+        const { businessType } = options;
+        const cacheKey = businessType || 'all';
+
         // Return cached data if available and not expired
-        if (!forceRefresh && plansCache && cacheTimestamp && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-            return plansCache;
+        if (!forceRefresh && plansCache[cacheKey] && cacheTimestamps[cacheKey] && (Date.now() - cacheTimestamps[cacheKey]) < CACHE_DURATION) {
+            return plansCache[cacheKey];
         }
 
-        const response = await api.get('/public/b2b-subscription-plans/active');
+        let url = '/public/b2b-subscription-plans/active'; // Default to active endpoint
+        // NOTE: The backend endpoint might be different depending on auth/role, but public active seems right for catalog/subscription page
+
+        if (businessType) {
+            // Check if backend supports filter on this endpoint or separate endpoint
+            // Usually valid endpoint is /public/b2b-subscription-plans or similar
+            url += `?businessType=${businessType}`;
+        }
+
+        const response = await api.get(url);
         if (response.success && response.data) {
-            plansCache = response.data;
-            cacheTimestamp = Date.now();
+            plansCache[cacheKey] = response.data;
+            cacheTimestamps[cacheKey] = Date.now();
             return response.data;
         }
 
@@ -83,7 +95,8 @@ export const getB2BPlans = async (forceRefresh = false) => {
     } catch (error) {
         console.error('Error getting B2B plans from API:', error);
         // Return cached data if available, otherwise defaults
-        return plansCache || DEFAULT_PLANS;
+        const cacheKey = businessType || 'all';
+        return plansCache[cacheKey] || DEFAULT_PLANS;
     }
 };
 
@@ -91,21 +104,24 @@ export const getB2BPlans = async (forceRefresh = false) => {
  * Get active plans only (synchronous version using cache)
  * @returns {Array} Array of active plans
  */
-export const getActiveB2BPlansSync = () => {
-    if (plansCache) {
-        return plansCache.filter(plan => plan.isActive !== false);
+/**
+ * Get active plans only (synchronous version using cache)
+ * @returns {Array} Array of active plans
+ */
+export const getActiveB2BPlansSync = (businessType = null) => {
+    const cacheKey = businessType || 'all';
+    if (plansCache[cacheKey]) {
+        return plansCache[cacheKey].filter(plan => plan.isActive !== false);
+    }
+    // Try to find in any cache entry if not found directly
+    const allCached = Object.values(plansCache).flat();
+    if (allCached.length > 0) {
+        return allCached.filter(plan => plan.isActive !== false);
     }
     return DEFAULT_PLANS.filter(plan => plan.isActive !== false);
 };
 
-/**
- * Get active plans from API (async)
- * @returns {Promise<Array>} Array of active plans
- */
-export const getActiveB2BPlans = async () => {
-    const plans = await getB2BPlans();
-    return plans.filter(plan => plan.isActive !== false);
-};
+// ... (getActiveB2BPlans remains same as it calls getB2BPlans)
 
 /**
  * Get plan by ID (from cache or API)
@@ -114,11 +130,10 @@ export const getActiveB2BPlans = async () => {
  */
 export const getB2BPlanById = async (planId) => {
     try {
-        // Try cache first
-        if (plansCache) {
-            const plan = plansCache.find(p => p._id === planId || p.id === planId);
-            if (plan) return plan;
-        }
+        // Try cache first (search all Cached lists)
+        const allCached = Object.values(plansCache).flat();
+        const plan = allCached.find(p => p._id === planId || p.id === planId);
+        if (plan) return plan;
 
         // Fetch from API
         const response = await api.get(`/public/b2b-subscription-plans/${planId}`);
@@ -129,10 +144,8 @@ export const getB2BPlanById = async (planId) => {
     } catch (error) {
         console.error('Error getting plan by ID:', error);
         // Try cache as fallback
-        if (plansCache) {
-            return plansCache.find(p => p._id === planId || p.id === planId) || null;
-        }
-        return null;
+        const allCached = Object.values(plansCache).flat();
+        return allCached.find(p => p._id === planId || p.id === planId) || null;
     }
 };
 
@@ -141,9 +154,21 @@ export const getB2BPlanById = async (planId) => {
  * @param {String} planId - Plan ID
  * @returns {Object|null} Plan object or null
  */
+// ... (getActiveB2BPlans was removed in previous step but needed if not included in ... )
+export const getActiveB2BPlans = async (options = {}) => {
+    const plans = await getB2BPlans(false, options);
+    return plans.filter(plan => plan.isActive !== false);
+};
+
+/**
+ * Get plan by ID synchronously (from cache)
+ * @param {String} planId - Plan ID
+ * @returns {Object|null} Plan object or null
+ */
 export const getB2BPlanByIdSync = (planId) => {
-    if (plansCache) {
-        return plansCache.find(p => p._id === planId || p.id === planId) || null;
+    const allCached = Object.values(plansCache).flat();
+    if (allCached.length > 0) {
+        return allCached.find(p => p._id === planId || p.id === planId) || null;
     }
     return DEFAULT_PLANS.find(p => p._id === planId || p.id === planId) || null;
 };
@@ -159,8 +184,8 @@ export const updateB2BPlan = async (planId, updates) => {
         const response = await api.put(`/admin/b2b-subscription-plans/${planId}`, updates);
         if (response.success && response.data) {
             // Clear cache to force refresh
-            plansCache = null;
-            cacheTimestamp = null;
+            plansCache = {};
+            cacheTimestamps = {};
             return response.data;
         }
         throw new Error(response.message || 'Failed to update plan');
@@ -180,8 +205,8 @@ export const createB2BPlan = async (planData) => {
         const response = await api.post('/admin/b2b-subscription-plans', planData);
         if (response.success && response.data) {
             // Clear cache to force refresh
-            plansCache = null;
-            cacheTimestamp = null;
+            plansCache = {};
+            cacheTimestamps = {};
             return response.data;
         }
         throw new Error(response.message || 'Failed to create plan');
@@ -201,8 +226,8 @@ export const deleteB2BPlan = async (planId) => {
         const response = await api.delete(`/admin/b2b-subscription-plans/${planId}`);
         if (response.success && response.data) {
             // Clear cache to force refresh
-            plansCache = null;
-            cacheTimestamp = null;
+            plansCache = {};
+            cacheTimestamps = {};
             return response.data;
         }
         throw new Error(response.message || 'Failed to delete plan');
@@ -221,8 +246,8 @@ export const initializeDefaultPlans = async () => {
         const response = await api.post('/admin/b2b-subscription-plans/initialize');
         if (response.success && response.data) {
             // Clear cache to force refresh
-            plansCache = null;
-            cacheTimestamp = null;
+            plansCache = {};
+            cacheTimestamps = {};
             return response.data;
         }
         throw new Error(response.message || 'Failed to initialize plans');
@@ -236,6 +261,6 @@ export const initializeDefaultPlans = async () => {
  * Clear plans cache (useful after updates)
  */
 export const clearPlansCache = () => {
-    plansCache = null;
-    cacheTimestamp = null;
+    plansCache = {};
+    cacheTimestamps = {};
 };

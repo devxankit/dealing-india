@@ -81,6 +81,11 @@ const B2BVendorSubscription = lazyWithRetry(() => import("./modules/B2BVendor/pa
 const B2BVendorBannerBooking = lazyWithRetry(() => import("./modules/B2BVendor/pages/B2BBannerBooking"));
 const B2BVendorPaymentPage = lazyWithRetry(() => import("./modules/B2BVendor/pages/PaymentPage"));
 
+const B2BVendorManageLots = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/ManageLotSlot"));
+const B2BVendorAddLot = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/AddLotSlot"));
+const B2BVendorEditLot = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/EditLotSlot"));
+
+
 // B2B User App Routes
 const B2BUserLogin = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Login"));
 const B2BUserRegister = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Register"));
@@ -262,7 +267,14 @@ const AppRoutes = () => {
 
           <Route path="subscription" element={<B2BVendorSubscription />} />
           <Route path="banner-booking" element={<B2BVendorBannerBooking />} />
+          <Route path="lotslot">
+            <Route index element={<Navigate to="/b2b-vendor/lotslot/manage-lots" replace />} />
+            <Route path="manage-lots" element={<B2BVendorManageLots />} />
+            <Route path="add-lotslot" element={<B2BVendorAddLot />} />
+            <Route path="edit/:id" element={<B2BVendorEditLot />} />
+          </Route>
           <Route path="profile" element={<B2BVendorProfile />} />
+
         </Route>
         <Route
           path="*"

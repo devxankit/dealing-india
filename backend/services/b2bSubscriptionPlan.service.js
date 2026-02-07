@@ -1,4 +1,6 @@
 import B2BSubscriptionPlan from '../models/B2BSubscriptionPlan.model.js';
+import BusinessType from '../models/BusinessType.model.js';
+import BusinessTypeSettings from '../models/BusinessTypeSettings.model.js';
 import razorpayService from './razorpay.service.js';
 
 class B2BSubscriptionPlanService {
@@ -10,11 +12,32 @@ class B2BSubscriptionPlanService {
    */
   async getAllPlans(options = {}) {
     try {
-      const { includeInactive = false } = options;
+      const { includeInactive = false, businessType = null } = options;
       const query = {};
 
       if (!includeInactive) {
         query.isActive = true;
+      }
+
+      if (businessType) {
+        // 1. Existing logic: Filter by plans that explicitly allow this type or are global
+        query.$or = [
+          { allowedBusinessTypes: { $size: 0 } },
+          { allowedBusinessTypes: { $exists: false } },
+          { allowedBusinessTypes: businessType }
+        ];
+
+        // 2. NEW Logic: Check if BusinessTypeSettings HAS explicitly allowed plans for this type
+        const bType = await BusinessType.findOne({ slug: businessType });
+        if (bType) {
+          const settings = await BusinessTypeSettings.findOne({ businessTypeId: bType._id });
+          if (settings && settings.allowedPlans && settings.allowedPlans.length > 0) {
+            // If admin has explicitly picked plans in the Config UI, ONLY those plans should show
+            // This overrides the 'allowedBusinessTypes' on the plan itself for THIS specific business type
+            delete query.$or; // Remove the broad OR query
+            query._id = { $in: settings.allowedPlans };
+          }
+        }
       }
 
       const plans = await B2BSubscriptionPlan.find(query)
@@ -93,11 +116,13 @@ class B2BSubscriptionPlanService {
         throw new Error('Duration must be 3, 6, or 12 months');
       }
 
+      /*
       // Check if plan with this duration already exists
       const existingPlan = await B2BSubscriptionPlan.findOne({ duration });
       if (existingPlan) {
         throw new Error(`A plan with ${duration} months duration already exists`);
       }
+      */
 
       const planToCreate = {
         name: name.trim(),

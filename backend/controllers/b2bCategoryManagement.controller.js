@@ -64,7 +64,7 @@ export const getB2BCategory = async (req, res, next) => {
  */
 export const create = async (req, res, next) => {
   try {
-    const { name, subcategoryName, image } = req.body;
+    const { name, subcategoryName } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -80,7 +80,7 @@ export const create = async (req, res, next) => {
       });
     }
 
-    const category = await createB2BCategory({ name, subcategoryName, image });
+    const category = await createB2BCategory({ name, subcategoryName });
 
     // Clear cache
     await clearB2BCategoryCache();

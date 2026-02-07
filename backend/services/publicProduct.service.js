@@ -1,4 +1,5 @@
 import Product from '../models/Product.model.js';
+import LotSlot from '../models/LotSlot.model.js';
 import Vendor from '../models/Vendor.model.js';
 import B2BCategory from '../models/B2BCategory.model.js';
 
@@ -20,7 +21,10 @@ export const getPublicProducts = async (filters) => {
         page = 1,
         limit = 20,
         sortBy = 'createdAt',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
+        itemType,
+        pattern,
+        fabric
     } = filters;
 
     const query = { isActive: true };
@@ -35,31 +39,63 @@ export const getPublicProducts = async (filters) => {
     if (categoryId) query.categoryId = categoryId;
     if (subcategoryId) query.subcategoryId = subcategoryId;
     if (brandId) query.brandId = brandId;
-    if (vendorId) query.vendorId = vendorId;
 
+    // Pattern and Fabric filtering for Products
+    // Products store these in 'attributes' array: [{ name: 'Pattern', value: '...' }, ...]
+    if (pattern) {
+        query.attributes = {
+            $elemMatch: {
+                name: { $regex: new RegExp('^pattern$', 'i') },
+                value: { $regex: new RegExp(`^${pattern}$`, 'i') }
+            }
+        };
+    }
+    if (fabric) {
+        // use $and if attributes is already used
+        const fabricQuery = {
+            $elemMatch: {
+                name: { $regex: new RegExp('^fabric$', 'i') },
+                value: { $regex: new RegExp(`^${fabric}$`, 'i') }
+            }
+        };
+
+        if (query.attributes) {
+            query.$and = [
+                { attributes: query.attributes },
+                { attributes: fabricQuery }
+            ];
+            delete query.attributes;
+        } else {
+            query.attributes = fabricQuery;
+        }
+    }
+
+    // Fix: query.vendorId handling for locations was slightly flawed if vendorId already exists.
+    // Instead, let's just collect valid vendorIDs if location is filtered.
+    let locationVendorIds = null;
     if (state || city) {
-        // Find vendors in these locations first
         const vendorQuery = { isActive: true };
         if (state) vendorQuery['address.state'] = state;
         if (city) vendorQuery['address.city'] = city;
-
         const matchingVendors = await Vendor.find(vendorQuery).select('_id');
-        const vendorIds = matchingVendors.map(v => v._id);
+        locationVendorIds = matchingVendors.map(v => v._id);
+    }
 
-        if (query.vendorId) {
-            // Intersection if vendorId was already specified
-            if (Array.isArray(query.vendorId.$in)) {
-                query.vendorId.$in = query.vendorId.$in.filter(id => vendorIds.includes(id.toString()));
+    if (vendorId) {
+        // If specific vendor requested
+        if (locationVendorIds) {
+            // Intersection
+            if (locationVendorIds.some(id => id.toString() === vendorId.toString())) {
+                query.vendorId = vendorId;
             } else {
-                const currentVendorId = query.vendorId.toString();
-                if (!vendorIds.some(id => id.toString() === currentVendorId)) {
-                    // No overlap, search results will be empty
-                    query.vendorId = { $in: [] };
-                }
+                // returns nothing
+                query.vendorId = { $in: [] };
             }
         } else {
-            query.vendorId = { $in: vendorIds };
+            query.vendorId = vendorId;
         }
+    } else if (locationVendorIds) {
+        query.vendorId = { $in: locationVendorIds };
     }
 
     if (minPrice || maxPrice) {
@@ -70,16 +106,105 @@ export const getPublicProducts = async (filters) => {
 
     const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
 
-    const products = await Product.find(query)
-        .sort(sort)
-        .skip((page - 1) * limit)
-        .limit(Number(limit))
-        .populate('vendorId', 'name storeName address phone');
+    // --- FETCHING STRATEGY BASED ON itemType ---
+    let products = [];
+    let lotSlots = [];
 
-    const total = await Product.countDocuments(query);
+    // 1. Fetch Products (if not restricted to lotslot)
+    if (itemType !== 'lotslot') {
+        products = await Product.find(query)
+            .sort(sort)
+            .populate('vendorId', 'name storeName address phone');
+    }
+
+    // 2. Fetch LotSlots (if not restricted to product)
+    if (itemType !== 'product') {
+        const lotSlotQuery = { isActive: true };
+
+        // Map common filters to LotSlot schema
+        if (search) {
+            lotSlotQuery.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Apply same vendorId logic
+        if (query.vendorId) {
+            lotSlotQuery.vendorId = query.vendorId;
+        }
+
+        if (minPrice || maxPrice) {
+            lotSlotQuery.price = {};
+            if (minPrice) lotSlotQuery.price.$gte = Number(minPrice);
+            if (maxPrice) lotSlotQuery.price.$lte = Number(maxPrice);
+        }
+
+        // Handling category for LotSlot (it uses string name in model usually, verify if possible)
+        // Assuming for now it uses string names as per previous code
+        if (categoryId) {
+            try {
+                const cat = await B2BCategory.findById(categoryId);
+                if (cat) lotSlotQuery.category = cat.name;
+            } catch (e) {
+                // ignore invalid id
+            }
+        }
+        if (subcategoryId) {
+            lotSlotQuery.subcategory = subcategoryId;
+        }
+
+        // LotSlot has direct fields for pattern and fabric
+        // But also check specifications just in case
+        if (pattern) {
+            lotSlotQuery.$or = [
+                { pattern: { $regex: new RegExp(`^${pattern}$`, 'i') } },
+                { specifications: { $elemMatch: { name: { $regex: 'pattern', $options: 'i' }, value: { $regex: pattern, $options: 'i' } } } }
+            ];
+        }
+        if (fabric) {
+            const fabricCond = [
+                { fabric: { $regex: new RegExp(`^${fabric}$`, 'i') } },
+                { specifications: { $elemMatch: { name: { $regex: 'fabric', $options: 'i' }, value: { $regex: fabric, $options: 'i' } } } }
+            ];
+
+            if (lotSlotQuery.$or) {
+                // intersection needed if pattern already added $or
+                lotSlotQuery.$and = [
+                    { $or: lotSlotQuery.$or },
+                    { $or: fabricCond }
+                ];
+                delete lotSlotQuery.$or;
+            } else {
+                lotSlotQuery.$or = fabricCond;
+            }
+        }
+
+        lotSlots = await LotSlot.find(lotSlotQuery)
+            .sort(sort)
+            .populate('vendorId', 'name storeName address phone');
+    }
+
+    // Tag them so frontend can distinguish
+    const taggedProducts = products.map(p => ({ ...p._doc, itemType: 'product' }));
+    const taggedLots = lotSlots.map(l => ({ ...l._doc, itemType: 'lotslot' }));
+
+    // Combine and sort
+    let combined = [...taggedProducts, ...taggedLots];
+
+    // Sort combined list
+    combined.sort((a, b) => {
+        const valA = a[sortBy] || 0;
+        const valB = b[sortBy] || 0;
+        if (sortOrder === 'desc') return valB > valA ? 1 : -1;
+        return valA > valB ? 1 : -1;
+    });
+
+    const total = combined.length;
+    const paginated = combined.slice((page - 1) * limit, page * limit);
 
     return {
-        products,
+        products: paginated,
         total,
         page: Number(page),
         pages: Math.ceil(total / limit)
@@ -90,11 +215,20 @@ export const getPublicProducts = async (filters) => {
  * Get single product by ID
  */
 export const getPublicProductById = async (id) => {
-    const product = await Product.findById(id)
+    let item = await Product.findById(id)
         .populate('vendorId', 'name storeName description logo phone address');
 
-    if (!product) throw new Error('Product not found');
-    return product;
+    if (!item) {
+        item = await LotSlot.findById(id)
+            .populate('vendorId', 'name storeName description logo phone address');
+    }
+
+    if (!item) throw new Error('Product not found');
+
+    // Tag it
+    const taggedItem = { ...item._doc, itemType: item.sku ? 'lotslot' : 'product' };
+
+    return taggedItem;
 };
 
 /**
@@ -106,10 +240,10 @@ export const getB2BSearchSuggestions = async (query) => {
     const suggestions = [];
 
     // 1. Search products
-    const products = await Product.find({
-        name: { $regex: query, $options: 'i' },
-        isActive: true
-    }).limit(5).select('name image');
+    const [products, lotSlots] = await Promise.all([
+        Product.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image'),
+        LotSlot.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image')
+    ]);
 
     products.forEach(p => {
         suggestions.push({
@@ -117,6 +251,15 @@ export const getB2BSearchSuggestions = async (query) => {
             context: 'In Products',
             type: 'product',
             image: p.image || null
+        });
+    });
+
+    lotSlots.forEach(l => {
+        suggestions.push({
+            text: l.name,
+            context: 'In Lots/Slots',
+            type: 'lotslot',
+            image: l.image || (l.images && l.images[0]) || null
         });
     });
 

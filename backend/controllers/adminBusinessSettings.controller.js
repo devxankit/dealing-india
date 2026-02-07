@@ -17,7 +17,13 @@ export const getAllBusinessSettings = asyncHandler(async (req, res) => {
 // @route   PUT /api/admin/business-settings/update/:id
 // @access  Admin
 export const updateBusinessSettings = asyncHandler(async (req, res) => {
-    const { enabledModules, maxImagesPerProperty, features, isActive } = req.body;
+    const {
+        enabledModules,
+        features,
+        isActive,
+        dashboardWidgets,
+        allowedPlans
+    } = req.body;
 
     let settings = await BusinessTypeSettings.findById(req.params.id);
 
@@ -26,8 +32,10 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
     }
 
     settings.enabledModules = enabledModules || settings.enabledModules;
-    settings.maxImagesPerProperty = maxImagesPerProperty !== undefined ? maxImagesPerProperty : settings.maxImagesPerProperty;
+
     settings.features = features || settings.features;
+    settings.dashboardWidgets = dashboardWidgets !== undefined ? dashboardWidgets : settings.dashboardWidgets;
+    settings.allowedPlans = allowedPlans !== undefined ? allowedPlans : settings.allowedPlans;
     settings.isActive = isActive !== undefined ? isActive : settings.isActive;
 
     await settings.save();

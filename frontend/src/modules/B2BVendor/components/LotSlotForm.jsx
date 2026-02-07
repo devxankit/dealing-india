@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
 
-const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
+const LotSlotForm = ({ initialData, isEdit, id }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
@@ -22,7 +22,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         bulkPricing: [{ minQty: "", price: "" }],
         brand: "",
         availability: "In Stock",
-        unit: "",
+        unit: "Lot",
         pattern: "",
         fabric: ""
     });
@@ -33,30 +33,59 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
     useEffect(() => {
         fetchCategories();
-    }, []);
+        if (isEdit && id) {
+            fetchLotSlotDetails();
+        }
+    }, [isEdit, id]);
 
     const fetchCategories = async () => {
         setCategoriesLoading(true);
         try {
             const response = await api.get('/public/b2b-categories');
             if (response.success && response.data) {
-                // Transform backend format to frontend format
                 const transformedCategories = response.data.map((cat, index) => ({
                     id: cat._id || cat.id || index.toString(),
                     name: cat.name,
                     subcategories: cat.subcategories || [],
                 }));
                 setCategories(transformedCategories);
-            } else {
-                // Fallback to empty array if API fails
-                setCategories([]);
             }
         } catch (error) {
             console.error('Error fetching B2B categories:', error);
             toast.error('Failed to load categories');
-            setCategories([]);
         } finally {
             setCategoriesLoading(false);
+        }
+    };
+
+    const fetchLotSlotDetails = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get(`/b2b-vendor/lot-slots/${id}`);
+            if (response.success && response.data) {
+                const data = response.data;
+                setFormData({
+                    name: data.name || "",
+                    category: data.category || "",
+                    subcategory: data.subcategory || "",
+                    moq: data.moq || 1,
+                    price: data.price || "",
+                    description: data.description || "",
+                    images: data.image ? [data.image, ...(data.images || [])] : (data.images || []),
+                    specifications: data.specifications?.length > 0 ? data.specifications : [{ name: "", value: "" }],
+                    bulkPricing: data.bulkPricing?.length > 0 ? data.bulkPricing : [{ minQty: "", price: "" }],
+                    brand: data.brand || "",
+                    availability: data.availability || "In Stock",
+                    unit: data.unit || "Lot",
+                    pattern: data.pattern || "",
+                    fabric: data.fabric || ""
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching lot/slot details:', error);
+            toast.error('Failed to load listing details');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -124,6 +153,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
         setIsUploading(true);
         try {
+            // Using base64 for now as per ProductForm's approach, or direct upload if preferred.
+            // But let's stick to ProductForm's reader.readAsDataURL for consistency.
             const newImages = await Promise.all(
                 files.map(file => {
                     return new Promise((resolve) => {
@@ -157,51 +188,37 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         e.preventDefault();
 
         if (formData.images.length === 0) {
-            toast.error("Please upload at least one product image");
+            toast.error("Please upload at least one image");
             return;
         }
 
-        if (!formData.name || !formData.price || !formData.moq) {
-            toast.error("Please fill in all required fields (Name, Price, MOQ)");
+        if (!formData.name || !formData.price || !formData.moq || !formData.category) {
+            toast.error("Please fill in all required fields");
             return;
         }
 
         setLoading(true);
         try {
-            // Prepare data for API
-            const productPayload = {
-                name: formData.name,
-                category: formData.category,
-                subcategory: formData.subcategory || "",
+            const payload = {
+                ...formData,
                 moq: parseInt(formData.moq) || 1,
                 price: parseFloat(formData.price),
-                description: formData.description || "",
-                images: formData.images,
-                specifications: [
-                    ...formData.specifications.filter(spec => spec.name && spec.value),
-                    ...(formData.pattern ? [{ name: "Pattern", value: formData.pattern }] : []),
-                    ...(formData.fabric ? [{ name: "Fabric", value: formData.fabric }] : [])
-                ],
+                specifications: formData.specifications.filter(spec => spec.name && spec.value),
                 bulkPricing: formData.bulkPricing.filter(tier => tier.minQty && tier.price),
-                brand: formData.brand || "",
-                availability: formData.availability || "In Stock",
-                unit: formData.unit || "Pcs",
             };
 
-            if (isEdit && productId) {
-                // Update existing product
-                await api.put(`/b2b-vendor/products/${productId}`, productPayload);
+            if (isEdit && id) {
+                await api.put(`/b2b-vendor/lot-slots/${id}`, payload);
                 toast.success("Listing updated successfully");
             } else {
-                // Create new product
-                await api.post('/b2b-vendor/products', productPayload);
-                toast.success("Product listed successfully");
+                await api.post('/b2b-vendor/lot-slots', payload);
+                toast.success("Lot/Slot listed successfully");
             }
 
-            navigate("/b2b-vendor/products/manage-products");
+            navigate("/b2b-vendor/lotslot/manage-lots");
         } catch (error) {
-            console.error('Error saving product:', error);
-            const errorMessage = error.response?.data?.message || error.message || "Failed to save product";
+            console.error('Error saving lot/slot:', error);
+            const errorMessage = error.response?.data?.message || error.message || "Failed to save listing";
             toast.error(errorMessage);
         } finally {
             setLoading(false);
@@ -211,7 +228,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     return (
         <form onSubmit={handleSubmit} className="space-y-10 pb-20">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Section: Details (8 cols) */}
+                {/* Left Section: Details */}
                 <div className="lg:col-span-8 space-y-8">
                     {/* Basic Info */}
                     <motion.div
@@ -228,7 +245,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Product Title <span className="text-red-500">*</span></label>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Lot/Slot Title <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     name="name"
@@ -236,7 +253,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     onChange={handleChange}
                                     required
                                     className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
-                                    placeholder="e.g. Industrial Grade Steel Pipes"
+                                    placeholder="e.g. Bulk Cotton Lot 500kg"
                                 />
                             </div>
 
@@ -265,8 +282,6 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     <option value="Available on Order">Available on Order</option>
                                 </select>
                             </div>
-
-
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Pattern</label>
@@ -339,7 +354,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                             <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
                                 <FiList />
                             </div>
-                            <h3 className="text-xl font-bold text-gray-800">Product Description</h3>
+                            <h3 className="text-xl font-bold text-gray-800">Description</h3>
                         </div>
                         <textarea
                             name="description"
@@ -347,7 +362,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                             onChange={handleChange}
                             rows={6}
                             className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all resize-none shadow-inner"
-                            placeholder="Provide a detailed description of the product, its usage, and benefits for B2B buyers..."
+                            placeholder="Provide a detailed description for bulk buyers..."
                         />
                     </div>
 
@@ -414,7 +429,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                     </div>
                 </div>
 
-                {/* Right Section: Pricing & Images (4 cols) */}
+                {/* Right Section: Pricing & Images */}
                 <div className="lg:col-span-4 space-y-8">
                     {/* Media Gallery */}
                     <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100">
@@ -423,7 +438,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 <div className="p-2 bg-purple-50 text-purple-600 rounded-xl">
                                     <FiImage />
                                 </div>
-                                <h3 className="text-xl font-bold text-gray-800">Product Gallery</h3>
+                                <h3 className="text-xl font-bold text-gray-800">Gallery</h3>
                             </div>
                         </div>
 
@@ -470,7 +485,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                         <div className="space-y-6">
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Base Unit Price <span className="text-red-500">*</span></label>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Base Lot Price <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">₹</div>
                                     <input
@@ -480,7 +495,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         onChange={handleChange}
                                         required
                                         className="w-full pl-10 pr-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
-                                        placeholder="4500"
+                                        placeholder="45000"
                                     />
                                 </div>
                             </div>
@@ -495,7 +510,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         onChange={handleChange}
                                         required
                                         className="flex-1 px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all"
-                                        placeholder="100"
+                                        placeholder="1"
                                     />
                                     <select
                                         name="unit"
@@ -504,6 +519,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         className="w-40 px-3 py-4 bg-slate-50 border-2 border-transparent focus:border-primary-500 focus:bg-white rounded-2xl transition-all font-bold text-gray-700"
                                     >
                                         <option value="">Select Unit</option>
+                                        <option value="Lot">Lot</option>
+                                        <option value="Slot">Slot</option>
                                         <option value="pieces">Pieces</option>
                                         <option value="pcs">PCS</option>
                                         <option value="nos">NOS</option>
@@ -528,6 +545,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         <option value="sheet">Sheet</option>
                                         <option value="sqft">Square Feet (sqft)</option>
                                         <option value="sqm">Square Meter (sqm)</option>
+                                        <option value="Container">Container</option>
                                     </select>
                                 </div>
                             </div>
@@ -555,7 +573,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                                         value={tier.minQty}
                                                         onChange={(e) => updateBulkTier(index, 'minQty', e.target.value)}
                                                         className="w-full bg-transparent border-none focus:ring-0 text-xs font-bold"
-                                                        placeholder="1000"
+                                                        placeholder="10"
                                                     />
                                                 </div>
                                                 <div className="flex items-center gap-1 px-2 border-l border-gray-200">
@@ -565,7 +583,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                                         value={tier.price}
                                                         onChange={(e) => updateBulkTier(index, 'price', e.target.value)}
                                                         className="w-full bg-transparent border-none focus:ring-0 text-xs font-bold"
-                                                        placeholder="4200"
+                                                        placeholder="42000"
                                                     />
                                                 </div>
                                             </div>
@@ -607,7 +625,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                     ) : (
                         <>
                             <FiSave size={18} />
-                            {isEdit ? 'Update Listing' : 'Publish Product'}
+                            {isEdit ? 'Update Listing' : 'Publish Lot/Slot'}
                         </>
                     )}
                 </button>
@@ -616,4 +634,4 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     );
 };
 
-export default B2BVendorProductForm;
+export default LotSlotForm;

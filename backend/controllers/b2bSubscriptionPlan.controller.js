@@ -36,9 +36,12 @@ class AdminB2BSubscriptionPlanController {
    */
   async getPlans(req, res) {
     try {
-      const includeInactive = req.query.includeInactive === 'true';
-      const plans = await b2bSubscriptionPlanService.getAllPlans({ includeInactive });
-      
+      const { includeInactive = 'false', businessType } = req.query;
+      const plans = await b2bSubscriptionPlanService.getAllPlans({
+        includeInactive: includeInactive === 'true',
+        businessType
+      });
+
       res.status(200).json({
         success: true,
         data: plans,
@@ -58,8 +61,12 @@ class AdminB2BSubscriptionPlanController {
    */
   async getActivePlans(req, res) {
     try {
-      const plans = await b2bSubscriptionPlanService.getActivePlans();
-      
+      const { businessType } = req.query;
+      const plans = await b2bSubscriptionPlanService.getAllPlans({
+        includeInactive: false,
+        businessType
+      });
+
       res.status(200).json({
         success: true,
         data: plans,
@@ -81,7 +88,7 @@ class AdminB2BSubscriptionPlanController {
     try {
       const { id } = req.params;
       const plan = await b2bSubscriptionPlanService.getPlanById(id);
-      
+
       res.status(200).json({
         success: true,
         data: plan,
@@ -104,7 +111,7 @@ class AdminB2BSubscriptionPlanController {
     try {
       const adminId = req.userDoc?._id || req.user?.adminId;
       const plan = await b2bSubscriptionPlanService.createPlan(req.body, adminId);
-      
+
       // Clear cache
       await this.clearPlanCache();
 
@@ -131,7 +138,7 @@ class AdminB2BSubscriptionPlanController {
       const { id } = req.params;
       const adminId = req.userDoc?._id || req.user?.adminId;
       const plan = await b2bSubscriptionPlanService.updatePlan(id, req.body, adminId);
-      
+
       // Clear cache
       await this.clearPlanCache(id);
 
@@ -158,7 +165,7 @@ class AdminB2BSubscriptionPlanController {
       const { id } = req.params;
       const adminId = req.userDoc?._id || req.user?.adminId;
       const plan = await b2bSubscriptionPlanService.deletePlan(id, adminId);
-      
+
       // Clear cache
       await this.clearPlanCache(id);
 
@@ -184,7 +191,7 @@ class AdminB2BSubscriptionPlanController {
     try {
       const adminId = req.userDoc?._id || req.user?.adminId;
       const plans = await b2bSubscriptionPlanService.ensureDefaultPlans(adminId);
-      
+
       // Clear cache
       await this.clearPlanCache();
 

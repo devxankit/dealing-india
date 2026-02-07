@@ -294,12 +294,12 @@ const B2BVendorStore = () => {
                             >
                                 <div className={`${viewMode === 'grid' ? 'w-full aspect-[4/3]' : 'w-64 h-64 flex-shrink-0'} relative overflow-hidden`}>
                                     <img
-                                        src={product.images?.[0] || product.image || 'https://via.placeholder.com/400x300'}
+                                        src={product.coverImage || product.image || product.images?.[0] || 'https://via.placeholder.com/400x300'}
                                         alt={product.name}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                     />
                                     <div className="absolute top-4 left-4 px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black text-primary-600 uppercase tracking-[0.1em] shadow-sm">
-                                        Bulk Only
+                                        {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk Only'}
                                     </div>
                                 </div>
 
@@ -318,7 +318,7 @@ const B2BVendorStore = () => {
                                     <div className="flex items-center gap-4 mt-auto mb-6">
                                         <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
                                             <FiTruck className="text-primary-500 text-sm" />
-                                            <span>Min. 100</span>
+                                            <span>Min. {product.moq || 1} {product.unit || 'pcs'}</span>
                                         </div>
                                         <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
                                             <FiShield className="text-primary-500 text-sm" />
@@ -331,7 +331,7 @@ const B2BVendorStore = () => {
                                             <span className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-1">MOQ Price</span>
                                             <div className="flex items-baseline gap-1">
                                                 <span className="text-2xl font-black text-primary-600">₹{product.price}</span>
-                                                <span className="text-xs text-gray-400 font-bold uppercase tracking-tighter">/ unit</span>
+                                                <span className="text-xs text-gray-400 font-bold uppercase tracking-tighter">/ {product.unit || 'unit'}</span>
                                             </div>
                                         </div>
                                     </div>

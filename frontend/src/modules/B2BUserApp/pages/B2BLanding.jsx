@@ -300,7 +300,33 @@ const B2BLanding = () => {
         </motion.div>
     );
 
-    const ProductPopup = () => (
+    const fetchLotProducts = async () => {
+        try {
+            const response = await api.get('/products', {
+                params: {
+                    itemType: 'lotslot',
+                    limit: 10,
+                    vendorType: 'b2b'
+                }
+            });
+
+            if (response.success && response.data) {
+                const products = Array.isArray(response.data) ? response.data : (response.data.products || []);
+                const normalizedProducts = products.map(p => ({
+                    ...p,
+                    moq: p.moq || p.minimumOrderQuantity || 1
+                }));
+                setPopupProducts(normalizedProducts);
+            } else {
+                setPopupProducts([]);
+            }
+        } catch (e) {
+            console.error("Error fetching lot products", e);
+            setPopupProducts([]);
+        }
+    };
+
+    const ProductPopup = ({ title, onViewAll }) => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
@@ -312,7 +338,7 @@ const B2BLanding = () => {
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="text-xl font-bold text-gray-800">Related Products for "{searchQuery}"</h3>
+                    <h3 className="text-xl font-bold text-gray-800">{title}</h3>
                     <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
                 </div>
                 <div className="p-6 bg-gray-50 max-h-[70vh] overflow-y-auto">
@@ -330,12 +356,12 @@ const B2BLanding = () => {
                                     {/* Image Container */}
                                     <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50">
                                         <img
-                                            src={(Array.isArray(product.images) && product.images.length > 0) ? product.images[0] : product.image || 'https://via.placeholder.com/400x300'}
+                                            src={product.coverImage || product.image || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null) || 'https://via.placeholder.com/400x300'}
                                             alt={product.name}
                                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                         />
                                         <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-blue-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm">
-                                            Bulk
+                                            {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk'}
                                         </div>
                                         <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100">
                                             <div className="flex items-baseline gap-0.5">
@@ -353,7 +379,7 @@ const B2BLanding = () => {
                                             </h3>
                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                 <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
-                                                    {product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
+                                                    {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
                                                 </p>
                                                 {product.vendorId?.address?.city && (
                                                     <span className="text-[8px] text-gray-300 font-bold">• {product.vendorId.address.city}</span>
@@ -365,7 +391,7 @@ const B2BLanding = () => {
                                         <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
                                             <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
                                                 <FiTruck className="text-blue-500" size={10} />
-                                                <span>Min. {product.moq || 1}</span>
+                                                <span>Min. {product.moq || 1} {product.unit || 'pcs'}</span>
                                             </div>
                                             <div
                                                 onClick={(e) => {
@@ -425,7 +451,7 @@ const B2BLanding = () => {
                     ) : (
                         <div className="flex flex-col items-center justify-center py-10 text-gray-400">
                             <FiShoppingCart size={40} className="mb-3 opacity-20" />
-                            <p>No products found for "{searchQuery}"</p>
+                            <p>No products found.</p>
                         </div>
                     )}
                 </div>
@@ -433,7 +459,7 @@ const B2BLanding = () => {
                     <button
                         onClick={() => {
                             closePopup();
-                            navigate(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`);
+                            if (onViewAll) onViewAll();
                         }}
                         className="text-blue-600 font-bold hover:underline flex items-center justify-center gap-2"
                     >
@@ -534,7 +560,10 @@ const B2BLanding = () => {
                     {/* 3. Lot / SOT & Real Estate */}
                     <div className="hidden lg:flex items-center gap-1 xl:gap-2">
                         <button
-                            onClick={() => setActivePopup('lots')}
+                            onClick={() => {
+                                fetchLotProducts();
+                                setActivePopup('lots');
+                            }}
                             className="px-3 py-2 text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
                         >
                             <FiTrendingUp size={16} /> Lot / SOT
@@ -607,7 +636,7 @@ const B2BLanding = () => {
                                     {availableCities.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
-                            <button onClick={() => { setActivePopup('lots'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Lot / SOT</button>
+                            <button onClick={() => { fetchLotProducts(); setActivePopup('lots'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Lot / SOT</button>
                             <button onClick={() => { setActivePopup('realEstate'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Commercial Real Estate Only</button>
                             <div className="h-px bg-gray-100 my-2"></div>
                             <button onClick={() => navigate('/b2b-vendor/register')} className="w-full text-left p-3 font-bold text-white bg-black rounded-xl">Become Seller</button>
@@ -775,8 +804,18 @@ const B2BLanding = () => {
             {/* --- POPUPS --- */}
             <AnimatePresence>
                 {activePopup === 'subcategories' && <SubCategoryPopup />}
-                {activePopup === 'products' && <ProductPopup />}
-                {activePopup === 'lots' && <GenericHeaderPopup title="Explore Lot / SOT" data={HEADER_POPUP_DATA.lots} />}
+                {activePopup === 'products' && (
+                    <ProductPopup
+                        title={`Related Products for "${searchQuery}"`}
+                        onViewAll={() => navigate(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`)}
+                    />
+                )}
+                {activePopup === 'lots' && (
+                    <ProductPopup
+                        title="Explore Lot / SOT"
+                        onViewAll={() => navigate('/b2b/catalog?itemType=lotslot')}
+                    />
+                )}
                 {activePopup === 'realEstate' && <GenericHeaderPopup title="Commercial Real Estate" data={HEADER_POPUP_DATA.realEstate} />}
             </AnimatePresence>
 

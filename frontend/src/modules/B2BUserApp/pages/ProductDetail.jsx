@@ -22,121 +22,28 @@ const B2BProductDetail = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
-    const [quantity, setQuantity] = useState(1); // Will be updated from product.moq
-
-
+    const [quantity, setQuantity] = useState(1);
+    const [showInquiryModal, setShowInquiryModal] = useState(false);
+    const [inquiryAttachment, setInquiryAttachment] = useState(null);
+    const [hasInquiry, setHasInquiry] = useState(false);
 
     useEffect(() => {
         fetchProductDetails();
     }, [id]);
 
-
-
     const fetchProductDetails = async () => {
         setLoading(true);
         try {
-            // Check for mock IDs first to avoid hitting the backend with invalid ObjectIds
-            if (id.startsWith('m')) {
-                const mockProducts = {
-                    'm1': {
-                        _id: 'm1',
-                        name: 'Premium Silk Sarees (Bulk)',
-                        description: 'Pure Banarasi silk sarees for showrooms and boutique owners. Direct from manufacturer. These sarees are woven with high-quality silk and feature exquisite zari work. Perfect for luxury wedding collections and high-end retail showrooms.',
-                        price: 4500,
-                        images: ['https://images.unsplash.com/photo-1610030469668-935142b96fe4?auto=format&fit=crop&q=80&w=800', 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&q=80&w=800'],
-                        categoryId: { name: 'Textiles' },
-                        vendorId: { _id: 'v1', storeName: 'Royal Silk Weavers', isVerified: true },
-                        moq: 100,
-                        specifications: [
-                            { name: 'Material', value: '100% Pure Silk' },
-                            { name: 'Work', value: 'Handwoven Zari' },
-                            { name: 'Length', value: '6.5 Meters with blouse' },
-                            { name: 'Origin', value: 'Varanasi, India' }
-                        ]
-                    },
-                    'm2': {
-                        _id: 'm2',
-                        name: 'Smart Watch Gen 3',
-                        description: 'Bulk quantity smart watches with heart rate monitor, GPS and waterproof design. Highly durable and feature-rich wearable technology for corporate gifting or retail chains. Supports all major fitness tracking and notification features.',
-                        price: 1200,
-                        images: ['https://images.unsplash.com/photo-1579586337278-3befd40fd17a?auto=format&fit=crop&q=80&w=800', 'https://images.unsplash.com/photo-1508685096489-7aeb29688461?auto=format&fit=crop&q=80&w=800'],
-                        categoryId: { name: 'Electronics' },
-                        vendorId: { _id: 'v2', storeName: 'TechHub Wholesale', isVerified: true },
-                        moq: 50,
-                        specifications: [
-                            { name: 'Screen', value: '1.8" AMOLED' },
-                            { name: 'Battery Life', value: '10 Days' },
-                            { name: 'Water Resistance', value: 'IP68' },
-                            { name: 'Bluetooth', value: 'v5.2' }
-                        ]
-                    },
-                    'm3': {
-                        _id: 'm3',
-                        name: 'Industrial Heavy Drill Machine',
-                        description: 'Professional grade drill machines for construction and industrial use.',
-                        price: 8500,
-                        images: ['https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&q=80&w=400'],
-                        categoryId: { name: 'Industrial' },
-                        vendorId: { _id: 'v3', storeName: 'Industrial Pro Tools', isVerified: true },
-                        moq: 20,
-                        specifications: [
-                            { name: 'Power', value: '1500W' },
-                            { name: 'Speed', value: '3000 RPM' }
-                        ]
-                    },
-                    'm4': {
-                        _id: 'm4',
-                        name: 'Handcrafted Bamboo Lamps',
-                        description: 'Eco-friendly bamboo lamps made by local artisans. Great for home decor stores.',
-                        price: 650,
-                        images: ['https://images.unsplash.com/photo-1542736667-069246bdbc6d?auto=format&fit=crop&q=80&w=400'],
-                        categoryId: { name: 'Handicrafts' },
-                        vendorId: { _id: 'v4', storeName: 'Artisan Hub', isVerified: true },
-                        moq: 50,
-                        specifications: [
-                            { name: 'Material', value: 'Eco Bamboo' }
-                        ]
-                    },
-                    'm8': {
-                        _id: 'm8',
-                        name: 'Designer Ceramic Vases',
-                        description: 'Modern ceramic vases in various sizes. Perfect for interior design shops.',
-                        price: 1800,
-                        images: ['https://images.unsplash.com/photo-1581783898377-1c85bc937427?auto=format&fit=crop&q=80&w=400'],
-                        categoryId: { name: 'Handicrafts' },
-                        vendorId: { _id: 'v5', storeName: 'Ceramic Studio', isVerified: true },
-                        moq: 30,
-                        specifications: [
-                            { name: 'Finish', value: 'Matte Glaze' }
-                        ]
-                    }
-                };
-                const mockProduct = mockProducts[id] || mockProducts['m1'];
-                setProduct(mockProduct);
-                if (mockProduct.moq) {
-                    setQuantity(Number(mockProduct.moq));
-                }
-                return;
-            }
-
             const response = await api.get(`/products/${id}`);
-            console.log('Product Detail API Response:', response);
             if (response.success && response.data) {
-                // Handle both response.data (object) and response.data.product
                 const productData = response.data.product || response.data;
-                // Normalize MOQ field
                 if (productData.minimumOrderQuantity && !productData.moq) {
                     productData.moq = productData.minimumOrderQuantity;
                 }
-
-                console.log('Product Data:', productData);
-                console.log('Product Images:', productData.images, 'Product Image:', productData.image);
                 setProduct(productData);
                 if (productData.moq) {
                     setQuantity(Number(productData.moq));
                 }
-            } else {
-                console.error('Invalid API response structure:', response);
             }
         } catch (error) {
             console.error('Error fetching product details:', error);
@@ -169,7 +76,6 @@ const B2BProductDetail = () => {
                 productPrice: product.price ? Number(product.price) : null,
                 quantity: Number(inquiryQuantity) || 0,
                 clientMessage: message || '',
-                // Add attachment if exists
                 attachment: inquiryAttachment ? {
                     fileUrl: inquiryAttachment.url,
                     fileName: inquiryAttachment.originalName,
@@ -179,7 +85,7 @@ const B2BProductDetail = () => {
             };
 
             const inquiryMessage = `📦 *INQUIRY FOR: ${product.name}*\n` +
-                `🔢 *Quantity:* ${inquiryQuantity} units\n` +
+                `🔢 *Quantity:* ${inquiryQuantity} ${product.unit || 'units'}\n` +
                 `💬 *Message:* ${message}`;
 
             await chatService.sendMessage(
@@ -190,15 +96,9 @@ const B2BProductDetail = () => {
                 metadata
             );
 
-            // Update inquiry status immediately
             setHasInquiry(true);
-
             toast.success('Inquiry sent successfully!');
             setShowInquiryModal(false);
-            setInquiryAttachment(null);
-
-            // Optional: Navigate to inquiries page, or stay on product page
-            // navigate(`/b2b/inquiries?vendorId=${vendorId}`);
         } catch (err) {
             toast.error('Failed to send inquiry');
         }
@@ -218,30 +118,20 @@ const B2BProductDetail = () => {
 
     if (!product) return null;
 
-    // Normalize images array - handle both single image and array cases
-    // Combine product.image (main) with product.images (gallery) if both exist
     let productImages = [];
-    if (product.image) {
-        productImages.push(product.image);
-    }
+    if (product.coverImage) productImages.push(product.coverImage);
+    if (product.image) productImages.push(product.image);
     if (Array.isArray(product.images) && product.images.length > 0) {
-        // Add images that are not already in the array (avoid duplicates)
         product.images.forEach(img => {
-            if (img && !productImages.includes(img)) {
-                productImages.push(img);
-            }
+            if (img && !productImages.includes(img)) productImages.push(img);
         });
     }
-    // If no images found, use placeholder
-    if (productImages.length === 0) {
-        productImages = ['https://via.placeholder.com/800x600?text=No+Image'];
-    }
+    if (productImages.length === 0) productImages = ['https://via.placeholder.com/800x600?text=No+Image'];
 
-    // Ensure selectedImage is within bounds
     const safeSelectedImage = Math.min(selectedImage, productImages.length - 1);
 
-    // Get category from attributes or categoryId
     const getCategoryName = () => {
+        if (product.category) return product.category; // LotSlot string field
         if (product.categoryId?.name) return product.categoryId.name;
         const categoryAttr = product.attributes?.find(attr =>
             attr.name === 'category' || attr.attributeName === 'category'
@@ -249,115 +139,56 @@ const B2BProductDetail = () => {
         return categoryAttr?.value || 'Product';
     };
 
-    // Get specifications from attributes
     const getSpecifications = () => {
-        if (product.specifications && Array.isArray(product.specifications)) {
-            return product.specifications;
-        }
-        // Extract specifications from attributes (excluding category, subcategory, bulkPricing)
+        if (product.specifications && Array.isArray(product.specifications)) return product.specifications;
         if (product.attributes && Array.isArray(product.attributes)) {
             return product.attributes
-                .filter(attr => {
-                    const name = attr.name || attr.attributeName || '';
-                    return name && !['category', 'subcategory', 'bulkPricing', 'Color', 'color'].includes(name);
-                })
-                .map(attr => ({
-                    name: attr.name || attr.attributeName || 'Specification',
-                    value: attr.value || ''
-                }))
+                .filter(attr => !['category', 'subcategory', 'bulkPricing', 'Color', 'color'].includes(attr.name || attr.attributeName || ''))
+                .map(attr => ({ name: attr.name || attr.attributeName || 'Spec', value: attr.value || '' }))
                 .filter(spec => spec.name && spec.value);
         }
         return [];
     };
 
-    // Get bulk pricing from attributes
     const getBulkPricing = () => {
-        if (!product.attributes || !Array.isArray(product.attributes)) {
-            return [];
-        }
-        const bulkPricingAttr = product.attributes.find(attr =>
-            attr.name === 'bulkPricing' || attr.attributeName === 'bulkPricing'
-        );
-        if (bulkPricingAttr && bulkPricingAttr.value) {
+        if (product.bulkPricing && Array.isArray(product.bulkPricing) && product.bulkPricing.length > 0) return product.bulkPricing;
+        const attr = product.attributes?.find(a => a.name === 'bulkPricing' || a.attributeName === 'bulkPricing');
+        if (attr && attr.value) {
             try {
-                // If value is a string (JSON), parse it
-                if (typeof bulkPricingAttr.value === 'string') {
-                    return JSON.parse(bulkPricingAttr.value);
-                }
-                // If already an array, return it
-                if (Array.isArray(bulkPricingAttr.value)) {
-                    return bulkPricingAttr.value;
-                }
-            } catch (error) {
-                console.error('Error parsing bulk pricing:', error);
-            }
+                return typeof attr.value === 'string' ? JSON.parse(attr.value) : attr.value;
+            } catch (e) { return []; }
         }
         return [];
     };
 
     const specifications = getSpecifications();
     const bulkPricing = getBulkPricing();
-
-    // Get price for selected quantity based on bulk pricing
-    const getPriceForQuantity = (qty) => {
-        if (!bulkPricing || bulkPricing.length === 0) {
-            return product.price || 0;
-        }
-        // Sort bulk pricing by minQty descending to find the highest applicable tier
-        const sortedTiers = [...bulkPricing].sort((a, b) => (b.minQty || 0) - (a.minQty || 0));
-        // Find the first tier where quantity meets or exceeds minQty
-        const applicableTier = sortedTiers.find(tier => qty >= (tier.minQty || 0));
-        return applicableTier ? (applicableTier.price || product.price || 0) : (product.price || 0);
-    };
-
-    const currentPrice = getPriceForQuantity(quantity);
+    const currentPrice = (() => {
+        if (!bulkPricing || bulkPricing.length === 0) return product.price || 0;
+        const tier = [...bulkPricing].sort((a, b) => (b.minQty || 0) - (a.minQty || 0)).find(t => quantity >= (t.minQty || 0));
+        return tier ? (tier.price || product.price || 0) : (product.price || 0);
+    })();
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             <B2BHeader />
-
             <main className="max-w-7xl mx-auto px-4 py-4">
-                {/* Back Button & Share */}
                 <div className="flex items-center justify-between mb-6">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="p-2 hover:bg-white rounded-full transition-all text-gray-600 flex items-center gap-2 font-medium"
-                    >
+                    <button onClick={() => navigate(-1)} className="p-2 hover:bg-white rounded-full transition-all text-gray-600 flex items-center gap-2 font-medium">
                         <FiArrowLeft className="text-xl" /> Back to Catalog
-                    </button>
-                    <button className="p-3 bg-white rounded-2xl shadow-sm text-gray-400 hover:text-primary-600 transition-all border border-gray-100">
-                        <FiShare2 />
                     </button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    {/* Left: Image Gallery */}
                     <div className="lg:col-span-12 xl:col-span-7">
                         <div className="space-y-4">
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="relative aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-white shadow-xl border border-gray-100"
-                            >
-                                <img
-                                    src={productImages[safeSelectedImage]}
-                                    alt={product.name}
-                                    className="w-full h-full object-cover"
-                                />
-                                <div className="absolute top-6 left-6 px-4 py-2 bg-white/90 backdrop-blur rounded-2xl text-xs font-bold text-primary-600 uppercase tracking-widest shadow-sm">
-                                    Verified Wholesaler
-                                </div>
+                            <motion.div className="relative aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-white shadow-xl border border-gray-100">
+                                <img src={productImages[safeSelectedImage]} alt={product.name} className="w-full h-full object-cover" />
                             </motion.div>
-
                             {productImages.length > 1 && (
                                 <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
                                     {productImages.map((img, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setSelectedImage(idx)}
-                                            className={`flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all ${safeSelectedImage === idx ? 'border-primary-500 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'
-                                                }`}
-                                        >
+                                        <button key={idx} onClick={() => setSelectedImage(idx)} className={`flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all ${safeSelectedImage === idx ? 'border-primary-500 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}>
                                             <img src={img} alt="" className="w-full h-full object-cover" />
                                         </button>
                                     ))}
@@ -366,230 +197,91 @@ const B2BProductDetail = () => {
                         </div>
                     </div>
 
-                    {/* Right: Product Info */}
                     <div className="lg:col-span-12 xl:col-span-5 space-y-8">
                         <div>
                             <span className="text-xs font-bold text-primary-600 uppercase tracking-widest px-3 py-1 bg-primary-50 rounded-full mb-3 inline-block">
                                 {getCategoryName()}
                             </span>
-                            <h1 className="text-4xl font-extrabold text-gray-800 leading-tight mb-4">
-                                {product.name}
-                            </h1>
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                                <span className="flex items-center gap-1 text-green-600 font-bold"><FiCheckCircle /> Verified Supply</span>
-                            </div>
+                            <h1 className="text-4xl font-extrabold text-gray-800 leading-tight mb-4">{product.name}</h1>
                         </div>
 
                         <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
                             <div className="flex items-end justify-between mb-8">
                                 <div>
-                                    <span className="text-xs text-gray-400 font-bold uppercase tracking-tight mb-1 block">Expected Bulk Price</span>
+                                    <span className="text-xs text-gray-400 font-bold uppercase tracking-tight mb-1 block">Bulk Price</span>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-4xl font-black text-primary-600">₹{product.price}</span>
-                                        <span className="text-gray-400 font-bold">/ unit</span>
+                                        <span className="text-gray-400 font-bold">/ {product.unit || 'piece'}</span>
                                     </div>
                                 </div>
                                 <div className="text-right">
                                     <span className="text-xs text-gray-400 font-bold uppercase tracking-tight mb-1 block">MOQ</span>
-                                    <span className="text-lg font-bold text-gray-700">{product.moq || 1} Units</span>
+                                    <span className="text-lg font-bold text-gray-700">{product.moq || 1} {product.unit || 'Units'}</span>
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-3 mb-8">
-                                {product.vendorId?.phone && (
-                                    <div className="grid grid-cols-2 gap-3 w-full">
-                                        <a
-                                            href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="py-4 bg-[#25D366] text-white rounded-2xl font-bold text-sm hover:bg-[#128C7E] shadow-xl shadow-green-100 transition-all flex items-center justify-center gap-2 border-2 border-green-200"
-                                        >
-                                            <FaWhatsapp size={20} />
-                                            Order on WhatsApp
-                                        </a>
-                                        <a
-                                            href={`tel:${product.vendorId.phone}`}
-                                            className="py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-2 border-2 border-blue-500"
-                                        >
-                                            <FiPhone size={20} />
-                                            Call Vendor
-                                        </a>
+                            <div className="space-y-4">
+                                {bulkPricing && bulkPricing.length > 0 && (
+                                    <div className="space-y-3 pt-0">
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Volume Discounts</p>
+                                        {bulkPricing.map((tier, idx) => (
+                                            <div key={idx} className="flex justify-between p-3 bg-white border rounded-xl">
+                                                <span className="text-sm font-bold">{tier.minQty}+ {product.unit || 'units'}</span>
+                                                <span className="text-sm font-extrabold text-primary-600">₹{tier.price} / {product.unit || 'unit'}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
-                            </div>
-                        </div>
 
-                        <div className="space-y-4 mb-8">
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                <span className="text-sm font-bold text-gray-600">Select Quantity</span>
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={() => setQuantity(Math.max(product.moq || 1, quantity - 1))}
-                                        className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
-                                    >
-                                        <FiMinus />
-                                    </button>
-                                    <span className="w-16 text-center font-black text-lg text-gray-800">{quantity}</span>
-                                    <button
-                                        onClick={() => setQuantity(quantity + 1)}
-                                        className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
-                                    >
-                                        <FiPlus />
-                                    </button>
-                                </div>
-
-                                {/* Bulk Pricing Display */}
-                                {bulkPricing && bulkPricing.length > 0 ? (
-                                    <div className="space-y-2">
-                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide px-2">Bulk Pricing Rates</p>
-                                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                                            {bulkPricing
-                                                .sort((a, b) => (a.minQty || 0) - (b.minQty || 0))
-                                                .map((tier, index) => {
-                                                    const isSelected = quantity >= (tier.minQty || 0) &&
-                                                        (index === bulkPricing.length - 1 || quantity < (bulkPricing[index + 1]?.minQty || Infinity));
-                                                    return (
-                                                        <div
-                                                            key={index}
-                                                            className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${isSelected
-                                                                ? 'bg-primary-50 border-primary-300 shadow-sm'
-                                                                : 'bg-white border-gray-100'
-                                                                }`}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-bold text-gray-500">Min Qty:</span>
-                                                                <span className={`text-sm font-bold ${isSelected ? 'text-primary-700' : 'text-gray-700'}`}>
-                                                                    {tier.minQty || 0}+ units
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-xs font-bold text-gray-500">Rate:</span>
-                                                                <span className={`text-base font-black ${isSelected ? 'text-primary-700' : 'text-gray-800'}`}>
-                                                                    ₹{tier.price || 0} / unit
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                        </div>
-                                        <div className="flex items-center justify-between p-3 bg-primary-100 rounded-xl border-2 border-primary-300">
-                                            <span className="text-sm font-bold text-gray-700">Your Price ({quantity} units):</span>
-                                            <span className="text-xl font-black text-primary-700">₹{currentPrice} / unit</span>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 text-[11px] text-gray-400 justify-center">
-                                        <FiInfo /> Price may vary based on final order volume
-                                    </div>
-                                )}
-                            </div>
-
-                        </div>
-
-                        {/* Seller Card */}
-                        <div
-                            onClick={() => {
-                                const vId = product.vendorId?._id || product.vendorId;
-                                if (vId) navigate(`/b2b/vendor/${vId}`);
-                            }}
-                            className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden cursor-pointer hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all group"
-                        >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                            <div className="relative z-10">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="text-sm font-bold text-primary-400 uppercase tracking-widest">Sold By</h4>
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 bg-white/10 rounded-full group-hover:bg-primary-600 transition-colors">Visit Store</span>
-                                </div>
-                                <div className="flex items-center gap-4 mb-6">
-                                    <div className="w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center text-2xl font-black border border-white/20 group-hover:border-primary-500/50 transition-colors">
-                                        {(product.vendorId?.storeName || product.vendorId?.businessName || 'V').charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold flex items-center gap-2">
-                                            <Link
-                                                to={`/b2b/vendor/${product.vendorId?._id || product.vendorId}`}
-                                                className="hover:text-primary-400 transition-colors"
-                                            >
-                                                {product.vendorId?.storeName || product.vendorId?.businessName || 'Verified Seller'}
-                                            </Link>
-                                            {product.vendorId?.isEmailVerified && (
-                                                <FiCheckCircle className="text-primary-400" />
-                                            )}
-                                        </h3>
-                                        <p className="text-gray-400 text-sm">
-                                            {(() => {
-                                                const vendor = product.vendorId;
-                                                const address = vendor?.address;
-                                                if (address) {
-                                                    const locationParts = [];
-                                                    if (address.city) locationParts.push(address.city);
-                                                    if (address.state) locationParts.push(address.state);
-                                                    if (address.country) locationParts.push(address.country);
-                                                    return locationParts.length > 0
-                                                        ? `Manufacturer in ${locationParts.join(', ')}`
-                                                        : 'Manufacturer';
-                                                }
-                                                return 'Manufacturer';
-                                            })()}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Description & Specifications */}
-                    <div className="lg:col-span-12 space-y-12 mt-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                            <div>
-                                <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                                    <FiInfo className="text-primary-500" /> Product Overview
-                                </h2>
-                                <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-line">
-                                    {product.description}
-                                </p>
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                                    <FiCheckCircle className="text-primary-500" /> Technical details
-                                </h2>
-                                <div className="space-y-3">
-                                    {specifications.map((spec, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                                            <span className="text-gray-500 font-medium">{spec.name}</span>
-                                            <span className="text-gray-800 font-bold">{spec.value}</span>
-                                        </div>
-                                    ))}
-                                    {specifications.length === 0 && (
-                                        <p className="text-gray-400 italic">No specific details available for this product.</p>
+                                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-50">
+                                    {product.vendorId?.phone && (
+                                        <>
+                                            <a href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="py-4 bg-[#25D366] text-white rounded-2xl font-bold text-sm hover:bg-[#128C7E] flex items-center justify-center gap-2 shadow-lg shadow-green-100">
+                                                <FaWhatsapp size={20} /> WhatsApp
+                                            </a>
+                                            <a href={`tel:${product.vendorId.phone}`} className="py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 flex items-center justify-center gap-2 shadow-lg shadow-blue-100">
+                                                <FiPhone size={20} /> Call
+                                            </a>
+                                        </>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Order Process */}
-                        <div className="bg-primary-50 p-10 rounded-[3rem] border border-primary-100">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-10 text-center">Simple Order Process</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                {[
-                                    { icon: <FiSend />, title: "Send Inquiry", desc: "Submit your requirement with quantity" },
-                                    { icon: <FiMessageSquare />, title: "Negotiate", desc: "Chat with seller & get final quotes" },
-                                    { icon: <FiTruck />, title: "Secure Delivery", desc: "Pay securely after agreement" }
-                                ].map((step, i) => (
-                                    <div key={i} className="text-center group">
-                                        <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 text-primary-600 text-2xl shadow-lg shadow-primary-200 group-hover:scale-110 transition-all duration-300">
-                                            {step.icon}
-                                        </div>
-                                        <h4 className="font-bold text-gray-800 mb-2">{step.title}</h4>
-                                        <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
+                        <div
+                            onClick={() => product.vendorId?._id && navigate(`/b2b/vendor/${product.vendorId._id}`)}
+                            className="bg-gray-900 p-8 rounded-[2.5rem] text-white cursor-pointer hover:bg-black transition-all"
+                        >
+                            <p className="text-xs font-bold text-primary-400 uppercase mb-4">Sold By</p>
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center font-bold">
+                                    {product.vendorId?.storeName?.charAt(0) || 'V'}
+                                </div>
+                                <h3 className="text-xl font-bold">{product.vendorId?.storeName || 'Verified Seller'}</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-12 mt-12">
+                        <div>
+                            <h2 className="text-2xl font-bold mb-6">Overview</h2>
+                            <p className="text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold mb-6">Specifications</h2>
+                            <div className="space-y-2">
+                                {specifications.map((s, i) => (
+                                    <div key={i} className="flex justify-between p-4 bg-white rounded-xl border border-gray-100">
+                                        <span className="text-gray-500 font-medium">{s.name}</span>
+                                        <span className="text-gray-800 font-bold">{s.value}</span>
                                     </div>
                                 ))}
+                                {specifications.length === 0 && <p className="text-gray-400 italic">No specifications available.</p>}
                             </div>
                         </div>
                     </div>
                 </div>
             </main>
-
             <B2BBottomNav />
         </div>
     );

@@ -31,7 +31,8 @@ import publicB2BSubscriptionRoutes from './routes/publicB2BSubscription.routes.j
 import SubscriptionRoutes from './routes/SubscriptionRoute.js';
 import publicSettingsRoutes from './routes/publicSettings.routes.js';
 import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
-import b2bVendorDashboardRoutes from './routes/b2bVendorDashboard.routes.js';
+import lotSlotRoutes from './routes/lotSlot.routes.js';
+
 import adminB2BProductManagementRoutes from './routes/adminB2BProductManagement.routes.js';
 import publicProductRoutes from './routes/publicProduct.routes.js';
 
@@ -48,7 +49,7 @@ import heroBannerPublicRoutes from './routes/heroBannerPublic.routes.js';
 import adminDefaultBannerRoutes from './routes/adminDefaultBanner.routes.js';
 import publicBannerRoutes from './routes/publicBanner.routes.js';
 import adminAnalyticsRoutes from './routes/adminAnalytics.routes.js';
-import adminDashboardRoutes from './routes/adminDashboard.routes.js';
+// import adminDashboardRoutes from './routes/adminDashboard.routes.js';
 import businessTypeRoutes from './routes/businessType.routes.js';
 import propertyRoutes from './routes/property.routes.js';
 import adminBusinessSettingsRoutes from './routes/adminBusinessSettings.routes.js';
@@ -259,7 +260,8 @@ app.use('/api/vendor/stock', vendorStockRoutes);
 
 // B2B Vendor routes (separate from regular vendor routes)
 app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);
-app.use('/api/b2b-vendor/dashboard', b2bVendorDashboardRoutes);
+app.use('/api/b2b-vendor/lot-slots', lotSlotRoutes);
+
 
 // New Feature Routes
 app.use('/api/business-types', businessTypeRoutes);
@@ -274,7 +276,7 @@ app.use('/api/admin/hero-banners', heroBannerAdminRoutes);
 app.use('/api/admin/default-banners', adminDefaultBannerRoutes);
 app.use('/api/public/banners', publicBannerRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
-app.use('/api/admin/reports', adminDashboardRoutes);
+// app.use('/api/admin/reports', adminDashboardRoutes);
 
 
 // Global error handler for unhandled promise rejections

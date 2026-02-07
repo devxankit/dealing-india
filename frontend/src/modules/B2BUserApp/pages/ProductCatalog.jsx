@@ -193,6 +193,8 @@ const ProductCatalog = () => {
         }
     };
 
+    const [selectedItemType, setSelectedItemType] = useState(searchParams.get('itemType') || null);
+
     const fetchB2BProducts = async () => {
         setLoading(true);
         try {
@@ -207,6 +209,31 @@ const ProductCatalog = () => {
             }
             if (selectedCity !== 'All Cities') {
                 params.city = selectedCity;
+            }
+
+            // Add Item Type Filter (Lot/Slot vs Regular)
+            if (selectedItemType) {
+                params.itemType = selectedItemType;
+            }
+
+            // Pattern and Fabric Filters
+            if (selectedPattern) {
+                params.pattern = selectedPattern;
+            }
+            if (selectedFabric) {
+                params.fabric = selectedFabric;
+            }
+
+            // Category & Subcategory Filters (Backend)
+            if (selectedCategory && selectedCategory !== 'All') {
+                const categoryObj = allCategories.find(c => c.name === selectedCategory);
+                if (categoryObj) {
+                    // Pass the ID to the backend
+                    params.categoryId = categoryObj.id || categoryObj._id;
+                }
+            }
+            if (selectedSubcategory) {
+                params.subcategoryId = selectedSubcategory;
             }
 
             // Fetch products where vendorType is b2b
@@ -295,6 +322,13 @@ const ProductCatalog = () => {
             setSelectedSubcategory(urlSubcategory);
         }
 
+        const urlItemType = searchParams.get('itemType');
+        if (urlItemType && urlItemType !== selectedItemType) {
+            setSelectedItemType(urlItemType);
+        } else if (!urlItemType && selectedItemType) {
+            setSelectedItemType(null);
+        }
+
         // Handle Price params
         if (urlMin || urlMax) {
             // Check if it matches a predefined range to highlight the button
@@ -360,11 +394,11 @@ const ProductCatalog = () => {
     // Recheck inquiries when modal closes (in case inquiry was just sent)
 
 
-    // Refetch products when location filters change
+    // Refetch products when filters change (Location, ItemType, Pattern, Fabric, Category, Subcategory)
     useEffect(() => {
         fetchB2BProducts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedState, selectedCity]);
+    }, [selectedState, selectedCity, selectedItemType, selectedPattern, selectedFabric, selectedCategory, selectedSubcategory, allCategories]);
 
     // Debug: Log state and cities changes
     useEffect(() => {
@@ -564,32 +598,13 @@ const ProductCatalog = () => {
         const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             product.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
-        let matchesCategory = false;
-        if (selectedCategory === 'All') {
-            matchesCategory = true;
-        } else {
-            // Get category from attributes array (B2B products store category/subcategory in attributes)
-            const categoryAttr = product.attributes?.find(attr =>
-                (attr.name?.toLowerCase() === 'category' || attr.attributeName?.toLowerCase() === 'category')
-            );
-            const productCategory = (categoryAttr?.value || product.categoryId?.name || product.category || '').toString().trim();
-            const targetCategory = selectedCategory.toString().trim();
-
-            // Basic category match - must be exact (case-insensitive)
-            const categoryMatch = productCategory.toLowerCase() === targetCategory.toLowerCase();
-
-            if (selectedSubcategory) {
-                const subcategoryAttr = product.attributes?.find(attr =>
-                    (attr.name?.toLowerCase() === 'subcategory' || attr.attributeName?.toLowerCase() === 'subcategory')
-                );
-                const productSubcategory = (subcategoryAttr?.value || '').toString().trim();
-                const targetSubcategory = selectedSubcategory.toString().trim();
-
-                matchesCategory = categoryMatch && (productSubcategory.toLowerCase() === targetSubcategory.toLowerCase());
-            } else {
-                matchesCategory = categoryMatch;
-            }
-        }
+        // Category filtering is now handled by the backend
+        let matchesCategory = true;
+        // if (selectedCategory === 'All') {
+        //     matchesCategory = true;
+        // } else {
+        //    // Logic moved to backend
+        // }
 
         // Price Filter Logic
         let matchesPrice = true;
@@ -608,11 +623,10 @@ const ProductCatalog = () => {
             matchesCredentials = false;
         }
 
-        // Attribute Filters (Pattern, Fabric, Color)
-        const pAttrs = getProductAttributes(product);
-
-        if (selectedPattern && !pAttrs.some(a => a.name === 'Pattern' && a.value === selectedPattern)) return false;
-        if (selectedFabric && !pAttrs.some(a => a.name === 'Fabric' && a.value === selectedFabric)) return false;
+        // Attribute Filters (Pattern, Fabric, Color) - Now handled by Backend
+        // const pAttrs = getProductAttributes(product);
+        // if (selectedPattern && !pAttrs.some(a => a.name === 'Pattern' && a.value === selectedPattern)) return false;
+        // if (selectedFabric && !pAttrs.some(a => a.name === 'Fabric' && a.value === selectedFabric)) return false;
 
         return matchesSearch && matchesCategory && matchesPrice && matchesCredentials;
     });
@@ -1185,7 +1199,13 @@ const ProductCatalog = () => {
                                             className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50 group/image"
                                         >
                                             {/* Images */}
-                                            {Array.isArray(product.images) && product.images.length > 0 ? (
+                                            {(product.coverImage || product.image) ? (
+                                                <img
+                                                    src={product.coverImage || product.image}
+                                                    alt={product.name}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                />
+                                            ) : Array.isArray(product.images) && product.images.length > 0 ? (
                                                 product.images.map((img, idx) => (
                                                     <img
                                                         key={idx}
@@ -1197,7 +1217,7 @@ const ProductCatalog = () => {
                                                 ))
                                             ) : (
                                                 <img
-                                                    src={product.image || 'https://via.placeholder.com/400x300'}
+                                                    src="https://via.placeholder.com/400x300?text=No+Image"
                                                     alt={product.name}
                                                     className="w-full h-full object-cover"
                                                 />
@@ -1237,7 +1257,7 @@ const ProductCatalog = () => {
                                             )}
 
                                             <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm z-20 pointer-events-none">
-                                                Bulk
+                                                {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk'}
                                             </div>
                                             <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100 z-20 pointer-events-none">
                                                 <div className="flex items-baseline gap-0.5">
@@ -1255,7 +1275,7 @@ const ProductCatalog = () => {
                                                 </h3>
                                                 <div className="flex items-center gap-1.5 mt-0.5">
                                                     <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
-                                                        {product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
+                                                        {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
                                                     </p>
                                                     {product.vendorId?.address?.city && (
                                                         <span className="text-[8px] text-gray-300 font-bold">• {product.vendorId.address.city}</span>
@@ -1267,7 +1287,7 @@ const ProductCatalog = () => {
                                             <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
                                                 <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
                                                     <FiTruck className="text-primary-500" size={10} />
-                                                    <span>Min. {product.moq || 1}</span>
+                                                    <span>Min. {product.moq || 1} {product.unit || 'pcs'}</span>
                                                 </div>
                                                 <div
                                                     onClick={(e) => {

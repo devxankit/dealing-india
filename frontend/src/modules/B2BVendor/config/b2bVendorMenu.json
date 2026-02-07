@@ -21,6 +21,14 @@
         ]
     },
     {
+        "title": "Lot/Slot Listings",
+        "route": "/b2b-vendor/lotslot",
+        "children": [
+            "Manage Lots",
+            "Add Lot/Slot"
+        ]
+    },
+    {
         "title": "Subscription",
         "route": "/b2b-vendor/subscription",
         "children": []

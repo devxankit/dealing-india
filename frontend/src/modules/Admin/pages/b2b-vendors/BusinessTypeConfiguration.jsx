@@ -6,6 +6,7 @@ import api from "../../../../shared/utils/api";
 
 const BusinessTypeConfiguration = () => {
     const [businessSettings, setBusinessSettings] = useState([]);
+    const [allPlans, setAllPlans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingSettings, setEditingSettings] = useState(null);
     const [isAddingNew, setIsAddingNew] = useState(false);
@@ -13,7 +14,19 @@ const BusinessTypeConfiguration = () => {
 
     useEffect(() => {
         fetchSettings();
+        fetchPlans();
     }, []);
+
+    const fetchPlans = async () => {
+        try {
+            const response = await api.get('/admin/b2b-subscription-plans');
+            if (response.success) {
+                setAllPlans(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching plans:', error);
+        }
+    };
 
     const fetchSettings = async () => {
         try {
@@ -46,7 +59,11 @@ const BusinessTypeConfiguration = () => {
     };
 
     const handleEdit = (settings) => {
-        setEditingSettings({ ...settings });
+        setEditingSettings({
+            ...settings,
+            dashboardWidgets: settings.dashboardWidgets || [],
+            allowedPlans: settings.allowedPlans || []
+        });
     };
 
     const handleSave = async () => {
@@ -70,6 +87,24 @@ const BusinessTypeConfiguration = () => {
             : [...currentModules, module];
 
         setEditingSettings({ ...editingSettings, enabledModules: newModules });
+    };
+
+    const toggleWidget = (widget) => {
+        const currentWidgets = editingSettings.dashboardWidgets || [];
+        const newWidgets = currentWidgets.includes(widget)
+            ? currentWidgets.filter(w => w !== widget)
+            : [...currentWidgets, widget];
+
+        setEditingSettings({ ...editingSettings, dashboardWidgets: newWidgets });
+    };
+
+    const togglePlan = (planId) => {
+        const currentPlans = editingSettings.allowedPlans || [];
+        const newPlans = currentPlans.includes(planId)
+            ? currentPlans.filter(p => p !== planId)
+            : [...currentPlans, planId];
+
+        setEditingSettings({ ...editingSettings, allowedPlans: newPlans });
     };
 
     if (loading) {
@@ -114,24 +149,36 @@ const BusinessTypeConfiguration = () => {
                             </button>
                         </div>
 
-                        <h3 className="text-xl font-bold text-slate-800 mb-1">{settings.businessTypeId?.name}</h3>
+                        <h3 className="text-xl font-bold text-slate-800 mb-1">
+                            {settings.businessTypeId?.name?.toUpperCase() === 'TAXTILE' ? 'TEXTILE' : settings.businessTypeId?.name}
+                        </h3>
                         <p className="text-sm text-gray-500 mb-4">{settings.businessTypeId?.description}</p>
 
                         <div className="space-y-4">
                             <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Enabled Modules</p>
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
                                     {settings.enabledModules?.map(module => (
-                                        <span key={module} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase">
+                                        <span key={module} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md uppercase">
                                             {module}
                                         </span>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between py-2 border-t border-gray-50">
-                                <span className="text-xs font-semibold text-gray-600">Image Limit / Property</span>
-                                <span className="text-sm font-bold text-slate-800">{settings.maxImagesPerProperty}</span>
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Widgets</p>
+                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                                    {(settings.dashboardWidgets?.length || 0) > 0 ? (
+                                        settings.dashboardWidgets.map(widget => (
+                                            <span key={widget} className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md uppercase border border-blue-100">
+                                                {widget.replace('_', ' ')}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <span className="text-slate-400 italic font-medium">No widgets selected</span>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="flex items-center justify-between py-2 border-t border-gray-50">
@@ -148,25 +195,35 @@ const BusinessTypeConfiguration = () => {
 
             {/* Edit Modal */}
             {editingSettings && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+                        initial={{ opacity: 0, y: 100 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col"
                     >
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-2xl font-black text-slate-800 uppercase">Configure {editingSettings.businessTypeId?.name}</h2>
-                            <button onClick={() => setEditingSettings(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                                <FiXCircle size={24} className="text-slate-400" />
+                        {/* Header - Fixed */}
+                        <div className="p-8 pb-4 border-b border-slate-50 flex items-center justify-between bg-white z-10">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+                                    Configure {editingSettings.businessTypeId?.name?.toUpperCase() === 'TAXTILE' ? 'TEXTILE' : editingSettings.businessTypeId?.name}
+                                </h2>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Vendor Panel Settings</p>
+                            </div>
+                            <button
+                                onClick={() => setEditingSettings(null)}
+                                className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-all"
+                            >
+                                <FiXCircle size={24} />
                             </button>
                         </div>
 
-                        <div className="space-y-8">
+                        {/* Body - Scrollable */}
+                        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
                             {/* Modules Selection */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Enabled Modules</label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {['product', 'property', 'subscription', 'banner', 'profile', 'settings'].map(module => (
+                                    {['product', 'property', 'lotslot', 'subscription', 'banner', 'profile', 'settings'].map(module => (
                                         <button
                                             key={module}
                                             onClick={() => toggleModule(module)}
@@ -175,24 +232,104 @@ const BusinessTypeConfiguration = () => {
                                                 : 'bg-slate-50 text-slate-400 border border-slate-100 hover:border-primary-300'
                                                 }`}
                                         >
-                                            {module}
+                                            {module === 'lotslot' ? 'Lot/Slot' : module}
                                             {editingSettings.enabledModules?.includes(module) && <FiCheckCircle />}
                                         </button>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Image Limits */}
+                            {/* Dashboard Widgets */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Max Images per Property</label>
-                                <input
-                                    type="number"
-                                    value={editingSettings.maxImagesPerProperty}
-                                    onChange={(e) => setEditingSettings({ ...editingSettings, maxImagesPerProperty: parseInt(e.target.value) || 0 })}
-                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-primary-500 outline-none transition-all font-bold text-slate-700"
-                                    placeholder="5"
-                                />
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Dashboard Widgets</label>
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {[
+                                        { id: 'stats', label: 'Core Stats' },
+                                        { id: 'listings_overview', label: 'Inventory' },
+                                        { id: 'subscription_status', label: 'Subscriptions' },
+                                        { id: 'banner_promo', label: 'Promotion' },
+                                        { id: 'alerts', label: 'Action Center' },
+                                        { id: 'quick_actions', label: 'Quick Links' },
+                                    ].map(widget => (
+                                        <button
+                                            key={widget.id}
+                                            onClick={() => toggleWidget(widget.id)}
+                                            className={`px-4 py-3 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-between ${editingSettings.dashboardWidgets?.includes(widget.id)
+                                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+                                                : 'bg-slate-50 text-slate-400 border border-slate-100 hover:border-blue-300'
+                                                }`}
+                                        >
+                                            {widget.label}
+                                            {editingSettings.dashboardWidgets?.includes(widget.id) && <FiCheckCircle />}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
+
+                            {/* Allowed Subscriptions */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Allowed Subscription Plans</label>
+                                <div className="space-y-3">
+                                    {allPlans.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {allPlans.map(plan => (
+                                                <button
+                                                    key={plan._id}
+                                                    onClick={() => togglePlan(plan._id)}
+                                                    className={`px-5 py-4 rounded-2xl text-left transition-all border-2 ${editingSettings.allowedPlans?.includes(plan._id)
+                                                        ? 'bg-emerald-50 border-emerald-500 text-emerald-900'
+                                                        : 'bg-slate-50 border-slate-100 text-slate-500 opacity-60'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="font-black text-sm uppercase tracking-tight">{plan.name}</p>
+                                                            <p className="text-[10px] font-bold opacity-70">₹{plan.price} • {plan.duration} Mos</p>
+                                                        </div>
+                                                        {editingSettings.allowedPlans?.includes(plan._id) && <FiCheckCircle className="text-emerald-600" size={20} />}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
+                                            <p className="text-xs font-bold text-slate-400 uppercase">No active plans found</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Features Toggle */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Advanced Features</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {[
+                                        { id: 'canPostJob', label: 'Can Post Jobs', desc: 'Allows vendor to post hiring requirements' },
+                                        { id: 'canReceiveLeads', label: 'Receive Leads', desc: 'Allow user inquiries as direct leads' },
+                                        { id: 'hasPremiumBadge', label: 'Premium Badge', desc: 'Display "Verified Premium" on profile' },
+                                        { id: 'canAccessAnalytics', label: 'Access Analytics', desc: 'Show performance metrics in dashboard' },
+                                    ].map((feature) => (
+                                        <div key={feature.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-800">{feature.label}</p>
+                                                <p className="text-[10px] text-slate-500">{feature.desc}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const newFeatures = { ...(editingSettings.features || {}) };
+                                                    newFeatures[feature.id] = !newFeatures[feature.id];
+                                                    setEditingSettings({ ...editingSettings, features: newFeatures });
+                                                }}
+                                                className={`w-12 h-6 rounded-full p-1 transition-all ${editingSettings.features?.[feature.id] ? 'bg-primary-600' : 'bg-slate-300'}`}
+                                            >
+                                                <div className={`w-4 h-4 bg-white rounded-full transition-all transform ${editingSettings.features?.[feature.id] ? 'translate-x-6' : 'translate-x-0'}`} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+
 
                             {/* Status Toggle */}
                             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -208,7 +345,10 @@ const BusinessTypeConfiguration = () => {
                                 </button>
                             </div>
 
-                            {/* Save Action */}
+                        </div>
+
+                        {/* Footer - Fixed */}
+                        <div className="p-8 pt-4 border-t border-slate-50 bg-slate-50/50">
                             <button
                                 onClick={handleSave}
                                 className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center gap-3"

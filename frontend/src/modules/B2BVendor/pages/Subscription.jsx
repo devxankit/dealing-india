@@ -11,8 +11,11 @@ import api from '../../../shared/utils/api';
 import subscriptionService from '../services/subscriptionService';
 import { useRef } from 'react';
 import { initializeRazorpayCheckout, handlePaymentSuccess } from '../../../shared/services/paymentService'; // Added import
+import { useB2BVendorAuthStore } from '../store/b2bVendorAuthStore';
+import { getBusinessTypes } from '../../../shared/utils/businessTypeCache';
 
 const B2BVendorSubscription = () => {
+    const { vendor } = useB2BVendorAuthStore();
     const [availablePlans, setAvailablePlans] = useState([]);
     const [currentSubscription, setCurrentSubscription] = useState(null);
     const [subscriptionHistory, setSubscriptionHistory] = useState([]);
@@ -46,8 +49,18 @@ const B2BVendorSubscription = () => {
         try {
             setLoading(true);
 
+            // Fetch business types to get the slug for the vendor's business type
+            const businessTypes = await getBusinessTypes();
+
+            // Find vendor's business type slug
+            const vendorBusinessType = businessTypes.find(t =>
+                t.name === vendor?.businessType ||
+                t.slug === vendor?.businessType ||
+                t._id === vendor?.businessTypeRef
+            );
+
             const [plans, subscriptions] = await Promise.all([
-                getActiveB2BPlans(),
+                getActiveB2BPlans({ businessType: vendorBusinessType?.slug }),
                 subscriptionService.getAllSubscriptions()
             ]);
             console.log("subscriptionssubscriptions", subscriptions);

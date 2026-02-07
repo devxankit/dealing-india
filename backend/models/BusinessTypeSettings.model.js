@@ -14,14 +14,27 @@ const businessTypeSettingsSchema = new mongoose.Schema(
                 enum: ['product', 'property', 'subscription', 'banner', 'profile', 'settings', 'leads'],
             },
         ],
-        maxImagesPerProperty: {
-            type: Number,
-            default: 5,
-        },
         features: {
             type: mongoose.Schema.Types.Mixed,
-            default: {},
+            default: {
+                canPostJob: false,
+                canReceiveLeads: true,
+                hasPremiumBadge: false,
+                canAccessAnalytics: true
+            },
         },
+
+        dashboardWidgets: [
+            {
+                type: String,
+                enum: ['stats', 'listings_overview', 'subscription_status', 'banner_promo', 'alerts', 'quick_actions'],
+            },
+        ],
+        allowedPlans: [
+            {
+                type: String, // Storing plan slugs or IDs
+            }
+        ],
         isActive: {
             type: Boolean,
             default: true,

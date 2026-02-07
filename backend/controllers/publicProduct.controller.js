@@ -21,6 +21,9 @@ export const getProducts = async (req, res, next) => {
       vendorType = 'b2b',
       state,
       city,
+      itemType,
+      pattern,
+      fabric,
     } = req.query;
 
     const result = await getPublicProducts({
@@ -38,6 +41,9 @@ export const getProducts = async (req, res, next) => {
       vendorType,
       state,
       city,
+      itemType,
+      pattern,
+      fabric,
     });
 
     res.status(200).json({

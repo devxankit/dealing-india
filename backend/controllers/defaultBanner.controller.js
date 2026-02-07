@@ -80,12 +80,16 @@ export const deleteDefaultBanner = asyncHandler(async (req, res) => {
 export const getActiveBannersCombined = asyncHandler(async (req, res) => {
     const now = new Date();
 
-    // 1. Check for active Vendor banners
+    // Check for active Vendor banners
+    // We add 5.5 hours (330 mins) buffer to handle IST (India Time) mismatch 
+    // for existing banners stored at UTC midnight.
+    const nowWithISTBuffer = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+
     const activeVendorBanners = await BannerBooking.find({
         bannerType: 'b2b',
         status: 'active',
         paymentStatus: 'paid',
-        startDate: { $lte: now },
+        startDate: { $lte: nowWithISTBuffer },
         endDate: { $gte: now }
     })
         .populate('vendorId', 'name storeName')

@@ -17,6 +17,7 @@ import {
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
+import { useVendorSettings } from "../../hooks/useVendorSettings";
 import toast from "react-hot-toast";
 
 const iconMap = {
@@ -27,6 +28,7 @@ const iconMap = {
     "Property Management": FiHome,
     "Manage Properties": FiHome,
     "Add Property": FiPlus,
+    "Lot/Slot Listings": FiPlus,
 
 
     Subscription: FiCreditCard,
@@ -46,6 +48,10 @@ const getChildRoute = (parentRoute, childName) => {
             "Manage Properties": "/b2b-vendor/properties/manage-properties",
             "Add Property": "/b2b-vendor/properties/add-property",
         },
+        "/b2b-vendor/lotslot": {
+            "Manage Lots": "/b2b-vendor/lotslot/manage-lots",
+            "Add Lot/Slot": "/b2b-vendor/lotslot/add-lotslot",
+        },
         "/b2b-vendor/settings": {
             "Profile": "/b2b-vendor/settings/profile",
         },
@@ -57,9 +63,34 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { vendor } = useB2BVendorAuthStore();
+    const { settings } = useVendorSettings();
     const [expandedItems, setExpandedItems] = useState({});
 
     const displayVendorName = vendor?.name || "B2B Vendor";
+
+    const filteredMenu = b2bVendorMenu.filter(item => {
+        if (!settings) return true; // Show all while loading/fallback
+
+        const adminModules = settings.enabledModules || [];
+
+        // Map menu titles to internal module names
+        const titleToModule = {
+            'Dashboard': 'dashboard',
+            'Product Listings': 'product',
+            'Property Management': 'property',
+            'Lot/Slot Listings': 'lotslot',
+            'Subscription': 'subscription',
+            'Banner Booking': 'banner',
+            'Account Settings': 'settings',
+            'Messages': 'messages'
+        };
+
+        const moduleName = titleToModule[item.title];
+        if (!moduleName) return true; // Always show if not in map
+        if (moduleName === 'dashboard') return true; // Always show dashboard
+
+        return adminModules.includes(moduleName);
+    });
 
     useEffect(() => {
         const activeItem = b2bVendorMenu.find((item) => {
@@ -184,12 +215,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                 </div>
             </div>
             <nav className="flex-1 overflow-y-auto p-3 pb-32 scrollbar-admin">
-                {b2bVendorMenu
-                    .filter(item => {
-                        // Always show essential B2B modules to avoid confusion
-                        return true;
-                    })
-                    .map(renderMenuItem)}
+                {filteredMenu.map(renderMenuItem)}
 
                 {/* Logout Button in Sidebar for mobile/desktop convenience */}
                 <div className="mt-8 pt-8 border-t border-slate-700">

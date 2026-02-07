@@ -21,11 +21,24 @@ const Subscriptions = () => {
         monthlyRevenue: 0,
         expiringSoon: 0
     });
+    const [businessTypes, setBusinessTypes] = useState([]);
 
     useEffect(() => {
         loadPlans();
-        loadSubscriptions(); // Load subscriptions on initial mount
+        loadSubscriptions();
+        fetchBusinessTypes();
     }, []);
+
+    const fetchBusinessTypes = async () => {
+        try {
+            const response = await api.get('/business-types');
+            if (response.success) {
+                setBusinessTypes(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching business types:', error);
+        }
+    };
 
     useEffect(() => {
         if (activeTab !== 'plans') {
@@ -38,27 +51,34 @@ const Subscriptions = () => {
             setLoading(true);
             const allPlans = await getB2BPlans();
             // Filter to show only 3, 6, 12 months plans
-            const filteredPlans = allPlans.filter(plan => 
+            const filteredPlans = allPlans.filter(plan =>
                 plan.duration === 3 || plan.duration === 6 || plan.duration === 12
             );
-            
+
             // If we don't have all 3 plans, initialize defaults
             if (filteredPlans.length < 3) {
                 try {
                     await initializeDefaultPlans();
-                    // Reload plans after initialization
-                    const updatedPlans = await getB2BPlans(true); // Force refresh
-                    const updatedFiltered = updatedPlans.filter(plan => 
+                    const updatedPlans = await getB2BPlans(true);
+                    const updatedFiltered = updatedPlans.filter(plan =>
                         plan.duration === 3 || plan.duration === 6 || plan.duration === 12
                     );
-                    setPlans(updatedFiltered.sort((a, b) => a.duration - b.duration));
+                    setPlans(updatedFiltered.sort((a, b) => {
+                        if (a.duration !== b.duration) return a.duration - b.duration;
+                        return a.price - b.price;
+                    }));
                 } catch (error) {
                     console.error('Error initializing default plans:', error);
-                    toast.error('Failed to initialize default plans');
-                    setPlans(filteredPlans.sort((a, b) => a.duration - b.duration));
+                    setPlans(filteredPlans.sort((a, b) => {
+                        if (a.duration !== b.duration) return a.duration - b.duration;
+                        return a.price - b.price;
+                    }));
                 }
             } else {
-                setPlans(filteredPlans.sort((a, b) => a.duration - b.duration));
+                setPlans(filteredPlans.sort((a, b) => {
+                    if (a.duration !== b.duration) return a.duration - b.duration;
+                    return a.price - b.price;
+                }));
             }
         } catch (error) {
             console.error('Error loading plans:', error);
@@ -81,7 +101,7 @@ const Subscriptions = () => {
 
         try {
             const planId = editingPlan._id || editingPlan.id;
-            
+
             if (planId) {
                 // Update existing plan
                 await updateB2BPlan(planId, {
@@ -89,17 +109,19 @@ const Subscriptions = () => {
                     price: editingPlan.price,
                     features: editingPlan.features,
                     isActive: editingPlan.isActive,
-                    description: editingPlan.description
+                    description: editingPlan.description,
+                    allowedBusinessTypes: editingPlan.allowedBusinessTypes || []
                 });
                 toast.success('Plan updated successfully');
             } else {
-                // Create new plan (shouldn't happen for 3,6,12 but just in case)
+                // Create new plan
                 await createB2BPlan({
                     name: editingPlan.name,
                     duration: editingPlan.duration,
                     price: editingPlan.price,
                     features: editingPlan.features,
-                    description: editingPlan.description
+                    description: editingPlan.description,
+                    allowedBusinessTypes: editingPlan.allowedBusinessTypes || []
                 });
                 toast.success('Plan created successfully');
             }
@@ -186,7 +208,10 @@ const Subscriptions = () => {
             key: "plan",
             label: "Plan",
             render: (val) => (
-                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${val === 'Platinum' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${val.toLowerCase().includes('premium') ? 'bg-purple-100 text-purple-700' :
+                    val.toLowerCase().includes('diamond') ? 'bg-blue-100 text-blue-700' :
+                        val.toLowerCase().includes('silver') ? 'bg-gray-100 text-gray-700' :
+                            'bg-amber-100 text-amber-700'
                     }`}>
                     {val}
                 </span>
@@ -340,7 +365,7 @@ const Subscriptions = () => {
                                 <p className="mt-4 text-gray-500">Loading plans...</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {plans.map((plan) => (
                                     <motion.div
                                         key={plan._id || plan.id}
@@ -471,6 +496,33 @@ const Subscriptions = () => {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-3">Visible to Business Types</label>
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                    {businessTypes.map(type => (
+                                        <button
+                                            key={type._id}
+                                            onClick={() => {
+                                                const current = editingPlan.allowedBusinessTypes || [];
+                                                const next = current.includes(type.slug)
+                                                    ? current.filter(s => s !== type.slug)
+                                                    : [...current, type.slug];
+                                                setEditingPlan({ ...editingPlan, allowedBusinessTypes: next });
+                                            }}
+                                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${(editingPlan.allowedBusinessTypes || []).includes(type.slug)
+                                                    ? 'bg-slate-900 text-white shadow-lg'
+                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                }`}
+                                        >
+                                            {type.name}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] font-medium text-slate-400 italic">
+                                    * If no business types are selected, the plan remains visible to ALL categories by default.
+                                </p>
                             </div>
 
                             <div className="flex items-center gap-2">

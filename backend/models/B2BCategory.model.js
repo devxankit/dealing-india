@@ -9,11 +9,7 @@ const b2bCategorySchema = new mongoose.Schema(
       minlength: [1, 'Category name cannot be empty'],
       maxlength: [100, 'Category name cannot exceed 100 characters'],
     },
-    image: {
-      type: String,
-      default: null,
-      trim: true,
-    },
+    // Image removed
     subcategories: {
       type: [String],
       default: [],

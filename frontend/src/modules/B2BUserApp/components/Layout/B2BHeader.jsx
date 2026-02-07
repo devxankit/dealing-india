@@ -199,7 +199,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                     {/* Extra Links (Hidden on mobile/tablet) */}
                     <div className="hidden xl:flex items-center gap-2">
                         <Link
-                            to="/b2b/catalog?search=lot"
+                            to="/b2b/catalog?itemType=lotslot"
                             className="px-3 py-2 text-xs font-bold text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
                         >
                             <FiTrendingUp size={14} /> Lot / SOT

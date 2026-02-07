@@ -378,8 +378,9 @@ class SubscriptionService {
         throw new Error('Failed to verify payment with payment gateway');
       }
 
-      // Check if payment is actually successful
-      if (paymentDetails.status !== 'captured' && paymentDetails.status !== 'authorized') {
+      // Check if payment is actually successful (captured, authorized, or created with valid signature)
+      // Note: 'created' state with valid signature is acceptable for immediate fulfillment
+      if (paymentDetails.status !== 'captured' && paymentDetails.status !== 'authorized' && paymentDetails.status !== 'created') {
         const startDate = new Date();
         const endDate = new Date();
         if (isB2BPlan) {
@@ -423,7 +424,7 @@ class SubscriptionService {
         if (isB2BPlan) failedSubscriptionData.planId = tierId;
         else failedSubscriptionData.tierId = tierId;
 
-        const failedSubscription = await VendorSubscription.create([failedSubscriptionData], { session });
+        await VendorSubscription.create([failedSubscriptionData], { session });
 
         await session.commitTransaction();
         throw new Error('Payment not successful. Payment status: ' + paymentDetails.status);

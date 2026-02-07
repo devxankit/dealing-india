@@ -208,8 +208,8 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
         err.status = 403;
         throw err;
       }
-    } else if (planName.toLowerCase().includes('diamond')) {
-      // Diamond plan has unlimited products - no restriction
+    } else if (planName.toLowerCase().includes('diamond') || planName.toLowerCase().includes('premium')) {
+      // Diamond and Premium plans have unlimited products - no restriction
     }
     // ---------------------------------------------------------
 
