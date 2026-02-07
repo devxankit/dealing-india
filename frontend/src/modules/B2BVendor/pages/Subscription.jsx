@@ -10,6 +10,7 @@ import { getActiveB2BPlans, getB2BPlanByIdSync } from '../../../shared/utils/b2b
 import api from '../../../shared/utils/api';
 import subscriptionService from '../services/subscriptionService';
 import { useRef } from 'react';
+import { initializeRazorpayCheckout, handlePaymentSuccess } from '../../../shared/services/paymentService'; // Added import
 
 const B2BVendorSubscription = () => {
     const [availablePlans, setAvailablePlans] = useState([]);
@@ -41,7 +42,7 @@ const B2BVendorSubscription = () => {
     const loadSubscriptionData = async () => {
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
-console.log("loadSubscriptionData");
+        console.log("loadSubscriptionData");
         try {
             setLoading(true);
 
@@ -49,13 +50,13 @@ console.log("loadSubscriptionData");
                 getActiveB2BPlans(),
                 subscriptionService.getAllSubscriptions()
             ]);
-console.log("subscriptionssubscriptions",subscriptions);
+            console.log("subscriptionssubscriptions", subscriptions);
             const filteredPlans = plans
                 .filter(p => [3, 6, 12].includes(p.duration))
                 .sort((a, b) => a.duration - b.duration);
 
             setAvailablePlans(filteredPlans);
-            console.log("subscriptions",subscriptions);
+            console.log("subscriptions", subscriptions);
             const activeSub = subscriptions.find(s => s.status === 'active') ||
                 subscriptions.find(s => s.status === 'cancelled');
             if (activeSub) {
@@ -78,33 +79,61 @@ console.log("subscriptionssubscriptions",subscriptions);
             isFetchingRef.current = false;
         }
     };
-
-
     const handleSubscribe = async (planId) => {
         if (processingPlanId) return;
 
         try {
             setProcessingPlanId(planId);
 
-            // Create subscription
-            const subscription = await subscriptionService.createSubscription(planId);
+            // Create subscription initialization
+            const response = await subscriptionService.createSubscription(planId);
+            const { subscription, razorpay, razorpayKeyId } = response;
 
-            // If subscription has razorpay URL, redirect to payment
-            if (subscription.razorpaySubscriptionUrl) {
-                toast.success('Redirecting to payment page...');
-                // Open in new tab or redirect
-                window.open(subscription.razorpaySubscriptionUrl, '_blank');
+            // Handle Razorpay Modal if provided (standard flow now)
+            if (razorpay && razorpayKeyId) {
+                try {
+                    const paymentResponse = await initializeRazorpayCheckout({
+                        key: razorpayKeyId,
+                        amount: razorpay.amount / 100, // API returns paise, service expects rupees
+                        orderId: razorpay.id || razorpay.orderId,
+                        name: 'Dealing India B2B',
+                        description: `Subscription: ${planId}`,
+                        prefill: {
+                            // You could add vendor details here if available
+                        }
+                    });
 
-                // After some delay, refresh data
-                setTimeout(() => {
+                    // After successful payment modal
+                    toast.loading('Verifying payment...', { id: 'verify-payment' });
+
+                    const verifyData = {
+                        tierId: planId, // Using tierId key for backward compatibility in backend service
+                        ...handlePaymentSuccess(paymentResponse)
+                    };
+
+                    await subscriptionService.verifyPayment(verifyData);
+
+                    toast.success('Subscription activated successfully!', { id: 'verify-payment' });
                     loadSubscriptionData();
-                }, 2000);
-            } else if (subscription.status === 'active') {
+                } catch (err) {
+                    console.error('Payment Modal Error:', err);
+                    toast.error(err.message || 'Payment cancelled or failed');
+                }
+                return;
+            }
+
+            // Legacy URL redirection (if still used)
+            if (subscription?.razorpaySubscriptionUrl) {
+                toast.success('Redirecting to payment page...');
+                window.open(subscription.razorpaySubscriptionUrl, '_blank');
+                setTimeout(() => loadSubscriptionData(), 2000);
+            } else if (subscription?.status === 'active') {
                 // Free plan activated
                 toast.success('Subscription activated successfully!');
                 loadSubscriptionData();
             } else {
-                toast.info('Subscription created. Please complete payment.');
+                toast.info('Subscription recorded. Please complete payment.');
+                loadSubscriptionData();
             }
 
         } catch (error) {

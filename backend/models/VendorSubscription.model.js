@@ -100,20 +100,20 @@ vendorSubscriptionSchema.index({ planId: 1 }); // Index for B2B plan queries
 
 // Validation: Either tierId or planId must be provided
 // For B2B pre-payment subscriptions: vendorId is optional, but email/phone should be present
-vendorSubscriptionSchema.pre('validate', function(next) {
+vendorSubscriptionSchema.pre('validate', function (next) {
   if (!this.tierId && !this.planId) {
     const error = new Error('Either tierId or planId must be provided');
     error.name = 'ValidationError';
     return next(error);
   }
-  
+
   // For B2B pre-payment subscriptions: vendorId can be null if pendingVendorEmail is present
   if (!this.vendorId && !this.pendingVendorEmail) {
     const error = new Error('Either vendorId or pendingVendorEmail must be provided');
     error.name = 'ValidationError';
     return next(error);
   }
-  
+
   next();
 });
 

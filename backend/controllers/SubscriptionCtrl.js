@@ -18,7 +18,12 @@ export const createB2BSubscription = async (req, res, next) => {
         const { planId } = req.body;
         const vendorId = req.user?.vendorId || req.user?.id;
         const result = await SubscriptionService.initializeSubscription(vendorId, planId, req.app.get('io'));
-        res.status(200).json({ success: true, data: result });
+        res.status(200).json({
+            success: true,
+            subscription: result.subscription,
+            razorpay: result.razorpay,
+            razorpayKeyId: result.razorpayKeyId
+        });
     } catch (error) {
         next(error);
     }
@@ -28,7 +33,10 @@ export const getB2BSubscription = async (req, res, next) => {
     try {
         const vendorId = req.user?.vendorId || req.user?.id;
         const subscription = await SubscriptionService.getVendorSubscription(vendorId);
-        res.status(200).json({ success: true, data: subscription });
+        res.status(200).json({
+            success: true,
+            subscriptions: subscription ? [subscription] : []
+        });
     } catch (error) {
         next(error);
     }
