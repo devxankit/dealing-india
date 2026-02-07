@@ -103,6 +103,9 @@ const bannerBookingSchema = new mongoose.Schema(
   }
 );
 
+// Optimize query for active public banners
+bannerBookingSchema.index({ bannerType: 1, status: 1, paymentStatus: 1, startDate: 1, endDate: 1 });
+
 const BannerBooking = mongoose.model('BannerBooking', bannerBookingSchema);
 
 export default BannerBooking;

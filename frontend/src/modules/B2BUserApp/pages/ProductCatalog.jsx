@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown, FiPhone } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -1173,24 +1173,43 @@ const ProductCatalog = () => {
                                                     <FiTruck className="text-primary-500" size={10} />
                                                     <span>Min. {product.moq || 1}</span>
                                                 </div>
-                                                <div className="text-[7px] font-black text-gray-300 truncate max-w-[60px] uppercase">
+                                                <div
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (product.vendorId?._id) {
+                                                            navigate(`/b2b/vendor/${product.vendorId._id}`);
+                                                        }
+                                                    }}
+                                                    className="text-[7px] font-black text-primary-400 hover:text-primary-600 truncate max-w-[60px] uppercase cursor-pointer transition-colors"
+                                                >
                                                     {product.vendorId?.storeName || 'Vendor'}
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-1 mt-1">
+                                            <div className="flex items-center gap-1.5 mt-1">
                                                 {product.vendorId?.phone && (
-                                                    <a
-                                                        href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="flex-1 py-1.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-green-50 hover:text-[#25D366] transition-all border border-gray-100 flex items-center justify-center gap-2 font-black text-[8px] uppercase tracking-widest"
-                                                        title="WhatsApp"
-                                                    >
-                                                        <FaWhatsapp size={12} />
-                                                        <span>Contact Vendor</span>
-                                                    </a>
+                                                    <>
+                                                        <a
+                                                            href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="flex-1 py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                                            title="WhatsApp"
+                                                        >
+                                                            <FaWhatsapp size={11} />
+                                                            <span>WhatsApp</span>
+                                                        </a>
+                                                        <a
+                                                            href={`tel:${product.vendorId.phone}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                                            title="Call Vendor"
+                                                        >
+                                                            <FiPhone size={11} />
+                                                            <span>Call</span>
+                                                        </a>
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
