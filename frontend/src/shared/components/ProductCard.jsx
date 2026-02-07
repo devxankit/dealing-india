@@ -7,8 +7,8 @@ import { formatPrice, getPlaceholderImage, getMainProductVariant } from "../util
 import toast from "react-hot-toast";
 import LazyImage from "./LazyImage";
 import { useState, useRef, useMemo } from "react";
-import VendorBadge from "../../modules/Vendor/components/VendorBadge";
-import { getVendorById } from "../../data/vendors";
+// import { getVendorById } from "../../data/vendors";
+
 
 const ProductCard = ({ product, hideRating = false }) => {
   const location = useLocation();
@@ -160,17 +160,7 @@ const ProductCard = ({ product, hideRating = false }) => {
             {product.unit}
           </p>
 
-          {/* Vendor Badge */}
-          {(product.vendor || product.vendorId) && (
-            <div className="mb-1">
-              <VendorBadge
-                vendor={product.vendor || getVendorById(product.vendorId)}
-                showVerified={true}
-                size="sm"
-                showLogo={true}
-              />
-            </div>
-          )}
+
 
           {/* Rating */}
           {product.rating > 0 && !hideRating && (

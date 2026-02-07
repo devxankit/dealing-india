@@ -5,8 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { useVendorAuthStore } from '../../Vendor/store/vendorAuthStore';
-import { useB2BVendorAuthStore } from '../../B2BVendor/store/b2bVendorAuthStore';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 
