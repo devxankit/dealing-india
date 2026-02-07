@@ -22,7 +22,6 @@ export const register = async (req, res, next) => {
       storeDescription,
       address,
       documents,
-      businessTypes,
       gstNumber,
     } = req.body;
 
@@ -31,14 +30,6 @@ export const register = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'Name, email, phone, password, and store name are required',
-      });
-    }
-
-    // Validate business types for B2B
-    if (!businessTypes || !Array.isArray(businessTypes) || businessTypes.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'At least one business type is required for B2B vendors',
       });
     }
 
@@ -53,7 +44,6 @@ export const register = async (req, res, next) => {
       storeDescription,
       address,
       documents,
-      businessTypes,
       gstNumber,
     });
 
@@ -101,7 +91,6 @@ export const registerWithPayment = async (req, res, next) => {
       storeDescription,
       address,
       documents,
-      businessTypes,
       gstNumber,
       subscriptionPlan,
       paymentData, // { razorpayOrderId, razorpayPaymentId, razorpaySignature }
@@ -129,14 +118,6 @@ export const registerWithPayment = async (req, res, next) => {
       });
     }
 
-    // Validate business types for B2B
-    if (!businessTypes || !Array.isArray(businessTypes) || businessTypes.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'At least one business type is required for B2B vendors',
-      });
-    }
-
     // Log payment data before registration
     console.log('Registration request received:', {
       email,
@@ -159,7 +140,6 @@ export const registerWithPayment = async (req, res, next) => {
         storeDescription,
         address,
         documents,
-        businessTypes,
         gstNumber,
       },
       subscriptionPlan,

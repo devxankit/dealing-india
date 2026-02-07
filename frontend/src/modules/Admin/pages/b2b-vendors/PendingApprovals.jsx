@@ -58,7 +58,6 @@ const B2BVendorPendingApprovals = () => {
                             documents: docNames.length > 0 ? docNames : ['No Documents'],
                             date: vendor.joinDate || (vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
                             gstNumber: vendor.gstNumber || 'N/A',
-                            businessTypes: vendor.businessTypes || [],
                             subscription: vendor.subscription || (vendor.currentSubscription ? {
                                 name: vendor.currentSubscription?.planId?.name || 'N/A',
                                 price: vendor.currentSubscription?.planId?.price || 0,

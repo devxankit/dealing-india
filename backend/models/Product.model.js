@@ -82,21 +82,20 @@ const productSchema = new mongoose.Schema(
     },
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
+      ref: 'B2BCategory',
     },
     subcategoryId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
+      ref: 'B2BCategory',
       default: null,
     },
     subSubCategoryId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Category',
+      ref: 'B2BCategory',
       default: null,
     },
     brandId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Brand',
+      type: mongoose.Schema.Types.Mixed,
     },
     brandName: {
       type: String,

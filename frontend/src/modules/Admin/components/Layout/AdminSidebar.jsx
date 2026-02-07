@@ -35,7 +35,14 @@ const iconMap = {
   Dashboard: FiHome,
   Customers: FiUsers,
   Vendors: FiUsers,
-  Subscriptions: FiBarChart2,
+  Manage: FiGrid,
+  Pending: FiRotateCcw,
+  Products: FiPackage,
+  Wallet: FiShoppingBag,
+  Analytics: FiBarChart2,
+  Subscriptions: FiTag,
+  Categories: FiLayers,
+  "Banner Bookings": FiImage,
   Notifications: FiBell,
   "Analytics & Finance": FiBarChart2,
   Settings: FiSettings,
@@ -46,20 +53,6 @@ const iconMap = {
 // Helper function to convert child name to route path
 const getChildRoute = (parentRoute, childName) => {
   const routeMap = {
-    "/admin/b2b-vendors": {
-      "Manage": "/admin/b2b-vendors/manage",
-      "Pending": "/admin/b2b-vendors/pending",
-      "Products": "/admin/b2b-vendors/products",
-      "Wallet": "/admin/b2b-vendors/wallet",
-      "Analytics": "/admin/b2b-vendors/analytics",
-      "Subscriptions": "/admin/b2b-vendors/subscriptions",
-      "Categories": "/admin/b2b-vendors/categories",
-      "Banner Bookings": "/admin/b2b-vendors/banner-bookings",
-    },
-    "/admin/locations": {
-      Cities: "/admin/locations/cities",
-      Zipcodes: "/admin/locations/zipcodes",
-    },
     "/admin/notifications": {
       "Push Notifications": "/admin/notifications/push-notifications",
       "Custom Messages": "/admin/notifications/custom-messages",

@@ -93,10 +93,6 @@ const vendorSchema = new mongoose.Schema(
       default: 'b2b',
     },
     // B2B-specific fields
-    businessTypes: [{
-      type: String,
-      trim: true,
-    }],
     gstNumber: {
       type: String,
       trim: true,

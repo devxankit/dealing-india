@@ -33,6 +33,7 @@ import publicSettingsRoutes from './routes/publicSettings.routes.js';
 import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
 import b2bVendorDashboardRoutes from './routes/b2bVendorDashboard.routes.js';
 import adminB2BProductManagementRoutes from './routes/adminB2BProductManagement.routes.js';
+import publicProductRoutes from './routes/publicProduct.routes.js';
 
 import vendorAuthRoutes from './routes/vendorAuth.routes.js';
 import adminAuthRoutes from './routes/adminAuth.routes.js';
@@ -43,6 +44,8 @@ import adminMediaRoutes from './routes/media.routes.js';
 import heroBannerVendorRoutes from './routes/heroBannerVendor.routes.js';
 import heroBannerAdminRoutes from './routes/heroBannerAdmin.routes.js';
 import heroBannerPublicRoutes from './routes/heroBannerPublic.routes.js';
+import adminDefaultBannerRoutes from './routes/adminDefaultBanner.routes.js';
+import publicBannerRoutes from './routes/publicBanner.routes.js';
 import adminAnalyticsRoutes from './routes/adminAnalytics.routes.js';
 import adminDashboardRoutes from './routes/adminDashboard.routes.js';
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
@@ -228,6 +231,7 @@ app.use('/api/public', publicB2BLocationRoutes);
 app.use('/api/public/b2b-subscription-plans', publicB2BSubscriptionRoutes);
 app.use('/api/settings', publicSettingsRoutes);
 app.use('/api/subscription', SubscriptionRoutes);
+app.use('/api/products', publicProductRoutes);
 
 
 
@@ -256,6 +260,8 @@ app.use('/api/b2b-vendor/dashboard', b2bVendorDashboardRoutes);
 app.use('/api/public/hero-banners', heroBannerPublicRoutes);
 app.use('/api/vendor/hero-banners', heroBannerVendorRoutes);
 app.use('/api/admin/hero-banners', heroBannerAdminRoutes);
+app.use('/api/admin/default-banners', adminDefaultBannerRoutes);
+app.use('/api/public/banners', publicBannerRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
 app.use('/api/admin/reports', adminDashboardRoutes);
 

@@ -40,7 +40,7 @@ const B2BBanner = () => {
                             image: image,
                             title: banner.title || banner.vendorId?.storeName || banner.vendorId?.name || 'B2B Featured Banner',
                             vendorId: banner.vendorId?._id || banner.vendorId,
-                            link: banner.link || banner.redirectUrl || (banner.vendorId?._id ? `/b2b/vendor/${banner.vendorId._id}` : '#'),
+                            link: banner.link || banner.redirectUrl || (banner.vendorId?._id ? `/b2b/vendor/${banner.vendorId._id}` : ''),
                         };
                     });
 
@@ -89,7 +89,7 @@ const B2BBanner = () => {
     const handleBannerClick = (banner) => {
         if (banner.vendorId) {
             navigate(`/b2b/vendor/${banner.vendorId}`);
-        } else if (banner.link) {
+        } else if (banner.link && banner.link !== '#' && banner.link !== '') {
             if (banner.link.startsWith('http')) {
                 window.location.href = banner.link;
             } else {
@@ -144,7 +144,8 @@ const B2BBanner = () => {
                         {banners.map((banner, index) => (
                             <div
                                 key={banner.id || banner._id || `banner-${index}`}
-                                className="flex-shrink-0 relative"
+                                className={`flex-shrink-0 relative ${banner.vendorId || (banner.link && banner.link !== '#') ? 'cursor-pointer' : ''}`}
+                                onClick={() => handleBannerClick(banner)}
                                 style={{
                                     width: `${100 / banners.length}%`,
                                     height: "100%",
@@ -238,7 +239,8 @@ const B2BBanner = () => {
                         {banners.map((banner, index) => (
                             <div
                                 key={banner.id || banner._id || `banner-${index}`}
-                                className="flex-shrink-0 relative"
+                                className={`flex-shrink-0 relative ${banner.vendorId || (banner.link && banner.link !== '#') ? 'cursor-pointer' : ''}`}
+                                onClick={() => handleBannerClick(banner)}
                                 style={{
                                     width: `${100 / banners.length}%`,
                                     height: "100%",

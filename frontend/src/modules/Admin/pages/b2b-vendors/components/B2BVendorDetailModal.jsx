@@ -249,16 +249,6 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                             <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-2">GST Identification</p>
                                             <p className="text-lg font-black text-primary-900 leading-none">{vendorData.gstNumber || vendor.gstNumber || "N/A"}</p>
                                         </div>
-                                        <div>
-                                            <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-2">Business Type</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {((vendorData.businessTypes || vendor.businessTypes) || ["N/A"]).map((type, idx) => (
-                                                    <span key={idx} className="px-3 py-1 bg-white border border-primary-200 rounded-full text-[10px] font-black text-primary-700 uppercase tracking-tighter shadow-sm">
-                                                        {type}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
                                     </section>
 
                                     {/* Business Address */}

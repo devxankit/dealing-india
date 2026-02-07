@@ -21,8 +21,6 @@ const B2BVendorRegister = () => {
     const location = useLocation();
     const [localLoading, setLocalLoading] = useState(false);
     const [isUploadingDocs, setIsUploadingDocs] = useState(false);
-    const [businessTypes, setBusinessTypes] = useState([]);
-    const [newBusinessType, setNewBusinessType] = useState("");
 
     // Get pre-filled data from navigation state (e.g. from "Become a Seller" button)
     const preFilledData = location.state?.userData || {};
@@ -56,17 +54,6 @@ const B2BVendorRegister = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [businessLicense, setBusinessLicense] = useState(null);
     const [panCard, setPanCard] = useState(null);
-
-    const addBusinessType = () => {
-        if (newBusinessType.trim() && !businessTypes.includes(newBusinessType.trim())) {
-            setBusinessTypes([...businessTypes, newBusinessType.trim()]);
-            setNewBusinessType("");
-        }
-    };
-
-    const removeBusinessType = (type) => {
-        setBusinessTypes(businessTypes.filter(t => t !== type));
-    };
 
     const handleDocumentUpload = async (e, type) => {
         const file = e.target.files[0];
@@ -134,11 +121,6 @@ const B2BVendorRegister = () => {
             return;
         }
 
-        if (businessTypes.length === 0) {
-            toast.error('Please add at least one Business Type');
-            return;
-        }
-
         if (!businessLicense || !panCard) {
             toast.error('Please upload both Business License and PAN Card');
             return;
@@ -153,9 +135,8 @@ const B2BVendorRegister = () => {
                 phone: formData.phone,
                 password: formData.password,
                 storeName: formData.companyName,
-                storeDescription: `B2B ${businessTypes.join(', ')} Vendor`,
+                storeDescription: `B2B Vendor`,
                 address: formData.address,
-                businessTypes: businessTypes,
                 gstNumber: formData.gstNumber,
                 documents: {
                     panCard: {
@@ -285,42 +266,9 @@ const B2BVendorRegister = () => {
                                 <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Company Name</label>
                                 <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none" required placeholder="Global Exports Pvt Ltd" />
                             </div>
-                            <div>
+                            <div className="md:col-span-2">
                                 <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">GST Number</label>
                                 <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none" placeholder="Enter GST Number (Optional)" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Business Types <span className="text-red-500">*</span></label>
-                                <div className="flex gap-2 mb-3">
-                                    <input
-                                        type="text"
-                                        value={newBusinessType}
-                                        onChange={(e) => setNewBusinessType(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addBusinessType())}
-                                        className="flex-1 px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none"
-                                        placeholder="e.g. Wholesaler"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={addBusinessType}
-                                        className="p-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors flex items-center justify-center min-w-[48px]"
-                                    >
-                                        <FiPlus />
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {businessTypes.map((type, index) => (
-                                        <div key={index} className="flex items-center gap-2 px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg border border-primary-100 text-[10px] font-bold uppercase tracking-wider">
-                                            {type}
-                                            <button type="button" onClick={() => removeBusinessType(type)} className="hover:text-red-500">
-                                                <FiX size={14} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {businessTypes.length === 0 && (
-                                        <span className="text-xs text-gray-400 italic">Add your business categories (Manufacturer, etc.)</span>
-                                    )}
-                                </div>
                             </div>
                         </div>
                     </div>

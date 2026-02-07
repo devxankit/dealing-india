@@ -26,19 +26,12 @@ export const registerB2BVendor = async (vendorData) => {
       storeDescription,
       address,
       documents,
-      businessTypes,
       gstNumber,
     } = vendorData;
 
     // Validate required fields
     if (!name || !email || !phone || !password || !storeName) {
       const error = new Error('Name, email, phone, password, and store name are required');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    if (!businessTypes || !Array.isArray(businessTypes) || businessTypes.length === 0) {
-      const error = new Error('At least one business type is required for B2B vendors');
       error.statusCode = 400;
       throw error;
     }
@@ -167,7 +160,6 @@ export const registerB2BVendor = async (vendorData) => {
       storeDescription: storeDescription ? storeDescription.trim() : undefined,
       address: addressData,
       documents: processedDocuments,
-      businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()).filter(bt => bt.length > 0) : [],
       gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
       vendorType: 'b2b',
       status: 'pending', // Requires admin approval
@@ -230,7 +222,6 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       storeDescription,
       address,
       documents,
-      businessTypes,
       gstNumber,
     } = vendorData;
 
@@ -265,12 +256,6 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     // Validate required fields
     if (!name || !email || !phone || !password || !storeName) {
       const error = new Error('Name, email, phone, password, and store name are required');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    if (!businessTypes || !Array.isArray(businessTypes) || businessTypes.length === 0) {
-      const error = new Error('At least one business type is required for B2B vendors');
       error.statusCode = 400;
       throw error;
     }
@@ -421,7 +406,6 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       storeDescription: storeDescription ? storeDescription.trim() : undefined,
       address: addressData,
       documents: processedDocuments,
-      businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()).filter(bt => bt.length > 0) : [],
       gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
       vendorType: 'b2b',
       status: 'pending', // Requires admin approval

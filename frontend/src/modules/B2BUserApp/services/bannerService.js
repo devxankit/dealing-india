@@ -5,7 +5,7 @@ import api from '../../../shared/utils/api';
  * @param {string} bannerType - 'hero' or 'b2b'
  */
 export const getActiveBanners = async (bannerType = 'hero') => {
-    const response = await api.get('/public/hero-banners', {
+    const response = await api.get('/public/banners/active', {
         params: { bannerType }
     });
     return response;

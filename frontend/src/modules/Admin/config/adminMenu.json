@@ -5,18 +5,49 @@
     "children": []
   },
   {
-    "title": "B2B Vendors",
-    "route": "/admin/b2b-vendors",
-    "children": [
-      "Manage",
-      "Pending",
-      "Products",
-      "Wallet",
-      "Analytics",
-      "Subscriptions",
-      "Categories",
-      "Banner Bookings"
-    ]
+    "title": "Manage",
+    "route": "/admin/b2b-vendors/manage",
+    "children": []
+  },
+  {
+    "title": "Pending",
+    "route": "/admin/b2b-vendors/pending",
+    "children": []
+  },
+  {
+    "title": "Products",
+    "route": "/admin/b2b-vendors/products",
+    "children": []
+  },
+  {
+    "title": "Wallet",
+    "route": "/admin/b2b-vendors/wallet",
+    "children": []
+  },
+  {
+    "title": "Analytics",
+    "route": "/admin/b2b-vendors/analytics",
+    "children": []
+  },
+  {
+    "title": "Subscriptions",
+    "route": "/admin/b2b-vendors/subscriptions",
+    "children": []
+  },
+  {
+    "title": "Categories",
+    "route": "/admin/b2b-vendors/categories",
+    "children": []
+  },
+  {
+    "title": "Banner Bookings",
+    "route": "/admin/b2b-vendors/banner-bookings",
+    "children": []
+  },
+  {
+    "title": "Default Banners",
+    "route": "/admin/b2b-vendors/default-banners",
+    "children": []
   },
   {
     "title": "Notifications",

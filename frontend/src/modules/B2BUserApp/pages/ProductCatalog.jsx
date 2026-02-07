@@ -5,7 +5,6 @@ import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, Fi
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
-import B2BBanner from '../components/B2BBanner';
 import api from '../../../shared/utils/api';
 import chatService from '../../../shared/services/chatService';
 import { useAuthStore } from '../../../shared/store/authStore';
@@ -708,7 +707,6 @@ const ProductCatalog = () => {
                 hideSearch={false}
             />
 
-            {/* B2B Banner Carousel removed */}
 
             <main className="max-w-7xl mx-auto px-4 py-6">
                 {/* Search & Filter Bar */}

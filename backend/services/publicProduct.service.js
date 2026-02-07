@@ -1,5 +1,6 @@
 import Product from '../models/Product.model.js';
 import Vendor from '../models/Vendor.model.js';
+import B2BCategory from '../models/B2BCategory.model.js';
 
 /**
  * Get public products with filtering and pagination
@@ -13,6 +14,9 @@ export const getPublicProducts = async (filters) => {
         minPrice,
         maxPrice,
         vendorId,
+        vendorType,
+        state,
+        city,
         page = 1,
         limit = 20,
         sortBy = 'createdAt',
@@ -33,6 +37,31 @@ export const getPublicProducts = async (filters) => {
     if (brandId) query.brandId = brandId;
     if (vendorId) query.vendorId = vendorId;
 
+    if (state || city) {
+        // Find vendors in these locations first
+        const vendorQuery = { isActive: true };
+        if (state) vendorQuery['address.state'] = state;
+        if (city) vendorQuery['address.city'] = city;
+
+        const matchingVendors = await Vendor.find(vendorQuery).select('_id');
+        const vendorIds = matchingVendors.map(v => v._id);
+
+        if (query.vendorId) {
+            // Intersection if vendorId was already specified
+            if (Array.isArray(query.vendorId.$in)) {
+                query.vendorId.$in = query.vendorId.$in.filter(id => vendorIds.includes(id.toString()));
+            } else {
+                const currentVendorId = query.vendorId.toString();
+                if (!vendorIds.some(id => id.toString() === currentVendorId)) {
+                    // No overlap, search results will be empty
+                    query.vendorId = { $in: [] };
+                }
+            }
+        } else {
+            query.vendorId = { $in: vendorIds };
+        }
+    }
+
     if (minPrice || maxPrice) {
         query.price = {};
         if (minPrice) query.price.$gte = Number(minPrice);
@@ -46,8 +75,7 @@ export const getPublicProducts = async (filters) => {
         .skip((page - 1) * limit)
         .limit(Number(limit))
         .populate('categoryId', 'name')
-        .populate('brandId', 'name')
-        .populate('vendorId', 'businessName storeName');
+        .populate('vendorId', 'name storeName');
 
     const total = await Product.countDocuments(query);
 
@@ -65,8 +93,7 @@ export const getPublicProducts = async (filters) => {
 export const getPublicProductById = async (id) => {
     const product = await Product.findById(id)
         .populate('categoryId', 'name')
-        .populate('brandId', 'name')
-        .populate('vendorId', 'businessName storeName description logo');
+        .populate('vendorId', 'name storeName description logo');
 
     if (!product) throw new Error('Product not found');
     return product;
@@ -76,11 +103,61 @@ export const getPublicProductById = async (id) => {
  * Get search suggestions
  */
 export const getB2BSearchSuggestions = async (query) => {
-    if (!query) return [];
+    if (!query || query.trim().length < 1) return [];
+
+    const suggestions = [];
+
+    // 1. Search products
     const products = await Product.find({
         name: { $regex: query, $options: 'i' },
         isActive: true
-    }).limit(5).select('name');
+    }).limit(5).select('name image');
 
-    return products.map(p => p.name);
+    products.forEach(p => {
+        suggestions.push({
+            text: p.name,
+            context: 'In Products',
+            type: 'product',
+            image: p.image || null
+        });
+    });
+
+    // 2. Search Categories
+    const categories = await B2BCategory.find({
+        name: { $regex: query, $options: 'i' },
+        isActive: true
+    }).limit(3).select('name image');
+
+    categories.forEach(c => {
+        suggestions.push({
+            text: c.name,
+            context: 'In Categories',
+            type: 'category',
+            image: c.image || null
+        });
+    });
+
+    // 3. Search Subcategories (stored as array of strings in B2BCategory)
+    const categoryWithMatchingSub = await B2BCategory.find({
+        subcategories: { $regex: query, $options: 'i' },
+        isActive: true
+    }).limit(3);
+
+    categoryWithMatchingSub.forEach(cat => {
+        cat.subcategories.forEach(sub => {
+            if (sub.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 12) {
+                // Avoid duplicates
+                if (!suggestions.some(s => s.text === sub)) {
+                    suggestions.push({
+                        text: sub,
+                        context: `In ${cat.name}`,
+                        type: 'subcategory',
+                        parentId: cat._id
+                    });
+                }
+            }
+        });
+    });
+
+    return suggestions;
 };
