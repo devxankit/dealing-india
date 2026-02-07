@@ -49,6 +49,9 @@ import adminDefaultBannerRoutes from './routes/adminDefaultBanner.routes.js';
 import publicBannerRoutes from './routes/publicBanner.routes.js';
 import adminAnalyticsRoutes from './routes/adminAnalytics.routes.js';
 import adminDashboardRoutes from './routes/adminDashboard.routes.js';
+import businessTypeRoutes from './routes/businessType.routes.js';
+import propertyRoutes from './routes/property.routes.js';
+import adminBusinessSettingsRoutes from './routes/adminBusinessSettings.routes.js';
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 
 
@@ -256,6 +259,11 @@ app.use('/api/vendor/stock', vendorStockRoutes);
 // B2B Vendor routes (separate from regular vendor routes)
 app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);
 app.use('/api/b2b-vendor/dashboard', b2bVendorDashboardRoutes);
+
+// New Feature Routes
+app.use('/api/business-types', businessTypeRoutes);
+app.use('/api/property', propertyRoutes);
+app.use('/api/admin/business-settings', adminBusinessSettingsRoutes);
 
 // Order Management routes
 // Hero Banner routes

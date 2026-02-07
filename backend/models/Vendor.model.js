@@ -92,6 +92,15 @@ const vendorSchema = new mongoose.Schema(
       enum: ['b2b'], // Only B2B is supported now
       default: 'b2b',
     },
+    businessType: {
+      type: String,
+      trim: true,
+      default: 'Textile', // Default for backward compatibility if needed, but will be set during registration
+    },
+    businessTypeRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BusinessType',
+    },
     // B2B-specific fields
     gstNumber: {
       type: String,

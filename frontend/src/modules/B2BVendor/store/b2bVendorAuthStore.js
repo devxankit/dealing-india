@@ -84,6 +84,8 @@ export const useB2BVendorAuthStore = create(
                         status: vendor.status,
                         isEmailVerified: vendor.isEmailVerified || false,
                         currentSubscription: vendor.currentSubscription || null,
+                        businessType: vendor.businessType || 'Textile',
+                        businessTypeRef: vendor.businessTypeRef || null,
                     };
 
                     if (!token) {
@@ -179,6 +181,8 @@ export const useB2BVendorAuthStore = create(
                             status: vendor.status,
                             isEmailVerified: vendor.isEmailVerified || false,
                             currentSubscription: vendor.currentSubscription || null,
+                            businessType: vendor.businessType || 'Textile',
+                            businessTypeRef: vendor.businessTypeRef || null,
                         };
 
                         set({

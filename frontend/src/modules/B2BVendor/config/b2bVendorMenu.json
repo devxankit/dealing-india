@@ -13,6 +13,14 @@
         ]
     },
     {
+        "title": "Property Management",
+        "route": "/b2b-vendor/properties",
+        "children": [
+            "Manage Properties",
+            "Add Property"
+        ]
+    },
+    {
         "title": "Subscription",
         "route": "/b2b-vendor/subscription",
         "children": []

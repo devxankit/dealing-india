@@ -68,13 +68,13 @@ api.interceptors.request.use(
     // Check for admin routes first (including admin vendor management)
     // Admin routes: /auth/admin, /admin/* (config.url is relative, so no /api prefix)
     // This includes /admin/vendors, /admin/customers, etc.
-    if (url.startsWith('/auth/admin') || url.startsWith('/admin/')) {
+    if (url.startsWith('/auth/admin') || url.startsWith('/admin/') || url.includes('/admin/') || url.endsWith('/admin')) {
       token = localStorage.getItem('admin-token');
     }
     // Check for B2B vendor routes first (separate from regular vendor routes)
     // OR if current path is B2B vendor page, use b2b-vendor-token for vendor routes
-    else if (url.startsWith('/b2b-vendor/') ||
-      (currentPath.startsWith('/b2b-vendor') && (url.startsWith('/auth/vendor') || url.startsWith('/vendor/') || url.startsWith('/subscription/')))) {
+    else if (url.startsWith('/b2b-vendor/') || url.startsWith('/property/') ||
+      (currentPath.startsWith('/b2b-vendor') && (url.startsWith('/auth/vendor') || url.startsWith('/vendor/') || url.startsWith('/subscription/') || url.startsWith('/property/')))) {
       token = localStorage.getItem('b2b-vendor-token');
       if (process.env.NODE_ENV === 'development') {
         console.log('[API] Using b2b-vendor-token for URL:', url, 'Current path:', currentPath);
@@ -342,11 +342,11 @@ api.interceptors.response.use(
 
     const currentPath = window.location.pathname;
     const isB2BRoute = currentPath.includes('/b2b-vendor');
-    
+
     const isAuthPage = (currentPath.includes('/login') ||
       currentPath.includes('/register') ||
       currentPath.includes('/forgot-password') ||
-      currentPath.includes('/reset-password')) && 
+      currentPath.includes('/reset-password')) &&
       !isB2BRoute;
 
     // Show toast for non-auth requests or if explicitly requested via status (like 409 Conflict)

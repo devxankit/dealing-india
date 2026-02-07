@@ -50,6 +50,11 @@
     "children": []
   },
   {
+    "title": "Business Config",
+    "route": "/admin/b2b-vendors/business-type-config",
+    "children": []
+  },
+  {
     "title": "Notifications",
     "route": "/admin/notifications",
     "children": [

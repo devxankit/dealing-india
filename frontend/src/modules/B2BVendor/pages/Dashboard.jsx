@@ -7,7 +7,8 @@ import {
     FiTrendingUp,
     FiArrowRight,
     FiBriefcase,
-    FiUsers
+    FiUsers,
+    FiHome
 } from "react-icons/fi";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import TimePeriodFilter from "../../Admin/components/Analytics/TimePeriodFilter";
@@ -77,15 +78,29 @@ const B2BVendorDashboard = () => {
         }
     };
 
+    const isPropertyBusiness =
+        vendor?.businessType?.toLowerCase().includes('property') ||
+        vendor?.businessType?.toLowerCase().includes('real estate') ||
+        ['Property Broker', 'Property Developer'].includes(vendor?.businessType);
+
     const statCards = [
         {
             icon: FiPackage,
             label: "Total Products",
-            value: data.metrics.totalProducts,
+            value: data.metrics.totalProducts || 0,
             color: "bg-blue-500",
             bgColor: "bg-blue-50",
             textColor: "text-blue-700",
             link: "/b2b-vendor/products",
+        },
+        {
+            icon: FiHome,
+            label: "Total Properties",
+            value: data.metrics.totalProperties || 0,
+            color: "bg-purple-500",
+            bgColor: "bg-purple-50",
+            textColor: "text-purple-700",
+            link: "/b2b-vendor/properties",
         },
     ];
 
@@ -97,69 +112,93 @@ const B2BVendorDashboard = () => {
         >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">B2B Vendor Dashboard</h1>
-                    <p className="text-sm sm:text-base text-gray-600">
-                        Welcome, {vendor?.name}! Manage your B2B listings and connect with retailers directly.
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight mb-1">
+                        {vendor?.businessType} Dashboard
+                    </h1>
+                    <p className="text-sm sm:text-base text-gray-500 font-medium">
+                        Welcome back, <span className="text-slate-900 font-bold">{vendor?.name}</span>. Your {vendor?.businessType} business overview.
                     </p>
                 </div>
                 <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {statCards.map((stat, index) => (
-                    <motion.div
-                        key={index}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        onClick={() => navigate(stat.link)}
-                        className={`${stat.bgColor} rounded-xl p-6 cursor-pointer hover:shadow-lg transition-all border border-transparent hover:border-${stat.textColor.split('-')[1]}-200`}
-                    >
-                        <div className="flex items-center justify-between mb-4">
-                            <div className={`${stat.color} p-3 rounded-lg shadow-md`}>
-                                <stat.icon className="text-white text-xl" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {statCards.map((stat, index) => {
+                    const Icon = stat.icon;
+                    return (
+                        <motion.div
+                            key={index}
+                            whileHover={{ y: -5 }}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            onClick={() => navigate(stat.link)}
+                            className={`${stat.bgColor} rounded-[2rem] p-8 cursor-pointer hover:shadow-xl transition-all border border-transparent shadow-sm`}
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <div className={`${stat.color} w-14 h-14 rounded-2xl shadow-lg flex items-center justify-center`}>
+                                    <Icon className="text-white text-2xl" />
+                                </div>
+                                <div className={`${stat.bgColor.replace('50', '200')} p-2 rounded-full`}>
+                                    <FiArrowRight className={`${stat.textColor} text-xl`} />
+                                </div>
                             </div>
-                            <FiArrowRight className={`${stat.textColor} text-lg`} />
-                        </div>
-                        <h3 className={`${stat.textColor} text-sm font-bold uppercase tracking-wider mb-1`}>{stat.label}</h3>
-                        <p className={`${stat.textColor} text-3xl font-extrabold`}>{stat.value}</p>
-                    </motion.div>
-                ))}
+                            <h3 className={`${stat.textColor} text-xs font-black uppercase tracking-widest mb-2`}>{stat.label}</h3>
+                            <p className={`${stat.textColor} text-4xl font-black`}>{stat.value}</p>
+                        </motion.div>
+                    );
+                })}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 italic text-gray-400 text-center py-12">
-                        Retailers will contact you directly via WhatsApp or Call for business inquiries.
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-8">
+                    <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center py-20 bg-gradient-to-br from-white to-slate-50 relative overflow-hidden">
+                        <div className="relative z-10">
+                            <FiUsers className="text-slate-200 text-6xl mx-auto mb-6" />
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">Grow Your {vendor?.businessType} Network</h3>
+                            <p className="text-slate-400 font-medium max-w-md mx-auto">
+                                Buyers and agents will contact you directly via WhatsApp or Phone for business inquiries. Ensure your profile is updated!
+                            </p>
+                            <button
+                                onClick={() => navigate("/b2b-vendor/profile")}
+                                className="mt-8 px-8 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg"
+                            >
+                                Update Profile
+                            </button>
+                        </div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary-100/30 rounded-full blur-3xl -mr-16 -mt-16" />
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                        <h2 className="text-lg font-bold text-gray-800 mb-6">Top Listed Products</h2>
+                <div className="space-y-8">
+                    <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
+                        <h2 className="text-lg font-black text-slate-800 mb-6 uppercase tracking-widest">
+                            {isPropertyBusiness ? "Top Properties" : "Top Listed Products"}
+                        </h2>
                         <div className="space-y-4">
                             {loading ? (
-                                <div className="text-center py-4 text-gray-500">Loading products...</div>
-                            ) : data.topProducts.length === 0 ? (
-                                <div className="text-center py-4 text-gray-500">No products with inquiries yet</div>
+                                <div className="text-center py-8 text-gray-500 font-medium">Loading listings...</div>
+                            ) : data.topProducts?.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500 font-medium">No performance data yet</div>
                             ) : (
-                                data.topProducts.map((prod) => (
-                                    <div key={prod.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <p className="font-bold text-gray-800 mb-1">{prod.name}</p>
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-gray-500">{prod.inquiries} Inquiries</span>
-                                            <span className="text-primary-600 font-bold">Visibility: {prod.visibility}</span>
+                                (isPropertyBusiness ? (data.topProperties || []) : data.topProducts).map((item) => (
+                                    <div key={item.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-primary-200 transition-all cursor-pointer">
+                                        <p className="font-black text-slate-800 mb-1">{item.name}</p>
+                                        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                            <span>{item.inquiries || 0} Inquiries</span>
+                                            <span className="text-primary-600">Active</span>
                                         </div>
                                     </div>
                                 ))
                             )}
                         </div>
-                        <button onClick={() => navigate("/b2b-vendor/products")} className="w-full mt-6 py-3 bg-slate-50 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all border border-slate-200">
-                            Manage Catalog
+                        <button
+                            onClick={() => navigate(isPropertyBusiness ? "/b2b-vendor/properties" : "/b2b-vendor/products")}
+                            className="w-full mt-8 py-4 bg-slate-100 text-slate-600 font-black uppercase tracking-widest rounded-2xl hover:bg-slate-900 hover:text-white transition-all border border-slate-200"
+                        >
+                            {isPropertyBusiness ? "Manage Portfolio" : "Manage Catalog"}
                         </button>
                     </div>
-
-
                 </div>
             </div>
         </motion.div>
