@@ -225,6 +225,7 @@ import { razorpayWebhook } from "./controllers/SubscriptionCtrl.js";
 app.use('/api/auth/vendor', vendorAuthRoutes);
 app.use('/api/auth/admin', adminAuthRoutes);
 app.use('/api/auth/user', userAuthRoutes);
+app.use('/api/user', userAuthRoutes);  // Alias for user data routes like /addresses
 
 // Public routes
 app.use('/api/vendors', publicVendorRoutes);

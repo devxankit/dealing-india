@@ -80,6 +80,7 @@ const B2BVendorPaymentPage = lazyWithRetry(() => import("./modules/B2BVendor/pag
 const B2BUserLogin = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Login"));
 const B2BUserRegister = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Register"));
 const B2BUserVerification = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Verification"));
+const B2BUserForgotPassword = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ForgotPassword"));
 
 const B2BProductCatalog = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ProductCatalog"));
 const B2BInquiries = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Inquiries"));
@@ -94,6 +95,7 @@ const B2BProductDetail = lazyWithRetry(() => import("./modules/B2BUserApp/pages/
 const B2BVendorStore = lazyWithRetry(() => import("./modules/B2BUserApp/pages/B2BVendorStore"));
 const SellerTypeSelection = lazyWithRetry(() => import("./modules/B2BUserApp/pages/SellerTypeSelection"));
 const B2BLanding = lazyWithRetry(() => import("./modules/B2BUserApp/pages/B2BLanding"));
+const RealEstate = lazyWithRetry(() => import("./modules/B2BUserApp/pages/RealEstateTemp"));
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -202,10 +204,12 @@ const AppRoutes = () => {
         <Route path="/b2b/login" element={<B2BUserLogin />} />
         <Route path="/b2b/register" element={<B2BUserRegister />} />
         <Route path="/b2b/verification" element={<B2BUserVerification />} />
+        <Route path="/b2b/forgot-password" element={<B2BUserForgotPassword />} />
 
         <Route path="/b2b" element={<Navigate to="/b2b/landing" replace />} />
-        <Route path="/b2b/landing" element={<ProtectedRoute><B2BLanding /></ProtectedRoute>} />
-        <Route path="/b2b/catalog" element={<ProtectedRoute><B2BProductCatalog /></ProtectedRoute>} />
+        <Route path="/b2b/landing" element={<B2BLanding />} />
+        <Route path="/b2b/catalog" element={<B2BProductCatalog />} />
+        <Route path="/b2b/real-estate" element={<RealEstate />} />
 
         <Route path="/b2b/profile" element={<ProtectedRoute><B2BUserProfile /></ProtectedRoute>} />
         <Route path="/b2b/personal-profile" element={<ProtectedRoute><B2BPersonalProfile /></ProtectedRoute>} />
@@ -215,8 +219,8 @@ const AppRoutes = () => {
 
         <Route path="/b2b/payments" element={<ProtectedRoute><B2BPayments /></ProtectedRoute>} />
         <Route path="/b2b/support" element={<ProtectedRoute><B2BSupport /></ProtectedRoute>} />
-        <Route path="/b2b/product/:id" element={<ProtectedRoute><B2BProductDetail /></ProtectedRoute>} />
-        <Route path="/b2b/vendor/:id" element={<ProtectedRoute><B2BVendorStore /></ProtectedRoute>} />
+        <Route path="/b2b/product/:id" element={<B2BProductDetail />} />
+        <Route path="/b2b/vendor/:id" element={<B2BVendorStore />} />
 
         {/* B2B Vendor Routes */}
         <Route path="/b2b-vendor/login" element={<B2BVendorLogin />} />

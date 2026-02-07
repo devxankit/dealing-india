@@ -3,33 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiSearch, FiMenu, FiX, FiChevronDown, FiGrid, FiShoppingBag,
-    FiUser, FiArrowRight, FiBriefcase, FiTrendingUp, FiHome, FiMapPin, FiFilter
+    FiUser, FiArrowRight, FiBriefcase, FiTrendingUp, FiHome, FiMapPin, FiFilter,
+    FiTruck, FiPhone, FiShoppingCart
 } from 'react-icons/fi';
+import { FaWhatsapp } from 'react-icons/fa';
 import { appLogo } from '../../../data/logos';
 import B2BBanner from '../components/B2BBanner';
 import api from '../../../shared/utils/api';
 import { debounce } from '../../../shared/utils/helpers';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
+import { useAuthStore } from '../../../shared/store/authStore';
+import { useB2BLocationStore } from '../../../shared/store/b2bLocationStore';
 
 // Dummy data for Header Popups
 const HEADER_POPUP_DATA = {
-    lots: [
-        { id: 'l1', name: 'Mixed Electronics Lot', type: 'lot' },
-        { id: 'l2', name: 'Textile Surplus', type: 'lot' },
-        { id: 'l3', name: 'Liquidation Stock', type: 'lot' },
-        { id: 'l4', name: 'Industrial Machinery', type: 'lot' },
-    ],
-    realEstate: [
-        { id: 'r1', name: 'Warehouses', type: 'realEstate' },
-        { id: 'r2', name: 'Retail Spaces', type: 'realEstate' },
-        { id: 'r3', name: 'Commercial Offices', type: 'realEstate' },
-        { id: 'r4', name: 'Industrial Plots', type: 'realEstate' },
-    ]
+    lots: [], // Data hidden as per request
+    realEstate: [] // Data hidden as per request
 };
 
 const B2BLanding = () => {
     const navigate = useNavigate();
     const { categories, initialize: fetchCategories } = useB2BCategoryStore();
+    const { isAuthenticated } = useAuthStore();
 
     // State
     const [searchQuery, setSearchQuery] = useState('');
@@ -59,35 +54,16 @@ const B2BLanding = () => {
     const cityDropdownRef = useRef(null);
     const priceRef = useRef(null);
 
-    const [availableStates, setAvailableStates] = useState([]);
-    const [locationsLoading, setLocationsLoading] = useState(false);
     const [citySearchQuery, setCitySearchQuery] = useState('');
 
-    // Fetch categories on mount
-    useEffect(() => {
-        // Ensure we fetch the latest categories that vendors have added
-        fetchCategories();
+    // Store hooks
+    const { states: availableStates, initialize: fetchLocations, isLoading: locationsLoading } = useB2BLocationStore();
 
-        // Fetch cities used in actual products
-        const fetchAvailableLocations = async () => {
-            setLocationsLoading(true);
-            try {
-                const response = await api.get('/public/b2b-locations');
-                if (response.success && response.data) {
-                    const states = (response.data.states || []).map(state => ({
-                        ...state,
-                        name: (state.name || '').trim()
-                    }));
-                    setAvailableStates(states);
-                }
-            } catch (error) {
-                console.error('Error fetching locations:', error);
-            } finally {
-                setLocationsLoading(false);
-            }
-        };
-        fetchAvailableLocations();
-    }, [fetchCategories]);
+    // Fetch initial data on mount
+    useEffect(() => {
+        fetchCategories();
+        fetchLocations();
+    }, [fetchCategories, fetchLocations]);
 
     const uniqueCities = useMemo(() => {
         return (availableStates || [])
@@ -164,28 +140,32 @@ const B2BLanding = () => {
         setIsSearching(true);
         setActivePopup('products');
 
+        const searchTerm = typeof queryOrProduct === 'string' ? queryOrProduct : queryOrProduct.text;
+        setSearchQuery(searchTerm); // Update state to reflect what is being shown
+
         try {
-            const searchTerm = typeof queryOrProduct === 'string' ? queryOrProduct : queryOrProduct.text;
-            const response = await api.get(`/products/b2b-suggestions?q=${encodeURIComponent(searchTerm)}&limit=6`);
+            // Fetch real products with full details
+            const response = await api.get('/products', {
+                params: {
+                    search: searchTerm,
+                    limit: 6,
+                    vendorType: 'b2b'
+                }
+            });
 
             if (response.success && response.data) {
-                setPopupProducts(response.data.map((item, idx) => ({
-                    id: item.id || idx,
-                    name: item.text,
-                    image: item.image || 'https://via.placeholder.com/150',
-                    price: '₹' + (Math.floor(Math.random() * 5000) + 500)
-                })));
+                const products = Array.isArray(response.data) ? response.data : (response.data.products || []);
+                const normalizedProducts = products.map(p => ({
+                    ...p,
+                    moq: p.moq || p.minimumOrderQuantity || 1
+                }));
+                setPopupProducts(normalizedProducts);
             } else {
                 setPopupProducts([]);
             }
         } catch (e) {
             console.error("Error fetching popup products", e);
-            setPopupProducts([
-                { id: 1, name: 'Sample Bulk Item 1', price: '₹1,200', image: 'https://via.placeholder.com/150' },
-                { id: 2, name: 'Sample Bulk Item 2', price: '₹800', image: 'https://via.placeholder.com/150' },
-                { id: 3, name: 'Sample Bulk Item 3', price: '₹2,500', image: 'https://via.placeholder.com/150' },
-                { id: 4, name: 'Sample Bulk Item 4', price: '₹550', image: 'https://via.placeholder.com/150' },
-            ]);
+            setPopupProducts([]);
         } finally {
             setIsSearching(false);
             setShowSuggestions(false);
@@ -300,15 +280,21 @@ const B2BLanding = () => {
                     <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
                 </div>
                 <div className="p-6 grid grid-cols-2 gap-4">
-                    {data.map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => handleHeaderPopupItemClick(item)}
-                            className="p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all"
-                        >
-                            <span className="font-semibold text-gray-700">{item.name}</span>
-                        </button>
-                    ))}
+                    {data && data.length > 0 ? (
+                        data.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => handleHeaderPopupItemClick(item)}
+                                className="p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all"
+                            >
+                                <span className="font-semibold text-gray-700">{item.name}</span>
+                            </button>
+                        ))
+                    ) : (
+                        <div className="col-span-full text-center py-12 text-gray-400 font-bold">
+                            Coming Soon...
+                        </div>
+                    )}
                 </div>
             </motion.div>
         </motion.div>
@@ -322,33 +308,133 @@ const B2BLanding = () => {
         >
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden"
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="text-xl font-bold text-gray-800">Related Products</h3>
+                    <h3 className="text-xl font-bold text-gray-800">Related Products for "{searchQuery}"</h3>
                     <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
                 </div>
-                <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-6 max-h-[70vh] overflow-y-auto">
-                    {popupProducts.map((product) => (
-                        <div
-                            key={product.id}
-                            onClick={() => handleProductClick(product)}
-                            className="border border-gray-100 rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition-all group"
-                        >
-                            <div className="aspect-square bg-gray-100 overflow-hidden relative">
-                                <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
-                            </div>
-                            <div className="p-3">
-                                <h4 className="font-bold text-sm text-gray-800 truncate">{product.name}</h4>
-                                <p className="text-blue-600 font-bold text-sm mt-1">{product.price}</p>
-                            </div>
+                <div className="p-6 bg-gray-50 max-h-[70vh] overflow-y-auto">
+                    {popupProducts.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                            {popupProducts.map((product) => (
+                                <div
+                                    key={product._id}
+                                    onClick={() => {
+                                        closePopup();
+                                        navigate(`/b2b/product/${product._id}`);
+                                    }}
+                                    className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col"
+                                >
+                                    {/* Image Container */}
+                                    <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50">
+                                        <img
+                                            src={(Array.isArray(product.images) && product.images.length > 0) ? product.images[0] : product.image || 'https://via.placeholder.com/400x300'}
+                                            alt={product.name}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        />
+                                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-blue-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm">
+                                            Bulk
+                                        </div>
+                                        <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100">
+                                            <div className="flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-black text-blue-600">₹</span>
+                                                <span className="text-sm font-black text-gray-800">{product.price}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Content Body */}
+                                    <div className="p-2.5 flex flex-col gap-2">
+                                        <div className="min-w-0">
+                                            <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors uppercase leading-tight">
+                                                {product.name}
+                                            </h3>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
+                                                    {product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
+                                                </p>
+                                                {product.vendorId?.address?.city && (
+                                                    <span className="text-[8px] text-gray-300 font-bold">• {product.vendorId.address.city}</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Info Row: MOQ and Vendor */}
+                                        <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
+                                            <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
+                                                <FiTruck className="text-blue-500" size={10} />
+                                                <span>Min. {product.moq || 1}</span>
+                                            </div>
+                                            <div
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    closePopup();
+                                                    if (product.vendorId?._id) {
+                                                        navigate(`/b2b/vendor/${product.vendorId._id}`);
+                                                    }
+                                                }}
+                                                className="text-[7px] font-black text-blue-400 hover:text-blue-600 truncate max-w-[60px] uppercase cursor-pointer transition-colors"
+                                            >
+                                                {product.vendorId?.storeName || 'Vendor'}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                            {product.vendorId?.phone ? (
+                                                <>
+                                                    <a
+                                                        href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="flex-1 py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                                        title="WhatsApp"
+                                                    >
+                                                        <FaWhatsapp size={11} />
+                                                        <span>WhatsApp</span>
+                                                    </a>
+                                                    <a
+                                                        href={`tel:${product.vendorId?.phone}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                                        title="Call Vendor"
+                                                    >
+                                                        <FiPhone size={11} />
+                                                        <span>Call</span>
+                                                    </a>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        closePopup();
+                                                        navigate(`/b2b/product/${product._id}`);
+                                                    }}
+                                                    className="w-full py-1.5 bg-blue-50 text-blue-600 rounded-lg font-black text-[9px] uppercase tracking-wider border border-blue-100"
+                                                >
+                                                    View Details
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                            <FiShoppingCart size={40} className="mb-3 opacity-20" />
+                            <p>No products found for "{searchQuery}"</p>
+                        </div>
+                    )}
                 </div>
-                <div className="p-4 border-t border-gray-100 bg-gray-50 text-center">
+                <div className="p-4 border-t border-gray-100 bg-white text-center">
                     <button
-                        onClick={() => navigate('/b2b/catalog')}
+                        onClick={() => {
+                            closePopup();
+                            navigate(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`);
+                        }}
                         className="text-blue-600 font-bold hover:underline flex items-center justify-center gap-2"
                     >
                         View All Products <FiArrowRight />
@@ -367,7 +453,7 @@ const B2BLanding = () => {
 
                     {/* 1. Logo */}
                     <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => navigate('/b2b/landing')}>
-                        <img src={appLogo.src} alt="Dealing India" className="h-12 w-auto" />
+                        <img src={appLogo.src} alt="Dealing India" className="h-24 w-auto object-contain" />
                     </div>
 
                     {/* 2. City Dropdown (Search Station) */}
@@ -472,15 +558,24 @@ const B2BLanding = () => {
 
                         <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
 
-                        <button
-                            onClick={() => navigate('/b2b/profile')}
-                            className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors"
-                        >
-                            <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-700 border border-gray-200">
-                                <FiUser size={18} />
-                            </div>
-                            <span className="text-sm font-bold text-gray-700 hidden md:block">Profile</span>
-                        </button>
+                        {isAuthenticated ? (
+                            <button
+                                onClick={() => navigate('/b2b/profile')}
+                                className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors"
+                            >
+                                <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-700 border border-gray-200">
+                                    <FiUser size={18} />
+                                </div>
+                                <span className="text-sm font-bold text-gray-700 hidden md:block">Profile</span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => navigate('/b2b/login')}
+                                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+                            >
+                                Login
+                            </button>
+                        )}
 
                         <button className="lg:hidden p-2" onClick={() => setIsMobileMenuOpen(true)}>
                             <FiMenu size={24} />
@@ -516,7 +611,16 @@ const B2BLanding = () => {
                             <button onClick={() => { setActivePopup('realEstate'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Commercial Real Estate Only</button>
                             <div className="h-px bg-gray-100 my-2"></div>
                             <button onClick={() => navigate('/b2b-vendor/register')} className="w-full text-left p-3 font-bold text-white bg-black rounded-xl">Become Seller</button>
-                            <button onClick={() => navigate('/b2b/profile')} className="w-full text-left p-3 font-bold text-gray-700 rounded-xl">Profile</button>
+
+                            {isAuthenticated ? (
+                                <button onClick={() => navigate('/b2b/profile')} className="w-full text-left p-3 font-bold text-gray-700 rounded-xl">
+                                    Profile
+                                </button>
+                            ) : (
+                                <button onClick={() => navigate('/b2b/login')} className="w-full text-left p-3 font-bold text-blue-600 bg-blue-50 rounded-xl">
+                                    Login
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 )}
@@ -613,10 +717,22 @@ const B2BLanding = () => {
                                     <h4 className="font-bold text-gray-800 mb-4 text-sm uppercase tracking-wide">Price</h4>
 
                                     <div className="space-y-3 mb-6">
-                                        {['Below ₹100', '₹101 - ₹200', '₹201 - ₹500', 'Above ₹501'].map((range, i) => (
-                                            <div key={i} className="flex items-center gap-3 cursor-pointer group">
+                                        {[
+                                            { label: 'Below ₹100', min: 0, max: 100 },
+                                            { label: '₹101 - ₹200', min: 101, max: 200 },
+                                            { label: '₹201 - ₹500', min: 201, max: 500 },
+                                            { label: 'Above ₹501', min: 501, max: '' }
+                                        ].map((item, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex items-center gap-3 cursor-pointer group hover:bg-gray-50 p-2 rounded-lg transition-colors"
+                                                onClick={() => {
+                                                    setIsPriceFilterOpen(false);
+                                                    navigate(`/b2b/catalog?min=${item.min}&max=${item.max}`);
+                                                }}
+                                            >
                                                 <div className="w-4 h-4 rounded-full border border-gray-300 group-hover:border-blue-500"></div>
-                                                <span className="text-sm font-medium text-gray-600 group-hover:text-blue-600">{range}</span>
+                                                <span className="text-sm font-medium text-gray-600 group-hover:text-blue-600">{item.label}</span>
                                             </div>
                                         ))}
                                     </div>

@@ -139,6 +139,15 @@ const B2BUserLogin = () => {
                                 {showPassword ? <FiEyeOff /> : <FiEye />}
                             </button>
                         </div>
+                        <div className="flex justify-end pt-1">
+                            <Link
+                                to="/b2b/forgot-password"
+                                tabIndex="-1"
+                                className="text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline"
+                            >
+                                Forgot Password?
+                            </Link>
+                        </div>
                     </div>
 
 
@@ -163,18 +172,18 @@ const B2BUserLogin = () => {
                             </Link>
                         </p>
                         <div className="pt-2">
-                            <p className="text-sm text-gray-500 mb-2">Want to shop or buy for yourself?</p>
+                            <p className="text-sm text-gray-500 mb-2">Are you a Seller?</p>
                             <Link
-                                to="/app/login"
+                                to="/b2b-vendor/login"
                                 className="inline-flex items-center gap-2 text-primary-600 font-bold hover:gap-3 transition-all"
                             >
-                                <FiShoppingBag /> Back to Retail Login
+                                <FiBriefcase /> Login as Vendor
                             </Link>
                         </div>
                     </div>
                 </form>
             </motion.div>
-        </div>
+        </div >
     );
 };
 

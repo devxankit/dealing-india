@@ -57,6 +57,16 @@ const userSchema = new mongoose.Schema(
                 state: { type: String, trim: true }
             }
         },
+        addresses: [{
+            streetAddress: { type: String, required: true },
+            city: { type: String, required: true },
+            state: { type: String, required: true },
+            pincode: { type: String, required: true },
+            country: { type: String, default: 'India' },
+            isDefault: { type: Boolean, default: false },
+            addressType: { type: String, enum: ['Home', 'Work', 'Warehouse', 'Other'], default: 'Work' },
+            phone: { type: String }
+        }],
     },
     {
         timestamps: true,

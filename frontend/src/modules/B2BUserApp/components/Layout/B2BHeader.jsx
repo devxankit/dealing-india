@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout } from 'react-icons/fi';
+import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiTrendingUp, FiHome } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { appLogo } from '../../../../data/logos';
 import { debounce } from '../../../../shared/utils/helpers';
 import api from '../../../../shared/utils/api';
+import { useAuthStore } from '../../../../shared/store/authStore';
 
 const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { isAuthenticated } = useAuthStore();
     const [localSearchQuery, setLocalSearchQuery] = useState(propSearchQuery || '');
     const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -103,7 +105,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 <img
                                     src={appLogo.src}
                                     alt="Dealing India"
-                                    className="h-10 w-auto object-contain"
+                                    className="h-20 w-auto object-contain"
                                 />
                             </Link>
                         ) : title !== "Bulk Marketplace" && (
@@ -117,7 +119,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             <img
                                 src={appLogo.src}
                                 alt="Dealing India"
-                                className="h-12 w-auto object-contain"
+                                className="h-24 w-auto object-contain"
                             />
                         </Link>
                     ) : (
@@ -193,11 +195,50 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                     </div>
                 )}
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                    {/* Extra Links (Hidden on mobile/tablet) */}
+                    <div className="hidden xl:flex items-center gap-2">
+                        <Link
+                            to="/b2b/catalog?search=lot"
+                            className="px-3 py-2 text-xs font-bold text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                            <FiTrendingUp size={14} /> Lot / SOT
+                        </Link>
+                        <Link
+                            to="/b2b/real-estate"
+                            className="px-3 py-2 text-xs font-bold text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                            <FiHome size={14} /> Real Estate Only
+                        </Link>
+                    </div>
 
-                    <Link to="/b2b/profile" className="p-2.5 text-gray-600 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all">
-                        <FiUser className="text-xl" />
+                    {/* Become Seller */}
+                    <Link
+                        to="/b2b-vendor/register"
+                        className="hidden lg:flex bg-black text-white px-5 py-2.5 rounded-full font-bold text-xs hover:bg-gray-800 transition-colors whitespace-nowrap"
+                    >
+                        Become Seller
                     </Link>
+
+                    {/* Divider */}
+                    <div className="h-6 w-px bg-gray-200 hidden lg:block"></div>
+
+                    {/* Profile / Login */}
+                    {isAuthenticated ? (
+                        <Link to="/b2b/profile" className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors">
+                            <div className="w-9 h-9 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 border border-primary-100 shadow-sm">
+                                <FiUser size={18} />
+                            </div>
+                            <span className="text-xs font-bold text-gray-700 hidden md:block">Profile</span>
+                        </Link>
+                    ) : (
+                        <Link
+                            to="/b2b/login"
+                            className="flex items-center gap-2 bg-primary-600 text-white px-5 py-2.5 rounded-full font-bold text-xs hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200"
+                        >
+                            Login
+                        </Link>
+                    )}
                 </div>
             </div>
         </header>

@@ -4,7 +4,11 @@ import {
     getUserById,
     updateUserProfile,
     verifyUserEmail,
-    resendUserVerificationOTP
+    resendUserVerificationOTP,
+    getUserAddresses,
+    addUserAddress,
+    forgotUserPassword,
+    resetUserPassword
 } from '../services/userAuth.service.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 
@@ -53,6 +57,20 @@ export const login = asyncHandler(async (req, res) => {
         }
         throw error;
     }
+});
+
+
+/**
+ * Logout user
+ * POST /api/auth/user/logout
+ */
+export const logout = asyncHandler(async (req, res) => {
+    // In a stateless JWT setup, we can't really "logout" on the server side without a blacklist.
+    // But we can return success so the frontend can clear its client-side state.
+    res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
+    });
 });
 
 /**
@@ -104,5 +122,61 @@ export const resendOTP = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: result.message
+    });
+});
+
+/**
+ * Get user addresses
+ * GET /api/user/addresses
+ */
+export const getAddresses = asyncHandler(async (req, res) => {
+    const addresses = await getUserAddresses(req.user.id);
+    res.status(200).json({
+        success: true,
+        data: addresses
+    });
+});
+
+/**
+ * Add user address
+ * POST /api/user/addresses
+ */
+export const addAddress = asyncHandler(async (req, res) => {
+    const addresses = await addUserAddress(req.user.id, req.body);
+    res.status(201).json({
+        success: true,
+        message: 'Address added successfully',
+        data: addresses
+    });
+});
+
+/**
+ * Forgot Password
+ * POST /api/auth/user/forgot-password
+ */
+export const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    const result = await forgotUserPassword(email);
+    res.status(200).json({
+        success: true,
+        message: 'Password reset OTP sent to your email',
+        data: {
+            email,
+            // For dev ease, we can include OTP here if needed, or remove before prod
+            // otp: result.otp 
+        }
+    });
+});
+
+/**
+ * Reset Password
+ * POST /api/auth/user/reset-password
+ */
+export const resetPassword = asyncHandler(async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    await resetUserPassword(email, otp, newPassword);
+    res.status(200).json({
+        success: true,
+        message: 'Password reset successfully'
     });
 });

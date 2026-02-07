@@ -65,11 +65,6 @@ export const verifyOTP = async (identifier, code, type) => {
   try {
     if (!identifier || !code || !type) throw new Error('Params missing');
 
-    // Default master OTP for easier testing/verification
-    if (code === '123456') {
-      return true;
-    }
-
     if (!isValidOTP(code)) throw new Error('Invalid OTP format');
 
     const normalizedIdentifier = identifier.toLowerCase().trim();

@@ -23,17 +23,39 @@ const CompanyProfile = () => {
 
     useEffect(() => {
         const fetchAddresses = async () => {
+            if (!user) return;
+
             try {
                 // Try to fetch addresses from API
                 const response = await api.get('/user/addresses');
-                if (response.success && response.data) {
+                if (response.success && response.data && response.data.length > 0) {
                     setAddresses(response.data);
+                } else if (user?.businessInfo?.address?.city || user?.businessInfo?.address?.state) {
+                    // Fallback to business info address if availabe
+                    const businessAddress = {
+                        streetAddress: user.businessInfo.address?.city || '',
+                        city: user.businessInfo.address?.city || '',
+                        state: user.businessInfo.address?.state || '',
+                        pincode: '',
+                        isDefault: true,
+                        addressType: 'Registered'
+                    };
+                    setAddresses([businessAddress]);
                 }
             } catch (error) {
                 console.error('Error fetching addresses:', error);
-                // Use addresses from user profile if API fails
-                if (user?.addresses && Array.isArray(user.addresses)) {
-                    setAddresses(user.addresses);
+
+                // Fallback on error
+                if (user?.businessInfo?.address?.city || user?.businessInfo?.address?.state) {
+                    const businessAddress = {
+                        streetAddress: user.businessInfo.address?.city || '',
+                        city: user.businessInfo.address?.city || '',
+                        state: user.businessInfo.address?.state || '',
+                        pincode: '',
+                        isDefault: true,
+                        addressType: 'Registered'
+                    };
+                    setAddresses([businessAddress]);
                 }
             } finally {
                 setLoading(false);

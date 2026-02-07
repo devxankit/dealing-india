@@ -228,9 +228,7 @@ const B2BVendorStore = () => {
                                     Contact on WhatsApp
                                 </a>
                             )}
-                            <button className="w-full md:px-8 py-4 bg-white border-2 border-gray-100 text-gray-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:border-primary-100 transition-all">
-                                Request Catalogue
-                            </button>
+
                         </div>
                     </div>
                 </div>

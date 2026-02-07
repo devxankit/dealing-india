@@ -26,9 +26,17 @@ export const useB2BCategoryStore = create(
             // Initialize categories - fetch from API
             initialize: async (forceRefresh = false) => {
                 const currentState = get();
-                if (forceRefresh && currentState.categories.length === 0) {
-                    set({ isLoading: true });
+
+                // Prevent duplicate fetch if already loading
+                if (currentState.isLoading) return;
+
+                // Prevent fetch if we already have categories and not forcing refresh
+                if (!forceRefresh && currentState.categories.length > 0) {
+                    return;
                 }
+
+                set({ isLoading: true });
+
                 try {
                     const response = await api.get('/public/b2b-categories');
                     const list = response?.data || [];
@@ -37,11 +45,8 @@ export const useB2BCategoryStore = create(
                     set({ categories, isLoading: false });
                 } catch (error) {
                     console.error('Failed to fetch B2B categories:', error);
-                    if (!forceRefresh || currentState.categories.length === 0) {
-                        set({ categories: [], isLoading: false });
-                    } else {
-                        set({ isLoading: false });
-                    }
+                    // Don't clear existing categories on error if we simply failed to refresh
+                    set({ isLoading: false });
                 }
             },
 

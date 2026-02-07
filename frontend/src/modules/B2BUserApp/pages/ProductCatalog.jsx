@@ -10,25 +10,34 @@ import chatService from '../../../shared/services/chatService';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { debounce } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
+import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
+import { useB2BLocationStore } from '../../../shared/store/b2bLocationStore';
 
 const ProductCatalog = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuthenticated } = useAuthStore();
     const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // categories come from store now
+
+    // Initialize state from URL params to prevent double-mount effects
     const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-    const [selectedCategory, setSelectedCategory] = useState('All');
-    const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
+    const [selectedSubcategory, setSelectedSubcategory] = useState(searchParams.get('subcategory') || null);
+    const [expandedCategory, setExpandedCategory] = useState(searchParams.get('category') || null);
+    const [selectedCity, setSelectedCity] = useState(searchParams.get('city') || 'All Cities');
+
+
+    const [loading, setLoading] = useState(true);
     const [b2bVendors, setB2bVendors] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [expandedCategory, setExpandedCategory] = useState(null);
     const categoryDropdownRefs = useRef({}); // Refs for each category dropdown
     const [selectedState, setSelectedState] = useState('All States');
-    const [selectedCity, setSelectedCity] = useState('All Cities');
-    const [availableStates, setAvailableStates] = useState([]);
+
+    const { categories: allCategories, initialize: fetchB2BCategories } = useB2BCategoryStore();
+    const { states: availableStates, initialize: fetchAvailableLocations, isLoading: locationsLoading } = useB2BLocationStore();
+
     const [availableCities, setAvailableCities] = useState([]);
-    const [locationsLoading, setLocationsLoading] = useState(false);
     const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
     const [citySearchQuery, setCitySearchQuery] = useState('');
     const cityDropdownRef = useRef(null);
@@ -36,7 +45,9 @@ const ProductCatalog = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isSearchingSuggestions, setIsSearchingSuggestions] = useState(false);
     const [selectedPriceRange, setSelectedPriceRange] = useState(null);
+
     const [customPriceRange, setCustomPriceRange] = useState({ min: '', max: '' });
+    const [priceInputs, setPriceInputs] = useState({ min: '', max: '' });
     const [businessCredentials, setBusinessCredentials] = useState({ gst: false, turnover: false });
     const [selectedPattern, setSelectedPattern] = useState(null);
     const [selectedFabric, setSelectedFabric] = useState(null);
@@ -44,9 +55,34 @@ const ProductCatalog = () => {
     const mainCategoryDropdownRef = useRef(null);
     const [openFilters, setOpenFilters] = useState({
         price: true,
-        pattern: false, // Default closed to save space
+        pattern: false,
         fabric: false
     });
+
+    const [activeImageIndices, setActiveImageIndices] = useState({});
+
+    // Use click-based navigation instead of hover
+    const handleNextImage = (e, productId, totalImages) => {
+        e.stopPropagation();
+        setActiveImageIndices(prev => {
+            const currentIndex = prev[productId] || 0;
+            return {
+                ...prev,
+                [productId]: (currentIndex + 1) % totalImages
+            };
+        });
+    };
+
+    const handlePrevImage = (e, productId, totalImages) => {
+        e.stopPropagation();
+        setActiveImageIndices(prev => {
+            const currentIndex = prev[productId] || 0;
+            return {
+                ...prev,
+                [productId]: (currentIndex - 1 + totalImages) % totalImages
+            };
+        });
+    };
 
     const toggleFilter = (section) => {
         setOpenFilters(prev => ({ ...prev, [section]: !prev[section] }));
@@ -54,42 +90,16 @@ const ProductCatalog = () => {
 
 
     // Define functions before useEffect hooks that use them
-    const fetchAvailableLocations = async () => {
-        setLocationsLoading(true);
-        try {
-            const response = await api.get('/public/b2b-locations');
-            if (response.success && response.data) {
-                const states = (response.data.states || []).map(state => ({
-                    ...state,
-                    name: (state.name || '').trim() // Ensure state names are trimmed
-                }));
-                console.log('📍 Frontend - Received states:', states.length);
-                states.forEach(state => {
-                    console.log(`  State: "${state.name}" - Cities: ${state.cities?.length || 0}`, state.cities?.slice(0, 3));
-                });
-                setAvailableStates(states);
-            } else {
-                console.warn('⚠️ No states data received');
-                setAvailableStates([]);
-            }
-        } catch (error) {
-            console.error('❌ Error fetching locations:', error);
-            setAvailableStates([]);
-        } finally {
-            setLocationsLoading(false);
-        }
-    };
+    // fetchAvailableLocations replaced by store action
+
 
     const handleStateChange = (selectedValue) => {
         // Backend already returns clean state names, so use directly
-        console.log('🔄 handleStateChange called with:', selectedValue);
-        console.log('📋 Available states count:', availableStates.length);
-        console.log('📋 Available states:', availableStates.map(s => `"${(s.name || '').trim()}"`));
+        // console.log('🔄 handleStateChange called with:', selectedValue);
 
         setSelectedCity('All Cities');
 
         if (selectedValue === 'All States' || !selectedValue || selectedValue.trim() === '') {
-            console.log('✅ Setting to All States');
             setSelectedState('All States');
             setAvailableCities([]);
             return;
@@ -97,22 +107,15 @@ const ProductCatalog = () => {
 
         // Find state by exact match (trimmed) - backend already returns clean names
         const trimmedSelected = (selectedValue || '').trim();
-        console.log('🔍 Looking for state:', `"${trimmedSelected}"`);
 
         const stateData = availableStates.find(s => {
             const stateName = (s.name || '').trim();
             const matches = stateName === trimmedSelected;
-            if (matches) {
-                console.log('✅ Found match:', stateName);
-            }
             return matches;
         });
 
         if (!stateData) {
             console.error('❌ State not found!');
-            console.error('  Searched for:', `"${trimmedSelected}"`);
-            console.error('  Available states:', availableStates.map(s => `"${(s.name || '').trim()}"`));
-            // Don't set an invalid state - keep current or reset to All States
             setSelectedState('All States');
             setAvailableCities([]);
             return;
@@ -120,22 +123,12 @@ const ProductCatalog = () => {
 
         // Set selected state - use the exact name from stateData to ensure matching
         const exactStateName = (stateData.name || '').trim();
-        console.log('✅ Setting selectedState to:', `"${exactStateName}"`);
-        console.log('📊 Cities in state data:', stateData.cities?.length || 0);
-
         setSelectedState(exactStateName);
-
-        // Process cities - backend already returns clean cities, but do final cleanup
-        console.log('🔍 Processing cities for state:', exactStateName);
-        console.log('🔍 Raw cities data:', stateData.cities);
-        console.log('🔍 Cities is array?', Array.isArray(stateData.cities));
-        console.log('🔍 Cities length:', stateData.cities?.length || 0);
 
         if (stateData.cities && Array.isArray(stateData.cities) && stateData.cities.length > 0) {
             const stateName = exactStateName;
 
-            // Final cleanup of cities - remove any remaining state names or pincodes
-            // BUT be less aggressive - only filter obvious issues
+            // Final cleanup of cities
             const cleanedCities = stateData.cities
                 .map(city => {
                     if (!city || typeof city !== 'string') return null;
@@ -169,24 +162,16 @@ const ProductCatalog = () => {
                 })
                 .filter(city => city !== null && city.length > 0); // Remove nulls and empty strings
 
-            console.log('🏙️ Cities after processing:', cleanedCities.length);
-            console.log('🏙️ First 10 cities:', cleanedCities.slice(0, 10));
-
             if (cleanedCities.length > 0) {
                 setAvailableCities(cleanedCities);
-                console.log('✅ Cities set successfully!');
             } else {
-                console.warn('⚠️ All cities were filtered out! Using original cities.');
                 // If all cities were filtered, use original cities (less filtered)
                 const fallbackCities = stateData.cities
                     .filter(city => city && typeof city === 'string' && city.trim().length > 0 && !/^\d+$/.test(city.trim()))
                     .map(city => city.trim());
-                console.log('🔄 Fallback cities:', fallbackCities.length, fallbackCities.slice(0, 5));
                 setAvailableCities(fallbackCities);
             }
         } else {
-            console.warn('⚠️ No cities found for state:', exactStateName);
-            console.warn('  stateData:', stateData);
             setAvailableCities([]);
         }
     };
@@ -293,27 +278,59 @@ const ProductCatalog = () => {
         const urlCity = searchParams.get('city');
         const urlCategory = searchParams.get('category');
         const urlSubcategory = searchParams.get('subcategory');
+        const urlMin = searchParams.get('min');
+        const urlMax = searchParams.get('max');
 
-        if (urlSearch) {
+        if (urlSearch && urlSearch !== searchQuery) {
             setSearchQuery(urlSearch);
         }
-        if (urlCity) {
+        if (urlCity && urlCity !== selectedCity) {
             setSelectedCity(urlCity);
         }
-        if (urlCategory) {
+        if (urlCategory && urlCategory !== selectedCategory) {
             setSelectedCategory(urlCategory);
-            // Also expand it to show subcategories if any
             setExpandedCategory(urlCategory);
         }
-        if (urlSubcategory) {
+        if (urlSubcategory && urlSubcategory !== selectedSubcategory) {
             setSelectedSubcategory(urlSubcategory);
+        }
+
+        // Handle Price params
+        if (urlMin || urlMax) {
+            // Check if it matches a predefined range to highlight the button
+            const minVal = urlMin ? Number(urlMin) : null;
+            const maxVal = urlMax ? Number(urlMax) : null;
+
+            // Try to match predefined ranges
+            const predefined = [
+                { label: 'Below ₹100', min: 0, max: 100 },
+                { label: '₹101 - ₹200', min: 101, max: 200 },
+                { label: '₹201 - ₹500', min: 201, max: 500 },
+                { label: 'Above ₹501', min: 501, max: null }
+            ].find(r => r.min === minVal && r.max === maxVal);
+
+            if (predefined) {
+                setSelectedPriceRange(predefined);
+                setCustomPriceRange({ min: '', max: '' });
+                setPriceInputs({ min: '', max: '' });
+            } else {
+                const custom = { min: urlMin || '', max: urlMax || '' };
+                setCustomPriceRange(custom);
+                setPriceInputs(custom);
+                setSelectedPriceRange(null);
+            }
         }
     }, [searchParams]);
 
+    // Initial Data Fetch
     useEffect(() => {
         const init = async () => {
-            await fetchAvailableLocations();
-            await fetchB2BVendors();
+            // Parallel fetches
+            await Promise.all([
+                fetchAvailableLocations(),
+                fetchB2BVendors(),
+                fetchB2BCategories()
+            ]);
         };
         init();
     }, []);
@@ -335,12 +352,10 @@ const ProductCatalog = () => {
         };
     }, []);
 
-    // Update categories when products change
+    // Filter categories locally when products change
     useEffect(() => {
-        if (products.length > 0) {
-            fetchB2BCategories();
-        }
-    }, [products]);
+        filterCategoriesLocally();
+    }, [products, allCategories]);
 
     // Recheck inquiries when modal closes (in case inquiry was just sent)
 
@@ -353,20 +368,10 @@ const ProductCatalog = () => {
 
     // Debug: Log state and cities changes
     useEffect(() => {
-        console.log('🔍 useEffect - selectedState changed to:', `"${selectedState}"`);
-        console.log('🔍 useEffect - availableCities count:', availableCities.length);
-        console.log('🔍 useEffect - availableCities:', availableCities.slice(0, 5));
-        console.log('🔍 useEffect - locationsLoading:', locationsLoading);
-        console.log('🔍 useEffect - City dropdown should be:',
-            selectedState === 'All States' || availableCities.length === 0 || locationsLoading ? 'DISABLED' : 'ENABLED'
-        );
-
         // If state is selected but cities are empty, try to find cities again
         if (selectedState !== 'All States' && availableCities.length === 0 && !locationsLoading && availableStates.length > 0) {
-            console.warn('⚠️ State selected but no cities! Trying to find cities again...');
             const stateData = availableStates.find(s => (s.name || '').trim() === selectedState);
             if (stateData && stateData.cities && stateData.cities.length > 0) {
-                console.log('✅ Found cities in stateData, setting them:', stateData.cities.length);
                 // Use cities directly without heavy filtering
                 const directCities = stateData.cities
                     .filter(city => city && typeof city === 'string' && city.trim().length > 0)
@@ -376,84 +381,51 @@ const ProductCatalog = () => {
                 }
             }
         }
-
-        // Validate that selectedState matches an available option
-        if (selectedState !== 'All States' && availableStates.length > 0) {
-            const isValidState = availableStates.some(s => (s.name || '').trim() === selectedState);
-            if (!isValidState) {
-                console.error('❌ INVALID STATE! selectedState does not match any available option!');
-                console.error('  selectedState:', `"${selectedState}"`);
-                console.error('  Available states:', availableStates.map(s => `"${(s.name || '').trim()}"`));
-                // Reset to All States if invalid
-                setSelectedState('All States');
-                setAvailableCities([]);
-            }
-        }
     }, [selectedState, availableCities, locationsLoading, availableStates]);
 
-    const fetchB2BCategories = async () => {
-        try {
-            const response = await api.get('/public/b2b-categories');
-            console.log('B2B Categories API Response:', response);
-            if (response.success && response.data) {
-                // Transform backend format to frontend format
-                const transformedCategories = response.data.map((cat, index) => ({
-                    id: cat._id || cat.id || index.toString(),
-                    name: cat.name,
-                    subcategories: cat.subcategories || [],
-                }));
+    // fetchB2BCategories replaced by store action
 
-                // If products exist, filter categories to show only those that have products
-                // Otherwise show all categories from admin
-                let categoriesToShow = [];
-                if (products.length > 0) {
-                    categoriesToShow = transformedCategories.filter(cat => {
-                        return products.some(product => {
-                            // Get category from attributes array
-                            const categoryAttr = product.attributes?.find(attr =>
-                                attr.name === 'category' || attr.attributeName === 'category'
-                            );
-                            const productCategory = categoryAttr?.value || '';
-                            return productCategory === cat.name;
-                        });
-                    });
-                } else {
-                    // If no products, show all categories (they might not have products yet)
-                    categoriesToShow = transformedCategories;
-                }
+    const filterCategoriesLocally = () => {
+        // Function to filter categories based on currently loaded products
 
-                // Build subcategories list - show all subcategories from backend, don't filter by products
-                // This ensures dropdown always shows all available subcategories
-                const categoriesWithFilteredSubcategories = categoriesToShow.map(cat => {
-                    // Always show all subcategories from the category definition
-                    // Don't filter by products - let the product filtering happen when subcategory is selected
-                    const subcategoriesToShow = cat.subcategories || [];
-
-                    console.log(`Category: ${cat.name}, Subcategories:`, subcategoriesToShow);
-
-                    return {
-                        ...cat,
-                        subcategories: subcategoriesToShow
-                    };
-                });
-
-                // Always show 'All' option, then categories
-                const finalCategories = [
-                    { id: 'all', name: 'All', subcategories: [] },
-                    ...categoriesWithFilteredSubcategories
-                ];
-                console.log('Setting categories:', finalCategories);
-                console.log('Products count:', products.length);
-                setCategories(finalCategories);
-            } else {
-                // Fallback: show empty categories
-                setCategories([{ id: 'all', name: 'All', subcategories: [] }]);
-            }
-        } catch (error) {
-            console.error('Error fetching B2B categories:', error);
-            // Fallback: show empty categories
+        let categoriesToShow = [];
+        if (allCategories.length === 0) {
+            // Fallback
             setCategories([{ id: 'all', name: 'All', subcategories: [] }]);
+            return;
         }
+
+        if (products.length > 0) {
+            categoriesToShow = allCategories.filter(cat => {
+                return products.some(product => {
+                    // Get category from attributes array
+                    const categoryAttr = product.attributes?.find(attr =>
+                        attr.name === 'category' || attr.attributeName === 'category'
+                    );
+                    const productCategory = categoryAttr?.value || '';
+                    return productCategory === cat.name;
+                });
+            });
+        } else {
+            // If no products, show all categories
+            categoriesToShow = allCategories;
+        }
+
+        // Build subcategories list - show all subcategories from backend, don't filter by products
+        const categoriesWithFilteredSubcategories = categoriesToShow.map(cat => {
+            return {
+                ...cat,
+                subcategories: cat.subcategories || []
+            };
+        });
+
+        // Always show 'All' option, then categories
+        const finalCategories = [
+            { id: 'all', name: 'All', subcategories: [] },
+            ...categoriesWithFilteredSubcategories
+        ];
+
+        setCategories(finalCategories);
     };
 
     const handleCategoryClick = (categoryName, event) => {
@@ -482,12 +454,24 @@ const ProductCatalog = () => {
             setSelectedSubcategory(null);
             setExpandedCategory(null);
         }
+
+        // Clear search query when changing category to avoid conflicts
+        setSearchQuery('');
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('search');
+        setSearchParams(newParams, { replace: true });
     };
 
     const handleSubcategoryClick = (subcategoryName, categoryName) => {
         setSelectedCategory(categoryName);
         setSelectedSubcategory(subcategoryName);
         // Keep expandedCategory as categoryName so the card stays open for further filtering
+
+        // Clear search query
+        setSearchQuery('');
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('search');
+        setSearchParams(newParams, { replace: true });
     };
 
     // Close dropdown when clicking outside
@@ -670,6 +654,11 @@ const ProductCatalog = () => {
     const handleHeaderSearchSubmit = (query) => {
         setSearchQuery(query);
 
+        // Reset Category and Subcategory when searching to ensure global search
+        setSelectedCategory('All');
+        setSelectedSubcategory(null);
+        setExpandedCategory(null);
+
         // Auto-select city if search query matches a known city name
         // This is a convenience feature requested by user
         if (query && query.trim().length > 2) {
@@ -688,6 +677,11 @@ const ProductCatalog = () => {
 
         // Update URL without navigation
         const newParams = new URLSearchParams(searchParams);
+
+        // Clear category params from URL
+        newParams.delete('category');
+        newParams.delete('subcategory');
+
         if (query) {
             newParams.set('search', query);
         } else {
@@ -853,6 +847,12 @@ const ProductCatalog = () => {
                                                     setExpandedCategory(null);
                                                     setSelectedSubcategory(null);
                                                     setIsMainCategoryDropdownOpen(false);
+
+                                                    // Clear search query
+                                                    setSearchQuery('');
+                                                    const newParams = new URLSearchParams(searchParams);
+                                                    newParams.delete('search');
+                                                    setSearchParams(newParams, { replace: true });
                                                 }}
                                                 className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all ${selectedCategory === 'All' ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
                                             >
@@ -996,6 +996,7 @@ const ProductCatalog = () => {
                                         onClick={() => {
                                             setSelectedPriceRange(range);
                                             setCustomPriceRange({ min: '', max: '' });
+                                            setPriceInputs({ min: '', max: '' });
                                         }}
                                         className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedPriceRange?.label === range.label
                                             ? 'bg-primary-50 text-primary-600'
@@ -1012,10 +1013,10 @@ const ProductCatalog = () => {
                                             <input
                                                 type="number"
                                                 placeholder="₹ min"
-                                                value={customPriceRange.min}
+                                                value={priceInputs.min}
                                                 onChange={(e) => {
-                                                    setCustomPriceRange(prev => ({ ...prev, min: e.target.value }));
-                                                    setSelectedPriceRange(null);
+                                                    setPriceInputs(prev => ({ ...prev, min: e.target.value }));
+                                                    // Don't auto-apply custom range, wait for GO
                                                 }}
                                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
                                             />
@@ -1024,15 +1025,20 @@ const ProductCatalog = () => {
                                             <input
                                                 type="number"
                                                 placeholder="₹ max"
-                                                value={customPriceRange.max}
+                                                value={priceInputs.max}
                                                 onChange={(e) => {
-                                                    setCustomPriceRange(prev => ({ ...prev, max: e.target.value }));
-                                                    setSelectedPriceRange(null);
+                                                    setPriceInputs(prev => ({ ...prev, max: e.target.value }));
                                                 }}
                                                 className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
                                             />
                                         </div>
-                                        <button className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                                        <button
+                                            onClick={() => {
+                                                setCustomPriceRange(priceInputs);
+                                                setSelectedPriceRange(null);
+                                            }}
+                                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                                        >
                                             GO
                                         </button>
                                     </div>
@@ -1174,17 +1180,66 @@ const ProductCatalog = () => {
                                         onClick={() => navigate(`/b2b/product/${product._id}`)}
                                         className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-fit"
                                     >
-                                        {/* Image Container - More defined */}
-                                        <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50">
-                                            <img
-                                                src={(Array.isArray(product.images) && product.images.length > 0) ? product.images[0] : product.image || 'https://via.placeholder.com/400x300'}
-                                                alt={product.name}
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                            />
-                                            <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm">
+                                        {/* Image Container - Interactive Gallery */}
+                                        <div
+                                            className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50 group/image"
+                                        >
+                                            {/* Images */}
+                                            {Array.isArray(product.images) && product.images.length > 0 ? (
+                                                product.images.map((img, idx) => (
+                                                    <img
+                                                        key={idx}
+                                                        src={img}
+                                                        alt={`${product.name} - ${idx + 1}`}
+                                                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${(activeImageIndices[product._id] || 0) === idx ? 'opacity-100 scale-105' : 'opacity-0'
+                                                            }`}
+                                                    />
+                                                ))
+                                            ) : (
+                                                <img
+                                                    src={product.image || 'https://via.placeholder.com/400x300'}
+                                                    alt={product.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            )}
+
+                                            {/* Navigation Buttons (Only if multiple images) */}
+                                            {Array.isArray(product.images) && product.images.length > 1 && (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => handlePrevImage(e, product._id, product.images.length)}
+                                                        className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
+                                                    >
+                                                        <FiChevronDown className="rotate-90 text-sm" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleNextImage(e, product._id, product.images.length)}
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
+                                                    >
+                                                        <FiChevronDown className="-rotate-90 text-sm" />
+                                                    </button>
+                                                </>
+                                            )}
+
+                                            {/* Image Indicators (Dots/Lines) */}
+                                            {Array.isArray(product.images) && product.images.length > 1 && (
+                                                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 group-hover/image:opacity-100 transition-opacity px-2">
+                                                    {product.images.map((_, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            className={`h-1 rounded-full transition-all duration-300 shadow-sm ${(activeImageIndices[product._id] || 0) === idx
+                                                                ? 'w-4 bg-white'
+                                                                : 'w-1 bg-white/50'
+                                                                }`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm z-20 pointer-events-none">
                                                 Bulk
                                             </div>
-                                            <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100">
+                                            <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100 z-20 pointer-events-none">
                                                 <div className="flex items-baseline gap-0.5">
                                                     <span className="text-[8px] font-black text-primary-600">₹</span>
                                                     <span className="text-sm font-black text-gray-800">{product.price}</span>
@@ -1270,10 +1325,10 @@ const ProductCatalog = () => {
                         )}
                     </div>
                 </div>
-            </main>
+            </main >
 
             <B2BBottomNav />
-        </div>
+        </div >
     );
 };
 
