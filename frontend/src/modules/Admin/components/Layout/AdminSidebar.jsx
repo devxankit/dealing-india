@@ -43,6 +43,7 @@ const iconMap = {
   Subscriptions: FiTag,
   Categories: FiLayers,
   "Banner Bookings": FiImage,
+  "Business Config": FiSettings,
   Notifications: FiBell,
   "Analytics & Finance": FiBarChart2,
   Settings: FiSettings,

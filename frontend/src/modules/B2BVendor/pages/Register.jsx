@@ -26,6 +26,9 @@ const B2BVendorRegister = () => {
     const preFilledData = location.state?.userData || {};
     const isUpgrade = location.state?.isUpgrade || false;
 
+    const [businessTypes, setBusinessTypes] = useState([]);
+    const [selectedBusinessType, setSelectedBusinessType] = useState(null);
+
     const [formData, setFormData] = useState({
         name: preFilledData.name || '',
         email: preFilledData.email || '',
@@ -34,6 +37,8 @@ const B2BVendorRegister = () => {
         confirmPassword: '',
         companyName: '',
         gstNumber: '',
+        businessType: 'Textile',
+        businessTypeRef: '',
         address: {
             street: '',
             area: '',
@@ -45,6 +50,29 @@ const B2BVendorRegister = () => {
     });
 
     useEffect(() => {
+        const fetchBusinessTypes = async () => {
+            try {
+                const response = await api.get('/business-types');
+                if (response.success) {
+                    setBusinessTypes(response.data);
+                    // Set default if available
+                    const textile = response.data.find(t => t.name === 'Textile');
+                    if (textile) {
+                        setFormData(prev => ({
+                            ...prev,
+                            businessType: textile.name,
+                            businessTypeRef: textile._id
+                        }));
+                        setSelectedBusinessType(textile);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching business types:', error);
+            }
+        };
+
+        fetchBusinessTypes();
+
         if (isUpgrade && preFilledData.name) {
             toast.success(`Welcome ${preFilledData.name.split(' ')[0]}! Complete these details to start your B2B business.`);
         }
@@ -138,6 +166,8 @@ const B2BVendorRegister = () => {
                 storeDescription: `B2B Vendor`,
                 address: formData.address,
                 gstNumber: formData.gstNumber,
+                businessType: formData.businessType,
+                businessTypeRef: formData.businessTypeRef,
                 documents: {
                     panCard: {
                         data: panCard.data,
@@ -262,6 +292,30 @@ const B2BVendorRegister = () => {
                             Business Information
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Business Type <span className="text-red-500">*</span></label>
+                                <select
+                                    name="businessTypeRef"
+                                    value={formData.businessTypeRef}
+                                    onChange={(e) => {
+                                        const typeId = e.target.value;
+                                        const type = businessTypes.find(t => t._id === typeId);
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            businessTypeRef: typeId,
+                                            businessType: type?.name || ''
+                                        }));
+                                        setSelectedBusinessType(type);
+                                    }}
+                                    className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none appearance-none"
+                                    required
+                                >
+                                    <option value="">Select Business Type</option>
+                                    {businessTypes.map(type => (
+                                        <option key={type._id} value={type._id}>{type.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="md:col-span-2">
                                 <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Company Name</label>
                                 <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none" required placeholder="Global Exports Pvt Ltd" />

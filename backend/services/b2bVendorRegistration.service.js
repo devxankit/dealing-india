@@ -27,6 +27,8 @@ export const registerB2BVendor = async (vendorData) => {
       address,
       documents,
       gstNumber,
+      businessType,
+      businessTypeRef,
     } = vendorData;
 
     // Validate required fields
@@ -167,6 +169,8 @@ export const registerB2BVendor = async (vendorData) => {
       isActive: true,
       role: 'vendor',
       commissionRate: 0,
+      businessType: businessType || 'Textile',
+      businessTypeRef: businessTypeRef || undefined,
     };
 
     const vendor = await Vendor.create([newVendorData], { session });
@@ -223,6 +227,8 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       address,
       documents,
       gstNumber,
+      businessType,
+      businessTypeRef,
     } = vendorData;
 
     // First, try to find existing subscription created after payment
@@ -413,6 +419,8 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       isActive: true,
       role: 'vendor',
       commissionRate: 0, // B2B vendors pay subscription fees, NOT commission - set to 0
+      businessType: businessType || 'Textile',
+      businessTypeRef: businessTypeRef || undefined,
     };
 
     const vendor = await Vendor.create([newVendorData], { session });

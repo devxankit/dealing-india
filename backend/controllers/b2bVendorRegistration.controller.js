@@ -1,7 +1,7 @@
-import { 
+import {
   registerB2BVendor,
-  registerB2BVendorWithSubscription, 
-  initializeB2BRegistrationPayment, 
+  registerB2BVendorWithSubscription,
+  initializeB2BRegistrationPayment,
   createB2BSubscriptionAfterPayment
 } from '../services/b2bVendorRegistration.service.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
@@ -23,6 +23,8 @@ export const register = async (req, res, next) => {
       address,
       documents,
       gstNumber,
+      businessType,
+      businessTypeRef,
     } = req.body;
 
     // Validate required fields
@@ -34,7 +36,7 @@ export const register = async (req, res, next) => {
     }
 
     console.log('📝 Calling registerB2BVendor service...');
-    
+
     const result = await registerB2BVendor({
       name,
       email,
@@ -45,6 +47,8 @@ export const register = async (req, res, next) => {
       address,
       documents,
       gstNumber,
+      businessType,
+      businessTypeRef,
     });
 
     res.status(201).json({
@@ -57,7 +61,7 @@ export const register = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error in register:', error);
-    
+
     if (error.statusCode === 409) {
       return res.status(409).json({
         success: false,
@@ -92,6 +96,8 @@ export const registerWithPayment = async (req, res, next) => {
       address,
       documents,
       gstNumber,
+      businessType,
+      businessTypeRef,
       subscriptionPlan,
       paymentData, // { razorpayOrderId, razorpayPaymentId, razorpaySignature }
     } = req.body;
@@ -129,7 +135,7 @@ export const registerWithPayment = async (req, res, next) => {
     });
 
     console.log('📝 Calling registerB2BVendorWithSubscription service...');
-    
+
     const result = await registerB2BVendorWithSubscription(
       {
         name,
@@ -141,6 +147,8 @@ export const registerWithPayment = async (req, res, next) => {
         address,
         documents,
         gstNumber,
+        businessType,
+        businessTypeRef,
       },
       subscriptionPlan,
       paymentData
@@ -178,7 +186,7 @@ export const registerWithPayment = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error in registerWithPayment:', error);
-    
+
     // Handle specific errors
     if (error.statusCode === 409) {
       return res.status(409).json({
@@ -273,7 +281,7 @@ export const createSubscriptionAfterPayment = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error in createSubscriptionAfterPayment:', error);
-    
+
     if (error.statusCode === 400) {
       return res.status(400).json({
         success: false,
@@ -365,7 +373,7 @@ export const initializePayment = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error in initializePayment:', error);
-    
+
     if (error.statusCode === 400) {
       return res.status(400).json({
         success: false,

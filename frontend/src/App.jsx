@@ -51,6 +51,7 @@ const AdminB2BCategories = lazyWithRetry(() => import("./modules/Admin/pages/b2b
 const AdminB2BBannerManagement = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BBannerManagement"));
 const AdminB2BBannerDetail = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail"));
 const AdminDefaultBannerManagement = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/DefaultBannerManagement"));
+const AdminBusinessTypeConfiguration = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/BusinessTypeConfiguration"));
 const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrapper"));
 const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
 const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
@@ -69,6 +70,10 @@ const B2BVendorManageProducts = lazyWithRetry(() => import("./modules/B2BVendor/
 const B2BVendorAddProduct = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/AddProduct"));
 const B2BVendorEditProduct = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/EditProduct"));
 const B2BVendorMessages = lazyWithRetry(() => import("./modules/B2BVendor/pages/Messages"));
+const B2BVendorProperties = lazyWithRetry(() => import("./modules/B2BVendor/pages/Properties"));
+const B2BVendorManageProperties = lazyWithRetry(() => import("./modules/B2BVendor/pages/properties/ManageProperties"));
+const B2BVendorAddProperty = lazyWithRetry(() => import("./modules/B2BVendor/pages/properties/AddProperty"));
+const B2BVendorEditProperty = lazyWithRetry(() => import("./modules/B2BVendor/pages/properties/EditProperty"));
 
 const B2BVendorSettings = lazyWithRetry(() => import("./modules/B2BVendor/pages/Settings"));
 const B2BVendorProfile = lazyWithRetry(() => import("./modules/B2BVendor/pages/Profile"));
@@ -167,7 +172,7 @@ const AppRoutes = () => {
             <Route path="banner-bookings" element={<AdminB2BBannerManagement />} />
             <Route path="banner-bookings/details/:id" element={<AdminB2BBannerDetail />} />
             <Route path="default-banners" element={<AdminDefaultBannerManagement />} />
-
+            <Route path="business-type-config" element={<AdminBusinessTypeConfiguration />} />
           </Route>
 
           <Route path="notifications" element={<PushNotifications />} />
@@ -236,11 +241,20 @@ const AppRoutes = () => {
           }>
           <Route index element={<Navigate to="/b2b-vendor/dashboard" replace />} />
           <Route path="dashboard" element={<B2BVendorDashboard />} />
-          <Route path="products" element={<B2BVendorProducts />} />
-          <Route path="products/manage-products" element={<B2BVendorManageProducts />} />
-          <Route path="products/add-product" element={<B2BVendorAddProduct />} />
-          <Route path="products/edit/:id" element={<B2BVendorEditProduct />} />
 
+          <Route path="products">
+            <Route index element={<B2BVendorProducts />} />
+            <Route path="manage-products" element={<B2BVendorManageProducts />} />
+            <Route path="add-product" element={<B2BVendorAddProduct />} />
+            <Route path="edit/:id" element={<B2BVendorEditProduct />} />
+          </Route>
+
+          <Route path="properties">
+            <Route index element={<B2BVendorProperties />} />
+            <Route path="manage-properties" element={<B2BVendorManageProperties />} />
+            <Route path="add-property" element={<B2BVendorAddProperty />} />
+            <Route path="edit/:id" element={<B2BVendorEditProperty />} />
+          </Route>
 
           <Route path="settings" element={<B2BVendorSettings />} />
           <Route path="settings/profile" element={<B2BVendorSettings />} />

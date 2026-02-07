@@ -208,6 +208,8 @@ export const registerVendor = async (vendorData) => {
         vendorType: vendorType || 'b2b',
         // B2B-specific fields
         businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()) : undefined,
+        businessType: vendorData.businessType || 'Textile',
+        businessTypeRef: vendorData.businessTypeRef,
         gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
         subscriptionPlan: subscriptionPlan, // Store plan ID for later subscription creation
       },
@@ -567,6 +569,12 @@ export const verifyVendorEmail = async (email, otp) => {
     if (tempRegistration.registrationData.vendorType === 'b2b') {
       if (tempRegistration.registrationData.businessTypes) {
         vendorData.businessTypes = tempRegistration.registrationData.businessTypes;
+      }
+      if (tempRegistration.registrationData.businessType) {
+        vendorData.businessType = tempRegistration.registrationData.businessType;
+      }
+      if (tempRegistration.registrationData.businessTypeRef) {
+        vendorData.businessTypeRef = tempRegistration.registrationData.businessTypeRef;
       }
       if (tempRegistration.registrationData.gstNumber) {
         vendorData.gstNumber = tempRegistration.registrationData.gstNumber;
