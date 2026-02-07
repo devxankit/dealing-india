@@ -7,6 +7,7 @@ import {
   getAllB2BPlans,
   getB2BSubscriptionDetails,
 } from '../controllers/SubscriptionCtrl.js';
+import VendorSubscriptionCtrl from '../controllers/vendorSubscription.controller.js';
 
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
@@ -26,6 +27,11 @@ router.get('/b2b-plans', authorize('vendor', 'admin'), getAllB2BPlans);
 
 // Create a B2B subscription (purchase)
 router.post('/createB2BSubscription', authorize('vendor', 'admin'), createB2BSubscription);
+
+// Verify B2B subscription payment
+router.post('/verifyB2BPayment', authorize('vendor', 'admin'), (req, res, next) => {
+  VendorSubscriptionCtrl.verifyPayment(req, res, next);
+});
 
 // Get current vendor's B2B subscriptions
 router.get('/getB2BSubscription', authorize('vendor', 'admin'), getB2BSubscription);

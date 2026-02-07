@@ -50,17 +50,34 @@ export const getCurrentSubscription = async () => {
 /**
  * Create a new subscription
  * @param {String} planId - Plan ID to subscribe to
- * @returns {Promise<Object>} Subscription details with payment URL
+ * @returns {Promise<Object>} Full response with subscription and razorpay data
  */
 export const createSubscription = async (planId) => {
     try {
         const response = await api.post('/subscription/createB2BSubscription', { planId });
         if (response.success) {
-            return response.subscription;
+            return response;
         }
         throw new Error(response.message || 'Failed to create subscription');
     } catch (error) {
         console.error('Error creating subscription:', error);
+        throw error;
+    }
+};
+
+/**
+ * Verify subscription payment
+ * @param {Object} paymentData - Razorpay payment data
+ */
+export const verifyPayment = async (paymentData) => {
+    try {
+        const response = await api.post('/subscription/verifyB2BPayment', paymentData);
+        if (response.success) {
+            return response.data;
+        }
+        throw new Error(response.message || 'Payment verification failed');
+    } catch (error) {
+        console.error('Error verifying payment:', error);
         throw error;
     }
 };
@@ -128,4 +145,5 @@ export default {
     getAllSubscriptions,
     cancelSubscription,
     getSubscriptionDetails,
+    verifyPayment,
 };
