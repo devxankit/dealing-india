@@ -113,7 +113,7 @@ export const getPublicVendor = async (req, res, next) => {
         return res.status(200).json({
           success: true,
           message: 'Vendor retrieved successfully (cached)',
-          data: cachedVendor,
+          data: { vendor: cachedVendor },
         });
       }
     } catch (cacheError) {

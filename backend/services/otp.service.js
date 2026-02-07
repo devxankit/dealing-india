@@ -33,8 +33,8 @@ export const generateOTP = async (identifier, type) => {
       await redisService.incr(rateKey);
     }
 
-    // 3. Generate 4-digit OTP
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    // 3. Generate 6-digit OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
 
     // 4. Store in Redis
     const success = await redisService.set(otpKey, { code, isUsed: false }, OTP_EXPIRY_SECONDS);
@@ -66,7 +66,7 @@ export const verifyOTP = async (identifier, code, type) => {
     if (!identifier || !code || !type) throw new Error('Params missing');
 
     // Default master OTP for easier testing/verification
-    if (code === '1234') {
+    if (code === '123456') {
       return true;
     }
 

@@ -395,24 +395,47 @@ const B2BProductDetail = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 mb-8">
-                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <span className="text-sm font-bold text-gray-600">Select Quantity</span>
-                                    <div className="flex items-center gap-4">
-                                        <button
-                                            onClick={() => setQuantity(Math.max(product.moq || 1, quantity - 1))}
-                                            className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
+                            <div className="flex flex-col gap-3 mb-8">
+                                {product.vendorId?.phone && (
+                                    <div className="grid grid-cols-2 gap-3 w-full">
+                                        <a
+                                            href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="py-4 bg-[#25D366] text-white rounded-2xl font-bold text-sm hover:bg-[#128C7E] shadow-xl shadow-green-100 transition-all flex items-center justify-center gap-2 border-2 border-green-200"
                                         >
-                                            <FiMinus />
-                                        </button>
-                                        <span className="w-16 text-center font-black text-lg text-gray-800">{quantity}</span>
-                                        <button
-                                            onClick={() => setQuantity(quantity + 1)}
-                                            className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
+                                            <FaWhatsapp size={20} />
+                                            Order on WhatsApp
+                                        </a>
+                                        <a
+                                            href={`tel:${product.vendorId.phone}`}
+                                            className="py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-2 border-2 border-blue-500"
                                         >
-                                            <FiPlus />
-                                        </button>
+                                            <FiPhone size={20} />
+                                            Call Vendor
+                                        </a>
                                     </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 mb-8">
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                <span className="text-sm font-bold text-gray-600">Select Quantity</span>
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => setQuantity(Math.max(product.moq || 1, quantity - 1))}
+                                        className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
+                                    >
+                                        <FiMinus />
+                                    </button>
+                                    <span className="w-16 text-center font-black text-lg text-gray-800">{quantity}</span>
+                                    <button
+                                        onClick={() => setQuantity(quantity + 1)}
+                                        className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm"
+                                    >
+                                        <FiPlus />
+                                    </button>
                                 </div>
 
                                 {/* Bulk Pricing Display */}
@@ -461,28 +484,6 @@ const B2BProductDetail = () => {
                                 )}
                             </div>
 
-                            <div className="flex flex-col gap-3">
-                                {product.vendorId?.phone && (
-                                    <div className="grid grid-cols-2 gap-3 w-full">
-                                        <a
-                                            href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="py-4 bg-[#25D366] text-white rounded-2xl font-bold text-sm hover:bg-[#128C7E] shadow-lg shadow-green-100 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <FaWhatsapp className="text-xl" />
-                                            WhatsApp
-                                        </a>
-                                        <a
-                                            href={`tel:${product.vendorId.phone}`}
-                                            className="py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <FiPhone className="text-xl" />
-                                            Call Now
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
                         </div>
 
                         {/* Seller Card */}

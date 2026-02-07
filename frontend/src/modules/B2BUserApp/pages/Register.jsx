@@ -229,6 +229,22 @@ const B2BUserRegister = () => {
                         </div>
                     </div>
 
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700 ml-1">State</label>
+                        <div className="relative group">
+                            <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <input
+                                type="text"
+                                name="address.state"
+                                required
+                                value={formData.address.state}
+                                onChange={handleChange}
+                                placeholder="Gujarat"
+                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                            />
+                        </div>
+                    </div>
+
                     <div className="md:col-span-2 pt-6">
                         <button
                             type="submit"

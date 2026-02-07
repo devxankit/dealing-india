@@ -51,6 +51,11 @@ const userSchema = new mongoose.Schema(
             companyName: { type: String, trim: true },
             industry: { type: String, trim: true },
             companyType: { type: String, trim: true },
+            gstNumber: { type: String, trim: true },
+            address: {
+                city: { type: String, trim: true },
+                state: { type: String, trim: true }
+            }
         },
     },
     {

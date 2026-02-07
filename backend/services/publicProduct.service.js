@@ -74,7 +74,6 @@ export const getPublicProducts = async (filters) => {
         .sort(sort)
         .skip((page - 1) * limit)
         .limit(Number(limit))
-        .populate('categoryId', 'name')
         .populate('vendorId', 'name storeName address phone');
 
     const total = await Product.countDocuments(query);
@@ -92,7 +91,6 @@ export const getPublicProducts = async (filters) => {
  */
 export const getPublicProductById = async (id) => {
     const product = await Product.findById(id)
-        .populate('categoryId', 'name')
         .populate('vendorId', 'name storeName description logo phone address');
 
     if (!product) throw new Error('Product not found');

@@ -1,6 +1,7 @@
 import { verifyToken } from '../utils/jwt.util.js';
 import Vendor from '../models/Vendor.model.js';
 import Admin from '../models/Admin.model.js';
+import User from '../models/User.model.js';
 
 /**
  * Optional authentication middleware - verifies JWT token if present but doesn't fail if expired
@@ -34,6 +35,11 @@ export const optionalAuthenticate = async (req, res, next) => {
         const admin = await Admin.findById(decoded.adminId);
         if (admin && admin.isActive) {
           req.userDoc = admin;
+        }
+      } else if (decoded.role === 'user' && decoded.id) {
+        const user = await User.findById(decoded.id);
+        if (user && user.isActive) {
+          req.userDoc = user;
         }
       }
     } catch (error) {
@@ -98,6 +104,15 @@ export const authenticate = async (req, res, next) => {
           });
         }
         req.userDoc = admin;
+      } else if (decoded.role === 'user' && decoded.id) {
+        const user = await User.findById(decoded.id);
+        if (!user || !user.isActive) {
+          return res.status(401).json({
+            success: false,
+            message: 'User account not found or inactive',
+          });
+        }
+        req.userDoc = user;
       }
     } catch (dbError) {
       console.error('Error fetching user document in auth middleware:', {

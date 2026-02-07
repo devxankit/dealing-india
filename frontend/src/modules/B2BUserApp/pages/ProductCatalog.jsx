@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown, FiPhone } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown, FiPhone, FiGrid } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -40,6 +40,8 @@ const ProductCatalog = () => {
     const [businessCredentials, setBusinessCredentials] = useState({ gst: false, turnover: false });
     const [selectedPattern, setSelectedPattern] = useState(null);
     const [selectedFabric, setSelectedFabric] = useState(null);
+    const [isMainCategoryDropdownOpen, setIsMainCategoryDropdownOpen] = useState(false);
+    const mainCategoryDropdownRef = useRef(null);
     const [openFilters, setOpenFilters] = useState({
         price: true,
         pattern: false, // Default closed to save space
@@ -285,10 +287,12 @@ const ProductCatalog = () => {
         handleHeaderSearchSubmit(query);
     };
 
-    // Read search query and city from URL on mount
+    // Read search query, city, category and subcategory from URL on mount
     useEffect(() => {
         const urlSearch = searchParams.get('search');
         const urlCity = searchParams.get('city');
+        const urlCategory = searchParams.get('category');
+        const urlSubcategory = searchParams.get('subcategory');
 
         if (urlSearch) {
             setSearchQuery(urlSearch);
@@ -296,32 +300,40 @@ const ProductCatalog = () => {
         if (urlCity) {
             setSelectedCity(urlCity);
         }
+        if (urlCategory) {
+            setSelectedCategory(urlCategory);
+            // Also expand it to show subcategories if any
+            setExpandedCategory(urlCategory);
+        }
+        if (urlSubcategory) {
+            setSelectedSubcategory(urlSubcategory);
+        }
     }, [searchParams]);
 
     useEffect(() => {
         const init = async () => {
             await fetchAvailableLocations();
             await fetchB2BVendors();
-            await fetchB2BProducts();
         };
         init();
     }, []);
 
-    // Close city dropdown when clicking outside
+    // Close dropdowns when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
                 setIsCityDropdownOpen(false);
             }
+            if (mainCategoryDropdownRef.current && !mainCategoryDropdownRef.current.contains(event.target)) {
+                setIsMainCategoryDropdownOpen(false);
+            }
         };
 
-        if (isCityDropdownOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
+        document.addEventListener('mousedown', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [isCityDropdownOpen]);
+    }, []);
 
     // Update categories when products change
     useEffect(() => {
@@ -811,44 +823,73 @@ const ProductCatalog = () => {
                         </div>
                     </div>
 
-                    {/* Category Tabs */}
+                    {/* Main Category Dropdown Selection */}
                     <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-                        <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar w-full">
+                        <div className="relative w-full lg:w-72" ref={mainCategoryDropdownRef}>
                             <button
-                                onClick={() => {
-                                    setSelectedCategory('All');
-                                    setExpandedCategory(null);
-                                    setSelectedSubcategory(null);
-                                }}
-                                className={`px-6 py-2.5 rounded-xl whitespace-nowrap text-xs font-bold transition-all duration-300 ${selectedCategory === 'All' && !selectedSubcategory
-                                    ? 'bg-primary-600 text-white shadow-md shadow-primary-200'
-                                    : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-100'
+                                onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
+                                className={`flex items-center justify-between gap-3 px-6 py-3.5 bg-white border rounded-2xl text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${selectedCategory !== 'All' ? 'border-primary-200 text-primary-600 bg-primary-50/20' : 'border-gray-200 text-gray-700'
                                     }`}
                             >
-                                All Products
+                                <div className="flex items-center gap-2">
+                                    <FiGrid className={selectedCategory !== 'All' ? 'text-primary-600' : 'text-gray-400'} />
+                                    <span>{selectedCategory === 'All' ? 'All Categories' : selectedCategory}</span>
+                                </div>
+                                <FiChevronDown className={`transition-transform duration-300 ${isMainCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                             </button>
-                            {categories.filter(cat => cat.name !== 'All').map((cat) => {
-                                const hasSubcategories = cat.subcategories && cat.subcategories.length > 0;
-                                const isExpanded = expandedCategory === cat.name;
-                                const isSelected = selectedCategory === cat.name;
 
-                                return (
-                                    <button
-                                        key={cat.id}
-                                        onClick={(e) => handleCategoryClick(cat.name, e)}
-                                        className={`px-6 py-2.5 rounded-xl whitespace-nowrap text-xs font-bold transition-all duration-300 flex items-center gap-2 ${isSelected
-                                            ? 'bg-primary-600 text-white shadow-md shadow-primary-200'
-                                            : 'bg-white text-gray-500 border border-gray-100 hover:border-primary-100'
-                                            }`}
+                            <AnimatePresence>
+                                {isMainCategoryDropdownOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                        className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60]"
                                     >
-                                        {cat.name}
-                                        {hasSubcategories && (
-                                            <FiChevronDown className={`text-xs transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
-                                        )}
-                                    </button>
-                                );
-                            })}
+                                        <div className="p-2 max-h-[400px] overflow-y-auto">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedCategory('All');
+                                                    setExpandedCategory(null);
+                                                    setSelectedSubcategory(null);
+                                                    setIsMainCategoryDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all ${selectedCategory === 'All' ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                            >
+                                                All Categories
+                                            </button>
+                                            {categories.filter(cat => cat.name !== 'All').map((cat) => (
+                                                <button
+                                                    key={cat.id}
+                                                    onClick={() => {
+                                                        handleCategoryClick(cat.name);
+                                                        setIsMainCategoryDropdownOpen(false);
+                                                    }}
+                                                    className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${selectedCategory === cat.name ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                                >
+                                                    <span>{cat.name}</span>
+                                                    {cat.subcategories?.length > 0 && <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400 group-hover:bg-primary-100 group-hover:text-primary-600">{cat.subcategories.length}</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
+
+                        {/* Quick filter info */}
+                        {selectedCategory !== 'All' && (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 rounded-full border border-primary-100">
+                                <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Active Category:</span>
+                                <span className="text-xs font-bold text-gray-700">{selectedCategory}</span>
+                                {selectedSubcategory && (
+                                    <>
+                                        <div className="w-1 h-1 bg-primary-300 rounded-full mx-1"></div>
+                                        <span className="text-xs font-bold text-gray-500">{selectedSubcategory}</span>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Full Width Subcategory Explorer Card */}
@@ -1187,7 +1228,7 @@ const ProductCatalog = () => {
                                             </div>
 
                                             <div className="flex items-center gap-1.5 mt-1">
-                                                {product.vendorId?.phone && (
+                                                {product.vendorId?.phone ? (
                                                     <>
                                                         <a
                                                             href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
@@ -1201,7 +1242,7 @@ const ProductCatalog = () => {
                                                             <span>WhatsApp</span>
                                                         </a>
                                                         <a
-                                                            href={`tel:${product.vendorId.phone}`}
+                                                            href={`tel:${product.vendorId?.phone}`}
                                                             onClick={(e) => e.stopPropagation()}
                                                             className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                                                             title="Call Vendor"
@@ -1210,6 +1251,16 @@ const ProductCatalog = () => {
                                                             <span>Call</span>
                                                         </a>
                                                     </>
+                                                ) : (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(`/b2b/product/${product._id}`);
+                                                        }}
+                                                        className="w-full py-1.5 bg-primary-50 text-primary-600 rounded-lg font-black text-[9px] uppercase tracking-wider border border-primary-100"
+                                                    >
+                                                        View Details
+                                                    </button>
                                                 )}
                                             </div>
                                         </div>

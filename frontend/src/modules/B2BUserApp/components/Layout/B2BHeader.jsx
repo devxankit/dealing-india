@@ -68,7 +68,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
         if (onSearchSubmit) {
             onSearchSubmit(query);
         } else {
-            navigate(`/b2b/landing?search=${encodeURIComponent(query)}`);
+            navigate(`/b2b/catalog?search=${encodeURIComponent(query)}`);
         }
     };
 
@@ -82,9 +82,9 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
         } else {
             // Otherwise, navigate to product catalog with search query
             if (query) {
-                navigate(`/b2b/landing?search=${encodeURIComponent(query)}`);
+                navigate(`/b2b/catalog?search=${encodeURIComponent(query)}`);
             } else {
-                navigate('/b2b/landing');
+                navigate('/b2b/catalog');
             }
         }
     };

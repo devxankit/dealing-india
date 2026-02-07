@@ -55,7 +55,7 @@ export const sanitizeInput = (input) => {
  */
 export const isValidOTP = (code) => {
   if (!code) return false;
-  const otpRegex = /^\d{4}$/;
+  const otpRegex = /^\d{6}$/;
   return otpRegex.test(code);
 };
 

@@ -37,6 +37,7 @@ import publicProductRoutes from './routes/publicProduct.routes.js';
 
 import vendorAuthRoutes from './routes/vendorAuth.routes.js';
 import adminAuthRoutes from './routes/adminAuth.routes.js';
+import userAuthRoutes from './routes/userAuth.routes.js';
 
 
 
@@ -223,6 +224,7 @@ import { razorpayWebhook } from "./controllers/SubscriptionCtrl.js";
 // Routes
 app.use('/api/auth/vendor', vendorAuthRoutes);
 app.use('/api/auth/admin', adminAuthRoutes);
+app.use('/api/auth/user', userAuthRoutes);
 
 // Public routes
 app.use('/api/vendors', publicVendorRoutes);

@@ -15,10 +15,10 @@ const EMAIL_PASS = process.env.EMAIL_PASS;
 const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER || 'noreply@dealingindia.com';
 
 // Detect production environment
-const isProduction = process.env.NODE_ENV === 'production' || 
-                     process.env.RENDER === 'true' || 
-                     process.env.VERCEL === 'true' ||
-                     !process.env.NODE_ENV;
+const isProduction = process.env.NODE_ENV === 'production' ||
+  process.env.RENDER === 'true' ||
+  process.env.VERCEL === 'true' ||
+  !process.env.NODE_ENV;
 
 // Singleton-like pattern for transporter
 let transporter = null;
@@ -31,19 +31,19 @@ let isTransporterVerified = false;
 const createRobustTransporter = async () => {
   // Remove all whitespace from password (App Passwords may have spaces)
   const cleanEmailPass = EMAIL_PASS ? EMAIL_PASS.replace(/\s+/g, '') : '';
-  
+
   // Validate credentials
   if (!EMAIL_USER || !cleanEmailPass) {
     throw new Error('EMAIL_USER and EMAIL_PASS are required');
   }
-  
+
   // Debug: Log password length (but not the actual password for security)
   console.log(`🔐 Email config check: User=${EMAIL_USER}, Password length=${cleanEmailPass.length} chars`);
   if (cleanEmailPass.length !== 16) {
     console.warn(`⚠️  WARNING: Gmail App Password should be 16 characters. Current length: ${cleanEmailPass.length}`);
     console.warn(`   If your App Password has spaces, they will be removed automatically.`);
   }
-  
+
   const isGmail = EMAIL_HOST.toLowerCase().includes('gmail.com');
 
   // Strategy 1: Preferred Secure SSL (Port 465)
@@ -83,14 +83,14 @@ const createRobustTransporter = async () => {
       return t;
     } catch (error) {
       console.warn(`⚠️ SMTP Connection Failed (${name}):`, error.message);
-      
+
       // Provide helpful error messages
       if (error.message.includes('Invalid login') || error.message.includes('BadCredentials')) {
         console.error('💡 TIP: Make sure you are using Gmail App Password, not regular password.');
         console.error('   Generate App Password: https://myaccount.google.com/apppasswords');
         console.error('   Ensure 2-Step Verification is enabled on your Google account.');
       }
-      
+
       return null;
     }
   };
@@ -175,11 +175,11 @@ const sendEmail = async (to, subject, html, text) => {
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('❌ Error sending email:', error.message);
-    
+
     // Invalidate transporter on error to force reconnection next time
     transporter = null;
     isTransporterVerified = false;
-    
+
     throw error;
   }
 };
@@ -219,7 +219,7 @@ export const sendVerificationEmail = async (email, otp) => {
     </body>
     </html>
   `;
-  
+
   const text = `
     Email Verification - Dealing India
     
@@ -238,14 +238,14 @@ export const sendVerificationEmail = async (email, otp) => {
 
   try {
     const result = await sendEmail(email, subject, html, text);
-    
+
     // Check if email actually succeeded
     if (!result || !result.success) {
       // Email failed but didn't throw - log OTP for manual verification
       console.error(`🚨 EMAIL FAILED: Verification OTP for ${email}: ${otp}`);
       console.error('⚠️  User can verify using OTP from server logs.');
       console.error(`   Error: ${result?.error || 'Unknown error'}`);
-      
+
       return {
         success: false,
         message: result?.error || 'Failed to send verification email',
@@ -253,12 +253,12 @@ export const sendVerificationEmail = async (email, otp) => {
         otp: otp, // Return OTP in response for manual verification
       };
     }
-    
+
     // Log OTP in production for backup verification (Critical for user experience)
     if (isProduction) {
       console.log(`📧 [BACKUP LOG] OTP for ${email}: ${otp}`);
     }
-    
+
     return {
       success: true,
       message: 'Verification email sent successfully',
@@ -269,7 +269,7 @@ export const sendVerificationEmail = async (email, otp) => {
     console.error(`🚨 EMAIL FAILED: Verification OTP for ${email}: ${otp}`);
     console.error('⚠️  User can verify using OTP from server logs.');
     console.error(`   Error: ${error.message}`);
-    
+
     return {
       success: false,
       message: 'Email service timeout. Please check server logs for OTP.',
@@ -317,4 +317,19 @@ export const sendPasswordResetEmail = async (email, otp) => {
     console.error(`� EMAIL FAILED: Reset OTP for ${email}: ${otp}`);
     return { success: false, message: 'Failed to send email', error: error.message };
   }
+};
+
+/**
+ * Send welcome email
+ */
+export const sendWelcomeEmail = async (email, name) => {
+  const subject = 'Welcome to Dealing India!';
+  const html = `
+    <h1>Welcome ${name}!</h1>
+    <p>Thank you for joining Dealing India. Your account is now verified.</p>
+    <p>You can now browse and shop in our B2B marketplace.</p>
+  `;
+  const text = `Welcome ${name}! Thank you for joining Dealing India. Your account is now verified.`;
+
+  return sendEmail(email, subject, html, text);
 };

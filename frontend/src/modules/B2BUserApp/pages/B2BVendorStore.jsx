@@ -13,6 +13,7 @@ import {
     FiTruck,
     FiShield,
     FiX,
+    FiPhone,
 } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -339,16 +340,26 @@ const B2BVendorStore = () => {
 
                                     <div className="flex items-center gap-3 pt-6 border-t border-gray-100">
                                         {vendor?.phone && (
-                                            <a
-                                                href={`https://wa.me/${vendor.phone.replace(/\D/g, '')}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="flex-1 py-3.5 bg-green-50 text-[#25D366] rounded-2xl hover:bg-[#25D366] hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-2 border-green-100"
-                                            >
-                                                <FaWhatsapp size={16} />
-                                                Order on WhatsApp
-                                            </a>
+                                            <>
+                                                <a
+                                                    href={`https://wa.me/${vendor.phone.replace(/\D/g, '')}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="flex-1 py-3 bg-green-50 text-[#25D366] rounded-2xl hover:bg-[#25D366] hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-2 border-green-100"
+                                                >
+                                                    <FaWhatsapp size={14} />
+                                                    WhatsApp
+                                                </a>
+                                                <a
+                                                    href={`tel:${vendor.phone}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="flex-1 py-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-2 border-blue-100"
+                                                >
+                                                    <FiPhone size={14} />
+                                                    Call
+                                                </a>
+                                            </>
                                         )}
                                     </div>
                                 </div>
