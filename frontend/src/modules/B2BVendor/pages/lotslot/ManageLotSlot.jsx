@@ -7,6 +7,7 @@ import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
+import SubscriptionGate from "../../components/SubscriptionGate";
 
 const ManageLotSlot = () => {
     const navigate = useNavigate();
@@ -127,12 +128,15 @@ const ManageLotSlot = () => {
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight">Manage Lots/Slots</h1>
                     <p className="text-gray-500 font-medium">Control your bulk inventory and special offerings.</p>
                 </div>
-                <button
-                    onClick={() => navigate("/b2b-vendor/lotslot/add-lotslot")}
-                    className="flex items-center gap-3 px-6 py-3.5 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-100"
-                >
-                    <FiPlus size={20} /> Publish New Lot
-                </button>
+                {/* Wrapped with SubscriptionGate to enforce Diamond plan requirement */}
+                <SubscriptionGate action="lotslot" showLimitInfo={false}>
+                    <button
+                        onClick={() => navigate("/b2b-vendor/lotslot/add-lotslot")}
+                        className="flex items-center gap-3 px-6 py-3.5 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-100"
+                    >
+                        <FiPlus size={20} /> Publish New Lot
+                    </button>
+                </SubscriptionGate>
             </div>
 
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">

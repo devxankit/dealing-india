@@ -32,14 +32,30 @@ const propertySchema = new mongoose.Schema(
             enum: ['Sale', 'Rent', 'Lease'],
         },
         price: {
-            amount: { type: Number, required: true },
+            amount: { type: Number },
             maintenance: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' },
             utilityBill: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' },
             deposit: { type: Number, default: 0 },
         },
         status: {
-            furnishing: { type: String, enum: ['Full', 'Semi', 'Unfurnished'], default: 'Unfurnished' },
-            propertyStatus: { type: String, enum: ['New', 'Ready', 'Under Construction'], default: 'Ready' },
+            furnishing: {
+                type: String,
+                enum: ['Full', 'Semi', 'Unfurnished', 'Fully Furnished', 'Semi Furnished'],
+                default: 'Unfurnished'
+            },
+            propertyStatus: {
+                type: String,
+                enum: ['New', 'Ready', 'Under Construction', 'Ready to Move'],
+                default: 'Ready'
+            },
+            propertyCondition: {
+                type: String,
+                enum: ['New', '0-5 years', '5-10 years', '10+ years']
+            },
+            propertyPosition: {
+                type: String,
+                enum: ['Ready to Move', 'Under Construction']
+            }
         },
         location: {
             address: { type: String, required: true },
@@ -54,9 +70,63 @@ const propertySchema = new mongoose.Schema(
                 uploadedAt: { type: Date, default: Date.now },
             },
         ],
+        images: [String], // New field for simple image URL storage
         isActive: {
             type: Boolean,
             default: true,
+        },
+
+        // --- NEW FIELDS ---
+        propertyTypes: [String], // Multi-select support
+
+        saleDetails: {
+            priceMin: Number,
+            priceMax: Number,
+            priceUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
+            depositAmount: Number,
+            depositUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
+            maintenance: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' },
+            veraBill: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' }
+        },
+
+        rentDetails: {
+            monthlyRent: Number,
+            rentUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Thousand' },
+            depositAmount: Number,
+            depositUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Thousand' },
+            maintenance: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' },
+            veraBill: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' }
+        },
+
+        leaseDetails: {
+            monthlyLeaseRate: Number,
+            leaseUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
+            leaseDurationYears: Number
+        },
+
+        roadFacing: {
+            type: String,
+            enum: ['Main Road', 'Internal Road']
+        },
+
+        specifications: {
+            builtUpArea: String,
+            carpetArea: String,
+            floorNumber: String,
+            totalFloors: String,
+            ceilingHeight: String,
+            entranceWidth: String
+        },
+
+        facilities: {
+            parking: { type: [String], enum: ['Car', 'Two-Wheeler', 'No'] },
+            lift: { type: String, enum: ['Yes', 'No'] },
+            liftPassenger: { type: String, enum: ['Yes', 'No'] },
+            liftLoading: { type: String, enum: ['Yes', 'No'] },
+            powerBackup: { type: String, enum: ['Yes', 'No'] },
+            waterSupply: { type: String, enum: ['Yes', 'No'] },
+            washroom: { type: String, enum: ['Private', 'Common'] },
+            fireSafety: { type: String, enum: ['Yes', 'No'] }
         }
     },
     {

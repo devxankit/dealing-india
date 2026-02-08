@@ -12,6 +12,8 @@ router.use(authorize('vendor'));
 
 router.get('/tiers', VendorSubscriptionController.getTiers);
 router.get('/current', VendorSubscriptionController.getCurrentSubscription);
+// New endpoint for complete subscription status with listing limits
+router.get('/status', VendorSubscriptionController.getSubscriptionStatus);
 router.get('/billing-history', VendorSubscriptionController.getBillingHistory);
 router.post('/initialize', VendorSubscriptionController.initializeSubscription);
 router.post('/verify-payment', VendorSubscriptionController.verifyPayment);

@@ -1,4 +1,5 @@
 import SubscriptionService from '../services/subscription.service.js';
+import subscriptionRulesService from '../services/subscriptionRules.service.js';
 
 class VendorSubscriptionController {
   async getTiers(req, res) {
@@ -7,9 +8,40 @@ class VendorSubscriptionController {
       res.status(200).json({ success: true, data: tiers || [] });
     } catch (error) {
       console.error('Error getting tiers:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message || 'Failed to get subscription tiers' 
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to get subscription tiers'
+      });
+    }
+  }
+
+  /**
+   * Get complete subscription status with listing limits
+   * Used by frontend to determine what actions are allowed
+   */
+  async getSubscriptionStatus(req, res) {
+    try {
+      const vendorId = req.user?.vendorId || req.userDoc?._id;
+
+      if (!vendorId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vendor ID not found'
+        });
+      }
+
+      const status = await subscriptionRulesService.getSubscriptionStatus(vendorId);
+
+      res.status(200).json({
+        success: true,
+        data: status,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error getting subscription status:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to get subscription status'
       });
     }
   }
@@ -18,27 +50,27 @@ class VendorSubscriptionController {
     try {
       // Get vendor ID from req.user (set by authenticate middleware)
       const vendorId = req.user?.vendorId || req.userDoc?._id;
-      
+
       if (!vendorId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Vendor ID not found' 
+        return res.status(400).json({
+          success: false,
+          message: 'Vendor ID not found'
         });
       }
 
       const subscription = await SubscriptionService.getVendorSubscription(vendorId);
       // Return null if no subscription found (this is valid - vendor might not have subscribed yet)
       // Add timestamp to help frontend detect changes
-      res.status(200).json({ 
-        success: true, 
+      res.status(200).json({
+        success: true,
         data: subscription,
         timestamp: new Date().toISOString() // Add timestamp to force refresh detection
       });
     } catch (error) {
       console.error('Error getting current subscription:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message || 'Failed to get subscription' 
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to get subscription'
       });
     }
   }
@@ -83,7 +115,7 @@ class VendorSubscriptionController {
   async verifyPayment(req, res) {
     try {
       const { vendorId, tierId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
-      
+
       // Validate required fields
       if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
         return res.status(400).json({
@@ -95,7 +127,7 @@ class VendorSubscriptionController {
       // Get vendorId from authenticated user or request body
       const authenticatedVendorId = req.user?.vendorId || req.userDoc?._id;
       const finalVendorId = vendorId || authenticatedVendorId;
-      
+
       if (!finalVendorId) {
         return res.status(400).json({
           success: false,
@@ -129,11 +161,11 @@ class VendorSubscriptionController {
       });
     } catch (error) {
       // Handle payment failure specifically
-      const statusCode = error.message?.includes('Payment not successful') || 
-                        error.message?.includes('verification failed') ? 400 : 500;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message || 'Payment verification failed' 
+      const statusCode = error.message?.includes('Payment not successful') ||
+        error.message?.includes('verification failed') ? 400 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || 'Payment verification failed'
       });
     }
   }
@@ -181,7 +213,7 @@ class VendorSubscriptionController {
     try {
       const { autoRenew } = req.body;
       const vendorId = req.user?.vendorId || req.userDoc?._id;
-      
+
       if (!vendorId) {
         return res.status(400).json({ success: false, message: 'Vendor ID not found' });
       }
@@ -191,10 +223,10 @@ class VendorSubscriptionController {
       }
 
       const subscription = await SubscriptionService.updateAutoRenewal(vendorId, autoRenew);
-      res.status(200).json({ 
-        success: true, 
+      res.status(200).json({
+        success: true,
         message: `Auto-renewal ${autoRenew ? 'enabled' : 'disabled'} successfully`,
-        data: subscription 
+        data: subscription
       });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
@@ -205,23 +237,23 @@ class VendorSubscriptionController {
     try {
       const vendorId = req.user?.vendorId || req.userDoc?._id;
       const { filter = 'all' } = req.query;
-      
+
       if (!vendorId) {
         return res.status(400).json({ success: false, message: 'Vendor ID not found' });
       }
 
       const billingHistory = await SubscriptionService.getVendorBillingHistory(vendorId, filter);
-      
+
       // Always return success with data (even if empty array)
-      res.status(200).json({ 
-        success: true, 
+      res.status(200).json({
+        success: true,
         data: billingHistory || []
       });
     } catch (error) {
       console.error('Error in getBillingHistory controller:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message || 'Failed to load billing history' 
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to load billing history'
       });
     }
   }
@@ -262,7 +294,7 @@ class VendorSubscriptionController {
     try {
       const vendorId = req.user?.vendorId || req.userDoc?._id;
       const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
-      
+
       if (!vendorId) {
         return res.status(400).json({ success: false, message: 'Vendor ID not found' });
       }
@@ -288,9 +320,9 @@ class VendorSubscriptionController {
     } catch (error) {
       console.error('Error verifying extra reel payment:', error);
       const statusCode = error.message?.includes('verification failed') ? 400 : 500;
-      res.status(statusCode).json({ 
-        success: false, 
-        message: error.message || 'Failed to verify payment' 
+      res.status(statusCode).json({
+        success: false,
+        message: error.message || 'Failed to verify payment'
       });
     }
   }

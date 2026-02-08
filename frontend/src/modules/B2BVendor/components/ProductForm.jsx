@@ -124,8 +124,20 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
         setIsUploading(true);
         try {
+            const validFiles = [];
+
+            for (const file of files) {
+                if (file.size > 300 * 1024) {
+                    toast.error(`Image ${file.name} is too large. Max size 300KB. Ideal size 150-250KB.`);
+                    continue;
+                }
+                validFiles.push(file);
+            }
+
+            if (validFiles.length === 0) return;
+
             const newImages = await Promise.all(
-                files.map(file => {
+                validFiles.map(file => {
                     return new Promise((resolve) => {
                         const reader = new FileReader();
                         reader.onloadend = () => resolve(reader.result);
@@ -138,7 +150,10 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 ...prev,
                 images: [...prev.images, ...newImages]
             }));
-            toast.success(`${files.length} images added`);
+
+            if (validFiles.length > 0) {
+                toast.success(`${validFiles.length} images added`);
+            }
         } catch (error) {
             toast.error("Failed to upload some images");
         } finally {

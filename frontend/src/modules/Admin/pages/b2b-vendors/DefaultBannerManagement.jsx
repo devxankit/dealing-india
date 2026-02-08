@@ -33,51 +33,23 @@ const DefaultBannerManagement = () => {
         }
     };
 
-    const compressImage = (file) => {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement("canvas");
-                    const MAX_WIDTH = 1200; // Optimal for banners
-                    const scaleSize = MAX_WIDTH / img.width;
-                    canvas.width = MAX_WIDTH;
-                    canvas.height = img.height * scaleSize;
 
-                    const ctx = canvas.getContext("2d");
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                    canvas.toBlob(
-                        (blob) => {
-                            const compressedFile = new File([blob], file.name, {
-                                type: "image/jpeg",
-                                lastModified: Date.now(),
-                            });
-                            resolve(compressedFile);
-                        },
-                        "image/jpeg",
-                        0.7 // 70% quality for significant size reduction
-                    );
-                };
-            };
-        });
-    };
-
-    const handleFileChange = async (e) => {
+    const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            if (file.size > 400 * 1024) {
+                toast.error("Image size should be less than 400KB. Ideal size 250-400KB.");
+                return;
+            }
+
             setLoading(true);
             try {
-                const compressed = await compressImage(file);
-                setFormData({ ...formData, image: compressed });
-                setPreviewUrl(URL.createObjectURL(compressed));
-            } catch (err) {
-                console.error("Compression failed:", err);
                 setFormData({ ...formData, image: file });
                 setPreviewUrl(URL.createObjectURL(file));
+            } catch (err) {
+                console.error("Failed to process image:", err);
+                toast.error("Failed to process image");
             } finally {
                 setLoading(false);
             }

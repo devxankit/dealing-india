@@ -9,6 +9,7 @@ import {
 import { protectVendor } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import { checkProductCreation } from '../middleware/subscriptionRestriction.middleware.js';
 
 const router = express.Router();
 
@@ -19,7 +20,8 @@ router.use(authorize('vendor'));
 // B2B Vendor Product routes
 router.get('/', asyncHandler(getProducts));
 router.get('/:id', asyncHandler(getProduct));
-router.post('/', asyncHandler(create));
+// Product creation requires subscription check for limits
+router.post('/', checkProductCreation, asyncHandler(create));
 router.put('/:id', asyncHandler(update));
 router.delete('/:id', asyncHandler(remove));
 

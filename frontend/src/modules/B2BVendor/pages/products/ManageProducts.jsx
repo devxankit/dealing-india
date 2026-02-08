@@ -7,6 +7,7 @@ import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../../Admin/components/ConfirmModal";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
+import SubscriptionGate from "../../components/SubscriptionGate";
 
 const ManageProducts = () => {
     const navigate = useNavigate();
@@ -146,9 +147,12 @@ const ManageProducts = () => {
                     <h1 className="text-2xl font-bold text-gray-800">Manage Listings</h1>
                     <p className="text-gray-500">Overview of all your products visible to vendors.</p>
                 </div>
-                <button onClick={() => navigate("/b2b-vendor/products/add-product")} className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-md">
-                    <FiPlus /> Add New Listing
-                </button>
+                {/* Wrapped with SubscriptionGate to enforce product limits */}
+                <SubscriptionGate action="product">
+                    <button onClick={() => navigate("/b2b-vendor/products/add-product")} className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all shadow-md">
+                        <FiPlus /> Add New Listing
+                    </button>
+                </SubscriptionGate>
             </div>
 
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">

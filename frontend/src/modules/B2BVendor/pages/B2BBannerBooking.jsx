@@ -161,8 +161,8 @@ const B2BBannerBooking = () => {
                 return;
             }
 
-            if (file.size > 2 * 1024 * 1024) {
-                toast.error("Image size should be less than 2MB");
+            if (file.size > 400 * 1024) {
+                toast.error("Image size should be less than 400KB. Ideal size 250-400KB.");
                 return;
             }
 

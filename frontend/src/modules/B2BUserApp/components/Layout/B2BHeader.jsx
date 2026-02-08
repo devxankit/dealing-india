@@ -101,21 +101,26 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         </button>
                     ) : (
                         title === "Business Dashboard" ? (
-                            <Link to="/b2b/landing" className="flex-shrink-0">
+                            <Link to="/b2b/catalog" className="flex-shrink-0">
                                 <img
                                     src={appLogo.src}
                                     alt="Dealing India"
                                     className="h-20 w-auto object-contain"
                                 />
                             </Link>
-                        ) : title !== "Bulk Marketplace" && (
-                            <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-200">
-                                <FiGrid className="text-white text-xl" />
-                            </div>
-                        )
+                        ) : null
                     )}
-                    {title === "Bulk Marketplace" ? (
-                        <Link to="/b2b/landing" className="flex items-center gap-2">
+                    {title === "Bulk Marketplace" ||
+                        title === "My Business Account" ||
+                        title === "Company Profile" ||
+                        title === "Personal Profile" ||
+                        title === "Support & Help" ||
+                        title === "Notifications" ? (
+                        /* Logo click: If on catalog page, go to landing. Otherwise go to catalog */
+                        <Link
+                            to={location.pathname === '/b2b/catalog' ? '/b2b/landing' : '/b2b/catalog'}
+                            className="flex items-center gap-2"
+                        >
                             <img
                                 src={appLogo.src}
                                 alt="Dealing India"

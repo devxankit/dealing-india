@@ -20,7 +20,7 @@ const B2BPersonalProfile = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         if (!formData.name.trim()) {
             toast.error('Name is required');
             return;
@@ -32,7 +32,7 @@ const B2BPersonalProfile = () => {
                 name: formData.name,
                 phone: formData.phone
             });
-            
+
             if (result.success) {
                 toast.success('Profile updated successfully');
             }
@@ -45,7 +45,7 @@ const B2BPersonalProfile = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            <B2BHeader title="Personal Profile" showBack={true} />
+            <B2BHeader title="Personal Profile" showBack={false} />
 
             <main className="max-w-2xl mx-auto px-4 py-6">
                 <motion.div

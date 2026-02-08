@@ -3,6 +3,55 @@ import Vendor from '../models/Vendor.model.js';
 import BusinessTypeSettings from '../models/BusinessTypeSettings.model.js';
 import VendorPropertySubscription from '../models/VendorPropertySubscription.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import { uploadBase64ToCloudinary, deleteFromCloudinary, isBase64DataUrl } from '../utils/cloudinary.util.js';
+
+/**
+ * Helper function to process media uploads to Cloudinary
+ * @param {Array} mediaArray - Array of media objects with url field (base64 or existing URL)
+ * @returns {Promise<Array>} - Array of processed media objects with Cloudinary URLs
+ */
+const processMediaUploads = async (mediaArray) => {
+    if (!mediaArray || !Array.isArray(mediaArray) || mediaArray.length === 0) {
+        return [];
+    }
+
+    const processedMedia = [];
+
+    for (const mediaItem of mediaArray) {
+        try {
+            // If it's already a Cloudinary URL or other HTTP URL, keep it as is
+            if (mediaItem.url && mediaItem.url.startsWith('http')) {
+                processedMedia.push({
+                    url: mediaItem.url,
+                    publicId: mediaItem.publicId || null,
+                    uploadedAt: mediaItem.uploadedAt || new Date()
+                });
+                continue;
+            }
+
+            // If it's base64 data, upload to Cloudinary
+            if (mediaItem.url && isBase64DataUrl(mediaItem.url)) {
+                const uploadResult = await uploadBase64ToCloudinary(
+                    mediaItem.url,
+                    'properties' // Folder name in Cloudinary
+                );
+
+                if (uploadResult && uploadResult.secure_url) {
+                    processedMedia.push({
+                        url: uploadResult.secure_url,
+                        publicId: uploadResult.public_id,
+                        uploadedAt: new Date()
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('[Property Media Upload Error]:', error.message);
+            // Skip failed uploads but continue with others
+        }
+    }
+
+    return processedMedia;
+};
 
 // @desc    Add new property
 // @route   POST /api/property/add
@@ -10,27 +59,34 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 export const addProperty = asyncHandler(async (req, res) => {
     const vendorId = req.userDoc._id;
 
-    // Get vendor's business type settings to check limits
-    const vendor = await Vendor.findById(vendorId).populate('businessTypeRef');
-    if (!vendor || !vendor.businessTypeRef) {
-        return res.status(400).json({ success: false, message: 'Vendor business type not configured' });
-    }
-
-    const settings = await BusinessTypeSettings.findOne({ businessTypeId: vendor.businessTypeRef._id });
-    const propertySub = await VendorPropertySubscription.findOne({ vendorId });
-
-    const maxImages = propertySub?.maxImagesPerProperty || settings?.maxImagesPerProperty || 5;
+    // Get maxImages from subscription middleware (set based on business type)
+    // Developer: 50 images, Broker: 5 images
+    const maxImages = req.subscriptionLimits?.property?.maxImages || 50;
 
     const { media } = req.body;
     if (media && media.length > maxImages) {
         return res.status(400).json({
             success: false,
-            message: `Image limit exceeded. Maximum ${maxImages} images allowed for your business type.`
+            message: `Image limit exceeded. Maximum ${maxImages} images allowed for your subscription.`
         });
+    }
+
+    // Process media uploads to Cloudinary
+    let processedMedia = [];
+    if (media && media.length > 0) {
+        processedMedia = await processMediaUploads(media);
+
+        if (processedMedia.length === 0 && media.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Failed to upload images. Please try again.'
+            });
+        }
     }
 
     const propertyData = {
         ...req.body,
+        media: processedMedia,
         vendorId,
     };
 
@@ -62,17 +118,20 @@ export const updateProperty = asyncHandler(async (req, res) => {
 
     // Check limits again if media is being updated
     if (req.body.media) {
-        const vendor = await Vendor.findById(vendorId).populate('businessTypeRef');
-        const settings = await BusinessTypeSettings.findOne({ businessTypeId: vendor.businessTypeRef._id });
-        const propertySub = await VendorPropertySubscription.findOne({ vendorId });
-        const maxImages = propertySub?.maxImagesPerProperty || settings?.maxImagesPerProperty || 5;
+        // Get maxImages from subscription middleware (set based on business type)
+        // Developer: 50 images, Broker: 5 images
+        const maxImages = req.subscriptionLimits?.property?.maxImages || 50;
 
         if (req.body.media.length > maxImages) {
             return res.status(400).json({
                 success: false,
-                message: `Image limit exceeded. Maximum ${maxImages} images allowed.`
+                message: `Image limit exceeded. Maximum ${maxImages} images allowed for your subscription.`
             });
         }
+
+        // Process media uploads to Cloudinary
+        const processedMedia = await processMediaUploads(req.body.media);
+        req.body.media = processedMedia;
     }
 
     property = await Property.findByIdAndUpdate(propertyId, req.body, {
@@ -101,6 +160,20 @@ export const deleteProperty = asyncHandler(async (req, res) => {
 
     if (property.vendorId.toString() !== vendorId.toString()) {
         return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    // Clean up Cloudinary images
+    if (property.media && property.media.length > 0) {
+        for (const mediaItem of property.media) {
+            if (mediaItem.publicId) {
+                try {
+                    await deleteFromCloudinary(mediaItem.publicId);
+                } catch (error) {
+                    console.error('[Property Delete] Failed to delete image from Cloudinary:', error.message);
+                    // Continue with deletion even if image cleanup fails
+                }
+            }
+        }
     }
 
     await property.deleteOne();

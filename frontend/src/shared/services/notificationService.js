@@ -70,10 +70,6 @@ export const getUnreadCount = async (role = null) => {
       // Silently return 0 - backend not available
       return 0;
     }
-    // Only log unexpected errors in development
-    if (import.meta.env.DEV) {
-      console.warn('Error fetching unread count:', error.message || error);
-    }
     return 0; // Return 0 on error to prevent UI issues
   }
 };

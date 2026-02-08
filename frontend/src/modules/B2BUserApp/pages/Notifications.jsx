@@ -62,7 +62,7 @@ const Notifications = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            <B2BHeader title="Notifications" showBack={true} />
+            <B2BHeader title="Notifications" showBack={false} />
 
             <main className="max-w-2xl mx-auto px-4 py-2">
                 <div className="space-y-3 mt-4">

@@ -11,7 +11,7 @@ const businessTypeSettingsSchema = new mongoose.Schema(
         enabledModules: [
             {
                 type: String,
-                enum: ['product', 'property', 'subscription', 'banner', 'profile', 'settings', 'leads'],
+                enum: ['product', 'property', 'subscription', 'banner', 'profile', 'settings', 'leads', 'lotslot'],
             },
         ],
         features: {

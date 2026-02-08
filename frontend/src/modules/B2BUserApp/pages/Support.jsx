@@ -51,7 +51,7 @@ const Support = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            <B2BHeader title="Support & Help" showBack={true} />
+            <B2BHeader title="Support & Help" showBack={false} />
 
             <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
 
