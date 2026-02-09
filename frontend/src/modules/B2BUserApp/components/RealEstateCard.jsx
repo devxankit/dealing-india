@@ -3,9 +3,24 @@ import { motion } from 'framer-motion';
 import { FiMapPin, FiPhone, FiHome, FiMaximize } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import api from '../../../shared/utils/api';
 
 const RealEstateCard = ({ property }) => {
     const navigate = useNavigate();
+
+    // Track vendor contact clicks (call or whatsapp)
+    const trackContactClick = async (vendorId, clickType) => {
+        try {
+            if (!vendorId) return;
+            await api.post('/vendor/analytics/track-click', {
+                vendorId,
+                clickType
+            });
+        } catch (error) {
+            // Silently fail - tracking shouldn't block user action
+            console.error('Error tracking click:', error);
+        }
+    };
 
     // Helper to format price from backend
     const formatPrice = (p) => {
@@ -123,7 +138,10 @@ const RealEstateCard = ({ property }) => {
                         href={`https://wa.me/91${sellerPhone}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            trackContactClick(property.vendorId?._id, 'whatsapp');
+                        }}
                         className="flex-1 py-2 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[10px] uppercase tracking-wider"
                     >
                         <FaWhatsapp size={12} />
@@ -131,7 +149,10 @@ const RealEstateCard = ({ property }) => {
                     </a>
                     <a
                         href={`tel:+91${sellerPhone}`}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            trackContactClick(property.vendorId?._id, 'call');
+                        }}
                         className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[10px] uppercase tracking-wider"
                     >
                         <FiPhone size={12} />

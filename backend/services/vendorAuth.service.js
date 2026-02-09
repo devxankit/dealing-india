@@ -104,114 +104,41 @@ export const registerVendor = async (vendorData) => {
     // Hash password before storing
     const hashedPassword = await hashPassword(password);
 
-    // Process documents/media if provided - upload to Cloudinary
+    // Process documents/media in parallel for performance
     let processedDocuments = [];
-
-    // Handle B2B-specific document structure (panCard, businessLicense as objects)
     const isB2BDocStructure = documents && typeof documents === 'object' && !Array.isArray(documents);
+    let docArray = [];
+
     if ((vendorType === 'b2b' || isB2BDocStructure) && isB2BDocStructure) {
-      // Convert B2B document object to array format
-      const docArray = [];
-      if (documents.panCard && documents.panCard.data) {
-        docArray.push({
-          name: documents.panCard.name || 'PAN Card',
-          data: documents.panCard.data,
-          type: documents.panCard.type || 'application/pdf'
-        });
+      if (documents.panCard?.data) {
+        docArray.push({ name: documents.panCard.name || 'PAN Card', data: documents.panCard.data, type: documents.panCard.type || 'application/pdf', folder: 'vendor-documents/b2b' });
       }
-      if (documents.businessLicense && documents.businessLicense.data) {
-        docArray.push({
-          name: documents.businessLicense.name || 'Business License',
-          data: documents.businessLicense.data,
-          type: documents.businessLicense.type || 'application/pdf'
-        });
+      if (documents.businessLicense?.data) {
+        docArray.push({ name: documents.businessLicense.name || 'Business License', data: documents.businessLicense.data, type: documents.businessLicense.type || 'application/pdf', folder: 'vendor-documents/b2b' });
       }
+    } else if (documents && Array.isArray(documents)) {
+      docArray = documents.filter(doc => doc.data && doc.name).map(doc => ({ ...doc, folder: 'vendor-documents' }));
+    }
 
-      // Process each document
-      for (const doc of docArray) {
-        if (doc.data) {
-          try {
-            // Determine file type from base64 data or default
-            const fileType = doc.type || 'application/pdf';
-            const isImage = fileType.startsWith('image/');
-            const isPDF = fileType === 'application/pdf';
+    if (docArray.length > 0) {
+      processedDocuments = await Promise.all(docArray.map(async (doc) => {
+        try {
+          const fileType = doc.type || 'application/pdf';
+          const isImage = fileType.startsWith('image/');
+          const isPDF = fileType === 'application/pdf';
+          if (!isImage && !isPDF) return null;
 
-            if (!isImage && !isPDF) {
-              console.warn(`Skipping invalid file type: ${fileType}`);
-              continue;
-            }
+          const resourceType = isImage ? 'image' : 'auto';
+          const folderName = isImage ? `${doc.folder}/images` : doc.folder;
 
-            let resourceType = 'auto';
-            let folderName = 'vendor-documents/b2b';
-
-            if (isPDF) {
-              resourceType = 'auto';
-            } else if (isImage) {
-              resourceType = 'image';
-              folderName = 'vendor-documents/b2b/images';
-            }
-
-            // Upload to Cloudinary
-            const result = await uploadBase64ToCloudinary(doc.data, folderName, {
-              resource_type: resourceType,
-            });
-
-            processedDocuments.push({
-              name: doc.name,
-              url: result.secure_url,
-              publicId: result.public_id,
-              type: fileType,
-              uploadedAt: new Date(),
-            });
-          } catch (uploadError) {
-            console.error(`Failed to upload file ${doc.name}:`, uploadError.message);
-            // Continue with other files even if one fails
-          }
+          const result = await uploadBase64ToCloudinary(doc.data, folderName, { resource_type: resourceType });
+          return { name: doc.name, url: result.secure_url, publicId: result.public_id, type: fileType, uploadedAt: new Date() };
+        } catch (err) {
+          console.error(`Upload failed for ${doc.name}:`, err.message);
+          return null;
         }
-      }
-    } else if (documents && Array.isArray(documents) && documents.length > 0) {
-      // Handle regular array format
-      for (const doc of documents) {
-        if (doc.data && doc.name) {
-          try {
-            // Determine file type and set appropriate resource_type for Cloudinary
-            const fileType = doc.type || 'application/pdf';
-            const isImage = fileType.startsWith('image/');
-            const isPDF = fileType === 'application/pdf';
-
-            if (!isImage && !isPDF) {
-              console.warn(`Skipping invalid file type: ${fileType}`);
-              continue;
-            }
-
-            let resourceType = 'auto';
-            let folderName = 'vendor-documents';
-
-            if (isPDF) {
-              resourceType = 'auto';
-            } else if (isImage) {
-              resourceType = 'image';
-              folderName = 'vendor-documents/images';
-            }
-
-            // Upload to Cloudinary
-            const result = await uploadBase64ToCloudinary(doc.data, folderName, {
-              resource_type: resourceType,
-            });
-
-            processedDocuments.push({
-              name: doc.name,
-              url: result.secure_url,
-              publicId: result.public_id,
-              type: fileType,
-              uploadedAt: new Date(),
-            });
-          } catch (uploadError) {
-            console.error(`Failed to upload file ${doc.name}:`, uploadError.message);
-            // Continue with other files even if one fails
-          }
-        }
-      }
+      }));
+      processedDocuments = processedDocuments.filter(Boolean);
     }
 
     // Store registration data temporarily (expires in 15 minutes)
@@ -333,34 +260,7 @@ export const loginVendor = async (email, password) => {
       throw error;
     }
 
-    // For B2B vendors, check subscription status (Optional - allow login without subscription for simplified registration)
-    if (vendor.vendorType === 'b2b') {
-      try {
-        // PRODUCTION FIX: Always allow B2B login regardless of subscription status
-        // This is critical for users who registered but haven't paid yet,
-        // or for testing/production simplified flows.
-        console.log(`[Login Info] B2B vendor login: ${email}. Bypassing strict subscription check for login access.`);
-
-        const subscription = await SubscriptionService.getVendorSubscription(vendor._id);
-
-        if (!subscription) {
-          console.log(`[Login Info] No subscription found for B2B vendor: ${email}. allowed login.`);
-        } else if (subscription.status !== 'active') {
-          console.log(`[Login Info] Subscription not active - Status: ${subscription.status} for: ${email}. allowed login.`);
-        } else {
-          // Check if subscription is expired
-          const now = new Date();
-          if (subscription.endDate && new Date(subscription.endDate) < now) {
-            console.log(`[Login Info] Subscription expired for: ${email}, Expiry: ${subscription.endDate}. allowed login.`);
-          }
-        }
-      } catch (subError) {
-        console.warn(`[Login Warning] Subscription check failed for B2B vendor ${email}:`, subError.message);
-        // Don't block login if subscription check fails
-      }
-    }
-
-    // Verify password
+    // Verify password first as it's the most expensive operation
     const isPasswordValid = await comparePassword(password, vendor.password);
     if (!isPasswordValid) {
       const error = new Error('Invalid email or password');
@@ -368,23 +268,17 @@ export const loginVendor = async (email, password) => {
       throw error;
     }
 
-    // Generate token
+    // Generate token concurrently with other processing
     const token = generateToken({
       vendorId: vendor._id.toString(),
       email: vendor.email,
       role: vendor.role,
     });
 
-    // Return vendor without password
+    // Populate current subscription only if it exists
     const vendorObj = vendor.toObject();
     delete vendorObj.password;
 
-    // Ensure vendorType is preserved (critical for B2B login)
-    if (!vendorObj.vendorType && vendor.vendorType) {
-      vendorObj.vendorType = vendor.vendorType;
-    }
-
-    // Populate subscription with plan details if exists (don't let this block login)
     if (vendor.currentSubscription) {
       try {
         await vendor.populate({
@@ -397,15 +291,9 @@ export const loginVendor = async (email, password) => {
         });
         vendorObj.currentSubscription = vendor.currentSubscription;
       } catch (subError) {
-        console.error(`[Login Warning] Failed to populate subscription for vendor ${vendor.email}:`, subError.message);
-        // Don't block login if subscription population fails
-        vendorObj.currentSubscription = null;
+        console.error(`[Login Warning] Failed to populate subscription:`, subError.message);
       }
     }
-
-    console.log(`[Login Success] Vendor ${vendor.email} (${vendor.vendorType}) logged in successfully`);
-    console.log(`[Login Success] Vendor object vendorType:`, vendorObj.vendorType);
-    console.log(`[Login Success] Returning vendor object keys:`, Object.keys(vendorObj));
 
     return {
       vendor: vendorObj,
@@ -768,7 +656,7 @@ export const forgotVendorPassword = async (email) => {
       throw otpError;
     }
 
-    await sendPasswordResetEmail(email, otp);
+    sendPasswordResetEmail(email, otp).catch(e => console.error('BG Email Error:', e.message));
 
     return { success: true, message: 'Password reset OTP has been sent to your email' };
   } catch (error) {

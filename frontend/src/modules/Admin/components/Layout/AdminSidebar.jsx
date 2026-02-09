@@ -49,7 +49,7 @@ const iconMap = {
   "Lot Slots": FiGrid,
   "Properties": FiHome,
   Settings: FiSettings,
-  Policies: FiShield,
+
   Firebase: FiDatabase,
 };
 
@@ -60,20 +60,9 @@ const getChildRoute = (parentRoute, childName) => {
       "Push Notifications": "/admin/notifications/push-notifications",
       "Custom Messages": "/admin/notifications/custom-messages",
     },
-    "/admin/settings": {
-      General: "/admin/settings/general",
-      "Payment & Shipping": "/admin/settings/payment-shipping",
-      "Orders & Customers": "/admin/settings/orders-customers",
-      "Products & Inventory": "/admin/settings/products-inventory",
-      "Content & Features": "/admin/settings/content-features",
-      "Notifications & SEO": "/admin/settings/notifications-seo",
-      "Tax & Pricing": "/admin/settings/tax",
-    },
-    "/admin/policies": {
-      "Privacy Policy": "/admin/policies/privacy-policy",
-      "Refund Policy": "/admin/policies/refund-policy",
-      "Terms & Conditions": "/admin/policies/terms-conditions",
-    },
+    "/admin/settings": {},
+
+
     "/admin/firebase": {
       "Push Config": "/admin/firebase/push-config",
       Authentication: "/admin/firebase/authentication",

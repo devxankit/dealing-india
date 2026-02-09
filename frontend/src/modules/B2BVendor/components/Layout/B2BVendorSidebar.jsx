@@ -13,12 +13,14 @@ import {
     FiImage,
     FiCreditCard,
     FiLogOut,
-    FiPlus
+    FiPlus,
+    FiBell
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../../hooks/useVendorSettings";
 import toast from "react-hot-toast";
+import api from "../../../../shared/utils/api";
 
 const iconMap = {
     Dashboard: FiHome,
@@ -33,6 +35,7 @@ const iconMap = {
 
     Subscription: FiCreditCard,
     "Banner Booking": FiImage,
+    "Notifications": FiBell,
     "Account Settings": FiSettings,
     Profile: FiUser,
     Security: FiBriefcase,
@@ -65,8 +68,27 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const { vendor } = useB2BVendorAuthStore();
     const { settings } = useVendorSettings();
     const [expandedItems, setExpandedItems] = useState({});
+    const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
     const displayVendorName = vendor?.name || "B2B Vendor";
+
+    // Fetch unread notification count
+    useEffect(() => {
+        const fetchUnreadCount = async () => {
+            try {
+                const response = await api.get('/vendor/notifications/unread-count');
+                if (response.success) {
+                    setUnreadNotificationCount(response.data.unreadCount || 0);
+                }
+            } catch (error) {
+                // Silently fail
+            }
+        };
+        fetchUnreadCount();
+        // Refresh every 60 seconds
+        const interval = setInterval(fetchUnreadCount, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     const filteredMenu = b2bVendorMenu.filter(item => {
         if (!settings) return true; // Show all while loading/fallback
@@ -81,6 +103,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             'Lot/Slot Listings': 'lotslot',
             'Subscription': 'subscription',
             'Banner Booking': 'banner',
+            'Notifications': 'notifications',
             'Account Settings': 'settings',
             'Messages': 'messages'
         };
@@ -131,6 +154,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
         const hasChildren = item.children && item.children.length > 0;
         const isExpanded = expandedItems[item.title];
         const active = isActive(item.route);
+        const showNotificationBadge = item.title === "Notifications" && unreadNotificationCount > 0;
 
         return (
             <div key={item.route} className="mb-1">
@@ -147,6 +171,11 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                 >
                     <Icon className={`text-xl flex-shrink-0 ${active ? "text-white" : "text-gray-400"}`} />
                     <span className="font-medium flex-1 text-sm">{item.title}</span>
+                    {showNotificationBadge && (
+                        <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] text-center">
+                            {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                        </span>
+                    )}
                     {hasChildren && (
                         <motion.div animate={{ rotate: isExpanded ? 180 : 0 }}>
                             <FiChevronDown className="text-gray-400 text-sm" />

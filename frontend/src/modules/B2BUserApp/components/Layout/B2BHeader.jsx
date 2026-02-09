@@ -103,6 +103,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
 
                     {(title === "Business Dashboard" ||
                         title === "Real Estate Hub" ||
+                        title === "Real Estate Developers" ||
                         title === "Developer Properties" ||
                         title === "Verified Brokers" ||
                         location.pathname.includes('/real-estate/property/')) && (
@@ -132,10 +133,34 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             />
                         </Link>
                     ) : (
-                        <h1 className="text-sm md:text-xl font-black text-gray-900 truncate uppercase tracking-tight">
-                            {title === "Business Dashboard" ? "Dashboard" : title}
-                        </h1>
+                        // Don't show text title for pages that already show logo
+                        title !== "Business Dashboard" &&
+                        title !== "Real Estate Hub" &&
+                        title !== "Real Estate Developers" &&
+                        title !== "Developer Properties" &&
+                        title !== "Verified Brokers" &&
+                        !location.pathname.includes('/real-estate/property/') && (
+                            <h1 className="text-sm md:text-xl font-black text-gray-900 truncate uppercase tracking-tight">
+                                {title}
+                            </h1>
+                        )
                     )}
+
+                    {/* Desktop Extra Links Next to Logo */}
+                    <div className="hidden xl:flex items-center gap-2 ml-2 md:ml-4">
+                        <Link
+                            to="/b2b/catalog?itemType=lotslot"
+                            className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
+                        >
+                            <FiTrendingUp size={16} /> Lot / SOT
+                        </Link>
+                        <Link
+                            to="/b2b/real-estate"
+                            className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
+                        >
+                            <FiHome size={16} /> Real Estate
+                        </Link>
+                    </div>
                 </div>
 
                 {!hideSearch && (
@@ -197,22 +222,6 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                 )}
 
                 <div className="flex items-center gap-2 md:gap-3">
-                    {/* Extra Links (Hidden on mobile/tablet) */}
-                    <div className="hidden xl:flex items-center gap-1">
-                        <Link
-                            to="/b2b/catalog?itemType=lotslot"
-                            className="px-3 py-2 text-[11px] font-black text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap uppercase tracking-wider"
-                        >
-                            <FiTrendingUp size={14} /> Lot / SOT
-                        </Link>
-                        <Link
-                            to="/b2b/real-estate"
-                            className="px-3 py-2 text-[11px] font-black text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap uppercase tracking-wider"
-                        >
-                            <FiHome size={14} /> Real Estate
-                        </Link>
-                    </div>
-
                     {/* Become Seller */}
                     <Link
                         to="/b2b-vendor/register"

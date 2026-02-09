@@ -1,7 +1,6 @@
 import User from '../models/User.model.js';
 import TemporaryRegistration from '../models/TemporaryRegistration.model.js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { hashPassword, comparePassword } from '../utils/bcrypt.util.js';
 import { generateToken } from '../utils/jwt.util.js';
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } from './email.service.js';
 import { generateOTP, verifyOTP } from './otp.service.js';
@@ -18,8 +17,8 @@ export const registerUser = async (userData) => {
         throw new Error('User with this email already exists');
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Hash password (uses util with 10 rounds for performance)
+    const hashedPassword = await hashPassword(password);
 
     // Save to Temporary Registration instead of main User collection
     await TemporaryRegistration.findOneAndUpdate(
@@ -43,8 +42,8 @@ export const registerUser = async (userData) => {
     // Generate OTP
     const otp = await generateOTP(email, 'email_verification');
 
-    // Send verification email
-    await sendVerificationEmail(email, otp);
+    // FIRE AND FORGET - Don't await email sending to avoid blocking
+    sendVerificationEmail(email, otp).catch(e => console.error('BG Email Error:', e.message));
 
     return {
         success: true,
@@ -91,8 +90,8 @@ export const verifyUserEmail = async (email, otp) => {
     // Delete temporary registration
     await TemporaryRegistration.deleteOne({ _id: tempReg._id });
 
-    // Send welcome email
-    await sendWelcomeEmail(user.email, user.name);
+    // Send welcome email (Background)
+    sendWelcomeEmail(user.email, user.name).catch(e => console.error('BG Email Error:', e.message));
 
     // Generate token
     const token = generateToken({ id: user._id, role: user.role });
@@ -127,7 +126,7 @@ export const loginUser = async (identifier, password) => {
         throw new Error('Invalid credentials');
     }
 
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
+    const isPasswordMatch = await comparePassword(password, user.password);
     if (!isPasswordMatch) {
         throw new Error('Invalid credentials');
     }
@@ -135,7 +134,7 @@ export const loginUser = async (identifier, password) => {
     if (!user.isEmailVerified) {
         // Generate new OTP and tell them to verify
         const otp = await generateOTP(user.email, 'email_verification');
-        await sendVerificationEmail(user.email, otp);
+        sendVerificationEmail(user.email, otp).catch(e => console.error('BG Email Error:', e.message));
         throw {
             message: 'Please verify your email. A new OTP has been sent.',
             code: 'EMAIL_NOT_VERIFIED',
@@ -193,7 +192,7 @@ export const resendUserVerificationOTP = async (email) => {
     }
 
     const otp = await generateOTP(email, 'email_verification');
-    await sendVerificationEmail(email, otp);
+    sendVerificationEmail(email, otp).catch(e => console.error('BG Email Error:', e.message));
 
     return { message: 'Verification OTP resent successfully' };
 };
@@ -246,16 +245,10 @@ export const forgotUserPassword = async (email) => {
     }
 
     const otp = await generateOTP(email, 'password_reset');
-    const emailResult = await sendPasswordResetEmail(email, otp);
+    sendPasswordResetEmail(email, otp).catch(e => console.error('BG Email Error:', e.message));
 
-    if (!emailResult.success) {
-        // In dev mode, we might want to allow this to pass so we can see the OTP in console
-        // But for user, we should probably tell them email failed if we can't show OTP
-        // However, existing pattern in sendVerificationEmail suggests we might rely on console logs in dev.
-        console.warn(`Forgot password email failed for ${email}. OTP: ${otp}`);
-        // throw new Error('Failed to send OTP email. Please try again later.'); 
-        // We will return success so frontend can show OTP input, assuming developer sees console.
-    }
+    // Removed await on emailResult, background sending is enough.
+    console.log(`Forgot password OTP generated for ${email}: ${otp}`);
 
     return { message: 'Password reset OTP sent to your email', otp }; // Return OTP for dev purposes if needed, but usually kept secret
 };
@@ -275,8 +268,8 @@ export const resetUserPassword = async (email, otp, newPassword) => {
         throw new Error('User not found');
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    // Hash password (normalized rounds)
+    const hashedPassword = await hashPassword(newPassword);
     user.password = hashedPassword;
     await user.save();
 

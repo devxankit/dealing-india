@@ -116,7 +116,6 @@ class NotificationService {
 
       const [notifications, total] = await Promise.all([
         Notification.find(query)
-          .populate('orderId', 'orderCode status')
           .sort(sort)
           .skip(skip)
           .limit(parseInt(limit))

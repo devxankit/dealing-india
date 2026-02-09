@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { FiSave, FiX, FiUpload } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
-import { products as initialProducts } from "../../../data/products";
+
 import { useCategoryStore } from "../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../shared/store/brandStore";
 import CategorySelector from "./CategorySelector";

@@ -1,11 +1,11 @@
 import express from 'express';
 import {
-  getNotifications,
-  getUnreadCount,
-  markAsRead,
-  markAllAsRead,
-  deleteNotification,
-  deleteAllRead,
+    getVendorNotifications,
+    getUnreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    deleteAllRead,
 } from '../controllers/vendorNotification.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
@@ -18,7 +18,7 @@ router.use(authenticate);
 router.use(authorize('vendor'));
 
 // Get notifications
-router.get('/', asyncHandler(getNotifications));
+router.get('/', asyncHandler(getVendorNotifications));
 
 // Get unread count
 router.get('/unread-count', asyncHandler(getUnreadCount));
@@ -36,4 +36,3 @@ router.delete('/:id', asyncHandler(deleteNotification));
 router.delete('/read-all', asyncHandler(deleteAllRead));
 
 export default router;
-

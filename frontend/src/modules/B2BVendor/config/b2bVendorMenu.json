@@ -39,6 +39,11 @@
         "children": []
     },
     {
+        "title": "Notifications",
+        "route": "/b2b-vendor/notifications",
+        "children": []
+    },
+    {
         "title": "Account Settings",
         "route": "/b2b-vendor/settings",
         "children": [

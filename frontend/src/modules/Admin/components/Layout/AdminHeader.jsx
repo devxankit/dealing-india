@@ -61,7 +61,7 @@ const AdminHeader = ({ onMenuClick }) => {
   const pageName = getPageName(location.pathname);
 
   return (
-    <header 
+    <header
       className="bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-30"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -76,7 +76,7 @@ const AdminHeader = ({ onMenuClick }) => {
             className="lg:hidden text-gray-700"
             icon={FiMenu}
           />
-          
+
           {/* Page Heading - Desktop Only */}
           <div className="hidden lg:block">
             <h1 className="text-2xl font-bold text-gray-800 mb-1">{pageName}</h1>
@@ -138,65 +138,8 @@ const AdminHeader = ({ onMenuClick }) => {
                     </p>
                   </div>
 
-                  <div className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200">
-                    <p className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Admin Settings</p>
-                    
-                    <Link
-                      to="/admin/settings/general"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                      <FiSettings className="text-lg" />
-                      <span className="font-medium">General Settings</span>
-                    </Link>
-
-                    <Link
-                      to="/admin/settings/payment-shipping"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                      <FiSettings className="text-lg" />
-                      <span className="font-medium">Payment & Shipping</span>
-                    </Link>
-
-                    <Link
-                      to="/admin/settings/orders-customers"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                      <FiSettings className="text-lg" />
-                      <span className="font-medium">Orders & Customers</span>
-                    </Link>
-
-                    <Link
-                      to="/admin/settings/products-inventory"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                      <FiSettings className="text-lg" />
-                      <span className="font-medium">Products & Inventory</span>
-                    </Link>
-
-                    <Link
-                      to="/admin/settings/content-features"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                      <FiSettings className="text-lg" />
-                      <span className="font-medium">Content & Features</span>
-                    </Link>
-
-                    <Link
-                      to="/admin/settings/notifications-seo"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                      <FiSettings className="text-lg" />
-                      <span className="font-medium">Notifications & SEO</span>
-                    </Link>
-
-                    <Link
-                      to="/admin/settings/tax"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-primary-600 transition-colors">
-                      <FiSettings className="text-lg" />
-                      <span className="font-medium">Tax & Pricing</span>
-                    </Link>
-                  </div>
+                  {/* Settings and other links removed as per user request */}
+                  <div className="h-px bg-gray-50 my-1"></div>
 
                   <div className="h-px bg-gray-50 my-1"></div>
 

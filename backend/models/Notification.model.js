@@ -21,28 +21,8 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: [
-        'order_placed',
-        'order_confirmed',
-        'order_shipped',
-        'order_delivered',
-        'order_cancelled',
-        'payment_success',
-        'payment_failed',
-        'new_order',
-        'order_status_change',
-        'return_request',
-        'review',
         'system',
-        'offer',
-        'promotion',
         'custom',
-        'chat_message',
-        'ticket_created',
-        'ticket_replied',
-        'ticket_status_changed',
-        'inquiry',
-        'mega_reward_winner',
-        'mega_reward_ticket_generated',
         'vendor_registration',
         'banner_booking',
       ],
@@ -65,10 +45,6 @@ const notificationSchema = new mongoose.Schema(
     actionUrl: {
       type: String,
     },
-    orderId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Order',
-    },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
@@ -82,7 +58,6 @@ const notificationSchema = new mongoose.Schema(
 // Indexes for efficient queries
 notificationSchema.index({ recipientId: 1, recipientType: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ recipientId: 1, recipientType: 1, createdAt: -1 });
-notificationSchema.index({ orderId: 1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

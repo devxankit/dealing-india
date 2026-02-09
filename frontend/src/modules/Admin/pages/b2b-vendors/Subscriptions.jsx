@@ -265,17 +265,8 @@ const Subscriptions = () => {
             )
         },
         { key: "expiryDate", label: "Expiry" },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (_, row) => (
-                <div className="flex items-center gap-2">
-                    <button className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"><FiEdit2 /></button>
-                    <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><FiSettings /></button>
-                </div>
-            )
-        }
     ];
+
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-10">

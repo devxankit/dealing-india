@@ -3,7 +3,7 @@ import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import RealEstateCard from '../components/RealEstateCard';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiX, FiCheck, FiMapPin } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiX, FiCheck, FiMapPin, FiChevronDown } from 'react-icons/fi';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 

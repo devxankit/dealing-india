@@ -80,6 +80,11 @@ userSchema.methods.toJSON = function () {
     return obj;
 };
 
+// Add indexes for faster lookups
+userSchema.index({ email: 1 });
+userSchema.index({ phone: 1 });
+userSchema.index({ role: 1 });
+
 const User = mongoose.model('User', userSchema);
 
 export default User;

@@ -89,6 +89,20 @@ const ProductCatalog = () => {
         setOpenFilters(prev => ({ ...prev, [section]: !prev[section] }));
     };
 
+    // Track vendor contact clicks (call or whatsapp)
+    const trackContactClick = async (vendorId, clickType) => {
+        try {
+            if (!vendorId) return;
+            await api.post('/vendor/analytics/track-click', {
+                vendorId,
+                clickType
+            });
+        } catch (error) {
+            // Silently fail - tracking shouldn't block user action
+            console.error('Error tracking click:', error);
+        }
+    };
+
     const renderFilters = () => (
         <div className="space-y-6">
             {/* Price Filter Block */}
@@ -616,11 +630,14 @@ const ProductCatalog = () => {
         if (products.length > 0) {
             categoriesToShow = allCategories.filter(cat => {
                 return products.some(product => {
-                    // Get category from attributes array
-                    const categoryAttr = product.attributes?.find(attr =>
-                        attr.name === 'category' || attr.attributeName === 'category'
-                    );
-                    const productCategory = categoryAttr?.value || '';
+                    // Get category from root field or attributes array (fallback)
+                    let productCategory = product.category;
+                    if (!productCategory) {
+                        const categoryAttr = product.attributes?.find(attr =>
+                            attr.name === 'category' || attr.attributeName === 'category'
+                        );
+                        productCategory = categoryAttr?.value || '';
+                    }
                     return productCategory === cat.name;
                 });
             });
@@ -1370,7 +1387,10 @@ const ProductCatalog = () => {
                                                             href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                trackContactClick(product.vendorId?._id, 'whatsapp');
+                                                            }}
                                                             className="flex-1 py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                                                             title="WhatsApp"
                                                         >
@@ -1379,7 +1399,10 @@ const ProductCatalog = () => {
                                                         </a>
                                                         <a
                                                             href={`tel:${product.vendorId?.phone}`}
-                                                            onClick={(e) => e.stopPropagation()}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                trackContactClick(product.vendorId?._id, 'call');
+                                                            }}
                                                             className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                                                             title="Call Vendor"
                                                         >

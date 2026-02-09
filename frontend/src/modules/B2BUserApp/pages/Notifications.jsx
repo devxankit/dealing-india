@@ -17,7 +17,7 @@ const Notifications = () => {
     const fetchNotifications = async () => {
         try {
             setLoading(true);
-            const result = await getNotifications({ type: 'inquiry' }, 'user');
+            const result = await getNotifications({}, 'user');
             if (result.success) {
                 setNotifications(result.data.notifications || []);
             }
@@ -43,21 +43,13 @@ const Notifications = () => {
     };
 
     const getIcon = (type) => {
-        switch (type) {
-            case 'inquiry': return FiMessageCircle;
-            case 'order': return FiPackage;
-            case 'promo': return FiTag;
-            default: return FiBell;
-        }
+        if (type === 'system') return FiBell;
+        return FiBell;
     };
 
     const getColor = (type) => {
-        switch (type) {
-            case 'inquiry': return 'text-blue-600 bg-blue-50';
-            case 'order': return 'text-green-600 bg-green-50';
-            case 'promo': return 'text-purple-600 bg-purple-50';
-            default: return 'text-gray-600 bg-gray-50';
-        }
+        if (type === 'system') return 'text-gray-600 bg-gray-50';
+        return 'text-gray-600 bg-gray-50';
     };
 
     return (

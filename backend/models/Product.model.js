@@ -60,6 +60,23 @@ const productSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    category: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    subcategory: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    bulkPricing: {
+      type: [{
+        minQty: { type: Number, required: true },
+        price: { type: Number, required: true }
+      }],
+      default: []
+    },
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',
@@ -69,34 +86,11 @@ const productSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    rating: {
-      type: Number,
-      min: 0,
-      max: 5,
-      default: 0,
-    },
-    reviewCount: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
     isActive: {
       type: Boolean,
       default: true,
     },
     isVisible: {
-      type: Boolean,
-      default: true,
-    },
-    codAllowed: {
-      type: Boolean,
-      default: false,
-    },
-    returnable: {
-      type: Boolean,
-      default: true,
-    },
-    cancelable: {
       type: Boolean,
       default: true,
     },
@@ -175,7 +169,6 @@ productSchema.index({ name: 1 });
 productSchema.index({ vendorId: 1, isActive: 1 });
 productSchema.index({ stock: 1, stockQuantity: 1 });
 productSchema.index({ isActive: 1, isVisible: 1 });
-productSchema.index({ rating: -1, reviewCount: -1 });
 productSchema.index({ vendorId: 1, isVisible: 1, createdAt: -1 });
 productSchema.index({ name: 'text', description: 'text', brandName: 'text' });
 

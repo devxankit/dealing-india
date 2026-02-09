@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     FiArrowLeft,
-    FiStar,
+
     FiShoppingBag,
     FiCheckCircle,
     FiFilter,
@@ -137,6 +137,20 @@ const B2BVendorStore = () => {
         return filtered;
     }, [products, searchQuery, sortBy]);
 
+    // Track vendor contact clicks (call or whatsapp)
+    const trackContactClick = async (vendorId, clickType) => {
+        try {
+            if (!vendorId) return;
+            await api.post('/vendor/analytics/track-click', {
+                vendorId,
+                clickType
+            });
+        } catch (error) {
+            // Silently fail - tracking shouldn't block user action
+            console.error('Error tracking click:', error);
+        }
+    };
+
 
 
     if (loading) {
@@ -270,9 +284,7 @@ const B2BVendorStore = () => {
                                     WhatsApp Inquiry
                                 </a>
                             )}
-                            <button className="w-full px-8 py-5 md:py-6 bg-gray-900 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3 active:scale-95">
-                                <FiStar /> Follow Vendor
-                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -387,7 +399,10 @@ const B2BVendorStore = () => {
                                                     href={`https://wa.me/${vendor.phone.replace(/\D/g, '')}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    onClick={(e) => e.stopPropagation()}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        trackContactClick(id, 'whatsapp');
+                                                    }}
                                                     className="flex-1 py-3 bg-green-50 text-[#25D366] rounded-2xl hover:bg-[#25D366] hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-2 border-green-100"
                                                 >
                                                     <FaWhatsapp size={14} />
@@ -395,7 +410,10 @@ const B2BVendorStore = () => {
                                                 </a>
                                                 <a
                                                     href={`tel:${vendor.phone}`}
-                                                    onClick={(e) => e.stopPropagation()}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        trackContactClick(id, 'call');
+                                                    }}
                                                     className="flex-1 py-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-2 border-blue-100"
                                                 >
                                                     <FiPhone size={14} />

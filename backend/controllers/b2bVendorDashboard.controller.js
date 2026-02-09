@@ -4,6 +4,7 @@ import LotSlot from '../models/LotSlot.model.js';
 import BannerBooking from '../models/BannerBooking.model.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
 import Notification from '../models/Notification.model.js';
+import Vendor from '../models/Vendor.model.js';
 
 /**
  * Get B2B Vendor Dashboard Data
@@ -23,7 +24,8 @@ export const getDashboardData = async (req, res, next) => {
             totalLotSlots, approvedLotSlots,
             activeBanners,
             subscriptions,
-            notifications
+            notifications,
+            vendorAnalytics
         ] = await Promise.all([
             Product.countDocuments({ vendorId }),
             Product.countDocuments({ vendorId, isActive: true }),
@@ -33,15 +35,16 @@ export const getDashboardData = async (req, res, next) => {
             LotSlot.countDocuments({ vendorId, isActive: true }),
             BannerBooking.find({ vendorId, status: 'active' }).populate('slotId').lean(),
             VendorSubscription.find({ vendorId, status: 'active' }).populate('planId').lean(),
-            Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5).lean()
+            Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5).lean(),
+            Vendor.findById(vendorId).select('analytics').lean()
         ]);
 
         // Format Data for Frontend
         const dashboardData = {
             overview: {
-                bannerClicks: 0, // Not yet tracked in backend
-                callClicks: 0,   // Not yet tracked in backend
-                whatsappClicks: 0 // Not yet tracked in backend
+                bannerClicks: 0, // Banner click tracking can be added later
+                callClicks: vendorAnalytics?.analytics?.callClicks || 0,
+                whatsappClicks: vendorAnalytics?.analytics?.whatsappClicks || 0
             },
             counts: {
                 products: {

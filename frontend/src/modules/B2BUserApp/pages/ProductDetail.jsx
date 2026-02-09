@@ -53,6 +53,32 @@ const B2BProductDetail = () => {
         }
     };
 
+    // Track vendor contact clicks (call or whatsapp)
+    const trackContactClick = async (clickType) => {
+        try {
+            const vendorId = product?.vendorId?._id || product?.vendorId;
+            if (!vendorId) return;
+
+            await api.post('/vendor/analytics/track-click', {
+                vendorId,
+                clickType
+            });
+        } catch (error) {
+            // Silently fail - tracking shouldn't block user action
+            console.error('Error tracking click:', error);
+        }
+    };
+
+    const handleWhatsAppClick = () => {
+        trackContactClick('whatsapp');
+        window.open(`https://wa.me/91${product.vendorId.phone.replace(/\D/g, '')}`, '_blank');
+    };
+
+    const handleCallClick = () => {
+        trackContactClick('call');
+        window.open(`tel:+91${product.vendorId.phone}`, '_self');
+    };
+
     const handleInquirySubmit = async (e) => {
         e.preventDefault();
         if (!isAuthenticated) {
@@ -257,13 +283,13 @@ const B2BProductDetail = () => {
                                     {product.vendorId?.phone && (
                                         <>
                                             <button
-                                                onClick={() => window.open(`https://wa.me/91${product.vendorId.phone.replace(/\D/g, '')}`, '_blank')}
+                                                onClick={handleWhatsAppClick}
                                                 className="py-4 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-green-100 hover:bg-[#128C7E] transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
                                             >
                                                 <FaWhatsapp className="text-lg md:text-xl" /> WhatsApp
                                             </button>
                                             <button
-                                                onClick={() => window.open(`tel:+91${product.vendorId.phone}`, '_self')}
+                                                onClick={handleCallClick}
                                                 className="py-4 md:py-6 bg-gray-900 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-gray-200 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
                                             >
                                                 <FiPhone className="text-lg md:text-xl" /> Call Now

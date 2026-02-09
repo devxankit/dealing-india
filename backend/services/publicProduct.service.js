@@ -32,13 +32,29 @@ export const getPublicProducts = async (filters) => {
     if (search) {
         query.$or = [
             { name: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } }
+            { description: { $regex: search, $options: 'i' } },
+            { category: { $regex: search, $options: 'i' } },
+            { subcategory: { $regex: search, $options: 'i' } }
         ];
     }
 
-    if (categoryId) query.categoryId = categoryId;
-    if (subcategoryId) query.subcategoryId = subcategoryId;
-    if (brandId) query.brandId = brandId;
+    // Category filtering - Product model uses string 'category' field, not ObjectId 'categoryId'
+    if (categoryId) {
+        try {
+            const cat = await B2BCategory.findById(categoryId);
+            if (cat) {
+                query.category = { $regex: new RegExp(`^${cat.name}$`, 'i') };
+            }
+        } catch (e) {
+            // If categoryId is actually a category name string, use it directly
+            query.category = { $regex: new RegExp(`^${categoryId}$`, 'i') };
+        }
+    }
+    // Subcategory filtering - Product model uses string 'subcategory' field
+    if (subcategoryId) {
+        query.subcategory = { $regex: new RegExp(`^${subcategoryId}$`, 'i') };
+    }
+    if (brandId) query.brandName = brandId;
 
     // Pattern and Fabric filtering for Products
     // Products store these in 'attributes' array: [{ name: 'Pattern', value: '...' }, ...]

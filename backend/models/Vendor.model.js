@@ -130,6 +130,12 @@ const vendorSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Analytics for tracking user engagement
+    analytics: {
+      callClicks: { type: Number, default: 0 },
+      whatsappClicks: { type: Number, default: 0 },
+    },
+
     currentSubscription: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'VendorSubscription',

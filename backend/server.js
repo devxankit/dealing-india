@@ -15,12 +15,8 @@ import { connectRedis } from './config/redis.config.js';
 import redisClient from './config/redis.config.js';
 
 // Import routes
-import vendorStockRoutes from './routes/vendorStock.routes.js';
 import vendorDashboardRoutes from './routes/vendorDashboard.routes.js';
-
-import settingsRoutes from './routes/settings.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
-// import adminSubscriptionRoutes from './routes/adminSubscription.routes.js';
 import adminB2BSubscriptionPlanRoutes from './routes/adminB2BSubscriptionPlan.routes.js';
 import adminB2BVendorSubscriptionRoutes from './routes/adminB2BVendorSubscription.routes.js';
 import adminB2BVendorManagementRoutes from './routes/adminB2BVendorManagement.routes.js';
@@ -30,7 +26,8 @@ import publicB2BCategoryRoutes from './routes/publicB2BCategory.routes.js';
 import publicB2BLocationRoutes from './routes/publicB2BLocation.routes.js';
 import publicB2BSubscriptionRoutes from './routes/publicB2BSubscription.routes.js';
 import SubscriptionRoutes from './routes/SubscriptionRoute.js';
-import publicSettingsRoutes from './routes/publicSettings.routes.js';
+
+
 import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
 import lotSlotRoutes from './routes/lotSlot.routes.js';
 
@@ -57,6 +54,8 @@ import businessTypeRoutes from './routes/businessType.routes.js';
 import propertyRoutes from './routes/property.routes.js';
 import adminBusinessSettingsRoutes from './routes/adminBusinessSettings.routes.js';
 import adminNotificationRoutes from './routes/adminNotification.routes.js';
+import vendorAnalyticsRoutes from './routes/vendorAnalytics.routes.js';
+import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 
 
@@ -240,18 +239,19 @@ app.use('/api/vendors', publicVendorRoutes);
 app.use('/api/public/b2b-categories', publicB2BCategoryRoutes);
 app.use('/api/public', publicB2BLocationRoutes);
 app.use('/api/public/b2b-subscription-plans', publicB2BSubscriptionRoutes);
-app.use('/api/settings', publicSettingsRoutes);
+
+
 app.use('/api/subscription', SubscriptionRoutes);
 app.use('/api/products', publicProductRoutes);
 
 
 
-app.use('/api/admin/settings', settingsRoutes);
+
+
 app.use('/api/admin/media', adminMediaRoutes);
 
 
 // User management routes (require user authentication)
-// app.use('/api/admin/subscriptions', adminSubscriptionRoutes);
 app.use('/api/admin/b2b-subscription-plans', adminB2BSubscriptionPlanRoutes);
 app.use('/api/admin/b2b-vendors/subscriptions', adminB2BVendorSubscriptionRoutes);
 app.use('/api/admin/b2b-vendors', adminB2BVendorManagementRoutes);
@@ -262,9 +262,8 @@ app.use('/api/admin/properties', adminPropertyRoutes);
 app.use('/api/vendor/dashboard', vendorDashboardRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 app.use('/api/vendor/subscription', vendorSubscriptionRoutes); // Alias for consistency
-
-// Vendor management routes (require vendor authentication)
-app.use('/api/vendor/stock', vendorStockRoutes);
+app.use('/api/vendor/analytics', vendorAnalyticsRoutes);
+app.use('/api/vendor/notifications', vendorNotificationRoutes);
 
 // B2B Vendor routes (separate from regular vendor routes)
 app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);

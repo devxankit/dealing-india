@@ -115,6 +115,32 @@ const PropertyDetail = () => {
     const sellerName = property.vendorId?.storeName || 'Verified Developer';
     const sellerPhone = property.vendorId?.phone || '9876543210';
 
+    // Track vendor contact clicks (call or whatsapp)
+    const trackContactClick = async (clickType) => {
+        try {
+            const vendorId = property?.vendorId?._id || property?.vendorId;
+            if (!vendorId) return;
+
+            await api.post('/vendor/analytics/track-click', {
+                vendorId,
+                clickType
+            });
+        } catch (error) {
+            // Silently fail - tracking shouldn't block user action
+            console.error('Error tracking click:', error);
+        }
+    };
+
+    const handleWhatsAppClick = () => {
+        trackContactClick('whatsapp');
+        window.open(`https://wa.me/91${sellerPhone}`, '_blank');
+    };
+
+    const handleCallClick = () => {
+        trackContactClick('call');
+        window.open(`tel:+91${sellerPhone}`, '_self');
+    };
+
     return (
         <div className="min-h-screen bg-[#FDFDFF] pb-24">
             <B2BHeader title={property.title} />
@@ -320,13 +346,13 @@ const PropertyDetail = () => {
 
                                 <div className="mt-8 md:mt-10 space-y-3 md:space-y-4">
                                     <button
-                                        onClick={() => window.open(`https://wa.me/91${sellerPhone}`, '_blank')}
+                                        onClick={handleWhatsAppClick}
                                         className="w-full py-4 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-[#128C7E] transition-all flex items-center justify-center gap-3"
                                     >
                                         <FaWhatsapp size={20} /> Negotiate Offer
                                     </button>
                                     <button
-                                        onClick={() => window.open(`tel:+91${sellerPhone}`, '_self')}
+                                        onClick={handleCallClick}
                                         className="w-full py-4 md:py-6 bg-gray-900 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all flex items-center justify-center gap-3"
                                     >
                                         <FiPhone size={20} /> Connect Instant

@@ -9,30 +9,18 @@ import { Toaster } from "react-hot-toast";
 import toast from "react-hot-toast";
 import { lazyWithRetry } from "./shared/utils/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-const VendorStore = lazyWithRetry(() => import("./shared/components/Store/VendorStore"));
 const ScrollToTop = lazyWithRetry(() => import("./shared/components/ScrollToTop"));
 const AdminLogin = lazyWithRetry(() => import("./modules/Admin/pages/Login"));
 const AdminProtectedRoute = lazyWithRetry(() => import("./modules/Admin/components/AdminProtectedRoute"));
 const AdminLayout = lazyWithRetry(() => import("./modules/Admin/components/Layout/AdminLayout"));
 const Dashboard = lazyWithRetry(() => import("./modules/Admin/pages/Dashboard"));
-const AdminWallet = lazyWithRetry(() => import("./modules/Admin/pages/AdminWallet"));
-const Reviews = lazyWithRetry(() => import("./modules/Admin/pages/Reviews"));
-const Content = lazyWithRetry(() => import("./modules/Admin/pages/Content"));
-
-const Settings = lazyWithRetry(() => import("./modules/Admin/pages/Settings"));
 const More = lazyWithRetry(() => import("./modules/Admin/pages/More"));
 const Notifications = lazyWithRetry(() => import("./modules/Admin/pages/notifications/Notifications"));
 // const PushNotifications = lazyWithRetry(() => import("./modules/Admin/pages/notifications/PushNotifications"));
 // const CustomMessages = lazyWithRetry(() => import("./modules/Admin/pages/notifications/CustomMessages"));
 
 
-// Consolidated Settings pages
-const GeneralSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/GeneralSettings"));
-
-const OrdersCustomersSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/OrdersCustomersSettings"));
-
-const ContentFeaturesSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/ContentFeaturesSettings"));
-const NotificationsSEOSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/NotificationsSEOSettings"));
+// Consolidated Settings pages removed as per user request
 
 // Firebase child pages removed
 // const PushConfig = lazyWithRetry(() => import("./modules/Admin/pages/firebase/PushConfig"));
@@ -91,6 +79,7 @@ const B2BVendorForgotPassword = lazyWithRetry(() => import("./modules/B2BVendor/
 const B2BVendorManageLots = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/ManageLotSlot"));
 const B2BVendorAddLot = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/AddLotSlot"));
 const B2BVendorEditLot = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/EditLotSlot"));
+const B2BVendorNotifications = lazyWithRetry(() => import("./modules/B2BVendor/pages/VendorNotifications"));
 
 
 // B2B User App Routes
@@ -198,23 +187,6 @@ const AppRoutes = () => {
           </Route>
 
           <Route path="notifications" element={<Notifications />} />
-
-          <Route
-            path="settings"
-            element={<Navigate to="/admin/settings/general" replace />}
-          />
-          <Route path="settings/general" element={<Settings />} />
-
-          <Route path="settings/orders-customers" element={<Settings />} />
-
-          <Route path="settings/content-features" element={<Settings />} />
-          <Route path="settings/notifications-seo" element={<Settings />} />
-          <Route path="settings/tax" element={<Settings />} />
-
-          {/* Firebase routes removed */}
-          <Route path="wallet" element={<AdminWallet />} />
-          <Route path="reviews" element={<Reviews />} />
-          <Route path="content" element={<Content />} />
         </Route>
 
         {/* B2B User App Routes */}
@@ -288,6 +260,7 @@ const AppRoutes = () => {
             <Route path="edit/:id" element={<B2BVendorEditLot />} />
           </Route>
           <Route path="profile" element={<B2BVendorProfile />} />
+          <Route path="notifications" element={<B2BVendorNotifications />} />
 
         </Route>
         <Route
