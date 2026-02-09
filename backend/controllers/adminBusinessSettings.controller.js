@@ -1,6 +1,7 @@
 import BusinessTypeSettings from '../models/BusinessTypeSettings.model.js';
 import BusinessType from '../models/BusinessType.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import redisService from '../services/redis.service.js';
 
 // @desc    Admin: Get all business settings
 // @route   GET /api/admin/business-settings
@@ -39,6 +40,13 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
     settings.isActive = isActive !== undefined ? isActive : settings.isActive;
 
     await settings.save();
+
+    // Clear plan cache so vendors see updated plan availability
+    try {
+        await redisService.clearPattern('public:b2b-plans:*');
+    } catch (cacheError) {
+        console.error('Error clearing cache in updateBusinessSettings:', cacheError);
+    }
 
     res.status(200).json({
         success: true,

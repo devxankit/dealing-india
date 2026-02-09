@@ -67,6 +67,25 @@ export const getAllVendors = async (filters = {}) => {
 
     const vendors = vendorsRaw.map(vendor => ({
       ...vendor,
+      address: {
+        street: vendor.address?.street || '',
+        area: vendor.address?.area || '',
+        landmark: vendor.address?.landmark || '',
+        city: (vendor.address?.city || '').replace(/\s+\d{6}$/, '').trim(),
+        state: (vendor.address?.state || '').replace(/\s+\d{6}$/, '').trim(),
+        pincode: (function () {
+          const addr = vendor.address || {};
+          const directPin = addr.pincode || addr.zipCode || addr.pinCode;
+          if (directPin && /^\d{5,6}$/.test(String(directPin).trim())) return String(directPin).trim();
+          const searchFields = [addr.state, addr.city, addr.street, addr.landmark];
+          for (const field of searchFields) {
+            const match = String(field || '').match(/\d{6}/);
+            if (match) return match[0];
+          }
+          return directPin || '';
+        })(),
+        country: vendor.address?.country || 'India',
+      },
       performance: { totalOrders: 0, totalEarnings: 0 }
     }));
 
@@ -94,6 +113,31 @@ export const getVendorById = async (vendorId) => {
     const vendor = await Vendor.findById(vendorId).lean();
     if (!vendor) {
       throw new Error('Vendor not found');
+    }
+    if (vendor && vendor.address) {
+      // Robust pincode mapping
+      const addr = vendor.address;
+      const directPin = addr.pincode || addr.zipCode || addr.pinCode;
+
+      if (directPin && /^\d{5,6}$/.test(String(directPin).trim())) {
+        vendor.address.pincode = String(directPin).trim();
+      } else {
+        // Try to extract from other fields
+        const searchFields = [addr.state, addr.city, addr.street, addr.landmark];
+        let foundPin = null;
+        for (const field of searchFields) {
+          const match = String(field || '').match(/\d{6}/);
+          if (match) {
+            foundPin = match[0];
+            break;
+          }
+        }
+        vendor.address.pincode = foundPin || directPin || '';
+      }
+
+      // Clean city/state from trailing pincodes
+      if (vendor.address.city) vendor.address.city = vendor.address.city.replace(/\s+\d{6}$/, '').trim();
+      if (vendor.address.state) vendor.address.state = vendor.address.state.replace(/\s+\d{6}$/, '').trim();
     }
     return vendor;
   } catch (error) {
@@ -426,6 +470,7 @@ export const getB2BVendors = async (filters = {}) => {
             products: productCountMap.get(vendor._id.toString()) || 0,
             joinDate: vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : null,
             gstNumber: vendor.gstNumber || 'N/A',
+            businessType: vendor.businessType || 'N/A',
             businessTypes: vendor.businessTypes || [],
             subscription: subscription
               ? {
@@ -452,7 +497,29 @@ export const getB2BVendors = async (filters = {}) => {
                   : null,
               }
               : null,
-            address: vendor.address || {},
+            address: {
+              street: vendor.address?.street || '',
+              area: vendor.address?.area || '',
+              landmark: vendor.address?.landmark || '',
+              city: (vendor.address?.city || '').replace(/\s+\d{6}$/, '').trim(),
+              state: (vendor.address?.state || '').replace(/\s+\d{6}$/, '').trim(),
+              pincode: (function () {
+                const addr = vendor.address || {};
+                // 1. Try direct fields first
+                const directPin = addr.pincode || addr.zipCode || addr.pinCode || addr.pincode;
+                if (directPin && /^\d{5,6}$/.test(String(directPin).trim())) return String(directPin).trim();
+
+                // 2. Try to extract 6-digit pincode from state, city, or street if direct fields are missing
+                const searchFields = [addr.state, addr.city, addr.street, addr.landmark];
+                for (const field of searchFields) {
+                  const match = String(field || '').match(/\d{6}/);
+                  if (match) return match[0];
+                }
+                return directPin || ''; // Return whatever was in direct fields if no 6-digit match elsewhere
+              })(),
+              country: vendor.address?.country || 'India',
+            },
+            rawAddress: vendor.address, // For debugging in logs
             documents: Array.isArray(vendor.documents) ? vendor.documents : [],
             vendorType: 'b2b', // Explicitly set to ensure it's B2B
           };
@@ -472,14 +539,20 @@ export const getB2BVendors = async (filters = {}) => {
             gstNumber: 'N/A',
             businessTypes: [],
             subscription: null,
-            address: {},
+            address: {
+              ...(vendor.address || {}),
+              pincode: vendor.address?.pincode || vendor.address?.zipCode || '',
+            },
             documents: [],
           };
         }
       })
       .filter(vendor => vendor !== null); // Remove any null entries from formatting errors
 
-    // Recalculate total based on verified B2B vendors
+    // Debug log for pincode investigation
+    console.log(`📡 Returning ${formattedVendors.length} B2B vendors. Samples:`,
+      formattedVendors.slice(0, 3).map(v => ({ email: v.email, pincode: v.address?.pincode, hasRawAddress: !!v.rawAddress }))
+    );
     const verifiedTotal = formattedVendors.length;
     const totalPages = Math.ceil(verifiedTotal / parseInt(limit));
 

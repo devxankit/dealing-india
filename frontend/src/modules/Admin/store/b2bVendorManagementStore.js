@@ -58,7 +58,7 @@ export const useB2BVendorManagementStore = create((set, get) => ({
 
   getB2BVendorById: async (id) => {
     try {
-      const response = await api.get(`/admin/vendors/${id}`);
+      const response = await api.get(`/admin/b2b-vendors/${id}`);
       if (response.success && response.data) {
         return response.data.vendor;
       }

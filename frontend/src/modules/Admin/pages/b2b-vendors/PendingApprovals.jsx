@@ -97,8 +97,8 @@ const B2BVendorPendingApprovals = () => {
 
         const toastId = toast.loading("Approving vendor...");
         try {
-            console.log(`Sending PUT request to /admin/vendors/${id}/status`);
-            const response = await api.put(`/admin/vendors/${id}/status`, {
+            console.log(`Sending PUT request to /admin/b2b-vendors/${id}/status`);
+            const response = await api.put(`/admin/b2b-vendors/${id}/status`, {
                 status: 'approved'
             });
             console.log("Approve response:", response);
@@ -118,7 +118,7 @@ const B2BVendorPendingApprovals = () => {
 
     const handleReject = async (id) => {
         try {
-            const response = await api.put(`/admin/vendors/${id}/status`, {
+            const response = await api.put(`/admin/b2b-vendors/${id}/status`, {
                 status: 'rejected'
             });
 

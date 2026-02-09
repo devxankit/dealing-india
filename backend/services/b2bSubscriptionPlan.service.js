@@ -20,15 +20,16 @@ class B2BSubscriptionPlanService {
       }
 
       if (businessType) {
+        const typeSlug = businessType.toLowerCase();
         // 1. Existing logic: Filter by plans that explicitly allow this type or are global
         query.$or = [
           { allowedBusinessTypes: { $size: 0 } },
           { allowedBusinessTypes: { $exists: false } },
-          { allowedBusinessTypes: businessType }
+          { allowedBusinessTypes: typeSlug }
         ];
 
         // 2. NEW Logic: Check if BusinessTypeSettings HAS explicitly allowed plans for this type
-        const bType = await BusinessType.findOne({ slug: businessType });
+        const bType = await BusinessType.findOne({ slug: typeSlug });
         if (bType) {
           const settings = await BusinessTypeSettings.findOne({ businessTypeId: bType._id });
           if (settings && settings.allowedPlans && settings.allowedPlans.length > 0) {
@@ -109,7 +110,7 @@ class B2BSubscriptionPlanService {
    */
   async createPlan(planData, createdBy) {
     try {
-      const { name, duration, price, features = [], description } = planData;
+      const { name, duration, price, features = [], description, allowedBusinessTypes = [] } = planData;
 
       // Validate duration
       if (![3, 6, 12].includes(duration)) {
@@ -131,6 +132,7 @@ class B2BSubscriptionPlanService {
         features: features.filter(f => f && f.trim()), // Remove empty features
         description: description?.trim(),
         isActive: true,
+        allowedBusinessTypes: Array.isArray(allowedBusinessTypes) ? allowedBusinessTypes.map(s => s.toLowerCase()) : [],
       };
 
       if (createdBy) {
@@ -158,7 +160,7 @@ class B2BSubscriptionPlanService {
    */
   async updatePlan(planId, updateData, updatedBy) {
     try {
-      const { name, price, features, description, isActive } = updateData;
+      const { name, price, features, description, isActive, allowedBusinessTypes } = updateData;
 
       const plan = await B2BSubscriptionPlan.findById(planId);
       if (!plan) {
@@ -222,6 +224,9 @@ class B2BSubscriptionPlanService {
       }
 
       if (isActive !== undefined) plan.isActive = isActive;
+      if (allowedBusinessTypes !== undefined) {
+        plan.allowedBusinessTypes = Array.isArray(allowedBusinessTypes) ? allowedBusinessTypes.map(s => s.toLowerCase()) : [];
+      }
       if (updatedBy) plan.updatedBy = updatedBy;
 
       if (updateData.razorpayPlanId !== undefined) {

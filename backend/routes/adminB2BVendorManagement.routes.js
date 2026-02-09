@@ -1,5 +1,12 @@
 import express from 'express';
-import { getB2BVendorsList, getPendingB2BVendors, removeB2BVendor, getSignedDocumentUrl } from '../controllers/vendorManagement.controller.js';
+import {
+    getB2BVendorsList,
+    getPendingB2BVendors,
+    removeB2BVendor,
+    getSignedDocumentUrl,
+    updateStatus,
+    getVendor
+} from '../controllers/vendorManagement.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -14,6 +21,8 @@ router.use(authorize('admin'));
 router.post('/document-url', asyncHandler(getSignedDocumentUrl));
 router.get('/', asyncHandler(getB2BVendorsList));
 router.get('/pending', asyncHandler(getPendingB2BVendors));
+router.put('/:id/status', asyncHandler(updateStatus));
+router.get('/:id', asyncHandler(getVendor));
 router.delete('/:id', asyncHandler(removeB2BVendor));
 
 export default router;

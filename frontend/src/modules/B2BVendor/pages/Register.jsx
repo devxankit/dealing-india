@@ -44,7 +44,7 @@ const B2BVendorRegister = () => {
             area: '',
             city: '',
             state: '',
-            zipCode: '',
+            pincode: '',
             country: 'India',
         },
     });
@@ -168,6 +168,7 @@ const B2BVendorRegister = () => {
                 gstNumber: formData.gstNumber,
                 businessType: formData.businessType,
                 businessTypeRef: formData.businessTypeRef,
+                vendorType: 'b2b',
                 documents: {
                     panCard: {
                         data: panCard.data,
@@ -355,7 +356,7 @@ const B2BVendorRegister = () => {
                                                 <span className="text-[9px] text-green-600 truncate max-w-[100px]">{businessLicense.name}</span>
                                             </div>
                                         </div>
-                                        <button type="button" onClick="{() => setBusinessLicense(null)}" className="p-1 hover:bg-green-100 rounded-lg text-green-600 transition-colors">
+                                        <button type="button" onClick={() => setBusinessLicense(null)} className="p-1 hover:bg-green-100 rounded-lg text-green-600 transition-colors">
                                             <FiX size={14} />
                                         </button>
                                     </div>
@@ -383,7 +384,7 @@ const B2BVendorRegister = () => {
                                                 <span className="text-[9px] text-green-600 truncate max-w-[100px]">{panCard.name}</span>
                                             </div>
                                         </div>
-                                        <button type="button" onClick="{() => setPanCard(null)}" className="p-1 hover:bg-green-100 rounded-lg text-green-600 transition-colors">
+                                        <button type="button" onClick={() => setPanCard(null)} className="p-1 hover:bg-green-100 rounded-lg text-green-600 transition-colors">
                                             <FiX size={14} />
                                         </button>
                                     </div>
@@ -418,8 +419,8 @@ const B2BVendorRegister = () => {
                                 <input type="text" name="address.state" value={formData.address.state} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Gujarat" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Zip Code</label>
-                                <input type="text" name="address.zipCode" value={formData.address.zipCode} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="395003" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Pin Code</label>
+                                <input type="text" name="address.pincode" value={formData.address.pincode} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="395003" />
                             </div>
                         </div>
                     </div>
@@ -436,14 +437,14 @@ const B2BVendorRegister = () => {
                             <div className="relative">
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Password</label>
                                 <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="••••••••" minLength={6} />
-                                <button type="button" onClick="{() => setShowPassword(!showPassword)}" className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
                                     {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
                                 </button>
                             </div>
                             <div className="relative">
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Confirm Password</label>
                                 <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="••••••••" minLength={6} />
-                                <button type="button" onClick="{() => setShowConfirmPassword(!showConfirmPassword)}" className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
+                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
                                     {showConfirmPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
                                 </button>
                             </div>
