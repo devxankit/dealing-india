@@ -22,6 +22,7 @@ import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import api from "../../../shared/utils/api";
 import chatService from "../../../shared/services/chatService";
 import { useAuthStore } from "../../../shared/store/authStore";
+import RealEstateCard from "../components/RealEstateCard";
 import toast from "react-hot-toast";
 
 const B2BVendorStore = () => {
@@ -31,6 +32,7 @@ const B2BVendorStore = () => {
 
     const [vendor, setVendor] = useState(null);
     const [products, setProducts] = useState([]);
+    const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState("grid");
     const [sortBy, setSortBy] = useState("popular");
@@ -77,6 +79,14 @@ const B2BVendorStore = () => {
                         ? productsRes.data
                         : (productsRes.data.products || []);
                     setProducts(productsList);
+                }
+
+                // Fetch properties for this vendor
+                const propertiesRes = await api.get(`/property/all`, {
+                    params: { vendorId: id }
+                });
+                if (propertiesRes?.success) {
+                    setProperties(propertiesRes.data);
                 }
             } catch (error) {
                 console.error("Error fetching vendor store data:", error);
@@ -202,19 +212,19 @@ const B2BVendorStore = () => {
                                 </h1>
                                 <div className="flex items-center justify-center md:justify-start gap-2">
                                     <span className="px-4 py-1.5 bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-[0.2em] rounded-full">
-                                        Verified Wholesaler
+                                        {vendor.businessType ? `Verified ${vendor.businessType}` : 'Verified Wholesaler'}
                                     </span>
                                 </div>
                             </div>
 
                             <p className="text-gray-500 font-medium text-lg mb-6 max-w-2xl">
-                                {vendor.businessDescription || "Premium B2B supplier providing high-quality bulk products across India."}
+                                {vendor.businessDescription || (vendor.businessType?.includes('Real Estate') ? "Premier real estate professional providing verified premium properties and expert consulting." : "Premium B2B supplier providing high-quality bulk products across India.")}
                             </p>
 
                             <div className="flex flex-wrap items-center justify-center md:justify-start gap-6">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-primary-600 font-bold border border-gray-100">
-                                        {products.length}
+                                        {products.length + properties.length}
                                     </div>
                                     <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Active Listings</span>
                                 </div>
@@ -285,8 +295,8 @@ const B2BVendorStore = () => {
                     </div>
                 </div>
 
-                {/* Products Display */}
-                {filteredProducts.length === 0 ? (
+                {/* Products & Properties Display */}
+                {products.length === 0 && properties.length === 0 ? (
                     <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
                         <FiShoppingBag className="text-6xl text-gray-200 mx-auto mb-6" />
                         <h3 className="text-xl font-bold text-gray-800">No products match your criteria</h3>
@@ -376,6 +386,9 @@ const B2BVendorStore = () => {
                                     </div>
                                 </div>
                             </motion.div>
+                        ))}
+                        {properties.map((property) => (
+                            <RealEstateCard key={property._id} property={property} />
                         ))}
                     </div>
                 )}

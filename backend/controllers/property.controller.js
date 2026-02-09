@@ -221,12 +221,92 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get all properties (Public/Admin)
-// @route   GET /api/public/property/list
+// @route   GET /api/public/property/all
 // @access  Public
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const properties = await Property.find({ isActive: true }).populate('vendorId', 'storeName address');
+    const { search, city, minPrice, maxPrice, type, listingType, vendorId } = req.query;
+
+    let query = { isActive: true };
+
+    if (vendorId) {
+        query.vendorId = vendorId;
+    }
+
+    if (listingType && listingType !== 'All') {
+        query.listingType = listingType;
+    }
+
+    if (city && city !== 'All Cities') {
+        query['location.city'] = { $regex: city, $options: 'i' };
+    }
+
+    if (search) {
+        query.$or = [
+            { title: { $regex: search, $options: 'i' } },
+            { 'location.area': { $regex: search, $options: 'i' } },
+            { propertyType: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } }
+        ];
+    }
+
+    // Price filtering - checking both direct price and range-based prices
+    if (minPrice || maxPrice) {
+        // Front-end sends prices in Lakhs
+        const minLakh = minPrice ? parseFloat(minPrice) : 0;
+        const maxLakh = maxPrice ? parseFloat(maxPrice) : Infinity;
+
+        const min = minLakh * 100000;
+        const max = maxLakh * 100000;
+
+        query.$or = [
+            // Case 1: Direct amount
+            { 'price.amount': { $gte: min, $lte: max } },
+            // Case 2: Sale price range
+            { 'saleDetails.priceMin': { $lte: max }, 'saleDetails.priceMax': { $gte: min } },
+            // Case 3: Monthly rent
+            { 'rentDetails.monthlyRent': { $gte: min, $lte: max } }
+        ];
+    }
+
+    // Filter by Vendor Business Type (Developer vs Broker)
+    let vendorMatch = {};
+    if (type === 'developer') {
+        vendorMatch.businessType = { $regex: 'developer', $options: 'i' };
+    } else if (type === 'broker') {
+        vendorMatch.businessType = { $regex: 'broker', $options: 'i' };
+    }
+
+    const properties = await Property.find(query)
+        .populate({
+            path: 'vendorId',
+            select: 'storeName address businessType phone storeLogo',
+            match: vendorMatch
+        });
+
+    // Filter out properties where vendor didn't match the type
+    const filteredProperties = properties.filter(p => p.vendorId !== null);
+
     res.status(200).json({
         success: true,
-        data: properties
+        count: filteredProperties.length,
+        data: filteredProperties
+    });
+});
+
+// @desc    Get single property details (Public)
+// @route   GET /api/property/public/details/:id
+// @access  Public
+export const getPublicPropertyById = asyncHandler(async (req, res) => {
+    const propertyId = req.params.id;
+
+    const property = await Property.findById(propertyId).populate('vendorId', 'storeName address businessType phone storeLogo storeDescription');
+
+    if (!property) {
+        return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    res.status(200).json({
+        success: true,
+        data: property,
     });
 });

@@ -95,12 +95,17 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
         <header className={`${sticky ? 'sticky top-0' : 'relative'} z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm flex-shrink-0`}>
             <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    {showBack ? (
+                    {showBack && (
                         <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                             <FiArrowLeft className="text-xl text-gray-700" />
                         </button>
-                    ) : (
-                        title === "Business Dashboard" ? (
+                    )}
+
+                    {(title === "Business Dashboard" ||
+                        title === "Real Estate Hub" ||
+                        title === "Developer Properties" ||
+                        title === "Verified Brokers" ||
+                        location.pathname.includes('/real-estate/property/')) && (
                             <Link to="/b2b/catalog" className="flex-shrink-0">
                                 <img
                                     src={appLogo.src}
@@ -108,8 +113,8 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                     className="h-20 w-auto object-contain"
                                 />
                             </Link>
-                        ) : null
-                    )}
+                        )}
+
                     {title === "Bulk Marketplace" ||
                         title === "My Business Account" ||
                         title === "Company Profile" ||
@@ -124,7 +129,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             <img
                                 src={appLogo.src}
                                 alt="Dealing India"
-                                className="h-24 w-auto object-contain"
+                                className="h-20 w-auto object-contain"
                             />
                         </Link>
                     ) : (
