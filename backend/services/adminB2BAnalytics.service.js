@@ -36,8 +36,12 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    // 1, 2, 3. Fetch base data in parallel
-    const [totalB2BVendors, b2bVendorsInPeriod, b2bVendorIds] = await Promise.all([
+    // 1, 2, 3. Fetch base data and remaining analytics data in parallel for maximum performance
+    const [
+      totalB2BVendors,
+      b2bVendorsInPeriod,
+      b2bVendorIds,
+    ] = await Promise.all([
       Vendor.countDocuments({ vendorType: 'b2b' }),
       Vendor.countDocuments({
         vendorType: 'b2b',
@@ -47,6 +51,9 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
     ]);
 
     const b2bVendorObjectIds = b2bVendorIds.map(v => v._id);
+
+    // Format chart data based on period
+    const chartFormat = period === 'today' ? '%H:00' : (period === 'year' ? '%b %Y' : '%d %b');
 
     // 4-8. Fetch remaining analytics data in parallel
     const [
@@ -69,7 +76,7 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
       }),
       Vendor.aggregate([
         { $match: { vendorType: 'b2b', createdAt: { $gte: startDate } } },
-        { $group: { _id: { $dateToString: { format: period === 'year' ? '%Y-%m' : '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+        { $group: { _id: { $dateToString: { format: chartFormat, date: '$createdAt' } }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } }
       ]),
       Property.countDocuments({
@@ -88,8 +95,11 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
       })
     ]);
 
-    // Helper functions (mocked for this service)
-    const calculateTrend = (value) => value > 0 ? '+10%' : '0%';
+    // Trend calculation vs historical data could be complex, for now we reflect the period activity
+    const formatValue = (total, inPeriod) => {
+      if (period === 'all') return total.toLocaleString('en-IN');
+      return inPeriod.toLocaleString('en-IN');
+    };
 
     // Format chart data
     const formatChartData = (data, dateKey = '_id', valueKey = 'count') => {
@@ -111,16 +121,16 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
         lotSlotsInPeriod
       },
       trends: {
-        vendors: calculateTrend(b2bVendorsInPeriod),
-        products: calculateTrend(productsInPeriod),
-        properties: calculateTrend(propertiesInPeriod),
-        lotSlots: calculateTrend(lotSlotsInPeriod)
+        vendors: `+${b2bVendorsInPeriod}`,
+        products: `+${productsInPeriod}`,
+        properties: `+${propertiesInPeriod}`,
+        lotSlots: `+${lotSlotsInPeriod}`
       },
       formatted: {
-        totalB2BVendors: totalB2BVendors.toString(),
-        totalB2BProducts: totalB2BProducts.toLocaleString('en-IN'),
-        totalProperties: totalProperties.toLocaleString('en-IN'),
-        totalLotSlots: totalLotSlots.toLocaleString('en-IN')
+        totalB2BVendors: formatValue(totalB2BVendors, b2bVendorsInPeriod),
+        totalB2BProducts: formatValue(totalB2BProducts, productsInPeriod),
+        totalProperties: formatValue(totalProperties, propertiesInPeriod),
+        totalLotSlots: formatValue(totalLotSlots, lotSlotsInPeriod)
       },
       charts: {
         onboardingTrend: formatChartData(onboardingTrend),

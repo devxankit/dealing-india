@@ -35,32 +35,34 @@ const AdminB2BVendorAnalytics = () => {
             if (response.success && response.data) {
                 const { formatted, trends, charts } = response.data;
 
+                const periodName = period === 'today' ? 'Today' : (period === 'week' ? 'this Week' : (period === 'year' ? 'this Year' : 'this Month'));
+
                 setMetrics([
                     {
-                        label: "Total B2B Vendors",
+                        label: `B2B Vendors (${periodName})`,
                         value: formatted?.totalB2BVendors || "0",
                         trend: trends?.vendors || "0",
                         icon: FiUsers,
                         color: "blue"
                     },
                     {
-                        label: "Total Properties",
+                        label: `Properties Added (${periodName})`,
                         value: formatted?.totalProperties || "0",
-                        trend: trends?.properties || "0%",
+                        trend: trends?.properties || "0",
                         icon: FiHome,
                         color: "green"
                     },
                     {
-                        label: "Product Listings",
+                        label: `Products Listed (${periodName})`,
                         value: formatted?.totalB2BProducts || "0",
                         trend: trends?.products || "0",
                         icon: FiPackage,
                         color: "purple"
                     },
                     {
-                        label: "Lot Slots",
+                        label: `Lot Slots Booked (${periodName})`,
                         value: formatted?.totalLotSlots || "0",
-                        trend: trends?.lotSlots || "0%",
+                        trend: trends?.lotSlots || "0",
                         icon: FiLayers,
                         color: "orange"
                     },
@@ -88,10 +90,7 @@ const AdminB2BVendorAnalytics = () => {
                     <p className="text-gray-500">Monitor B2B ecosystem growth and performance.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <TimePeriodFilter activePeriod={period} onPeriodChange={setPeriod} />
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
-                        <FiDownload /> Export
-                    </button>
+                    <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} isLoading={loading} />
                 </div>
             </div>
 

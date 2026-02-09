@@ -395,10 +395,16 @@ const ProductCatalog = () => {
 
 
     // Refetch products when filters change (Location, ItemType, Pattern, Fabric, Category, Subcategory)
+    // OPTIMIZED: Use allCategories.length as dependency instead of allCategories reference
+    // This prevents duplicate API calls when the categories array reference changes but content stays the same
     useEffect(() => {
+        // Skip fetch if a category is selected but categories haven't loaded yet
+        if (selectedCategory && selectedCategory !== 'All' && allCategories.length === 0) {
+            return; // Wait for categories to load before fetching by category
+        }
         fetchB2BProducts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedState, selectedCity, selectedItemType, selectedPattern, selectedFabric, selectedCategory, selectedSubcategory, allCategories]);
+    }, [selectedState, selectedCity, selectedItemType, selectedPattern, selectedFabric, selectedCategory, selectedSubcategory, allCategories.length]);
 
     // Debug: Log state and cities changes
     useEffect(() => {

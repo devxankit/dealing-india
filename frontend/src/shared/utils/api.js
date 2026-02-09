@@ -1,5 +1,5 @@
 import axios from 'axios';
-import toast from 'react-hot-toast';
+import toast from '../../shared/utils/toast';
 import { API_BASE_URL } from './constants';
 import { backendStatus } from './backendStatus';
 
@@ -140,6 +140,8 @@ api.interceptors.response.use(
     return response.data;
   },
   (error) => {
+    const isSilent = error.config?.silent === true;
+
     // Handle timeout and network errors
     if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || !error.response) {
       // Check if this is a connection refused error (backend not running)
@@ -158,10 +160,11 @@ api.interceptors.response.use(
         currentPath.includes('/reset-password');
 
       // Show notification only if:
-      // 1. Not on auth page
-      // 2. Backend is newly down OR notification should be shown
-      // 3. This prevents multiple toasts for simultaneous requests
-      if (!isAuthPage && (isNewlyDown || backendStatus.shouldShowErrorNotification())) {
+      // 1. Not silent
+      // 2. Not on auth page
+      // 3. Backend is newly down OR notification should be shown
+      // 4. This prevents multiple toasts for simultaneous requests
+      if (!isSilent && !isAuthPage && (isNewlyDown || backendStatus.shouldShowErrorNotification())) {
         const message = isConnectionRefused
           ? 'Backend server is not running. Please start the server and refresh the page.'
           : error.code === 'ECONNABORTED'
@@ -300,7 +303,7 @@ api.interceptors.response.use(
         url.includes('/auth/admin/login');
 
       // Only show toast for unexpected 401s (user-initiated actions), but NOT for login requests
-      if (!isLoginRequest && !isBackgroundOperation && !isDashboardOperation && !currentPath.includes('/login')) {
+      if (!isLoginRequest && !isBackgroundOperation && !isDashboardOperation && !currentPath.includes('/login') && !isSilent) {
         // Show a user-friendly message
         if (message.includes('expired') || message.includes('Token has expired')) {
           toast.error('Your session has expired. Please login again.', { id: 'auth-error' });
@@ -352,8 +355,8 @@ api.interceptors.response.use(
     // Show toast for non-auth requests or if explicitly requested via status (like 409 Conflict)
     // For B2B routes, we generally allow the local component to handle toasts, 
     // but 409 is special as it's often a duplicate field error
-    if ((!isAuthRequest && !isAuthPage) || error.response?.status === 409) {
-      toast.error(message, { id: 'api-error' });
+    if (!isSilent && ((!isAuthRequest && !isAuthPage) || error.response?.status === 409)) {
+      toast.error(message, { id: message || 'api-error' });
     } else if (isB2BRoute && (error.response?.status === 403 || error.response?.status === 401)) {
       // For B2B, let the local handler deal with 403 (Pending) and 401 (Invalid)
       // We don't show toast here to avoid duplicates

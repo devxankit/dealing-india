@@ -23,7 +23,7 @@ import api from "../../../shared/utils/api";
 import chatService from "../../../shared/services/chatService";
 import { useAuthStore } from "../../../shared/store/authStore";
 import RealEstateCard from "../components/RealEstateCard";
-import toast from "react-hot-toast";
+import toast from "../../../shared/utils/toast";
 
 const B2BVendorStore = () => {
     const { id } = useParams();
@@ -59,21 +59,30 @@ const B2BVendorStore = () => {
                     return;
                 }
 
-                // Fetch vendor details
-                const vendorRes = await api.get(`/vendors/${id}`);
+                // OPTIMIZED: Fetch vendor, products, and properties in parallel
+                // This reduces loading time from sequential (~3x slowest) to parallel (~1x slowest)
+                const [vendorRes, productsRes, propertiesRes] = await Promise.all([
+                    api.get(`/vendors/${id}`, { silent: true }),
+                    api.get(`/products`, {
+                        params: {
+                            vendorId: id,
+                            vendorType: 'b2b',
+                            limit: 100,
+                        },
+                        silent: true
+                    }),
+                    api.get(`/property/all`, {
+                        params: { vendorId: id },
+                        silent: true
+                    })
+                ]);
+
+                // Process vendor response
                 if (vendorRes?.success) {
                     setVendor(vendorRes.data.vendor);
                 }
 
-                // Fetch products for this vendor (explicitly B2B)
-                const productsRes = await api.get(`/products`, {
-                    params: {
-                        vendorId: id,
-                        vendorType: 'b2b',
-                        limit: 100,
-                    }
-                });
-
+                // Process products response
                 if (productsRes?.success) {
                     const productsList = Array.isArray(productsRes.data)
                         ? productsRes.data
@@ -81,10 +90,7 @@ const B2BVendorStore = () => {
                     setProducts(productsList);
                 }
 
-                // Fetch properties for this vendor
-                const propertiesRes = await api.get(`/property/all`, {
-                    params: { vendorId: id }
-                });
+                // Process properties response
                 if (propertiesRes?.success) {
                     setProperties(propertiesRes.data);
                 }

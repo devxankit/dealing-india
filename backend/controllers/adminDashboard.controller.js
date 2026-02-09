@@ -2,7 +2,12 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
+import Property from '../models/Property.model.js';
+import BannerBooking from '../models/BannerBooking.model.js';
 import Transaction from '../models/Transaction.model.js';
+import B2BCategory from '../models/B2BCategory.model.js';
+import VendorSubscription from '../models/VendorSubscription.model.js';
+import LotSlot from '../models/LotSlot.model.js';
 
 /**
  * Get Admin Dashboard Summary
@@ -10,90 +15,164 @@ import Transaction from '../models/Transaction.model.js';
  * @access Private/Admin
  */
 export const getDashboardSummary = asyncHandler(async (req, res) => {
-    const { period = 'month' } = req.query;
+    // Fetch all active categories defined by Admin first
+    const activeCategories = await B2BCategory.find({ isActive: true }).select('name').lean();
+    const categoryNames = activeCategories.map(c => c.name);
 
-    // Calculate date range based on period
-    const now = new Date();
-    let startDate = new Date();
-
-    switch (period) {
-        case 'week':
-            startDate.setDate(now.getDate() - 7);
-            break;
-        case 'month':
-            startDate.setMonth(now.getMonth() - 1);
-            break;
-        case 'year':
-            startDate.setFullYear(now.getFullYear() - 1);
-            break;
-        default:
-            startDate.setMonth(now.getMonth() - 1);
-    }
-
-    // Parallel fetch counts
+    // Optimize: Fetch ALL counts, aggregations, and revenue stats in a single parallel block for maximum performance
     const [
         totalCustomers,
         totalVendors,
         totalProducts,
+        totalProperties,
+        activeBanners,
         recentVendors,
-        revenueResult
+        activeVendors,
+        activeProducts,
+        activeProperties,
+        vendorDistribution,
+        topCategoriesRaw,
+        topLocationsRaw,
+        revenueResult,
+        activeSubscriptionsCount,
+        totalLotSlots,
+        activeLotSlots
     ] = await Promise.all([
         User.countDocuments(),
-        Vendor.countDocuments(),
+        Vendor.countDocuments({ vendorType: { $ne: 'admin' } }),
         Product.countDocuments(),
-        Vendor.find().sort({ createdAt: -1 }).limit(5).select('name email storeName createdAt status'),
+        Property.countDocuments(),
+        BannerBooking.countDocuments({
+            status: 'active',
+            paymentStatus: 'paid',
+            startDate: { $lte: new Date() },
+            endDate: { $gte: new Date() }
+        }),
+        Vendor.find({ vendorType: { $ne: 'admin' } })
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .select('name email storeName createdAt status vendorType phone')
+            .lean(),
+        Vendor.countDocuments({ vendorType: { $ne: 'admin' }, status: 'approved' }),
+        Product.countDocuments({ isActive: true }),
+        Property.countDocuments({ isActive: true }),
+        Vendor.aggregate([
+            { $match: { vendorType: { $ne: 'admin' } } },
+            { $group: { _id: '$vendorType', count: { $sum: 1 } } }
+        ]),
+        // Top categories based on Admin defined categories
+        Product.aggregate([
+            {
+                $project: {
+                    categoryAttr: {
+                        $filter: {
+                            input: '$attributes',
+                            as: 'attr',
+                            cond: { $eq: ['$$attr.name', 'category'] }
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    categoryName: { $arrayElemAt: ['$categoryAttr.value', 0] }
+                }
+            },
+            {
+                $match: {
+                    categoryName: { $in: categoryNames }
+                }
+            },
+            {
+                $group: {
+                    _id: '$categoryName',
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]),
+        // Top 5 Property Locations
+        Property.aggregate([
+            {
+                $group: {
+                    _id: { $ifNull: ['$location.city', 'Unknown'] },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
+        ]),
+        // Real revenue calculation from Transactions
         Transaction.aggregate([
-            { $match: { status: 'success' } }, // Adjust based on your Transaction model status
+            { $match: { status: 'completed', type: 'payment' } },
             { $group: { _id: null, total: { $sum: '$amount' } } }
-        ])
+        ]),
+        VendorSubscription.countDocuments({ status: 'active' }),
+        LotSlot.countDocuments(),
+        LotSlot.countDocuments({ isActive: true })
     ]);
 
+    // Format vendor distribution for frontend
+    const formattedVendorDistribution = vendorDistribution.map(v => ({
+        name: v._id === 'b2b' ? 'B2B Vendors' : 'Individual Sellers',
+        value: v.count,
+        color: v._id === 'b2b' ? '#3B82F6' : '#10B981' // Blue for B2B, Green for others
+    }));
+
+    // Create a map of aggregation results
+    const countsMap = topCategoriesRaw.reduce((acc, curr) => {
+        acc[curr._id] = curr.count;
+        return acc;
+    }, {});
+
+    // Ensure all admin categories are represented, even with 0 products
+    const topCategories = categoryNames.map(name => ({
+        name: name,
+        views: countsMap[name] || 0
+    })).sort((a, b) => b.views - a.views).slice(0, 10);
+
+    // Format top locations
+    const topLocations = topLocationsRaw.map(l => ({
+        name: l._id,
+        views: l.count
+    }));
+
+    // Real revenue calculation
     const totalRevenue = revenueResult[0]?.total || 0;
-
-    // Mock data for charts (since Order model is missing or structured differently)
-    const revenueData = [
-        { name: 'Jan', revenue: 4000 },
-        { name: 'Feb', revenue: 3000 },
-        { name: 'Mar', revenue: 2000 },
-        { name: 'Apr', revenue: 2780 },
-        { name: 'May', revenue: 1890 },
-        { name: 'Jun', revenue: 2390 },
-    ];
-
-    const salesData = [
-        { name: 'Jan', sales: 2400 },
-        { name: 'Feb', sales: 1398 },
-        { name: 'Mar', sales: 9800 },
-        { name: 'Apr', sales: 3908 },
-        { name: 'May', sales: 4800 },
-        { name: 'Jun', sales: 3800 },
-    ];
-
-    const customerGrowth = [
-        { name: 'Jan', customers: 100 },
-        { name: 'Feb', customers: 120 },
-        { name: 'Mar', customers: 150 },
-        { name: 'Apr', customers: 180 },
-        { name: 'May', customers: 220 },
-        { name: 'Jun', customers: 280 },
-    ];
 
     res.status(200).json({
         success: true,
         data: {
             summary: {
-                totalRevenue,
-                totalOrders: 0, // Mocked as Order model is missing
-                totalProducts,
                 totalCustomers,
-                totalVendors
+                totalVendors,
+                totalProducts,
+                totalProperties,
+                activeBanners,
+                activeVendors,
+                activeProducts,
+                activeProperties,
+                totalRevenue,
+                activeSubscriptionsCount,
+                totalLotSlots,
+                activeLotSlots
             },
-            revenueData,
-            salesData,
-            customerGrowth,
-            recentOrders: [], // Mocked
-            topProducts: [], // Mocked
-            recentVendors
+            vendorDistribution: formattedVendorDistribution,
+            recentVendors,
+            performance: {
+                topCategories: topCategories.length ? topCategories : [{ name: 'No Product Added Yet', views: 0 }],
+                topLocations: topLocations.length ? topLocations : [{ name: 'No Data', views: 0 }]
+            },
+            // Revenue chart data dummy for now
+            revenueData: [
+                { name: 'Jan', revenue: 4000 },
+                { name: 'Feb', revenue: 3000 },
+                { name: 'Mar', revenue: 2000 },
+                { name: 'Apr', revenue: 2780 },
+                { name: 'May', revenue: 1890 },
+                { name: 'Jun', revenue: 2390 },
+            ]
         }
     });
 });

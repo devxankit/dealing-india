@@ -12,7 +12,7 @@ class SupportTicketService {
     try {
       // Auto-fetch subscriptionId if not provided and category is subscription-related
       let subscriptionId = null;
-      
+
       if (ticketData.subscriptionId) {
         // Validate provided subscriptionId
         if (mongoose.Types.ObjectId.isValid(ticketData.subscriptionId)) {
@@ -21,7 +21,7 @@ class SupportTicketService {
           console.warn(`Invalid subscriptionId provided: ${ticketData.subscriptionId}, will auto-fetch`);
         }
       }
-      
+
       // If subscriptionId is still null and category is subscription-related, auto-fetch
       if (!subscriptionId && (ticketData.category === 'subscription' || ticketData.category === 'billing' || ticketData.category === 'payment')) {
         try {
@@ -70,23 +70,7 @@ class SupportTicketService {
         .populate('subscriptionId')
         .lean();
 
-      // Notify admins about new ticket from vendor
-      try {
-        await notificationService.sendBulkNotification({
-          recipientType: 'admin',
-          type: 'ticket_created',
-          title: 'New Vendor Support Ticket',
-          message: `New ticket "${savedTicket.subject}" from vendor ${savedTicket.vendorId?.businessName || 'Unknown'}`,
-          actionUrl: `/admin/support-tickets/${savedTicket._id}`,
-          metadata: {
-            ticketId: savedTicket._id.toString(),
-            ticketNumber: savedTicket.ticketNumber,
-            createdByRole: 'vendor',
-          },
-        }, 'admins');
-      } catch (notifError) {
-        console.error('Failed to notify admins about new vendor ticket:', notifError);
-      }
+      // Admin notification removed as per strict requirements
 
       return savedTicket;
     } catch (error) {
@@ -107,8 +91,8 @@ class SupportTicketService {
       const ticketNumber = `TKT-${year}-${String(count + 1).padStart(4, '0')}`;
 
       // Ensure userId is ObjectId
-      const userIdObj = mongoose.Types.ObjectId.isValid(userId) 
-        ? new mongoose.Types.ObjectId(userId) 
+      const userIdObj = mongoose.Types.ObjectId.isValid(userId)
+        ? new mongoose.Types.ObjectId(userId)
         : userId;
 
       const ticket = await SupportTicket.create({
@@ -135,23 +119,7 @@ class SupportTicketService {
         .populate('userId', 'name email')
         .lean();
 
-      // Notify admins about new ticket
-      try {
-        await notificationService.sendBulkNotification({
-          recipientType: 'admin',
-          type: 'ticket_created',
-          title: 'New Support Ticket',
-          message: `New ticket "${savedTicket.subject}" from user ${savedTicket.userId?.name || 'Unknown'}`,
-          actionUrl: `/admin/support-tickets/${savedTicket._id}`,
-          metadata: {
-            ticketId: savedTicket._id.toString(),
-            ticketNumber: savedTicket.ticketNumber,
-            createdByRole: 'user',
-          },
-        }, 'admins');
-      } catch (notifError) {
-        console.error('Failed to notify admins about new ticket:', notifError);
-      }
+      // Admin notification removed as per strict requirements
 
       return savedTicket;
     } catch (error) {
@@ -165,17 +133,17 @@ class SupportTicketService {
   async getVendorTickets(vendorId, filters = {}) {
     try {
       const { status, category, priority } = filters;
-      
+
       const query = { vendorId, createdByRole: 'vendor' };
-      
+
       if (status && status !== 'all') {
         query.status = status;
       }
-      
+
       if (category) {
         query.category = category;
       }
-      
+
       if (priority) {
         query.priority = priority;
       }
@@ -199,7 +167,7 @@ class SupportTicketService {
   async getTicketById(ticketId, userId = null, userRole = null) {
     try {
       const query = { _id: ticketId };
-      
+
       // If userId and userRole provided, ensure ticket belongs to user/vendor
       if (userId && userRole) {
         if (userRole === 'vendor') {
@@ -231,24 +199,24 @@ class SupportTicketService {
   async getUserTickets(userId, filters = {}) {
     try {
       const { status, category, priority } = filters;
-      
+
       // Ensure userId is converted to ObjectId for proper querying
-      const userIdObj = mongoose.Types.ObjectId.isValid(userId) 
-        ? new mongoose.Types.ObjectId(userId) 
+      const userIdObj = mongoose.Types.ObjectId.isValid(userId)
+        ? new mongoose.Types.ObjectId(userId)
         : userId;
-      
+
       const query = { userId: userIdObj, createdByRole: 'user' };
-      
+
       console.log('getUserTickets query:', JSON.stringify(query, null, 2));
-      
+
       if (status && status !== 'all') {
         query.status = status;
       }
-      
+
       if (category) {
         query.category = category;
       }
-      
+
       if (priority) {
         query.priority = priority;
       }
@@ -260,7 +228,7 @@ class SupportTicketService {
         .lean();
 
       console.log(`Found ${tickets.length} tickets for user ${userId}`);
-      
+
       return tickets;
     } catch (error) {
       console.error('Error in getUserTickets:', error);
@@ -309,8 +277,8 @@ class SupportTicketService {
             type: 'ticket_status_changed',
             title: 'Ticket status updated',
             message: `Your ticket "${updatedTicket.subject}" status changed to ${newStatus}`,
-            actionUrl: recipientType === 'user' 
-              ? `/app/support-tickets/${ticketId}` 
+            actionUrl: recipientType === 'user'
+              ? `/app/support-tickets/${ticketId}`
               : `/vendor/support-tickets/${ticketId}`,
             metadata: {
               ticketId: ticketId.toString(),
@@ -350,10 +318,10 @@ class SupportTicketService {
       }
 
       const senderRoleModel = senderRole === 'admin' ? 'Admin' : senderRole === 'user' ? 'User' : 'Vendor';
-      
+
       // Ensure senderId is a valid ObjectId
-      const senderIdObj = mongoose.Types.ObjectId.isValid(senderId) 
-        ? new mongoose.Types.ObjectId(senderId) 
+      const senderIdObj = mongoose.Types.ObjectId.isValid(senderId)
+        ? new mongoose.Types.ObjectId(senderId)
         : senderId;
 
       const ticketMessage = await TicketMessage.create({
@@ -400,8 +368,8 @@ class SupportTicketService {
               type: 'ticket_replied',
               title: 'New reply on support ticket',
               message: `Ticket "${ticketData.subject}" has a new reply from ${senderRole}`,
-              actionUrl: recipientType === 'user' 
-                ? `/app/support-tickets/${ticketId}` 
+              actionUrl: recipientType === 'user'
+                ? `/app/support-tickets/${ticketId}`
                 : recipientType === 'vendor'
                   ? `/vendor/support-tickets/${ticketId}`
                   : `/admin/support-tickets/${ticketId}`,
@@ -414,8 +382,7 @@ class SupportTicketService {
             };
 
             if (recipientType === 'admin') {
-              // Special handling for admin notification - send to all admins
-              await notificationService.sendBulkNotification(notificationData, 'admins');
+              // Admin notification removed as per strict requirements
             } else if (recipientId) {
               await notificationService.createNotification(notificationData);
             }
@@ -492,17 +459,17 @@ class SupportTicketService {
   async getAllTickets(filters = {}) {
     try {
       const { status, category, priority, vendorId, userId, createdByRole } = filters;
-      
+
       const query = {};
-      
+
       if (status && status !== 'all') {
         query.status = status;
       }
-      
+
       if (category) {
         query.category = category;
       }
-      
+
       if (priority) {
         query.priority = priority;
       }

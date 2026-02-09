@@ -6,7 +6,7 @@ import StatsCards from '../../components/Analytics/StatsCards';
 import RevenueChart from '../../components/Analytics/RevenueChart';
 import EditTierModal from '../../components/EditTierModal';
 import api from '../../../../shared/utils/api';
-import toast from 'react-hot-toast';
+import toast from '../../../../shared/utils/toast';
 
 const Subscriptions = () => {
   const [activeTab, setActiveTab] = useState(() => {
@@ -23,11 +23,11 @@ const Subscriptions = () => {
   }, [window.location.search]);
 
   const handleTabChange = (tab) => {
-     setActiveTab(tab);
-     const url = new URL(window.location);
-     url.searchParams.set('tab', tab);
-     window.history.pushState({}, '', url);
-   };
+    setActiveTab(tab);
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tab);
+    window.history.pushState({}, '', url);
+  };
 
   const [analytics, setAnalytics] = useState(null);
   const [tiers, setTiers] = useState([]);
@@ -62,41 +62,41 @@ const Subscriptions = () => {
       toast.error('Failed to load subscription tiers');
       // Fallback to mock data if API fails
       const mockTiers = [
-        { 
-          id: '1', 
-          name: 'Free', 
-          priceMonthly: 0, 
-          reelLimit: 0, 
+        {
+          id: '1',
+          name: 'Free',
+          priceMonthly: 0,
+          reelLimit: 0,
           extraReelPrice: 10,
           features: ['Cost per reel upload: ₹10', 'Basic features', 'Automatic activation'],
-          isActive: true 
+          isActive: true
         },
-        { 
-          id: '2', 
-          name: 'Starter', 
-          priceMonthly: 99, 
-          reelLimit: 30, 
+        {
+          id: '2',
+          name: 'Starter',
+          priceMonthly: 99,
+          reelLimit: 30,
           extraReelPrice: 10,
           features: ['30 reels per month', 'Additional reels at ₹10 each', 'Standard features'],
-          isActive: true 
+          isActive: true
         },
-        { 
-          id: '3', 
-          name: 'Professional', 
-          priceMonthly: 299, 
-          reelLimit: 100, 
+        {
+          id: '3',
+          name: 'Professional',
+          priceMonthly: 299,
+          reelLimit: 100,
           extraReelPrice: 10,
           features: ['100 reels per month', 'Additional reels at ₹10 each', 'Enhanced features'],
-          isActive: true 
+          isActive: true
         },
-        { 
-          id: '4', 
-          name: 'Premium', 
-          priceMonthly: 499, 
-          reelLimit: -1, 
+        {
+          id: '4',
+          name: 'Premium',
+          priceMonthly: 499,
+          reelLimit: -1,
           extraReelPrice: 0,
           features: ['Unlimited reel uploads', 'Premium features', 'Priority support'],
-          isActive: true 
+          isActive: true
         }
       ];
       setTiers(mockTiers);
@@ -135,14 +135,14 @@ const Subscriptions = () => {
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
-      
+
       // Handle authentication errors specifically
       if (error.response?.status === 401 || error.message?.includes('401')) {
         toast.error('Authentication required. Please login again.');
         // Don't set empty data, let the error propagate so the interceptor can handle redirect
         return;
       }
-      
+
       toast.error(error.response?.data?.message || error.message || 'Failed to load analytics data');
       // Set empty data structure to prevent errors
       setAnalytics({
@@ -188,14 +188,14 @@ const Subscriptions = () => {
 
   const handleTierUpdateSuccess = (updatedTier) => {
     // Update the tier in the list
-    setTiers(prevTiers => 
-      prevTiers.map(tier => 
-        (tier._id === updatedTier._id || tier.id === updatedTier._id) 
+    setTiers(prevTiers =>
+      prevTiers.map(tier =>
+        (tier._id === updatedTier._id || tier.id === updatedTier._id)
           ? {
-              ...updatedTier,
-              id: updatedTier._id || updatedTier.id,
-              features: updatedTier.features?.map(f => typeof f === 'string' ? f : f.name || '') || []
-            }
+            ...updatedTier,
+            id: updatedTier._id || updatedTier.id,
+            features: updatedTier.features?.map(f => typeof f === 'string' ? f : f.name || '') || []
+          }
           : tier
       )
     );
@@ -228,10 +228,10 @@ const Subscriptions = () => {
 
     try {
       setOverrideLoading(true);
-      const details = overrideForm.action === 'extend_custom' 
-        ? { days: parseInt(overrideForm.days) } 
+      const details = overrideForm.action === 'extend_custom'
+        ? { days: parseInt(overrideForm.days) }
         : {};
-      
+
       const response = await api.post('/admin/subscriptions/manual-override', {
         subscriptionId: subscriptionId, // Use validated subscriptionId
         action: overrideForm.action,
@@ -254,7 +254,7 @@ const Subscriptions = () => {
       }
     } catch (error) {
       console.error('Error applying manual override:', error);
-      
+
       // Handle 401 errors specifically - don't show toast as interceptor will handle redirect
       if (error.response?.status === 401) {
         const errorMessage = error.response?.data?.message || 'Your session has expired. Please login again.';
@@ -263,10 +263,10 @@ const Subscriptions = () => {
         // The API interceptor will handle the redirect to login page
         return;
       }
-      
+
       // Handle other errors
-      const errorMessage = error.response?.data?.message 
-        || error.message 
+      const errorMessage = error.response?.data?.message
+        || error.message
         || 'Failed to apply action. Please check the subscription ID and try again.';
       toast.error(errorMessage);
     } finally {
@@ -298,13 +298,12 @@ const Subscriptions = () => {
     { label: 'Amount', key: 'amount', render: (val) => `₹${val}` },
     { label: 'Tier', key: 'tier' },
     { label: 'Date', key: 'date' },
-    { 
-      label: 'Status', 
+    {
+      label: 'Status',
       key: 'status',
       render: (val) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-          val === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-        }`}>
+        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${val === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+          }`}>
           {val?.charAt(0).toUpperCase() + val?.slice(1)}
         </span>
       )
@@ -324,14 +323,13 @@ const Subscriptions = () => {
             { id: 'tiers', label: 'Tier Config' },
             { id: 'monitoring', label: 'Monitoring' }
           ].map((tab) => (
-            <button 
+            <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap flex-1 sm:flex-none ${
-                activeTab === tab.id 
-                  ? 'bg-blue-600 text-white shadow-md' 
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap flex-1 sm:flex-none ${activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-md'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -340,14 +338,14 @@ const Subscriptions = () => {
       </div>
 
       {activeTab === 'analytics' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }} 
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
           className="space-y-6 lg:space-y-8"
         >
           <StatsCards stats={stats} />
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-7 xl:col-span-8">
               <RevenueChart data={analytics?.revenueData || []} />
@@ -362,7 +360,7 @@ const Subscriptions = () => {
                     return (
                       <div key={tier.name} className="flex flex-col items-center flex-1 group">
                         <div className="w-full max-w-[40px] relative">
-                          <motion.div 
+                          <motion.div
                             initial={{ height: 0 }}
                             animate={{ height: `${height}%` }}
                             className="bg-blue-500 rounded-t-lg transition-all group-hover:bg-blue-600 shadow-sm"
@@ -390,8 +388,8 @@ const Subscriptions = () => {
       )}
 
       {activeTab === 'tiers' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }} 
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
@@ -405,7 +403,7 @@ const Subscriptions = () => {
                       {tier.isActive ? 'ACTIVE' : 'INACTIVE'}
                     </span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => handleEditTier(tier)}
                     className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="Edit tier settings"
@@ -432,7 +430,7 @@ const Subscriptions = () => {
                     </li>
                   ))}
                 </ul>
-                <button 
+                <button
                   onClick={() => handleEditTier(tier)}
                   className="w-full py-2.5 bg-blue-50 text-blue-700 font-bold rounded-xl hover:bg-blue-100 transition-all active:scale-[0.98]"
                 >
@@ -453,20 +451,19 @@ const Subscriptions = () => {
                 <p className="mt-4 text-gray-500">Loading subscriptions...</p>
               </div>
             ) : (
-              <DataTable 
+              <DataTable
                 columns={[
                   { label: 'Vendor', key: 'vendor' },
-                  { 
-                    label: 'Status', 
+                  {
+                    label: 'Status',
                     key: 'status',
                     render: (val) => (
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        val === 'active' ? 'bg-green-100 text-green-800' : 
-                        val === 'expired' ? 'bg-red-100 text-red-800' :
-                        val === 'cancelled' ? 'bg-gray-100 text-gray-800' :
-                        val === 'failed' ? 'bg-orange-100 text-orange-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${val === 'active' ? 'bg-green-100 text-green-800' :
+                          val === 'expired' ? 'bg-red-100 text-red-800' :
+                            val === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                              val === 'failed' ? 'bg-orange-100 text-orange-800' :
+                                'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {val?.charAt(0).toUpperCase() + val?.slice(1)}
                       </span>
                     )
@@ -474,8 +471,8 @@ const Subscriptions = () => {
                   { label: 'Tier', key: 'tier' },
                   { label: 'Expiry Date', key: 'expiry' },
                   { label: 'Auto Renew', key: 'renew', render: (val) => val ? 'Yes' : 'No' },
-                  { 
-                    label: 'Subscription ID', 
+                  {
+                    label: 'Subscription ID',
                     key: 'subscriptionId',
                     render: (val, row) => {
                       const fullId = val?.toString() || row.subscriptionId?.toString() || 'N/A';
@@ -510,8 +507,8 @@ const Subscriptions = () => {
                       );
                     }
                   }
-                ]} 
-                data={monitoringData} 
+                ]}
+                data={monitoringData}
               />
             )}
           </div>

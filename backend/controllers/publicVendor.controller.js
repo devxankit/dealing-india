@@ -40,35 +40,42 @@ export const getPublicVendors = async (req, res, next) => {
       sortOrder,
     });
 
-    // Enrich vendors with product counts
-    const enrichedVendors = await Promise.all(
-      result.vendors.map(async (vendor) => {
-        // Get product count for this vendor
-        const productCount = await Product.countDocuments({
-          vendorId: vendor._id,
-          isActive: true,
-        });
+    // OPTIMIZED: Get product counts for all vendors in a single aggregation query
+    // This eliminates the N+1 query problem (previously one query per vendor)
+    const vendorIds = result.vendors.map(v => v._id);
+    const productCounts = await Product.aggregate([
+      { $match: { vendorId: { $in: vendorIds }, isActive: true } },
+      { $group: { _id: '$vendorId', count: { $sum: 1 } } }
+    ]);
 
-        // Transform vendor data for public consumption
-        return {
-          id: vendor._id.toString(),
-          _id: vendor._id,
-          name: vendor.name,
-          email: vendor.email,
-          phone: vendor.phone,
-          storeName: vendor.storeName,
-          storeLogo: vendor.storeLogo,
-          storeDescription: vendor.storeDescription,
-          address: vendor.address,
-          status: vendor.status,
-          isVerified: vendor.isEmailVerified || vendor.status === 'approved',
-          totalProducts: productCount,
-          joinDate: vendor.createdAt,
-          createdAt: vendor.createdAt,
-          updatedAt: vendor.updatedAt,
-        };
-      })
+    // Create a map for O(1) lookup
+    const productCountMap = new Map(
+      productCounts.map(item => [item._id.toString(), item.count])
     );
+
+    // Enrich vendors with product counts (no additional DB queries needed)
+    const enrichedVendors = result.vendors.map((vendor) => {
+      const productCount = productCountMap.get(vendor._id.toString()) || 0;
+
+      // Transform vendor data for public consumption
+      return {
+        id: vendor._id.toString(),
+        _id: vendor._id,
+        name: vendor.name,
+        email: vendor.email,
+        phone: vendor.phone,
+        storeName: vendor.storeName,
+        storeLogo: vendor.storeLogo,
+        storeDescription: vendor.storeDescription,
+        address: vendor.address,
+        status: vendor.status,
+        isVerified: vendor.isEmailVerified || vendor.status === 'approved',
+        totalProducts: productCount,
+        joinDate: vendor.createdAt,
+        createdAt: vendor.createdAt,
+        updatedAt: vendor.updatedAt,
+      };
+    });
 
     const responseData = {
       vendors: enrichedVendors,

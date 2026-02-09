@@ -31,9 +31,9 @@ export const getDashboardData = async (req, res, next) => {
             Property.countDocuments({ vendorId, isActive: true }),
             LotSlot.countDocuments({ vendorId }),
             LotSlot.countDocuments({ vendorId, isActive: true }),
-            BannerBooking.find({ vendorId, status: 'active' }).populate('slotId'),
-            VendorSubscription.find({ vendorId, status: 'active' }).populate('planId'),
-            Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5)
+            BannerBooking.find({ vendorId, status: 'active' }).populate('slotId').lean(),
+            VendorSubscription.find({ vendorId, status: 'active' }).populate('planId').lean(),
+            Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5).lean()
         ]);
 
         // Format Data for Frontend

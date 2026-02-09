@@ -136,7 +136,7 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
     if (!notification.isRead) {
       await handleMarkAsRead(notification._id);
     }
-    
+
     if (notification.actionUrl) {
       navigate(notification.actionUrl);
       onClose();
@@ -165,7 +165,7 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
     } else if (isVendor) {
       return '/vendor/notifications';
     } else if (isAdmin) {
-      return '/admin/orders/order-notifications';
+      return '/admin/notifications';
     }
     return '/app/notifications';
   };
@@ -252,9 +252,8 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
                         key={notification._id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                          !notification.isRead ? 'bg-blue-50/30' : ''
-                        }`}
+                        className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50/30' : ''
+                          }`}
                         onClick={() => handleNotificationClick(notification)}
                       >
                         <div className="flex items-start gap-3">

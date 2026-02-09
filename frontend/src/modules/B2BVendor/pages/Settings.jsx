@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FiUser, FiBell, FiLock, FiShield, FiSave } from "react-icons/fi";
 import { motion } from "framer-motion";
-import toast from "react-hot-toast";
+import toast from "../../../shared/utils/toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
 const B2BVendorSettings = () => {
@@ -46,7 +46,7 @@ const B2BVendorSettings = () => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        
+
         // Handle nested address fields
         if (name.startsWith('address.')) {
             const addressField = name.split('.')[1];

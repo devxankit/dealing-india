@@ -177,13 +177,26 @@ export const getB2BVendorProductById = async (productId, vendorId) => {
  */
 export const createB2BVendorProduct = async (productData, vendorId) => {
   try {
-    // Verify vendor is B2B
-    const vendor = await verifyB2BVendor(vendorId);
+    const {
+      name,
+      price,
+      moq,
+    } = productData;
 
-    // ---------------------------------------------------------
-    // B2B SUBSCRIPTION PLAN RESTRICTION LOGIC
-    // ---------------------------------------------------------
-    const subscription = await subscriptionService.getVendorSubscription(vendorId);
+    // Validate required fields early
+    if (!name || !price || !moq) {
+      const err = new Error('Name, price, and MOQ are required');
+      err.status = 400;
+      throw err;
+    }
+
+    // Parallelize all initial checks and generations for maximum speed
+    const [vendor, subscription, activeProductCount, sku] = await Promise.all([
+      verifyB2BVendor(vendorId),
+      subscriptionService.getVendorSubscription(vendorId),
+      Product.countDocuments({ vendorId, isActive: true }),
+      generateSKU(name, vendorId)
+    ]);
 
     // 1. Strictly check for an ACTIVE B2B subscription
     if (!subscription || subscription.status !== 'active' || !subscription.planId) {
@@ -193,7 +206,6 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     }
 
     const planName = subscription.planId.name ? subscription.planId.name.trim() : '';
-    const activeProductCount = await Product.countDocuments({ vendorId, isActive: true });
 
     // 2. Apply plan-specific limits
     if (planName.toLowerCase().includes('basic')) {
@@ -208,17 +220,11 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
         err.status = 403;
         throw err;
       }
-    } else if (planName.toLowerCase().includes('diamond') || planName.toLowerCase().includes('premium')) {
-      // Diamond and Premium plans have unlimited products - no restriction
     }
-    // ---------------------------------------------------------
 
     const {
-      name,
       category,
       subcategory,
-      moq,
-      price,
       description,
       images = [],
       specifications = [],
@@ -227,16 +233,6 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       availability,
       unit,
     } = productData;
-
-    // Validate required fields
-    if (!name || !price || !moq) {
-      const err = new Error('Name, price, and MOQ are required');
-      err.status = 400;
-      throw err;
-    }
-
-    // Generate SKU
-    const sku = await generateSKU(name, vendorId);
 
     // Process images - upload to Cloudinary
     let imageUrl = null;

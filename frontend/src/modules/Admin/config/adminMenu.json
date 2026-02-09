@@ -67,17 +67,6 @@
   {
     "title": "Notifications",
     "route": "/admin/notifications",
-    "children": [
-      "Push Notifications",
-      "Custom Messages"
-    ]
-  },
-  {
-    "title": "Firebase",
-    "route": "/admin/firebase",
-    "children": [
-      "Push Config",
-      "Authentication"
-    ]
+    "children": []
   }
 ]

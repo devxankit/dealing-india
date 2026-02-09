@@ -52,10 +52,11 @@ import heroBannerPublicRoutes from './routes/heroBannerPublic.routes.js';
 import adminDefaultBannerRoutes from './routes/adminDefaultBanner.routes.js';
 import publicBannerRoutes from './routes/publicBanner.routes.js';
 import adminAnalyticsRoutes from './routes/adminAnalytics.routes.js';
-// import adminDashboardRoutes from './routes/adminDashboard.routes.js';
+import adminDashboardRoutes from './routes/adminDashboard.routes.js';
 import businessTypeRoutes from './routes/businessType.routes.js';
 import propertyRoutes from './routes/property.routes.js';
 import adminBusinessSettingsRoutes from './routes/adminBusinessSettings.routes.js';
+import adminNotificationRoutes from './routes/adminNotification.routes.js';
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 
 
@@ -284,7 +285,8 @@ app.use('/api/admin/hero-banners', heroBannerAdminRoutes);
 app.use('/api/admin/default-banners', adminDefaultBannerRoutes);
 app.use('/api/public/banners', publicBannerRoutes);
 app.use('/api/admin/analytics', adminAnalyticsRoutes);
-// app.use('/api/admin/reports', adminDashboardRoutes);
+app.use('/api/admin/reports', adminDashboardRoutes);
+app.use('/api/admin/notifications', adminNotificationRoutes);
 
 
 // Global error handler for unhandled promise rejections

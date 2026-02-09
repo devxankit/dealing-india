@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import { getB2BPlans, updateB2BPlan, createB2BPlan, initializeDefaultPlans } from "../../../../shared/utils/b2bPlanManager";
@@ -7,6 +8,7 @@ import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
 
 const Subscriptions = () => {
+    const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("subscriptions");
     const [subscriptionFilter, setSubscriptionFilter] = useState("all");
@@ -19,15 +21,27 @@ const Subscriptions = () => {
     const [stats, setStats] = useState({
         active: 0,
         monthlyRevenue: 0,
-        expiringSoon: 0
+        expiringSoon: 0,
+        totalCollectedRevenue: 0
     });
     const [businessTypes, setBusinessTypes] = useState([]);
 
+    // Optimize: Combined initial load into single useEffect with parallel execution
     useEffect(() => {
-        loadPlans();
-        loadSubscriptions();
-        fetchBusinessTypes();
-    }, []);
+        const init = async () => {
+            try {
+                await Promise.all([
+                    loadPlans(),
+                    loadSubscriptions(),
+                    fetchBusinessTypes()
+                ]);
+            } catch (error) {
+                console.error("Initialization error:", error);
+            }
+        };
+        init();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run on mount
 
     const fetchBusinessTypes = async () => {
         try {
@@ -40,11 +54,14 @@ const Subscriptions = () => {
         }
     };
 
+    // Separate effect for subscription filter changes (only when filter changes, not tab)
     useEffect(() => {
-        if (activeTab !== 'plans') {
+        // Only reload subscriptions when filter changes AND we're on subscriptions tab
+        if (activeTab === 'subscriptions') {
             loadSubscriptions();
         }
-    }, [activeTab, subscriptionFilter]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subscriptionFilter]); // Only depends on filter, not activeTab
 
     const loadPlans = async () => {
         try {
@@ -174,7 +191,8 @@ const Subscriptions = () => {
                     setStats({
                         active: response.stats.active || 0,
                         monthlyRevenue: response.stats.monthlyRevenue || 0,
-                        expiringSoon: response.stats.expiringSoon || 0
+                        expiringSoon: response.stats.expiringSoon || 0,
+                        totalCollectedRevenue: response.stats.totalCollectedRevenue || 0
                     });
                 }
             }
@@ -191,6 +209,15 @@ const Subscriptions = () => {
         { label: "Active Subscriptions", value: stats.active.toString(), icon: FiCheckCircle, color: "text-green-600", bg: "bg-green-100" },
         { label: "Monthly Revenue", value: `₹${stats.monthlyRevenue.toLocaleString('en-IN')}`, icon: FiTrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
         { label: "Expiring Soon", value: stats.expiringSoon.toString(), icon: FiActivity, color: "text-orange-600", bg: "bg-orange-100" },
+        {
+            label: "Subscription Wallet",
+            value: `₹${stats.totalCollectedRevenue.toLocaleString('en-IN')}`,
+            icon: FiShoppingBag,
+            color: "text-purple-600",
+            bg: "bg-purple-100",
+            clickable: true,
+            onClick: () => navigate('/admin/b2b-vendors/subscription-wallet')
+        },
     ];
 
     const columns = [
@@ -273,12 +300,13 @@ const Subscriptions = () => {
             </div>
 
             {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {statsCards.map((stat, idx) => (
                     <motion.div
                         key={idx}
                         whileHover={{ y: -5 }}
-                        className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-5"
+                        onClick={stat.onClick}
+                        className={`bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-5 ${stat.clickable ? 'cursor-pointer hover:border-purple-200 transition-all' : ''}`}
                     >
                         <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center text-2xl shadow-inner`}>
                             <stat.icon />
@@ -512,8 +540,8 @@ const Subscriptions = () => {
                                                 setEditingPlan({ ...editingPlan, allowedBusinessTypes: next });
                                             }}
                                             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${(editingPlan.allowedBusinessTypes || []).includes(type.slug)
-                                                    ? 'bg-slate-900 text-white shadow-lg'
-                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                ? 'bg-slate-900 text-white shadow-lg'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                                 }`}
                                         >
                                             {type.name}

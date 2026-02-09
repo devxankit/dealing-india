@@ -33,11 +33,15 @@ export const getLotSlots = asyncHandler(async (req, res) => {
         query.name = { $regex: search, $options: 'i' };
     }
 
-    const total = await LotSlot.countDocuments(query);
-    const lotSlots = await LotSlot.find(query)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+    // PERFORMANCE: Use Promise.all for parallel query execution
+    const [total, lotSlots] = await Promise.all([
+        LotSlot.countDocuments(query),
+        LotSlot.find(query)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
+            .lean()  // Returns plain JS objects, ~4x faster
+    ]);
 
     res.status(200).json({
         success: true,
@@ -54,16 +58,20 @@ export const getLotSlots = asyncHandler(async (req, res) => {
  */
 export const createLotSlot = asyncHandler(async (req, res) => {
     const vendorId = req.user.vendorId;
-    const vendor = await Vendor.findById(vendorId);
-
-    if (!vendor || vendor.vendorType !== 'b2b') {
-        return res.status(403).json({ success: false, message: 'Only B2B vendors can list lots/slots' });
-    }
-
     const { images = [], name, price, moq } = req.body;
 
     if (!name || !price || !moq) {
         return res.status(400).json({ success: false, message: 'Required fields missing' });
+    }
+
+    // PERFORMANCE: Parallelize validation and SKU generation
+    const [vendor, sku] = await Promise.all([
+        Vendor.findById(vendorId).select('vendorType').lean(),
+        generateLotSlotSKU(name, vendorId)
+    ]);
+
+    if (!vendor || vendor.vendorType !== 'b2b') {
+        return res.status(403).json({ success: false, message: 'Only B2B vendors can list lots/slots' });
     }
 
     // Handle Images
@@ -87,8 +95,6 @@ export const createLotSlot = asyncHandler(async (req, res) => {
             }
         }
     }
-
-    const sku = await generateLotSlotSKU(name, vendorId);
 
     const lotSlot = await LotSlot.create({
         ...req.body,
@@ -223,7 +229,7 @@ export const updateLotSlot = asyncHandler(async (req, res) => {
  * Get Lot/Slot By ID
  */
 export const getLotSlotById = asyncHandler(async (req, res) => {
-    const lotSlot = await LotSlot.findOne({ _id: req.params.id, vendorId: req.user.vendorId });
+    const lotSlot = await LotSlot.findOne({ _id: req.params.id, vendorId: req.user.vendorId }).lean();
     if (!lotSlot) {
         return res.status(404).json({ success: false, message: 'Listing not found' });
     }

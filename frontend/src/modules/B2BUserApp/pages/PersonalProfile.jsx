@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { FiUser, FiMail, FiPhone, FiSave, FiLock } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
 import { useAuthStore } from '../../../shared/store/authStore';
-import toast from 'react-hot-toast';
+import toast from '../../../shared/utils/toast';
 
 const B2BPersonalProfile = () => {
     const { user, updateProfile } = useAuthStore();

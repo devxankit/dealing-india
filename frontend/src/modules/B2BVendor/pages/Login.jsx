@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiBriefcase, FiCheck, FiStar, FiX, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
-import toast from 'react-hot-toast';
+import toast from '../../../shared/utils/toast';
 import api from '../../../shared/utils/api';
 import { getActiveB2BPlans } from '../../../shared/utils/b2bPlanManager';
 import PaymentModal from '../components/PaymentModal';
@@ -320,8 +320,8 @@ const B2BVendorLogin = () => {
                                                 whileHover={{ y: -5 }}
                                                 onClick={() => handlePlanSelect(planId)}
                                                 className={`relative bg-white rounded-2xl p-6 shadow-sm border-2 cursor-pointer transition-all ${isSelected
-                                                        ? 'border-primary-500 ring-4 ring-primary-50'
-                                                        : 'border-gray-100 hover:border-primary-200'
+                                                    ? 'border-primary-500 ring-4 ring-primary-50'
+                                                    : 'border-gray-100 hover:border-primary-200'
                                                     }`}
                                             >
                                                 {plan.duration === 6 && (

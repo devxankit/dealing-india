@@ -6,7 +6,6 @@ import {
   markAllAsRead,
   deleteNotification,
   deleteAllRead,
-  sendCustomNotification,
 } from '../controllers/adminNotification.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
@@ -35,9 +34,6 @@ router.delete('/:id', asyncHandler(deleteNotification));
 
 // Delete all read notifications
 router.delete('/read-all', asyncHandler(deleteAllRead));
-
-// Send custom notification
-router.post('/send', asyncHandler(sendCustomNotification));
 
 export default router;
 

@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { FiPhone, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingBag, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
-import toast from 'react-hot-toast';
+import toast from '../../../shared/utils/toast';
 
 const B2BUserLogin = () => {
     const navigate = useNavigate();

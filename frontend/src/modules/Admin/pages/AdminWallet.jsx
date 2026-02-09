@@ -16,10 +16,12 @@ import toast from "react-hot-toast";
 import { formatPrice } from "../../../shared/utils/helpers";
 import Badge from "../../../shared/components/Badge";
 import { getBannerRevenueStats, getBannerTransactions } from "../services/heroBannerService";
+import useDebounce from "../../../shared/hooks/useDebounce";
 
 const AdminWallet = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 500); // Debounce search for 500ms
   const [transactions, setTransactions] = useState([]);
   const [revenueStats, setRevenueStats] = useState({
     totalRevenue: 0,
@@ -30,16 +32,18 @@ const AdminWallet = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  // Optimize: Use debounced search term to prevent API calls on every keystroke
   useEffect(() => {
     loadData();
-  }, [searchTerm]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchTerm]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [statsRes, transactionsRes] = await Promise.all([
         getBannerRevenueStats({ params: { bannerType: 'hero' } }),
-        getBannerTransactions({ search: searchTerm, limit: 100, bannerType: 'hero' })
+        getBannerTransactions({ search: debouncedSearchTerm, limit: 100, bannerType: 'hero' })
       ]);
 
       setRevenueStats(statsRes.data || {});

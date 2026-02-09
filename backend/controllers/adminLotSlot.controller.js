@@ -25,17 +25,16 @@ export const getAllLotSlots = asyncHandler(async (req, res) => {
         else if (status === 'inactive') query.isActive = false;
     }
 
-    // Fetch LotSlots with Vendor populated
-    // We only want B2B vendors ideally, but LotSlot schema usually implies B2B.
-    // Let's filter by vendor type if needed, but LotSlot is usually B2B specific feature.
-
-    const lotSlots = await LotSlot.find(query)
-        .populate('vendorId', 'name storeName email vendorType')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
-
-    const total = await LotSlot.countDocuments(query);
+    // Optimize: Run count and find in parallel with lean()
+    const [lotSlots, total] = await Promise.all([
+        LotSlot.find(query)
+            .populate('vendorId', 'name storeName email vendorType')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
+            .lean(),
+        LotSlot.countDocuments(query)
+    ]);
 
     // Format for response
     const formattedLotSlots = lotSlots.map(slot => ({
