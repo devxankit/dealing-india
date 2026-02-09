@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiBriefcase, FiCheck, FiStar, FiX, FiArrowLeft } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiBriefcase, FiCheck, FiStar, FiX, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import toast from 'react-hot-toast';
@@ -174,109 +174,117 @@ const B2BVendorLogin = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl relative"
+                className="glass-card rounded-2xl p-6 sm:p-8 w-full max-w-sm shadow-2xl relative"
             >
                 {/* Back Button */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+                    className="absolute top-3 left-3 p-1.5 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
                 >
-                    <FiArrowLeft size={24} />
+                    <FiArrowLeft size={20} />
                 </button>
-                <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        <FiBriefcase className="text-white text-2xl" />
+                <div className="text-center mb-6">
+                    <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                        <FiBriefcase className="text-white text-xl" />
                     </div>
-                    <h1 className="text-3xl font-extrabold text-gray-800 mb-2">B2B Vendor Login</h1>
-                    <p className="text-gray-600">Access your B2B vendor portal</p>
+                    <h1 className="text-2xl font-extrabold text-gray-800 mb-1">B2B Vendor Login</h1>
+                    <p className="text-sm text-gray-600">Access your B2B vendor portal</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                             Business Email
                         </label>
                         <div className="relative">
-                            <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <FiMail className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
                                 type="email"
                                 name="email"
+                                required
                                 value={formData.email}
                                 onChange={handleChange}
-                                placeholder="vendor@example.com"
-                                className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800"
-                                required
+                                placeholder="vendor@business.com"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                             Password
                         </label>
                         <div className="relative">
-                            <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <FiLock className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
-                                type={showPassword ? 'text' : 'password'}
+                                type={showPassword ? "text" : "password"}
                                 name="password"
+                                required
                                 value={formData.password}
                                 onChange={handleChange}
-                                placeholder="Enter password"
-                                className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800"
-                                required
+                                placeholder="••••••••"
+                                className="w-full pl-10 pr-12 py-2.5 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
-                                {showPassword ? <FiEyeOff /> : <FiEye />}
+                                {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                        <label className="flex items-center cursor-pointer">
+                    <div className="flex items-center justify-between py-1">
+                        <label className="flex items-center gap-2 cursor-pointer group">
                             <input
                                 type="checkbox"
                                 checked={rememberMe}
                                 onChange={(e) => setRememberMe(e.target.checked)}
-                                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                             />
-                            <span className="ml-2 text-sm text-gray-700">Remember me</span>
+                            <span className="text-xs text-gray-600 group-hover:text-gray-800 transition-colors">Remember me</span>
                         </label>
                         <Link
                             to="/b2b-vendor/forgot-password"
-                            className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                            className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
                         >
-                            Forgot password?
+                            Forgot Password?
                         </Link>
                     </div>
 
                     <button
                         type="submit"
                         disabled={isButtonLoading}
-                        className="w-full bg-primary-600 text-white py-3 rounded-xl font-semibold hover:bg-primary-700 transition-all duration-200 disabled:opacity-50 shadow-md"
+                        className="w-full bg-gradient-to-r from-primary-600 to-primary-500 text-white py-2.5 rounded-xl font-bold text-sm hover:from-primary-700 hover:to-primary-600 shadow-lg shadow-primary-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isButtonLoading ? 'Authenticating...' : 'Login'}
+                        {isButtonLoading ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                <span>Logging in...</span>
+                            </div>
+                        ) : (
+                            "Sign In"
+                        )}
                     </button>
 
-                    <div className="text-center space-y-4 pt-6 mt-6 border-t border-gray-100">
-                        <p className="text-sm text-gray-600">
-                            New B2B Vendor?{' '}
+                    <div className="text-center pt-4 border-t border-gray-100 space-y-3">
+                        <p className="text-xs text-gray-600">
+                            Don't have a vendor account?{" "}
                             <Link
                                 to="/b2b-vendor/register"
-                                state={{ from: location.state?.from }}
-                                className="text-primary-600 hover:text-primary-700 font-semibold"
+                                className="text-primary-600 font-bold hover:text-primary-700 transition-colors"
                             >
-                                Apply Now
+                                Register Now
                             </Link>
                         </p>
-
-                        <div className="mt-2 pt-2 w-full border-t border-gray-100 flex flex-col items-center gap-1">
-                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">B2B Buyer?</span>
-                            <Link to="/b2b/login" className="text-primary-600 font-bold hover:underline">
-                                Switch to B2B Buyer Login
+                        <div className="pt-1">
+                            <p className="text-xs text-gray-500 mb-1">Looking for Bulk Marketplace?</p>
+                            <Link
+                                to="/b2b/login"
+                                className="inline-flex items-center gap-1.5 text-primary-600 font-bold hover:gap-2 transition-all text-sm"
+                            >
+                                <FiShoppingBag /> Login as Buyer
                             </Link>
                         </div>
                     </div>

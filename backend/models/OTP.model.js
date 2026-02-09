@@ -11,12 +11,12 @@ const otpSchema = new mongoose.Schema(
     code: {
       type: String,
       required: true,
-      length: 4,
+      length: 6,
       validate: {
         validator: function (v) {
-          return /^\d{4}$/.test(v);
+          return /^\d{6}$/.test(v);
         },
-        message: 'OTP code must be exactly 4 digits',
+        message: 'OTP code must be exactly 6 digits',
       },
     },
     type: {

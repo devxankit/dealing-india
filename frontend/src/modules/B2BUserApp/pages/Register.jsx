@@ -88,28 +88,28 @@ const B2BUserRegister = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/95 backdrop-blur-xl rounded-[2.5rem] p-8 sm:p-12 w-full max-w-2xl shadow-2xl relative overflow-hidden"
+                className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 w-full max-w-md shadow-2xl relative overflow-hidden"
             >
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-400 to-primary-600"></div>
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-400 to-primary-600"></div>
 
-                <div className="text-center mb-10">
-                    <div className="w-20 h-20 bg-primary-100 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-50">
-                        <FiBriefcase className="text-primary-600 text-3xl" />
+                <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary-50">
+                        <FiBriefcase className="text-primary-600 text-2xl" />
                     </div>
-                    <h1 className="text-3xl font-extrabold text-gray-800 mb-2">B2B Registration</h1>
-                    <p className="text-gray-500 font-medium tracking-tight">Join as a Verified Business Buyer</p>
+                    <h1 className="text-2xl font-extrabold text-gray-800 mb-1">B2B Registration</h1>
+                    <p className="text-sm text-gray-500 font-medium tracking-tight">Join as a Verified Business Buyer</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Personal Info */}
                     <div className="md:col-span-2">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-primary-600 mb-4 px-1">Contact Information</h3>
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-primary-600 mb-2 px-1">Contact Information</h3>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Full Name</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Full Name</label>
                         <div className="relative group">
-                            <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type="text"
                                 name="name"
@@ -117,15 +117,15 @@ const B2BUserRegister = () => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="John Doe"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Business Email</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Business Email</label>
                         <div className="relative group">
-                            <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type="email"
                                 name="email"
@@ -133,15 +133,15 @@ const B2BUserRegister = () => {
                                 value={formData.email}
                                 onChange={handleChange}
                                 placeholder="name@business.com"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Phone Number</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Phone Number</label>
                         <div className="relative group">
-                            <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type="tel"
                                 name="phone"
@@ -149,15 +149,15 @@ const B2BUserRegister = () => {
                                 value={formData.phone}
                                 onChange={handleChange}
                                 placeholder="+91 9876543210"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Password</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Password</label>
                         <div className="relative group">
-                            <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 name="password"
@@ -165,27 +165,27 @@ const B2BUserRegister = () => {
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder="••••••••"
-                                className="w-full pl-12 pr-12 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-500"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-500"
                             >
-                                {showPassword ? <FiEyeOff /> : <FiEye />}
+                                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                             </button>
                         </div>
                     </div>
 
                     {/* Business Info */}
-                    <div className="md:col-span-2 pt-4">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-primary-600 mb-4 px-1">Business Details</h3>
+                    <div className="md:col-span-2 pt-2">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-primary-600 mb-2 px-1">Business Details</h3>
                     </div>
 
-                    <div className="md:col-span-2 space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Company / Store Name</label>
+                    <div className="md:col-span-2 space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Company / Store Name</label>
                         <div className="relative group">
-                            <FiBriefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiBriefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type="text"
                                 name="companyName"
@@ -193,30 +193,30 @@ const B2BUserRegister = () => {
                                 value={formData.companyName}
                                 onChange={handleChange}
                                 placeholder="ABC Enterprises"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">GST Number (Optional)</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">GST (Optional)</label>
                         <div className="relative group">
-                            <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type="text"
                                 name="gstNumber"
                                 value={formData.gstNumber}
                                 onChange={handleChange}
                                 placeholder="22AAAAA0000A1Z5"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium uppercase"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium uppercase text-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">City</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">City</label>
                         <div className="relative group">
-                            <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type="text"
                                 name="address.city"
@@ -224,42 +224,26 @@ const B2BUserRegister = () => {
                                 value={formData.address.city}
                                 onChange={handleChange}
                                 placeholder="Surat"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">State</label>
-                        <div className="relative group">
-                            <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
-                            <input
-                                type="text"
-                                name="address.state"
-                                required
-                                value={formData.address.state}
-                                onChange={handleChange}
-                                placeholder="Gujarat"
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="md:col-span-2 pt-6">
+                    <div className="md:col-span-2 pt-4">
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-primary-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full bg-primary-600 text-white py-3 rounded-xl font-bold text-base hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? 'Creating Account...' : 'Register as Business Buyer'}
                         </button>
                     </div>
 
-                    <div className="md:col-span-2 pt-4 border-t border-gray-100 flex flex-col items-center gap-4">
-                        <Link to="/app/login" className="text-gray-500 font-medium hover:text-primary-600 transition-colors">
+                    <div className="md:col-span-2 pt-3 border-t border-gray-100 flex flex-col items-center gap-2">
+                        <Link to="/app/login" className="text-xs text-gray-500 font-medium hover:text-primary-600 transition-colors">
                             Back to Retail Marketplace
                         </Link>
-                        <p className="text-center text-gray-500 font-medium">
+                        <p className="text-center text-xs text-gray-500 font-medium">
                             Already have an account?{' '}
                             <Link to="/b2b/login" className="text-primary-600 font-bold hover:underline">
                                 Sign In here

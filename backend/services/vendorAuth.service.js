@@ -15,7 +15,7 @@ import SubscriptionService from './subscription.service.js';
  */
 export const registerVendor = async (vendorData) => {
   try {
-    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, gstNumber, subscriptionPlan } = vendorData;
+    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan } = vendorData;
 
     // Validate inputs
     if (!name || !email || !phone || !password || !storeName) {
@@ -95,11 +95,19 @@ export const registerVendor = async (vendorData) => {
     if (vendorType === 'b2b' && documents && typeof documents === 'object' && !Array.isArray(documents)) {
       // Convert B2B document object to array format
       const docArray = [];
-      if (documents.panCard) {
-        docArray.push({ name: 'PAN Card', data: documents.panCard, type: 'application/pdf' });
+      if (documents.panCard && documents.panCard.data) {
+        docArray.push({
+          name: documents.panCard.name || 'PAN Card',
+          data: documents.panCard.data,
+          type: documents.panCard.type || 'application/pdf'
+        });
       }
-      if (documents.businessLicense) {
-        docArray.push({ name: 'Business License', data: documents.businessLicense, type: 'application/pdf' });
+      if (documents.businessLicense && documents.businessLicense.data) {
+        docArray.push({
+          name: documents.businessLicense.name || 'Business License',
+          data: documents.businessLicense.data,
+          type: documents.businessLicense.type || 'application/pdf'
+        });
       }
 
       // Process each document
@@ -208,8 +216,8 @@ export const registerVendor = async (vendorData) => {
         vendorType: vendorType || 'b2b',
         // B2B-specific fields
         businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()) : undefined,
-        businessType: vendorData.businessType || 'Textile',
-        businessTypeRef: vendorData.businessTypeRef,
+        businessType: businessType || 'Textile',
+        businessTypeRef: businessTypeRef,
         gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
         subscriptionPlan: subscriptionPlan, // Store plan ID for later subscription creation
       },
@@ -589,22 +597,12 @@ export const verifyVendorEmail = async (email, otp) => {
     // Mark temporary registration as verified and delete it
     await TemporaryRegistration.deleteOne({ _id: tempRegistration._id });
 
-    // Generate token
-    const token = generateToken({
-      vendorId: vendor._id.toString(),
-      email: vendor.email,
-      role: vendor.role,
-    });
-
-    // Return vendor without password
+    // Return vendor without password (no token for pending vendors)
     const vendorObj = vendor.toObject();
     delete vendorObj.password;
 
-    console.log(`✅ Vendor account created and verified for ${email}`);
-
     return {
       vendor: vendorObj,
-      token,
     };
   } catch (error) {
     throw error;

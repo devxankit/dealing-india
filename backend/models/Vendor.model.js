@@ -7,7 +7,6 @@ const addressSchema = new mongoose.Schema(
     landmark: { type: String, trim: true },
     city: { type: String, trim: true },
     state: { type: String, trim: true },
-    zipCode: { type: String, trim: true },
     pincode: { type: String, trim: true }, // For B2B vendors (India-specific)
     country: { type: String, trim: true, default: 'India' },
   },
@@ -130,12 +129,7 @@ const vendorSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    commissionRate: {
-      type: Number,
-      default: 0.1, // Default 10%
-      min: 0,
-      max: 1,
-    },
+
     currentSubscription: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'VendorSubscription',

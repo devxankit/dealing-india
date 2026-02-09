@@ -68,35 +68,35 @@ const B2BUserLogin = () => {
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white/95 backdrop-blur-xl rounded-[2.5rem] p-8 sm:p-12 w-full max-w-md shadow-2xl relative overflow-hidden"
+                className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl relative overflow-hidden"
             >
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-400 to-primary-600"></div>
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-400 to-primary-600"></div>
 
                 {/* Back Button */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors z-10"
+                    className="absolute top-3 left-3 p-1.5 hover:bg-gray-100 text-gray-500 rounded-full transition-colors z-10"
                 >
-                    <FiArrowLeft size={24} />
+                    <FiArrowLeft size={20} />
                 </button>
 
-                <div className="text-center mb-10">
-                    <div className="w-20 h-20 bg-primary-100 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-50">
-                        <FiBriefcase className="text-primary-600 text-3xl" />
+                <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary-50">
+                        <FiBriefcase className="text-primary-600 text-2xl" />
                     </div>
-                    <h1 className="text-3xl font-extrabold text-gray-800 mb-2">B2B Login</h1>
-                    <p className="text-gray-500 font-medium tracking-tight">Access the Bulk Marketplace</p>
+                    <h1 className="text-2xl font-extrabold text-gray-800 mb-1">B2B Login</h1>
+                    <p className="text-sm text-gray-500 font-medium tracking-tight">Access the Bulk Marketplace</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Phone Number</label>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Phone Number</label>
                         <div className="flex gap-2">
                             <select
                                 name="countryCode"
                                 value={formData.countryCode}
                                 onChange={handleChange}
-                                className="w-24 px-3 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium text-gray-900 appearance-none cursor-pointer"
+                                className="w-20 px-2 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-gray-900 appearance-none cursor-pointer text-sm"
                             >
                                 <option value="+91">+91</option>
                                 <option value="+880">+880</option>
@@ -104,7 +104,7 @@ const B2BUserLogin = () => {
                                 <option value="+44">+44</option>
                             </select>
                             <div className="relative flex-1 group">
-                                <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                                <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                                 <input
                                     type="tel"
                                     name="phone"
@@ -112,16 +112,16 @@ const B2BUserLogin = () => {
                                     value={formData.phone}
                                     onChange={handleChange}
                                     placeholder="10 digit number"
-                                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Password</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Password</label>
                         <div className="relative group">
-                            <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 name="password"
@@ -129,39 +129,37 @@ const B2BUserLogin = () => {
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder="••••••••"
-                                className="w-full pl-12 pr-12 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-primary-500 focus:bg-white transition-all font-medium"
+                                className="w-full pl-10 pr-10 py-3 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-500"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-500"
                             >
-                                {showPassword ? <FiEyeOff /> : <FiEye />}
+                                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                             </button>
                         </div>
-                        <div className="flex justify-end pt-1">
+                        <div className="flex justify-end pt-0.5">
                             <Link
                                 to="/b2b/forgot-password"
                                 tabIndex="-1"
-                                className="text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline"
+                                className="text-xs font-semibold text-primary-600 hover:text-primary-700 hover:underline"
                             >
                                 Forgot Password?
                             </Link>
                         </div>
                     </div>
 
-
-
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full bg-primary-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-primary-600 text-white py-3 rounded-xl font-bold text-base hover:bg-primary-700 shadow-xl shadow-primary-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isLoading ? 'Verifying...' : 'Sign In as Buyer'}
                     </button>
 
-                    <div className="pt-8 border-t border-gray-100 text-center space-y-4">
-                        <p className="text-sm text-gray-600">
+                    <div className="pt-6 border-t border-gray-100 text-center space-y-3">
+                        <p className="text-xs text-gray-600">
                             New to Bulk Marketplace?{' '}
                             <Link
                                 to="/b2b/register"
@@ -171,11 +169,11 @@ const B2BUserLogin = () => {
                                 Create Account
                             </Link>
                         </p>
-                        <div className="pt-2">
-                            <p className="text-sm text-gray-500 mb-2">Are you a Seller?</p>
+                        <div className="pt-1">
+                            <p className="text-xs text-gray-500 mb-1">Are you a Seller?</p>
                             <Link
                                 to="/b2b-vendor/login"
-                                className="inline-flex items-center gap-2 text-primary-600 font-bold hover:gap-3 transition-all"
+                                className="inline-flex items-center gap-1.5 text-primary-600 font-bold hover:gap-2 transition-all text-sm"
                             >
                                 <FiBriefcase /> Login as Vendor
                             </Link>

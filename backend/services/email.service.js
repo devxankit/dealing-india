@@ -187,7 +187,7 @@ const sendEmail = async (to, subject, html, text) => {
 /**
  * Send email verification OTP
  * @param {String} email - Recipient email address
- * @param {String} otp - 4-digit OTP code
+ * @param {String} otp - 6-digit OTP code
  */
 export const sendVerificationEmail = async (email, otp) => {
   if (!email || !otp) {
@@ -282,7 +282,7 @@ export const sendVerificationEmail = async (email, otp) => {
 /**
  * Send password reset OTP
  * @param {String} email - Recipient email address
- * @param {String} otp - 4-digit OTP code
+ * @param {String} otp - 6-digit OTP code
  */
 export const sendPasswordResetEmail = async (email, otp) => {
   if (!email || !otp) {

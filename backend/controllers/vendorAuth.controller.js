@@ -39,7 +39,7 @@ const clearVendorCache = async (vendorId = null) => {
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, gstNumber, subscriptionPlan } = req.body;
+    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan } = req.body;
 
     const result = await registerVendor({
       name,
@@ -52,6 +52,8 @@ export const register = async (req, res, next) => {
       documents,
       vendorType,
       businessTypes,
+      businessType,
+      businessTypeRef,
       gstNumber,
       subscriptionPlan,
     });
@@ -200,7 +202,6 @@ export const verifyEmail = async (req, res, next) => {
       message: 'Email verified successfully. Account created. Please wait for admin approval.',
       data: {
         vendor: result.vendor,
-        token: result.token,
       },
     });
   } catch (error) {

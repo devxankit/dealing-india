@@ -249,6 +249,16 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                             <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-2">GST Identification</p>
                                             <p className="text-lg font-black text-primary-900 leading-none">{vendorData.gstNumber || vendor.gstNumber || "N/A"}</p>
                                         </div>
+                                        <div>
+                                            <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-2">Business Type</p>
+                                            <p className="text-lg font-black text-primary-900 leading-none">{vendorData.businessType || vendor.businessType || "N/A"}</p>
+                                        </div>
+                                        {vendorData.businessTypeRef && (
+                                            <div>
+                                                <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-2">Business Category</p>
+                                                <p className="text-lg font-black text-primary-900 leading-none">{vendorData.businessTypeRef.name || vendorData.businessTypeRef}</p>
+                                            </div>
+                                        )}
                                     </section>
 
                                     {/* Business Address */}
@@ -280,7 +290,7 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                                         <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">{(vendorData.address || vendor.address)?.state || ""}</p>
                                                     </div>
                                                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Zip Code</p>
+                                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Pin Code</p>
                                                         <p className="text-sm font-black text-gray-700">{(vendorData.address || vendor.address)?.pincode || (vendorData.address || vendor.address)?.zipCode || "N/A"}</p>
                                                         <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">{(vendorData.address || vendor.address)?.country || "INDIA"}</p>
                                                     </div>

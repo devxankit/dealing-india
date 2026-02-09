@@ -182,7 +182,7 @@ const B2BVendorRegister = () => {
                 }
             };
 
-            const response = await api.post('/auth/vendor/b2b-vendor/register', registrationData);
+            const response = await api.post('/auth/vendor/register', registrationData);
 
             if (response.success) {
                 // Show success toast with longer duration to ensure it's seen
@@ -202,11 +202,9 @@ const B2BVendorRegister = () => {
 
                 // Small delay to let user see the success toast before navigation
                 setTimeout(() => {
-                    navigate('/b2b-vendor/login', {
+                    navigate('/b2b-vendor/verification', {
                         state: {
-                            message: 'Registration successful! Your account is pending admin approval. You will be able to login once approved.',
-                            email: formData.email,
-                            autoFill: true
+                            email: formData.email
                         }
                     });
                 }, 1000);
@@ -237,63 +235,63 @@ const B2BVendorRegister = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 py-8 relative overflow-hidden">
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 py-6 relative overflow-hidden">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-card rounded-3xl p-8 w-full max-w-3xl shadow-2xl max-h-[95vh] overflow-y-auto relative"
+                className="glass-card rounded-2xl p-5 sm:p-6 w-full max-w-2xl shadow-2xl max-h-[92vh] overflow-y-auto relative"
             >
                 {/* Back Button */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="absolute top-4 left-4 p-2 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
+                    className="absolute top-3 left-3 p-1.5 hover:bg-gray-100 text-gray-500 rounded-full transition-colors"
                 >
-                    <FiArrowLeft size={24} />
+                    <FiArrowLeft size={20} />
                 </button>
-                <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        <FiBriefcase className="text-white text-2xl" />
+                <div className="text-center mb-6">
+                    <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                        <FiBriefcase className="text-white text-xl" />
                     </div>
-                    <h1 className="text-3xl font-extrabold text-gray-800 mb-2">B2B Vendor Registration</h1>
-                    <p className="text-gray-600">Join our B2B network as a verified Partner</p>
+                    <h1 className="text-2xl font-extrabold text-gray-800 mb-1">B2B Vendor Registration</h1>
+                    <p className="text-sm text-gray-600">Join our B2B network as a verified Partner</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-5">
                     {/* Section 1: Contact Person */}
-                    <div className="bg-white/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
-                        <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
-                                <FiUser className="text-primary-600" />
+                    <div className="bg-white/50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center">
+                                <FiUser className="text-primary-600 size-4" />
                             </div>
                             Contact Person
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Full Name</label>
-                                <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 focus:bg-white transition-all outline-none" required placeholder="John Doe" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Full Name</label>
+                                <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 focus:bg-white transition-all outline-none text-sm" required placeholder="John Doe" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Email Address</label>
-                                <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none" required placeholder="john@example.com" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Email Address</label>
+                                <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="john@example.com" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Phone Number</label>
-                                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none" required placeholder="9876543210" maxLength={10} />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Phone Number</label>
+                                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="9876543210" maxLength={10} />
                             </div>
                         </div>
                     </div>
 
                     {/* Section 2: Business Details */}
-                    <div className="bg-white/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
-                        <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                                <FiBriefcase className="text-blue-600" />
+                    <div className="bg-white/50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                                <FiBriefcase className="text-blue-600 size-4" />
                             </div>
                             Business Information
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Business Type <span className="text-red-500">*</span></label>
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Business Type <span className="text-red-500">*</span></label>
                                 <select
                                     name="businessTypeRef"
                                     value={formData.businessTypeRef}
@@ -307,7 +305,7 @@ const B2BVendorRegister = () => {
                                         }));
                                         setSelectedBusinessType(type);
                                     }}
-                                    className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none appearance-none"
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none appearance-none text-sm"
                                     required
                                 >
                                     <option value="">Select Business Type</option>
@@ -317,62 +315,77 @@ const B2BVendorRegister = () => {
                                 </select>
                             </div>
                             <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">Company Name</label>
-                                <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none" required placeholder="Global Exports Pvt Ltd" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Company Name</label>
+                                <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Global Exports Pvt Ltd" />
                             </div>
                             <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase">GST Number</label>
-                                <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl focus:border-primary-500 outline-none" placeholder="Enter GST Number (Optional)" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">GST Number</label>
+                                <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder="Enter GST Number (Optional)" />
                             </div>
                         </div>
                     </div>
 
                     {/* Section 3: Document Upload */}
-                    <div className="bg-white/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
-                        <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                                <FiUpload className="text-green-600" />
+                    <div className="bg-white/50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center">
+                                <FiUpload className="text-green-600 size-4" />
                             </div>
                             KYC Documents
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="block text-xs font-bold text-gray-500 uppercase">Business License / GST <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase">Business License / GST <span className="text-red-500">*</span></label>
                                 {!businessLicense ? (
                                     <div className="relative">
                                         <input type="file" onChange={(e) => handleDocumentUpload(e, 'license')} className="hidden" id="license-upload" disabled={isUploadingDocs} />
-                                        <label htmlFor="license-upload" className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-all">
-                                            <FiUpload className="text-2xl text-gray-400 mb-1" />
-                                            <span className="text-[10px] font-bold text-gray-500">CLICK TO UPLOAD</span>
+                                        <label htmlFor="license-upload" className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-all">
+                                            <FiUpload className="text-xl text-gray-400 mb-1" />
+                                            <span className="text-[9px] font-bold text-gray-500">CLICK TO UPLOAD</span>
                                         </label>
                                     </div>
                                 ) : (
-                                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl border-2 border-green-100">
+                                    <div className="flex items-center justify-between p-2.5 bg-green-50 rounded-xl border border-green-100">
                                         <div className="flex items-center gap-2">
-                                            <FiFile className="text-green-600" />
-                                            <span className="text-xs font-bold text-gray-700 truncate max-w-[120px]">{businessLicense.name}</span>
+                                            <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center">
+                                                <FiCheck className="text-white text-xs" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-green-700 uppercase">License</span>
+                                                <span className="text-[9px] text-green-600 truncate max-w-[100px]">{businessLicense.name}</span>
+                                            </div>
                                         </div>
-                                        <button type="button" onClick={() => setBusinessLicense(null)} className="text-gray-400 hover:text-red-500"><FiX /></button>
+                                        <button type="button" onClick="{() => setBusinessLicense(null)}" className="p-1 hover:bg-green-100 rounded-lg text-green-600 transition-colors">
+                                            <FiX size={14} />
+                                        </button>
                                     </div>
                                 )}
                             </div>
-                            <div className="space-y-2">
-                                <label className="block text-xs font-bold text-gray-500 uppercase">PAN Card <span className="text-red-500">*</span></label>
+
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase">PAN Card <span className="text-red-500">*</span></label>
                                 {!panCard ? (
                                     <div className="relative">
                                         <input type="file" onChange={(e) => handleDocumentUpload(e, 'pan')} className="hidden" id="pan-upload" disabled={isUploadingDocs} />
-                                        <label htmlFor="pan-upload" className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-all">
-                                            <FiUpload className="text-2xl text-gray-400 mb-1" />
-                                            <span className="text-[10px] font-bold text-gray-500">CLICK TO UPLOAD</span>
+                                        <label htmlFor="pan-upload" className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-all">
+                                            <FiUpload className="text-xl text-gray-400 mb-1" />
+                                            <span className="text-[9px] font-bold text-gray-500">CLICK TO UPLOAD</span>
                                         </label>
                                     </div>
                                 ) : (
-                                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl border-2 border-green-100">
+                                    <div className="flex items-center justify-between p-2.5 bg-green-50 rounded-xl border border-green-100">
                                         <div className="flex items-center gap-2">
-                                            <FiFile className="text-green-600" />
-                                            <span className="text-xs font-bold text-gray-700 truncate max-w-[120px]">{panCard.name}</span>
+                                            <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center">
+                                                <FiCheck className="text-white text-xs" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-green-700 uppercase">PAN Card</span>
+                                                <span className="text-[9px] text-green-600 truncate max-w-[100px]">{panCard.name}</span>
+                                            </div>
                                         </div>
-                                        <button type="button" onClick={() => setPanCard(null)} className="text-gray-400 hover:text-red-500"><FiX /></button>
+                                        <button type="button" onClick="{() => setPanCard(null)}" className="p-1 hover:bg-green-100 rounded-lg text-green-600 transition-colors">
+                                            <FiX size={14} />
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -380,46 +393,58 @@ const B2BVendorRegister = () => {
                     </div>
 
                     {/* Section 4: Address */}
-                    <div className="bg-white/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
-                        <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-                                <FiMapPin className="text-orange-600" />
+                    <div className="bg-white/50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
+                                <FiMapPin className="text-orange-600 size-4" />
                             </div>
-                            Shop Address
+                            Business Address
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="md:col-span-2">
-                                <input type="text" name="address.street" value={formData.address.street} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="Street Address" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Street Address</label>
+                                <input type="text" name="address.street" value={formData.address.street} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Shop No, Building Name" />
                             </div>
-                            <input type="text" name="address.area" value={formData.address.area} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="Area / Locality" />
-                            <input type="text" name="address.city" value={formData.address.city} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="City" />
-                            <input type="text" name="address.state" value={formData.address.state} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="State" />
-                            <input type="text" name="address.zipCode" value={formData.address.zipCode} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" required placeholder="Zip Code" />
-                            <input type="text" name="address.country" readOnly value={formData.address.country} className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-gray-400 font-bold" />
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Area / Locality</label>
+                                <input type="text" name="address.area" value={formData.address.area} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Textile Market" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">City</label>
+                                <input type="text" name="address.city" value={formData.address.city} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Surat" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">State</label>
+                                <input type="text" name="address.state" value={formData.address.state} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Gujarat" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Zip Code</label>
+                                <input type="text" name="address.zipCode" value={formData.address.zipCode} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="395003" />
+                            </div>
                         </div>
                     </div>
 
                     {/* Section 5: Security */}
-                    <div className="bg-white/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
-                        <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                                <FiLock className="text-red-600" />
+                    <div className="bg-white/50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                        <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
+                                <FiLock className="text-purple-600 size-4" />
                             </div>
                             Security
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="relative">
-                                <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" placeholder="Password" required />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary-600">
-                                    {showPassword ? <FiEyeOff /> : <FiEye />}
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Password</label>
+                                <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="••••••••" minLength={6} />
+                                <button type="button" onClick="{() => setShowPassword(!showPassword)}" className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
+                                    {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
                                 </button>
                             </div>
                             <div className="relative">
-                                <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-100 rounded-xl outline-none focus:border-primary-500" placeholder="Confirm Password" required />
-                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-primary-600">
-                                    {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Confirm Password</label>
+                                <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="••••••••" minLength={6} />
+                                <button type="button" onClick="{() => setShowConfirmPassword(!showConfirmPassword)}" className="absolute right-3 top-7 text-gray-400 hover:text-gray-600">
+                                    {showConfirmPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
                                 </button>
                             </div>
                         </div>
@@ -427,24 +452,29 @@ const B2BVendorRegister = () => {
 
                     <button
                         type="submit"
-                        disabled={localLoading}
-                        className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-4 rounded-xl font-bold hover:shadow-xl transition-all shadow-lg shadow-primary-200 disabled:opacity-50 flex items-center justify-center gap-3"
+                        disabled={localLoading || isUploadingDocs}
+                        className="w-full bg-gradient-to-r from-primary-600 to-primary-500 text-white py-3.5 rounded-xl font-bold text-base hover:from-primary-700 hover:to-primary-600 shadow-xl shadow-primary-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         {localLoading ? (
                             <>
-                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                Registering...
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                <span>Processing...</span>
                             </>
                         ) : (
-                            <>Register Now</>
+                            <>
+                                <FiCheck className="text-lg" />
+                                Create Vendor Account
+                            </>
                         )}
                     </button>
 
-                    <div className="text-center space-y-4 pt-6 mt-6 border-t border-gray-100">
-                        <p className="text-sm text-gray-600">
-                            Already registered? <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">Login here</Link>
+                    <div className="text-center pb-2">
+                        <p className="text-xs text-gray-500">
+                            Already have a vendor account?{" "}
+                            <Link to="/b2b-vendor/login" className="text-primary-600 font-bold hover:underline">
+                                Login Here
+                            </Link>
                         </p>
-
                     </div>
                 </form>
             </motion.div>

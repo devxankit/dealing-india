@@ -49,7 +49,7 @@ export const sanitizeInput = (input) => {
 };
 
 /**
- * Validate OTP code format (4-digit numeric)
+ * Validate OTP code format (6-digit numeric)
  * @param {String} code - OTP code to validate
  * @returns {Boolean} True if valid OTP format
  */

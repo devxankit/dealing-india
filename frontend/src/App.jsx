@@ -80,6 +80,7 @@ const B2BVendorProfile = lazyWithRetry(() => import("./modules/B2BVendor/pages/P
 const B2BVendorSubscription = lazyWithRetry(() => import("./modules/B2BVendor/pages/Subscription"));
 const B2BVendorBannerBooking = lazyWithRetry(() => import("./modules/B2BVendor/pages/B2BBannerBooking"));
 const B2BVendorPaymentPage = lazyWithRetry(() => import("./modules/B2BVendor/pages/PaymentPage"));
+const B2BVendorForgotPassword = lazyWithRetry(() => import("./modules/B2BVendor/pages/ForgotPassword"));
 
 const B2BVendorManageLots = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/ManageLotSlot"));
 const B2BVendorAddLot = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/AddLotSlot"));
@@ -237,6 +238,7 @@ const AppRoutes = () => {
         <Route path="/b2b-vendor/register" element={<B2BVendorRegister />} />
         <Route path="/b2b-vendor/payment" element={<B2BVendorPaymentPage />} />
         <Route path="/b2b-vendor/verification" element={<B2BVendorVerification />} />
+        <Route path="/b2b-vendor/forgot-password" element={<B2BVendorForgotPassword />} />
         <Route
           path="/b2b-vendor"
           element={

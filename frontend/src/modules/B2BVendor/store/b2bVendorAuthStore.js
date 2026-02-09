@@ -201,6 +201,82 @@ export const useB2BVendorAuthStore = create(
                     throw error;
                 }
             },
+
+            // Verify vendor email
+            verifyEmail: async (email, otp) => {
+                set({ loading: true, error: null });
+                try {
+                    const response = await api.post('/auth/vendor/verify-email', { email, otp });
+                    if (response.success && response.data) {
+                        set({ loading: false, error: null });
+                        return { success: true, message: response.message };
+                    } else {
+                        throw new Error(response.message || 'Email verification failed');
+                    }
+                } catch (error) {
+                    const errorMessage = error.response?.data?.message || error.message || 'Verification failed';
+                    set({ loading: false, error: errorMessage });
+                    return { success: false, message: errorMessage };
+                }
+            },
+
+            // Resend OTP
+            resendOTP: async (email) => {
+                set({ loading: true, error: null });
+                try {
+                    const response = await api.post('/auth/vendor/resend-otp', { email });
+                    if (response.success) {
+                        set({ loading: false });
+                        return { success: true, message: response.message };
+                    } else {
+                        throw new Error(response.message || 'Failed to resend OTP');
+                    }
+                } catch (error) {
+                    const errorMessage = error.response?.data?.message || error.message || 'Failed to resend OTP';
+                    set({ loading: false, error: errorMessage });
+                    return { success: false, message: errorMessage };
+                }
+            },
+
+            // Forgot password
+            forgotPassword: async (email) => {
+                set({ loading: true, error: null });
+                try {
+                    const response = await api.post('/auth/vendor/forgot-password', { email });
+                    if (response.success) {
+                        set({ loading: false });
+                        return { success: true, message: response.message };
+                    } else {
+                        throw new Error(response.message || 'Failed to send password reset OTP');
+                    }
+                } catch (error) {
+                    const errorMessage = error.response?.data?.message || error.message || 'Failed to send OTP';
+                    set({ loading: false, error: errorMessage });
+                    return { success: false, message: errorMessage };
+                }
+            },
+
+            // Reset password with OTP
+            resetPassword: async (email, otp, newPassword) => {
+                set({ loading: true, error: null });
+                try {
+                    const response = await api.post('/auth/vendor/reset-password', {
+                        email,
+                        otp,
+                        newPassword
+                    });
+                    if (response.success) {
+                        set({ loading: false });
+                        return { success: true, message: response.message };
+                    } else {
+                        throw new Error(response.message || 'Password reset failed');
+                    }
+                } catch (error) {
+                    const errorMessage = error.response?.data?.message || error.message || 'Password reset failed';
+                    set({ loading: false, error: errorMessage });
+                    return { success: false, message: errorMessage };
+                }
+            },
         }),
         {
             name: 'b2b-vendor-auth-storage',
