@@ -569,7 +569,7 @@ const B2BLanding = () => {
                             <FiTrendingUp size={16} /> Lot / SOT
                         </button>
                         <button
-                            onClick={() => setActivePopup('realEstate')}
+                            onClick={() => navigate('/b2b/real-estate')}
                             className="px-3 py-2 text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
                         >
                             <FiHome size={16} /> Real Estate Only
@@ -637,7 +637,7 @@ const B2BLanding = () => {
                                 </select>
                             </div>
                             <button onClick={() => { fetchLotProducts(); setActivePopup('lots'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Lot / SOT</button>
-                            <button onClick={() => { setActivePopup('realEstate'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Commercial Real Estate Only</button>
+                            <button onClick={() => { navigate('/b2b/real-estate'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Real Estate Only</button>
                             <div className="h-px bg-gray-100 my-2"></div>
                             <button onClick={() => navigate('/b2b-vendor/register')} className="w-full text-left p-3 font-bold text-white bg-black rounded-xl">Become Seller</button>
 
@@ -816,7 +816,6 @@ const B2BLanding = () => {
                         onViewAll={() => navigate('/b2b/catalog?itemType=lotslot')}
                     />
                 )}
-                {activePopup === 'realEstate' && <GenericHeaderPopup title="Commercial Real Estate" data={HEADER_POPUP_DATA.realEstate} />}
             </AnimatePresence>
 
         </div>

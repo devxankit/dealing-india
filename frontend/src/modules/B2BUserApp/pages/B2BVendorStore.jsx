@@ -43,6 +43,20 @@ const B2BVendorStore = () => {
         const fetchVendorData = async () => {
             setLoading(true);
             try {
+                // Check if it's a dummy real estate ID
+                const dummyRealEstateVendors = {
+                    'dlf-1': { storeName: 'DLF Builders', businessDescription: 'DLF has nearly 75 years of track record of sustained growth, customer satisfaction, and innovation.', storeLogo: 'https://companieslogo.com/img/orig/DLF.NS-4b216142.png?t=1602357731', isVerified: true, address: { city: 'Gurgaon', state: 'Haryana' }, phone: '9876543210' },
+                    'm3m-1': { storeName: 'M3M India', businessDescription: 'M3M India is one of the fastest growing real estate developers in India with premium residential and commercial projects.', storeLogo: 'https://m3m-india.com/assets/images/logo.png', isVerified: true, address: { city: 'Gurgaon', state: 'Haryana' }, phone: '9898989898' },
+                    'brk-ankit': { storeName: 'Ankit Sharma', businessDescription: 'Expert property broker in Indore specializing in residential flats and villas for over 8 years.', isVerified: true, address: { city: 'Indore', state: 'MP' }, phone: '9123456789' }
+                };
+
+                if (dummyRealEstateVendors[id]) {
+                    setVendor(dummyRealEstateVendors[id]);
+                    setProducts([]); // No products for dummy RE in this view yet
+                    setLoading(false);
+                    return;
+                }
+
                 // Fetch vendor details
                 const vendorRes = await api.get(`/vendors/${id}`);
                 if (vendorRes?.success) {
