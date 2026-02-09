@@ -56,6 +56,7 @@ const DEFAULT_PLANS = [
 // Cache for plans (keyed by 'all' or businessType slug)
 let plansCache = {};
 let cacheTimestamps = {};
+let plansPromises = {}; // Track in-flight promises
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -64,40 +65,51 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  * @returns {Promise<Array>} Array of plans
  */
 export const getB2BPlans = async (forceRefresh = false, options = {}) => {
-    try {
-        const { businessType } = options;
-        const cacheKey = businessType || 'all';
+    const { businessType } = options;
+    const cacheKey = businessType || 'all';
 
-        // Return cached data if available and not expired
-        if (!forceRefresh && plansCache[cacheKey] && cacheTimestamps[cacheKey] && (Date.now() - cacheTimestamps[cacheKey]) < CACHE_DURATION) {
-            return plansCache[cacheKey];
-        }
-
-        let url = '/public/b2b-subscription-plans/active'; // Default to active endpoint
-        // NOTE: The backend endpoint might be different depending on auth/role, but public active seems right for catalog/subscription page
-
-        if (businessType) {
-            // Check if backend supports filter on this endpoint or separate endpoint
-            // Usually valid endpoint is /public/b2b-subscription-plans or similar
-            url += `?businessType=${businessType}`;
-        }
-
-        const response = await api.get(url);
-        if (response.success && response.data) {
-            plansCache[cacheKey] = response.data;
-            cacheTimestamps[cacheKey] = Date.now();
-            return response.data;
-        }
-
-        // Fallback to default if API fails
-        console.warn('Failed to fetch plans from API, using defaults');
-        return DEFAULT_PLANS;
-    } catch (error) {
-        console.error('Error getting B2B plans from API:', error);
-        // Return cached data if available, otherwise defaults
-        const cacheKey = businessType || 'all';
-        return plansCache[cacheKey] || DEFAULT_PLANS;
+    // 1. Check if we have valid cache and not forcing refresh
+    if (!forceRefresh && plansCache[cacheKey] && cacheTimestamps[cacheKey] && (Date.now() - cacheTimestamps[cacheKey]) < CACHE_DURATION) {
+        return plansCache[cacheKey];
     }
+
+    // 2. Check if there's already an in-flight request for this key
+    if (!forceRefresh && plansPromises[cacheKey]) {
+        return plansPromises[cacheKey];
+    }
+
+    // 3. Create new request promise
+    plansPromises[cacheKey] = (async () => {
+        try {
+            let url = '/public/b2b-subscription-plans/active';
+            if (businessType) {
+                url += `?businessType=${businessType}`;
+            }
+
+            const response = await api.get(url);
+            if (response.success && response.data) {
+                plansCache[cacheKey] = response.data;
+                cacheTimestamps[cacheKey] = Date.now();
+                return response.data;
+            }
+
+            // Fallback to default if API fails
+            console.warn('Failed to fetch plans from API, using defaults');
+            return DEFAULT_PLANS;
+        } catch (error) {
+            console.error('Error getting B2B plans from API:', error);
+            // Return cached data if available, otherwise defaults
+            return plansCache[cacheKey] || DEFAULT_PLANS;
+        } finally {
+            // Remove promise from in-flight list after completion
+            // (Cache will be used for subsequent calls)
+            setTimeout(() => {
+                delete plansPromises[cacheKey];
+            }, 0);
+        }
+    })();
+
+    return plansPromises[cacheKey];
 };
 
 /**

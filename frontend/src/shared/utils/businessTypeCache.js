@@ -13,8 +13,14 @@ const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes (business types rarely chan
  */
 export const getBusinessTypes = async (forceRefresh = false) => {
     // If we have a valid cache and not forcing refresh, return it
-    if (!forceRefresh && businessTypesPromise && cacheTimestamp && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
-        return businessTypesPromise;
+    if (!forceRefresh && businessTypesPromise) {
+        // If we have a promise but no timestamp yet, it's an in-flight request - return it
+        if (!cacheTimestamp) return businessTypesPromise;
+
+        // If we have both, check if it's expired
+        if ((Date.now() - cacheTimestamp) < CACHE_DURATION) {
+            return businessTypesPromise;
+        }
     }
 
     // Create new promise
