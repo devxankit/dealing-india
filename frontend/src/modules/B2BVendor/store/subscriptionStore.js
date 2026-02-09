@@ -42,7 +42,7 @@ export const useSubscriptionStore = create((set, get) => ({
         set({ loading: true, error: null });
 
         try {
-            const response = await api.get('/vendor/subscription/status');
+            const response = await api.get('/vendor/subscriptions/status');
 
             if (response.success && response.data) {
                 set({

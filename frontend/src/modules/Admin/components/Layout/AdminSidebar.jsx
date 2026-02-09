@@ -46,6 +46,8 @@ const iconMap = {
   "Business Config": FiSettings,
   Notifications: FiBell,
   "Analytics & Finance": FiBarChart2,
+  "Lot Slots": FiGrid,
+  "Properties": FiHome,
   Settings: FiSettings,
   Policies: FiShield,
   Firebase: FiDatabase,

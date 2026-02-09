@@ -20,6 +20,16 @@
     "children": []
   },
   {
+    "title": "Lot Slots",
+    "route": "/admin/b2b-vendors/lot-slots",
+    "children": []
+  },
+  {
+    "title": "Properties",
+    "route": "/admin/b2b-vendors/properties",
+    "children": []
+  },
+  {
     "title": "Wallet",
     "route": "/admin/b2b-vendors/wallet",
     "children": []

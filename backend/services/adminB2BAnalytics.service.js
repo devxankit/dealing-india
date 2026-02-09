@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
+import Property from '../models/Property.model.js';
+import LotSlot from '../models/LotSlot.model.js';
 // import Chat from '../models/Chat.model.js';
 // import Message from '../models/Message.model.js';
 
@@ -51,8 +53,10 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
       totalB2BProducts,
       productsInPeriod,
       onboardingTrend,
-      b2BOrdersResult,
-      transactionVolumeTrendResult
+      totalProperties,
+      propertiesInPeriod,
+      totalLotSlots,
+      lotSlotsInPeriod
     ] = await Promise.all([
       Product.countDocuments({
         vendorId: { $in: b2bVendorObjectIds },
@@ -68,39 +72,24 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
         { $group: { _id: { $dateToString: { format: period === 'year' ? '%Y-%m' : '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
         { $sort: { _id: 1 } }
       ]),
-      // B2B Volume (revenue)
-      (async () => {
-        try {
-          const Order = (await import('../models/Order.model.js')).default;
-          return await Order.aggregate([
-            { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds }, status: { $ne: 'cancelled' } } },
-            { $unwind: '$vendorBreakdown' },
-            { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds } } },
-            { $group: { _id: null, total: { $sum: '$vendorBreakdown.subtotal' } } }
-          ]);
-        } catch (e) { return []; }
-      })(),
-      // Transaction Volume Trend
-      (async () => {
-        try {
-          const Order = (await import('../models/Order.model.js')).default;
-          return await Order.aggregate([
-            { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds }, status: { $ne: 'cancelled' }, createdAt: { $gte: startDate } } },
-            { $unwind: '$vendorBreakdown' },
-            { $match: { 'vendorBreakdown.vendorId': { $in: b2bVendorObjectIds } } },
-            { $group: { _id: { $dateToString: { format: period === 'year' ? '%Y-%m' : '%Y-%m-%d', date: '$createdAt' } }, volume: { $sum: '$vendorBreakdown.subtotal' } } },
-            { $sort: { _id: 1 } }
-          ]);
-        } catch (e) { return []; }
-      })()
+      Property.countDocuments({
+        vendorId: { $in: b2bVendorObjectIds }
+      }),
+      Property.countDocuments({
+        vendorId: { $in: b2bVendorObjectIds },
+        createdAt: { $gte: startDate }
+      }),
+      LotSlot.countDocuments({
+        vendorId: { $in: b2bVendorObjectIds }
+      }),
+      LotSlot.countDocuments({
+        vendorId: { $in: b2bVendorObjectIds },
+        createdAt: { $gte: startDate }
+      })
     ]);
-
-    const b2BVolume = b2BOrdersResult[0]?.total || 0;
-    const transactionVolumeTrend = transactionVolumeTrendResult;
 
     // Helper functions (mocked for this service)
     const calculateTrend = (value) => value > 0 ? '+10%' : '0%';
-    const formatVolume = (v) => `₹${(v || 0).toLocaleString('en-IN')}`;
 
     // Format chart data
     const formatChartData = (data, dateKey = '_id', valueKey = 'count') => {
@@ -116,24 +105,26 @@ export const getAdminB2BAnalytics = async (period = 'month') => {
         b2bVendorsInPeriod,
         totalB2BProducts,
         productsInPeriod,
-        totalB2BMessages: 0,
-        messagesInPeriod: 0,
-        b2BVolume
+        totalProperties,
+        propertiesInPeriod,
+        totalLotSlots,
+        lotSlotsInPeriod
       },
       trends: {
         vendors: calculateTrend(b2bVendorsInPeriod),
         products: calculateTrend(productsInPeriod),
-        messages: '0%'
+        properties: calculateTrend(propertiesInPeriod),
+        lotSlots: calculateTrend(lotSlotsInPeriod)
       },
       formatted: {
         totalB2BVendors: totalB2BVendors.toString(),
-        b2BVolume: formatVolume(b2BVolume),
         totalB2BProducts: totalB2BProducts.toLocaleString('en-IN'),
-        totalB2BMessages: '0'
+        totalProperties: totalProperties.toLocaleString('en-IN'),
+        totalLotSlots: totalLotSlots.toLocaleString('en-IN')
       },
       charts: {
         onboardingTrend: formatChartData(onboardingTrend),
-        transactionVolumeTrend: formatChartData(transactionVolumeTrend, '_id', 'volume')
+        // transactionVolumeTrend: [] // Removed or can be kept empty
       }
     };
   } catch (error) {

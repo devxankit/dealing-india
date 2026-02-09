@@ -16,6 +16,7 @@ import redisClient from './config/redis.config.js';
 
 // Import routes
 import vendorStockRoutes from './routes/vendorStock.routes.js';
+import vendorDashboardRoutes from './routes/vendorDashboard.routes.js';
 
 import settingsRoutes from './routes/settings.routes.js';
 import publicVendorRoutes from './routes/publicVendor.routes.js';
@@ -34,6 +35,8 @@ import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
 import lotSlotRoutes from './routes/lotSlot.routes.js';
 
 import adminB2BProductManagementRoutes from './routes/adminB2BProductManagement.routes.js';
+import adminLotSlotRoutes from './routes/adminLotSlot.routes.js';
+import adminPropertyRoutes from './routes/adminProperty.routes.js';
 import publicProductRoutes from './routes/publicProduct.routes.js';
 
 import vendorAuthRoutes from './routes/vendorAuth.routes.js';
@@ -253,7 +256,11 @@ app.use('/api/admin/b2b-vendors/subscriptions', adminB2BVendorSubscriptionRoutes
 app.use('/api/admin/b2b-vendors', adminB2BVendorManagementRoutes);
 app.use('/api/admin/b2b-categories', adminB2BCategoryManagementRoutes);
 app.use('/api/admin/b2b-products', adminB2BProductManagementRoutes);
+app.use('/api/admin/lot-slots', adminLotSlotRoutes);
+app.use('/api/admin/properties', adminPropertyRoutes);
+app.use('/api/vendor/dashboard', vendorDashboardRoutes);
 app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
+app.use('/api/vendor/subscription', vendorSubscriptionRoutes); // Alias for consistency
 
 // Vendor management routes (require vendor authentication)
 app.use('/api/vendor/stock', vendorStockRoutes);
@@ -267,6 +274,7 @@ app.use('/api/b2b-vendor/lot-slots', lotSlotRoutes);
 app.use('/api/business-types', businessTypeRoutes);
 app.use('/api/property', propertyRoutes);
 app.use('/api/admin/business-settings', adminBusinessSettingsRoutes);
+app.use('/api/vendor/business-settings', adminBusinessSettingsRoutes); // Alias for vendor access
 
 // Order Management routes
 // Hero Banner routes

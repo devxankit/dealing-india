@@ -508,8 +508,12 @@ const B2BBannerManagement = () => {
                             <IndianRupee className="text-xl" />
                         </div>
                         <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Active Bookings</p>
-                            <p className="text-lg font-bold text-gray-900">{bookings.filter(b => b.status === 'active').length}</p>
+                            <p className="text-lg font-bold text-gray-900">{bookings.filter(b =>
+                                b.status === 'active' &&
+                                b.paymentStatus === 'paid' &&
+                                new Date(b.startDate) <= new Date() &&
+                                new Date(b.endDate) >= new Date()
+                            ).length}</p>
                         </div>
                     </div>
                     <div className="h-10 w-px bg-gray-100"></div>

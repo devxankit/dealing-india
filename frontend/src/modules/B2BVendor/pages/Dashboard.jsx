@@ -18,6 +18,8 @@ import {
 } from "react-icons/fi";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../hooks/useVendorSettings";
+import { useDashboardStore } from "../store/dashboardStore";
+import { useEffect } from "react";
 
 // ==========================================
 // MOCK DATA & CONFIG (FRONTEND ONLY)
@@ -50,7 +52,27 @@ const MOCK_VENDOR_DATA = {
 const B2BVendorDashboard = () => {
     const navigate = useNavigate();
     const { vendor } = useB2BVendorAuthStore();
-    const { settings, loading } = useVendorSettings();
+    const { settings, loading: settingsLoading } = useVendorSettings();
+    const { data: dashboardData, loading: dashboardLoading, fetchDashboardData } = useDashboardStore();
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, [fetchDashboardData]);
+
+    const loading = settingsLoading || dashboardLoading;
+
+    // Use fetched data or fallback to zeros if data haven't arrived yet
+    const dashboard = dashboardData || {
+        overview: { bannerClicks: 0, callClicks: 0, whatsappClicks: 0 },
+        counts: {
+            products: { total: 0, approved: 0, pending: 0 },
+            lotSlot: { total: 0, approved: 0, pending: 0 },
+            properties: { total: 0, approved: 0, pending: 0 }
+        },
+        subscriptions: [],
+        banners: [],
+        alerts: []
+    };
 
     // ==========================================
     // DYNAMIC CONFIG LOGIC (FROM SETTINGS)
@@ -127,7 +149,11 @@ const B2BVendorDashboard = () => {
                     </div>
                     <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
                         <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Nearest Expiry</p>
-                        <p className="text-sm font-black text-amber-700">15 June 2026</p>
+                        <p className="text-sm font-black text-amber-700">
+                            {dashboard.subscriptions.length > 0
+                                ? new Date(Math.min(...dashboard.subscriptions.map(s => new Date(s.expiry)))).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                                : 'No Active Plan'}
+                        </p>
                     </div>
                 </div>
             </header>
@@ -138,9 +164,9 @@ const B2BVendorDashboard = () => {
             {config.widgets.includes('stats') && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[
-                        { label: 'Active Promotion Banners', value: MOCK_VENDOR_DATA.banners.length, icon: FiImage, color: 'text-blue-600', bg: 'bg-blue-50' },
-                        { label: 'Total Call Inquiries', value: MOCK_VENDOR_DATA.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                        { label: 'Total WhatsApp Clicks', value: MOCK_VENDOR_DATA.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' }
+                        { label: 'Active Promotion Banners', value: dashboard.banners.length, icon: FiImage, color: 'text-blue-600', bg: 'bg-blue-50' },
+                        { label: 'Total Call Inquiries', value: dashboard.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                        { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' }
                     ].map((stat, i) => (
                         <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-lg transition-all">
                             <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}>
@@ -176,10 +202,10 @@ const B2BVendorDashboard = () => {
                                         </div>
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Product Catalog</h3>
                                         <div className="flex items-end justify-between">
-                                            <p className="text-4xl font-black text-slate-900">{MOCK_VENDOR_DATA.counts.products.total}</p>
+                                            <p className="text-4xl font-black text-slate-900">{dashboard.counts.products.total}</p>
                                             <div className="text-right">
-                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">{MOCK_VENDOR_DATA.counts.products.approved} Approved</p>
-                                                <p className="text-[10px] font-bold text-amber-500 uppercase">{MOCK_VENDOR_DATA.counts.products.pending} Pending</p>
+                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">{dashboard.counts.products.approved} Approved</p>
+                                                <p className="text-[10px] font-bold text-amber-500 uppercase">{dashboard.counts.products.pending} Pending</p>
                                             </div>
                                         </div>
                                     </div>
@@ -193,10 +219,10 @@ const B2BVendorDashboard = () => {
                                         </div>
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Property Portfolio</h3>
                                         <div className="flex items-end justify-between">
-                                            <p className="text-4xl font-black text-slate-900">{MOCK_VENDOR_DATA.counts.properties.total}</p>
+                                            <p className="text-4xl font-black text-slate-900">{dashboard.counts.properties.total}</p>
                                             <div className="text-right">
-                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">{MOCK_VENDOR_DATA.counts.properties.approved} Active</p>
-                                                <p className="text-[10px] font-bold text-amber-500 uppercase">{MOCK_VENDOR_DATA.counts.properties.pending} Review</p>
+                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">{dashboard.counts.properties.approved} Active</p>
+                                                <p className="text-[10px] font-bold text-amber-500 uppercase">{dashboard.counts.properties.pending} Review</p>
                                             </div>
                                         </div>
                                     </div>
@@ -210,9 +236,9 @@ const B2BVendorDashboard = () => {
                                         </div>
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Lots / Slots</h3>
                                         <div className="flex items-end justify-between">
-                                            <p className="text-4xl font-black text-slate-900">{MOCK_VENDOR_DATA.counts.lotSlot.total}</p>
+                                            <p className="text-4xl font-black text-slate-900">{dashboard.counts.lotSlot.total}</p>
                                             <div className="text-right">
-                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">All Slots Active</p>
+                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">{dashboard.counts.lotSlot.approved} Active</p>
                                             </div>
                                         </div>
                                     </div>
@@ -228,7 +254,7 @@ const B2BVendorDashboard = () => {
                         <div>
                             <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 ml-2">Active Plans</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                {MOCK_VENDOR_DATA.subscriptions
+                                {dashboard.subscriptions
                                     .filter(sub => {
                                         if (sub.type === 'product' && !config.enableProductSubscription) return false;
                                         if (sub.type === 'property' && !config.enablePropertySubscription) return false;
@@ -278,8 +304,8 @@ const B2BVendorDashboard = () => {
                         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
                             <h2 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-6 px-2">Action Center</h2>
                             <div className="space-y-4">
-                                {MOCK_VENDOR_DATA.alerts.map(alert => (
-                                    <div key={alert.id} className={`p-5 rounded-3xl border flex gap-4 ${alert.type === 'warning' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
+                                {dashboard.alerts.map((alert, idx) => (
+                                    <div key={alert.id || idx} className={`p-5 rounded-3xl border flex gap-4 ${alert.type === 'warning' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'}`}>
                                         <div className={`mt-1 h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${alert.type === 'warning' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
                                             <FiAlertCircle size={16} />
                                         </div>
@@ -326,7 +352,7 @@ const B2BVendorDashboard = () => {
                             <div className="bg-slate-50 rounded-[2.5rem] p-8 border border-slate-200">
                                 <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 ml-2">Active Promotion</h2>
                                 <div className="space-y-6">
-                                    {MOCK_VENDOR_DATA.banners.map((banner, i) => (
+                                    {dashboard.banners.length > 0 ? dashboard.banners.map((banner, i) => (
                                         <div key={i} className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
                                             <div className="w-16 h-16 bg-slate-900 rounded-xl flex items-center justify-center text-primary-400 flex-shrink-0">
                                                 <FiImage size={24} />
@@ -339,7 +365,11 @@ const B2BVendorDashboard = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                    ))}
+                                    )) : (
+                                        <div className="p-6 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">No Active Banners</p>
+                                        </div>
+                                    )}
                                     <button
                                         onClick={() => navigate('/b2b-vendor/banner-booking')}
                                         className="w-full py-4 bg-white text-slate-800 rounded-2xl border-2 border-slate-200 border-dashed hover:border-slate-800 hover:text-slate-900 transition-all font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2"

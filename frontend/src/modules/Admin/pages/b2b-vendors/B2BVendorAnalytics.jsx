@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FiTrendingUp, FiUsers, FiPackage, FiDownload, FiMessageCircle } from "react-icons/fi";
+import { FiTrendingUp, FiUsers, FiPackage, FiDownload, FiMessageCircle, FiHome, FiLayers } from "react-icons/fi";
 import { motion } from "framer-motion";
 import TimePeriodFilter from "../../components/Analytics/TimePeriodFilter";
 import B2BOnboardingTrendChart from "../../components/Analytics/B2BOnboardingTrendChart";
@@ -12,9 +12,9 @@ const AdminB2BVendorAnalytics = () => {
     const [loading, setLoading] = useState(true);
     const [metrics, setMetrics] = useState([
         { label: "Total B2B Vendors", value: "0", trend: "0", icon: FiUsers, color: "blue" },
-        { label: "B2B Volume", value: "₹0", trend: "0%", icon: FiTrendingUp, color: "green" },
+        { label: "Total Properties", value: "0", trend: "0%", icon: FiHome, color: "green" },
         { label: "Product Listings", value: "0", trend: "0", icon: FiPackage, color: "purple" },
-        { label: "B2B Messages", value: "0", trend: "0%", icon: FiMessageCircle, color: "orange" },
+        { label: "Lot Slots", value: "0", trend: "0%", icon: FiLayers, color: "orange" },
     ]);
     const [chartData, setChartData] = useState({
         onboardingTrend: [],
@@ -44,10 +44,10 @@ const AdminB2BVendorAnalytics = () => {
                         color: "blue"
                     },
                     {
-                        label: "B2B Volume",
-                        value: formatted?.b2BVolume || "₹0",
-                        trend: "0%", // Volume trend can be calculated separately
-                        icon: FiTrendingUp,
+                        label: "Total Properties",
+                        value: formatted?.totalProperties || "0",
+                        trend: trends?.properties || "0%",
+                        icon: FiHome,
                         color: "green"
                     },
                     {
@@ -58,10 +58,10 @@ const AdminB2BVendorAnalytics = () => {
                         color: "purple"
                     },
                     {
-                        label: "B2B Messages",
-                        value: formatted?.totalB2BMessages || "0",
-                        trend: trends?.messages || "0",
-                        icon: FiMessageCircle,
+                        label: "Lot Slots",
+                        value: formatted?.totalLotSlots || "0",
+                        trend: trends?.lotSlots || "0%",
+                        icon: FiLayers,
                         color: "orange"
                     },
                 ]);
@@ -122,9 +122,13 @@ const AdminB2BVendorAnalytics = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
+                {/* Made full width since we removed the volume chart for now */}
                 <B2BOnboardingTrendChart data={chartData.onboardingTrend} period={period} />
-                <B2BTransactionVolumeChart data={chartData.transactionVolumeTrend} period={period} />
+                {/* 
+                // Hidden until we have transaction data
+                <B2BTransactionVolumeChart data={chartData.transactionVolumeTrend} period={period} /> 
+                */}
             </div>
         </motion.div>
     );

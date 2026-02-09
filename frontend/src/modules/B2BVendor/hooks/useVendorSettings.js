@@ -49,7 +49,7 @@ export const useVendorSettings = () => {
                 }
 
                 // Create a new request promise
-                settingsPromises[slug] = api.get(`/admin/business-settings/${slug}`)
+                settingsPromises[slug] = api.get(`/vendor/business-settings/${slug}`)
                     .then(response => {
                         if (response.success) {
                             settingsCache[slug] = response.data;
