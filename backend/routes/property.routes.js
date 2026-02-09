@@ -5,7 +5,8 @@ import {
     deleteProperty,
     listProperties,
     getPropertyById,
-    getAllProperties
+    getAllProperties,
+    getPublicPropertyById
 } from '../controllers/property.controller.js';
 import { authenticate, vendorOnly } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
@@ -24,5 +25,6 @@ router.get('/details/:id', authenticate, vendorOnly, asyncHandler(getPropertyByI
 
 // Public route
 router.get('/all', asyncHandler(getAllProperties));
+router.get('/public/details/:id', asyncHandler(getPublicPropertyById));
 
 export default router;
