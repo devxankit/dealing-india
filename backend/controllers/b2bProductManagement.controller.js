@@ -55,18 +55,18 @@ export const getB2BProducts = async (req, res, next) => {
 
     // Get all B2B vendor IDs - strictly filter by vendorType='b2b'
     // Convert to ObjectId array to ensure proper matching
-    const b2bVendors = await Vendor.find({ 
-      vendorType: 'b2b', 
+    const b2bVendors = await Vendor.find({
+      vendorType: 'b2b',
       isActive: true,
       status: 'approved' // Only approved B2B vendors
     }).select('_id vendorType');
-    
+
     // Double check - ensure all vendors are actually B2B
     const verifiedB2BVendors = b2bVendors.filter(v => {
       const vendorType = v.vendorType || (v.toObject && v.toObject().vendorType);
       return vendorType === 'b2b';
     });
-    
+
     const b2bVendorIds = verifiedB2BVendors.map(v => {
       const id = v._id || v.id;
       return mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
@@ -118,13 +118,14 @@ export const getB2BProducts = async (req, res, next) => {
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
     // Execute query - get products and verify vendor types
+    // Optimize: Queries already run in parallel, ensure lean() is used
     const [productsRaw, total] = await Promise.all([
       Product.find(query)
         .populate('vendorId', 'name storeName email vendorType isActive status')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))
-        .lean(),
+        .lean(), // Already has lean() - good!
       Product.countDocuments(query),
     ]);
 

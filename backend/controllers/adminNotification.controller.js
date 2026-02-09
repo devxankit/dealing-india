@@ -131,56 +131,5 @@ export const deleteAllRead = async (req, res, next) => {
   }
 };
 
-/**
- * Send custom notification to multiple recipients
- * POST /api/admin/notifications/send
- */
-export const sendCustomNotification = async (req, res, next) => {
-  try {
-    const { title, message, target, recipientIds, actionUrl, type } = req.body;
 
-    if (!title || !message) {
-      return res.status(400).json({
-        success: false,
-        message: 'Title and message are required',
-      });
-    }
-
-    if (!target) {
-      return res.status(400).json({
-        success: false,
-        message: 'Target audience is required',
-      });
-    }
-
-    if (target === 'specific' && (!recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Recipient IDs are required when target is specific',
-      });
-    }
-
-    const io = req.app.get('io');
-
-    const result = await notificationService.sendBulkNotification(
-      {
-        title,
-        message,
-        type: type || 'custom',
-        actionUrl: actionUrl || null,
-      },
-      target,
-      recipientIds || [],
-      io
-    );
-
-    return res.status(200).json({
-      success: true,
-      data: result,
-      message: `Notification sent to ${result.count} recipients`,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 

@@ -5,6 +5,7 @@ import { hashPassword } from '../utils/bcrypt.util.js';
 import { generateToken } from '../utils/jwt.util.js';
 import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
 import razorpayService from './razorpay.service.js';
+import notificationService from './notification.service.js';
 import mongoose from 'mongoose';
 
 /**
@@ -175,6 +176,24 @@ export const registerB2BVendor = async (vendorData) => {
 
     const vendor = await Vendor.create([newVendorData], { session });
     const createdVendor = vendor[0];
+
+    // Notify admins about new B2B vendor registration
+    try {
+      await notificationService.sendBulkNotification({
+        type: 'vendor_registration',
+        title: 'New B2B Vendor Registration',
+        message: 'New vendor registration request received.',
+        actionUrl: `/admin/b2b-vendors/pending`,
+        metadata: {
+          vendorId: createdVendor._id.toString(),
+          vendorName: createdVendor.businessName || createdVendor.storeName || createdVendor.name,
+          email: createdVendor.email,
+          vendorType: 'b2b'
+        }
+      }, 'admins');
+    } catch (notifError) {
+      console.error('Failed to notify admins about new B2B vendor registration:', notifError);
+    }
 
     await session.commitTransaction();
 
@@ -579,6 +598,40 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     const vendorObj = createdVendor.toObject();
     delete vendorObj.password;
 
+    // Notify admins about new B2B vendor registration AND subscription purchase
+    try {
+      // 1. Notify about Registration
+      await notificationService.sendBulkNotification({
+        type: 'vendor_registration',
+        title: 'New B2B Vendor Registration',
+        message: 'New vendor registration request received.',
+        actionUrl: `/admin/vendors/pending`,
+        metadata: {
+          vendorId: createdVendor._id.toString(),
+          vendorName: createdVendor.businessName || createdVendor.storeName || createdVendor.name,
+          email: createdVendor.email,
+          vendorType: 'b2b'
+        }
+      }, 'admins');
+
+      // 2. Notify about Subscription Purchase
+      await notificationService.sendBulkNotification({
+        type: 'payment_success',
+        title: 'Vendor Subscription Purchase',
+        message: 'Vendor has purchased a subscription plan.',
+        actionUrl: `/admin/subscriptions/${subscription[0]._id}`,
+        metadata: {
+          vendorId: createdVendor._id.toString(),
+          vendorName: createdVendor.businessName || createdVendor.storeName || createdVendor.name,
+          planId: planObjectId.toString(),
+          planName: plan.name,
+          amount: plan.price
+        }
+      }, 'admins');
+    } catch (notifError) {
+      console.error('Failed to notify admins about B2B registration/subscription:', notifError);
+    }
+
     return {
       vendor: vendorObj,
       token,
@@ -693,6 +746,24 @@ export const createB2BSubscriptionAfterPayment = async (planId, paymentData, ema
     const subscription = await VendorSubscription.create([subscriptionData], { session });
 
     await session.commitTransaction();
+
+    // Notify admins about B2B subscription purchase
+    try {
+      await notificationService.sendBulkNotification({
+        type: 'payment_success',
+        title: 'Vendor Subscription Purchase',
+        message: 'Vendor has purchased a subscription plan.',
+        actionUrl: `/admin/subscriptions/${subscription[0]._id}`,
+        metadata: {
+          vendorEmail: email,
+          planId: plan._id.toString(),
+          planName: plan.name,
+          amount: plan.price
+        }
+      }, 'admins');
+    } catch (notifError) {
+      console.error('Failed to notify admins about B2B subscription purchase:', notifError);
+    }
 
     console.log('✅ Subscription created successfully after payment:', {
       subscriptionId: subscription[0]._id.toString(),

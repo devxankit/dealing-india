@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import DataTable from "../../../Admin/components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../../Admin/components/ConfirmModal";
-import toast from "react-hot-toast";
+import toast from "../../../../shared/utils/toast";
 import api from "../../../../shared/utils/api";
 import SubscriptionGate from "../../components/SubscriptionGate";
 
@@ -24,7 +24,8 @@ const ManageLotSlot = () => {
         setLoading(true);
         try {
             const response = await api.get('/b2b-vendor/lot-slots', {
-                params: { page: 1, limit: 100 }
+                params: { page: 1, limit: 100 },
+                silent: true
             });
 
             if (response.success && response.data) {

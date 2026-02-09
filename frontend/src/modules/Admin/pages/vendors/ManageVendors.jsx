@@ -18,7 +18,7 @@ import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorManagementStore } from "../../store/vendorManagementStore";
-import toast from "react-hot-toast";
+import toast from "../../../../shared/utils/toast";
 import useDebounce from "../../../../shared/hooks/useDebounce";
 
 const ManageVendors = () => {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { FiSearch, FiEye } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
@@ -6,6 +7,7 @@ import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
 
 const B2BVendorProductListings = () => {
+    const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -36,7 +38,23 @@ const B2BVendorProductListings = () => {
     };
 
     const columns = [
-        { key: "title", label: "Product Name", render: (val) => <span className="font-bold text-gray-800">{val}</span> },
+        {
+            key: "title",
+            label: "Product Name",
+            render: (val, row) => (
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100 shadow-sm">
+                        <img
+                            src={row.image || "/placeholder-product.png"}
+                            alt={val}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.target.src = "/placeholder-product.png"; }}
+                        />
+                    </div>
+                    <span className="font-bold text-gray-800">{val}</span>
+                </div>
+            )
+        },
         { key: "b2bVendor", label: "B2B Vendor" },
         { key: "price", label: "Price Range" },
         { key: "moq", label: "MOQ" },
@@ -55,11 +73,8 @@ const B2BVendorProductListings = () => {
             label: "Actions",
             render: (_, row) => (
                 <div className="flex items-center gap-2">
-                    <button 
-                        onClick={() => {
-                            // View product details - can be implemented later if needed
-                            console.log('View product:', row._id);
-                        }}
+                    <button
+                        onClick={() => navigate(`/admin/b2b-vendors/products/${row._id}`)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
                         title="View Details"
                     >
@@ -79,12 +94,12 @@ const B2BVendorProductListings = () => {
                 </div>
                 <div className="relative w-80">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input 
-                        type="text" 
-                        placeholder="Search products..." 
+                    <input
+                        type="text"
+                        placeholder="Search products..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500" 
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500"
                     />
                 </div>
             </div>
@@ -96,7 +111,7 @@ const B2BVendorProductListings = () => {
                     </div>
                 ) : (
                     <DataTable
-                        data={products.filter(p => 
+                        data={products.filter(p =>
                             p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             p.b2bVendor?.toLowerCase().includes(searchQuery.toLowerCase())
                         )}

@@ -364,19 +364,20 @@ class VendorWalletService {
      * Get wallet dashboard stats (Admin)
      */
     async getAdminStats() {
-        const totalWithdrawn = await WithdrawalRequest.aggregate([
-            { $match: { status: 'approved' } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
+        const [totalWithdrawnResult, pendingCount, processedToday] = await Promise.all([
+            WithdrawalRequest.aggregate([
+                { $match: { status: 'approved' } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]),
+            WithdrawalRequest.countDocuments({ status: 'pending' }),
+            WithdrawalRequest.countDocuments({
+                status: { $in: ['approved', 'rejected'] },
+                processedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+            })
         ]);
 
-        const pendingCount = await WithdrawalRequest.countDocuments({ status: 'pending' });
-        const processedToday = await WithdrawalRequest.countDocuments({
-            status: { $in: ['approved', 'rejected'] },
-            processedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-        });
-
         return {
-            totalWithdrawn: totalWithdrawn[0]?.total || 0,
+            totalWithdrawn: totalWithdrawnResult[0]?.total || 0,
             pendingCount,
             processedToday
         };
@@ -391,7 +392,8 @@ class VendorWalletService {
                 match: { vendorType: 'b2b' },
                 select: 'name storeName email phone'
             })
-            .sort({ balance: -1 });
+            .sort({ balance: -1 })
+            .lean(); // Add lean() for performance
 
         // Filter out wallets where vendorId is null (meaning it didn't match 'b2b')
         return wallets.filter(wallet => wallet.vendorId);

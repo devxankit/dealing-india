@@ -400,8 +400,11 @@ class SubscriptionRulesService {
         const limits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
         const businessTypeSlug = this.normalizeBusinessType(vendor.businessType);
 
-        const productCount = await this.getProductCount(vendorId);
-        const lotSlotCount = await this.getLotSlotCount(vendorId);
+        // PERFORMANCE: Fetch counts in parallel
+        const [productCount, lotSlotCount] = await Promise.all([
+            this.getProductCount(vendorId),
+            this.getLotSlotCount(vendorId)
+        ]);
 
         // Determine which listings are allowed based on business type
         const isPropertyBusiness = businessTypeSlug === BUSINESS_TYPES.DEVELOPER ||

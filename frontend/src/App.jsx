@@ -21,9 +21,9 @@ const Content = lazyWithRetry(() => import("./modules/Admin/pages/Content"));
 
 const Settings = lazyWithRetry(() => import("./modules/Admin/pages/Settings"));
 const More = lazyWithRetry(() => import("./modules/Admin/pages/More"));
-// Notifications child pages
-const PushNotifications = lazyWithRetry(() => import("./modules/Admin/pages/notifications/PushNotifications"));
-const CustomMessages = lazyWithRetry(() => import("./modules/Admin/pages/notifications/CustomMessages"));
+const Notifications = lazyWithRetry(() => import("./modules/Admin/pages/notifications/Notifications"));
+// const PushNotifications = lazyWithRetry(() => import("./modules/Admin/pages/notifications/PushNotifications"));
+// const CustomMessages = lazyWithRetry(() => import("./modules/Admin/pages/notifications/CustomMessages"));
 
 
 // Consolidated Settings pages
@@ -34,15 +34,17 @@ const OrdersCustomersSettings = lazyWithRetry(() => import("./modules/Admin/page
 const ContentFeaturesSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/ContentFeaturesSettings"));
 const NotificationsSEOSettings = lazyWithRetry(() => import("./modules/Admin/pages/settings/NotificationsSEOSettings"));
 
-// Firebase child pages
-const PushConfig = lazyWithRetry(() => import("./modules/Admin/pages/firebase/PushConfig"));
-const Authentication = lazyWithRetry(() => import("./modules/Admin/pages/firebase/Authentication"));
+// Firebase child pages removed
+// const PushConfig = lazyWithRetry(() => import("./modules/Admin/pages/firebase/PushConfig"));
+// const Authentication = lazyWithRetry(() => import("./modules/Admin/pages/firebase/Authentication"));
 
 // Admin B2B Vendor Routes
 const AdminB2BVendors = lazyWithRetry(() => import("./modules/Admin/pages/B2BVendors"));
 const AdminManageB2BVendors = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/ManageB2BVendors"));
 const AdminB2BVendorPendingApprovals = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/PendingApprovals"));
 const AdminB2BVendorProductListings = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/ProductListings"));
+const AdminB2BProductDetail = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/ProductDetail"));
+const AdminB2BSubscriptionWallet = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/SubscriptionWallet"));
 const AdminB2BVendorLotSlots = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/LotSlots"));
 const AdminB2BVendorLotSlotDetail = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/LotSlotDetail"));
 const AdminB2BVendorProperties = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/Properties"));
@@ -179,12 +181,14 @@ const AppRoutes = () => {
             <Route path="manage" element={<AdminManageB2BVendors />} />
             <Route path="pending" element={<AdminB2BVendorPendingApprovals />} />
             <Route path="products" element={<AdminB2BVendorProductListings />} />
+            <Route path="products/:id" element={<AdminB2BProductDetail />} />
             <Route path="lot-slots" element={<AdminB2BVendorLotSlots />} />
             <Route path="lot-slots/:id" element={<AdminB2BVendorLotSlotDetail />} />
             <Route path="properties" element={<AdminB2BVendorProperties />} />
             <Route path="properties/:id" element={<AdminB2BVendorPropertyDetail />} />
-            <Route path="wallet" element={<B2BWallet />} />
             <Route path="analytics" element={<AdminB2BVendorAnalyticsPage />} />
+            <Route path="wallet" element={<B2BWallet />} />
+            <Route path="subscription-wallet" element={<AdminB2BSubscriptionWallet />} />
             <Route path="subscriptions" element={<AdminB2BSubscriptions />} />
             <Route path="categories" element={<AdminB2BCategories />} />
             <Route path="banner-bookings" element={<AdminB2BBannerManagement />} />
@@ -193,15 +197,7 @@ const AppRoutes = () => {
             <Route path="business-type-config" element={<AdminBusinessTypeConfiguration />} />
           </Route>
 
-          <Route path="notifications" element={<PushNotifications />} />
-          <Route
-            path="notifications/push-notifications"
-            element={<PushNotifications />}
-          />
-          <Route
-            path="notifications/custom-messages"
-            element={<CustomMessages />}
-          />
+          <Route path="notifications" element={<Notifications />} />
 
           <Route
             path="settings"
@@ -215,9 +211,7 @@ const AppRoutes = () => {
           <Route path="settings/notifications-seo" element={<Settings />} />
           <Route path="settings/tax" element={<Settings />} />
 
-          <Route path="firebase" element={<PushConfig />} />
-          <Route path="firebase/push-config" element={<PushConfig />} />
-          <Route path="firebase/authentication" element={<Authentication />} />
+          {/* Firebase routes removed */}
           <Route path="wallet" element={<AdminWallet />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="content" element={<Content />} />

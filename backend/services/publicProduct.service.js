@@ -77,7 +77,7 @@ export const getPublicProducts = async (filters) => {
         const vendorQuery = { isActive: true };
         if (state) vendorQuery['address.state'] = state;
         if (city) vendorQuery['address.city'] = city;
-        const matchingVendors = await Vendor.find(vendorQuery).select('_id');
+        const matchingVendors = await Vendor.find(vendorQuery).select('_id').lean();
         locationVendorIds = matchingVendors.map(v => v._id);
     }
 
@@ -114,7 +114,8 @@ export const getPublicProducts = async (filters) => {
     if (itemType !== 'lotslot') {
         products = await Product.find(query)
             .sort(sort)
-            .populate('vendorId', 'name storeName address phone');
+            .populate('vendorId', 'name storeName address phone')
+            .lean();
     }
 
     // 2. Fetch LotSlots (if not restricted to product)
@@ -182,12 +183,14 @@ export const getPublicProducts = async (filters) => {
 
         lotSlots = await LotSlot.find(lotSlotQuery)
             .sort(sort)
-            .populate('vendorId', 'name storeName address phone');
+            .populate('vendorId', 'name storeName address phone')
+            .lean();
     }
 
     // Tag them so frontend can distinguish
-    const taggedProducts = products.map(p => ({ ...p._doc, itemType: 'product' }));
-    const taggedLots = lotSlots.map(l => ({ ...l._doc, itemType: 'lotslot' }));
+    // With .lean(), documents are already plain objects (no _doc needed)
+    const taggedProducts = products.map(p => ({ ...p, itemType: 'product' }));
+    const taggedLots = lotSlots.map(l => ({ ...l, itemType: 'lotslot' }));
 
     // Combine and sort
     let combined = [...taggedProducts, ...taggedLots];
@@ -216,17 +219,21 @@ export const getPublicProducts = async (filters) => {
  */
 export const getPublicProductById = async (id) => {
     let item = await Product.findById(id)
-        .populate('vendorId', 'name storeName description logo phone address');
+        .populate('vendorId', 'name storeName description logo phone address')
+        .lean();
 
+    let isLotSlot = false;
     if (!item) {
         item = await LotSlot.findById(id)
-            .populate('vendorId', 'name storeName description logo phone address');
+            .populate('vendorId', 'name storeName description logo phone address')
+            .lean();
+        isLotSlot = true;
     }
 
     if (!item) throw new Error('Product not found');
 
-    // Tag it
-    const taggedItem = { ...item._doc, itemType: item.sku ? 'lotslot' : 'product' };
+    // Tag it - with .lean(), item is already a plain object
+    const taggedItem = { ...item, itemType: isLotSlot ? 'lotslot' : 'product' };
 
     return taggedItem;
 };

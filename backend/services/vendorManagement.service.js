@@ -414,24 +414,19 @@ export const getB2BVendors = async (filters = {}) => {
       });
     }
 
-    // Get product counts for all vendors
+    // Get product counts for all vendors using a SINGLE aggregation query (N+1 fix)
     const vendorIds = verifiedB2BVendors.map(v => v._id);
 
-    // Count products for each vendor in parallel
-    const productCounts = await Promise.all(
-      vendorIds.map(async (vendorId) => {
-        const count = await Product.countDocuments({
-          vendorId: vendorId,
-          isActive: true
-        });
-        return { vendorId: vendorId.toString(), count };
-      })
-    );
+    // Use aggregation to count products for ALL vendors in one query
+    const productCountsAgg = await Product.aggregate([
+      { $match: { vendorId: { $in: vendorIds }, isActive: true } },
+      { $group: { _id: '$vendorId', count: { $sum: 1 } } }
+    ]);
 
     // Create a map for quick lookup
     const productCountMap = new Map();
-    productCounts.forEach(({ vendorId, count }) => {
-      productCountMap.set(vendorId, count);
+    productCountsAgg.forEach(({ _id, count }) => {
+      productCountMap.set(_id.toString(), count);
     });
 
     // Format vendors for admin panel - use verified B2B vendors only

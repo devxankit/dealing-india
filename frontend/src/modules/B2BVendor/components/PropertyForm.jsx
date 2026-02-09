@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { FiArrowLeft, FiPlus, FiTrash2, FiCheck } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
+import toast from "../../../shared/utils/toast";
 import api from "../../../shared/utils/api";
 
 const PropertyForm = ({ initialData, isEdit }) => {

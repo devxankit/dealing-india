@@ -49,8 +49,11 @@ const B2BVendorSubscription = () => {
         try {
             setLoading(true);
 
-            // Fetch business types to get the slug for the vendor's business type
-            const businessTypes = await getBusinessTypes();
+            // Parallelize all initial data fetching
+            const [businessTypes, subscriptions] = await Promise.all([
+                getBusinessTypes(),
+                subscriptionService.getAllSubscriptions()
+            ]);
 
             // Find vendor's business type slug
             const vendorBusinessType = businessTypes.find(t =>
@@ -59,10 +62,8 @@ const B2BVendorSubscription = () => {
                 t._id === vendor?.businessTypeRef
             );
 
-            const [plans, subscriptions] = await Promise.all([
-                getActiveB2BPlans({ businessType: vendorBusinessType?.slug }),
-                subscriptionService.getAllSubscriptions()
-            ]);
+            // Now fetch the plans for this business type
+            const plans = await getActiveB2BPlans({ businessType: vendorBusinessType?.slug });
             console.log("subscriptionssubscriptions", subscriptions);
             const filteredPlans = plans
                 .filter(p => [3, 6, 12].includes(p.duration))

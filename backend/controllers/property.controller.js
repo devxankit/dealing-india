@@ -189,7 +189,7 @@ export const deleteProperty = asyncHandler(async (req, res) => {
 // @access  Vendor
 export const listProperties = asyncHandler(async (req, res) => {
     const vendorId = req.userDoc._id;
-    const properties = await Property.find({ vendorId });
+    const properties = await Property.find({ vendorId }).lean();
 
     res.status(200).json({
         success: true,
@@ -204,7 +204,7 @@ export const getPropertyById = asyncHandler(async (req, res) => {
     const vendorId = req.userDoc._id;
     const propertyId = req.params.id;
 
-    const property = await Property.findById(propertyId);
+    const property = await Property.findById(propertyId).lean();
 
     if (!property) {
         return res.status(404).json({ success: false, message: 'Property not found' });
@@ -281,7 +281,8 @@ export const getAllProperties = asyncHandler(async (req, res) => {
             path: 'vendorId',
             select: 'storeName address businessType phone storeLogo',
             match: vendorMatch
-        });
+        })
+        .lean();
 
     // Filter out properties where vendor didn't match the type
     const filteredProperties = properties.filter(p => p.vendorId !== null);
@@ -299,7 +300,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 export const getPublicPropertyById = asyncHandler(async (req, res) => {
     const propertyId = req.params.id;
 
-    const property = await Property.findById(propertyId).populate('vendorId', 'storeName address businessType phone storeLogo storeDescription');
+    const property = await Property.findById(propertyId).populate('vendorId', 'storeName address businessType phone storeLogo storeDescription').lean();
 
     if (!property) {
         return res.status(404).json({ success: false, message: 'Property not found' });

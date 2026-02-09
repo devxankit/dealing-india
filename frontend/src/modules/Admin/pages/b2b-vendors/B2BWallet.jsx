@@ -47,7 +47,7 @@ const B2BWallet = () => {
       // Backend returns: { success: true, data: {...} }
       // Interceptor returns: { success: true, data: {...} }
       setRevenueStats(statsRes?.data || statsRes || {});
-      setTransactions(transactionsRes?.data?.transactions || []);
+      setTransactions(transactionsRes?.data || []);
     } catch (error) {
       console.error("Error loading B2B wallet data:", error);
       toast.error(error?.response?.data?.message || "Failed to load B2B wallet data");
@@ -72,9 +72,6 @@ const B2BWallet = () => {
             <p className="text-gray-500 text-sm font-medium">Manage and track all B2B Banner booking transactions</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-lg shadow-gray-200">
-          <FiDownload /> Export Statement
-        </button>
       </div>
 
       {/* Financial Overview Cards */}

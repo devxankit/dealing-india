@@ -29,8 +29,11 @@ export const getVendorWallet = asyncHandler(async (req, res) => {
  * Get pending withdrawal requests (Admin)
  */
 export const getPendingWithdrawals = asyncHandler(async (req, res) => {
-    const requests = await VendorWalletService.getPendingWithdrawals();
-    const stats = await VendorWalletService.getAdminStats();
+    // Parallelize service calls
+    const [requests, stats] = await Promise.all([
+        VendorWalletService.getPendingWithdrawals(),
+        VendorWalletService.getAdminStats()
+    ]);
 
     res.status(200).json({
         success: true,

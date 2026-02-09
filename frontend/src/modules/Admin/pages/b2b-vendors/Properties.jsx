@@ -10,22 +10,30 @@ const B2BVendorProperties = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [listingType, setListingType] = useState("all");
-    const [businessType, setBusinessType] = useState("all");
+    const [businessType, setBusinessType] = useState("Developer");
     const [businessTypes, setBusinessTypes] = useState([]);
 
+    // Optimize: Initial data load in single useEffect
     useEffect(() => {
         fetchBusinessTypes();
+        fetchProperties();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Separate effect for filter changes only
     useEffect(() => {
         fetchProperties();
-    }, [listingType, businessType]); // Refetch when filters change
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [listingType, businessType]); // Only refetch when filters change
 
     const fetchBusinessTypes = async () => {
         try {
             const response = await api.get('/business-types');
             if (response.success) {
-                setBusinessTypes(response.data || []);
+                const filtered = (response.data || []).filter(type =>
+                    type.name === "Developer" || type.name === "Property Broker"
+                );
+                setBusinessTypes(filtered);
             }
         } catch (error) {
             console.error('Error fetching Business Types:', error);
@@ -134,7 +142,6 @@ const B2BVendorProperties = () => {
                             onChange={(e) => setBusinessType(e.target.value)}
                             className="pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 appearance-none cursor-pointer outline-none text-gray-700 font-medium"
                         >
-                            <option value="all">Every Vendor</option>
                             {businessTypes.map(type => (
                                 <option key={type._id} value={type.name}>{type.name}</option>
                             ))}

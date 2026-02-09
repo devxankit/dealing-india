@@ -43,6 +43,8 @@ const notificationSchema = new mongoose.Schema(
         'inquiry',
         'mega_reward_winner',
         'mega_reward_ticket_generated',
+        'vendor_registration',
+        'banner_booking',
       ],
     },
     title: {

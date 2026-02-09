@@ -244,6 +244,27 @@ class SubscriptionService {
           }, { session });
 
           await session.commitTransaction();
+
+          // Notify admins about free subscription
+          try {
+            const vendor = await Vendor.findById(vendorId).select('businessName storeName');
+            await NotificationService.sendBulkNotification({
+              type: 'payment_success',
+              title: 'Vendor Subscription Purchase',
+              message: 'Vendor has purchased a subscription plan.',
+              actionUrl: `/admin/b2b-vendors/subscriptions`,
+              metadata: {
+                vendorId: vendorId.toString(),
+                vendorName: vendor?.businessName || vendor?.storeName || 'A vendor',
+                planName: planName,
+                amount: 0,
+                type: 'free_subscription'
+              }
+            }, 'admins');
+          } catch (notifError) {
+            console.error('Failed to notify admins about free subscription:', notifError);
+          }
+
           return {
             subscription: subscription[0],
             razorpay: null,
@@ -493,8 +514,8 @@ class SubscriptionService {
         const adminNotification = {
           recipientType: 'admin',
           type: 'payment_success',
-          title: 'New Subscription Payment',
-          message: `${vendorName} has subscribed to ${planName} plan (₹${planPrice})`,
+          title: 'Vendor Subscription Purchase',
+          message: 'Vendor has purchased a subscription plan.',
           metadata: {
             subscriptionId: subscription[0]._id,
             vendorId: vendorId,
@@ -858,167 +879,169 @@ class SubscriptionService {
 
   async getSubscriptionAnalytics() {
     try {
-      // Total revenue from subscription transactions (VendorSubscription audit logs)
-      // Transaction model is for customer orders, not vendor subscriptions
-      const subscriptionRevenueResult = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
-            'auditLogs.details.status': 'completed'
+      // Execute all analytics queries in parallel for maximum performance
+      const [
+        subscriptionRevenueResult,
+        extraReelRevenueResult,
+        totalOrdersResult,
+        totalCustomersResult,
+        activeSubscriptionsCount,
+        tierDistribution,
+        recentSubscriptionPayments,
+        recentExtraReelPayments
+      ] = await Promise.all([
+        // Total revenue from subscription transactions (VendorSubscription audit logs)
+        VendorSubscription.aggregate([
+          { $unwind: '$auditLogs' },
+          {
+            $match: {
+              'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+              'auditLogs.details.status': 'completed'
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$auditLogs.details.amount' }
+            }
           }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$auditLogs.details.amount' }
+        ]),
+        // Total revenue from extra reel payments (VendorSubscription audit logs)
+        VendorSubscription.aggregate([
+          { $unwind: '$auditLogs' },
+          {
+            $match: {
+              'auditLogs.action': 'extra_reel_payment',
+              'auditLogs.details.status': 'completed'
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$auditLogs.details.amount' }
+            }
           }
-        }
+        ]),
+        // Total orders: count of subscription payments (plans purchased)
+        VendorSubscription.aggregate([
+          { $unwind: '$auditLogs' },
+          {
+            $match: {
+              'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+              'auditLogs.details.status': 'completed'
+            }
+          },
+          { $group: { _id: null, count: { $sum: 1 } } }
+        ]),
+        // Total customers: count of unique vendors with active subscriptions (regular plans)
+        VendorSubscription.aggregate([
+          { $match: { status: 'active' } },
+          { $group: { _id: '$vendorId' } },
+          { $group: { _id: null, count: { $sum: 1 } } }
+        ]),
+        // Active subscriptions count
+        VendorSubscription.countDocuments({ status: 'active' }),
+        // Tier distribution
+        VendorSubscription.aggregate([
+          { $match: { status: 'active' } },
+          { $group: { _id: '$tierId', count: { $sum: 1 } } },
+          { $lookup: { from: 'subscriptiontiers', localField: '_id', foreignField: '_id', as: 'tier' } },
+          { $unwind: '$tier' },
+          { $project: { name: '$tier.name', count: 1 } }
+        ]),
+        // Recent payments (last 10 subscription payments from VendorSubscription audit logs)
+        VendorSubscription.aggregate([
+          { $unwind: '$auditLogs' },
+          {
+            $match: {
+              'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+              'auditLogs.details.status': 'completed'
+            }
+          },
+          { $sort: { 'auditLogs.timestamp': -1 } },
+          { $limit: 10 },
+          {
+            $lookup: {
+              from: 'vendors',
+              localField: 'vendorId',
+              foreignField: '_id',
+              as: 'vendor'
+            }
+          },
+          { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'subscriptiontiers',
+              localField: 'tierId',
+              foreignField: '_id',
+              as: 'tier'
+            }
+          },
+          { $unwind: { path: '$tier', preserveNullAndEmptyArrays: true } },
+          {
+            $project: {
+              _id: { $toString: '$_id' },
+              vendorId: { $toString: '$vendorId' },
+              vendorName: { $ifNull: ['$vendor.businessName', '$vendor.storeName'] },
+              amount: '$auditLogs.details.amount',
+              tierName: { $ifNull: ['$tier.name', '$auditLogs.details.tierName', 'Unknown'] },
+              date: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
+              status: '$auditLogs.details.status',
+              type: '$auditLogs.details.type',
+              timestamp: '$auditLogs.timestamp',
+              razorpayOrderId: '$auditLogs.details.razorpayOrderId'
+            }
+          }
+        ]),
+        // Recent extra reel payments (from VendorSubscription audit logs)
+        VendorSubscription.aggregate([
+          { $unwind: '$auditLogs' },
+          {
+            $match: {
+              'auditLogs.action': 'extra_reel_payment',
+              'auditLogs.details.status': 'completed'
+            }
+          },
+          { $sort: { 'auditLogs.timestamp': -1 } },
+          { $limit: 10 },
+          {
+            $lookup: {
+              from: 'vendors',
+              localField: 'vendorId',
+              foreignField: '_id',
+              as: 'vendor'
+            }
+          },
+          { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'subscriptiontiers',
+              localField: 'tierId',
+              foreignField: '_id',
+              as: 'tier'
+            }
+          },
+          { $unwind: { path: '$tier', preserveNullAndEmptyArrays: true } },
+          {
+            $project: {
+              id: { $toString: '$_id' },
+              vendorName: { $ifNull: ['$vendor.businessName', '$vendor.storeName'] },
+              amount: '$auditLogs.details.amount',
+              tierName: { $ifNull: ['$tier.name', 'Unknown'] },
+              date: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
+              status: '$auditLogs.details.status',
+              type: 'extra_reel_charge',
+              timestamp: '$auditLogs.timestamp'
+            }
+          }
+        ])
       ]);
+
       const subscriptionRevenue = subscriptionRevenueResult[0]?.total || 0;
-
-      // Total revenue from extra reel payments (VendorSubscription audit logs)
-      const extraReelRevenueResult = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': 'extra_reel_payment',
-            'auditLogs.details.status': 'completed'
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$auditLogs.details.amount' }
-          }
-        }
-      ]);
       const extraReelRevenue = extraReelRevenueResult[0]?.total || 0;
-
-      // Total revenue = only subscription revenue (reel plan subscription, not extra reel charges)
       const totalRevenue = subscriptionRevenue;
-
-      // Total orders: count of subscription payments (plans purchased)
-      const totalOrdersResult = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
-            'auditLogs.details.status': 'completed'
-          }
-        },
-        { $group: { _id: null, count: { $sum: 1 } } }
-      ]);
       const totalOrders = totalOrdersResult[0]?.count || 0;
-
-      // Total customers: count of unique vendors with active subscriptions (regular plans)
-      const totalCustomersResult = await VendorSubscription.aggregate([
-        { $match: { status: 'active' } },
-        { $group: { _id: '$vendorId' } },
-        { $group: { _id: null, count: { $sum: 1 } } }
-      ]);
       const totalCustomers = totalCustomersResult[0]?.count || 0;
-
-      // Active subscriptions count
-      const activeSubscriptionsCount = await VendorSubscription.countDocuments({ status: 'active' });
-
-      // Tier distribution
-      const tierDistribution = await VendorSubscription.aggregate([
-        { $match: { status: 'active' } },
-        { $group: { _id: '$tierId', count: { $sum: 1 } } },
-        { $lookup: { from: 'subscriptiontiers', localField: '_id', foreignField: '_id', as: 'tier' } },
-        { $unwind: '$tier' },
-        { $project: { name: '$tier.name', count: 1 } }
-      ]);
-
-      // Recent payments (last 10 subscription payments from VendorSubscription audit logs)
-      // Transaction model is for customer orders, not vendor subscriptions
-      const recentSubscriptionPayments = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
-            'auditLogs.details.status': 'completed'
-          }
-        },
-        { $sort: { 'auditLogs.timestamp': -1 } },
-        { $limit: 10 },
-        {
-          $lookup: {
-            from: 'vendors',
-            localField: 'vendorId',
-            foreignField: '_id',
-            as: 'vendor'
-          }
-        },
-        { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: 'subscriptiontiers',
-            localField: 'tierId',
-            foreignField: '_id',
-            as: 'tier'
-          }
-        },
-        { $unwind: { path: '$tier', preserveNullAndEmptyArrays: true } },
-        {
-          $project: {
-            _id: { $toString: '$_id' },
-            vendorId: { $toString: '$vendorId' },
-            vendorName: { $ifNull: ['$vendor.businessName', '$vendor.storeName'] },
-            amount: '$auditLogs.details.amount',
-            tierName: { $ifNull: ['$tier.name', '$auditLogs.details.tierName', 'Unknown'] },
-            date: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
-            status: '$auditLogs.details.status',
-            type: '$auditLogs.details.type',
-            timestamp: '$auditLogs.timestamp',
-            razorpayOrderId: '$auditLogs.details.razorpayOrderId'
-          }
-        }
-      ]);
-
-      // Recent extra reel payments (from VendorSubscription audit logs)
-      const recentExtraReelPayments = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': 'extra_reel_payment',
-            'auditLogs.details.status': 'completed'
-          }
-        },
-        { $sort: { 'auditLogs.timestamp': -1 } },
-        { $limit: 10 },
-        {
-          $lookup: {
-            from: 'vendors',
-            localField: 'vendorId',
-            foreignField: '_id',
-            as: 'vendor'
-          }
-        },
-        { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: 'subscriptiontiers',
-            localField: 'tierId',
-            foreignField: '_id',
-            as: 'tier'
-          }
-        },
-        { $unwind: { path: '$tier', preserveNullAndEmptyArrays: true } },
-        {
-          $project: {
-            id: { $toString: '$_id' },
-            vendorName: { $ifNull: ['$vendor.businessName', '$vendor.storeName'] },
-            amount: '$auditLogs.details.amount',
-            tierName: { $ifNull: ['$tier.name', 'Unknown'] },
-            date: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
-            status: '$auditLogs.details.status',
-            type: 'extra_reel_charge',
-            timestamp: '$auditLogs.timestamp'
-          }
-        }
-      ]);
 
       // Format subscription payments from audit logs
       const enrichedSubscriptionPayments = recentSubscriptionPayments.map(payment => ({

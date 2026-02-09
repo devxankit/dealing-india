@@ -106,12 +106,16 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         }
     }
 
-    const total = await Property.countDocuments(query);
-    const properties = await Property.find(query)
-        .populate('vendorId', 'name storeName email vendorType status businessType') // Added status and businessType
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+    // Optimize: Run count and find in parallel with lean()
+    const [total, properties] = await Promise.all([
+        Property.countDocuments(query),
+        Property.find(query)
+            .populate('vendorId', 'name storeName email vendorType status businessType')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
+            .lean()
+    ]);
 
     // Format for response
     const formattedProperties = properties.map(prop => ({
@@ -151,7 +155,9 @@ export const getAllProperties = asyncHandler(async (req, res) => {
  */
 export const getPropertyById = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const property = await Property.findById(id).populate('vendorId', 'name storeName email phone vendorType status businessType');
+    const property = await Property.findById(id)
+        .populate('vendorId', 'name storeName email phone vendorType status businessType')
+        .lean(); // Add lean() for performance
 
     if (!property) {
         return res.status(404).json({ success: false, message: 'Property not found' });

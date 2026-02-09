@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import DataTable from "../../../Admin/components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../../Admin/components/ConfirmModal";
-import toast from "react-hot-toast";
+import toast from "../../../../shared/utils/toast";
 import api from "../../../../shared/utils/api";
 import SubscriptionGate from "../../components/SubscriptionGate";
 
@@ -28,7 +28,8 @@ const ManageProducts = () => {
                 params: {
                     page: 1,
                     limit: 100, // Get all products for now
-                }
+                },
+                silent: true
             });
 
             if (response.success && response.data) {

@@ -14,13 +14,13 @@ class B2BVendorSubscriptionService {
    */
   async getAllB2BSubscriptions(filters = {}) {
     try {
-      // Find all B2B vendors
-      const b2bVendors = await Vendor.find({ vendorType: 'b2b' }).select('_id name email storeName');
-      const b2bVendorIds = b2bVendors.map(v => v._id);
+      // PERFORMANCE OPTIMIZATION: 
+      // Instead of fetching all B2B vendors first, we query subscriptions directly
+      // and filter by vendor type using populate with match
 
-      // Build query
+      // Build query with planId filter
       const query = {
-        vendorId: { $in: b2bVendorIds }
+        planId: { $exists: true, $ne: null }
       };
 
       if (filters.status) {
@@ -31,24 +31,28 @@ class B2BVendorSubscriptionService {
         query.planId = new mongoose.Types.ObjectId(filters.planId);
       }
 
-      // Get subscriptions - only those with planId (B2B subscriptions)
-      query.planId = { $exists: true, $ne: null };
-      
+      // Add date filter for expiringSoon at database level
+      if (filters.expiringSoon) {
+        const now = new Date();
+        const sevenDaysFromNow = new Date();
+        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+        query.status = 'active';
+        query.endDate = { $gt: now, $lte: sevenDaysFromNow };
+      }
+
+      // Get subscriptions and filter B2B vendors using populate match
       let subscriptions = await VendorSubscription.find(query)
-        .populate('vendorId', 'name email storeName')
+        .populate({
+          path: 'vendorId',
+          select: 'name email storeName vendorType',
+          match: { vendorType: 'b2b' }  // Only include B2B vendors
+        })
         .populate('planId', 'name duration price')
         .sort({ createdAt: -1 })
         .lean();
 
-      // Filter expiring soon (within 7 days)
-      if (filters.expiringSoon) {
-        const sevenDaysFromNow = new Date();
-        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-        subscriptions = subscriptions.filter(sub => {
-          const endDate = new Date(sub.endDate);
-          return endDate <= sevenDaysFromNow && endDate > new Date() && sub.status === 'active';
-        });
-      }
+      // Filter out subscriptions where vendor didn't match (non-B2B)
+      subscriptions = subscriptions.filter(sub => sub.vendorId !== null);
 
       // Calculate stats
       const stats = {
@@ -63,7 +67,8 @@ class B2BVendorSubscriptionService {
           sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
           return endDate <= sevenDaysFromNow && endDate > new Date();
         }).length,
-        monthlyRevenue: this.calculateMonthlyRevenue(subscriptions)
+        monthlyRevenue: this.calculateMonthlyRevenue(subscriptions),
+        totalCollectedRevenue: this.calculateTotalCollectedRevenue(subscriptions)
       };
 
       // Format subscriptions for frontend
@@ -78,6 +83,9 @@ class B2BVendorSubscriptionService {
         billingCycle: this.getBillingCycleLabel(sub.planId?.duration),
         expiryDate: sub.endDate ? new Date(sub.endDate).toISOString().split('T')[0] : null,
         startDate: sub.startDate ? new Date(sub.startDate).toISOString().split('T')[0] : null,
+        lastPaymentDate: sub.lastPaymentDate || sub.startDate,
+        paymentId: sub.razorpayPaymentId || 'N/A',
+        paymentMethod: sub.paymentMethod || 'Razorpay',
         autoRenew: sub.autoRenew || false
       }));
 
@@ -107,6 +115,19 @@ class B2BVendorSubscriptionService {
     });
 
     return Math.round(revenue);
+  }
+
+  /**
+   * Calculate total collected revenue from all subscriptions
+   */
+  calculateTotalCollectedRevenue(subscriptions) {
+    let total = 0;
+    subscriptions.forEach(sub => {
+      if (sub.planId && sub.planId.price && sub.status !== 'pending' && sub.status !== 'failed') {
+        total += sub.planId.price;
+      }
+    });
+    return Math.round(total);
   }
 
   /**

@@ -6,7 +6,7 @@ import DataTable from "../../components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 import { useVendorManagementStore } from "../../store/vendorManagementStore";
-import toast from "react-hot-toast";
+import toast from "../../../../shared/utils/toast";
 
 const PendingApprovals = () => {
   const navigate = useNavigate();

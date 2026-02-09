@@ -1,8 +1,10 @@
 import BannerSlot from '../models/BannerSlot.model.js';
 import BannerBooking from '../models/BannerBooking.model.js';
 import Vendor from '../models/Vendor.model.js';
+import VendorSubscription from '../models/VendorSubscription.model.js';
 import { uploadToCloudinary } from '../utils/cloudinary.util.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import notificationService from '../services/notification.service.js';
 
 // ==========================================
 // VENDOR CONTROLLERS
@@ -295,6 +297,26 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
     await booking.save();
 
+    // Notify admins about banner booking
+    try {
+        const vendor = await Vendor.findById(vendorId).select('businessName storeName');
+        await notificationService.sendBulkNotification({
+            type: 'banner_booking',
+            title: 'Vendor Banner Booking',
+            message: 'Vendor has booked a banner.',
+            actionUrl: `/admin/b2b-vendors/banner-bookings`,
+            metadata: {
+                bookingId: booking._id.toString(),
+                vendorId: vendorId.toString(),
+                vendorName: vendor?.businessName || vendor?.storeName || 'A vendor',
+                bannerType: booking.bannerType,
+                amount: booking.amount
+            }
+        }, 'admins');
+    } catch (notifError) {
+        console.error('Failed to notify admins about banner booking:', notifError);
+    }
+
     console.log('✅ [confirmPayment] Payment confirmed for booking:', booking._id);
 
     res.status(200).json({
@@ -573,25 +595,93 @@ export const rejectBannerBooking = asyncHandler(async (req, res) => {
  */
 export const getBannerRevenueStats = asyncHandler(async (req, res) => {
     const { bannerType = 'b2b' } = req.query;
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    const totalBookings = await BannerBooking.countDocuments({ bannerType });
-    const activeBookings = await BannerBooking.countDocuments({ bannerType, status: 'active' });
-    const pendingBookings = await BannerBooking.countDocuments({ bannerType, status: 'pending', paymentStatus: 'paid' });
+    const [
+        totalBookings,
+        activeBookingsCount,
+        pendingBookings,
+        currentMonthRevenue,
+        lastMonthRevenue,
+        activeBookingsLast30Days,
+        uniqueVendors
+    ] = await Promise.all([
+        BannerBooking.countDocuments({ bannerType }),
+        BannerBooking.countDocuments({ bannerType, status: 'active' }),
+        BannerBooking.countDocuments({ bannerType, status: 'pending', paymentStatus: 'paid' }),
 
-    const revenueResult = await BannerBooking.aggregate([
+        // Current month revenue
+        BannerBooking.aggregate([
+            { $match: { bannerType, paymentStatus: 'paid', createdAt: { $gte: thirtyDaysAgo } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]),
+
+        // Last month revenue (for percentage change)
+        BannerBooking.aggregate([
+            { $match: { bannerType, paymentStatus: 'paid', createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]),
+
+        // Active bookings created in last 30 days
+        BannerBooking.countDocuments({
+            bannerType,
+            status: 'active',
+            createdAt: { $gte: thirtyDaysAgo }
+        }),
+
+        // Unique vendors
+        BannerBooking.distinct('vendorId', { bannerType, paymentStatus: 'paid' }),
+
+        // Subscription Revenue (Total from B2B plans)
+        VendorSubscription.aggregate([
+            { $match: { planId: { $exists: true, $ne: null }, status: { $in: ['active', 'expired'] } } },
+            {
+                $lookup: {
+                    from: 'b2bsubscriptionplans',
+                    localField: 'planId',
+                    foreignField: '_id',
+                    as: 'plan'
+                }
+            },
+            { $unwind: '$plan' },
+            { $group: { _id: null, total: { $sum: '$plan.price' } } }
+        ])
+    ]);
+
+    const bannerRevenueResult = await BannerBooking.aggregate([
         { $match: { bannerType, paymentStatus: 'paid' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
 
-    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+    const subscriptionRevenue = uniqueVendors[1]?.[0]?.total || 0; // The fifth element in Promise.all is subscription aggregate
+    const bannerRevenue = bannerRevenueResult[0]?.total || 0;
+    const totalRevenue = bannerRevenue + subscriptionRevenue;
+    const currentRev = currentMonthRevenue[0]?.total || 0;
+    const lastRev = lastMonthRevenue[0]?.total || 0;
+
+    let percentageChange = 0;
+    if (lastRev > 0) {
+        percentageChange = ((currentRev - lastRev) / lastRev) * 100;
+    } else if (currentRev > 0) {
+        percentageChange = 100;
+    }
 
     res.status(200).json({
         success: true,
         data: {
             totalBookings,
-            activeBookings,
+            activeBookingsCount,
             pendingBookings,
-            totalRevenue
+            totalRevenue,
+            bannerRevenue,
+            subscriptionRevenue,
+            currentMonthRevenue: currentRev,
+            percentageChange,
+            activeBookingsLast30Days,
+            uniqueVendorsCount: uniqueVendors.length,
+            totalPaidBookings: await BannerBooking.countDocuments({ bannerType, paymentStatus: 'paid' })
         }
     });
 });
@@ -600,17 +690,35 @@ export const getBannerRevenueStats = asyncHandler(async (req, res) => {
  * Get banner transactions (Admin)
  */
 export const getBannerTransactions = asyncHandler(async (req, res) => {
-    const { bannerType = 'b2b', limit = 50 } = req.query;
+    const { bannerType = 'b2b', limit = 50, search = '' } = req.query;
 
-    const transactions = await BannerBooking.find({ bannerType, paymentStatus: 'paid' })
+    const query = { bannerType, paymentStatus: 'paid' };
+
+    const transactions = await BannerBooking.find(query)
         .populate('vendorId', 'name storeName email')
         .populate('slotId')
         .sort({ createdAt: -1 })
         .limit(parseInt(limit));
 
+    // Map to a more friendly format for the frontend wallet
+    const formattedTransactions = transactions.map(txn => {
+        const vendorName = txn.vendorId?.storeName || txn.vendorId?.name || 'Unknown B2B Vendor';
+        return {
+            id: txn.referenceId || txn._id,
+            transactionId: txn.razorpayPaymentId || `TXN-${txn._id}`,
+            bookingId: txn._id,
+            vendor: vendorName,
+            amount: txn.amount,
+            date: txn.createdAt,
+            status: txn.paymentStatus === 'paid' ? 'success' : 'pending',
+            method: txn.paymentMethod || 'Razorpay',
+            bannerType: txn.bannerType
+        };
+    });
+
     res.status(200).json({
         success: true,
-        data: transactions
+        data: formattedTransactions
     });
 });
 

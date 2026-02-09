@@ -7,6 +7,7 @@ import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.j
 import { isValidEmail, isValidPhone, validatePassword } from '../utils/validators.util.js';
 import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
 import SubscriptionService from './subscription.service.js';
+import notificationService from './notification.service.js';
 
 /**
  * Register a new vendor (temporary - only creates record after email verification)
@@ -626,6 +627,24 @@ export const verifyVendorEmail = async (email, otp) => {
     }
 
     const vendor = await Vendor.create(vendorData);
+
+    // Notify admins about new vendor registration
+    try {
+      await notificationService.sendBulkNotification({
+        type: 'vendor_registration',
+        title: 'New Vendor Registration',
+        message: 'New vendor registration request received.',
+        actionUrl: `/admin/b2b-vendors/pending`,
+        metadata: {
+          vendorId: vendor._id.toString(),
+          vendorName: vendor.businessName || vendor.storeName || vendor.name,
+          email: vendor.email,
+          vendorType: vendor.vendorType
+        }
+      }, 'admins');
+    } catch (notifError) {
+      console.error('Failed to notify admins about new vendor registration:', notifError);
+    }
 
     // Mark temporary registration as verified and delete it
     await TemporaryRegistration.deleteOne({ _id: tempRegistration._id });
