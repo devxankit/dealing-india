@@ -279,7 +279,10 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                                         <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Premises Details</p>
                                                         <p className="text-sm font-black text-gray-700 leading-relaxed uppercase">
                                                             {(vendorData.address || vendor.address)?.street || "N/A"}<br />
-                                                            <span className="text-gray-500 font-medium text-xs normal-case">{(vendorData.address || vendor.address)?.landmark || ""}</span>
+                                                            <span className="text-gray-500 font-medium text-xs normal-case">
+                                                                {(vendorData.address || vendor.address)?.area ? `${(vendorData.address || vendor.address).area}, ` : ""}
+                                                                {(vendorData.address || vendor.address)?.landmark || ""}
+                                                            </span>
                                                         </p>
                                                     </div>
                                                 </div>
@@ -291,7 +294,12 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                                     </div>
                                                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
                                                         <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Pin Code</p>
-                                                        <p className="text-sm font-black text-gray-700">{(vendorData.address || vendor.address)?.pincode || (vendorData.address || vendor.address)?.zipCode || "N/A"}</p>
+                                                        <p className="text-sm font-black text-gray-700">
+                                                            {(vendorData.address || vendor.address || vendorData.billingAddress || vendor.billingAddress)?.pincode ||
+                                                                (vendorData.address || vendor.address || vendorData.billingAddress || vendor.billingAddress)?.pinCode ||
+                                                                (vendorData.address || vendor.address || vendorData.billingAddress || vendor.billingAddress)?.zipCode ||
+                                                                "N/A"}
+                                                        </p>
                                                         <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">{(vendorData.address || vendor.address)?.country || "INDIA"}</p>
                                                     </div>
                                                 </div>

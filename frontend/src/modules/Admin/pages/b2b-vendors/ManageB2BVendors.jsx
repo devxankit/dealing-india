@@ -19,7 +19,7 @@ const ManageB2BVendors = () => {
         if (!id) return;
         const toastId = toast.loading("Approving vendor...");
         try {
-            const response = await api.put(`/admin/vendors/${id}/status`, {
+            const response = await api.put(`/admin/b2b-vendors/${id}/status`, {
                 status: 'approved'
             });
 
@@ -45,7 +45,7 @@ const ManageB2BVendors = () => {
         if (!id) return;
         const toastId = toast.loading("Rejecting vendor...");
         try {
-            const response = await api.put(`/admin/vendors/${id}/status`, {
+            const response = await api.put(`/admin/b2b-vendors/${id}/status`, {
                 status: 'rejected'
             });
 

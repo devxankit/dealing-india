@@ -15,7 +15,22 @@ import SubscriptionService from './subscription.service.js';
  */
 export const registerVendor = async (vendorData) => {
   try {
-    const { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan } = vendorData;
+    let { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan } = vendorData;
+
+    // Fix address fields for model compatibility (zipCode -> pincode)
+    if (address && address.zipCode && !address.pincode) {
+      address.pincode = address.zipCode;
+      delete address.zipCode;
+    }
+
+    // Ensure vendorType is set correctly if missing
+    if (!vendorType) {
+      if (businessTypeRef || (documents && !Array.isArray(documents))) {
+        vendorType = 'b2b';
+      } else {
+        vendorType = 'regular';
+      }
+    }
 
     // Validate inputs
     if (!name || !email || !phone || !password || !storeName) {
@@ -92,7 +107,8 @@ export const registerVendor = async (vendorData) => {
     let processedDocuments = [];
 
     // Handle B2B-specific document structure (panCard, businessLicense as objects)
-    if (vendorType === 'b2b' && documents && typeof documents === 'object' && !Array.isArray(documents)) {
+    const isB2BDocStructure = documents && typeof documents === 'object' && !Array.isArray(documents);
+    if ((vendorType === 'b2b' || isB2BDocStructure) && isB2BDocStructure) {
       // Convert B2B document object to array format
       const docArray = [];
       if (documents.panCard && documents.panCard.data) {
@@ -211,9 +227,13 @@ export const registerVendor = async (vendorData) => {
         password: hashedPassword, // Store hashed password
         storeName: storeName.trim(),
         storeDescription: storeDescription ? storeDescription.trim() : undefined,
-        address: address || {},
+        address: {
+          ...(address || {}),
+          pincode: address?.pincode || address?.zipCode || '',
+          zipCode: address?.zipCode || address?.pincode || '',
+        },
         documents: processedDocuments, // Store processed documents
-        vendorType: vendorType || 'b2b',
+        vendorType: vendorType,
         // B2B-specific fields
         businessTypes: businessTypes && Array.isArray(businessTypes) ? businessTypes.map(bt => bt.trim()) : undefined,
         businessType: businessType || 'Textile',
@@ -415,6 +435,10 @@ export const getVendorById = async (vendorId, email = null) => {
     if (!vendor) {
       throw new Error('Vendor not found');
     }
+    if (vendor && vendor.address) {
+      vendor.address.pincode = vendor.address.pincode || vendor.address.zipCode || '';
+      vendor.address.zipCode = vendor.address.zipCode || vendor.address.pincode || '';
+    }
     return vendor;
   } catch (error) {
     throw error;
@@ -467,7 +491,11 @@ export const updateVendorProfile = async (vendorId, updateData) => {
 
     if (address) {
       // Validate and clean address data to prevent incorrect storage
-      const cleanedAddress = { ...address };
+      const cleanedAddress = {
+        ...address,
+        pincode: address.pincode || address.zipCode || '',
+        zipCode: address.zipCode || address.pincode || '',
+      };
 
       // Validate state - should not be a pincode
       if (cleanedAddress.state && /^\d{6}$/.test(cleanedAddress.state.trim())) {
@@ -572,6 +600,11 @@ export const verifyVendorEmail = async (email, otp) => {
       role: 'vendor',
       vendorType: tempRegistration.registrationData.vendorType || 'b2b',
     };
+
+    // Ensure pincode is correctly mapped from zipCode if missing
+    if (vendorData.address && vendorData.address.zipCode && !vendorData.address.pincode) {
+      vendorData.address.pincode = vendorData.address.zipCode;
+    }
 
     // Add B2B-specific fields if vendorType is b2b
     if (tempRegistration.registrationData.vendorType === 'b2b') {
