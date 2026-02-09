@@ -92,12 +92,12 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     };
 
     return (
-        <header className={`${sticky ? 'sticky top-0' : 'relative'} z-50 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm flex-shrink-0`}>
-            <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
+        <header className={`${sticky ? 'sticky top-0' : 'relative'} z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm flex-shrink-0`}>
+            <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between gap-2 md:gap-4">
+                <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
                     {showBack && (
                         <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                            <FiArrowLeft className="text-xl text-gray-700" />
+                            <FiArrowLeft className="text-lg md:text-xl text-gray-700" />
                         </button>
                     )}
 
@@ -110,7 +110,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 <img
                                     src={appLogo.src}
                                     alt="Dealing India"
-                                    className="h-20 w-auto object-contain"
+                                    className="h-10 md:h-20 w-auto object-contain"
                                 />
                             </Link>
                         )}
@@ -121,7 +121,6 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         title === "Personal Profile" ||
                         title === "Support & Help" ||
                         title === "Notifications" ? (
-                        /* Logo click: If on catalog page, go to landing. Otherwise go to catalog */
                         <Link
                             to={location.pathname === '/b2b/catalog' ? '/b2b/landing' : '/b2b/catalog'}
                             className="flex items-center gap-2"
@@ -129,11 +128,11 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             <img
                                 src={appLogo.src}
                                 alt="Dealing India"
-                                className="h-20 w-auto object-contain"
+                                className="h-10 md:h-20 w-auto object-contain"
                             />
                         </Link>
                     ) : (
-                        <h1 className="text-xl font-bold text-gray-800 truncate">
+                        <h1 className="text-sm md:text-xl font-black text-gray-900 truncate uppercase tracking-tight">
                             {title === "Business Dashboard" ? "Dashboard" : title}
                         </h1>
                     )}
@@ -150,19 +149,16 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search bulk products, wholesalers..."
+                                placeholder="Search bulk products..."
                                 value={localSearchQuery}
                                 onChange={handleSearchChange}
-                                className="w-full pl-12 pr-4 py-2 bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-primary-500 transition-all text-sm"
+                                className="w-full pl-12 pr-4 py-2 bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-primary-500 transition-all text-sm font-medium"
                             />
 
-                            {/* Suggestions Dropdown */}
                             <AnimatePresence>
                                 {showSuggestions && (suggestions.length > 0 || isSearching) && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
+                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
                                         className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 py-2"
                                     >
                                         {isSearching && suggestions.length === 0 ? (
@@ -173,8 +169,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                         ) : (
                                             suggestions.map((suggestion, index) => (
                                                 <button
-                                                    key={index}
-                                                    type="button"
+                                                    key={index} type="button"
                                                     onClick={() => handleSuggestionClick(suggestion)}
                                                     className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 text-left transition-colors group"
                                                 >
@@ -188,12 +183,8 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                                         </div>
                                                     )}
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="text-sm font-medium text-gray-800 truncate">
-                                                            {suggestion.text}
-                                                        </div>
-                                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                                            {suggestion.context}
-                                                        </div>
+                                                        <p className="text-sm font-bold text-gray-800 truncate">{suggestion.text}</p>
+                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{suggestion.context}</p>
                                                     </div>
                                                 </button>
                                             ))
@@ -205,46 +196,46 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                     </div>
                 )}
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                     {/* Extra Links (Hidden on mobile/tablet) */}
-                    <div className="hidden xl:flex items-center gap-2">
+                    <div className="hidden xl:flex items-center gap-1">
                         <Link
                             to="/b2b/catalog?itemType=lotslot"
-                            className="px-3 py-2 text-xs font-bold text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
+                            className="px-3 py-2 text-[11px] font-black text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap uppercase tracking-wider"
                         >
                             <FiTrendingUp size={14} /> Lot / SOT
                         </Link>
                         <Link
                             to="/b2b/real-estate"
-                            className="px-3 py-2 text-xs font-bold text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
+                            className="px-3 py-2 text-[11px] font-black text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap uppercase tracking-wider"
                         >
-                            <FiHome size={14} /> Real Estate Only
+                            <FiHome size={14} /> Real Estate
                         </Link>
                     </div>
 
                     {/* Become Seller */}
                     <Link
                         to="/b2b-vendor/register"
-                        className="hidden lg:flex bg-black text-white px-5 py-2.5 rounded-full font-bold text-xs hover:bg-gray-800 transition-colors whitespace-nowrap"
+                        className="hidden lg:flex bg-black text-white px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-colors whitespace-nowrap"
                     >
                         Become Seller
                     </Link>
 
-                    {/* Divider */}
-                    <div className="h-6 w-px bg-gray-200 hidden lg:block"></div>
+                    {/* Desktop Divider */}
+                    <div className="h-6 w-px bg-gray-200 hidden lg:block mx-1"></div>
 
                     {/* Profile / Login */}
                     {isAuthenticated ? (
-                        <Link to="/b2b/profile" className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors">
-                            <div className="w-9 h-9 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 border border-primary-100 shadow-sm">
-                                <FiUser size={18} />
+                        <Link to="/b2b/profile" className="flex items-center gap-2 hover:bg-gray-50 p-1 md:p-1.5 rounded-full transition-colors">
+                            <div className="w-8 h-8 md:w-9 md:h-9 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 border border-primary-100 shadow-sm">
+                                <FiUser size={16} className="md:size-[18px]" />
                             </div>
-                            <span className="text-xs font-bold text-gray-700 hidden md:block">Profile</span>
+                            <span className="text-xs font-black text-gray-700 hidden md:block uppercase tracking-wider">Profile</span>
                         </Link>
                     ) : (
                         <Link
                             to="/b2b/login"
-                            className="flex items-center gap-2 bg-primary-600 text-white px-5 py-2.5 rounded-full font-bold text-xs hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200"
+                            className="flex items-center gap-2 bg-primary-600 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-primary-700 transition-colors shadow-lg shadow-primary-100"
                         >
                             Login
                         </Link>

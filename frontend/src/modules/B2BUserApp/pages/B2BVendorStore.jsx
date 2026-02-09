@@ -170,89 +170,103 @@ const B2BVendorStore = () => {
                 onSearchSubmit={setSearchQuery}
             />
 
-            <main className="max-w-7xl mx-auto px-4 py-8">
+            <main className="max-w-7xl mx-auto px-4 py-6 md:py-12">
                 {/* Back Link */}
                 <button
                     onClick={() => navigate(-1)}
-                    className="flex items-center gap-2 text-gray-400 hover:text-primary-600 transition-colors mb-8 font-bold text-sm uppercase tracking-widest"
+                    className="flex items-center gap-2 text-gray-400 hover:text-primary-600 transition-colors mb-6 md:mb-10 font-bold text-[10px] md:text-xs uppercase tracking-[0.2em]"
                 >
-                    <FiArrowLeft />
+                    <FiArrowLeft className="text-sm md:text-base" />
                     Back to Selection
                 </button>
 
                 {/* Vendor Premium Profile Card */}
-                <div className="relative mb-12">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary-600 to-primary-800 rounded-[3rem] blur-3xl opacity-10 animate-pulse"></div>
-                    <div className="relative bg-white rounded-[3rem] p-8 lg:p-12 border border-white shadow-[0_32px_64px_-16px_rgba(114,46,209,0.1)] flex flex-col md:flex-row items-center gap-8 lg:gap-12">
+                <div className="relative mb-8 md:mb-16">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary-600/10 via-transparent to-primary-600/5 rounded-[2rem] md:rounded-[4rem] blur-3xl opacity-50"></div>
+                    <div className="relative bg-white rounded-[2rem] md:rounded-[3.5rem] p-6 md:p-12 border border-white/50 shadow-2xl flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
                         {/* Logo Container */}
-                        <div className="w-32 h-32 lg:w-40 lg:h-40 bg-gray-50 rounded-[2.5rem] p-2 border-4 border-gray-50 shadow-inner flex-shrink-0 relative">
-                            {vendor.storeLogo ? (
-                                <img
-                                    src={vendor.storeLogo}
-                                    alt={vendor.storeName}
-                                    className="w-full h-full object-cover rounded-[2rem]"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-primary-50 rounded-[2rem]">
-                                    <FiShoppingBag className="text-4xl text-primary-600" />
-                                </div>
-                            )}
+                        <div className="relative group">
+                            <div className="w-28 h-28 md:w-44 md:h-44 bg-gray-50 rounded-[1.5rem] md:rounded-[2.5rem] p-4 border-2 md:border-4 border-white shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden transition-transform duration-500 group-hover:scale-105">
+                                {vendor.storeLogo ? (
+                                    <img
+                                        src={vendor.storeLogo}
+                                        alt={vendor.storeName}
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                                        <FiShoppingBag className="text-3xl md:text-5xl text-primary-600" />
+                                    </div>
+                                )}
+                            </div>
                             {vendor.isVerified && (
-                                <div className="absolute -top-2 -right-2 bg-green-500 text-white p-2 rounded-full shadow-lg border-2 border-white">
-                                    <FiCheckCircle className="text-xl" />
+                                <div className="absolute -top-2 -right-2 md:top-2 md:right-2 bg-primary-600 text-white p-1.5 md:p-2.5 rounded-2xl shadow-xl border-2 md:border-4 border-white animate-bounce-subtle">
+                                    <FiCheckCircle className="text-sm md:text-xl" />
                                 </div>
                             )}
                         </div>
 
                         {/* Info Container */}
-                        <div className="flex-1 text-center md:text-left">
-                            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-                                <h1 className="text-3xl lg:text-4xl font-black text-gray-900 tracking-tight">
-                                    {vendor.storeName}
-                                </h1>
-                                <div className="flex items-center justify-center md:justify-start gap-2">
-                                    <span className="px-4 py-1.5 bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-[0.2em] rounded-full">
-                                        {vendor.businessType ? `Verified ${vendor.businessType}` : 'Verified Wholesaler'}
+                        <div className="flex-1 text-center md:text-left space-y-4 md:space-y-6">
+                            <div className="space-y-3">
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                                    <span className="px-3 py-1 bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg border border-primary-100/50">
+                                        {vendor.businessType ? `Official ${vendor.businessType}` : 'Platinum Vendor'}
+                                    </span>
+                                    <span className="px-3 py-1 bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg">
+                                        ID: {id?.slice(-6).toUpperCase()}
                                     </span>
                                 </div>
+                                <h1 className="text-2xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">
+                                    {vendor.storeName}
+                                </h1>
                             </div>
 
-                            <p className="text-gray-500 font-medium text-lg mb-6 max-w-2xl">
+                            <p className="text-gray-500 font-medium text-sm md:text-lg leading-relaxed max-w-2xl">
                                 {vendor.businessDescription || (vendor.businessType?.includes('Real Estate') ? "Premier real estate professional providing verified premium properties and expert consulting." : "Premium B2B supplier providing high-quality bulk products across India.")}
                             </p>
 
-                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-primary-600 font-bold border border-gray-100">
-                                        {products.length + properties.length}
-                                    </div>
-                                    <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Active Listings</span>
-                                </div>
-                                {vendor.address?.city && (
-                                    <div className="flex items-center gap-3 text-gray-400">
-                                        <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-primary-600 border border-gray-100">
-                                            <FiShield />
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-8 pt-4">
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Active Catalog</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 md:w-10 md:h-10 bg-primary-600/10 rounded-xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm">
+                                            {products.length + properties.length}
                                         </div>
-                                        <span className="text-sm font-bold uppercase tracking-widest">{vendor.address.city}, {vendor.address.state}</span>
+                                        <span className="text-[10px] md:text-xs font-black text-gray-800 uppercase tracking-wider">Units Listed</span>
+                                    </div>
+                                </div>
+
+                                {vendor.address?.city && (
+                                    <div className="flex flex-col border-l border-gray-100 pl-4 md:pl-8">
+                                        <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Operating Zone</span>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                                                <FiShield size={14} />
+                                            </div>
+                                            <span className="text-[10px] md:text-xs font-black text-gray-800 uppercase tracking-wider">{vendor.address.city}, {vendor.address.state}</span>
+                                        </div>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex flex-col gap-3 w-full md:w-auto">
+                        <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[240px] pt-4 md:pt-0">
                             {vendor.phone && (
                                 <a
-                                    href={`https://wa.me/${vendor.phone.replace(/\D/g, '')}`}
+                                    href={`https://wa.me/91${vendor.phone.replace(/\D/g, '')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="w-full md:px-8 py-4 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-xl shadow-green-100 flex items-center justify-center gap-2"
+                                    className="w-full px-8 py-5 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-xl shadow-green-100/50 flex items-center justify-center gap-3 active:scale-95"
                                 >
-                                    <FaWhatsapp size={18} />
-                                    Contact on WhatsApp
+                                    <FaWhatsapp size={20} />
+                                    WhatsApp Inquiry
                                 </a>
                             )}
-
+                            <button className="w-full px-8 py-5 md:py-6 bg-gray-900 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3 active:scale-95">
+                                <FiStar /> Follow Vendor
+                            </button>
                         </div>
                     </div>
                 </div>

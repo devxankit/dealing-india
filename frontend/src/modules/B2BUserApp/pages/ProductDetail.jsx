@@ -172,112 +172,163 @@ const B2BProductDetail = () => {
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
             <B2BHeader />
-            <main className="max-w-7xl mx-auto px-4 py-4">
-                <div className="flex items-center justify-between mb-6">
-                    <button onClick={() => navigate(-1)} className="p-2 hover:bg-white rounded-full transition-all text-gray-600 flex items-center gap-2 font-medium">
-                        <FiArrowLeft className="text-xl" /> Back to Catalog
+            <main className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-12">
+                <div className="flex items-center justify-between mb-8 md:mb-12">
+                    <button onClick={() => navigate(-1)} className="p-2.5 md:p-3 bg-white shadow-sm border border-gray-100 rounded-full transition-all text-gray-700 hover:text-primary-600 flex items-center gap-2 text-[10px] md:text-xs font-black uppercase tracking-widest active:scale-95">
+                        <FiArrowLeft className="text-sm md:text-lg" /> Back to Catalog
+                    </button>
+                    <button className="p-2.5 md:p-3 bg-white shadow-sm border border-gray-100 rounded-full text-gray-400 hover:text-primary-600 transition-all">
+                        <FiShare2 className="text-sm md:text-lg" />
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    <div className="lg:col-span-12 xl:col-span-7">
-                        <div className="space-y-4">
-                            <motion.div className="relative aspect-[4/3] rounded-[2.5rem] overflow-hidden bg-white shadow-xl border border-gray-100">
-                                <img src={productImages[safeSelectedImage]} alt={product.name} className="w-full h-full object-cover" />
-                            </motion.div>
-                            {productImages.length > 1 && (
-                                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                                    {productImages.map((img, idx) => (
-                                        <button key={idx} onClick={() => setSelectedImage(idx)} className={`flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all ${safeSelectedImage === idx ? 'border-primary-500 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-                                            <img src={img} alt="" className="w-full h-full object-cover" />
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-16">
+                    {/* Media Section */}
+                    <div className="lg:col-span-7 space-y-4 md:space-y-6">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="relative aspect-[4/3] rounded-3xl md:rounded-[3rem] overflow-hidden bg-white shadow-2xl border border-gray-100 group"
+                        >
+                            <img src={productImages[safeSelectedImage]} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
+                        </motion.div>
+
+                        {productImages.length > 1 && (
+                            <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                                {productImages.map((img, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setSelectedImage(idx)}
+                                        className={`flex-shrink-0 w-20 h-20 md:w-28 md:h-28 rounded-2xl md:rounded-[1.5rem] overflow-hidden border-2 md:border-4 transition-all duration-300 ${safeSelectedImage === idx ? 'border-primary-500 shadow-xl scale-105' : 'border-white hover:border-primary-100 shadow-sm'}`}
+                                    >
+                                        <img src={img} alt="" className="w-full h-full object-cover" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="lg:col-span-12 xl:col-span-5 space-y-8">
-                        <div>
-                            <span className="text-xs font-bold text-primary-600 uppercase tracking-widest px-3 py-1 bg-primary-50 rounded-full mb-3 inline-block">
+                    {/* Basic Info Section */}
+                    <div className="lg:col-span-5 space-y-6 md:space-y-10">
+                        <div className="space-y-4">
+                            <span className="text-[10px] md:text-xs font-black text-primary-600 uppercase tracking-[0.2em] px-4 py-2 bg-primary-50 rounded-xl inline-block shadow-sm">
                                 {getCategoryName()}
                             </span>
-                            <h1 className="text-4xl font-extrabold text-gray-800 leading-tight mb-4">{product.name}</h1>
+                            <h1 className="text-2xl md:text-5xl font-black text-gray-900 leading-[1.1] uppercase tracking-tighter">
+                                {product.name}
+                            </h1>
+                            <div className="h-1 w-20 bg-primary-600 rounded-full"></div>
                         </div>
 
-                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-gray-50">
-                            <div className="flex items-end justify-between mb-8">
+                        <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[3.5rem] shadow-xl border border-gray-100 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000"></div>
+
+                            <div className="flex items-start justify-between mb-8 md:mb-10 relative z-10">
                                 <div>
-                                    <span className="text-xs text-gray-400 font-bold uppercase tracking-tight mb-1 block">Bulk Price</span>
+                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Market Value</span>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-4xl font-black text-primary-600">₹{product.price}</span>
-                                        <span className="text-gray-400 font-bold">/ {product.unit || 'piece'}</span>
+                                        <span className="text-3xl md:text-5xl font-black text-primary-600 tracking-tighter">₹{product.price}</span>
+                                        <span className="text-gray-400 font-bold text-xs md:text-sm uppercase tracking-widest">/ {product.unit || 'pc'}</span>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <span className="text-xs text-gray-400 font-bold uppercase tracking-tight mb-1 block">MOQ</span>
-                                    <span className="text-lg font-bold text-gray-700">{product.moq || 1} {product.unit || 'Units'}</span>
+                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Minimum Order</span>
+                                    <span className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">{product.moq || 1} <span className="text-[10px] md:text-xs text-gray-400 uppercase">{product.unit || 'Units'}</span></span>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="space-y-6 relative z-10">
                                 {bulkPricing && bulkPricing.length > 0 && (
-                                    <div className="space-y-3 pt-0">
-                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Volume Discounts</p>
-                                        {bulkPricing.map((tier, idx) => (
-                                            <div key={idx} className="flex justify-between p-3 bg-white border rounded-xl">
-                                                <span className="text-sm font-bold">{tier.minQty}+ {product.unit || 'units'}</span>
-                                                <span className="text-sm font-extrabold text-primary-600">₹{tier.price} / {product.unit || 'unit'}</span>
-                                            </div>
-                                        ))}
+                                    <div className="space-y-4">
+                                        <h4 className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">Tiered Pricing Model</h4>
+                                        <div className="space-y-2">
+                                            {bulkPricing.map((tier, idx) => (
+                                                <div key={idx} className="flex justify-between items-center p-4 bg-gray-50/50 hover:bg-white rounded-2xl border border-transparent hover:border-primary-100 transition-all group/tier">
+                                                    <span className="text-[11px] md:text-xs font-black text-gray-600 uppercase tracking-wider">{tier.minQty}+ {product.unit || 'units'}</span>
+                                                    <span className="text-[11px] md:text-xs font-black text-primary-600 group-hover/tier:scale-110 transition-transform">₹{tier.price} <span className="text-[9px] text-gray-400">/ UNIT</span></span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-50">
+                                <div className="grid grid-cols-2 gap-3 md:gap-4 pt-6 md:pt-8 border-t border-gray-50">
                                     {product.vendorId?.phone && (
                                         <>
-                                            <a href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="py-4 bg-[#25D366] text-white rounded-2xl font-bold text-sm hover:bg-[#128C7E] flex items-center justify-center gap-2 shadow-lg shadow-green-100">
-                                                <FaWhatsapp size={20} /> WhatsApp
-                                            </a>
-                                            <a href={`tel:${product.vendorId.phone}`} className="py-4 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 flex items-center justify-center gap-2 shadow-lg shadow-blue-100">
-                                                <FiPhone size={20} /> Call
-                                            </a>
+                                            <button
+                                                onClick={() => window.open(`https://wa.me/91${product.vendorId.phone.replace(/\D/g, '')}`, '_blank')}
+                                                className="py-4 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-green-100 hover:bg-[#128C7E] transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
+                                            >
+                                                <FaWhatsapp className="text-lg md:text-xl" /> WhatsApp
+                                            </button>
+                                            <button
+                                                onClick={() => window.open(`tel:+91${product.vendorId.phone}`, '_self')}
+                                                className="py-4 md:py-6 bg-gray-900 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-gray-200 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
+                                            >
+                                                <FiPhone className="text-lg md:text-xl" /> Call Now
+                                            </button>
                                         </>
                                     )}
                                 </div>
                             </div>
                         </div>
 
+                        {/* Vendor Card */}
                         <div
                             onClick={() => product.vendorId?._id && navigate(`/b2b/vendor/${product.vendorId._id}`)}
-                            className="bg-gray-900 p-8 rounded-[2.5rem] text-white cursor-pointer hover:bg-black transition-all"
+                            className="bg-primary-600 p-6 md:p-10 rounded-3xl md:rounded-[3.5rem] text-white shadow-2xl relative group cursor-pointer overflow-hidden border-2 md:border-4 border-primary-500/50"
                         >
-                            <p className="text-xs font-bold text-primary-400 uppercase mb-4">Sold By</p>
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center font-bold">
-                                    {product.vendorId?.storeName?.charAt(0) || 'V'}
+                            <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-1000"></div>
+                            <div className="relative z-10">
+                                <span className="text-[9px] md:text-[10px] font-black text-primary-200 uppercase tracking-[0.3em] mb-4 md:mb-6 block">Authorised Vendor</span>
+                                <div className="flex items-center gap-4 md:gap-6">
+                                    <div className="w-12 h-12 md:w-16 md:h-16 bg-white/20 backdrop-blur-md rounded-2xl md:rounded-3xl flex items-center justify-center text-xl md:text-2xl font-black border border-white/30 shadow-2xl uppercase">
+                                        {product.vendorId?.storeName?.charAt(0) || 'V'}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base md:text-2xl font-black tracking-tight uppercase leading-none">{product.vendorId?.storeName || 'Verified Store'}</h3>
+                                        <div className="flex items-center gap-2 text-primary-100 text-[9px] md:text-[11px] font-black uppercase tracking-widest mt-2 md:mt-3">
+                                            <FiCheckCircle className="text-white" /> Platinum Verified
+                                        </div>
+                                    </div>
                                 </div>
-                                <h3 className="text-xl font-bold">{product.vendorId?.storeName || 'Verified Seller'}</h3>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-12 mt-12">
-                        <div>
-                            <h2 className="text-2xl font-bold mb-6">Overview</h2>
-                            <p className="text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+                {/* Description & Specifications Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-20 mt-12 md:mt-24 border-t border-gray-100 pt-12 md:pt-20">
+                    <div className="space-y-6 md:space-y-10">
+                        <div className="flex items-center gap-4">
+                            <span className="h-[2px] w-8 md:w-12 bg-primary-600" />
+                            <h2 className="text-xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter">Strategic Overview</h2>
                         </div>
-                        <div>
-                            <h2 className="text-2xl font-bold mb-6">Specifications</h2>
-                            <div className="space-y-2">
-                                {specifications.map((s, i) => (
-                                    <div key={i} className="flex justify-between p-4 bg-white rounded-xl border border-gray-100">
-                                        <span className="text-gray-500 font-medium">{s.name}</span>
-                                        <span className="text-gray-800 font-bold">{s.value}</span>
-                                    </div>
-                                ))}
-                                {specifications.length === 0 && <p className="text-gray-400 italic">No specifications available.</p>}
-                            </div>
+                        <div className="bg-white p-6 md:p-12 rounded-3xl md:rounded-[3rem] border border-gray-50 shadow-sm">
+                            <p className="text-gray-500 text-base md:text-xl font-medium leading-[1.8] whitespace-pre-line">
+                                {product.description}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6 md:space-y-10">
+                        <div className="flex items-center gap-4">
+                            <span className="h-[2px] w-8 md:w-12 bg-primary-600" />
+                            <h2 className="text-xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter">Specifications</h2>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {specifications.map((s, i) => (
+                                <div key={i} className="flex flex-col justify-center p-6 bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 group-hover:text-primary-600 transition-colors">{s.name}</span>
+                                    <span className="text-sm font-black text-gray-800 uppercase tracking-tight">{s.value}</span>
+                                </div>
+                            ))}
+                            {specifications.length === 0 && (
+                                <div className="col-span-full p-12 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 text-center text-gray-400 font-bold uppercase text-[10px] tracking-widest">
+                                    No Technical Specs Provided
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiSearch, FiMenu, FiX, FiChevronDown, FiGrid, FiShoppingBag,
-    FiUser, FiArrowRight, FiBriefcase, FiTrendingUp, FiHome, FiMapPin, FiFilter,
+    FiUser, FiArrowRight, FiArrowLeft, FiBriefcase, FiTrendingUp, FiHome, FiMapPin, FiFilter,
     FiTruck, FiPhone, FiShoppingCart
 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
@@ -233,31 +233,40 @@ const B2BLanding = () => {
     const SubCategoryPopup = () => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
             onClick={closePopup}
         >
             <motion.div
-                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden"
+                initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                className="bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl w-full max-w-4xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="text-xl font-bold text-gray-800">{selectedRootCategory?.name} - Subcategories</h3>
-                    <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
+                <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Explore Categories</p>
+                        <h3 className="text-xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter">{selectedRootCategory?.name}</h3>
+                    </div>
+                    <button onClick={closePopup} className="p-3 bg-white shadow-sm rounded-2xl text-gray-400 hover:text-red-500 transition-colors">
+                        <FiX size={24} />
+                    </button>
                 </div>
-                <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto">
+                <div className="p-6 md:p-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
                     {activeSubcategories.length > 0 ? (
                         activeSubcategories.map(sub => (
                             <button
                                 key={sub.id}
                                 onClick={() => handleSubCategoryClick(sub)}
-                                className="p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all group"
+                                className="p-5 md:p-6 rounded-[1.5rem] border border-gray-100 hover:border-primary-200 hover:bg-primary-50 text-left transition-all group flex items-center justify-between"
                             >
-                                <span className="font-semibold text-gray-700 group-hover:text-blue-700">{sub.name}</span>
+                                <span className="font-black text-[11px] md:text-sm text-gray-700 group-hover:text-primary-600 uppercase tracking-wider">{sub.name}</span>
+                                <FiArrowRight className="opacity-0 group-hover:opacity-100 transition-all text-primary-600 -translate-x-2 group-hover:translate-x-0" />
                             </button>
                         ))
                     ) : (
-                        <div className="col-span-full text-center py-8 text-gray-500">No subcategories found.</div>
+                        <div className="col-span-full text-center py-20">
+                            <FiGrid className="mx-auto text-4xl text-gray-200 mb-4" />
+                            <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">No segments mapped</p>
+                        </div>
                     )}
                 </div>
             </motion.div>
@@ -267,32 +276,42 @@ const B2BLanding = () => {
     const GenericHeaderPopup = ({ title, data }) => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
             onClick={closePopup}
         >
             <motion.div
-                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+                initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                className="bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl w-full max-w-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="text-xl font-bold text-gray-800">{title}</h3>
-                    <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
+                <div className="p-6 md:p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Marketplace Hub</p>
+                        <h3 className="text-xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
+                    </div>
+                    <button onClick={closePopup} className="p-3 bg-white shadow-sm rounded-2xl text-gray-400 hover:text-red-500 transition-colors">
+                        <FiX size={24} />
+                    </button>
                 </div>
-                <div className="p-6 grid grid-cols-2 gap-4">
+                <div className="p-6 md:p-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {data && data.length > 0 ? (
                         data.map(item => (
                             <button
                                 key={item.id}
                                 onClick={() => handleHeaderPopupItemClick(item)}
-                                className="p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 text-left transition-all"
+                                className="p-5 md:p-6 rounded-[1.5rem] border border-gray-100 hover:border-primary-200 hover:bg-primary-50 text-left transition-all group flex items-center justify-between"
                             >
-                                <span className="font-semibold text-gray-700">{item.name}</span>
+                                <span className="font-black text-[11px] md:text-sm text-gray-700 group-hover:text-primary-600 uppercase tracking-wider">{item.name}</span>
+                                <FiArrowRight className="opacity-0 group-hover:opacity-100 transition-all text-primary-600" />
                             </button>
                         ))
                     ) : (
-                        <div className="col-span-full text-center py-12 text-gray-400 font-bold">
-                            Coming Soon...
+                        <div className="col-span-full text-center py-20">
+                            <div className="w-20 h-20 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FiTrendingUp className="text-primary-600 text-3xl" />
+                            </div>
+                            <h4 className="text-xl font-black text-gray-800 uppercase tracking-tighter mb-2">Expansion in Progress</h4>
+                            <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Connecting elite suppliers across India</p>
                         </div>
                     )}
                 </div>
@@ -329,21 +348,26 @@ const B2BLanding = () => {
     const ProductPopup = ({ title, onViewAll }) => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
             onClick={closePopup}
         >
             <motion.div
-                initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden"
+                initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                className="bg-gray-50 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl w-full max-w-6xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                    <h3 className="text-xl font-bold text-gray-800">{title}</h3>
-                    <button onClick={closePopup}><FiX size={24} className="text-gray-500 hover:text-red-500" /></button>
+                <div className="p-6 md:p-10 border-b border-gray-100 flex justify-between items-center bg-white">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Verified Listings</p>
+                        <h3 className="text-xl md:text-4xl font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
+                    </div>
+                    <button onClick={closePopup} className="p-3 bg-gray-50 rounded-2xl text-gray-400 hover:text-red-500 transition-colors">
+                        <FiX size={24} />
+                    </button>
                 </div>
-                <div className="p-6 bg-gray-50 max-h-[70vh] overflow-y-auto">
+                <div className="p-4 md:p-10 max-h-[70vh] overflow-y-auto custom-scrollbar">
                     {popupProducts.length > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
                             {popupProducts.map((product) => (
                                 <div
                                     key={product._id}
@@ -351,47 +375,47 @@ const B2BLanding = () => {
                                         closePopup();
                                         navigate(`/b2b/product/${product._id}`);
                                     }}
-                                    className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col"
+                                    className="group bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all duration-500 cursor-pointer flex flex-col"
                                 >
                                     {/* Image Container */}
-                                    <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50">
+                                    <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
                                         <img
                                             src={product.coverImage || product.image || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null) || 'https://via.placeholder.com/400x300'}
                                             alt={product.name}
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                         />
-                                        <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-blue-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm">
-                                            {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk'}
+                                        <div className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[9px] font-black text-primary-600 uppercase tracking-wider shadow-sm">
+                                            {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk Supply'}
                                         </div>
-                                        <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100">
-                                            <div className="flex items-baseline gap-0.5">
-                                                <span className="text-[8px] font-black text-blue-600">₹</span>
-                                                <span className="text-sm font-black text-gray-800">{product.price}</span>
+                                        <div className="absolute bottom-4 right-4 px-4 py-2 bg-primary-600 rounded-2xl shadow-xl shadow-primary-200">
+                                            <div className="flex items-baseline gap-1">
+                                                <span className="text-[10px] font-black text-white/80">₹</span>
+                                                <span className="text-xl font-black text-white">{product.price}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Content Body */}
-                                    <div className="p-2.5 flex flex-col gap-2">
+                                    <div className="p-6 md:p-8 flex flex-col gap-4">
                                         <div className="min-w-0">
-                                            <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors uppercase leading-tight">
+                                            <h3 className="text-base md:text-xl font-black text-gray-900 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase tracking-tight">
                                                 {product.name}
                                             </h3>
-                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
-                                                    {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                                    {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'Industrial'}
                                                 </p>
                                                 {product.vendorId?.address?.city && (
-                                                    <span className="text-[8px] text-gray-300 font-bold">• {product.vendorId.address.city}</span>
+                                                    <span className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">• {product.vendorId.address.city}</span>
                                                 )}
                                             </div>
                                         </div>
 
                                         {/* Info Row: MOQ and Vendor */}
-                                        <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
-                                            <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
-                                                <FiTruck className="text-blue-500" size={10} />
-                                                <span>Min. {product.moq || 1} {product.unit || 'pcs'}</span>
+                                        <div className="flex items-center justify-between gap-4 py-4 border-y border-gray-50">
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                                                <FiTruck className="text-primary-500" size={14} />
+                                                <span>Min {product.moq || 1} {product.unit || 'pcs'}</span>
                                             </div>
                                             <div
                                                 onClick={(e) => {
@@ -401,35 +425,33 @@ const B2BLanding = () => {
                                                         navigate(`/b2b/vendor/${product.vendorId._id}`);
                                                     }
                                                 }}
-                                                className="text-[7px] font-black text-blue-400 hover:text-blue-600 truncate max-w-[60px] uppercase cursor-pointer transition-colors"
+                                                className="text-[10px] font-black text-primary-600 hover:text-primary-800 uppercase tracking-widest truncate max-w-[120px]"
                                             >
-                                                {product.vendorId?.storeName || 'Vendor'}
+                                                {product.vendorId?.storeName || 'Verified Vendor'}
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-1.5 mt-1">
+                                        <div className="flex items-center gap-3">
                                             {product.vendorId?.phone ? (
                                                 <>
-                                                    <a
-                                                        href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="flex-1 py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
-                                                        title="WhatsApp"
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(`https://wa.me/91${product.vendorId.phone.replace(/\D/g, '')}`, '_blank');
+                                                        }}
+                                                        className="flex-1 py-4 bg-[#25D366]/10 text-[#25D366] rounded-2xl hover:bg-[#25D366] hover:text-white transition-all duration-300 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest"
                                                     >
-                                                        <FaWhatsapp size={11} />
-                                                        <span>WhatsApp</span>
-                                                    </a>
-                                                    <a
-                                                        href={`tel:${product.vendorId?.phone}`}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
-                                                        title="Call Vendor"
+                                                        <FaWhatsapp size={14} /> WhatsApp
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(`tel:+91${product.vendorId?.phone}`, '_self');
+                                                        }}
+                                                        className="flex-1 py-4 bg-primary-50 text-primary-600 rounded-2xl hover:bg-primary-600 hover:text-white transition-all duration-300 flex items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest"
                                                     >
-                                                        <FiPhone size={11} />
-                                                        <span>Call</span>
-                                                    </a>
+                                                        <FiPhone size={14} /> Call
+                                                    </button>
                                                 </>
                                             ) : (
                                                 <button
@@ -438,7 +460,7 @@ const B2BLanding = () => {
                                                         closePopup();
                                                         navigate(`/b2b/product/${product._id}`);
                                                     }}
-                                                    className="w-full py-1.5 bg-blue-50 text-blue-600 rounded-lg font-black text-[9px] uppercase tracking-wider border border-blue-100"
+                                                    className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all"
                                                 >
                                                     View Details
                                                 </button>
@@ -449,21 +471,24 @@ const B2BLanding = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                            <FiShoppingCart size={40} className="mb-3 opacity-20" />
-                            <p>No products found.</p>
+                        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                                <FiShoppingBag size={32} className="opacity-20" />
+                            </div>
+                            <p className="font-black uppercase tracking-widest text-[10px]">No matches found in inventory</p>
                         </div>
                     )}
                 </div>
-                <div className="p-4 border-t border-gray-100 bg-white text-center">
+                <div className="p-6 md:p-10 border-t border-gray-100 bg-white">
                     <button
                         onClick={() => {
                             closePopup();
                             if (onViewAll) onViewAll();
+                            else navigate('/b2b/catalog');
                         }}
-                        className="text-blue-600 font-bold hover:underline flex items-center justify-center gap-2"
+                        className="w-full md:w-auto px-10 py-5 bg-gray-900 text-white rounded-2xl md:rounded-full font-black text-[10px] md:text-xs uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3"
                     >
-                        View All Products <FiArrowRight />
+                        View Full Marketplace <FiArrowRight />
                     </button>
                 </div>
             </motion.div>
@@ -474,26 +499,26 @@ const B2BLanding = () => {
         <div className="min-h-screen bg-white font-sans text-gray-900 overflow-x-hidden">
 
             {/* --- HEADER --- */}
-            <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-20 flex items-center gap-4 justify-between">
+            <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center gap-2 md:gap-4 justify-between">
 
-                    {/* 1. Logo - Click to go to catalog */}
+                    {/* 1. Logo */}
                     <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => navigate('/b2b/catalog')}>
-                        <img src={appLogo.src} alt="Dealing India" className="h-24 w-auto object-contain" />
+                        <img src={appLogo.src} alt="Dealing India" className="h-10 md:h-24 w-auto object-contain" />
                     </div>
 
                     {/* 2. City Dropdown (Search Station) */}
-                    <div className="relative hidden md:block" ref={cityDropdownRef}>
+                    <div className="relative hidden md:flex items-center" ref={cityDropdownRef}>
                         <button
                             onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
                             disabled={locationsLoading}
-                            className="flex items-center gap-2 px-4 py-2 border border-blue-200 rounded-full text-sm font-bold text-gray-700 hover:bg-blue-50 transition-all min-w-[140px] justify-between outline-none"
+                            className="flex items-center gap-2 px-4 py-2 border border-primary-100 rounded-full text-[11px] md:text-xs font-black uppercase tracking-wider text-gray-700 hover:bg-primary-50 transition-all min-w-[140px] justify-between outline-none"
                         >
                             <div className="flex items-center gap-2">
-                                <FiMapPin className="text-blue-600" />
+                                <FiMapPin className="text-primary-600" />
                                 <span className="truncate max-w-[100px]">{selectedCity}</span>
                             </div>
-                            <FiChevronDown className={`transition-transform duration-200 border-l border-blue-100 pl-1 ml-1 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
+                            <FiChevronDown className={`transition-transform duration-200 border-l border-primary-100 pl-1 ml-1 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         <AnimatePresence>
@@ -502,17 +527,16 @@ const B2BLanding = () => {
                                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                    transition={{ duration: 0.2 }}
                                     className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-[100]"
                                 >
                                     <div className="p-3 border-b border-gray-50">
                                         <div className="relative">
-                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
                                             <input
                                                 autoFocus
                                                 type="text"
                                                 placeholder="Search city..."
-                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-xl text-xs font-medium focus:ring-1 focus:ring-blue-500 outline-none"
+                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-xl text-[10px] font-bold focus:ring-1 focus:ring-primary-600 outline-none uppercase tracking-wider"
                                                 value={citySearchQuery}
                                                 onChange={(e) => setCitySearchQuery(e.target.value)}
                                                 onClick={(e) => e.stopPropagation()}
@@ -527,7 +551,7 @@ const B2BLanding = () => {
                                                 setIsCityDropdownOpen(false);
                                                 setCitySearchQuery('');
                                             }}
-                                            className={`w-full px-4 py-2.5 text-left text-xs font-bold transition-colors hover:bg-blue-50 ${selectedCity === 'All Cities' ? 'text-blue-600 bg-blue-50/50' : 'text-gray-600'}`}
+                                            className={`w-full px-4 py-2.5 text-left text-[10px] font-black transition-colors hover:bg-primary-50 uppercase tracking-wider ${selectedCity === 'All Cities' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
                                         >
                                             All Cities
                                         </button>
@@ -541,15 +565,13 @@ const B2BLanding = () => {
                                                         setIsCityDropdownOpen(false);
                                                         setCitySearchQuery('');
                                                     }}
-                                                    className={`w-full px-4 py-2.5 text-left text-xs font-medium transition-colors hover:bg-blue-50 ${selectedCity === city ? 'text-blue-600 bg-blue-50/50' : 'text-gray-600'}`}
+                                                    className={`w-full px-4 py-2.5 text-left text-[10px] font-black transition-colors hover:bg-primary-50 uppercase tracking-wider ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
                                                 >
                                                     {city}
                                                 </button>
                                             ))
                                         ) : (
-                                            <div className="px-4 py-6 text-center">
-                                                <p className="text-xs text-gray-400 font-medium">No cities found</p>
-                                            </div>
+                                            <div className="px-4 py-6 text-center text-[10px] font-black text-gray-400 uppercase tracking-wider">No cities found</div>
                                         )}
                                     </div>
                                 </motion.div>
@@ -558,29 +580,29 @@ const B2BLanding = () => {
                     </div>
 
                     {/* 3. Lot / SOT & Real Estate */}
-                    <div className="hidden lg:flex items-center gap-1 xl:gap-2">
+                    <div className="hidden lg:flex items-center gap-1">
                         <button
                             onClick={() => {
                                 fetchLotProducts();
                                 setActivePopup('lots');
                             }}
-                            className="px-3 py-2 text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
+                            className="px-3 py-2 text-[10px] font-black text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap uppercase tracking-widest"
                         >
-                            <FiTrendingUp size={16} /> Lot / SOT
+                            <FiTrendingUp size={14} /> Lot / SOT
                         </button>
                         <button
                             onClick={() => navigate('/b2b/real-estate')}
-                            className="px-3 py-2 text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap"
+                            className="px-3 py-2 text-[10px] font-black text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap uppercase tracking-widest"
                         >
-                            <FiHome size={16} /> Real Estate Only
+                            <FiHome size={14} /> Real Estate
                         </button>
                     </div>
 
                     {/* 4. Become Seller & Profile */}
-                    <div className="flex items-center gap-3 ml-auto">
+                    <div className="flex items-center gap-2 md:gap-3">
                         <button
                             onClick={() => navigate('/b2b-vendor/register')}
-                            className="hidden md:flex bg-black text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-gray-800 transition-colors whitespace-nowrap"
+                            className="hidden md:flex bg-black text-white px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-colors whitespace-nowrap"
                         >
                             Become Seller
                         </button>
@@ -590,23 +612,23 @@ const B2BLanding = () => {
                         {isAuthenticated ? (
                             <button
                                 onClick={() => navigate('/b2b/profile')}
-                                className="flex items-center gap-2 hover:bg-gray-50 p-1.5 rounded-full transition-colors"
+                                className="flex items-center gap-2 hover:bg-gray-50 p-1 md:p-1.5 rounded-full transition-colors"
                             >
-                                <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-700 border border-gray-200">
-                                    <FiUser size={18} />
+                                <div className="w-8 h-8 md:w-9 md:h-9 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 border border-primary-100 shadow-sm">
+                                    <FiUser size={16} className="md:size-[18px]" />
                                 </div>
-                                <span className="text-sm font-bold text-gray-700 hidden md:block">Profile</span>
+                                <span className="text-[10px] font-black text-gray-700 hidden md:block uppercase tracking-wider">Profile</span>
                             </button>
                         ) : (
                             <button
                                 onClick={() => navigate('/b2b/login')}
-                                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+                                className="flex items-center gap-2 bg-primary-600 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-primary-700 transition-colors shadow-lg shadow-primary-100"
                             >
                                 Login
                             </button>
                         )}
 
-                        <button className="lg:hidden p-2" onClick={() => setIsMobileMenuOpen(true)}>
+                        <button className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(true)}>
                             <FiMenu size={24} />
                         </button>
                     </div>
@@ -618,38 +640,52 @@ const B2BLanding = () => {
                 {isMobileMenuOpen && (
                     <motion.div
                         initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }}
-                        className="fixed inset-0 z-[60] bg-white"
+                        className="fixed inset-0 z-[60] bg-white flex flex-col"
                     >
-                        <div className="p-4 flex items-center justify-between border-b border-gray-100">
-                            <span className="font-bold text-lg">Menu</span>
-                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-gray-100 rounded-full">
-                                <FiX />
+                        <div className="p-4 flex items-center justify-between border-b border-gray-100 h-16">
+                            <img src={appLogo.src} alt="Logo" className="h-8 w-auto object-contain" />
+                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-gray-100 rounded-xl text-gray-600">
+                                <FiX size={20} />
                             </button>
                         </div>
-                        <div className="p-4 space-y-4 overflow-y-auto">
-                            <div className="bg-gray-50 p-3 rounded-xl">
-                                <h4 className="font-bold text-gray-500 text-xs uppercase mb-2">Location</h4>
-                                <select
-                                    value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}
-                                    className="w-full p-2 rounded-lg border border-gray-200 bg-white"
-                                >
-                                    {availableCities.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                            <div className="space-y-4">
+                                <h4 className="font-black text-gray-400 text-[9px] uppercase tracking-[0.2em]">Quick Access</h4>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button onClick={() => { fetchLotProducts(); setActivePopup('lots'); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
+                                        <FiTrendingUp size={24} /> Lot / SOT
+                                    </button>
+                                    <button onClick={() => { navigate('/b2b/real-estate'); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
+                                        <FiHome size={24} /> Real Estate
+                                    </button>
+                                </div>
                             </div>
-                            <button onClick={() => { fetchLotProducts(); setActivePopup('lots'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Lot / SOT</button>
-                            <button onClick={() => { navigate('/b2b/real-estate'); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 font-bold text-gray-700 hover:bg-gray-50 rounded-xl">Real Estate Only</button>
-                            <div className="h-px bg-gray-100 my-2"></div>
-                            <button onClick={() => navigate('/b2b-vendor/register')} className="w-full text-left p-3 font-bold text-white bg-black rounded-xl">Become Seller</button>
 
-                            {isAuthenticated ? (
-                                <button onClick={() => navigate('/b2b/profile')} className="w-full text-left p-3 font-bold text-gray-700 rounded-xl">
-                                    Profile
+                            <div className="space-y-4 pt-6 border-t border-gray-50">
+                                <h4 className="font-black text-gray-400 text-[9px] uppercase tracking-[0.2em]">Marketplace Settings</h4>
+                                <div className="bg-gray-50 p-4 rounded-2xl space-y-4">
+                                    <div className="flex flex-col gap-2">
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Select Location</span>
+                                        <select
+                                            value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}
+                                            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-primary-500"
+                                        >
+                                            {availableCities.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="pt-6 border-t border-gray-50 space-y-3">
+                                <button onClick={() => { navigate('/b2b-vendor/register'); setIsMobileMenuOpen(false); }} className="w-full py-4 font-black transition-all bg-black text-white rounded-2xl uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-gray-200 hover:bg-gray-800">
+                                    Become Seller
                                 </button>
-                            ) : (
-                                <button onClick={() => navigate('/b2b/login')} className="w-full text-left p-3 font-bold text-blue-600 bg-blue-50 rounded-xl">
-                                    Login
-                                </button>
-                            )}
+                                {!isAuthenticated && (
+                                    <button onClick={() => { navigate('/b2b/login'); setIsMobileMenuOpen(false); }} className="w-full py-4 font-black transition-all bg-primary-600 text-white rounded-2xl uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-primary-100 hover:bg-primary-700">
+                                        Partner Login
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -657,45 +693,112 @@ const B2BLanding = () => {
 
             {/* --- TOOLBAR (Categories, Search, Price) --- */}
             <section className="bg-white border-b border-gray-100 shadow-sm relative z-40">
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-4 flex flex-col md:flex-row items-stretch md:items-center gap-4">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-3 md:py-4 flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
 
-                    {/* 1. Category Dropdown */}
-                    <div className="relative" ref={categoryRef}>
-                        <button
-                            onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                            className="flex items-center justify-between md:justify-start gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-bold text-gray-800 transition-colors w-full md:w-auto"
-                        >
-                            <FiGrid /> Categories <FiChevronDown className={`transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
-                        </button>
+                    <div className="flex gap-2 w-full md:w-auto">
+                        {/* 1. Category Dropdown */}
+                        <div className="relative flex-1 md:flex-none" ref={categoryRef}>
+                            <button
+                                onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                                className="flex items-center justify-between gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-gray-100 hover:bg-gray-200 rounded-xl text-[10px] md:text-sm font-black text-gray-800 transition-colors w-full uppercase tracking-wider md:tracking-widest"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <FiGrid className="text-primary-600" /> <span className="hidden sm:inline">Categories</span><span className="sm:hidden">Cat.</span>
+                                </div>
+                                <FiChevronDown className={`transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
 
-                        <AnimatePresence>
-                            {isCategoryDropdownOpen && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                    className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
-                                >
-                                    {rootCategories.map(cat => (
-                                        <button
-                                            key={cat.id}
-                                            onClick={() => handleCategoryClick(cat)}
-                                            className="w-full text-left px-5 py-3 hover:bg-blue-50 text-sm font-medium text-gray-700 border-b border-gray-50 last:border-0"
-                                        >
-                                            {cat.name}
-                                        </button>
-                                    ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                            <AnimatePresence>
+                                {isCategoryDropdownOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                                        className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 max-h-[70vh] overflow-y-auto"
+                                    >
+                                        {rootCategories.map(cat => (
+                                            <button
+                                                key={cat.id}
+                                                onClick={() => handleCategoryClick(cat)}
+                                                className="w-full text-left px-5 py-3 hover:bg-primary-50 text-[11px] font-black text-gray-700 border-b border-gray-50 last:border-0 uppercase tracking-wider"
+                                            >
+                                                {cat.name}
+                                            </button>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* 3. Price Filter */}
+                        <div className="relative flex-1 md:flex-none" ref={priceRef}>
+                            <button
+                                onClick={() => setIsPriceFilterOpen(!isPriceFilterOpen)}
+                                className="flex items-center justify-between gap-2 px-4 md:px-5 py-2.5 md:py-3 border border-gray-200 rounded-xl text-[10px] md:text-sm font-black text-gray-600 hover:bg-gray-50 hover:border-primary-300 transition-all w-full uppercase tracking-wider md:tracking-widest"
+                            >
+                                <span className="hidden sm:inline">Price Filter</span><span className="sm:hidden">Price</span>
+                                <FiChevronDown className={`transition-transform ${isPriceFilterOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            <AnimatePresence>
+                                {isPriceFilterOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                                        className="absolute top-full right-0 md:left-auto mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
+                                    >
+                                        <h4 className="font-black text-gray-400 mb-4 text-[9px] uppercase tracking-[0.2em]">Price Context</h4>
+
+                                        <div className="space-y-2 mb-6">
+                                            {[
+                                                { label: 'Below ₹100', min: 0, max: 100 },
+                                                { label: '₹101 - ₹200', min: 101, max: 200 },
+                                                { label: '₹201 - ₹500', min: 201, max: 500 },
+                                                { label: 'Above ₹501', min: 501, max: null }
+                                            ].map((item, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="flex items-center justify-between cursor-pointer group hover:bg-primary-50 p-2.5 rounded-xl transition-all border border-transparent hover:border-primary-100"
+                                                    onClick={() => {
+                                                        setIsPriceFilterOpen(false);
+                                                        navigate(`/b2b/catalog?min=${item.min}&max=${item.max}`);
+                                                    }}
+                                                >
+                                                    <span className="text-[11px] font-black text-gray-600 group-hover:text-primary-600 uppercase tracking-wider">{item.label}</span>
+                                                    <FiArrowLeft className="rotate-180 opacity-0 group-hover:opacity-100 transition-opacity text-primary-600" />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number" placeholder="₹ min"
+                                                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-[10px] font-bold outline-none focus:border-primary-400 uppercase"
+                                                value={priceRange.min} onChange={e => setPriceRange({ ...priceRange, min: e.target.value })}
+                                            />
+                                            <input
+                                                type="number" placeholder="₹ max"
+                                                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-[10px] font-bold outline-none focus:border-primary-400 uppercase"
+                                                value={priceRange.max} onChange={e => setPriceRange({ ...priceRange, max: e.target.value })}
+                                            />
+                                            <button
+                                                className="bg-primary-600 text-white font-black p-2.5 px-5 rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-100 text-[10px] uppercase tracking-widest"
+                                                onClick={() => { setIsPriceFilterOpen(false); navigate(`/b2b/catalog?min=${priceRange.min}&max=${priceRange.max}`); }}
+                                            >
+                                                GO
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
 
                     {/* 2. Product Search (Full Width) */}
-                    <div className="flex-1 relative" ref={searchRef}>
-                        <div className="flex items-center bg-white rounded-xl border border-gray-200 px-4 py-1 transition-all focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 shadow-sm">
-                            <FiSearch className="text-gray-400 mr-3" size={20} />
+                    <div className="flex-1 relative order-first md:order-none" ref={searchRef}>
+                        <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-4 py-0.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
+                            <FiSearch className="text-gray-400 mr-2" size={18} />
                             <input
                                 type="text"
-                                placeholder="Search products, brands..."
-                                className="w-full bg-transparent py-2.5 text-sm font-medium outline-none placeholder:text-gray-400 h-10"
+                                placeholder="Search products, brands or assets..."
+                                className="w-full bg-transparent py-2.5 text-[11px] md:text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 h-10 uppercase tracking-tight"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearchProductPopup(searchQuery)}
@@ -711,80 +814,19 @@ const B2BLanding = () => {
                                             <div
                                                 key={i}
                                                 onClick={() => handleSearchProductPopup(s)}
-                                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0"
+                                                className="px-4 py-3 hover:bg-primary-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors"
                                             >
-                                                <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-gray-400">
+                                                <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center text-primary-400">
                                                     <FiShoppingBag />
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-bold text-gray-800">{s.text}</p>
-                                                    <p className="text-[10px] text-gray-500 uppercase">{s.context}</p>
+                                                    <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">{s.text}</p>
+                                                    <p className="text-[8px] text-gray-500 uppercase tracking-widest">{s.context}</p>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-
-                    {/* 3. Price Filter */}
-                    <div className="relative" ref={priceRef}>
-                        <button
-                            onClick={() => setIsPriceFilterOpen(!isPriceFilterOpen)}
-                            className="flex items-center justify-between md:justify-start gap-2 px-5 py-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:border-blue-300 transition-all w-full md:w-auto"
-                        >
-                            Price <FiChevronDown className={`transition-transform ${isPriceFilterOpen ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        <AnimatePresence>
-                            {isPriceFilterOpen && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                                    className="absolute top-full right-0 md:left-auto mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 p-5"
-                                >
-                                    <h4 className="font-bold text-gray-800 mb-4 text-sm uppercase tracking-wide">Price</h4>
-
-                                    <div className="space-y-3 mb-6">
-                                        {[
-                                            { label: 'Below ₹100', min: 0, max: 100 },
-                                            { label: '₹101 - ₹200', min: 101, max: 200 },
-                                            { label: '₹201 - ₹500', min: 201, max: 500 },
-                                            { label: 'Above ₹501', min: 501, max: '' }
-                                        ].map((item, i) => (
-                                            <div
-                                                key={i}
-                                                className="flex items-center gap-3 cursor-pointer group hover:bg-gray-50 p-2 rounded-lg transition-colors"
-                                                onClick={() => {
-                                                    setIsPriceFilterOpen(false);
-                                                    navigate(`/b2b/catalog?min=${item.min}&max=${item.max}`);
-                                                }}
-                                            >
-                                                <div className="w-4 h-4 rounded-full border border-gray-300 group-hover:border-blue-500"></div>
-                                                <span className="text-sm font-medium text-gray-600 group-hover:text-blue-600">{item.label}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="number" placeholder="₹ min"
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-400"
-                                            value={priceRange.min} onChange={e => setPriceRange({ ...priceRange, min: e.target.value })}
-                                        />
-                                        <input
-                                            type="number" placeholder="₹ max"
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 text-sm outline-none focus:border-blue-400"
-                                            value={priceRange.max} onChange={e => setPriceRange({ ...priceRange, max: e.target.value })}
-                                        />
-                                        <button
-                                            className="bg-blue-600 text-white font-bold p-2 px-4 rounded-lg hover:bg-blue-700"
-                                            onClick={() => { setIsPriceFilterOpen(false); navigate(`/b2b/catalog?min=${priceRange.min}&max=${priceRange.max}`); }}
-                                        >
-                                            GO
-                                        </button>
-                                    </div>
-                                </motion.div>
                             )}
                         </AnimatePresence>
                     </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown, FiPhone, FiGrid } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown, FiPhone, FiGrid, FiMapPin, FiTrendingUp, FiHome } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -52,6 +52,7 @@ const ProductCatalog = () => {
     const [selectedPattern, setSelectedPattern] = useState(null);
     const [selectedFabric, setSelectedFabric] = useState(null);
     const [isMainCategoryDropdownOpen, setIsMainCategoryDropdownOpen] = useState(false);
+    const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const mainCategoryDropdownRef = useRef(null);
     const [openFilters, setOpenFilters] = useState({
         price: true,
@@ -87,6 +88,183 @@ const ProductCatalog = () => {
     const toggleFilter = (section) => {
         setOpenFilters(prev => ({ ...prev, [section]: !prev[section] }));
     };
+
+    const renderFilters = () => (
+        <div className="space-y-6">
+            {/* Price Filter Block */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Price</h3>
+                    {(selectedPriceRange || customPriceRange.min || customPriceRange.max) && (
+                        <button
+                            onClick={() => {
+                                setSelectedPriceRange(null);
+                                setCustomPriceRange({ min: '', max: '' });
+                            }}
+                            className="text-[10px] font-bold text-primary-600 hover:text-primary-700"
+                        >
+                            RESET
+                        </button>
+                    )}
+                </div>
+                <div className="p-5 space-y-3">
+                    {[
+                        { label: 'Below ₹100', min: 0, max: 100 },
+                        { label: '₹101 - ₹200', min: 101, max: 200 },
+                        { label: '₹201 - ₹500', min: 201, max: 500 },
+                        { label: 'Above ₹501', min: 501, max: null }
+                    ].map((range) => (
+                        <button
+                            key={range.label}
+                            onClick={() => {
+                                setSelectedPriceRange(range);
+                                setCustomPriceRange({ min: '', max: '' });
+                                setPriceInputs({ min: '', max: '' });
+                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedPriceRange?.label === range.label
+                                ? 'bg-primary-50 text-primary-600'
+                                : 'text-gray-500 hover:bg-gray-50'
+                                }`}
+                        >
+                            {range.label}
+                        </button>
+                    ))}
+
+                    <div className="pt-4 mt-4 border-t border-gray-50">
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                                <input
+                                    type="number"
+                                    placeholder="₹ min"
+                                    value={priceInputs.min}
+                                    onChange={(e) => {
+                                        setPriceInputs(prev => ({ ...prev, min: e.target.value }));
+                                    }}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <input
+                                    type="number"
+                                    placeholder="₹ max"
+                                    value={priceInputs.max}
+                                    onChange={(e) => {
+                                        setPriceInputs(prev => ({ ...prev, max: e.target.value }));
+                                    }}
+                                    className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                />
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setCustomPriceRange(priceInputs);
+                                    setSelectedPriceRange(null);
+                                    if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                }}
+                                className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                            >
+                                GO
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Pattern Filter */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                    onClick={() => toggleFilter('pattern')}
+                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Pattern</h3>
+                    <div className="flex items-center gap-2">
+                        {selectedPattern && (
+                            <span onClick={(e) => { e.stopPropagation(); setSelectedPattern(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                        )}
+                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.pattern ? 'rotate-180' : ''}`} />
+                    </div>
+                </button>
+                <AnimatePresence>
+                    {openFilters.pattern && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
+                                {uniquePatterns.map(pattern => (
+                                    <label key={pattern} className="flex items-center gap-3 cursor-pointer group">
+                                        <div className="relative">
+                                            <input
+                                                type="radio"
+                                                name="pattern"
+                                                className="peer sr-only"
+                                                checked={selectedPattern === pattern}
+                                                onChange={() => {
+                                                    setSelectedPattern(pattern);
+                                                    if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                }}
+                                            />
+                                            <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                        </div>
+                                        <span className={`text-xs font-bold transition-colors ${selectedPattern === pattern ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{pattern}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Fabric Filter */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                    onClick={() => toggleFilter('fabric')}
+                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Fabric</h3>
+                    <div className="flex items-center gap-2">
+                        {selectedFabric && (
+                            <span onClick={(e) => { e.stopPropagation(); setSelectedFabric(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                        )}
+                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.fabric ? 'rotate-180' : ''}`} />
+                    </div>
+                </button>
+                <AnimatePresence>
+                    {openFilters.fabric && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
+                                {uniqueFabrics.map(fabric => (
+                                    <label key={fabric} className="flex items-center gap-3 cursor-pointer group">
+                                        <div className="relative">
+                                            <input
+                                                type="radio"
+                                                name="fabric"
+                                                className="peer sr-only"
+                                                checked={selectedFabric === fabric}
+                                                onChange={() => {
+                                                    setSelectedFabric(fabric);
+                                                    if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                }}
+                                            />
+                                            <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                        </div>
+                                        <span className={`text-xs font-bold transition-colors ${selectedFabric === fabric ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{fabric}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
+    );
 
 
     // Define functions before useEffect hooks that use them
@@ -727,18 +905,69 @@ const ProductCatalog = () => {
                 hideSearch={false}
             />
 
+            {/* Sticky Mobile Filter Bar */}
+            <div className="lg:hidden sticky top-[65px] z-[45] bg-white/95 backdrop-blur-md border-b border-gray-100 flex items-center shadow-sm">
+                <button
+                    onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
+                    className="flex-1 py-3 flex flex-col items-center gap-1 border-r border-gray-50 active:bg-gray-50 transition-colors"
+                >
+                    <FiGrid className="text-primary-600" size={18} />
+                    <span className="text-[9px] font-black uppercase tracking-tighter">Categories</span>
+                </button>
+                <button
+                    onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                    className="flex-1 py-3 flex flex-col items-center gap-1 border-r border-gray-50 active:bg-gray-50 transition-colors"
+                >
+                    <FiMapPin className="text-primary-600" size={18} />
+                    <span className="text-[9px] font-black uppercase tracking-tighter truncate max-w-[70px]">
+                        {selectedCity === 'All Cities' ? 'Location' : selectedCity}
+                    </span>
+                </button>
+                <button
+                    onClick={() => setIsMobileFilterOpen(true)}
+                    className="flex-1 py-3 flex flex-col items-center gap-1 active:bg-gray-50 transition-colors"
+                >
+                    <div className="relative">
+                        <FiFilter className={selectedPriceRange || customPriceRange.min || selectedPattern || selectedFabric ? 'text-primary-600' : 'text-gray-400'} size={18} />
+                        {(selectedPriceRange || customPriceRange.min || selectedPattern || selectedFabric) && (
+                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                        )}
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-tighter">Filters</span>
+                </button>
+            </div>
 
-            <main className="max-w-7xl mx-auto px-4 py-6">
+            {/* Mobile Quick Navigation Shortcuts */}
+            <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar px-4 py-3 bg-white border-b border-gray-50">
+                <Link
+                    to="/b2b/catalog?itemType=lotslot"
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap text-[10px] font-black uppercase tracking-wider transition-all border ${selectedItemType === 'lotslot'
+                        ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100'
+                        : 'bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600'}`}
+                >
+                    <FiTrendingUp size={14} className={selectedItemType === 'lotslot' ? 'text-white' : 'text-primary-600'} />
+                    Lot / SOT
+                </Link>
+                <Link
+                    to="/b2b/real-estate"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap text-[10px] font-black uppercase tracking-wider bg-white text-gray-400 border border-gray-100 hover:border-primary-300 hover:text-primary-600 transition-all font-bold"
+                >
+                    <FiHome size={14} className="text-primary-600" />
+                    Real Estate
+                </Link>
+            </div>
+
+            <main className="max-w-7xl mx-auto px-4 py-4 md:py-8">
                 {/* Search & Filter Bar */}
-                <div className="space-y-6 mb-10">
+                <div className="space-y-4 md:space-y-6 mb-6 md:mb-10">
                     {/* Location Filters */}
-                    <div className="flex gap-4 items-center">
+                    <div className="hidden md:flex flex-col md:flex-row gap-4 items-stretch md:items-center">
                         {/* City Searchable Dropdown */}
-                        <div className="relative flex-shrink-0 min-w-[200px]" ref={cityDropdownRef}>
+                        <div className="relative w-full md:w-64" ref={cityDropdownRef}>
                             <button
                                 onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
                                 disabled={locationsLoading}
-                                className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium text-sm shadow-sm transition-all outline-none flex items-center justify-between gap-2"
+                                className="w-full px-4 py-3 md:py-3.5 bg-white border border-gray-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 font-bold text-xs md:text-sm shadow-sm transition-all outline-none flex items-center justify-between gap-2"
                             >
                                 <span className="truncate">{selectedCity}</span>
                                 <FiChevronDown className={`transition-transform duration-200 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
@@ -750,17 +979,16 @@ const ProductCatalog = () => {
                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl z-[100] overflow-hidden"
+                                        className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl md:rounded-2xl shadow-xl z-[100] overflow-hidden"
                                     >
                                         <div className="p-3 border-b border-gray-50">
                                             <div className="relative">
-                                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+                                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
                                                 <input
                                                     autoFocus
                                                     type="text"
                                                     placeholder="Search city..."
-                                                    className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-xl text-xs font-medium focus:ring-1 focus:ring-primary-500 outline-none"
+                                                    className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
                                                     value={citySearchQuery}
                                                     onChange={(e) => setCitySearchQuery(e.target.value)}
                                                     onClick={(e) => e.stopPropagation()}
@@ -775,9 +1003,9 @@ const ProductCatalog = () => {
                                                     setIsCityDropdownOpen(false);
                                                     setCitySearchQuery('');
                                                 }}
-                                                className={`w-full px-4 py-2.5 text-left text-xs font-bold transition-colors hover:bg-primary-50 ${selectedCity === 'All Cities' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                                className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-black transition-colors hover:bg-primary-50 ${selectedCity === 'All Cities' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
                                             >
-                                                All Cities
+                                                ALL CITIES
                                             </button>
 
                                             {filteredCitiesList.length > 0 ? (
@@ -789,15 +1017,13 @@ const ProductCatalog = () => {
                                                             setIsCityDropdownOpen(false);
                                                             setCitySearchQuery('');
                                                         }}
-                                                        className={`w-full px-4 py-2.5 text-left text-xs font-medium transition-colors hover:bg-primary-50 ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                                        className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-bold transition-colors hover:bg-primary-50 ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
                                                     >
-                                                        {city}
+                                                        {city.toUpperCase()}
                                                     </button>
                                                 ))
                                             ) : (
-                                                <div className="px-4 py-6 text-center">
-                                                    <p className="text-xs text-gray-400 font-medium">No cities found</p>
-                                                </div>
+                                                <div className="px-4 py-6 text-center text-[10px] text-gray-400 font-bold">NO CITIES FOUND</div>
                                             )}
                                         </div>
                                     </motion.div>
@@ -806,23 +1032,23 @@ const ProductCatalog = () => {
                         </div>
 
                         {/* Horizontal Scrollable Cities List */}
-                        <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                        <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
                             <button
                                 onClick={() => setSelectedCity('All Cities')}
-                                className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 border ${selectedCity === 'All Cities'
-                                    ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200'
-                                    : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-600 hover:shadow-md'
+                                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === 'All Cities'
+                                    ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100'
+                                    : 'bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm'
                                     }`}
                             >
                                 All Cities
                             </button>
-                            {uniqueCities.map((city, index) => (
+                            {uniqueCities.slice(0, 15).map((city, index) => (
                                 <button
                                     key={index}
                                     onClick={() => setSelectedCity(city)}
-                                    className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 border ${selectedCity === city
-                                        ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-200'
-                                        : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-600 hover:shadow-md'
+                                    className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === city
+                                        ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100'
+                                        : 'bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm'
                                         }`}
                                 >
                                     {city}
@@ -832,16 +1058,16 @@ const ProductCatalog = () => {
                     </div>
 
                     {/* Main Category Dropdown Selection */}
-                    <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-                        <div className="relative w-full lg:w-72" ref={mainCategoryDropdownRef}>
+                    <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+                        <div className="relative w-full md:w-72" ref={mainCategoryDropdownRef}>
                             <button
                                 onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
-                                className={`flex items-center justify-between gap-3 px-6 py-3.5 bg-white border rounded-2xl text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${selectedCategory !== 'All' ? 'border-primary-200 text-primary-600 bg-primary-50/20' : 'border-gray-200 text-gray-700'
+                                className={`flex items-center justify-between gap-3 px-6 py-3.5 md:py-4 bg-white border rounded-xl md:rounded-2xl text-[11px] md:text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${selectedCategory !== 'All' ? 'border-primary-200 text-primary-600 bg-primary-50/20' : 'border-gray-200 text-gray-700'
                                     }`}
                             >
-                                <div className="flex items-center gap-2">
-                                    <FiGrid className={selectedCategory !== 'All' ? 'text-primary-600' : 'text-gray-400'} />
-                                    <span>{selectedCategory === 'All' ? 'All Categories' : selectedCategory}</span>
+                                <div className="flex items-center gap-2 uppercase tracking-widest">
+                                    <FiGrid className={selectedCategory !== 'All' ? 'text-primary-600' : 'text-gray-400'} size={16} />
+                                    <span>{selectedCategory === 'All' ? 'Browse Categories' : selectedCategory}</span>
                                 </div>
                                 <FiChevronDown className={`transition-transform duration-300 ${isMainCategoryDropdownOpen ? 'rotate-180' : ''}`} />
                             </button>
@@ -852,7 +1078,7 @@ const ProductCatalog = () => {
                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute top-full left-0 mt-2 w-full bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60]"
+                                        className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60]"
                                     >
                                         <div className="p-2 max-h-[400px] overflow-y-auto">
                                             <button
@@ -861,16 +1087,11 @@ const ProductCatalog = () => {
                                                     setExpandedCategory(null);
                                                     setSelectedSubcategory(null);
                                                     setIsMainCategoryDropdownOpen(false);
-
-                                                    // Clear search query
                                                     setSearchQuery('');
-                                                    const newParams = new URLSearchParams(searchParams);
-                                                    newParams.delete('search');
-                                                    setSearchParams(newParams, { replace: true });
                                                 }}
-                                                className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all ${selectedCategory === 'All' ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                                className={`w-full text-left px-4 py-3 rounded-lg text-[10px] md:text-xs font-black transition-all uppercase tracking-widest ${selectedCategory === 'All' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
                                             >
-                                                All Categories
+                                                View All
                                             </button>
                                             {categories.filter(cat => cat.name !== 'All').map((cat) => (
                                                 <button
@@ -879,10 +1100,10 @@ const ProductCatalog = () => {
                                                         handleCategoryClick(cat.name);
                                                         setIsMainCategoryDropdownOpen(false);
                                                     }}
-                                                    className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between group ${selectedCategory === cat.name ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                                    className={`w-full text-left px-4 py-3 rounded-lg text-[10px] md:text-xs font-black transition-all flex items-center justify-between group uppercase tracking-widest ${selectedCategory === cat.name ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
                                                 >
                                                     <span>{cat.name}</span>
-                                                    {cat.subcategories?.length > 0 && <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400 group-hover:bg-primary-100 group-hover:text-primary-600">{cat.subcategories.length}</span>}
+                                                    {cat.subcategories?.length > 0 && <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400 group-hover:bg-primary-100 group-hover:text-primary-600">{cat.subcategories.length}</span>}
                                                 </button>
                                             ))}
                                         </div>
@@ -893,13 +1114,13 @@ const ProductCatalog = () => {
 
                         {/* Quick filter info */}
                         {selectedCategory !== 'All' && (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 rounded-full border border-primary-100">
-                                <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Active Category:</span>
-                                <span className="text-xs font-bold text-gray-700">{selectedCategory}</span>
+                            <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 rounded-full border border-primary-100 self-start md:self-auto">
+                                <span className="text-[9px] font-black text-primary-600 uppercase tracking-widest">Active:</span>
+                                <span className="text-[10px] font-bold text-gray-700 uppercase">{selectedCategory}</span>
                                 {selectedSubcategory && (
                                     <>
                                         <div className="w-1 h-1 bg-primary-300 rounded-full mx-1"></div>
-                                        <span className="text-xs font-bold text-gray-500">{selectedSubcategory}</span>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase">{selectedSubcategory}</span>
                                     </>
                                 )}
                             </div>
@@ -981,174 +1202,8 @@ const ProductCatalog = () => {
 
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* IndiaMart Style Sidebar */}
-                    <aside className="w-full lg:w-72 flex-shrink-0 space-y-6">
-                        {/* Price Filter Block */}
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <div className="bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Price</h3>
-                                {(selectedPriceRange || customPriceRange.min || customPriceRange.max) && (
-                                    <button
-                                        onClick={() => {
-                                            setSelectedPriceRange(null);
-                                            setCustomPriceRange({ min: '', max: '' });
-                                        }}
-                                        className="text-[10px] font-bold text-primary-600 hover:text-primary-700"
-                                    >
-                                        RESET
-                                    </button>
-                                )}
-                            </div>
-                            <div className="p-5 space-y-3">
-                                {[
-                                    { label: 'Below ₹100', min: 0, max: 100 },
-                                    { label: '₹101 - ₹200', min: 101, max: 200 },
-                                    { label: '₹201 - ₹500', min: 201, max: 500 },
-                                    { label: 'Above ₹501', min: 501, max: null }
-                                ].map((range) => (
-                                    <button
-                                        key={range.label}
-                                        onClick={() => {
-                                            setSelectedPriceRange(range);
-                                            setCustomPriceRange({ min: '', max: '' });
-                                            setPriceInputs({ min: '', max: '' });
-                                        }}
-                                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedPriceRange?.label === range.label
-                                            ? 'bg-primary-50 text-primary-600'
-                                            : 'text-gray-500 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        {range.label}
-                                    </button>
-                                ))}
-
-                                <div className="pt-4 mt-4 border-t border-gray-50">
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-1">
-                                            <input
-                                                type="number"
-                                                placeholder="₹ min"
-                                                value={priceInputs.min}
-                                                onChange={(e) => {
-                                                    setPriceInputs(prev => ({ ...prev, min: e.target.value }));
-                                                    // Don't auto-apply custom range, wait for GO
-                                                }}
-                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                            />
-                                        </div>
-                                        <div className="flex-1">
-                                            <input
-                                                type="number"
-                                                placeholder="₹ max"
-                                                value={priceInputs.max}
-                                                onChange={(e) => {
-                                                    setPriceInputs(prev => ({ ...prev, max: e.target.value }));
-                                                }}
-                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                setCustomPriceRange(priceInputs);
-                                                setSelectedPriceRange(null);
-                                            }}
-                                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                                        >
-                                            GO
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Pattern Filter */}
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <button
-                                onClick={() => toggleFilter('pattern')}
-                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                            >
-                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Pattern</h3>
-                                <div className="flex items-center gap-2">
-                                    {selectedPattern && (
-                                        <span onClick={(e) => { e.stopPropagation(); setSelectedPattern(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                                    )}
-                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.pattern ? 'rotate-180' : ''}`} />
-                                </div>
-                            </button>
-                            <AnimatePresence>
-                                {openFilters.pattern && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
-                                            {uniquePatterns.map(pattern => (
-                                                <label key={pattern} className="flex items-center gap-3 cursor-pointer group">
-                                                    <div className="relative">
-                                                        <input
-                                                            type="radio"
-                                                            name="pattern"
-                                                            className="peer sr-only"
-                                                            checked={selectedPattern === pattern}
-                                                            onChange={() => setSelectedPattern(pattern)}
-                                                        />
-                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                                    </div>
-                                                    <span className={`text-xs font-bold transition-colors ${selectedPattern === pattern ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{pattern}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Fabric Filter */}
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <button
-                                onClick={() => toggleFilter('fabric')}
-                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                            >
-                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Fabric</h3>
-                                <div className="flex items-center gap-2">
-                                    {selectedFabric && (
-                                        <span onClick={(e) => { e.stopPropagation(); setSelectedFabric(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                                    )}
-                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.fabric ? 'rotate-180' : ''}`} />
-                                </div>
-                            </button>
-                            <AnimatePresence>
-                                {openFilters.fabric && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
-                                            {uniqueFabrics.map(fabric => (
-                                                <label key={fabric} className="flex items-center gap-3 cursor-pointer group">
-                                                    <div className="relative">
-                                                        <input
-                                                            type="radio"
-                                                            name="fabric"
-                                                            className="peer sr-only"
-                                                            checked={selectedFabric === fabric}
-                                                            onChange={() => setSelectedFabric(fabric)}
-                                                        />
-                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                                    </div>
-                                                    <span className={`text-xs font-bold transition-colors ${selectedFabric === fabric ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{fabric}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-
+                    <aside className="hidden lg:block w-72 flex-shrink-0 space-y-6">
+                        {renderFilters()}
                     </aside>
 
                     {/* Product Listing Area */}
@@ -1346,6 +1401,56 @@ const ProductCatalog = () => {
                     </div>
                 </div>
             </main >
+
+            <AnimatePresence>
+                {isMobileFilterOpen && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsMobileFilterOpen(false)}
+                            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] lg:hidden"
+                        />
+                        <motion.div
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="fixed top-0 right-0 h-full w-[85%] max-w-sm bg-white z-[101] lg:hidden shadow-2xl flex flex-col"
+                        >
+                            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center text-primary-600">
+                                        <FiFilter size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-black text-xs uppercase tracking-widest text-gray-900">Filters</h3>
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Refine your search</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsMobileFilterOpen(false)}
+                                    className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    <FiX size={24} />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar pb-32">
+                                {renderFilters()}
+                            </div>
+                            <div className="p-6 border-t border-gray-100 bg-white sticky bottom-0">
+                                <button
+                                    onClick={() => setIsMobileFilterOpen(false)}
+                                    className="w-full py-4 bg-primary-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-primary-100 hover:bg-primary-700 transition-all active:scale-95"
+                                >
+                                    Show Results
+                                </button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
             <B2BBottomNav />
         </div >
