@@ -4,7 +4,6 @@ import { FiBox, FiMessageSquare, FiArrowRight, FiBriefcase, FiHash } from 'react
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { Link } from 'react-router-dom';
-import chatService from '../../../shared/services/chatService';
 import { useAuthStore } from '../../../shared/store/authStore';
 
 // Helper function to format relative time

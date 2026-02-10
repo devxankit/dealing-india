@@ -37,11 +37,11 @@ const Support = () => {
         },
         {
             q: "How to negotiate bulk pricing with vendors?",
-            a: "You can use the 'Inquiry' feature to request a custom quote. For large orders, we recommend using the 'Chat' option to discuss volume-based discounts directly with the verified wholesaler."
+            a: "Direct negotiation is available via WhatsApp or Phone. For large orders, we recommend discussing volume-based discounts directly with the verified wholesaler."
         },
         {
             q: "Can I request samples before placing a large wholesale order?",
-            a: "Most vendors allow sample ordering at a premium rate. Use the 'Inquiry' form to request a sample. Once approved, the vendor will send a custom link for the sample payment."
+            a: "Most vendors allow sample ordering. You can request samples directly via the WhatsApp contact option on the product details page."
         },
         {
             q: "How does Dealing India verify wholesalers?",
@@ -86,19 +86,18 @@ const Support = () => {
                     </motion.a>
                 </div>
 
-                {/* Live Chat Banner */}
-                <div className="relative bg-gradient-to-r from-blue-900 to-indigo-900 rounded-[2.5rem] p-8 text-white flex items-center justify-between shadow-xl overflow-hidden">
+                {/* WhatsApp Support Banner */}
+                <div className="relative bg-gradient-to-r from-green-600 to-green-700 rounded-[2.5rem] p-8 text-white flex items-center justify-between shadow-xl overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl opacity-50"></div>
                     <div className="relative z-10">
                         <h3 className="font-extrabold text-xl mb-2 flex items-center gap-2">
-                            <FiMessageSquare size={20} className="text-blue-300" />
                             Need Instant Help?
                         </h3>
-                        <p className="text-sm text-blue-100/70 font-medium max-w-[200px]">Our B2B specialists are ready to assist you in real-time.</p>
+                        <p className="text-sm text-green-100/70 font-medium max-w-[200px]">Our B2B specialists are available on WhatsApp for real-time assistance.</p>
                     </div>
-                    <button className="relative z-10 px-6 py-3 bg-white text-blue-900 rounded-2xl font-extrabold text-sm hover:bg-blue-50 transition-all shadow-lg active:scale-95">
-                        Start Chat
-                    </button>
+                    <a href="https://wa.me/918000000000" target="_blank" rel="noopener noreferrer" className="relative z-10 px-6 py-3 bg-white text-green-700 rounded-2xl font-extrabold text-sm hover:bg-green-50 transition-all shadow-lg active:scale-95">
+                        WhatsApp Us
+                    </a>
                 </div>
 
                 {/* FAQs */}

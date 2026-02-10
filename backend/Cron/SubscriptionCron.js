@@ -2,6 +2,7 @@ import cron from "node-cron";
 import B2BSubscription from "../models/B2BSubscriptionModel.js";
 import razorpay from "../config/razorpay.js";
 import dayjs from "dayjs";
+import notificationService from "../services/notification.service.js";
 
 // B2C Subscription Expiry Cron removed for B2B-only focus
 
@@ -31,6 +32,20 @@ export const B2BSubscriptionExpiryCron = cron.schedule("0 * * * *", async () => 
       sub.status = "expired";
       await sub.save();
 
+      // Notify vendor about expired cancelled subscription
+      try {
+        await notificationService.createNotification({
+          recipientId: sub.vendorId,
+          recipientType: 'vendor',
+          type: 'system',
+          title: 'Subscription Expired',
+          message: 'Your cancelled subscription has now reached its end date and is expired.',
+          actionUrl: '/vendor/subscriptions',
+        });
+      } catch (notifError) {
+        console.error('Failed to notify vendor about expired cancelled sub:', notifError);
+      }
+
       console.log(`❌ Cancelled subscription expired: ${sub._id}`);
     }
 
@@ -49,6 +64,21 @@ export const B2BSubscriptionExpiryCron = cron.schedule("0 * * * *", async () => 
     for (let sub of freeSubsToExpire) {
       sub.status = "expired";
       await sub.save();
+
+      // Notify vendor about free subscription expiry
+      try {
+        await notificationService.createNotification({
+          recipientId: sub.vendorId,
+          recipientType: 'vendor',
+          type: 'system',
+          title: 'Free Trial Expired',
+          message: 'Your 7-day free subscription has expired. Please purchase a plan to continue using our services.',
+          actionUrl: '/vendor/subscriptions',
+        });
+      } catch (notifError) {
+        console.error('Failed to notify vendor about expired free sub:', notifError);
+      }
+
       console.log(`❌ Free subscription expired: ${sub._id}`);
     }
 
@@ -85,13 +115,27 @@ export const B2BSubscriptionExpiryCron = cron.schedule("0 * * * *", async () => 
 
         // Create new subscription in DB
         const newSub = await B2BSubscription.create({
-          adminId: sub.adminId,
+          vendorId: sub.vendorId, // Using vendorId as per model schema
           planId: plan._id,
           status: "pending",
           finalPayableAmount: plan.planPrice,
           razorpaySubscriptionId: razorpaySubscription.id,
           razorpaySubscriptionUrl: razorpaySubscription.short_url,
         });
+
+        // Notify vendor about expiry and new pending subscription
+        try {
+          await notificationService.createNotification({
+            recipientId: sub.vendorId,
+            recipientType: 'vendor',
+            type: 'system',
+            title: 'Subscription Renewed (Pending Payment)',
+            message: `Your subscription for ${plan.name} has expired and a new pending subscription has been created. Please complete the payment to keep your account active.`,
+            actionUrl: '/vendor/subscriptions',
+          });
+        } catch (notifError) {
+          console.error('Failed to notify vendor about new pending sub:', notifError);
+        }
 
         console.log(`✅ New paid subscription created: ${newSub._id}`);
       }

@@ -10,7 +10,6 @@ import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import api from '../../../shared/utils/api';
-import chatService from '../../../shared/services/chatService';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
 import { formatPrice } from '../../../shared/utils/helpers';
@@ -81,53 +80,7 @@ const B2BProductDetail = () => {
 
     const handleInquirySubmit = async (e) => {
         e.preventDefault();
-        if (!isAuthenticated) {
-            toast.error('Please login to send inquiries');
-            navigate('/b2b/login');
-            return;
-        }
-
-        const message = e.target.elements.message.value;
-        const inquiryQuantity = e.target.elements.quantity.value;
-
-        try {
-            const vendorId = product.vendorId?._id || product.vendorId;
-            const convResponse = await chatService.createOrGetConversation(vendorId);
-            const conversation = convResponse.data || convResponse;
-
-            const metadata = {
-                productId: product._id,
-                productName: product.name || '',
-                productImage: product.images?.[0] || product.image || null,
-                productPrice: product.price ? Number(product.price) : null,
-                quantity: Number(inquiryQuantity) || 0,
-                clientMessage: message || '',
-                attachment: inquiryAttachment ? {
-                    fileUrl: inquiryAttachment.url,
-                    fileName: inquiryAttachment.originalName,
-                    fileFormat: inquiryAttachment.format,
-                    resourceType: inquiryAttachment.resourceType
-                } : null
-            };
-
-            const inquiryMessage = `📦 *INQUIRY FOR: ${product.name}*\n` +
-                `🔢 *Quantity:* ${inquiryQuantity} ${product.unit || 'units'}\n` +
-                `💬 *Message:* ${message}`;
-
-            await chatService.sendMessage(
-                conversation._id,
-                vendorId,
-                inquiryMessage,
-                'inquiry',
-                metadata
-            );
-
-            setHasInquiry(true);
-            toast.success('Inquiry sent successfully!');
-            setShowInquiryModal(false);
-        } catch (err) {
-            toast.error('Failed to send inquiry');
-        }
+        toast.error('Direct Inquiry system is under maintenance. Please use WhatsApp or Call.');
     };
 
     if (loading) {
