@@ -1,4 +1,5 @@
 import Vendor from '../models/Vendor.model.js';
+import notificationService from '../services/notification.service.js';
 
 /**
  * Track vendor contact clicks (call or whatsapp)
@@ -46,6 +47,19 @@ export const trackContactClick = async (req, res, next) => {
             success: true,
             message: `${clickType} click tracked successfully`
         });
+
+        // Backend side notification for the user who clicked (if logged in)
+        if (req.user && req.user.role === 'user') {
+            const userId = req.user.id;
+            notificationService.createNotification({
+                recipientId: userId,
+                recipientType: 'user',
+                type: 'system',
+                title: 'Contact Request Logged 📞',
+                message: `You recently tried to contact "${updatedVendor.storeName}" via ${clickType}. Don't forget to follow up for the best quotes!`,
+                actionUrl: `/b2b/vendor/${vendorId}`
+            }).catch(e => console.error('Notification Error:', e.message));
+        }
     } catch (error) {
         console.error('Error tracking click:', error);
         res.status(500).json({

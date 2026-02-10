@@ -4,6 +4,7 @@ import { hashPassword, comparePassword } from '../utils/bcrypt.util.js';
 import { generateToken } from '../utils/jwt.util.js';
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } from './email.service.js';
 import { generateOTP, verifyOTP } from './otp.service.js';
+import notificationService from './notification.service.js';
 
 /**
  * Register a new user
@@ -93,6 +94,16 @@ export const verifyUserEmail = async (email, otp) => {
     // Send welcome email (Background)
     sendWelcomeEmail(user.email, user.name).catch(e => console.error('BG Email Error:', e.message));
 
+    // Create Welcome Notification in DB
+    notificationService.createNotification({
+        recipientId: user._id,
+        recipientType: 'user',
+        type: 'system',
+        title: 'Welcome to Dealing India! 🚀',
+        message: `Hi ${user.name}, your account is now verified. Start exploring thousands of B2B products and real estate opportunities.`,
+        actionUrl: '/b2b/catalog'
+    }).catch(e => console.error('Notification Error:', e.message));
+
     // Generate token
     const token = generateToken({ id: user._id, role: user.role });
 
@@ -167,9 +178,21 @@ export const updateUserProfile = async (id, updateData) => {
         new: true,
         runValidators: true,
     });
+
     if (!user) {
         throw new Error('User not found');
     }
+
+    // Notify user about profile update
+    notificationService.createNotification({
+        recipientId: user._id,
+        recipientType: 'user',
+        type: 'system',
+        title: 'Profile Updated Successfully',
+        message: 'Your business profile information has been updated. This helps build trust with sellers.',
+        actionUrl: '/b2b/profile'
+    }).catch(e => console.error('Notification Error:', e.message));
+
     return user;
 };
 
@@ -272,6 +295,15 @@ export const resetUserPassword = async (email, otp, newPassword) => {
     const hashedPassword = await hashPassword(newPassword);
     user.password = hashedPassword;
     await user.save();
+
+    // Security Notification
+    notificationService.createNotification({
+        recipientId: user._id,
+        recipientType: 'user',
+        type: 'system',
+        title: 'Security Alert: Password Changed',
+        message: 'Your account password was recently changed. If this wasn\'t you, please secure your account immediately.',
+    }).catch(e => console.error('Notification Error:', e.message));
 
     return { message: 'Password reset successfully' };
 };

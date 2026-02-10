@@ -56,6 +56,7 @@ import adminBusinessSettingsRoutes from './routes/adminBusinessSettings.routes.j
 import adminNotificationRoutes from './routes/adminNotification.routes.js';
 import vendorAnalyticsRoutes from './routes/vendorAnalytics.routes.js';
 import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
+import userNotificationRoutes from './routes/userNotification.routes.js';
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 
 
@@ -264,6 +265,7 @@ app.use('/api/vendor/subscriptions', vendorSubscriptionRoutes);
 app.use('/api/vendor/subscription', vendorSubscriptionRoutes); // Alias for consistency
 app.use('/api/vendor/analytics', vendorAnalyticsRoutes);
 app.use('/api/vendor/notifications', vendorNotificationRoutes);
+app.use('/api/user/notifications', userNotificationRoutes);
 
 // B2B Vendor routes (separate from regular vendor routes)
 app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);
