@@ -6,6 +6,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 import mongoose from 'mongoose';
 import dns from 'dns';
+import path from 'path';
+
+console.log('--- Initializing Server ---');
+console.log(`Working Directory: ${process.cwd()}`);
+console.log(`Node Version: ${process.version}`);
+console.log(`Environment: ${process.env.NODE_ENV}`);
+console.log(`MONGODB_URI status: ${process.env.MONGODB_URI ? 'Detected' : 'MISSING'}`);
+console.log(`RAZORPAY_KEY_ID status: ${process.env.RAZORPAY_KEY_ID ? 'Detected' : 'MISSING'}`);
+console.log('---------------------------');
 
 // Fix for querySrv ECONNREFUSED issues (SRV DNS resolution)
 dns.setServers(['8.8.8.8', '8.8.4.4']);

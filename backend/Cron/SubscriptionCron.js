@@ -107,37 +107,41 @@ export const B2BSubscriptionExpiryCron = cron.schedule("0 * * * *", async () => 
 
       if (plan && plan.razorpayPlanId) {
         // Create new Razorpay subscription
-        const razorpaySubscription = await razorpay.subscriptions.create({
-          plan_id: plan.razorpayPlanId,
-          customer_notify: 1,
-          total_count: 12,
-        });
-
-        // Create new subscription in DB
-        const newSub = await B2BSubscription.create({
-          vendorId: sub.vendorId, // Using vendorId as per model schema
-          planId: plan._id,
-          status: "pending",
-          finalPayableAmount: plan.planPrice,
-          razorpaySubscriptionId: razorpaySubscription.id,
-          razorpaySubscriptionUrl: razorpaySubscription.short_url,
-        });
-
-        // Notify vendor about expiry and new pending subscription
-        try {
-          await notificationService.createNotification({
-            recipientId: sub.vendorId,
-            recipientType: 'vendor',
-            type: 'system',
-            title: 'Subscription Renewed (Pending Payment)',
-            message: `Your subscription for ${plan.name} has expired and a new pending subscription has been created. Please complete the payment to keep your account active.`,
-            actionUrl: '/vendor/subscriptions',
+        if (razorpay) {
+          const razorpaySubscription = await razorpay.subscriptions.create({
+            plan_id: plan.razorpayPlanId,
+            customer_notify: 1,
+            total_count: 12,
           });
-        } catch (notifError) {
-          console.error('Failed to notify vendor about new pending sub:', notifError);
-        }
 
-        console.log(`✅ New paid subscription created: ${newSub._id}`);
+          // Create new subscription in DB
+          const newSub = await B2BSubscription.create({
+            vendorId: sub.vendorId, // Using vendorId as per model schema
+            planId: plan._id,
+            status: "pending",
+            finalPayableAmount: plan.planPrice,
+            razorpaySubscriptionId: razorpaySubscription.id,
+            razorpaySubscriptionUrl: razorpaySubscription.short_url,
+          });
+
+          // Notify vendor about expiry and new pending subscription
+          try {
+            await notificationService.createNotification({
+              recipientId: sub.vendorId,
+              recipientType: 'vendor',
+              type: 'system',
+              title: 'Subscription Renewed (Pending Payment)',
+              message: `Your subscription for ${plan.name} has expired and a new pending subscription has been created. Please complete the payment to keep your account active.`,
+              actionUrl: '/vendor/subscriptions',
+            });
+          } catch (notifError) {
+            console.error('Failed to notify vendor about new pending sub:', notifError);
+          }
+
+          console.log(`✅ New paid subscription created: ${newSub._id}`);
+        } else {
+          console.error('❌ Razorpay not configured. Cannot create new subscription for billing.');
+        }
       }
     }
 
