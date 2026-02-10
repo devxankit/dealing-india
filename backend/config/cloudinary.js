@@ -17,10 +17,9 @@ if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !pr
   if (!process.env.CLOUDINARY_CLOUD_NAME) missingKeys.push('CLOUDINARY_CLOUD_NAME');
   if (!process.env.CLOUDINARY_API_KEY) missingKeys.push('CLOUDINARY_API_KEY');
   if (!process.env.CLOUDINARY_API_SECRET) missingKeys.push('CLOUDINARY_API_SECRET');
-  
-  const errorMessage = `❌ Cloudinary configuration failed. Missing environment variables: ${missingKeys.join(', ')}. Server cannot start without valid Cloudinary config.`;
-  console.error(errorMessage);
-  throw new Error(errorMessage);
+
+  const errorMessage = `⚠️ Cloudinary configuration warning: Missing environment variables: ${missingKeys.join(', ')}. Image uploads will not work.`;
+  console.warn(errorMessage);
 } else {
   console.log('✅ Cloudinary configured successfully');
 }

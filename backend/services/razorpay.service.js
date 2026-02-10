@@ -1,5 +1,8 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class RazorpayService {
   constructor() {

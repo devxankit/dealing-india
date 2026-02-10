@@ -3,6 +3,7 @@ import http from 'http';
 import cors from 'cors';
 import compression from 'compression';
 import dotenv from 'dotenv';
+dotenv.config();
 import mongoose from 'mongoose';
 import dns from 'dns';
 
@@ -61,9 +62,6 @@ import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 
 
 B2BSubscriptionExpiryCron.start();
-
-// Load environment variables
-dotenv.config();
 
 // Initialize Express app
 const app = express();
