@@ -9,7 +9,6 @@ import {
     FiGrid,
     FiList,
     FiLoader,
-    FiMessageSquare,
     FiTruck,
     FiShield,
     FiX,
@@ -20,7 +19,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import B2BHeader from "../components/Layout/B2BHeader";
 import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import api from "../../../shared/utils/api";
-import chatService from "../../../shared/services/chatService";
 import { useAuthStore } from "../../../shared/store/authStore";
 import RealEstateCard from "../components/RealEstateCard";
 import toast from "../../../shared/utils/toast";

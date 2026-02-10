@@ -9,6 +9,8 @@ import {
   getB2BVendors,
   deleteB2BVendor,
 } from '../services/vendorManagement.service.js';
+import notificationService from '../services/notification.service.js';
+
 
 import redisService from '../services/redis.service.js';
 import { getSignedUrl } from '../utils/cloudinary.util.js';
@@ -107,6 +109,31 @@ export const updateStatus = async (req, res, next) => {
 
     const vendor = await updateVendorStatus(id, status, reason);
 
+    // Notify vendor about status update
+    try {
+      let title = 'Account Status Updated';
+      let message = `Your account status has been updated to ${status}.`;
+
+      if (status === 'approved') {
+        title = 'Account Approved!';
+        message = 'Congratulations! Your vendor account has been approved. You can now start adding products and services.';
+      } else if (status === 'rejected') {
+        title = 'Account Application Update';
+        message = `Your vendor application was not approved. ${reason ? `Reason: ${reason}` : 'Please contact support for more details.'}`;
+      }
+
+      await notificationService.createNotification({
+        recipientId: id,
+        recipientType: 'vendor',
+        type: 'system',
+        title: title,
+        message: message,
+        actionUrl: status === 'approved' ? '/vendor/dashboard' : '/vendor/profile',
+      }, req.app.get('io'));
+    } catch (notifError) {
+      console.error('Failed to send vendor status notification:', notifError);
+    }
+
     // Clear vendor cache
     await clearVendorCache(id);
 
@@ -159,6 +186,22 @@ export const toggleActive = async (req, res, next) => {
   try {
     const { id } = req.params;
     const vendor = await toggleVendorActive(id);
+
+    // Notify vendor about activation/deactivation
+    try {
+      await notificationService.createNotification({
+        recipientId: id,
+        recipientType: 'vendor',
+        type: 'system',
+        title: vendor.isActive ? 'Account Activated' : 'Account Deactivated',
+        message: vendor.isActive
+          ? 'Your account has been activated by the administrator.'
+          : 'Your account has been deactivated. Please contact support if you believe this is a mistake.',
+        actionUrl: '/vendor/profile',
+      }, req.app.get('io'));
+    } catch (notifError) {
+      console.error('Failed to send vendor activation notification:', notifError);
+    }
 
     // Clear vendor cache
     await clearVendorCache(id);

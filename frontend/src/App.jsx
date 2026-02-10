@@ -50,7 +50,6 @@ const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrappe
 const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
 const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
 // Mobile App Routes
-const Chat = lazyWithRetry(() => import("./shared/components/Chat/Chat"));
 
 // B2B Vendor Routes
 const B2BVendorLogin = lazyWithRetry(() => import("./modules/B2BVendor/pages/Login"));
@@ -63,7 +62,7 @@ const B2BVendorProducts = lazyWithRetry(() => import("./modules/B2BVendor/pages/
 const B2BVendorManageProducts = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/ManageProducts"));
 const B2BVendorAddProduct = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/AddProduct"));
 const B2BVendorEditProduct = lazyWithRetry(() => import("./modules/B2BVendor/pages/products/EditProduct"));
-const B2BVendorMessages = lazyWithRetry(() => import("./modules/B2BVendor/pages/Messages"));
+
 const B2BVendorProperties = lazyWithRetry(() => import("./modules/B2BVendor/pages/Properties"));
 const B2BVendorManageProperties = lazyWithRetry(() => import("./modules/B2BVendor/pages/properties/ManageProperties"));
 const B2BVendorAddProperty = lazyWithRetry(() => import("./modules/B2BVendor/pages/properties/AddProperty"));
@@ -89,7 +88,7 @@ const B2BUserVerification = lazyWithRetry(() => import("./modules/B2BUserApp/pag
 const B2BUserForgotPassword = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ForgotPassword"));
 
 const B2BProductCatalog = lazyWithRetry(() => import("./modules/B2BUserApp/pages/ProductCatalog"));
-const B2BInquiries = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Inquiries"));
+
 const B2BUserProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/Profile"));
 const B2BPersonalProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/PersonalProfile"));
 const B2BCompanyProfile = lazyWithRetry(() => import("./modules/B2BUserApp/pages/CompanyProfile"));

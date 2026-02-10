@@ -557,6 +557,24 @@ export const approveBannerBooking = asyncHandler(async (req, res) => {
         currentBooking: booking._id
     });
 
+    // Notify vendor about banner approval
+    try {
+        await notificationService.createNotification({
+            recipientId: booking.vendorId,
+            recipientType: 'vendor',
+            type: 'banner_booking',
+            title: 'Banner Booking Approved!',
+            message: 'Your banner booking has been approved and is now active.',
+            actionUrl: '/vendor/banners',
+            metadata: {
+                bookingId: booking._id,
+                bannerType: booking.bannerType
+            }
+        }, req.app.get('io'));
+    } catch (notifError) {
+        console.error('Failed to notify vendor about banner approval:', notifError);
+    }
+
     res.status(200).json({
         success: true,
         message: 'Booking approved successfully',
@@ -580,6 +598,25 @@ export const rejectBannerBooking = asyncHandler(async (req, res) => {
     booking.status = 'cancelled';
     booking.rejectionReason = reason || 'No reason provided';
     await booking.save();
+
+    // Notify vendor about banner rejection
+    try {
+        await notificationService.createNotification({
+            recipientId: booking.vendorId,
+            recipientType: 'vendor',
+            type: 'banner_booking',
+            title: 'Banner Booking Rejected',
+            message: `Your banner booking was rejected. ${reason ? `Reason: ${reason}` : ''}`,
+            actionUrl: '/vendor/banners',
+            metadata: {
+                bookingId: booking._id,
+                bannerType: booking.bannerType,
+                reason: reason
+            }
+        }, req.app.get('io'));
+    } catch (notifError) {
+        console.error('Failed to notify vendor about banner rejection:', notifError);
+    }
 
     // TODO: Initiate refund if payment was made
 

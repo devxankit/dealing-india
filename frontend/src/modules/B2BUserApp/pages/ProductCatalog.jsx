@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiMessageSquare, FiTruck, FiShield, FiX, FiSend, FiChevronDown, FiPhone, FiGrid, FiMapPin, FiTrendingUp, FiHome } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiTruck, FiShield, FiX, FiChevronDown, FiPhone, FiGrid, FiMapPin, FiTrendingUp, FiHome } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import api from '../../../shared/utils/api';
-import chatService from '../../../shared/services/chatService';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { debounce } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
