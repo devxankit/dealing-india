@@ -203,16 +203,19 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 </button>
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{isEdit ? 'Edit Property' : 'List New Property'}</h1>
-                    <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Growth your business with Dealing India</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Growth your business with Dealing India</p>
+                        <span className="md:hidden px-2 py-0.5 bg-primary-50 text-primary-600 rounded-full text-[9px] font-black uppercase transition-all">Step {step} of 5</span>
+                    </div>
                 </div>
             </div>
 
             {/* Stepper */}
-            <div className="flex justify-between items-center bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-gray-50 overflow-x-auto gap-4">
+            <div className="flex justify-between items-center bg-white p-3 md:p-6 rounded-3xl shadow-sm border border-gray-50 overflow-x-auto gap-1 md:gap-4">
                 {steps.map((s, idx) => (
-                    <div key={s.id} className="flex items-center flex-1 min-w-[80px]">
-                        <div className="flex flex-col items-center gap-2 flex-1">
-                            <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm transition-all ${step >= s.id ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-400'
+                    <div key={s.id} className="flex items-center flex-1 min-w-0">
+                        <div className="flex flex-col items-center gap-1.5 md:gap-2 flex-1">
+                            <div className={`w-7 h-7 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-[10px] md:text-sm transition-all ${step >= s.id ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-400'
                                 }`}>
                                 {step > s.id ? <FiCheck /> : s.id}
                             </div>
@@ -220,7 +223,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <p className={`text-[10px] font-black uppercase ${step >= s.id ? 'text-primary-600' : 'text-slate-400'}`}>{s.title}</p>
                             </div>
                         </div>
-                        {idx < steps.length - 1 && <div className={`h-[2px] flex-1 mx-2 transition-all min-w-[20px] ${step > s.id ? 'bg-primary-600' : 'bg-slate-100'}`} />}
+                        {idx < steps.length - 1 && <div className={`h-[1px] md:h-[2px] flex-1 mx-0.5 md:mx-2 transition-all min-w-[8px] md:min-w-[20px] ${step > s.id ? 'bg-primary-600' : 'bg-slate-100'}`} />}
                     </div>
                 ))}
             </div>
