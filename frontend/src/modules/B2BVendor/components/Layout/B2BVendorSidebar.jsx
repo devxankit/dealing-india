@@ -16,6 +16,7 @@ import {
     FiPlus,
     FiBell
 } from "react-icons/fi";
+import { appLogo } from "../../../../data/logos";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../../hooks/useVendorSettings";
@@ -219,8 +220,8 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             <div className="p-4 border-b border-slate-700 bg-slate-900 overflow-hidden">
                 <div className="flex items-center justify-between gap-2 min-w-0">
                     <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-                            <FiBriefcase className="text-white text-lg sm:text-xl" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl flex items-center justify-center shadow-md flex-shrink-0 p-1">
+                            <img src={appLogo.src} alt="Dealing India" className="w-full h-full object-contain" />
                         </div>
                         <div className="flex-1 min-w-0 overflow-hidden">
                             <h2 className="font-semibold text-white text-xs sm:text-sm truncate mb-0.5" title={displayVendorName}>{displayVendorName}</h2>

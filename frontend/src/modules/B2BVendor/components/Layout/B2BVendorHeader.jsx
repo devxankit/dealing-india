@@ -8,6 +8,7 @@ import NotificationWindow from "../../../Admin/components/Layout/NotificationWin
 
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
+import { appLogo } from "../../../../data/logos";
 
 const B2BVendorHeader = ({ onMenuClick }) => {
     const location = useLocation();
@@ -75,9 +76,16 @@ const B2BVendorHeader = ({ onMenuClick }) => {
             <div className="flex items-center justify-between px-4 lg:px-6 py-4 gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden">
                     <Button onClick={onMenuClick} variant="icon" className="lg:hidden text-gray-700 flex-shrink-0" icon={FiMenu} />
+                    <Link to="/b2b/catalog" className="flex-shrink-0">
+                        <img
+                            src={appLogo.src}
+                            alt="Dealing India"
+                            className="h-10 md:h-12 w-auto object-contain"
+                        />
+                    </Link>
                     <div className="hidden lg:block min-w-0 flex-1 overflow-hidden">
-                        <h1 className="text-2xl font-bold text-gray-800 mb-1 truncate">{pageName}</h1>
-                        <p className="text-sm text-gray-600 flex items-center gap-2 min-w-0 overflow-hidden">
+                        <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-0.5 truncate">{pageName}</h1>
+                        <p className="text-xs text-gray-600 flex items-center gap-2 min-w-0 overflow-hidden font-medium">
                             <FiBriefcase className="text-primary-500 flex-shrink-0" />
                             <span className="truncate block min-w-0">{displayVendorName}</span>
                         </p>

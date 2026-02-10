@@ -106,6 +106,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         title === "Real Estate Developers" ||
                         title === "Developer Properties" ||
                         title === "Verified Brokers" ||
+                        title === "Become a Seller" ||
                         location.pathname.includes('/real-estate/property/')) && (
                             <Link to="/b2b/catalog" className="flex-shrink-0">
                                 <img
@@ -139,6 +140,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         title !== "Real Estate Developers" &&
                         title !== "Developer Properties" &&
                         title !== "Verified Brokers" &&
+                        title !== "Become a Seller" &&
                         !location.pathname.includes('/real-estate/property/') && (
                             <h1 className="text-sm md:text-xl font-black text-gray-900 truncate uppercase tracking-tight">
                                 {title}
