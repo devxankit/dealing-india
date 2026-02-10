@@ -7,11 +7,18 @@ dotenv.config();
 import mongoose from 'mongoose';
 import dns from 'dns';
 import path from 'path';
+import fs from 'fs';
 
+const envPath = path.resolve(process.cwd(), '.env');
 console.log('--- Initializing Server ---');
 console.log(`Working Directory: ${process.cwd()}`);
+console.log(`Searching .env at: ${envPath}`);
+console.log(`.env file exists? ${fs.existsSync(envPath) ? '✅ YES' : '❌ NO'}`);
+
+dotenv.config();
+
 console.log(`Node Version: ${process.version}`);
-console.log(`Environment: ${process.env.NODE_ENV}`);
+console.log(`Environment (NODE_ENV): ${process.env.NODE_ENV || 'not set'}`);
 console.log(`MONGODB_URI status: ${process.env.MONGODB_URI ? 'Detected' : 'MISSING'}`);
 console.log(`RAZORPAY_KEY_ID status: ${process.env.RAZORPAY_KEY_ID ? 'Detected' : 'MISSING'}`);
 console.log('---------------------------');
