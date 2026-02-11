@@ -56,14 +56,26 @@ const B2BVendorHeader = ({ onMenuClick }) => {
         const path = pathname.split("/").pop() || "dashboard";
         const pageNames = {
             dashboard: "Dashboard",
-            products: "Product Listings",
-            messages: "B2B Inquiries",
-            vendors: "Vendors",
-            analytics: "Analytics",
+            "manage-products": "Manage Products",
+            "add-product": "Add New Listing",
+            "add-shop-listing": "Create Shop Listing",
+            "manage-properties": "Manage Properties",
+            "add-property": "Add Property",
+            "manage-lots": "Manage Lots",
+            "add-lotslot": "Add Lot/Slot",
+            subscription: "Subscription Plans",
+            notifications: "Notifications",
+            profile: "My Profile",
             settings: "Settings",
-            profile: "Profile",
         };
-        return pageNames[path] || path.charAt(0).toUpperCase() + path.slice(1);
+
+        if (pageNames[path]) return pageNames[path];
+
+        // Default formatting: add-product -> Add Product
+        return path
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
     };
 
     const pageName = getPageName(location.pathname);
@@ -76,14 +88,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
             <div className="flex items-center justify-between px-4 lg:px-6 py-4 gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0 overflow-hidden">
                     <Button onClick={onMenuClick} variant="icon" className="lg:hidden text-gray-700 flex-shrink-0" icon={FiMenu} />
-                    <Link to="/b2b/catalog" className="flex-shrink-0">
-                        <img
-                            src={appLogo.src}
-                            alt="Dealing India"
-                            className="h-10 md:h-12 w-auto object-contain"
-                        />
-                    </Link>
-                    <div className="hidden lg:block min-w-0 flex-1 overflow-hidden">
+                    <div className="lg:block min-w-0 flex-1 overflow-hidden">
                         <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-0.5 truncate">{pageName}</h1>
                         <p className="text-xs text-gray-600 flex items-center gap-2 min-w-0 overflow-hidden font-medium">
                             <FiBriefcase className="text-primary-500 flex-shrink-0" />

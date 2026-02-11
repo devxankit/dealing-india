@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import B2BVendorProductForm from "../../components/ProductForm";
+import ShopProductForm from "../../components/ShopProductForm";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
 
@@ -10,6 +11,7 @@ const EditProduct = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [product, setProduct] = useState(null);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         const loadProduct = async () => {
@@ -20,57 +22,66 @@ const EditProduct = () => {
                 if (response.success && response.data?.product) {
                     const productData = response.data.product;
 
-                    // Extract category and subcategory from attributes
-                    const categoryAttr = productData.attributes?.find(attr => attr.name === 'category');
-                    const subcategoryAttr = productData.attributes?.find(attr => attr.name === 'subcategory');
-                    const bulkPricingAttr = productData.attributes?.find(attr => attr.name === 'bulkPricing');
-
-                    // Extract specifications (excluding category, subcategory, bulkPricing)
-                    const specifications = productData.attributes?.filter(attr =>
-                        !['category', 'subcategory', 'bulkPricing', 'Color', 'color'].includes(attr.name)
-                    ) || [];
-
-                    // Parse bulk pricing if exists
-                    let bulkPricing = [{ minQty: "", price: "" }];
-                    if (bulkPricingAttr?.value) {
-                        try {
-                            bulkPricing = JSON.parse(bulkPricingAttr.value);
-                        } catch (e) {
-                            console.error('Failed to parse bulk pricing:', e);
+                    if (productData.formType === 'shop-listing') {
+                        // Prepare data for ShopProductForm
+                        const images = [];
+                        if (productData.image) images.push(productData.image);
+                        if (productData.images && productData.images.length > 0) {
+                            images.push(...productData.images);
                         }
-                    }
 
-                    // Determine availability from stock
-                    let availability = "In Stock";
-                    if (productData.stock === 'out_of_stock') {
-                        availability = "Out of Stock";
-                    } else if (productData.stock === 'pre_order') {
-                        availability = "Available on Order";
-                    }
+                        setProduct({
+                            ...productData,
+                            unitName: productData.name,
+                            description: productData.description || "",
+                            minPrice: productData.minPrice || "",
+                            maxPrice: productData.maxPrice || "",
+                            items: productData.items || [{ itemName: "", category: "", price: "", unit: "" }],
+                            images: images,
+                        });
+                    } else {
+                        // Standard Product Data transformation (existing logic)
+                        const categoryAttr = productData.attributes?.find(attr => attr.name === 'category');
+                        const subcategoryAttr = productData.attributes?.find(attr => attr.name === 'subcategory');
+                        const bulkPricingAttr = productData.attributes?.find(attr => attr.name === 'bulkPricing');
 
-                    // Prepare images array
-                    const images = [];
-                    if (productData.image) images.push(productData.image);
-                    if (productData.images && productData.images.length > 0) {
-                        images.push(...productData.images);
-                    }
+                        const specifications = productData.attributes?.filter(attr =>
+                            !['category', 'subcategory', 'bulkPricing', 'Color', 'color'].includes(attr.name)
+                        ) || [];
 
-                    setProduct({
-                        name: productData.name || "",
-                        category: categoryAttr?.value || "",
-                        subcategory: subcategoryAttr?.value || "",
-                        price: productData.price || "",
-                        moq: productData.minimumOrderQuantity || 1,
-                        brand: productData.brandName || "",
-                        availability: availability,
-                        description: productData.description || "",
-                        images: images,
-                        specifications: specifications.length > 0
-                            ? specifications.map(spec => ({ name: spec.name, value: spec.value }))
-                            : [{ name: "", value: "" }],
-                        bulkPricing: bulkPricing.length > 0 ? bulkPricing : [{ minQty: "", price: "" }],
-                        unit: productData.unit || "Pcs",
-                    });
+                        let bulkPricing = [{ minQty: "", price: "" }];
+                        if (bulkPricingAttr?.value) {
+                            try {
+                                bulkPricing = typeof bulkPricingAttr.value === 'string' ? JSON.parse(bulkPricingAttr.value) : bulkPricingAttr.value;
+                            } catch (e) { console.error('Failed to parse bulk pricing:', e); }
+                        }
+
+                        let availability = "In Stock";
+                        if (productData.stock === 'out_of_stock') availability = "Out of Stock";
+                        else if (productData.stock === 'pre_order') availability = "Available on Order";
+
+                        const images = [];
+                        if (productData.image) images.push(productData.image);
+                        if (productData.images && productData.images.length > 0) images.push(...productData.images);
+
+                        setProduct({
+                            ...productData,
+                            name: productData.name || "",
+                            category: categoryAttr?.value || productData.category || "",
+                            subcategory: subcategoryAttr?.value || productData.subcategory || "",
+                            price: productData.price || "",
+                            moq: productData.minimumOrderQuantity || 1,
+                            brand: productData.brandName || "",
+                            availability: availability,
+                            description: productData.description || "",
+                            images: images,
+                            specifications: specifications.length > 0
+                                ? specifications.map(spec => ({ name: spec.name, value: spec.value }))
+                                : [{ name: "", value: "" }],
+                            bulkPricing: bulkPricing.length > 0 ? bulkPricing : [{ minQty: "", price: "" }],
+                            unit: productData.unit || "Pcs",
+                        });
+                    }
                 } else {
                     toast.error("Product not found");
                     navigate("/b2b-vendor/products/manage-products");
@@ -84,10 +95,21 @@ const EditProduct = () => {
             }
         };
 
-        if (id) {
-            loadProduct();
-        }
+        if (id) loadProduct();
     }, [id, navigate]);
+
+    const handleShopSubmit = async (formData) => {
+        setSaving(true);
+        try {
+            await api.put(`/b2b-vendor/products/${id}`, formData);
+            toast.success("Shop listing updated successfully");
+            navigate("/b2b-vendor/products/manage-products");
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to update shop listing");
+        } finally {
+            setSaving(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -97,20 +119,35 @@ const EditProduct = () => {
         );
     }
 
+    const isShopListing = product?.formType === 'shop-listing';
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
         >
-            <div>
-                <h1 className="text-2xl font-bold text-gray-800">Edit Listing</h1>
-                <p className="text-gray-500">Update your product details and B2B pricing.</p>
+            <div className="px-1 text-center mb-8">
+                <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">
+                    Edit {isShopListing ? "Shop Listing" : "Listing"}
+                </h1>
+                <p className="text-sm text-gray-500 font-medium">Update your product details and B2B pricing.</p>
             </div>
 
-            {product && <B2BVendorProductForm isEdit={true} initialData={product} productId={id} />}
+            {product && (
+                isShopListing ? (
+                    <ShopProductForm
+                        initialData={product}
+                        onSubmit={handleShopSubmit}
+                        isLoading={saving}
+                    />
+                ) : (
+                    <B2BVendorProductForm isEdit={true} initialData={product} productId={id} />
+                )
+            )}
         </motion.div>
     );
 };
 
 export default EditProduct;
+

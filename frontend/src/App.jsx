@@ -236,6 +236,7 @@ const AppRoutes = () => {
             <Route index element={<B2BVendorProducts />} />
             <Route path="manage-products" element={<B2BVendorManageProducts />} />
             <Route path="add-product" element={<B2BVendorAddProduct />} />
+            <Route path="add-shop-listing" element={<B2BVendorAddProduct forceShop={true} />} />
             <Route path="edit/:id" element={<B2BVendorEditProduct />} />
           </Route>
 

@@ -17,12 +17,13 @@ export const getActiveBusinessTypes = asyncHandler(async (req, res) => {
 // @route   POST /api/admin/business-types
 // @access  Admin
 export const createBusinessType = asyncHandler(async (req, res) => {
-    const { name, slug, description } = req.body;
+    const { name, slug, description, subTypes } = req.body;
 
     const businessType = await BusinessType.create({
         name,
         slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
         description,
+        subTypes: subTypes || []
     });
 
     // Create default settings for this business type

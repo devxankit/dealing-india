@@ -16,7 +16,6 @@ import {
     FiPlus,
     FiBell
 } from "react-icons/fi";
-import { appLogo } from "../../../../data/logos";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../../hooks/useVendorSettings";
@@ -32,8 +31,6 @@ const iconMap = {
     "Manage Properties": FiHome,
     "Add Property": FiPlus,
     "Lot/Slot Listings": FiPlus,
-
-
     Subscription: FiCreditCard,
     "Banner Booking": FiImage,
     "Notifications": FiBell,
@@ -47,6 +44,7 @@ const getChildRoute = (parentRoute, childName) => {
         "/b2b-vendor/products": {
             "Manage Products": "/b2b-vendor/products/manage-products",
             "Add Product": "/b2b-vendor/products/add-product",
+            "Add Shop Listing": "/b2b-vendor/products/add-shop-listing",
         },
         "/b2b-vendor/properties": {
             "Manage Properties": "/b2b-vendor/properties/manage-properties",
@@ -72,8 +70,8 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
     const displayVendorName = vendor?.name || "B2B Vendor";
+    const vendorInitial = displayVendorName.charAt(0).toUpperCase();
 
-    // Fetch unread notification count
     useEffect(() => {
         const fetchUnreadCount = async () => {
             try {
@@ -86,34 +84,28 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             }
         };
         fetchUnreadCount();
-        // Refresh every 60 seconds
         const interval = setInterval(fetchUnreadCount, 60000);
         return () => clearInterval(interval);
     }, []);
 
     const filteredMenu = b2bVendorMenu.filter(item => {
-        if (!settings) return true; // Show all while loading/fallback
-
-        const adminModules = settings.enabledModules || [];
-
-        // Map menu titles to internal module names
-        const titleToModule = {
-            'Dashboard': 'dashboard',
-            'Product Listings': 'product',
-            'Property Management': 'property',
-            'Lot/Slot Listings': 'lotslot',
-            'Subscription': 'subscription',
-            'Banner Booking': 'banner',
-            'Notifications': 'notifications',
-            'Account Settings': 'settings',
-            'Messages': 'messages'
+        if (item.title === "Dashboard") return true;
+        if (!settings || !settings.enabledModules) return true;
+        const moduleMap = {
+            "Product Listings": "product",
+            "Property Management": "property",
+            "Lot/Slot Listings": "lotslot",
+            "Subscription": "subscription",
+            "Banner Booking": "banner",
+            "Notifications": "notifications",
+            "Account Settings": ["settings", "profile"]
         };
-
-        const moduleName = titleToModule[item.title];
-        if (!moduleName) return true; // Always show if not in map
-        if (moduleName === 'dashboard') return true; // Always show dashboard
-
-        return adminModules.includes(moduleName);
+        const moduleKey = moduleMap[item.title];
+        if (!moduleKey) return true;
+        if (Array.isArray(moduleKey)) {
+            return moduleKey.some(key => settings.enabledModules.includes(key));
+        }
+        return settings.enabledModules.includes(moduleKey);
     });
 
     useEffect(() => {
@@ -216,26 +208,18 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     };
 
     const sidebarContent = (
-        <div className="h-full flex flex-col bg-slate-800 shadow-xl overflow-hidden">
+        <div className="h-full flex flex-col bg-slate-800 shadow-xl overflow-hidden text-left">
             <div className="p-4 border-b border-slate-700 bg-slate-900 overflow-hidden">
-                <div className="flex items-center justify-between gap-2 min-w-0">
-                    <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl flex items-center justify-center shadow-md flex-shrink-0 p-1">
-                            <img src={appLogo.src} alt="Dealing India" className="w-full h-full object-contain" />
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                    <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+                        {/* Vendor Initial Profile Icon - Matching Admin Style */}
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 bg-primary-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0 text-white font-black text-xl border-2 border-primary-500">
+                            {vendorInitial}
                         </div>
-                        <div className="flex-1 min-w-0 overflow-hidden">
-                            <h2 className="font-semibold text-white text-xs sm:text-sm truncate mb-0.5" title={displayVendorName}>{displayVendorName}</h2>
-                            <p
-                                className="text-[10px] sm:text-xs text-gray-400 truncate block"
-                                style={{
-                                    maxWidth: '100%',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap'
-                                }}
-                                title={vendor?.email}
-                            >
-                                {vendor?.email || ''}
+                        <div className="flex-1 min-w-0 overflow-hidden text-left">
+                            <h2 className="font-bold text-white text-xs sm:text-sm truncate mb-0.5" title={displayVendorName}>{displayVendorName}</h2>
+                            <p className="text-[10px] sm:text-xs text-gray-400 truncate block opacity-70" title={vendor?.email}>
+                                {vendor?.email || 'Vendor Account'}
                             </p>
                         </div>
                     </div>
@@ -246,12 +230,10 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             </div>
             <nav className="flex-1 overflow-y-auto p-3 pb-32 scrollbar-admin">
                 {filteredMenu.map(renderMenuItem)}
-
-                {/* Logout Button in Sidebar for mobile/desktop convenience */}
                 <div className="mt-8 pt-8 border-t border-slate-700">
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200 cursor-pointer"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-200 cursor-pointer text-left"
                     >
                         <FiLogOut className="text-xl flex-shrink-0" />
                         <span className="font-medium text-sm">Logout Account</span>
@@ -262,7 +244,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     );
 
     return (
-        <>
+        <div className="text-left">
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
@@ -289,7 +271,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             <div className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 z-30 overflow-hidden">
                 {sidebarContent}
             </div>
-        </>
+        </div>
     );
 };
 

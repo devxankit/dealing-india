@@ -65,8 +65,8 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
  * @returns {Promise<Array>} Array of plans
  */
 export const getB2BPlans = async (forceRefresh = false, options = {}) => {
-    const { businessType } = options;
-    const cacheKey = businessType || 'all';
+    const { businessType, isAdmin = false } = options;
+    const cacheKey = isAdmin ? 'admin-all' : (businessType || 'all');
 
     // 1. Check if we have valid cache and not forcing refresh
     if (!forceRefresh && plansCache[cacheKey] && cacheTimestamps[cacheKey] && (Date.now() - cacheTimestamps[cacheKey]) < CACHE_DURATION) {
@@ -81,9 +81,14 @@ export const getB2BPlans = async (forceRefresh = false, options = {}) => {
     // 3. Create new request promise
     plansPromises[cacheKey] = (async () => {
         try {
-            let url = '/public/b2b-subscription-plans/active';
+            let url = isAdmin ? '/admin/b2b-subscription-plans' : '/public/b2b-subscription-plans/active';
+
+            // For admin, if we want to include inactive/all, we use the base route
+            // For public active, we already have /active in the URL
+
             if (businessType) {
-                url += `?businessType=${businessType}`;
+                const separator = url.includes('?') ? '&' : '?';
+                url += `${separator}businessType=${businessType}`;
             }
 
             const response = await api.get(url);

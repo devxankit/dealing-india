@@ -39,6 +39,7 @@ const B2BVendorRegister = () => {
         gstNumber: '',
         businessType: 'Textile',
         businessTypeRef: '',
+        selectedSubTypes: [],
         address: {
             street: '',
             area: '',
@@ -154,6 +155,11 @@ const B2BVendorRegister = () => {
             return;
         }
 
+        if (selectedBusinessType?.subTypes?.length > 0 && formData.selectedSubTypes.length === 0) {
+            toast.error('Please select at least one specific business type');
+            return;
+        }
+
         setLocalLoading(true);
         try {
             // Complete Registration
@@ -168,6 +174,7 @@ const B2BVendorRegister = () => {
                 gstNumber: formData.gstNumber,
                 businessType: formData.businessType,
                 businessTypeRef: formData.businessTypeRef,
+                selectedSubTypes: formData.selectedSubTypes,
                 vendorType: 'b2b',
                 documents: {
                     panCard: {
@@ -302,7 +309,8 @@ const B2BVendorRegister = () => {
                                         setFormData(prev => ({
                                             ...prev,
                                             businessTypeRef: typeId,
-                                            businessType: type?.name || ''
+                                            businessType: type?.name || '',
+                                            selectedSubTypes: []
                                         }));
                                         setSelectedBusinessType(type);
                                     }}
@@ -315,6 +323,39 @@ const B2BVendorRegister = () => {
                                     ))}
                                 </select>
                             </div>
+
+                            {/* Sub-Types Selection */}
+                            {selectedBusinessType?.subTypes?.length > 0 && (
+                                <div className="md:col-span-2 mt-2">
+                                    <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Specific Types (Select Multiple) <span className="text-red-500">*</span></label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedBusinessType.subTypes.map(st => (
+                                            <button
+                                                key={st}
+                                                type="button"
+                                                onClick={() => {
+                                                    setFormData(prev => {
+                                                        const current = prev.selectedSubTypes || [];
+                                                        const updated = current.includes(st)
+                                                            ? current.filter(t => t !== st)
+                                                            : [...current, st];
+                                                        return { ...prev, selectedSubTypes: updated };
+                                                    });
+                                                }}
+                                                className={`px-3 py-2 rounded-xl text-[10px] font-bold uppercase transition-all border-2 ${formData.selectedSubTypes.includes(st)
+                                                    ? 'bg-primary-600 border-primary-600 text-white shadow-md'
+                                                    : 'bg-white border-gray-100 text-gray-500 hover:border-primary-200'
+                                                    }`}
+                                            >
+                                                {st}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {formData.selectedSubTypes.length === 0 && (
+                                        <p className="text-[10px] text-amber-600 mt-2 font-bold animate-pulse">! Please select at least one specific type</p>
+                                    )}
+                                </div>
+                            )}
                             <div className="md:col-span-2">
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Company Name</label>
                                 <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Global Exports Pvt Ltd" />

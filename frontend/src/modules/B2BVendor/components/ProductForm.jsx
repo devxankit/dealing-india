@@ -255,64 +255,6 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 />
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Brand / Manufacturer</label>
-                                <input
-                                    type="text"
-                                    name="brand"
-                                    value={formData.brand}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                    placeholder="e.g. Tata Steel"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Availability Status</label>
-                                <select
-                                    name="availability"
-                                    value={formData.availability}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                >
-                                    <option value="In Stock">In Stock</option>
-                                    <option value="Out of Stock">Out of Stock</option>
-                                    <option value="Available on Order">Available on Order</option>
-                                </select>
-                            </div>
-
-
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Pattern</label>
-                                <select
-                                    name="pattern"
-                                    value={formData.pattern || ""}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                >
-                                    <option value="">Select Pattern</option>
-                                    {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
-                                        <option key={p} value={p}>{p}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Fabric</label>
-                                <select
-                                    name="fabric"
-                                    value={formData.fabric || ""}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                >
-                                    <option value="">Select Fabric</option>
-                                    {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
-                                        <option key={f} value={f}>{f}</option>
-                                    ))}
-                                </select>
-                            </div>
-
                             <div className="md:col-span-1">
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Category <span className="text-red-500">*</span></label>
                                 <select
@@ -342,6 +284,62 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     <option value="">Select Subcategory</option>
                                     {subcategories.map((sub, index) => (
                                         <option key={index} value={sub}>{sub}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Brand / Manufacturer</label>
+                                <input
+                                    type="text"
+                                    name="brand"
+                                    value={formData.brand}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                    placeholder="e.g. Tata Steel"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Availability Status</label>
+                                <select
+                                    name="availability"
+                                    value={formData.availability}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                >
+                                    <option value="In Stock">In Stock</option>
+                                    <option value="Out of Stock">Out of Stock</option>
+                                    <option value="Available on Order">Available on Order</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Pattern</label>
+                                <select
+                                    name="pattern"
+                                    value={formData.pattern || ""}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                >
+                                    <option value="">Select Pattern</option>
+                                    {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
+                                        <option key={p} value={p}>{p}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Fabric</label>
+                                <select
+                                    name="fabric"
+                                    value={formData.fabric || ""}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                >
+                                    <option value="">Select Fabric</option>
+                                    {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
+                                        <option key={f} value={f}>{f}</option>
                                     ))}
                                 </select>
                             </div>
@@ -394,21 +392,27 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                         key={index}
                                         className="flex gap-3 group"
                                     >
-                                        <div className="flex-1 grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded-xl border border-gray-100 group-hover:border-orange-100 group-hover:bg-white transition-all">
-                                            <input
-                                                type="text"
-                                                value={spec.name}
-                                                onChange={(e) => updateSpec(index, 'name', e.target.value)}
-                                                className="bg-transparent border-none focus:ring-0 text-xs font-bold text-gray-700 outline-none"
-                                                placeholder="Attribute (e.g. Material)"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={spec.value}
-                                                onChange={(e) => updateSpec(index, 'value', e.target.value)}
-                                                className="bg-transparent border-none focus:ring-0 text-xs text-gray-600 outline-none"
-                                                placeholder="Value (e.g. 100% Pure Silk)"
-                                            />
+                                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="bg-slate-50 px-4 py-2 rounded-xl border border-gray-100 focus-within:border-orange-200 focus-within:bg-white transition-all">
+                                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Attribute</label>
+                                                <input
+                                                    type="text"
+                                                    value={spec.name}
+                                                    onChange={(e) => updateSpec(index, 'name', e.target.value)}
+                                                    className="w-full bg-transparent border-none focus:ring-0 text-xs font-bold text-gray-700 outline-none p-0"
+                                                    placeholder="Material"
+                                                />
+                                            </div>
+                                            <div className="bg-slate-50 px-4 py-2 rounded-xl border border-gray-100 focus-within:border-orange-200 focus-within:bg-white transition-all">
+                                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Value</label>
+                                                <input
+                                                    type="text"
+                                                    value={spec.value}
+                                                    onChange={(e) => updateSpec(index, 'value', e.target.value)}
+                                                    className="w-full bg-transparent border-none focus:ring-0 text-xs text-gray-600 outline-none p-0"
+                                                    placeholder="100% Cotton"
+                                                />
+                                            </div>
                                         </div>
                                         <button
                                             type="button"

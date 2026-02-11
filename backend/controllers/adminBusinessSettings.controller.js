@@ -41,6 +41,18 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
 
     await settings.save();
 
+    // Also update BusinessType if needed (name, description, subTypes)
+    if (req.body.businessTypeId && typeof req.body.businessTypeId === 'object') {
+        const btUpdates = {};
+        if (req.body.businessTypeId.name) btUpdates.name = req.body.businessTypeId.name;
+        if (req.body.businessTypeId.description) btUpdates.description = req.body.businessTypeId.description;
+        if (req.body.businessTypeId.subTypes) btUpdates.subTypes = req.body.businessTypeId.subTypes;
+
+        if (Object.keys(btUpdates).length > 0) {
+            await BusinessType.findByIdAndUpdate(settings.businessTypeId, btUpdates);
+        }
+    }
+
     // Clear plan cache so vendors see updated plan availability
     try {
         await redisService.clearPattern('public:b2b-plans:*');

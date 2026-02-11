@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FiSearch, FiEdit2, FiTrash2, FiEye, FiUser } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
@@ -14,6 +14,7 @@ const ManageB2BVendors = () => {
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { b2bVendors, isLoading, fetchB2BVendors, deleteB2BVendor } = useB2BVendorManagementStore();
+    const fetchedRef = useRef(false);
 
     const handleApprove = async (id) => {
         if (!id) return;
@@ -81,7 +82,10 @@ const ManageB2BVendors = () => {
             }
         };
 
-        loadVendors();
+        if (!fetchedRef.current || debouncedSearchQuery) {
+            loadVendors();
+            fetchedRef.current = true;
+        }
     }, [debouncedSearchQuery, fetchB2BVendors]);
 
     const handleViewDetails = (vendor) => {

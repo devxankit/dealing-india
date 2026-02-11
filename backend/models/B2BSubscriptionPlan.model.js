@@ -47,12 +47,6 @@ const b2bSubscriptionPlanSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    allowedBusinessTypes: [
-      {
-        type: String, // Storing Slugs for ease of use across environments
-        default: []
-      }
-    ],
   },
   {
     timestamps: true,

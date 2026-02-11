@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FiEdit2, FiSave, FiCheckCircle, FiXCircle, FiSettings, FiActivity, FiPlus, FiTrash2 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -10,11 +10,16 @@ const BusinessTypeConfiguration = () => {
     const [loading, setLoading] = useState(true);
     const [editingSettings, setEditingSettings] = useState(null);
     const [isAddingNew, setIsAddingNew] = useState(false);
-    const [newType, setNewType] = useState({ name: '', description: '' });
+    const [newType, setNewType] = useState({ name: '', description: '', subTypes: [] });
+    const [newSubType, setNewSubType] = useState('');
+    const fetchedRef = useRef(false);
 
     useEffect(() => {
-        fetchSettings();
-        fetchPlans();
+        if (!fetchedRef.current) {
+            fetchSettings();
+            fetchPlans();
+            fetchedRef.current = true;
+        }
     }, []);
 
     const fetchPlans = async () => {
@@ -177,6 +182,21 @@ const BusinessTypeConfiguration = () => {
                                         ))
                                     ) : (
                                         <span className="text-slate-400 italic font-medium">No widgets selected</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Sub-Types</p>
+                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                                    {(settings.businessTypeId?.subTypes?.length || 0) > 0 ? (
+                                        settings.businessTypeId.subTypes.map(st => (
+                                            <span key={st} className="px-2 py-1 bg-purple-50 text-purple-600 rounded-md uppercase border border-purple-100">
+                                                {st}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <span className="text-slate-400 italic font-medium">None</span>
                                     )}
                                 </div>
                             </div>
@@ -345,6 +365,83 @@ const BusinessTypeConfiguration = () => {
                                 </button>
                             </div>
 
+                            {/* Product Form Type Selection */}
+                            <div className="pt-6 border-t border-slate-100">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Product Form Layout</label>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {[
+                                        { id: 'standard', label: 'Standard', desc: 'Single product entry' },
+                                        { id: 'shop-listing', label: 'Shop Listing', desc: 'Shop details + items list' }
+                                    ].map(type => (
+                                        <button
+                                            key={type.id}
+                                            onClick={() => setEditingSettings({ ...editingSettings, productFormType: type.id })}
+                                            className={`flex flex-col p-4 rounded-2xl border-2 transition-all text-left ${editingSettings.productFormType === type.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200'}`}
+                                        >
+                                            <span className="text-xs font-black uppercase tracking-wider mb-1">{type.label}</span>
+                                            <span className={`text-[10px] ${editingSettings.productFormType === type.id ? 'text-slate-300' : 'text-slate-400'}`}>{type.desc}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Sub-Types Management */}
+                            <div className="pt-6 border-t border-slate-100">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Business Sub-Types</label>
+                                <div className="flex gap-2 mb-4">
+                                    <input
+                                        type="text"
+                                        value={newSubType}
+                                        onChange={(e) => setNewSubType(e.target.value)}
+                                        onKeyPress={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                if (newSubType.trim()) {
+                                                    const current = editingSettings.businessTypeId?.subTypes || [];
+                                                    const updatedBT = { ...editingSettings.businessTypeId, subTypes: [...current, newSubType.trim()] };
+                                                    setEditingSettings({ ...editingSettings, businessTypeId: updatedBT });
+                                                    setNewSubType('');
+                                                }
+                                            }
+                                        }}
+                                        className="flex-1 px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-slate-300 outline-none transition-all text-sm font-bold"
+                                        placeholder="Add a sub-type (e.g. Dyer)"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            if (newSubType.trim()) {
+                                                const current = editingSettings.businessTypeId?.subTypes || [];
+                                                const updatedBT = { ...editingSettings.businessTypeId, subTypes: [...current, newSubType.trim()] };
+                                                setEditingSettings({ ...editingSettings, businessTypeId: updatedBT });
+                                                setNewSubType('');
+                                            }
+                                        }}
+                                        className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {(editingSettings.businessTypeId?.subTypes || []).map((st, i) => (
+                                        <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-black border border-slate-200 uppercase">
+                                            {st}
+                                            <button
+                                                onClick={() => {
+                                                    const current = editingSettings.businessTypeId?.subTypes || [];
+                                                    const updatedBT = { ...editingSettings.businessTypeId, subTypes: current.filter((_, idx) => idx !== i) };
+                                                    setEditingSettings({ ...editingSettings, businessTypeId: updatedBT });
+                                                }}
+                                            >
+                                                <FiTrash2 size={12} className="text-red-500" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {(editingSettings.businessTypeId?.subTypes || []).length === 0 && (
+                                        <p className="text-xs text-slate-400 italic">No sub-types defined for this category.</p>
+                                    )}
+                                </div>
+                            </div>
+
                         </div>
 
                         {/* Footer - Fixed */}
@@ -394,6 +491,49 @@ const BusinessTypeConfiguration = () => {
                                     className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-slate-300 outline-none transition-all font-bold text-slate-700 min-h-[100px]"
                                     placeholder="Describe this business category..."
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Sub-Types (Optional)</label>
+                                <div className="flex gap-2 mb-3">
+                                    <input
+                                        type="text"
+                                        value={newSubType}
+                                        onChange={(e) => setNewSubType(e.target.value)}
+                                        onKeyPress={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                if (newSubType.trim()) {
+                                                    setNewType({ ...newType, subTypes: [...newType.subTypes, newSubType.trim()] });
+                                                    setNewSubType('');
+                                                }
+                                            }
+                                        }}
+                                        className="flex-1 px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-slate-300 outline-none transition-all text-sm font-bold"
+                                        placeholder="Add a sub-type (e.g. Weaver)"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            if (newSubType.trim()) {
+                                                setNewType({ ...newType, subTypes: [...newType.subTypes, newSubType.trim()] });
+                                                setNewSubType('');
+                                            }
+                                        }}
+                                        className="px-4 py-3 bg-slate-900 text-white rounded-xl font-bold"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {newType.subTypes.map((st, i) => (
+                                        <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-bold border border-primary-100 uppercase uppercase">
+                                            {st}
+                                            <button onClick={() => setNewType({ ...newType, subTypes: newType.subTypes.filter((_, idx) => idx !== i) })}>
+                                                <FiTrash2 size={12} className="text-red-500" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
 
                             <button

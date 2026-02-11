@@ -96,7 +96,7 @@ class SubscriptionRulesService {
                 subscription = await VendorSubscription.findById(vendor.currentSubscription)
                     .populate({
                         path: 'planId',
-                        select: 'name duration price features isActive allowedBusinessTypes'
+                        select: 'name duration price features isActive'
                     })
                     .lean();
             }
@@ -109,7 +109,7 @@ class SubscriptionRulesService {
                 })
                     .populate({
                         path: 'planId',
-                        select: 'name duration price features isActive allowedBusinessTypes'
+                        select: 'name duration price features isActive'
                     })
                     .sort({ createdAt: -1 })
                     .lean();
@@ -181,20 +181,11 @@ class SubscriptionRulesService {
      * @returns {Object} { hasSubscription, message, subscription }
      */
     async checkHasActiveSubscription(vendorId) {
-        const result = await this.getActiveSubscription(vendorId);
-
-        if (!result) {
-            return {
-                hasSubscription: false,
-                message: 'Please purchase a subscription plan to start listing.',
-                subscription: null
-            };
-        }
-
+        // Temporarily allowing all vendors regardless of subscription status
         return {
             hasSubscription: true,
-            message: 'Active subscription found',
-            subscription: result
+            message: 'Active status granted (Temporary)',
+            subscription: { status: 'active', planId: { name: 'Unlimited' } }
         };
     }
 
@@ -204,59 +195,12 @@ class SubscriptionRulesService {
      * @returns {Object} { allowed, message, currentCount, limit }
      */
     async canCreateProduct(vendorId) {
-        const subCheck = await this.checkHasActiveSubscription(vendorId);
-
-        if (!subCheck.hasSubscription) {
-            return {
-                allowed: false,
-                message: subCheck.message,
-                currentCount: 0,
-                limit: 0
-            };
-        }
-
-        const { subscription, plan, vendor } = subCheck.subscription;
-        const planType = this.determinePlanType(plan?.name);
-        const limits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
-
-        // Check if this is a property business type trying to add products
-        const businessTypeSlug = this.normalizeBusinessType(vendor.businessType);
-        if (businessTypeSlug === BUSINESS_TYPES.DEVELOPER || businessTypeSlug === BUSINESS_TYPES.BROKER) {
-            return {
-                allowed: false,
-                message: 'Property vendors cannot list products. Please use property listings.',
-                currentCount: 0,
-                limit: 0
-            };
-        }
-
-        // If unlimited products allowed
-        if (limits.maxProducts === -1) {
-            return {
-                allowed: true,
-                message: 'Unlimited products allowed',
-                currentCount: await this.getProductCount(vendorId),
-                limit: -1
-            };
-        }
-
-        // Count current products
-        const currentCount = await this.getProductCount(vendorId);
-
-        if (currentCount >= limits.maxProducts) {
-            return {
-                allowed: false,
-                message: `Product limit reached (${currentCount}/${limits.maxProducts}). Please upgrade your plan.`,
-                currentCount,
-                limit: limits.maxProducts
-            };
-        }
-
+        // Temporarily allowing all vendors to create products regardless of plan or business type
         return {
             allowed: true,
-            message: `You can add ${limits.maxProducts - currentCount} more products`,
-            currentCount,
-            limit: limits.maxProducts
+            message: 'Product creation allowed (Temporary)',
+            currentCount: await this.getProductCount(vendorId),
+            limit: -1
         };
     }
 
@@ -266,38 +210,10 @@ class SubscriptionRulesService {
      * @returns {Object} { allowed, message }
      */
     async canCreateLotSlot(vendorId) {
-        const subCheck = await this.checkHasActiveSubscription(vendorId);
-
-        if (!subCheck.hasSubscription) {
-            return {
-                allowed: false,
-                message: subCheck.message
-            };
-        }
-
-        const { plan, vendor } = subCheck.subscription;
-        const planType = this.determinePlanType(plan?.name);
-        const limits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
-
-        // Check business type - only textile vendors can list lot/slot
-        const businessTypeSlug = this.normalizeBusinessType(vendor.businessType);
-        if (businessTypeSlug !== BUSINESS_TYPES.TEXTILE) {
-            return {
-                allowed: false,
-                message: 'Only Textile vendors can list Lots/Slots.'
-            };
-        }
-
-        if (!limits.allowLotSlot) {
-            return {
-                allowed: false,
-                message: 'Lot/Slot listings require Diamond plan. Please upgrade your subscription.'
-            };
-        }
-
+        // Temporarily allowing all vendors to create lot/slots
         return {
             allowed: true,
-            message: 'Lot/Slot listing allowed'
+            message: 'Lot/Slot listing allowed (Temporary)'
         };
     }
 
@@ -307,35 +223,11 @@ class SubscriptionRulesService {
      * @returns {Object} { allowed, message, maxImages }
      */
     async canCreateProperty(vendorId) {
-        const subCheck = await this.checkHasActiveSubscription(vendorId);
-
-        if (!subCheck.hasSubscription) {
-            return {
-                allowed: false,
-                message: subCheck.message,
-                maxImages: 0
-            };
-        }
-
-        const { plan, vendor } = subCheck.subscription;
-        const businessTypeSlug = this.normalizeBusinessType(vendor.businessType);
-
-        // Only property business types can list properties
-        if (businessTypeSlug === BUSINESS_TYPES.TEXTILE) {
-            return {
-                allowed: false,
-                message: 'Textile vendors cannot list properties. Please use product listings.',
-                maxImages: 0
-            };
-        }
-
-        // Get image limit based on business type
-        const maxImages = PROPERTY_IMAGE_LIMITS[businessTypeSlug] || 50;
-
+        // Temporarily allowing all vendors to create properties with high image limit
         return {
             allowed: true,
-            message: `Property listing allowed. Maximum ${maxImages} images per property.`,
-            maxImages
+            message: 'Property listing allowed (Temporary).',
+            maxImages: 100
         };
     }
 
@@ -380,59 +272,30 @@ class SubscriptionRulesService {
      * @returns {Object} Complete subscription status
      */
     async getSubscriptionStatus(vendorId) {
-        const subCheck = await this.checkHasActiveSubscription(vendorId);
-
-        if (!subCheck.hasSubscription) {
-            return {
-                hasSubscription: false,
-                message: subCheck.message,
-                plan: null,
-                limits: {
-                    products: { allowed: false, limit: 0, current: 0 },
-                    lotSlot: { allowed: false },
-                    properties: { allowed: false, maxImages: 0 }
-                }
-            };
-        }
-
-        const { subscription, plan, vendor } = subCheck.subscription;
-        const planType = this.determinePlanType(plan?.name);
-        const limits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
-        const businessTypeSlug = this.normalizeBusinessType(vendor.businessType);
-
-        // PERFORMANCE: Fetch counts in parallel
-        const [productCount, lotSlotCount] = await Promise.all([
-            this.getProductCount(vendorId),
-            this.getLotSlotCount(vendorId)
-        ]);
-
-        // Determine which listings are allowed based on business type
-        const isPropertyBusiness = businessTypeSlug === BUSINESS_TYPES.DEVELOPER ||
-            businessTypeSlug === BUSINESS_TYPES.BROKER;
-
+        // Temporarily returning unrestricted status for all vendors
         return {
             hasSubscription: true,
             plan: {
-                id: plan?._id,
-                name: plan?.name,
-                type: planType,
-                expiresAt: subscription.endDate
+                id: 'unlimited-temp-id',
+                name: 'Diamond (Unrestricted)',
+                type: PLAN_TYPES.DIAMOND,
+                expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
             },
-            businessType: businessTypeSlug,
+            businessType: 'all',
             limits: {
                 products: {
-                    allowed: !isPropertyBusiness,
-                    limit: limits.maxProducts,
-                    current: productCount,
-                    remaining: limits.maxProducts === -1 ? -1 : Math.max(0, limits.maxProducts - productCount)
+                    allowed: true,
+                    limit: -1,
+                    current: await this.getProductCount(vendorId),
+                    remaining: -1
                 },
                 lotSlot: {
-                    allowed: !isPropertyBusiness && limits.allowLotSlot,
-                    current: lotSlotCount
+                    allowed: true,
+                    current: await this.getLotSlotCount(vendorId)
                 },
                 properties: {
-                    allowed: isPropertyBusiness,
-                    maxImages: PROPERTY_IMAGE_LIMITS[businessTypeSlug] || 50
+                    allowed: true,
+                    maxImages: 100
                 }
             }
         };

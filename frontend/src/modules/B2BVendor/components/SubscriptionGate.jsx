@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiLock, FiAlertCircle, FiArrowRight, FiRefreshCw } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { useVendorSettings } from '../hooks/useVendorSettings';
 import { useSubscriptionStore } from '../store/subscriptionStore';
 
 /**
@@ -16,10 +17,11 @@ import { useSubscriptionStore } from '../store/subscriptionStore';
 const SubscriptionGate = ({ action, children, showLimitInfo = true }) => {
     const navigate = useNavigate();
     const [showModal, setShowModal] = useState(false);
+    const { settings, loading: settingsLoading } = useVendorSettings();
 
     const {
         status,
-        loading,
+        loading: subscriptionLoading,
         fetchStatus,
         canCreateProduct,
         canCreateLotSlot,
@@ -27,12 +29,30 @@ const SubscriptionGate = ({ action, children, showLimitInfo = true }) => {
         hasActiveSubscription
     } = useSubscriptionStore();
 
+    const loading = settingsLoading || subscriptionLoading;
+
     // Fetch subscription status on mount if not already loaded
     useEffect(() => {
-        if (!status && !loading) {
+        if (!status && !subscriptionLoading) {
             fetchStatus();
         }
-    }, [status, loading, fetchStatus]);
+    }, [status, subscriptionLoading, fetchStatus]);
+
+    // Check if module is enabled for this business type
+    const isModuleEnabled = () => {
+        if (!settings || !settings.enabledModules) return true; // Default to true while loading or if settings missing
+
+        switch (action) {
+            case 'product': return settings.enabledModules.includes('product');
+            case 'property': return settings.enabledModules.includes('property');
+            case 'lotslot': return settings.enabledModules.includes('lotslot');
+            default: return true;
+        }
+    };
+
+    if (!isModuleEnabled()) {
+        return null; // Don't show anything if module is disabled for this business type
+    }
 
     // Determine permission based on action type
     const getPermission = () => {

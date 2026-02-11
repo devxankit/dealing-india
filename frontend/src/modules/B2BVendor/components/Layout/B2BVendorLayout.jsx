@@ -3,16 +3,39 @@ import { Outlet, useLocation } from 'react-router-dom';
 import B2BVendorSidebar from './B2BVendorSidebar';
 import B2BVendorHeader from './B2BVendorHeader';
 import useAdminHeaderHeight from '../../../Admin/hooks/useAdminHeaderHeight';
+import { useVendorSettings } from '../../hooks/useVendorSettings';
+import { Navigate } from 'react-router-dom';
 
 const B2BVendorLayout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const headerHeight = useAdminHeaderHeight();
     const location = useLocation();
+    const { settings, loading } = useVendorSettings();
 
     const isChatPage = location.pathname.includes('/b2b-vendor/messages');
 
     // Add small buffer to prevent content overlap (8px)
     const topPadding = headerHeight + 8;
+
+    // Check if current route is allowed based on enabled modules
+    const isRouteAllowed = () => {
+        if (loading || !settings || !settings.enabledModules) return true;
+
+        const path = location.pathname;
+        if (path.includes('/b2b-vendor/products') && !settings.enabledModules.includes('product')) return false;
+        if (path.includes('/b2b-vendor/properties') && !settings.enabledModules.includes('property')) return false;
+        if (path.includes('/b2b-vendor/lotslot') && !settings.enabledModules.includes('lotslot')) return false;
+        if (path.includes('/b2b-vendor/subscription') && !settings.enabledModules.includes('subscription')) return false;
+        if (path.includes('/b2b-vendor/banner-booking') && !settings.enabledModules.includes('banner')) return false;
+        if (path.includes('/b2b-vendor/notifications') && !settings.enabledModules.includes('notifications')) return false;
+        if (path.includes('/b2b-vendor/settings') && !settings.enabledModules.includes('settings') && !settings.enabledModules.includes('profile')) return false;
+
+        return true;
+    };
+
+    if (!isRouteAllowed()) {
+        return <Navigate to="/b2b-vendor/dashboard" replace />;
+    }
 
     return (
         <div className={`${isChatPage ? 'h-screen' : 'min-h-screen'} bg-gray-50 flex overflow-hidden`}>

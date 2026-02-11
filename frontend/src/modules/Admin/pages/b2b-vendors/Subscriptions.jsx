@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -24,7 +24,7 @@ const Subscriptions = () => {
         expiringSoon: 0,
         totalCollectedRevenue: 0
     });
-    const [businessTypes, setBusinessTypes] = useState([]);
+    const initializedRef = useRef(false);
 
     // Optimize: Combined initial load into single useEffect with parallel execution
     useEffect(() => {
@@ -32,27 +32,21 @@ const Subscriptions = () => {
             try {
                 await Promise.all([
                     loadPlans(),
-                    loadSubscriptions(),
-                    fetchBusinessTypes()
+                    loadSubscriptions()
                 ]);
             } catch (error) {
                 console.error("Initialization error:", error);
             }
         };
-        init();
+
+        if (!initializedRef.current) {
+            init();
+            initializedRef.current = true;
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Only run on mount
 
-    const fetchBusinessTypes = async () => {
-        try {
-            const response = await api.get('/business-types');
-            if (response.success) {
-                setBusinessTypes(response.data);
-            }
-        } catch (error) {
-            console.error('Error fetching business types:', error);
-        }
-    };
+
 
     // Separate effect for subscription filter changes (only when filter changes, not tab)
     useEffect(() => {
@@ -66,36 +60,29 @@ const Subscriptions = () => {
     const loadPlans = async () => {
         try {
             setLoading(true);
-            const allPlans = await getB2BPlans();
-            // Filter to show only 3, 6, 12 months plans
-            const filteredPlans = allPlans.filter(plan =>
-                plan.duration === 3 || plan.duration === 6 || plan.duration === 12
-            );
+            // Fetch as admin to see ALL plans and bypass public cache
+            const allPlans = await getB2BPlans(true, { isAdmin: true });
 
-            // If we don't have all 3 plans, initialize defaults
-            if (filteredPlans.length < 3) {
+            // Sort plans: duration first (ASC), then price (ASC)
+            const sortedPlans = [...allPlans].sort((a, b) => {
+                if (a.duration !== b.duration) return a.duration - b.duration;
+                return a.price - b.price;
+            });
+
+            setPlans(sortedPlans);
+
+            // If we don't have any plans, try to initialize defaults
+            if (sortedPlans.length === 0) {
                 try {
                     await initializeDefaultPlans();
-                    const updatedPlans = await getB2BPlans(true);
-                    const updatedFiltered = updatedPlans.filter(plan =>
-                        plan.duration === 3 || plan.duration === 6 || plan.duration === 12
-                    );
-                    setPlans(updatedFiltered.sort((a, b) => {
+                    const updatedPlans = await getB2BPlans(true, { isAdmin: true });
+                    setPlans(updatedPlans.sort((a, b) => {
                         if (a.duration !== b.duration) return a.duration - b.duration;
                         return a.price - b.price;
                     }));
                 } catch (error) {
                     console.error('Error initializing default plans:', error);
-                    setPlans(filteredPlans.sort((a, b) => {
-                        if (a.duration !== b.duration) return a.duration - b.duration;
-                        return a.price - b.price;
-                    }));
                 }
-            } else {
-                setPlans(filteredPlans.sort((a, b) => {
-                    if (a.duration !== b.duration) return a.duration - b.duration;
-                    return a.price - b.price;
-                }));
             }
         } catch (error) {
             console.error('Error loading plans:', error);
@@ -127,7 +114,6 @@ const Subscriptions = () => {
                     features: editingPlan.features,
                     isActive: editingPlan.isActive,
                     description: editingPlan.description,
-                    allowedBusinessTypes: editingPlan.allowedBusinessTypes || []
                 });
                 toast.success('Plan updated successfully');
             } else {
@@ -138,7 +124,6 @@ const Subscriptions = () => {
                     price: editingPlan.price,
                     features: editingPlan.features,
                     description: editingPlan.description,
-                    allowedBusinessTypes: editingPlan.allowedBusinessTypes || []
                 });
                 toast.success('Plan created successfully');
             }
@@ -517,32 +502,7 @@ const Subscriptions = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-3">Visible to Business Types</label>
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                    {businessTypes.map(type => (
-                                        <button
-                                            key={type._id}
-                                            onClick={() => {
-                                                const current = editingPlan.allowedBusinessTypes || [];
-                                                const next = current.includes(type.slug)
-                                                    ? current.filter(s => s !== type.slug)
-                                                    : [...current, type.slug];
-                                                setEditingPlan({ ...editingPlan, allowedBusinessTypes: next });
-                                            }}
-                                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${(editingPlan.allowedBusinessTypes || []).includes(type.slug)
-                                                ? 'bg-slate-900 text-white shadow-lg'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                }`}
-                                        >
-                                            {type.name}
-                                        </button>
-                                    ))}
-                                </div>
-                                <p className="text-[10px] font-medium text-slate-400 italic">
-                                    * If no business types are selected, the plan remains visible to ALL categories by default.
-                                </p>
-                            </div>
+                            {/* Visibility management removed from here - now managed via Business Config */}
 
                             <div className="flex items-center gap-2">
                                 <input

@@ -205,8 +205,8 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     } = productData;
 
     // Validate required fields early
-    if (!name || !price || !moq) {
-      const err = new Error('Name, price, and MOQ are required');
+    if (!name || (productData.formType !== 'shop-listing' && (!price || !moq))) {
+      const err = new Error('Name, price, and MOQ are required for standard listings');
       err.status = 400;
       throw err;
     }
@@ -219,6 +219,8 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       generateSKU(name, vendorId)
     ]);
 
+    // Temporarily disabled subscription/plan checks
+    /*
     // 1. Strictly check for an ACTIVE B2B subscription
     if (!subscription || subscription.status !== 'active' || !subscription.planId) {
       const err = new Error('Please purchase a subscription plan to add products.');
@@ -242,6 +244,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
         throw err;
       }
     }
+    */
 
     const {
       category,
@@ -253,6 +256,10 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       brand,
       availability,
       unit,
+      formType,
+      minPrice,
+      maxPrice,
+      items: shopItems,
     } = productData;
 
     // Process images - upload to Cloudinary
@@ -353,13 +360,13 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     const product = await Product.create({
       name: name.trim(),
       sku,
-      price: parseFloat(price),
+      price: productData.formType === 'shop-listing' ? parseFloat(minPrice || 0) : parseFloat(price),
       description: description || '',
       image: imageUrl,
       imagePublicId: imagePublicId,
       images: imageUrls,
       imagesPublicIds: imagePublicIds,
-      minimumOrderQuantity: parseInt(moq) || 1,
+      minimumOrderQuantity: productData.formType === 'shop-listing' ? 1 : (parseInt(moq) || 1),
       stockQuantity: stockQuantity,
       stock: stock,
       attributes: processedAttributes,
@@ -368,6 +375,10 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       subcategory: subcategory || '',
       bulkPricing: bulkPricing || [],
       unit: unit || 'Pcs',
+      formType: formType || 'standard',
+      minPrice: minPrice ? parseFloat(minPrice) : undefined,
+      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      items: shopItems || [],
       vendorId,
       vendorName: vendor.storeName || vendor.name,
       isActive: true,
@@ -417,6 +428,10 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
       bulkPricing,
       brand,
       availability,
+      formType,
+      minPrice,
+      maxPrice,
+      items: shopItems,
     } = productData;
 
     // Update fields
@@ -424,6 +439,7 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
 
     if (name !== undefined) updateData.name = name.trim();
     if (price !== undefined) updateData.price = parseFloat(price);
+    if (productData.formType === 'shop-listing' && minPrice !== undefined) updateData.price = parseFloat(minPrice || 0);
     if (description !== undefined) updateData.description = description || '';
     if (brand !== undefined) updateData.brandName = brand || '';
     if (moq !== undefined) updateData.minimumOrderQuantity = parseInt(moq) || 1;
@@ -431,6 +447,10 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
     if (category !== undefined) updateData.category = category;
     if (subcategory !== undefined) updateData.subcategory = subcategory;
     if (bulkPricing !== undefined) updateData.bulkPricing = bulkPricing;
+    if (formType !== undefined) updateData.formType = formType;
+    if (minPrice !== undefined) updateData.minPrice = minPrice ? parseFloat(minPrice) : undefined;
+    if (maxPrice !== undefined) updateData.maxPrice = maxPrice ? parseFloat(maxPrice) : undefined;
+    if (shopItems !== undefined) updateData.items = shopItems;
 
 
     // Process images if provided

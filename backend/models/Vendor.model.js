@@ -100,6 +100,10 @@ const vendorSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'BusinessType',
     },
+    selectedSubTypes: [{
+      type: String,
+      trim: true
+    }],
     // B2B-specific fields
     gstNumber: {
       type: String,

@@ -14,6 +14,11 @@ const businessTypeSettingsSchema = new mongoose.Schema(
                 enum: ['product', 'property', 'subscription', 'banner', 'profile', 'settings', 'leads', 'lotslot', 'notifications'],
             },
         ],
+        productFormType: {
+            type: String,
+            enum: ['standard', 'shop-listing'],
+            default: 'standard'
+        },
         features: {
             type: mongoose.Schema.Types.Mixed,
             default: {

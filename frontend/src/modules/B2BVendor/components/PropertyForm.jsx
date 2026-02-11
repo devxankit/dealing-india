@@ -128,8 +128,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
     const handleImageUpload = (e) => {
         const files = Array.from(e.target.files);
 
-        if (media.length + files.length > 50) {
-            toast.error('Maximum 50 images allowed per property');
+        if (media.length + files.length > 100) {
+            toast.error('Maximum 100 images allowed per property');
             return;
         }
 

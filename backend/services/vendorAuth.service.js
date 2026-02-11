@@ -16,7 +16,7 @@ import notificationService from './notification.service.js';
  */
 export const registerVendor = async (vendorData) => {
   try {
-    let { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan } = vendorData;
+    let { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan, selectedSubTypes } = vendorData;
 
     // Fix address fields for model compatibility (zipCode -> pincode)
     if (address && address.zipCode && !address.pincode) {
@@ -168,6 +168,7 @@ export const registerVendor = async (vendorData) => {
         businessTypeRef: businessTypeRef,
         gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
         subscriptionPlan: subscriptionPlan, // Store plan ID for later subscription creation
+        selectedSubTypes: selectedSubTypes || [],
       },
       expiresAt,
       isVerified: false,
@@ -505,6 +506,9 @@ export const verifyVendorEmail = async (email, otp) => {
       }
       if (tempRegistration.registrationData.businessTypeRef) {
         vendorData.businessTypeRef = tempRegistration.registrationData.businessTypeRef;
+      }
+      if (tempRegistration.registrationData.selectedSubTypes) {
+        vendorData.selectedSubTypes = tempRegistration.registrationData.selectedSubTypes;
       }
       if (tempRegistration.registrationData.gstNumber) {
         vendorData.gstNumber = tempRegistration.registrationData.gstNumber;

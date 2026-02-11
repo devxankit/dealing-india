@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FiCheck, FiX, FiFileText, FiEye, FiSearch } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
@@ -12,6 +12,7 @@ const B2BVendorPendingApprovals = () => {
     const [approvals, setApprovals] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const fetchedRef = useRef(false);
 
     // Fetch pending B2B vendors from API
     useEffect(() => {
@@ -82,7 +83,10 @@ const B2BVendorPendingApprovals = () => {
 
         // Debounce search
         const timeoutId = setTimeout(() => {
-            fetchPendingVendors();
+            if (!fetchedRef.current || searchQuery) {
+                fetchPendingVendors();
+                fetchedRef.current = true;
+            }
         }, 500);
 
         return () => clearTimeout(timeoutId);

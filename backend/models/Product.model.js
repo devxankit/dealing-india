@@ -112,6 +112,27 @@ const productSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    formType: {
+      type: String,
+      enum: ['standard', 'shop-listing'],
+      default: 'standard'
+    },
+    minPrice: {
+      type: Number,
+      min: 0,
+    },
+    maxPrice: {
+      type: Number,
+      min: 0,
+    },
+    items: [
+      {
+        itemName: String,
+        category: String,
+        price: Number,
+        unit: String
+      }
+    ]
   },
   {
     timestamps: true,
