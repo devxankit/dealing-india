@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiTruck, FiShield, FiX, FiChevronDown, FiPhone, FiGrid, FiMapPin, FiTrendingUp, FiHome } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiTruck, FiShield, FiX, FiChevronDown, FiPhone, FiGrid, FiMapPin, FiTrendingUp, FiHome, FiBriefcase, FiCheck } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
@@ -66,6 +66,8 @@ const ProductCatalog = () => {
     const [isMainCategoryDropdownOpen, setIsMainCategoryDropdownOpen] = useState(false);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const mainCategoryDropdownRef = useRef(null);
+    const [isBusinessTypeDropdownOpen, setIsBusinessTypeDropdownOpen] = useState(false);
+    const businessTypeDropdownRef = useRef(null);
     const [openFilters, setOpenFilters] = useState({
         price: false,
         subcategory: false,
@@ -124,97 +126,19 @@ const ProductCatalog = () => {
         }
     };
 
+    // Click outside handler for Business Type dropdown
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (businessTypeDropdownRef.current && !businessTypeDropdownRef.current.contains(event.target)) {
+                setIsBusinessTypeDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const renderFilters = () => (
         <div className="space-y-6">
-            {/* Business Type Filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleFilter('businessType')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Business Type</h3>
-                    <div className="flex items-center gap-2">
-                        {selectedBusinessType && (
-                            <span onClick={(e) => { e.stopPropagation(); setSelectedBusinessType(null); setSelectedBusinessSubType(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                        )}
-                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.businessType ? 'rotate-180' : ''}`} />
-                    </div>
-                </button>
-                <AnimatePresence>
-                    {openFilters.businessType && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden p-5 space-y-4"
-                        >
-                            {businessTypes
-                                .filter(type => {
-                                    const name = (type.name || '').toUpperCase().trim();
-                                    return name !== 'DEVELOPER' && name !== 'PROPERTY BROKER';
-                                })
-                                .map((type) => (
-                                    <div key={type._id} className="space-y-2">
-                                        <label className="flex items-center gap-3 cursor-pointer group">
-                                            <div className="relative">
-                                                <input
-                                                    type="radio"
-                                                    name="businessType"
-                                                    className="peer sr-only"
-                                                    checked={selectedBusinessType === type.name}
-                                                    onChange={() => {
-                                                        setSelectedBusinessType(type.name);
-                                                        setSelectedBusinessSubType(null);
-                                                        if (isMobileFilterOpen && (!type.subTypes || type.subTypes.length === 0)) setIsMobileFilterOpen(false);
-                                                    }}
-                                                />
-                                                <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                            </div>
-                                            <span className={`text-xs font-black uppercase tracking-wider transition-colors ${selectedBusinessType === type.name ? 'text-primary-700' : 'text-gray-600 group-hover:text-primary-600'}`}>{type.name}</span>
-                                        </label>
-
-                                        {/* Subtypes for this business type */}
-                                        <AnimatePresence>
-                                            {selectedBusinessType === type.name && type.subTypes && type.subTypes.length > 0 && (
-                                                <motion.div
-                                                    initial={{ height: 0, opacity: 0 }}
-                                                    animate={{ height: "auto", opacity: 1 }}
-                                                    exit={{ height: 0, opacity: 0 }}
-                                                    className="ml-7 pl-4 border-l-2 border-primary-50 space-y-2 overflow-hidden"
-                                                >
-                                                    {type.subTypes.map((sub, idx) => (
-                                                        <label key={idx} className="flex items-center gap-3 cursor-pointer group">
-                                                            <div className="relative">
-                                                                <input
-                                                                    type="radio"
-                                                                    name="businessSubType"
-                                                                    className="peer sr-only"
-                                                                    checked={selectedBusinessSubType === sub}
-                                                                    onChange={() => {
-                                                                        setSelectedBusinessSubType(sub);
-                                                                        if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                                    }}
-                                                                />
-                                                                <div className="w-3 h-3 border-2 border-gray-300 rounded-full peer-checked:border-primary-400 peer-checked:bg-primary-400 transition-all"></div>
-                                                            </div>
-                                                            <span className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${selectedBusinessSubType === sub ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-500'}`}>{sub}</span>
-                                                        </label>
-                                                    ))}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
-                                ))}
-                            {businessTypes.filter(type => {
-                                const name = (type.name || '').toUpperCase().trim();
-                                return name !== 'DEVELOPER' && name !== 'PROPERTY BROKER';
-                            }).length === 0 && (
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center py-4">No types available</p>
-                                )}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
 
             {/* Subcategory Filter */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -374,70 +298,6 @@ const ProductCatalog = () => {
                 </AnimatePresence>
             </div>
 
-            {/* City Filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleFilter('city')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">City</h3>
-                    <div className="flex items-center gap-2">
-                        {selectedCity !== 'All Cities' && (
-                            <span onClick={(e) => { e.stopPropagation(); setSelectedCity('All Cities'); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                        )}
-                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.city ? 'rotate-180' : ''}`} />
-                    </div>
-                </button>
-                <AnimatePresence>
-                    {openFilters.city && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-4 border-b border-gray-50">
-                                <div className="relative">
-                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search city..."
-                                        className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                        value={citySearchQuery}
-                                        onChange={(e) => setCitySearchQuery(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                                <button
-                                    onClick={() => setSelectedCity('All Cities')}
-                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedCity === 'All Cities' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                                >
-                                    ALL CITIES
-                                </button>
-                                {filteredCitiesList.map(city => (
-                                    <label key={city} className="flex items-center gap-3 cursor-pointer group px-3 py-1">
-                                        <div className="relative">
-                                            <input
-                                                type="radio"
-                                                name="city"
-                                                className="peer sr-only"
-                                                checked={selectedCity === city}
-                                                onChange={() => {
-                                                    setSelectedCity(city);
-                                                    if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                }}
-                                            />
-                                            <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                        </div>
-                                        <span className={`text-xs font-bold transition-colors ${selectedCity === city ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{city.toUpperCase()}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
 
             {/* Area Filter */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -1367,6 +1227,91 @@ const ProductCatalog = () => {
         ? (availableMarketsFromStore || availableMarkets).filter(market => market.toLowerCase().includes(marketSearchQuery.toLowerCase()))
         : (availableMarketsFromStore || availableMarkets);
 
+    const headerBusinessTypeDropdown = (
+        <div className="relative" ref={businessTypeDropdownRef}>
+            <button
+                onClick={() => setIsBusinessTypeDropdownOpen(!isBusinessTypeDropdownOpen)}
+                className={`px-3 py-2 text-xs md:text-sm font-black transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest rounded-lg ${selectedBusinessType ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:text-primary-600 hover:bg-primary-50'}`}
+            >
+                <FiBriefcase size={16} />
+                {selectedBusinessType || "Business Type"}
+                <FiChevronDown className={`transition-transform duration-200 ${isBusinessTypeDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+                {isBusinessTypeDropdownOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden"
+                    >
+                        <div className="p-2 space-y-1 max-h-80 overflow-y-auto custom-scrollbar">
+                            <button
+                                onClick={() => {
+                                    setSelectedBusinessType(null);
+                                    setSelectedBusinessSubType(null);
+                                    setIsBusinessTypeDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-between group ${!selectedBusinessType ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                            >
+                                <span>ALL BUSINESS TYPES</span>
+                                {!selectedBusinessType && <FiCheck className="text-primary-600" />}
+                            </button>
+
+                            {businessTypes
+                                .filter(type => {
+                                    const name = (type.name || '').toUpperCase().trim();
+                                    return name !== 'DEVELOPER' && name !== 'PROPERTY BROKER';
+                                })
+                                .map((type) => (
+                                    <div key={type._id}>
+                                        <button
+                                            onClick={() => {
+                                                setSelectedBusinessType(type.name);
+                                                setSelectedBusinessSubType(null);
+                                                if (!type.subTypes || type.subTypes.length === 0) {
+                                                    setIsBusinessTypeDropdownOpen(false);
+                                                }
+                                            }}
+                                            className={`w-full text-left px-3 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-between group ${selectedBusinessType === type.name ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                                        >
+                                            <span>{type.name}</span>
+                                            {selectedBusinessType === type.name && <FiCheck className="text-primary-600" />}
+                                        </button>
+
+                                        {selectedBusinessType === type.name && type.subTypes && type.subTypes.length > 0 && (
+                                            <div className="pl-4 mt-1 space-y-1 border-l-2 border-gray-100 ml-2 mb-1">
+                                                {type.subTypes.map((sub, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            setSelectedBusinessSubType(sub);
+                                                            setIsBusinessTypeDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-between hover:bg-gray-50 ${selectedBusinessSubType === sub ? 'text-primary-600 bg-primary-50/50' : 'text-gray-500'}`}
+                                                    >
+                                                        <span>{sub}</span>
+                                                        {selectedBusinessSubType === sub && <FiCheck size={12} className="text-primary-600" />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                            {businessTypes.filter(type => {
+                                const name = (type.name || '').toUpperCase().trim();
+                                return name !== 'DEVELOPER' && name !== 'PROPERTY BROKER';
+                            }).length === 0 && (
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center py-4">No types available</p>
+                                )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <B2BHeader
@@ -1374,6 +1319,7 @@ const ProductCatalog = () => {
                 onSearchChange={handleHeaderSearchChange}
                 onSearchSubmit={handleHeaderSearchSubmit}
                 hideSearch={false}
+                customNav={headerBusinessTypeDropdown}
             />
 
             {/* Sticky Mobile Filter Bar */}

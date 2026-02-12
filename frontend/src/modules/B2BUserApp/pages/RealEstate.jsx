@@ -38,7 +38,9 @@ const RealEstate = () => {
     const [openSections, setOpenSections] = useState({
         listingType: false,
         businessType: false,
-        location: false,
+        city: false,
+        area: false,
+        market: false,
         budget: false,
         size: false
     });
@@ -178,7 +180,7 @@ const RealEstate = () => {
         setAppliedSize({ min: '', max: '' });
     };
 
-    const renderFilters = () => (
+    const renderFilters = (showCity = true) => (
         <div className="space-y-6">
             {/* Listing Type Filter */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -252,214 +254,194 @@ const RealEstate = () => {
                 </AnimatePresence>
             </div>
 
-            {/* Location (City & Area) Filter */}
+            {/* City Filter */}
+            {showCity && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <button
+                        onClick={() => toggleSection('city')}
+                        className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                        <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">City</h3>
+                        <div className="flex items-center gap-2">
+                            {selectedCity !== 'All Cities' && (
+                                <span className="text-[10px] font-bold text-primary-600">{selectedCity}</span>
+                            )}
+                            <FiChevronDown className={`text-gray-400 transition-transform ${openSections.city ? 'rotate-180' : ''}`} />
+                        </div>
+                    </button>
+                    <AnimatePresence>
+                        {openSections.city && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="p-3 border-b border-gray-50">
+                                    <div className="relative">
+                                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search city..."
+                                            className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                            value={citySearchQuery}
+                                            onChange={(e) => setCitySearchQuery(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedCity('All Cities');
+                                            setCitySearchQuery('');
+                                        }}
+                                        className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedCity === 'All Cities' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                    >
+                                        All Cities
+                                    </button>
+                                    {filteredCities.map(city => (
+                                        <button
+                                            key={city}
+                                            onClick={() => {
+                                                setSelectedCity(city);
+                                                setCitySearchQuery('');
+                                            }}
+                                            className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                        >
+                                            {city}
+                                        </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
+
+            {/* Area Filter */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <button
-                    onClick={() => toggleSection('location')}
+                    onClick={() => toggleSection('area')}
                     className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Location</h3>
-                    <FiChevronDown className={`text-gray-400 transition-transform ${openSections.location ? 'rotate-180' : ''}`} />
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Area</h3>
+                    <div className="flex items-center gap-2">
+                        {selectedArea !== 'All Areas' && (
+                            <span className="text-[10px] font-bold text-primary-600">{selectedArea}</span>
+                        )}
+                        <FiChevronDown className={`text-gray-400 transition-transform ${openSections.area ? 'rotate-180' : ''}`} />
+                    </div>
                 </button>
                 <AnimatePresence>
-                    {openSections.location && (
+                    {openSections.area && (
                         <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: "auto", opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden"
                         >
-                            <div className="p-5 space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">City</label>
-                                    <div className="relative" data-city-dropdown>
-                                        <button
-                                            onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-xl text-xs font-black text-gray-600 flex items-center justify-between outline-none focus:ring-2 focus:ring-primary-100 transition-all"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <FiMapPin className="absolute left-4 text-primary-500" />
-                                                <span>{selectedCity}</span>
-                                            </div>
-                                            <FiChevronDown className={`transition-transform ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        <AnimatePresence>
-                                            {isCityDropdownOpen && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: 10 }}
-                                                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden"
-                                                >
-                                                    <div className="p-3 border-b border-gray-50">
-                                                        <div className="relative">
-                                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Search city..."
-                                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                                                value={citySearchQuery}
-                                                                onChange={(e) => setCitySearchQuery(e.target.value)}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="max-h-48 overflow-y-auto">
-                                                        {filteredCities.map(city => (
-                                                            <button
-                                                                key={city}
-                                                                onClick={() => {
-                                                                    setSelectedCity(city);
-                                                                    setIsCityDropdownOpen(false);
-                                                                    setCitySearchQuery('');
-                                                                }}
-                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
-                                                            >
-                                                                {city}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
+                            <div className="p-3 border-b border-gray-50">
+                                <div className="relative">
+                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search area..."
+                                        className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                        value={areaSearchQuery}
+                                        onChange={(e) => setAreaSearchQuery(e.target.value)}
+                                    />
                                 </div>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                <button
+                                    onClick={() => {
+                                        setSelectedArea('All Areas');
+                                        setAreaSearchQuery('');
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedArea === 'All Areas' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                >
+                                    All Areas
+                                </button>
+                                {filteredAreas.map(area => (
+                                    <button
+                                        key={area}
+                                        onClick={() => {
+                                            setSelectedArea(area);
+                                            setAreaSearchQuery('');
+                                        }}
+                                        className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedArea === area ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                    >
+                                        {area}
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Area</label>
-                                    <div className="relative" data-area-dropdown>
-                                        <button
-                                            onClick={() => setIsAreaDropdownOpen(!isAreaDropdownOpen)}
-                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-xl text-xs font-black text-gray-600 flex items-center justify-between outline-none focus:ring-2 focus:ring-primary-100 transition-all"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <FiHome className="absolute left-4 text-primary-500" />
-                                                <span>{selectedArea}</span>
-                                            </div>
-                                            <FiChevronDown className={`transition-transform ${isAreaDropdownOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        <AnimatePresence>
-                                            {isAreaDropdownOpen && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: 10 }}
-                                                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden"
-                                                >
-                                                    <div className="p-3 border-b border-gray-50">
-                                                        <div className="relative">
-                                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Search area..."
-                                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                                                value={areaSearchQuery}
-                                                                onChange={(e) => setAreaSearchQuery(e.target.value)}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="max-h-48 overflow-y-auto">
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedArea('All Areas');
-                                                                setIsAreaDropdownOpen(false);
-                                                                setAreaSearchQuery('');
-                                                            }}
-                                                            className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedArea === 'All Areas' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
-                                                        >
-                                                            All Areas
-                                                        </button>
-                                                        {filteredAreas.map(area => (
-                                                            <button
-                                                                key={area}
-                                                                onClick={() => {
-                                                                    setSelectedArea(area);
-                                                                    setIsAreaDropdownOpen(false);
-                                                                    setAreaSearchQuery('');
-                                                                }}
-                                                                className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedArea === area ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
-                                                            >
-                                                                {area}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
+            {/* Market Filter */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                    onClick={() => toggleSection('market')}
+                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Market</h3>
+                    <div className="flex items-center gap-2">
+                        {selectedMarket !== 'All Markets' && (
+                            <span className="text-[10px] font-bold text-primary-600">{selectedMarket}</span>
+                        )}
+                        <FiChevronDown className={`text-gray-400 transition-transform ${openSections.market ? 'rotate-180' : ''}`} />
+                    </div>
+                </button>
+                <AnimatePresence>
+                    {openSections.market && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="p-3 border-b border-gray-50">
+                                <div className="relative">
+                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search market..."
+                                        className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                        value={marketSearchQuery}
+                                        onChange={(e) => setMarketSearchQuery(e.target.value)}
+                                    />
                                 </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Market</label>
-                                    <div className="relative" data-market-dropdown>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                <button
+                                    onClick={() => {
+                                        setSelectedMarket('All Markets');
+                                        setMarketSearchQuery('');
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedMarket === 'All Markets' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                >
+                                    All Markets
+                                </button>
+                                {filteredMarkets.length > 0 ? (
+                                    filteredMarkets.map(market => (
                                         <button
-                                            onClick={() => setIsMarketDropdownOpen(!isMarketDropdownOpen)}
-                                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-xl text-xs font-black text-gray-600 flex items-center justify-between outline-none focus:ring-2 focus:ring-primary-100 transition-all"
+                                            key={market}
+                                            onClick={() => {
+                                                setSelectedMarket(market);
+                                                setMarketSearchQuery('');
+                                            }}
+                                            className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedMarket === market ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
                                         >
-                                            <div className="flex items-center gap-2">
-                                                <FiBriefcase className="absolute left-4 text-primary-500" />
-                                                <span>{selectedMarket}</span>
-                                            </div>
-                                            <FiChevronDown className={`transition-transform ${isMarketDropdownOpen ? 'rotate-180' : ''}`} />
+                                            {market}
                                         </button>
-                                        <AnimatePresence>
-                                            {isMarketDropdownOpen && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: 10 }}
-                                                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden"
-                                                >
-                                                    <div className="p-3 border-b border-gray-50">
-                                                        <div className="relative">
-                                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Search market..."
-                                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                                                value={marketSearchQuery}
-                                                                onChange={(e) => setMarketSearchQuery(e.target.value)}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="max-h-48 overflow-y-auto">
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedMarket('All Markets');
-                                                                setIsMarketDropdownOpen(false);
-                                                                setMarketSearchQuery('');
-                                                            }}
-                                                            className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedMarket === 'All Markets' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
-                                                        >
-                                                            All Markets
-                                                        </button>
-                                                        {filteredMarkets.length > 0 ? (
-                                                            filteredMarkets.map(market => (
-                                                                <button
-                                                                    key={market}
-                                                                    onClick={() => {
-                                                                        setSelectedMarket(market);
-                                                                        setIsMarketDropdownOpen(false);
-                                                                        setMarketSearchQuery('');
-                                                                    }}
-                                                                    className={`w-full text-left px-4 py-2.5 text-[10px] font-black transition-colors hover:bg-primary-50 ${selectedMarket === market ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
-                                                                >
-                                                                    {market}
-                                                                </button>
-                                                            ))
-                                                        ) : (
-                                                            <div className="px-4 py-6 text-center text-[10px] text-gray-400 font-bold">
-                                                                {marketSearchQuery ? 'No markets found' : 'No markets available'}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
-                                </div>
+                                    ))
+                                ) : (
+                                    <p className="px-4 py-6 text-center text-[10px] text-gray-400 font-bold">
+                                        {marketSearchQuery ? 'No markets found' : 'No markets available'}
+                                    </p>
+                                )}
                             </div>
                         </motion.div>
                     )}
@@ -536,7 +518,7 @@ const RealEstate = () => {
                     onClick={() => toggleSection('size')}
                     className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Area</h3>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Area ({selectedAreaUnit})</h3>
                     <FiChevronDown className={`text-gray-400 transition-transform ${openSections.size ? 'rotate-180' : ''}`} />
                 </button>
                 <AnimatePresence>
@@ -682,11 +664,107 @@ const RealEstate = () => {
             </AnimatePresence>
 
             <main className="max-w-7xl mx-auto px-4 py-8">
+                {/* Location Filters - Replaces Sidebar City Filter */}
+                <div className="hidden lg:flex flex-col md:flex-row gap-4 items-stretch md:items-center mb-6">
+                    {/* City Searchable Dropdown */}
+                    <div className="relative w-full md:w-64" data-city-dropdown>
+                        <button
+                            onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                            className="w-full px-4 py-3 md:py-3.5 bg-white border border-gray-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 font-bold text-xs md:text-sm shadow-sm transition-all outline-none flex items-center justify-between gap-2"
+                        >
+                            <span className="truncate">{selectedCity}</span>
+                            <FiChevronDown className={`transition-transform duration-200 ${isCityDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                            {isCityDropdownOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl md:rounded-2xl shadow-xl z-[100] overflow-hidden"
+                                >
+                                    <div className="p-3 border-b border-gray-50">
+                                        <div className="relative">
+                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                placeholder="Search city..."
+                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                                value={citySearchQuery}
+                                                onChange={(e) => setCitySearchQuery(e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                                        <button
+                                            onClick={() => {
+                                                setSelectedCity('All Cities');
+                                                setIsCityDropdownOpen(false);
+                                                setCitySearchQuery('');
+                                            }}
+                                            className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-black transition-colors hover:bg-primary-50 ${selectedCity === 'All Cities' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                        >
+                                            ALL CITIES
+                                        </button>
+
+                                        {filteredCities.filter(c => c !== 'All Cities').length > 0 ? (
+                                            filteredCities.filter(c => c !== 'All Cities').map((city, index) => (
+                                                <button
+                                                    key={`${city}-${index}`}
+                                                    onClick={() => {
+                                                        setSelectedCity(city);
+                                                        setIsCityDropdownOpen(false);
+                                                        setCitySearchQuery('');
+                                                    }}
+                                                    className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-bold transition-colors hover:bg-primary-50 ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                                >
+                                                    {city.toUpperCase()}
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-4 py-6 text-center text-[10px] text-gray-400 font-bold">NO CITIES FOUND</div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Horizontal Scrollable Cities List */}
+                    <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+                        <button
+                            onClick={() => setSelectedCity('All Cities')}
+                            className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === 'All Cities'
+                                ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100'
+                                : 'bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm'
+                                }`}
+                        >
+                            All Cities
+                        </button>
+                        {cities.filter(c => c !== 'All Cities').slice(0, 15).map((city, index) => (
+                            <button
+                                key={index}
+                                onClick={() => setSelectedCity(city)}
+                                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === city
+                                    ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100'
+                                    : 'bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm'
+                                    }`}
+                            >
+                                {city}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* layout container */}
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Filter Sidebar */}
                     <aside className="hidden lg:block w-72 flex-shrink-0 space-y-6">
-                        {renderFilters()}
+                        {renderFilters(false)}
                     </aside>
 
                     {/* Listing Area */}

@@ -7,7 +7,7 @@ import { debounce } from '../../../../shared/utils/helpers';
 import api from '../../../../shared/utils/api';
 import { useAuthStore } from '../../../../shared/store/authStore';
 
-const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false }) => {
+const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false, customNav }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { isAuthenticated } = useAuthStore();
@@ -149,18 +149,20 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                     )}
 
                     {/* Desktop Extra Links Next to Logo */}
+                    {/* Desktop Extra Links Next to Logo */}
                     <div className="hidden xl:flex items-center gap-2 ml-2 md:ml-4">
-                        <Link
-                            to="/b2b/catalog?itemType=lotslot"
-                            className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
-                        >
-                            <FiTrendingUp size={16} /> Lot / SOT
-                        </Link>
+                        {customNav}
                         <Link
                             to="/b2b/real-estate"
                             className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
                         >
                             <FiHome size={16} /> Real Estate
+                        </Link>
+                        <Link
+                            to="/b2b/catalog?itemType=lotslot"
+                            className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
+                        >
+                            <FiTrendingUp size={16} /> Lot / SOT
                         </Link>
                     </div>
                 </div>
