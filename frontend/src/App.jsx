@@ -101,8 +101,6 @@ const B2BVendorStore = lazyWithRetry(() => import("./modules/B2BUserApp/pages/B2
 const SellerTypeSelection = lazyWithRetry(() => import("./modules/B2BUserApp/pages/SellerTypeSelection"));
 const B2BLanding = lazyWithRetry(() => import("./modules/B2BUserApp/pages/B2BLanding"));
 const RealEstate = lazyWithRetry(() => import("./modules/B2BUserApp/pages/RealEstate"));
-const RealEstateDevelopers = lazyWithRetry(() => import("./modules/B2BUserApp/pages/RealEstateDevelopers"));
-const RealEstateBrokers = lazyWithRetry(() => import("./modules/B2BUserApp/pages/RealEstateBrokers"));
 const PropertyDetail = lazyWithRetry(() => import("./modules/B2BUserApp/pages/PropertyDetail"));
 const RealEstatePropertyUpload = lazyWithRetry(() => import("./modules/B2BVendor/pages/PropertyUpload"));
 
@@ -199,8 +197,8 @@ const AppRoutes = () => {
         <Route path="/b2b/catalog" element={<B2BProductCatalog />} />
         <Route path="/b2b/real-estate">
           <Route index element={<RealEstate />} />
-          <Route path="developers" element={<RealEstateDevelopers />} />
-          <Route path="brokers" element={<RealEstateBrokers />} />
+          <Route path="developers" element={<Navigate to="/b2b/real-estate" replace />} />
+          <Route path="brokers" element={<Navigate to="/b2b/real-estate" replace />} />
           <Route path="property/:id" element={<PropertyDetail />} />
         </Route>
         <Route path="/b2b/vendor/property-upload" element={<RealEstatePropertyUpload />} />

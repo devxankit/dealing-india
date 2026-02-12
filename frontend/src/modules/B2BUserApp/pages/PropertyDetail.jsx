@@ -238,13 +238,13 @@ const PropertyDetail = () => {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                                 {[
-                                    { label: 'Built up Area', val: property.specifications?.builtUpArea, icon: <FiMaximize /> },
-                                    { label: 'Carpet Area', val: property.specifications?.carpetArea, icon: <FiMaximize /> },
+                                    { label: 'Built up Area', val: property.specifications?.builtUpArea ? `${property.specifications.builtUpArea} ${property.specifications.builtUpAreaUnit || ''}` : null, icon: <FiMaximize /> },
+                                    { label: 'Carpet Area', val: property.specifications?.carpetArea ? `${property.specifications.carpetArea} ${property.specifications.carpetAreaUnit || ''}` : null, icon: <FiMaximize /> },
                                     { label: 'Total Area', val: property.totalArea, icon: <FiMaximize /> },
                                     { label: 'Floor Level', val: property.specifications?.floorNumber, icon: <FiLayers /> },
                                     { label: 'Total Floors', val: property.specifications?.totalFloors, icon: <FiGrid /> },
-                                    { label: 'Ceiling Height', val: property.specifications?.ceilingHeight, icon: <FiMaximize /> },
-                                    { label: 'Entrance Width', val: property.specifications?.entranceWidth, icon: <FiTrendingUp /> },
+                                    { label: 'Ceiling Height', val: property.specifications?.ceilingHeight ? `${property.specifications.ceilingHeight} ${property.specifications.ceilingHeightUnit || ''}` : null, icon: <FiMaximize /> },
+                                    { label: 'Entrance Width', val: property.specifications?.entranceWidth ? `${property.specifications.entranceWidth} ${property.specifications.entranceWidthUnit || ''}` : null, icon: <FiTrendingUp /> },
                                     { label: 'Road Facing', val: property.roadFacing, icon: <FiMapPin /> },
                                     { label: 'Furnishing', val: property.status?.furnishing, icon: <FiBox /> },
                                     { label: 'Built Status', val: property.status?.propertyStatus, icon: <FiSettings /> },
@@ -278,7 +278,7 @@ const PropertyDetail = () => {
                                     { label: 'Lift Access', val: property.facilities.lift, icon: <FiLayers /> },
                                     { label: 'Passenger Lift', val: property.facilities.liftPassenger, icon: <FiLayers /> },
                                     { label: 'Loading Lift', val: property.facilities.liftLoading, icon: <FiHardDrive /> },
-                                    { label: 'Washroom Type', val: property.facilities.washroom, icon: <FiUnlock /> },
+                                    { label: 'Washroom Type', val: Array.isArray(property.facilities.washroom) ? property.facilities.washroom.join(', ') : property.facilities.washroom, icon: <FiUnlock /> },
                                     { label: 'Fire Safety', val: property.facilities.fireSafety, icon: <FiShield /> }
                                 ].map((fac, i) => fac.val && (
                                     <div key={i} className="flex items-center justify-between p-6 md:p-8 hover:bg-gray-50 transition-colors">
@@ -319,10 +319,6 @@ const PropertyDetail = () => {
                                                 <span className="text-gray-400">Maintenance</span>
                                                 <span className={`${property.saleDetails.maintenance === 'Included' ? 'text-green-600' : 'text-primary-600'}`}>{property.saleDetails.maintenance}</span>
                                             </div>
-                                            <div className="flex justify-between items-center text-[9px] md:text-[11px] font-black uppercase tracking-widest">
-                                                <span className="text-gray-400">Vera Bill</span>
-                                                <span className="text-gray-900">{property.saleDetails.veraBill}</span>
-                                            </div>
                                         </div>
                                     )}
 
@@ -339,6 +335,19 @@ const PropertyDetail = () => {
                                             <div className="flex justify-between items-center text-[9px] md:text-[11px] font-black uppercase tracking-widest">
                                                 <span className="text-gray-400">Utility / Vera</span>
                                                 <span className="text-gray-900">{property.rentDetails.veraBill}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {property.listingType === 'Lease' && property.leaseDetails && (
+                                        <div className="space-y-3 md:space-y-4">
+                                            <div className="flex justify-between items-center text-[9px] md:text-[11px] font-black uppercase tracking-widest">
+                                                <span className="text-gray-400">Security Deposit</span>
+                                                <span className="text-gray-900">₹{property.leaseDetails.depositAmount} {property.leaseDetails.depositUnit}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-[9px] md:text-[11px] font-black uppercase tracking-widest">
+                                                <span className="text-gray-400">Lease Duration</span>
+                                                <span className="text-gray-900">{property.leaseDetails.leaseDurationYears} Years</span>
                                             </div>
                                         </div>
                                     )}

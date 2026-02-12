@@ -39,6 +39,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
         leaseDetails: {
             monthlyLeaseRate: '',
             leaseUnit: 'Lakh',
+            depositAmount: '',
+            depositUnit: 'Lakh',
             leaseDurationYears: ''
         },
 
@@ -60,14 +62,20 @@ const PropertyForm = ({ initialData, isEdit }) => {
         roadFacing: 'Main Road',
 
         // 5. Specs & Facilities
-        specifications: {
+        // 5. Specs & Facilities
+        specifications: [{
             builtUpArea: '',
+            builtUpAreaUnit: 'Sq. Ft.',
             carpetArea: '',
+            carpetAreaUnit: 'Sq. Ft.',
             floorNumber: '',
             totalFloors: '',
             ceilingHeight: '',
-            entranceWidth: ''
-        },
+            ceilingHeightUnit: 'Ft.',
+            entranceWidth: '',
+            entranceWidthUnit: 'Ft.',
+            maliya: 'No'
+        }],
         facilities: {
             parking: [],
             lift: 'No',
@@ -75,13 +83,41 @@ const PropertyForm = ({ initialData, isEdit }) => {
             liftLoading: 'No',
             powerBackup: 'No',
             waterSupply: 'No',
-            washroom: 'Common',
+            washroom: ['Common'],
             fireSafety: 'No'
         }
     });
 
     useEffect(() => {
         if (initialData) {
+            let specs = [];
+
+            // Handle legacy specifications (object) vs new (array)
+            if (Array.isArray(initialData.specifications)) {
+                specs = initialData.specifications.map(spec => ({
+                    ...spec,
+                    // If maliya comes as array/object from legacy nested structure, convert to string
+                    maliya: (typeof spec.maliya === 'string') ? spec.maliya : (Array.isArray(spec.maliya) && spec.maliya[0]?.value) || 'No'
+                }));
+            } else if (initialData.specifications && typeof initialData.specifications === 'object') {
+                // Determine maliya value from legacy object structure
+                const maliyaVal = (Array.isArray(initialData.specifications.maliya) && initialData.specifications.maliya[0]?.value) || 'No';
+                specs = [{
+                    ...initialData.specifications,
+                    maliya: maliyaVal
+                }];
+            } else {
+                // Default if empty
+                specs = [{
+                    builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.',
+                    carpetArea: '', carpetAreaUnit: 'Sq. Ft.',
+                    floorNumber: '', totalFloors: '',
+                    ceilingHeight: '', ceilingHeightUnit: 'Ft.',
+                    entranceWidth: '', entranceWidthUnit: 'Ft.',
+                    maliya: 'No'
+                }];
+            }
+
             // Populate form data
             setFormData(prev => ({
                 ...prev,
@@ -92,7 +128,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 leaseDetails: { ...prev.leaseDetails, ...(initialData.leaseDetails || {}) },
                 status: { ...prev.status, ...(initialData.status || {}) },
                 location: { ...prev.location, ...(initialData.location || {}) },
-                specifications: { ...prev.specifications, ...(initialData.specifications || {}) },
+                specifications: specs,
                 facilities: { ...prev.facilities, ...(initialData.facilities || {}) },
             }));
 
@@ -103,9 +139,20 @@ const PropertyForm = ({ initialData, isEdit }) => {
         }
     }, [initialData]);
 
-    const handleChange = (e) => {
+    const handleChange = (e, index = null) => {
         const { name, value } = e.target;
-        if (name.includes('.')) {
+
+        if (index !== null && name.startsWith('specifications')) {
+            // Handle specifications array update
+            const field = name.split('.')[1]; // e.g., specifications.builtUpArea -> builtUpArea
+            setFormData(prev => {
+                const newSpecs = [...prev.specifications];
+                if (newSpecs[index]) {
+                    newSpecs[index] = { ...newSpecs[index], [field]: value };
+                }
+                return { ...prev, specifications: newSpecs };
+            });
+        } else if (name.includes('.')) {
             const [parent, child] = name.split('.');
             setFormData(prev => ({
                 ...prev,
@@ -123,6 +170,34 @@ const PropertyForm = ({ initialData, isEdit }) => {
                 : [...prev.propertyTypes, type];
             return { ...prev, propertyTypes: types };
         });
+    };
+
+    const addSpecification = () => {
+        setFormData(prev => ({
+            ...prev,
+            specifications: [
+                ...prev.specifications,
+                {
+                    builtUpArea: '', builtUpAreaUnit: 'Sq. Ft.',
+                    carpetArea: '', carpetAreaUnit: 'Sq. Ft.',
+                    floorNumber: '', totalFloors: '',
+                    ceilingHeight: '', ceilingHeightUnit: 'Ft.',
+                    entranceWidth: '', entranceWidthUnit: 'Ft.',
+                    maliya: 'No'
+                }
+            ]
+        }));
+    };
+
+    const removeSpecification = (index) => {
+        if (formData.specifications.length <= 1) {
+            toast.error("At least one specification section is required.");
+            return;
+        }
+        setFormData(prev => ({
+            ...prev,
+            specifications: prev.specifications.filter((_, i) => i !== index)
+        }));
     };
 
     const handleImageUpload = (e) => {
@@ -295,13 +370,6 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             <option value="Excluded">Excluded</option>
                                         </select>
                                     </div>
-                                    <div>
-                                        <label className="label">Vera Bill</label>
-                                        <select name="saleDetails.veraBill" value={formData.saleDetails.veraBill} onChange={handleChange} className="input-select">
-                                            <option value="Included">Included</option>
-                                            <option value="Excluded">Excluded</option>
-                                        </select>
-                                    </div>
                                 </div>
                             )}
 
@@ -353,6 +421,14 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             <option value="Crore">Crore</option>
                                         </select>
                                     </div>
+                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <input type="number" name="leaseDetails.depositAmount" placeholder="Deposit Amount" value={formData.leaseDetails.depositAmount} onChange={handleChange} className="input-field" />
+                                        <select name="leaseDetails.depositUnit" value={formData.leaseDetails.depositUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                            <option value="Thousand">Thousand</option>
+                                            <option value="Lakh">Lakh</option>
+                                            <option value="Crore">Crore</option>
+                                        </select>
+                                    </div>
                                     <input type="number" name="leaseDetails.leaseDurationYears" placeholder="Duration (Years)" value={formData.leaseDetails.leaseDurationYears} onChange={handleChange} className="input-field" />
                                 </div>
                             )}
@@ -361,14 +437,154 @@ const PropertyForm = ({ initialData, isEdit }) => {
 
                     {step === 3 && (
                         <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8 flex-1">
-                            <h3 className="text-xl font-black text-slate-900 uppercase">Specifications</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                <input name="specifications.builtUpArea" placeholder="Built Up Area" value={formData.specifications.builtUpArea} onChange={handleChange} className="input-field" />
-                                <input name="specifications.carpetArea" placeholder="Carpet Area" value={formData.specifications.carpetArea} onChange={handleChange} className="input-field" />
-                                <input name="specifications.floorNumber" placeholder="Floor No." value={formData.specifications.floorNumber} onChange={handleChange} className="input-field" />
-                                <input name="specifications.totalFloors" placeholder="Total Floors" value={formData.specifications.totalFloors} onChange={handleChange} className="input-field" />
-                                <input name="specifications.ceilingHeight" placeholder="Ceiling Height" value={formData.specifications.ceilingHeight} onChange={handleChange} className="input-field" />
-                                <input name="specifications.entranceWidth" placeholder="Entrance Width" value={formData.specifications.entranceWidth} onChange={handleChange} className="input-field" />
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl font-black text-slate-900 uppercase">Specifications</h3>
+                                <button
+                                    type="button"
+                                    onClick={addSpecification}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary-700 transition-all"
+                                >
+                                    <FiPlus size={16} />
+                                    Add Spec
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                {formData.specifications.map((spec, index) => (
+                                    <div key={index} className="p-6 bg-slate-50 rounded-3xl border-2 border-slate-100 relative">
+                                        {formData.specifications.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => removeSpecification(index)}
+                                                className="absolute top-4 right-4 p-2 bg-red-100 text-red-500 rounded-full hover:bg-red-200 transition-colors"
+                                                title="Remove Specification"
+                                            >
+                                                <FiTrash2 size={16} />
+                                            </button>
+                                        )}
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="label">Built Up Area</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        name="specifications.builtUpArea"
+                                                        placeholder="Area Value"
+                                                        value={spec.builtUpArea}
+                                                        onChange={(e) => handleChange(e, index)}
+                                                        className="input-field flex-[2]"
+                                                    />
+                                                    <select
+                                                        name="specifications.builtUpAreaUnit"
+                                                        value={spec.builtUpAreaUnit}
+                                                        onChange={(e) => handleChange(e, index)}
+                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
+                                                    >
+                                                        {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="label">Carpet Area</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        name="specifications.carpetArea"
+                                                        placeholder="Area Value"
+                                                        value={spec.carpetArea}
+                                                        onChange={(e) => handleChange(e, index)}
+                                                        className="input-field flex-[2]"
+                                                    />
+                                                    <select
+                                                        name="specifications.carpetAreaUnit"
+                                                        value={spec.carpetAreaUnit}
+                                                        onChange={(e) => handleChange(e, index)}
+                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
+                                                    >
+                                                        {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="label">Floor No.</label>
+                                                <input
+                                                    name="specifications.floorNumber"
+                                                    placeholder="Floor No."
+                                                    value={spec.floorNumber}
+                                                    onChange={(e) => handleChange(e, index)}
+                                                    className="input-field"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="label">Total Floors</label>
+                                                <input
+                                                    name="specifications.totalFloors"
+                                                    placeholder="Total Floors"
+                                                    value={spec.totalFloors}
+                                                    onChange={(e) => handleChange(e, index)}
+                                                    className="input-field"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="label">Ceiling Height</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        name="specifications.ceilingHeight"
+                                                        placeholder="Height Value"
+                                                        value={spec.ceilingHeight}
+                                                        onChange={(e) => handleChange(e, index)}
+                                                        className="input-field flex-[2]"
+                                                    />
+                                                    <select
+                                                        name="specifications.ceilingHeightUnit"
+                                                        value={spec.ceilingHeightUnit}
+                                                        onChange={(e) => handleChange(e, index)}
+                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
+                                                    >
+                                                        {['Ft.', 'Mt.'].map(u => <option key={u} value={u}>{u}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="label">Entrance Width</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        name="specifications.entranceWidth"
+                                                        placeholder="Width Value"
+                                                        value={spec.entranceWidth}
+                                                        onChange={(e) => handleChange(e, index)}
+                                                        className="input-field flex-[2]"
+                                                    />
+                                                    <select
+                                                        name="specifications.entranceWidthUnit"
+                                                        value={spec.entranceWidthUnit}
+                                                        onChange={(e) => handleChange(e, index)}
+                                                        className="input-select flex-1 bg-primary-50 text-primary-700 font-bold"
+                                                    >
+                                                        {['Ft.', 'Mt.'].map(u => <option key={u} value={u}>{u}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="label">Maliya</label>
+                                                <select
+                                                    name="specifications.maliya"
+                                                    value={spec.maliya || 'No'}
+                                                    onChange={(e) => handleChange(e, index)}
+                                                    className="input-select"
+                                                >
+                                                    <option value="No">No</option>
+                                                    <option value="Yes">Yes</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
 
                             <h3 className="text-xl font-black text-slate-900 uppercase">Facilities</h3>
@@ -451,10 +667,44 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 </div>
                                 <div>
                                     <label className="label">Washroom</label>
-                                    <select name="facilities.washroom" value={formData.facilities.washroom} onChange={handleChange} className="input-select">
-                                        <option value="Common">Common</option>
-                                        <option value="Private">Private</option>
-                                    </select>
+                                    <div className="flex gap-2">
+                                        {['Private', 'Common', 'No'].map(type => (
+                                            <label
+                                                key={type}
+                                                className={`flex-1 py-3 px-1 rounded-xl text-center text-[10px] font-black border-2 cursor-pointer transition-all ${formData.facilities.washroom.includes(type)
+                                                    ? 'bg-primary-600 text-white border-primary-600'
+                                                    : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.facilities.washroom.includes(type)}
+                                                    onChange={() => {
+                                                        const current = Array.isArray(formData.facilities.washroom) ? formData.facilities.washroom : [];
+                                                        let updated;
+
+                                                        if (type === 'No') {
+                                                            updated = ['No'];
+                                                        } else {
+                                                            const withoutNo = current.filter(t => t !== 'No');
+                                                            if (withoutNo.includes(type)) {
+                                                                updated = withoutNo.filter(t => t !== type);
+                                                            } else {
+                                                                updated = [...withoutNo, type];
+                                                            }
+                                                        }
+
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            facilities: { ...prev.facilities, washroom: updated }
+                                                        }));
+                                                    }}
+                                                    className="hidden"
+                                                />
+                                                {type}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="label">Fire Safety</label>

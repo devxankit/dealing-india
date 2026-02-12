@@ -101,6 +101,8 @@ const propertySchema = new mongoose.Schema(
         leaseDetails: {
             monthlyLeaseRate: Number,
             leaseUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
+            depositAmount: Number,
+            depositUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
             leaseDurationYears: Number
         },
 
@@ -109,14 +111,19 @@ const propertySchema = new mongoose.Schema(
             enum: ['Main Road', 'Internal Road']
         },
 
-        specifications: {
+        specifications: [{
             builtUpArea: String,
+            builtUpAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'] },
             carpetArea: String,
+            carpetAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'] },
             floorNumber: String,
             totalFloors: String,
             ceilingHeight: String,
-            entranceWidth: String
-        },
+            ceilingHeightUnit: { type: String, enum: ['Ft.', 'Mt.'] },
+            entranceWidth: String,
+            entranceWidthUnit: { type: String, enum: ['Ft.', 'Mt.'] },
+            maliya: { type: String, enum: ['Yes', 'No'], default: 'No' }
+        }],
 
         facilities: {
             parking: { type: [String], enum: ['Car', 'Two-Wheeler', 'No'] },
@@ -125,7 +132,7 @@ const propertySchema = new mongoose.Schema(
             liftLoading: { type: String, enum: ['Yes', 'No'] },
             powerBackup: { type: String, enum: ['Yes', 'No'] },
             waterSupply: { type: String, enum: ['Yes', 'No'] },
-            washroom: { type: String, enum: ['Private', 'Common'] },
+            washroom: { type: [String], enum: ['Private', 'Common', 'No'], default: ['Common'] },
             fireSafety: { type: String, enum: ['Yes', 'No'] }
         }
     },

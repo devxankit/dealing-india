@@ -224,7 +224,7 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 // @route   GET /api/public/property/all
 // @access  Public
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const { search, city, minPrice, maxPrice, type, listingType, vendorId } = req.query;
+    const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId } = req.query;
 
     let query = { isActive: true };
 
@@ -238,6 +238,25 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
     if (city && city !== 'All Cities') {
         query['location.city'] = { $regex: city, $options: 'i' };
+    }
+
+    if (area) {
+        query['location.area'] = { $regex: area, $options: 'i' };
+    }
+
+    // Filter by Price Unit/Denomination
+    if (priceUnit && priceUnit !== 'All') {
+        query.$or = [
+            { 'saleDetails.priceUnit': priceUnit },
+            { 'rentDetails.rentUnit': priceUnit },
+            { 'leaseDetails.leaseUnit': priceUnit }
+        ];
+    }
+
+    // Filter by Vendor Market (from vendor address.market)
+    let vendorMatch = {};
+    if (market && market !== 'All Markets') {
+        vendorMatch['address.market'] = { $regex: market, $options: 'i' };
     }
 
     if (search) {
@@ -258,18 +277,35 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         const min = minLakh * 100000;
         const max = maxLakh * 100000;
 
-        query.$or = [
+        const priceFilter = [
             // Case 1: Direct amount
             { 'price.amount': { $gte: min, $lte: max } },
             // Case 2: Sale price range
-            { 'saleDetails.priceMin': { $lte: max }, 'saleDetails.priceMax': { $gte: min } },
+            { 'saleDetails.priceMin': { $lte: maxLakh }, 'saleDetails.priceMax': { $gte: minLakh } },
             // Case 3: Monthly rent
-            { 'rentDetails.monthlyRent': { $gte: min, $lte: max } }
+            { 'rentDetails.monthlyRent': { $gte: minPrice || 0, $lte: maxPrice || Infinity } }
         ];
+
+        if (query.$or) {
+            query.$and = [{ $or: query.$or }, { $or: priceFilter }];
+            delete query.$or;
+        } else {
+            query.$or = priceFilter;
+        }
+    }
+
+    // Size filtering
+    if (minSize || maxSize) {
+        const minS = minSize ? parseFloat(minSize) : 0;
+        const maxS = maxSize ? parseFloat(maxSize) : Infinity;
+
+        // Mongo can't easily convert string to number in $match without $expr (which is slow)
+        // Since builtUpArea is String, we'll handle this in the JS filter layer for now
+        // or we could use regex/lexicographical if they were padded, but they aren't.
+        // Let's add it to the final filtering stage.
     }
 
     // Filter by Vendor Business Type (Developer vs Broker)
-    let vendorMatch = {};
     if (type === 'developer') {
         vendorMatch.businessType = { $regex: 'developer', $options: 'i' };
     } else if (type === 'broker') {
@@ -280,12 +316,40 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         .populate({
             path: 'vendorId',
             select: 'storeName address businessType phone storeLogo',
-            match: vendorMatch
+            match: Object.keys(vendorMatch).length > 0 ? vendorMatch : undefined
         })
         .lean();
 
     // Filter out properties where vendor didn't match the type
-    const filteredProperties = properties.filter(p => p.vendorId !== null);
+    let filteredProperties = properties.filter(p => p.vendorId !== null);
+
+    // Size filtering (Built-up Area)
+    if (minSize || maxSize) {
+        // Normalize filter range to Sq. Ft. if an areaUnit is provided
+        const filterUnit = areaUnit || 'Sq. Ft.';
+        const filterConversion = {
+            'Sq. Ft.': 1,
+            'Sq. Mt.': 10.7639,
+            'Sq. Yd.': 9,
+            'Acre': 43560,
+            'Gaj': 9
+        };
+        const filterMultiplier = filterConversion[filterUnit] || 1;
+        const normalizedMinS = minS * filterMultiplier;
+        const normalizedMaxS = maxS * filterMultiplier;
+
+        filteredProperties = filteredProperties.filter(p => {
+            const areaStr = p.specifications?.builtUpArea || p.totalArea || '0';
+            const propertyUnit = p.specifications?.builtUpAreaUnit || 'Sq. Ft.';
+            let areaNum = parseFloat(areaStr.replace(/[^0-9.]/g, ''));
+
+            // Normalize property area to Sq. Ft.
+            const propertyMultiplier = filterConversion[propertyUnit] || 1;
+            const areaInSqFt = areaNum * propertyMultiplier;
+
+            return areaInSqFt >= normalizedMinS && areaInSqFt <= normalizedMaxS;
+        });
+    }
 
     res.status(200).json({
         success: true,

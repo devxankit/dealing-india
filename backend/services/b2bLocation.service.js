@@ -4,17 +4,35 @@ import Product from '../models/Product.model.js';
 /**
  * Get available B2B vendor locations (states and cities)
  * Returns only locations where vendors have active products
- * @returns {Promise<Object>} { states: [{ name: string, cities: string[] }] }
+ * @param {Object} options - Filter options
+ * @param {string} options.businessTypeFilter - 'include' or 'exclude'
+ * @param {string[]} options.businessTypes - Array of business type names to include/exclude
+ * @returns {Promise<Object>} { states: [{ name: string, cities: string[] }], areas: string[], markets: string[] }
  */
-export const getB2BAvailableLocations = async () => {
+export const getB2BAvailableLocations = async (options = {}) => {
   try {
-    // Get all active and approved B2B vendors
-    const b2bVendors = await Vendor.find({
+    const { businessTypeFilter, businessTypes = [] } = options;
+    
+    // Build vendor query with businessType filter
+    const vendorQuery = {
       vendorType: 'b2b',
       isActive: true,
       status: 'approved',
-    })
-      .select('_id address')
+    };
+    
+    if (businessTypeFilter === 'include' && businessTypes.length > 0) {
+      vendorQuery.$or = businessTypes.map(bt => ({
+        businessType: { $regex: `^${bt}$`, $options: 'i' }
+      }));
+    } else if (businessTypeFilter === 'exclude' && businessTypes.length > 0) {
+      vendorQuery.$and = businessTypes.map(bt => ({
+        businessType: { $not: { $regex: `^${bt}$`, $options: 'i' } }
+      }));
+    }
+    
+    // Get all active and approved B2B vendors
+    const b2bVendors = await Vendor.find(vendorQuery)
+      .select('_id address businessType')
       .lean();
 
     if (b2bVendors.length === 0) {
@@ -33,12 +51,14 @@ export const getB2BAvailableLocations = async () => {
 
     // Filter vendors to only those with products
     const activeVendorIds = new Set(vendorsWithProducts.map(id => id.toString()));
-    const vendorsWithActiveProducts = b2bVendors.filter(v => 
+    const vendorsWithActiveProducts = b2bVendors.filter(v =>
       activeVendorIds.has(v._id.toString())
     );
 
     // Extract unique states and cities
     const locationMap = new Map(); // state -> Set of cities
+    const areasSet = new Set(); // Set of unique areas
+    const marketsSet = new Set(); // Set of unique markets
 
     console.log(`📍 Processing ${vendorsWithActiveProducts.length} vendors with active products`);
     console.log(`📍 Full vendor addresses:`, vendorsWithActiveProducts.map(v => ({
@@ -47,7 +67,7 @@ export const getB2BAvailableLocations = async () => {
       city: v.address?.city,
       fullAddress: v.address
     })));
-    
+
     vendorsWithActiveProducts.forEach(vendor => {
       const address = vendor.address;
       if (address && address.state && address.state.trim()) {
@@ -55,7 +75,7 @@ export const getB2BAvailableLocations = async () => {
         // Clean state name - remove pincode if present (e.g., "Madhya Pradesh 450001" -> "Madhya Pradesh")
         // Also handle cases where only pincode is stored (e.g., "450001" -> skip)
         let state = address.state.trim();
-        
+
         // Check if state is only a pincode (6 digits) - this means data is incorrectly stored
         if (/^\d{6}$/.test(state)) {
           console.log(`  ⚠️ State field contains pincode "${state}" - data is incorrectly stored`);
@@ -64,19 +84,19 @@ export const getB2BAvailableLocations = async () => {
             const cityText = address.city.trim();
             // List of common Indian states to match against
             const commonStates = [
-              'Madhya Pradesh', 'Uttar Pradesh', 'Andhra Pradesh', 'Arunachal Pradesh', 
+              'Madhya Pradesh', 'Uttar Pradesh', 'Andhra Pradesh', 'Arunachal Pradesh',
               'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand', 'West Bengal',
               'Tamil Nadu', 'Uttarakhand', 'Maharashtra', 'Gujarat', 'Rajasthan',
               'Karnataka', 'Kerala', 'Punjab', 'Haryana', 'Bihar', 'Odisha',
               'Assam', 'Telangana', 'Goa', 'Manipur', 'Meghalaya', 'Mizoram',
               'Nagaland', 'Sikkim', 'Tripura'
             ];
-            
+
             // Try to find a full state name in the city text
-            const foundState = commonStates.find(fullState => 
+            const foundState = commonStates.find(fullState =>
               cityText.toLowerCase() === fullState.toLowerCase() || cityText.toLowerCase().includes(fullState.toLowerCase())
             );
-            
+
             if (foundState) {
               console.log(`  ✅ Found state "${foundState}" in city field, using it`);
               state = foundState;
@@ -98,12 +118,12 @@ export const getB2BAvailableLocations = async () => {
           // Remove any trailing numbers (pincodes) - be more specific
           state = state.replace(/\s+\d{5,6}$/, '').trim();
         }
-        
+
         if (!state || /^\d+$/.test(state)) {
           // Skip if state is empty or only numbers after cleaning
           return;
         }
-        
+
         // Check if state is a partial name (common suffixes that shouldn't be states by themselves)
         const stateSuffixes = ['Pradesh', 'Bengal', 'Nadu', 'Desh', 'Khand'];
         const stateWords = state.split(' ');
@@ -112,16 +132,16 @@ export const getB2BAvailableLocations = async () => {
           if (address.city && address.city.trim()) {
             const cityText = address.city.trim();
             const commonStates = [
-              'Madhya Pradesh', 'Uttar Pradesh', 'Andhra Pradesh', 'Arunachal Pradesh', 
+              'Madhya Pradesh', 'Uttar Pradesh', 'Andhra Pradesh', 'Arunachal Pradesh',
               'Himachal Pradesh', 'West Bengal', 'Tamil Nadu', 'Uttarakhand'
             ];
-            
+
             const foundState = commonStates.find(fullState => {
               const stateWords = fullState.split(' ');
               const lastWord = stateWords[stateWords.length - 1];
               return lastWord === state && cityText.toLowerCase().includes(fullState.toLowerCase());
             });
-            
+
             if (foundState) {
               state = foundState;
             } else {
@@ -139,25 +159,25 @@ export const getB2BAvailableLocations = async () => {
         // Clean city name - remove state name if present (e.g., "Indore Madhya Pradesh" -> "Indore")
         // Also handle cases where state is stored in city field (incorrect data)
         let city = null;
-        
+
         // Handle case where city field contains state name (incorrect data)
         // Try to get city from landmark or street if city is actually a state
-        const commonStates = ['Madhya Pradesh', 'Uttar Pradesh', 'Maharashtra', 'Gujarat', 'Rajasthan', 
-                             'Karnataka', 'Tamil Nadu', 'West Bengal', 'Bihar', 'Odisha', 'Andhra Pradesh',
-                             'Telangana', 'Kerala', 'Punjab', 'Haryana', 'Jharkhand', 'Assam', 'Himachal Pradesh'];
-        
+        const commonStates = ['Madhya Pradesh', 'Uttar Pradesh', 'Maharashtra', 'Gujarat', 'Rajasthan',
+          'Karnataka', 'Tamil Nadu', 'West Bengal', 'Bihar', 'Odisha', 'Andhra Pradesh',
+          'Telangana', 'Kerala', 'Punjab', 'Haryana', 'Jharkhand', 'Assam', 'Himachal Pradesh'];
+
         if (address.city && address.city.trim()) {
           const originalCity = address.city.trim();
           city = originalCity;
-          
+
           console.log(`  🔍 Processing city for vendor ${vendor._id}: "${originalCity}" in state "${state}"`);
-          
+
           // Check if city is EXACTLY a state name (incorrect data storage)
           const isExactStateName = commonStates.some(s => city.toLowerCase() === s.toLowerCase());
           if (isExactStateName) {
             console.log(`  ⚠️ City field contains state name "${city}" - data is incorrectly stored`);
             console.log(`  🔄 Trying to get city from landmark or street fields...`);
-            
+
             // Try to get city from landmark field
             if (address.landmark && address.landmark.trim() && !commonStates.some(s => address.landmark.trim().toLowerCase() === s.toLowerCase())) {
               city = address.landmark.trim();
@@ -168,9 +188,9 @@ export const getB2BAvailableLocations = async () => {
               const streetParts = address.street.trim().split(',').map(p => p.trim());
               // Check if any part of street is a valid city (not a state, not a pincode)
               const potentialCity = streetParts.find(part => {
-                return part.length > 0 && 
-                       !/^\d+$/.test(part) && 
-                       !commonStates.some(s => part.toLowerCase() === s.toLowerCase());
+                return part.length > 0 &&
+                  !/^\d+$/.test(part) &&
+                  !commonStates.some(s => part.toLowerCase() === s.toLowerCase());
               });
               if (potentialCity) {
                 city = potentialCity;
@@ -194,7 +214,7 @@ export const getB2BAvailableLocations = async () => {
                 // Check if last word matches any state word
                 const lastWord = cityWords[cityWords.length - 1];
                 const secondLastWord = cityWords.length > 2 ? cityWords[cityWords.length - 2] : null;
-                
+
                 // If last word matches a state word, remove it
                 if (stateWords.some(sw => sw.toLowerCase() === lastWord.toLowerCase())) {
                   city = cityWords.slice(0, -1).join(' ').trim();
@@ -209,10 +229,10 @@ export const getB2BAvailableLocations = async () => {
                 }
               }
             }
-            
+
             // Remove pincode from city if present
             city = city.replace(/\s+\d{6}$/, '').replace(/\s+\d{5,6}$/, '').trim();
-            
+
             // Skip if city becomes empty or is only numbers
             if (!city || /^\d+$/.test(city)) {
               console.log(`  ⚠️ Skipping city "${originalCity}" - became empty or only numbers after cleaning`);
@@ -223,6 +243,13 @@ export const getB2BAvailableLocations = async () => {
           }
         } else {
           console.log(`  ⚠️ No city for vendor ${vendor._id} - address.city is:`, address.city);
+        }
+
+        if (address && address.area && address.area.trim()) {
+          const cleanArea = address.area.trim();
+          if (cleanArea.length > 0 && !/^\d+$/.test(cleanArea)) {
+            areasSet.add(cleanArea);
+          }
         }
 
         if (!locationMap.has(state)) {
@@ -236,7 +263,7 @@ export const getB2BAvailableLocations = async () => {
         } else {
           console.log(`  ❌ No city added for state "${state}" from vendor ${vendor._id}`);
           console.log(`     Reason: city is ${city === null ? 'null' : 'empty'}, original city was: "${address?.city || 'N/A'}"`);
-          
+
           // If no city but we have a valid state, add a default city entry to ensure state shows up
           // This is a fallback - ideally vendors should have proper city data
           // But for now, we'll add the state name as a city so the dropdown isn't empty
@@ -263,7 +290,10 @@ export const getB2BAvailableLocations = async () => {
       console.log(`  State: "${state.name}" - Cities: ${state.cities.length}`, state.cities.slice(0, 3));
     });
 
-    return { states };
+    const areas = Array.from(areasSet).sort((a, b) => a.localeCompare(b));
+    const markets = Array.from(marketsSet).sort((a, b) => a.localeCompare(b));
+
+    return { states, areas, markets };
   } catch (error) {
     console.error('Error fetching B2B locations:', error);
     throw error;

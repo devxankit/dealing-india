@@ -43,6 +43,7 @@ const B2BVendorRegister = () => {
         address: {
             street: '',
             area: '',
+            market: '',
             city: '',
             state: '',
             pincode: '',
@@ -450,6 +451,10 @@ const B2BVendorRegister = () => {
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Area / Locality</label>
                                 <input type="text" name="address.area" value={formData.address.area} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Textile Market" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Market</label>
+                                <input type="text" name="address.market" value={formData.address.market} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder="Enter Market Name" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">City</label>

@@ -24,7 +24,11 @@ export const getPublicProducts = async (filters) => {
         sortOrder = 'desc',
         itemType,
         pattern,
-        fabric
+        fabric,
+        area,
+        market,
+        businessType,
+        businessSubType
     } = filters;
 
     const query = { isActive: true };
@@ -86,13 +90,23 @@ export const getPublicProducts = async (filters) => {
         }
     }
 
-    // Fix: query.vendorId handling for locations was slightly flawed if vendorId already exists.
-    // Instead, let's just collect valid vendorIDs if location is filtered.
-    let locationVendorIds = null;
-    if (state || city) {
-        const vendorQuery = { isActive: true };
+    // Fix: query.vendorId handling for locations and business types
+    // Instead, let's just collect valid vendorIDs if any vendor-level filter is present
+    let filteringVendors = false;
+    let vendorQuery = { isActive: true };
+
+    if (state || city || area || market || businessType || businessSubType) {
+        filteringVendors = true;
         if (state) vendorQuery['address.state'] = state;
         if (city) vendorQuery['address.city'] = city;
+        if (area) vendorQuery['address.area'] = area;
+        if (market) vendorQuery['address.market'] = { $regex: new RegExp(`^${market}$`, 'i') };
+        if (businessType) vendorQuery.businessType = { $regex: new RegExp(`^${businessType}$`, 'i') };
+        if (businessSubType) vendorQuery.selectedSubTypes = { $in: [new RegExp(`^${businessSubType}$`, 'i')] };
+    }
+
+    let locationVendorIds = null;
+    if (filteringVendors) {
         const matchingVendors = await Vendor.find(vendorQuery).select('_id').lean();
         locationVendorIds = matchingVendors.map(v => v._id);
     }

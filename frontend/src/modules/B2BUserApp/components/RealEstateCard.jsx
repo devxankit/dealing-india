@@ -82,8 +82,15 @@ const RealEstateCard = ({ property }) => {
 
                 {/* Badges */}
                 <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
-                    <div className="px-2 py-1 bg-primary-600/90 backdrop-blur-sm rounded-md text-[8px] font-black text-white uppercase tracking-wider shadow-sm w-fit">
-                        {property.listingType || 'Sale'}
+                    <div className="flex gap-1">
+                        <div className="px-2 py-1 bg-primary-600/90 backdrop-blur-sm rounded-md text-[8px] font-black text-white uppercase tracking-wider shadow-sm w-fit">
+                            {property.listingType || 'Sale'}
+                        </div>
+                        {property.vendorId?.businessType && (
+                            <div className={`px-2 py-1 ${property.vendorId.businessType.toLowerCase().includes('developer') ? 'bg-indigo-600/90' : 'bg-emerald-600/90'} backdrop-blur-sm rounded-md text-[8px] font-black text-white uppercase tracking-wider shadow-sm w-fit`}>
+                                {property.vendorId.businessType.toLowerCase().includes('developer') ? 'Developer' : 'Broker'}
+                            </div>
+                        )}
                     </div>
                     {property.status?.propertyStatus && (
                         <div className="px-2 py-1 bg-white/90 backdrop-blur-sm rounded-md text-[8px] font-black text-gray-800 uppercase tracking-wider shadow-sm border border-gray-100 w-fit">
@@ -118,7 +125,12 @@ const RealEstateCard = ({ property }) => {
                 <div className="grid grid-cols-2 gap-2 bg-gray-50/50 p-2 rounded-lg border border-gray-50">
                     <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-500 uppercase">
                         <FiMaximize className="text-primary-500" size={12} />
-                        <span className="truncate">{property.totalArea || property.specifications?.carpetArea || 'N/A'}</span>
+                        <span className="truncate">
+                            {property.specifications?.builtUpArea
+                                ? `${property.specifications.builtUpArea} ${property.specifications.builtUpAreaUnit || 'Sq. Ft.'}`
+                                : property.totalArea || 'N/A'
+                            }
+                        </span>
                     </div>
                     <div
                         onClick={(e) => {

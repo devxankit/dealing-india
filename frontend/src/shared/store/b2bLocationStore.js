@@ -6,24 +6,34 @@ export const useB2BLocationStore = create(
     persist(
         (set, get) => ({
             states: [],
+            areas: [],
+            markets: [],
             isLoading: false,
 
-            initialize: async (forceRefresh = false) => {
+            initialize: async (forceRefresh = false, options = {}) => {
                 const currentState = get();
 
                 if (currentState.isLoading) return;
-                if (!forceRefresh && currentState.states.length > 0) return;
+                if (!forceRefresh && currentState.states.length > 0 && currentState.areas.length > 0) return;
 
                 set({ isLoading: true });
 
                 try {
-                    const response = await api.get('/public/b2b-locations');
+                    const params = {};
+                    if (options.businessTypeFilter && options.businessTypes) {
+                        params.businessTypeFilter = options.businessTypeFilter;
+                        params.businessTypes = options.businessTypes;
+                    }
+                    
+                    const response = await api.get('/public/b2b-locations', { params });
                     if (response.success && response.data) {
                         const states = (response.data.states || []).map(state => ({
                             ...state,
                             name: (state.name || '').trim()
                         }));
-                        set({ states, isLoading: false });
+                        const areas = response.data.areas || [];
+                        const markets = response.data.markets || [];
+                        set({ states, areas, markets, isLoading: false });
                     } else {
                         set({ isLoading: false });
                     }

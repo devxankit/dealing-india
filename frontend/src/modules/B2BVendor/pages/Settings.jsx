@@ -14,6 +14,7 @@ const B2BVendorSettings = () => {
         address: {
             street: "",
             landmark: "",
+            market: "",
             city: "",
             state: "",
             pincode: "",
@@ -31,6 +32,7 @@ const B2BVendorSettings = () => {
                 address: {
                     street: address.street || "",
                     landmark: address.landmark || "",
+                    market: address.market || "",
                     city: address.city || "",
                     state: address.state || "",
                     pincode: address.pincode || address.zipCode || "",
@@ -89,6 +91,7 @@ const B2BVendorSettings = () => {
             const address = {
                 street: (formData.address.street || "").trim(),
                 landmark: (formData.address.landmark || "").trim(),
+                market: (formData.address.market || "").trim(),
                 city: (formData.address.city || "").trim(),
                 state: (formData.address.state || "").trim(),
                 pincode: (formData.address.pincode || "").trim(),
@@ -192,6 +195,17 @@ const B2BVendorSettings = () => {
                                                     onChange={handleInputChange}
                                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
                                                     placeholder="Landmark (Optional)"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Market (Optional)</label>
+                                                <input
+                                                    type="text"
+                                                    name="address.market"
+                                                    value={formData.address.market}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                                    placeholder="Market Name (Optional)"
                                                 />
                                             </div>
                                             <div>

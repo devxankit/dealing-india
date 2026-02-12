@@ -4,6 +4,7 @@ const addressSchema = new mongoose.Schema(
   {
     street: { type: String, trim: true },
     area: { type: String, trim: true }, // Added area field
+    market: { type: String, trim: true }, // Market field for B2B vendors
     landmark: { type: String, trim: true },
     city: { type: String, trim: true },
     state: { type: String, trim: true },

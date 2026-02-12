@@ -6,7 +6,15 @@ import { getB2BAvailableLocations } from '../services/b2bLocation.service.js';
  */
 export const getB2BLocations = async (req, res, next) => {
   try {
-    const locations = await getB2BAvailableLocations();
+    const { businessTypeFilter, businessTypes } = req.query;
+    
+    const options = {};
+    if (businessTypeFilter && businessTypes) {
+      options.businessTypeFilter = businessTypeFilter;
+      options.businessTypes = Array.isArray(businessTypes) ? businessTypes : businessTypes.split(',');
+    }
+    
+    const locations = await getB2BAvailableLocations(options);
 
     res.status(200).json({
       success: true,

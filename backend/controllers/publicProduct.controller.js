@@ -24,6 +24,10 @@ export const getProducts = async (req, res, next) => {
       itemType,
       pattern,
       fabric,
+      area,
+      market,
+      businessType,
+      businessSubType
     } = req.query;
 
     const result = await getPublicProducts({
@@ -44,6 +48,10 @@ export const getProducts = async (req, res, next) => {
       itemType,
       pattern,
       fabric,
+      area,
+      market,
+      businessType,
+      businessSubType
     });
 
     res.status(200).json({
