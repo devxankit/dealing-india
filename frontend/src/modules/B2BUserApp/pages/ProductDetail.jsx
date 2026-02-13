@@ -39,6 +39,12 @@ const B2BProductDetail = () => {
                 if (productData.minimumOrderQuantity && !productData.moq) {
                     productData.moq = productData.minimumOrderQuantity;
                 }
+
+                // Use populated shopUnitId for unit details
+                if (productData.shopUnitId && typeof productData.shopUnitId === 'object') {
+                    productData.unitDetails = productData.shopUnitId;
+                }
+
                 setProduct(productData);
                 if (productData.moq) {
                     setQuantity(Number(productData.moq));
@@ -98,12 +104,16 @@ const B2BProductDetail = () => {
     if (!product) return null;
 
     let productImages = [];
-    if (product.coverImage) productImages.push(product.coverImage);
-    if (product.image) productImages.push(product.image);
-    if (Array.isArray(product.images) && product.images.length > 0) {
-        product.images.forEach(img => {
-            if (img && !productImages.includes(img)) productImages.push(img);
-        });
+    if (product.unitDetails?.images && product.unitDetails.images.length > 0) {
+        productImages = product.unitDetails.images;
+    } else {
+        if (product.coverImage) productImages.push(product.coverImage);
+        if (product.image) productImages.push(product.image);
+        if (Array.isArray(product.images) && product.images.length > 0) {
+            product.images.forEach(img => {
+                if (img && !productImages.includes(img)) productImages.push(img);
+            });
+        }
     }
     if (productImages.length === 0) productImages = ['https://via.placeholder.com/800x600?text=No+Image'];
 
@@ -119,6 +129,23 @@ const B2BProductDetail = () => {
     };
 
     const getSpecifications = () => {
+        if (product.formType === 'shop-listing' && product.items && product.items.length > 0) {
+            // Combine all items into specifications or just show the first one if that's the new standard
+            // Given the user removed "Add More", we'll show all existing items but focused on the new fields
+            const allSpecs = [];
+            product.items.forEach((item, index) => {
+                const prefix = product.items.length > 1 ? `Item ${index + 1}: ` : '';
+                if (item.itemName) allSpecs.push({ name: `${prefix}Item Name`, value: item.itemName });
+                if (item.category) allSpecs.push({ name: `${prefix}Category`, value: item.category });
+                if (item.price) allSpecs.push({ name: `${prefix}Price`, value: `₹${item.price}` });
+                if (item.unit) allSpecs.push({ name: `${prefix}Unit`, value: item.unit });
+                if (item.reed) allSpecs.push({ name: `${prefix}Reed`, value: item.reed });
+                if (item.pick) allSpecs.push({ name: `${prefix}Pick`, value: item.pick });
+                if (item.panna) allSpecs.push({ name: `${prefix}Panna / Width`, value: item.panna });
+                if (item.gsm) allSpecs.push({ name: `${prefix}GSM`, value: item.gsm });
+            });
+            return allSpecs;
+        }
         if (product.specifications && Array.isArray(product.specifications)) return product.specifications;
         if (product.attributes && Array.isArray(product.attributes)) {
             return product.attributes
@@ -195,8 +222,13 @@ const B2BProductDetail = () => {
                                 {getCategoryName()}
                             </span>
                             <h1 className="text-2xl md:text-5xl font-black text-gray-900 leading-[1.1] uppercase tracking-tighter">
-                                {product.name}
+                                {product.unitDetails?.name || product.name}
                             </h1>
+                            {product.unitDetails && (
+                                <p className="text-sm font-bold text-gray-400 mt-2 uppercase tracking-widest">
+                                    Item: {product.name}
+                                </p>
+                            )}
                             <div className="h-1 w-20 bg-primary-600 rounded-full"></div>
                         </div>
 
@@ -286,7 +318,7 @@ const B2BProductDetail = () => {
                         </div>
                         <div className="bg-white p-6 md:p-12 rounded-3xl md:rounded-[3rem] border border-gray-50 shadow-sm">
                             <p className="text-gray-500 text-base md:text-xl font-medium leading-[1.8] whitespace-pre-line">
-                                {product.description}
+                                {product.unitDetails?.description || product.description}
                             </p>
                         </div>
                     </div>

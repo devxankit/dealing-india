@@ -66,12 +66,19 @@ export const createLotSlot = asyncHandler(async (req, res) => {
 
     // PERFORMANCE: Parallelize validation and SKU generation
     const [vendor, sku] = await Promise.all([
-        Vendor.findById(vendorId).select('vendorType').lean(),
+        Vendor.findById(vendorId).select('vendorType businessType').lean(),
         generateLotSlotSKU(name, vendorId)
     ]);
 
     if (!vendor || vendor.vendorType !== 'b2b') {
         return res.status(403).json({ success: false, message: 'Only B2B vendors can list lots/slots' });
+    }
+
+    // Clean data for Packing Material vendors
+    const isPackingMaterial = vendor.businessType?.toLowerCase() === 'packing material';
+    if (isPackingMaterial) {
+        delete req.body.pattern;
+        delete req.body.fabric;
     }
 
     // Handle Images
@@ -197,6 +204,14 @@ export const updateLotSlot = asyncHandler(async (req, res) => {
         } catch (err) {
             console.error('Failed to delete old images:', err);
         }
+    }
+
+    // Fetch vendor to check business type for data cleaning
+    const vendor = await Vendor.findById(vendorId).select('businessType').lean();
+    const isPackingMaterial = vendor?.businessType?.toLowerCase() === 'packing material';
+    if (isPackingMaterial) {
+        delete req.body.pattern;
+        delete req.body.fabric;
     }
 
     // Generate SKU if missing (for legacy items)

@@ -28,6 +28,8 @@ const ProductCatalog = () => {
     const [selectedBusinessType, setSelectedBusinessType] = useState(searchParams.get('businessType') || null);
     const [selectedBusinessSubType, setSelectedBusinessSubType] = useState(searchParams.get('businessSubType') || null);
 
+    // Derived states moved after selectedItemType declaration below
+
 
     const [loading, setLoading] = useState(true);
     const [b2bVendors, setB2bVendors] = useState([]);
@@ -137,401 +139,409 @@ const ProductCatalog = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const renderFilters = () => (
-        <div className="space-y-6">
+    const renderFilters = () => {
+        return (
+            <div className="space-y-6">
 
-            {/* Subcategory Filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleFilter('subcategory')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Subcategory</h3>
-                    <div className="flex items-center gap-2">
-                        {selectedSubcategory && (
-                            <span onClick={(e) => { e.stopPropagation(); setSelectedSubcategory(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                        )}
-                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.subcategory ? 'rotate-180' : ''}`} />
-                    </div>
-                </button>
-                <AnimatePresence>
-                    {openFilters.subcategory && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
+                {/* Subcategory Filter */}
+                {(!isBigTextilePlayer || selectedItemType === 'lotslot') && (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <button
+                            onClick={() => toggleFilter('subcategory')}
+                            className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
                         >
-                            <div className="p-4 border-b border-gray-50">
-                                <div className="relative">
-                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search subcategory..."
-                                        className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                        value={subcategorySearchQuery}
-                                        onChange={(e) => setSubcategorySearchQuery(e.target.value)}
-                                    />
-                                </div>
+                            <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Subcategory</h3>
+                            <div className="flex items-center gap-2">
+                                {selectedSubcategory && (
+                                    <span onClick={(e) => { e.stopPropagation(); setSelectedSubcategory(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                                )}
+                                <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.subcategory ? 'rotate-180' : ''}`} />
                             </div>
-                            <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                {allSubcategories
-                                    .filter(sub => sub.toLowerCase().includes(subcategorySearchQuery.toLowerCase()))
-                                    .map(sub => (
-                                        <label key={sub} className="flex items-center gap-3 cursor-pointer group">
-                                            <div className="relative">
-                                                <input
-                                                    type="radio"
-                                                    name="subcategory"
-                                                    className="peer sr-only"
-                                                    checked={selectedSubcategory === sub}
-                                                    onChange={() => {
-                                                        setSelectedSubcategory(sub);
-                                                        setSearchQuery('');
-                                                        if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                    }}
-                                                />
-                                                <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                            </div>
-                                            <span className={`text-xs font-bold transition-colors ${selectedSubcategory === sub ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{sub}</span>
-                                        </label>
-                                    ))}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+                        </button>
+                        <AnimatePresence>
+                            {openFilters.subcategory && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="p-4 border-b border-gray-50">
+                                        <div className="relative">
+                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search subcategory..."
+                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                                value={subcategorySearchQuery}
+                                                onChange={(e) => setSubcategorySearchQuery(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                        {allSubcategories
+                                            .filter(sub => sub.toLowerCase().includes(subcategorySearchQuery.toLowerCase()))
+                                            .map(sub => (
+                                                <label key={sub} className="flex items-center gap-3 cursor-pointer group">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="radio"
+                                                            name="subcategory"
+                                                            className="peer sr-only"
+                                                            checked={selectedSubcategory === sub}
+                                                            onChange={() => {
+                                                                setSelectedSubcategory(sub);
+                                                                setSearchQuery('');
+                                                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                            }}
+                                                        />
+                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                                    </div>
+                                                    <span className={`text-xs font-bold transition-colors ${selectedSubcategory === sub ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{sub}</span>
+                                                </label>
+                                            ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                )}
 
-            {/* Price Filter Block */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleFilter('price')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Price</h3>
-                    <div className="flex items-center gap-2">
-                        {(selectedPriceRange || customPriceRange.min || customPriceRange.max) && (
-                            <span
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedPriceRange(null);
-                                    setCustomPriceRange({ min: '', max: '' });
-                                    setPriceInputs({ min: '', max: '' });
-                                }}
-                                className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2"
-                            >
-                                RESET
-                            </span>
-                        )}
-                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.price ? 'rotate-180' : ''}`} />
-                    </div>
-                </button>
-                <AnimatePresence>
-                    {openFilters.price && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden p-5 space-y-3"
-                        >
-                            {[
-                                { label: 'Below ₹100', min: 0, max: 100 },
-                                { label: '₹101 - ₹200', min: 101, max: 200 },
-                                { label: '₹201 - ₹500', min: 201, max: 500 },
-                                { label: 'Above ₹501', min: 501, max: null }
-                            ].map((range) => (
-                                <button
-                                    key={range.label}
-                                    onClick={() => {
-                                        setSelectedPriceRange(range);
+                {/* Price Filter Block */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <button
+                        onClick={() => toggleFilter('price')}
+                        className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                        <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Price</h3>
+                        <div className="flex items-center gap-2">
+                            {(selectedPriceRange || customPriceRange.min || customPriceRange.max) && (
+                                <span
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedPriceRange(null);
                                         setCustomPriceRange({ min: '', max: '' });
                                         setPriceInputs({ min: '', max: '' });
-                                        if (isMobileFilterOpen) setIsMobileFilterOpen(false);
                                     }}
-                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedPriceRange?.label === range.label
-                                        ? 'bg-primary-50 text-primary-600'
-                                        : 'text-gray-500 hover:bg-gray-50'
-                                        }`}
+                                    className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2"
                                 >
-                                    {range.label}
-                                </button>
-                            ))}
-
-                            <div className="pt-4 mt-4 border-t border-gray-50">
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1">
-                                        <input
-                                            type="number"
-                                            placeholder="₹ min"
-                                            value={priceInputs.min}
-                                            onChange={(e) => {
-                                                setPriceInputs(prev => ({ ...prev, min: e.target.value }));
-                                            }}
-                                            className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <input
-                                            type="number"
-                                            placeholder="₹ max"
-                                            value={priceInputs.max}
-                                            onChange={(e) => {
-                                                setPriceInputs(prev => ({ ...prev, max: e.target.value }));
-                                            }}
-                                            className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                        />
-                                    </div>
+                                    RESET
+                                </span>
+                            )}
+                            <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.price ? 'rotate-180' : ''}`} />
+                        </div>
+                    </button>
+                    <AnimatePresence>
+                        {openFilters.price && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden p-5 space-y-3"
+                            >
+                                {[
+                                    { label: 'Below ₹100', min: 0, max: 100 },
+                                    { label: '₹101 - ₹200', min: 101, max: 200 },
+                                    { label: '₹201 - ₹500', min: 201, max: 500 },
+                                    { label: 'Above ₹501', min: 501, max: null }
+                                ].map((range) => (
                                     <button
+                                        key={range.label}
                                         onClick={() => {
-                                            setCustomPriceRange(priceInputs);
-                                            setSelectedPriceRange(null);
+                                            setSelectedPriceRange(range);
+                                            setCustomPriceRange({ min: '', max: '' });
+                                            setPriceInputs({ min: '', max: '' });
                                             if (isMobileFilterOpen) setIsMobileFilterOpen(false);
                                         }}
-                                        className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedPriceRange?.label === range.label
+                                            ? 'bg-primary-50 text-primary-600'
+                                            : 'text-gray-500 hover:bg-gray-50'
+                                            }`}
                                     >
-                                        GO
+                                        {range.label}
                                     </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-
-            {/* Area Filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleFilter('area')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Area</h3>
-                    <div className="flex items-center gap-2">
-                        {selectedArea && (
-                            <span onClick={(e) => { e.stopPropagation(); setSelectedArea(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                        )}
-                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.area ? 'rotate-180' : ''}`} />
-                    </div>
-                </button>
-                <AnimatePresence>
-                    {openFilters.area && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-4 border-b border-gray-50">
-                                <div className="relative">
-                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search area..."
-                                        className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                        value={areaSearchQuery}
-                                        onChange={(e) => setAreaSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                                <button
-                                    onClick={() => setSelectedArea(null)}
-                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${!selectedArea ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                                >
-                                    ALL AREAS
-                                </button>
-                                {filteredAreasList.length > 0 ? (
-                                    filteredAreasList.map(area => (
-                                        <label key={area} className="flex items-center gap-3 cursor-pointer group px-3 py-1">
-                                            <div className="relative">
-                                                <input
-                                                    type="radio"
-                                                    name="area"
-                                                    className="peer sr-only"
-                                                    checked={selectedArea === area}
-                                                    onChange={() => {
-                                                        setSelectedArea(area);
-                                                        if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                    }}
-                                                />
-                                                <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                            </div>
-                                            <span className={`text-xs font-bold transition-colors ${selectedArea === area ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{area.toUpperCase()}</span>
-                                        </label>
-                                    ))
-                                ) : (
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase py-4 text-center">No areas found</p>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Market Filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleFilter('market')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Market</h3>
-                    <div className="flex items-center gap-2">
-                        {selectedMarket && (
-                            <span onClick={(e) => { e.stopPropagation(); setSelectedMarket(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                        )}
-                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.market ? 'rotate-180' : ''}`} />
-                    </div>
-                </button>
-                <AnimatePresence>
-                    {openFilters.market && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-4 border-b border-gray-50">
-                                <div className="relative">
-                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search market..."
-                                        className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
-                                        value={marketSearchQuery}
-                                        onChange={(e) => setMarketSearchQuery(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                                <button
-                                    onClick={() => setSelectedMarket(null)}
-                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${!selectedMarket ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                                >
-                                    ALL MARKETS
-                                </button>
-                                {filteredMarketsList.length > 0 ? (
-                                    filteredMarketsList.map(market => (
-                                        <label key={market} className="flex items-center gap-3 cursor-pointer group px-3 py-1">
-                                            <div className="relative">
-                                                <input
-                                                    type="radio"
-                                                    name="market"
-                                                    className="peer sr-only"
-                                                    checked={selectedMarket === market}
-                                                    onChange={() => {
-                                                        setSelectedMarket(market);
-                                                        if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                    }}
-                                                />
-                                                <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                            </div>
-                                            <span className={`text-xs font-bold transition-colors ${selectedMarket === market ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{market.toUpperCase()}</span>
-                                        </label>
-                                    ))
-                                ) : (
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase py-4 text-center">No markets found</p>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Pattern Filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleFilter('pattern')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Pattern</h3>
-                    <div className="flex items-center gap-2">
-                        {selectedPattern && (
-                            <span onClick={(e) => { e.stopPropagation(); setSelectedPattern(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                        )}
-                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.pattern ? 'rotate-180' : ''}`} />
-                    </div>
-                </button>
-                <AnimatePresence>
-                    {openFilters.pattern && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
-                                {uniquePatterns.map(pattern => (
-                                    <label key={pattern} className="flex items-center gap-3 cursor-pointer group">
-                                        <div className="relative">
-                                            <input
-                                                type="radio"
-                                                name="pattern"
-                                                className="peer sr-only"
-                                                checked={selectedPattern === pattern}
-                                                onChange={() => {
-                                                    setSelectedPattern(pattern);
-                                                    if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                }}
-                                            />
-                                            <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                        </div>
-                                        <span className={`text-xs font-bold transition-colors ${selectedPattern === pattern ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{pattern}</span>
-                                    </label>
                                 ))}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
 
-            {/* Fabric Filter */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => toggleFilter('fabric')}
-                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Fabric</h3>
-                    <div className="flex items-center gap-2">
-                        {selectedFabric && (
-                            <span onClick={(e) => { e.stopPropagation(); setSelectedFabric(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                        )}
-                        <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.fabric ? 'rotate-180' : ''}`} />
-                    </div>
-                </button>
-                <AnimatePresence>
-                    {openFilters.fabric && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
-                                {uniqueFabrics.map(fabric => (
-                                    <label key={fabric} className="flex items-center gap-3 cursor-pointer group">
-                                        <div className="relative">
+                                <div className="pt-4 mt-4 border-t border-gray-50">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1">
                                             <input
-                                                type="radio"
-                                                name="fabric"
-                                                className="peer sr-only"
-                                                checked={selectedFabric === fabric}
-                                                onChange={() => {
-                                                    setSelectedFabric(fabric);
-                                                    if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                type="number"
+                                                placeholder="₹ min"
+                                                value={priceInputs.min}
+                                                onChange={(e) => {
+                                                    setPriceInputs(prev => ({ ...prev, min: e.target.value }));
                                                 }}
+                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
                                             />
-                                            <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
                                         </div>
-                                        <span className={`text-xs font-bold transition-colors ${selectedFabric === fabric ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{fabric}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                        <div className="flex-1">
+                                            <input
+                                                type="number"
+                                                placeholder="₹ max"
+                                                value={priceInputs.max}
+                                                onChange={(e) => {
+                                                    setPriceInputs(prev => ({ ...prev, max: e.target.value }));
+                                                }}
+                                                className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setCustomPriceRange(priceInputs);
+                                                setSelectedPriceRange(null);
+                                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                            }}
+                                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                                        >
+                                            GO
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+
+                {/* Area Filter */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <button
+                        onClick={() => toggleFilter('area')}
+                        className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                        <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Area</h3>
+                        <div className="flex items-center gap-2">
+                            {selectedArea && (
+                                <span onClick={(e) => { e.stopPropagation(); setSelectedArea(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                            )}
+                            <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.area ? 'rotate-180' : ''}`} />
+                        </div>
+                    </button>
+                    <AnimatePresence>
+                        {openFilters.area && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="p-4 border-b border-gray-50">
+                                    <div className="relative">
+                                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search area..."
+                                            className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                            value={areaSearchQuery}
+                                            onChange={(e) => setAreaSearchQuery(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                    <button
+                                        onClick={() => setSelectedArea(null)}
+                                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${!selectedArea ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        ALL AREAS
+                                    </button>
+                                    {filteredAreasList.length > 0 ? (
+                                        filteredAreasList.map(area => (
+                                            <label key={area} className="flex items-center gap-3 cursor-pointer group px-3 py-1">
+                                                <div className="relative">
+                                                    <input
+                                                        type="radio"
+                                                        name="area"
+                                                        className="peer sr-only"
+                                                        checked={selectedArea === area}
+                                                        onChange={() => {
+                                                            setSelectedArea(area);
+                                                            if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                        }}
+                                                    />
+                                                    <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                                </div>
+                                                <span className={`text-xs font-bold transition-colors ${selectedArea === area ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{area.toUpperCase()}</span>
+                                            </label>
+                                        ))
+                                    ) : (
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase py-4 text-center">No areas found</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* Market Filter */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <button
+                        onClick={() => toggleFilter('market')}
+                        className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                        <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Market</h3>
+                        <div className="flex items-center gap-2">
+                            {selectedMarket && (
+                                <span onClick={(e) => { e.stopPropagation(); setSelectedMarket(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                            )}
+                            <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.market ? 'rotate-180' : ''}`} />
+                        </div>
+                    </button>
+                    <AnimatePresence>
+                        {openFilters.market && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="p-4 border-b border-gray-50">
+                                    <div className="relative">
+                                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search market..."
+                                            className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                            value={marketSearchQuery}
+                                            onChange={(e) => setMarketSearchQuery(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                    <button
+                                        onClick={() => setSelectedMarket(null)}
+                                        className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${!selectedMarket ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        ALL MARKETS
+                                    </button>
+                                    {filteredMarketsList.length > 0 ? (
+                                        filteredMarketsList.map(market => (
+                                            <label key={market} className="flex items-center gap-3 cursor-pointer group px-3 py-1">
+                                                <div className="relative">
+                                                    <input
+                                                        type="radio"
+                                                        name="market"
+                                                        className="peer sr-only"
+                                                        checked={selectedMarket === market}
+                                                        onChange={() => {
+                                                            setSelectedMarket(market);
+                                                            if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                        }}
+                                                    />
+                                                    <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                                </div>
+                                                <span className={`text-xs font-bold transition-colors ${selectedMarket === market ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{market.toUpperCase()}</span>
+                                            </label>
+                                        ))
+                                    ) : (
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase py-4 text-center">No markets found</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {!isPackingMaterial && (!isBigTextilePlayer || selectedItemType === 'lotslot') && (
+                    <>
+                        {/* Pattern Filter */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <button
+                                onClick={() => toggleFilter('pattern')}
+                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                            >
+                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Pattern</h3>
+                                <div className="flex items-center gap-2">
+                                    {selectedPattern && (
+                                        <span onClick={(e) => { e.stopPropagation(); setSelectedPattern(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                                    )}
+                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.pattern ? 'rotate-180' : ''}`} />
+                                </div>
+                            </button>
+                            <AnimatePresence>
+                                {openFilters.pattern && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
+                                            {uniquePatterns.map(pattern => (
+                                                <label key={pattern} className="flex items-center gap-3 cursor-pointer group">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="radio"
+                                                            name="pattern"
+                                                            className="peer sr-only"
+                                                            checked={selectedPattern === pattern}
+                                                            onChange={() => {
+                                                                setSelectedPattern(pattern);
+                                                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                            }}
+                                                        />
+                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                                    </div>
+                                                    <span className={`text-xs font-bold transition-colors ${selectedPattern === pattern ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{pattern}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Fabric Filter */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <button
+                                onClick={() => toggleFilter('fabric')}
+                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                            >
+                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Fabric</h3>
+                                <div className="flex items-center gap-2">
+                                    {selectedFabric && (
+                                        <span onClick={(e) => { e.stopPropagation(); setSelectedFabric(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
+                                    )}
+                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.fabric ? 'rotate-180' : ''}`} />
+                                </div>
+                            </button>
+                            <AnimatePresence>
+                                {openFilters.fabric && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
+                                            {uniqueFabrics.map(fabric => (
+                                                <label key={fabric} className="flex items-center gap-3 cursor-pointer group">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="radio"
+                                                            name="fabric"
+                                                            className="peer sr-only"
+                                                            checked={selectedFabric === fabric}
+                                                            onChange={() => {
+                                                                setSelectedFabric(fabric);
+                                                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                            }}
+                                                        />
+                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
+                                                    </div>
+                                                    <span className={`text-xs font-bold transition-colors ${selectedFabric === fabric ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{fabric}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </>
+                )}
             </div>
-        </div>
-    );
+        );
+    };
 
 
     // Define functions before useEffect hooks that use them
@@ -639,6 +649,12 @@ const ProductCatalog = () => {
     };
 
     const [selectedItemType, setSelectedItemType] = useState(searchParams.get('itemType') || null);
+
+    // Derived states for conditional filtering
+    const typeLower = selectedBusinessType?.toLowerCase()?.trim();
+    const isPackingMaterial = typeLower === 'packing material';
+    const bigTextilePlayerTypes = ['yarn manufacturer', 'mill / processing', 'weavers', 'gray broker', 'other broker', 'job work', 'stitching unit', 'support & services'];
+    const isBigTextilePlayer = bigTextilePlayerTypes.includes(typeLower);
 
     const fetchB2BProducts = async () => {
         setLoading(true);
@@ -816,6 +832,25 @@ const ProductCatalog = () => {
         setSelectedBusinessType(searchParams.get('businessType') || null);
         setSelectedBusinessSubType(searchParams.get('businessSubType') || null);
     }, [searchParams]);
+
+    // Reset Patterns, Fabrics, Categories when certain Business Types are selected
+    useEffect(() => {
+        // Packing Material should always have Pattern/Fabric reset because they are always hidden
+        if (isPackingMaterial) {
+            setSelectedPattern(null);
+            setSelectedFabric(null);
+        }
+
+        // For Big Players, only reset if we are NOT in Lot/Slot mode
+        if (selectedItemType !== 'lotslot' && isBigTextilePlayer) {
+            setSelectedPattern(null);
+            setSelectedFabric(null);
+            setSelectedCategory('All');
+            setSelectedSubcategory(null);
+            setExpandedCategory(null);
+        }
+    }, [isPackingMaterial, isBigTextilePlayer, selectedItemType]);
+
 
     // Initial Data Fetch
     useEffect(() => {
@@ -1476,58 +1511,60 @@ const ProductCatalog = () => {
 
                     {/* Main Category Dropdown Selection */}
                     <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
-                        <div className="relative w-full md:w-72" ref={mainCategoryDropdownRef}>
-                            <button
-                                onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
-                                className={`flex items-center justify-between gap-3 px-6 py-3.5 md:py-4 bg-white border rounded-xl md:rounded-2xl text-[11px] md:text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${selectedCategory !== 'All' ? 'border-primary-200 text-primary-600 bg-primary-50/20' : 'border-gray-200 text-gray-700'
-                                    }`}
-                            >
-                                <div className="flex items-center gap-2 uppercase tracking-widest">
-                                    <FiGrid className={selectedCategory !== 'All' ? 'text-primary-600' : 'text-gray-400'} size={16} />
-                                    <span>{selectedCategory === 'All' ? 'Browse Categories' : selectedCategory}</span>
-                                </div>
-                                <FiChevronDown className={`transition-transform duration-300 ${isMainCategoryDropdownOpen ? 'rotate-180' : ''}`} />
-                            </button>
+                        {(!isBigTextilePlayer || selectedItemType === 'lotslot') && (
+                            <div className="relative w-full md:w-72" ref={mainCategoryDropdownRef}>
+                                <button
+                                    onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
+                                    className={`flex items-center justify-between gap-3 px-6 py-3.5 md:py-4 bg-white border rounded-xl md:rounded-2xl text-[11px] md:text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${selectedCategory !== 'All' ? 'border-primary-200 text-primary-600 bg-primary-50/20' : 'border-gray-200 text-gray-700'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2 uppercase tracking-widest">
+                                        <FiGrid className={selectedCategory !== 'All' ? 'text-primary-600' : 'text-gray-400'} size={16} />
+                                        <span>{selectedCategory === 'All' ? 'Browse Categories' : selectedCategory}</span>
+                                    </div>
+                                    <FiChevronDown className={`transition-transform duration-300 ${isMainCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
 
-                            <AnimatePresence>
-                                {isMainCategoryDropdownOpen && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60]"
-                                    >
-                                        <div className="p-2 max-h-[400px] overflow-y-auto">
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedCategory('All');
-                                                    setExpandedCategory(null);
-                                                    setSelectedSubcategory(null);
-                                                    setIsMainCategoryDropdownOpen(false);
-                                                    setSearchQuery('');
-                                                }}
-                                                className={`w-full text-left px-4 py-3 rounded-lg text-[10px] md:text-xs font-black transition-all uppercase tracking-widest ${selectedCategory === 'All' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
-                                            >
-                                                View All
-                                            </button>
-                                            {categories.filter(cat => cat.name !== 'All').map((cat) => (
+                                <AnimatePresence>
+                                    {isMainCategoryDropdownOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            className="absolute top-full left-0 mt-2 w-full bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[60]"
+                                        >
+                                            <div className="p-2 max-h-[400px] overflow-y-auto">
                                                 <button
-                                                    key={cat.id}
                                                     onClick={() => {
-                                                        handleCategoryClick(cat.name);
+                                                        setSelectedCategory('All');
+                                                        setExpandedCategory(null);
+                                                        setSelectedSubcategory(null);
                                                         setIsMainCategoryDropdownOpen(false);
+                                                        setSearchQuery('');
                                                     }}
-                                                    className={`w-full text-left px-4 py-3 rounded-lg text-[10px] md:text-xs font-black transition-all flex items-center justify-between group uppercase tracking-widest ${selectedCategory === cat.name ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                    className={`w-full text-left px-4 py-3 rounded-lg text-[10px] md:text-xs font-black transition-all uppercase tracking-widest ${selectedCategory === 'All' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
                                                 >
-                                                    <span>{cat.name}</span>
-                                                    {cat.subcategories?.length > 0 && <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400 group-hover:bg-primary-100 group-hover:text-primary-600">{cat.subcategories.length}</span>}
+                                                    View All
                                                 </button>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
+                                                {categories.filter(cat => cat.name !== 'All').map((cat) => (
+                                                    <button
+                                                        key={cat.id}
+                                                        onClick={() => {
+                                                            handleCategoryClick(cat.name);
+                                                            setIsMainCategoryDropdownOpen(false);
+                                                        }}
+                                                        className={`w-full text-left px-4 py-3 rounded-lg text-[10px] md:text-xs font-black transition-all flex items-center justify-between group uppercase tracking-widest ${selectedCategory === cat.name ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                    >
+                                                        <span>{cat.name}</span>
+                                                        {cat.subcategories?.length > 0 && <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded-full text-gray-400 group-hover:bg-primary-100 group-hover:text-primary-600">{cat.subcategories.length}</span>}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        )}
 
                         {/* Quick filter info */}
                         {selectedCategory !== 'All' && (

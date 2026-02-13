@@ -4,11 +4,17 @@ import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDoll
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
+import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
 const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const { vendor } = useB2BVendorAuthStore();
+
+    // Check if fields should be hidden
+    const isPackingMaterial = vendor?.businessType?.toLowerCase() === "packing material";
+    const showTextileFields = !isPackingMaterial;
 
     const [formData, setFormData] = useState(initialData || {
         name: "",
@@ -118,9 +124,16 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         setFormData(prev => ({ ...prev, bulkPricing: updated }));
     };
 
+    const MAX_PHOTOS = 5;
+
     const handleMultipleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (!files.length) return;
+
+        if (formData.images.length + files.length > MAX_PHOTOS) {
+            toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
+            return;
+        }
 
         setIsUploading(true);
         try {
@@ -314,35 +327,39 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Pattern</label>
-                                <select
-                                    name="pattern"
-                                    value={formData.pattern || ""}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                >
-                                    <option value="">Select Pattern</option>
-                                    {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
-                                        <option key={p} value={p}>{p}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {showTextileFields && (
+                                <>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Pattern</label>
+                                        <select
+                                            name="pattern"
+                                            value={formData.pattern || ""}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                        >
+                                            <option value="">Select Pattern</option>
+                                            {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
+                                                <option key={p} value={p}>{p}</option>
+                                            ))}
+                                        </select>
+                                    </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Fabric</label>
-                                <select
-                                    name="fabric"
-                                    value={formData.fabric || ""}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                >
-                                    <option value="">Select Fabric</option>
-                                    {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
-                                        <option key={f} value={f}>{f}</option>
-                                    ))}
-                                </select>
-                            </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Fabric</label>
+                                        <select
+                                            name="fabric"
+                                            value={formData.fabric || ""}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                        >
+                                            <option value="">Select Fabric</option>
+                                            {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
+                                                <option key={f} value={f}>{f}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </motion.div>
 

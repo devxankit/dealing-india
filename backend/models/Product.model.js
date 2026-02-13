@@ -117,6 +117,11 @@ const productSchema = new mongoose.Schema(
       enum: ['standard', 'shop-listing'],
       default: 'standard'
     },
+    shopUnitId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ShopUnit',
+      default: null
+    },
     minPrice: {
       type: Number,
       min: 0,
@@ -130,7 +135,13 @@ const productSchema = new mongoose.Schema(
         itemName: String,
         category: String,
         price: Number,
-        unit: String
+        unit: String,
+        reed: String,
+        pick: String,
+        panna: String,
+        gsm: String,
+        images: [String],
+        imagesPublicIds: [String]
       }
     ]
   },

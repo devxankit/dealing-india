@@ -38,7 +38,8 @@ export const getPublicProducts = async (filters) => {
             { name: { $regex: search, $options: 'i' } },
             { description: { $regex: search, $options: 'i' } },
             { category: { $regex: search, $options: 'i' } },
-            { subcategory: { $regex: search, $options: 'i' } }
+            { subcategory: { $regex: search, $options: 'i' } },
+            { 'items.itemName': { $regex: search, $options: 'i' } }
         ];
     }
 
@@ -148,15 +149,17 @@ export const getPublicProducts = async (filters) => {
             .lean();
     }
 
-    // 2. Fetch LotSlots (if not restricted to product)
-    if (itemType !== 'product') {
+    // 2. Fetch LotSlots (ONLY if explicitly requested as 'lotslot')
+    if (itemType === 'lotslot') {
         const lotSlotQuery = { isActive: true };
 
         // Map common filters to LotSlot schema
         if (search) {
             lotSlotQuery.$or = [
                 { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { description: { $regex: search, $options: 'i' } },
+                { category: { $regex: search, $options: 'i' } },
+                { subcategory: { $regex: search, $options: 'i' } }
             ];
         }
 
@@ -250,6 +253,7 @@ export const getPublicProducts = async (filters) => {
 export const getPublicProductById = async (id) => {
     let item = await Product.findById(id)
         .populate('vendorId', 'name storeName description logo phone address')
+        .populate('shopUnitId')
         .lean();
 
     let isLotSlot = false;
@@ -276,10 +280,10 @@ export const getB2BSearchSuggestions = async (query) => {
 
     const suggestions = [];
 
-    // 1. Search products
-    const [products, lotSlots] = await Promise.all([
+    const [products, lotSlots, shopItems] = await Promise.all([
         Product.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image'),
-        LotSlot.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image')
+        LotSlot.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image'),
+        Product.find({ 'items.itemName': { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('items name')
     ]);
 
     products.forEach(p => {
@@ -298,6 +302,24 @@ export const getB2BSearchSuggestions = async (query) => {
             type: 'lotslot',
             image: l.image || (l.images && l.images[0]) || null
         });
+    });
+
+    // Search for Item Names inside shop listings
+    shopItems.forEach(p => {
+        if (p.items && p.items.length > 0) {
+            p.items.forEach(item => {
+                if (item.itemName && item.itemName.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 15) {
+                    if (!suggestions.some(s => s.text === item.itemName)) {
+                        suggestions.push({
+                            text: item.itemName,
+                            context: `In ${p.name}`,
+                            type: 'product',
+                            image: (item.images && item.images[0]) || null
+                        });
+                    }
+                }
+            });
+        }
     });
 
     // 2. Search Categories

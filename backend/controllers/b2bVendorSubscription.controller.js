@@ -7,15 +7,16 @@ class AdminB2BVendorSubscriptionController {
    */
   async getSubscriptions(req, res) {
     try {
-      const { status, planId, expiringSoon } = req.query;
-      
+      const { status, planId, expiringSoon, businessType } = req.query;
+
       const filters = {};
       if (status) filters.status = status;
       if (planId) filters.planId = planId;
       if (expiringSoon === 'true') filters.expiringSoon = true;
+      if (businessType) filters.businessType = businessType;
 
       const result = await b2bVendorSubscriptionService.getAllB2BSubscriptions(filters);
-      
+
       res.status(200).json({
         success: true,
         data: result.subscriptions,

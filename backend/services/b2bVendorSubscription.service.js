@@ -40,12 +40,17 @@ class B2BVendorSubscriptionService {
         query.endDate = { $gt: now, $lte: sevenDaysFromNow };
       }
 
+      const vendorMatch = { vendorType: 'b2b' };
+      if (filters.businessType) {
+        vendorMatch.businessType = filters.businessType;
+      }
+
       // Get subscriptions and filter B2B vendors using populate match
       let subscriptions = await VendorSubscription.find(query)
         .populate({
           path: 'vendorId',
-          select: 'name email storeName vendorType',
-          match: { vendorType: 'b2b' }  // Only include B2B vendors
+          select: 'name email storeName vendorType businessType',
+          match: vendorMatch
         })
         .populate('planId', 'name duration price')
         .sort({ createdAt: -1 })
@@ -76,6 +81,7 @@ class B2BVendorSubscriptionService {
         _id: sub._id,
         vendorName: sub.vendorId?.storeName || sub.vendorId?.name || 'Unknown Vendor',
         vendorEmail: sub.vendorId?.email || '',
+        businessType: sub.vendorId?.businessType || 'B2B Vendor',
         plan: sub.planId?.name || 'Unknown Plan',
         planDuration: sub.planId?.duration || 0,
         status: sub.status,

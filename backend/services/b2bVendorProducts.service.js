@@ -256,11 +256,34 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       brand,
       availability,
       unit,
-      formType,
       minPrice,
       maxPrice,
       items: shopItems,
+      shopUnitId,
     } = productData;
+
+    // Handle ShopUnit creation/update - Enforce ONE shop per vendor
+    let internalShopUnitId = shopUnitId;
+    if (formType === 'shop-listing' && name) {
+      const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
+      let shopUnit = await ShopUnit.findOne({ vendorId });
+
+      const unitData = {
+        name: name.trim(),
+        description: description || '',
+        minPrice: minPrice ? parseFloat(minPrice) : 0,
+        maxPrice: maxPrice ? parseFloat(maxPrice) : 0,
+        vendorId,
+      };
+
+      if (shopUnit) {
+        await ShopUnit.findByIdAndUpdate(shopUnit._id, unitData);
+        internalShopUnitId = shopUnit._id;
+      } else {
+        const newUnit = await ShopUnit.create(unitData);
+        internalShopUnitId = newUnit._id;
+      }
+    }
 
     // Process images - upload to Cloudinary
     let imageUrl = null;
@@ -330,10 +353,20 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       throw new Error('Failed to upload main product image');
     }
     // Process specifications into attributes array
+    const isPackingMaterial = vendor?.businessType?.toLowerCase() === "packing material";
     const processedAttributes = [];
     if (specifications && Array.isArray(specifications)) {
       specifications.forEach(spec => {
-        if (spec.name && spec.value && spec.name.toLowerCase() !== 'color') {
+        if (!spec.name || !spec.value) return;
+
+        const specNameLower = spec.name.toLowerCase();
+
+        // Skip specific fields for packing material
+        if (isPackingMaterial && (specNameLower === 'pattern' || specNameLower === 'fabric')) {
+          return;
+        }
+
+        if (specNameLower !== 'color') {
           processedAttributes.push({
             attributeName: spec.name,
             name: spec.name,
@@ -356,6 +389,35 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       stock = 'pre_order';
     }
 
+    // Process shopItems images if present
+    const processedShopItems = [];
+    if (shopItems && Array.isArray(shopItems)) {
+      for (const item of shopItems) {
+        const itemImageUrls = [];
+        const itemPublicIds = [];
+
+        if (item.images && Array.isArray(item.images)) {
+          const itemUploads = item.images.map(img => safeUpload(img, 'products/b2b/items'));
+          const itemResults = await Promise.allSettled(itemUploads);
+
+          itemResults.forEach(res => {
+            if (res.status === 'fulfilled' && res.value) {
+              itemImageUrls.push(res.value.secure_url);
+              if (res.value.public_id) {
+                itemPublicIds.push(res.value.public_id);
+              }
+            }
+          });
+        }
+
+        processedShopItems.push({
+          ...item,
+          images: itemImageUrls,
+          imagesPublicIds: itemPublicIds,
+        });
+      }
+    }
+
     // Create product
     const product = await Product.create({
       name: name.trim(),
@@ -375,10 +437,11 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       subcategory: subcategory || '',
       bulkPricing: bulkPricing || [],
       unit: unit || 'Pcs',
-      formType: formType || 'standard',
+      formType: productData.formType || 'standard',
+      shopUnitId: internalShopUnitId,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-      items: shopItems || [],
+      items: processedShopItems,
       vendorId,
       vendorName: vendor.storeName || vendor.name,
       isActive: true,
@@ -473,6 +536,41 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
         }
       };
 
+      if (shopItems !== undefined && Array.isArray(shopItems)) {
+        const processedShopItems = [];
+        for (const item of shopItems) {
+          const itemImageUrls = [];
+          const itemPublicIds = [];
+
+          if (item.images && Array.isArray(item.images)) {
+            for (const img of item.images) {
+              if (img.startsWith('http')) {
+                itemImageUrls.push(img);
+                // Try to find existing public ID if needed, but for simplicity:
+                const existingItem = existingProduct.items.find(ei => ei.images.includes(img));
+                if (existingItem) {
+                  const pid = existingItem.imagesPublicIds[existingItem.images.indexOf(img)];
+                  if (pid) itemPublicIds.push(pid);
+                }
+              } else if (img.startsWith('data:image')) {
+                const res = await uploadBase64ToCloudinary(img, 'products/b2b/items');
+                if (res && res.secure_url) {
+                  itemImageUrls.push(res.secure_url);
+                  itemPublicIds.push(res.public_id);
+                }
+              }
+            }
+          }
+
+          processedShopItems.push({
+            ...item,
+            images: itemImageUrls,
+            imagesPublicIds: itemPublicIds,
+          });
+        }
+        updateData.items = processedShopItems;
+      }
+
       // Identify images to delete (those not in the new list)
       const newImageUrls = images.filter(img => img.startsWith('http'));
       const publicIdsToDelete = [];
@@ -538,10 +636,21 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
     // Process specifications
     const processedAttributes = [];
     if (specifications !== undefined) {
+      const isPackingMaterial = vendor?.businessType?.toLowerCase() === "packing material";
+
       // Add standard specifications
       if (Array.isArray(specifications)) {
         specifications.forEach(spec => {
-          if (spec.name && spec.value && spec.name.toLowerCase() !== 'color') {
+          if (!spec.name || !spec.value) return;
+
+          const specNameLower = spec.name.toLowerCase();
+
+          // Skip specific fields for packing material
+          if (isPackingMaterial && (specNameLower === 'pattern' || specNameLower === 'fabric')) {
+            return;
+          }
+
+          if (specNameLower !== 'color') {
             processedAttributes.push({
               attributeName: spec.name,
               name: spec.name,

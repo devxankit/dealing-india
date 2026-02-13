@@ -1,14 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList } from "react-icons/fi";
+import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiSearch, FiChevronDown } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
+import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
 const LotSlotForm = ({ initialData, isEdit, id }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+    const { vendor } = useB2BVendorAuthStore();
+
+    // Check if fields should be hidden
+    const isPackingMaterial = vendor?.businessType?.toLowerCase() === "packing material";
+    const showTextileFields = !isPackingMaterial;
 
     const [formData, setFormData] = useState(initialData || {
         name: "",
@@ -30,6 +36,25 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     const [categories, setCategories] = useState([]);
     const [subcategories, setSubcategories] = useState([]);
     const [categoriesLoading, setCategoriesLoading] = useState(true);
+    const [subcategorySearchQuery, setSubcategorySearchQuery] = useState("");
+    const [isSubcategoryDropdownOpen, setIsSubcategoryDropdownOpen] = useState(false);
+    const subcategoryDropdownRef = useRef(null);
+
+    const filteredSubcategories = useMemo(() => {
+        return (subcategories || []).filter(sub =>
+            sub.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
+        );
+    }, [subcategories, subcategorySearchQuery]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (subcategoryDropdownRef.current && !subcategoryDropdownRef.current.contains(event.target)) {
+                setIsSubcategoryDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     useEffect(() => {
         fetchCategories();
@@ -257,6 +282,85 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                 />
                             </div>
 
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Category <span className="text-red-500">*</span></label>
+                                <select
+                                    name="category"
+                                    value={formData.category}
+                                    onChange={handleChange}
+                                    required
+                                    disabled={categoriesLoading}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50"
+                                >
+                                    <option value="">{categoriesLoading ? "Loading categories..." : "Select Category"}</option>
+                                    {categories.map((cat) => (
+                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="md:col-span-1" ref={subcategoryDropdownRef}>
+                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Subcategory</label>
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        disabled={!formData.category || subcategories.length === 0}
+                                        onClick={() => setIsSubcategoryDropdownOpen(!isSubcategoryDropdownOpen)}
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50 text-left flex items-center justify-between"
+                                    >
+                                        <span className={`text-sm ${formData.subcategory ? 'text-gray-800 font-bold' : 'text-gray-400'}`}>
+                                            {formData.subcategory || "Select Subcategory"}
+                                        </span>
+                                        <FiChevronDown className={`transition-transform duration-300 ${isSubcategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {isSubcategoryDropdownOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden"
+                                            >
+                                                <div className="p-2 border-b border-gray-50">
+                                                    <div className="relative">
+                                                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search subcategory..."
+                                                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border-none rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-primary-500"
+                                                            value={subcategorySearchQuery}
+                                                            onChange={(e) => setSubcategorySearchQuery(e.target.value)}
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                                    {filteredSubcategories.length > 0 ? (
+                                                        filteredSubcategories.map((sub, index) => (
+                                                            <button
+                                                                key={index}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setFormData(prev => ({ ...prev, subcategory: sub }));
+                                                                    setIsSubcategoryDropdownOpen(false);
+                                                                    setSubcategorySearchQuery("");
+                                                                }}
+                                                                className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${formData.subcategory === sub ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                                            >
+                                                                {sub}
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <div className="py-6 text-center text-xs text-gray-400 font-bold uppercase tracking-wider">No results found</div>
+                                                    )}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Brand / Manufacturer</label>
                                 <input
@@ -283,68 +387,39 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Pattern</label>
-                                <select
-                                    name="pattern"
-                                    value={formData.pattern || ""}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                >
-                                    <option value="">Select Pattern</option>
-                                    {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
-                                        <option key={p} value={p}>{p}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {showTextileFields && (
+                                <>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Pattern</label>
+                                        <select
+                                            name="pattern"
+                                            value={formData.pattern || ""}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                        >
+                                            <option value="">Select Pattern</option>
+                                            {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
+                                                <option key={p} value={p}>{p}</option>
+                                            ))}
+                                        </select>
+                                    </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Fabric</label>
-                                <select
-                                    name="fabric"
-                                    value={formData.fabric || ""}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                >
-                                    <option value="">Select Fabric</option>
-                                    {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
-                                        <option key={f} value={f}>{f}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="md:col-span-1">
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Category <span className="text-red-500">*</span></label>
-                                <select
-                                    name="category"
-                                    value={formData.category}
-                                    onChange={handleChange}
-                                    required
-                                    disabled={categoriesLoading}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50"
-                                >
-                                    <option value="">{categoriesLoading ? "Loading categories..." : "Select Category"}</option>
-                                    {categories.map((cat) => (
-                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="md:col-span-1">
-                                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Subcategory</label>
-                                <select
-                                    name="subcategory"
-                                    value={formData.subcategory}
-                                    onChange={handleChange}
-                                    disabled={!formData.category || subcategories.length === 0}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none disabled:opacity-50"
-                                >
-                                    <option value="">Select Subcategory</option>
-                                    {subcategories.map((sub, index) => (
-                                        <option key={index} value={sub}>{sub}</option>
-                                    ))}
-                                </select>
-                            </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Fabric</label>
+                                        <select
+                                            name="fabric"
+                                            value={formData.fabric || ""}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                        >
+                                            <option value="">Select Fabric</option>
+                                            {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
+                                                <option key={f} value={f}>{f}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </motion.div>
 

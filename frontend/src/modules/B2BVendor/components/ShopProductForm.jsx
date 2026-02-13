@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { FiPlus, FiTrash2, FiUpload, FiX, FiImage, FiTag, FiDollarSign, FiList } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { FiPlus, FiTrash2, FiUpload, FiX, FiImage, FiTag, FiDollarSign, FiList, FiHome } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
 const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) => {
     const [formData, setFormData] = useState({
@@ -9,9 +10,45 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
         description: initialData?.description || "",
         minPrice: initialData?.minPrice || "",
         maxPrice: initialData?.maxPrice || "",
-        items: initialData?.items || [{ itemName: "", category: "", price: "", unit: "" }],
+        items: initialData?.items || [{ itemName: "", category: "", price: "", unit: "", reed: "", pick: "", panna: "", gsm: "", images: [] }],
         images: initialData?.images || [],
+        shopUnitId: initialData?.shopUnitId || null,
     });
+
+    const { vendor } = useB2BVendorAuthStore();
+    const [hasExistingUnit, setHasExistingUnit] = useState(false);
+
+    // Business types that should see Reed, Pick, Panna, GSM
+    const techTypeAllowed = ["yarn", "mill", "weaver", "gray broker"];
+    const businessType = vendor?.businessType?.toLowerCase() || "";
+    const showTechFields = techTypeAllowed.includes(businessType);
+
+    useEffect(() => {
+        const fetchUnit = async () => {
+            try {
+                const response = await fetch('/api/b2b-vendor/shop-units', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    const unit = result.data;
+                    setFormData(prev => ({
+                        ...prev,
+                        unitName: unit.name,
+                        description: unit.description,
+                        images: unit.images || [],
+                        minPrice: unit.minPrice || "",
+                        maxPrice: unit.maxPrice || "",
+                        shopUnitId: unit._id
+                    }));
+                    setHasExistingUnit(true);
+                }
+            } catch (err) {
+                console.error("Failed to fetch unit:", err);
+            }
+        };
+        fetchUnit();
+    }, []);
 
     const MAX_PHOTOS = 5;
 
@@ -50,8 +87,34 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
     const addItem = () => {
         setFormData({
             ...formData,
-            items: [...formData.items, { itemName: "", category: "", price: "", unit: "" }]
+            items: [...formData.items, { itemName: "", category: "", price: "", unit: "", reed: "", pick: "", panna: "", gsm: "", images: [] }]
         });
+    };
+
+    const handleItemImageUpload = (itemIndex, e) => {
+        const files = Array.from(e.target.files);
+        const currentItemImages = formData.items[itemIndex].images || [];
+
+        if (currentItemImages.length + files.length > MAX_PHOTOS) {
+            toast.error(`Maximum ${MAX_PHOTOS} photos allowed per item`);
+            return;
+        }
+
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const updatedItems = [...formData.items];
+                updatedItems[itemIndex].images = [...(updatedItems[itemIndex].images || []), reader.result];
+                setFormData(prev => ({ ...prev, items: updatedItems }));
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const removeItemImage = (itemIndex, imgIndex) => {
+        const updatedItems = [...formData.items];
+        updatedItems[itemIndex].images = updatedItems[itemIndex].images.filter((_, i) => i !== imgIndex);
+        setFormData(prev => ({ ...prev, items: updatedItems }));
     };
 
     const removeItem = (index) => {
@@ -73,9 +136,16 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
             return toast.error("Max Price cannot be less than Min Price");
         }
 
-        const validItems = formData.items.every(item => item.itemName && item.category && item.price && item.unit);
+        const validItems = formData.items.every(item => {
+            const basicValid = item.itemName && item.category && item.price && item.unit;
+            if (showTechFields) {
+                return basicValid && item.reed && item.pick && item.panna && item.gsm;
+            }
+            return basicValid;
+        });
+
         if (!validItems) {
-            return toast.error("Please fill all item details in Section B");
+            return toast.error("Please fill all required item details in Section B");
         }
 
         if (formData.images.length === 0) {
@@ -85,7 +155,7 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
         onSubmit({
             ...formData,
             formType: 'shop-listing',
-            name: formData.unitName,
+            name: formData.items[0].itemName || formData.unitName, // Use Item Name as the catalog title
         });
     };
 
@@ -96,6 +166,20 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
 
     return (
         <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-6 pb-24 px-4 text-left">
+            {hasExistingUnit && (
+                <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 shadow-sm">
+                        <FiHome size={20} />
+                    </div>
+                    <div>
+                        <h4 className="text-xs font-black text-indigo-900 uppercase tracking-widest">Active Shop Profile Found</h4>
+                        <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-1">
+                            Updating details below will sync across all your shop listings.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* SECTION A – SHOP LISTING */}
             <div className={sectionStyle}>
                 <div className="flex items-center gap-2 mb-8">
@@ -282,18 +366,98 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                                         />
                                     </div>
                                 </div>
+                                {showTechFields && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Reed <span className="text-red-500">*</span></label>
+                                            <div className="bg-white px-4 py-2.5 rounded-xl border border-gray-200 focus-within:border-blue-500 transition-all">
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    value={item.reed}
+                                                    onChange={(e) => handleItemChange(idx, "reed", e.target.value)}
+                                                    placeholder="Example: 92"
+                                                    className="w-full bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-700 outline-none p-0"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pick <span className="text-red-500">*</span></label>
+                                            <div className="bg-white px-4 py-2.5 rounded-xl border border-gray-200 focus-within:border-blue-500 transition-all">
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    value={item.pick}
+                                                    onChange={(e) => handleItemChange(idx, "pick", e.target.value)}
+                                                    placeholder="Example: 88"
+                                                    className="w-full bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-700 outline-none p-0"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Panna / Width (Inch) <span className="text-red-500">*</span></label>
+                                            <div className="bg-white px-4 py-2.5 rounded-xl border border-gray-200 focus-within:border-blue-500 transition-all">
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    value={item.panna}
+                                                    onChange={(e) => handleItemChange(idx, "panna", e.target.value)}
+                                                    placeholder="Example: 44” / 60”"
+                                                    className="w-full bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-700 outline-none p-0"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">GSM <span className="text-red-500">*</span></label>
+                                            <div className="bg-white px-4 py-2.5 rounded-xl border border-gray-200 focus-within:border-blue-500 transition-all">
+                                                <input
+                                                    required
+                                                    type="text"
+                                                    value={item.gsm}
+                                                    onChange={(e) => handleItemChange(idx, "gsm", e.target.value)}
+                                                    placeholder="Example: 110/130/180"
+                                                    className="w-full bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-700 outline-none p-0"
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Item Images Section */}
+                            <div className="mt-6 pt-6 border-t border-gray-100 flex flex-wrap gap-3">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block w-full mb-2">Item Photos (Max 5)</label>
+                                {item.images?.map((img, imgIdx) => (
+                                    <div key={imgIdx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-100 group">
+                                        <img src={img} alt="item" className="w-full h-full object-cover" />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeItemImage(idx, imgIdx)}
+                                            className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <FiX size={10} />
+                                        </button>
+                                    </div>
+                                ))}
+                                {(!item.images || item.images.length < MAX_PHOTOS) && (
+                                    <label className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-0.5 cursor-pointer hover:bg-white transition-all text-gray-400">
+                                        <FiImage size={14} />
+                                        <span className="text-[8px] font-bold uppercase">Add</span>
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => handleItemImageUpload(idx, e)}
+                                        />
+                                    </label>
+                                )}
                             </div>
                         </motion.div>
                     ))}
                 </div>
 
-                <button
-                    type="button"
-                    onClick={addItem}
-                    className="w-full mt-6 py-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 font-bold uppercase tracking-widest text-xs hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 shadow-sm"
-                >
-                    <FiPlus /> + Add More Item
-                </button>
+
             </div>
 
             {/* ACTION BUTTON AT BOTTOM */}

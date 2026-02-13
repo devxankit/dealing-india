@@ -46,6 +46,7 @@ import SubscriptionRoutes from './routes/SubscriptionRoute.js';
 
 
 import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
+import b2bVendorShopUnitRoutes from './routes/b2bVendorShopUnit.routes.js';
 import lotSlotRoutes from './routes/lotSlot.routes.js';
 
 import adminB2BProductManagementRoutes from './routes/adminB2BProductManagement.routes.js';
@@ -283,6 +284,7 @@ app.use('/api/user/notifications', userNotificationRoutes);
 
 // B2B Vendor routes (separate from regular vendor routes)
 app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);
+app.use('/api/b2b-vendor/shop-units', b2bVendorShopUnitRoutes);
 app.use('/api/b2b-vendor/lot-slots', lotSlotRoutes);
 
 

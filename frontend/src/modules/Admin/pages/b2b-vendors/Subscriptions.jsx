@@ -18,6 +18,8 @@ const Subscriptions = () => {
     const [loading, setLoading] = useState(true);
     const [subscriptions, setSubscriptions] = useState([]);
     const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
+    const [businessTypes, setBusinessTypes] = useState([]);
+    const [selectedBusinessType, setSelectedBusinessType] = useState("All Business Types");
     const [stats, setStats] = useState({
         active: 0,
         monthlyRevenue: 0,
@@ -32,7 +34,8 @@ const Subscriptions = () => {
             try {
                 await Promise.all([
                     loadPlans(),
-                    loadSubscriptions()
+                    loadSubscriptions(),
+                    loadBusinessTypes()
                 ]);
             } catch (error) {
                 console.error("Initialization error:", error);
@@ -55,7 +58,7 @@ const Subscriptions = () => {
             loadSubscriptions();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [subscriptionFilter]); // Only depends on filter, not activeTab
+    }, [subscriptionFilter, selectedBusinessType]); // Only depends on filter, not activeTab
 
     const loadPlans = async () => {
         try {
@@ -144,6 +147,17 @@ const Subscriptions = () => {
         setEditingPlan({ ...editingPlan, features: newFeatures });
     };
 
+    const loadBusinessTypes = async () => {
+        try {
+            const response = await api.get('/business-types');
+            if (response.success) {
+                setBusinessTypes(response.data || []);
+            }
+        } catch (error) {
+            console.error('Error loading business types:', error);
+        }
+    };
+
     const handleAddFeature = () => {
         setEditingPlan({
             ...editingPlan,
@@ -168,6 +182,9 @@ const Subscriptions = () => {
                 params.append('status', 'pending');
             }
             // If subscriptionFilter is 'all', load all
+            if (selectedBusinessType !== 'All Business Types') {
+                params.append('businessType', selectedBusinessType);
+            }
 
             const response = await api.get(`/admin/b2b-vendors/subscriptions?${params.toString()}`);
             if (response.success) {
@@ -209,10 +226,10 @@ const Subscriptions = () => {
         {
             key: "vendorName",
             label: "Vendor",
-            render: (val) => (
+            render: (val, row) => (
                 <div className="flex flex-col">
                     <span className="font-bold text-gray-800">{val}</span>
-                    <span className="text-[10px] text-gray-400 font-medium">B2B Vendor</span>
+                    <span className="text-[10px] text-gray-400 font-medium uppercase">{row.businessType || 'B2B Vendor'}</span>
                 </div>
             )
         },
@@ -262,12 +279,22 @@ const Subscriptions = () => {
                     <p className="text-gray-500 text-sm">Monitor and manage B2B vendor subscription plans and cycles.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <select
+                        className="px-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-sm text-sm font-bold text-gray-700 outline-none"
+                        value={selectedBusinessType}
+                        onChange={(e) => setSelectedBusinessType(e.target.value)}
+                    >
+                        <option value="All Business Types">All Business Types</option>
+                        {businessTypes.map(type => (
+                            <option key={type._id} value={type.name}>{type.name}</option>
+                        ))}
+                    </select>
                     <div className="relative w-64">
                         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="Search subscriptions..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-sm text-sm"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
