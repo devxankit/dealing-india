@@ -59,21 +59,52 @@ class RedisService {
     }
 
     /**
-     * Clear keys by pattern (e.g., "products:*")
+     * Clear keys by pattern (e.g., "products:*") using SCAN
+     * Replaces dangerous KEYS command which can block Redis
      * @param {string} pattern 
      */
     async clearPattern(pattern) {
         try {
             if (!redisClient.isReady) return false;
 
-            const keys = await redisClient.keys(pattern);
-            if (keys.length > 0) {
-                await redisClient.del(keys);
+            // Use scanIterator for safe modification
+            let count = 0;
+            for await (const key of redisClient.scanIterator({
+                MATCH: pattern,
+                COUNT: 100
+            })) {
+                await redisClient.del(key);
+                count++;
             }
+
+            // console.log(`Cleared ${count} keys matching ${pattern}`);
             return true;
         } catch (error) {
             console.error(`Redis clearPattern error (pattern: ${pattern}):`, error);
             return false;
+        }
+    }
+
+    /**
+     * Increment with Expiry (Atomic)
+     * Helps in rate limiting to avoid race conditions
+     * @param {string} key 
+     * @param {number} ttl 
+     */
+    async incrWithExpire(key, ttl) {
+        try {
+            if (!redisClient.isReady) return null;
+
+            // Using Multi/Exec transaction for atomicity
+            const multi = redisClient.multi();
+            multi.incr(key);
+            multi.expire(key, ttl);
+            const results = await multi.exec();
+
+            return results[0]; // Return the incremented value
+        } catch (error) {
+            console.error(`Redis INCR+EXPIRE error (key: ${key}):`, error);
+            return null;
         }
     }
 
@@ -139,6 +170,20 @@ class RedisService {
     }
 
     /**
+     * Get TTL of a key
+     * @param {string} key 
+     */
+    async ttl(key) {
+        try {
+            if (!redisClient.isReady) return -2;
+            return await redisClient.ttl(key);
+        } catch (error) {
+            console.error(`Redis TTL error (key: ${key}):`, error);
+            return -2;
+        }
+    }
+
+    /**
      * Hash Get
      * @param {string} key 
      * @param {string} field 
@@ -173,7 +218,7 @@ class RedisService {
 
             // Create a unique key based on URL and optionally user ID/vendor ID
             let key = `${keyPrefix}:${req.originalUrl || req.url}`;
-            
+
             // If user is authenticated, append user info to key for user-specific caching
             if (req.user) {
                 const userId = req.user.id || req.user._id || req.user.userId;

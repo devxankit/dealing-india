@@ -115,8 +115,8 @@ export const getPublicVendor = async (req, res, next) => {
     try {
       const cachedVendor = await redisService.get(cacheKey);
       if (cachedVendor) {
-        // Increment vendor views in Redis even if cached
-        await redisService.incr(`vendor:views:${id}`);
+        // Increment vendor views in Redis with 24h TTL
+        await redisService.incrWithExpire(`vendor:views:${id}`, 86400);
         return res.status(200).json({
           success: true,
           message: 'Vendor retrieved successfully (cached)',
@@ -137,8 +137,9 @@ export const getPublicVendor = async (req, res, next) => {
       });
     }
 
-    // Increment vendor views in Redis
-    const viewCount = await redisService.incr(`vendor:views:${id}`);
+    // Increment vendor views in Redis with 24h TTL (to prevent memory leaks)
+    // The cron job will sync these views to MongoDB every 5 minutes
+    const viewCount = await redisService.incrWithExpire(`vendor:views:${id}`, 86400);
 
     // Get product count
     const productCount = await Product.countDocuments({

@@ -13,11 +13,25 @@ export const rateLimiter = (prefix, limit = 10, windowInSeconds = 600) => {
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
             const key = `rate:limit:${prefix}:${ip}`;
 
-            const current = await redisService.incr(key);
+            // Atomic Increment or Increment+Expire
+            // If key doesn't exist (current=1), we set expiry. If it exists, we just increment.
+            // However, Redis INCR happens first. To be safe, we can use our atomic wrapper for the first hit
+            // or just use TTL check.
+
+            // Optimization: Get TTL. If -1 or -2 (expired/no expiry), set new cycle.
+            // But to keep it simple and safe:
+
+            let current = await redisService.incr(key);
 
             if (current === 1) {
-                // First request in the window, set expiry
+                // First request, set expiry safely
                 await redisService.expire(key, windowInSeconds);
+            } else {
+                // Ensure TTL is present (in case of race condition or restart)
+                const ttl = await redisService.ttl(key);
+                if (ttl === -1) {
+                    await redisService.expire(key, windowInSeconds);
+                }
             }
 
             if (current > limit) {
