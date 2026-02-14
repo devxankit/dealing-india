@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const isProduction = process.env.NODE_ENV === 'production';
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-
+// console.log(process.env.REDIS_URL);
+const redisUrl = process.env.REDIS_URL;
 // Redis Client Configuration
 const client = createClient({
     url: redisUrl,
@@ -22,8 +22,8 @@ const client = createClient({
 });
 
 client.on('error', (err) => console.error('Redis Client Error:', err));
-client.on('connect', () => console.log('Redis Client Connecting...'));
-client.on('ready', () => console.log('Redis Client Ready and Connected!'));
+// client.on('connect', () => console.log('Redis Client Connecting...'));
+// client.on('ready', () => console.log('Redis Client Ready and Connected!'));
 client.on('reconnecting', () => console.log('Redis Client Reconnecting...'));
 
 /**

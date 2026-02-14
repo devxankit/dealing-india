@@ -83,7 +83,7 @@ userSchema.methods.toJSON = function () {
 };
 
 // Add indexes for faster lookups
-userSchema.index({ email: 1 });
+
 userSchema.index({ phone: 1 });
 userSchema.index({ role: 1 });
 

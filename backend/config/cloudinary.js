@@ -21,7 +21,7 @@ if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !pr
   const errorMessage = `⚠️ Cloudinary configuration warning: Missing environment variables: ${missingKeys.join(', ')}. Image uploads will not work.`;
   console.warn(errorMessage);
 } else {
-  console.log('✅ Cloudinary configured successfully');
+  // console.log('✅ Cloudinary configured successfully');
 }
 
 export default cloudinary;

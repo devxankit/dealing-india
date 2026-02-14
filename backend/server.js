@@ -10,18 +10,18 @@ import path from 'path';
 import fs from 'fs';
 
 const envPath = path.resolve(process.cwd(), '.env');
-console.log('--- Initializing Server ---');
-console.log(`Working Directory: ${process.cwd()}`);
-console.log(`Searching .env at: ${envPath}`);
-console.log(`.env file exists? ${fs.existsSync(envPath) ? '✅ YES' : '❌ NO'}`);
+// console.log('--- Initializing Server ---');
+// console.log(`Working Directory: ${process.cwd()}`);
+// console.log(`Searching .env at: ${envPath}`);
+// console.log(`.env file exists? ${fs.existsSync(envPath) ? '✅ YES' : '❌ NO'}`);
 
 dotenv.config();
 
-console.log(`Node Version: ${process.version}`);
-console.log(`Environment (NODE_ENV): ${process.env.NODE_ENV || 'not set'}`);
-console.log(`MONGODB_URI status: ${process.env.MONGODB_URI ? 'Detected' : 'MISSING'}`);
-console.log(`RAZORPAY_KEY_ID status: ${process.env.RAZORPAY_KEY_ID ? 'Detected' : 'MISSING'}`);
-console.log('---------------------------');
+// console.log(`Node Version: ${process.version}`);
+// console.log(`Environment (NODE_ENV): ${process.env.NODE_ENV || 'not set'}`);
+// console.log(`MONGODB_URI status: ${process.env.MONGODB_URI ? 'Detected' : 'MISSING'}`);
+// console.log(`RAZORPAY_KEY_ID status: ${process.env.RAZORPAY_KEY_ID ? 'Detected' : 'MISSING'}`);
+// console.log('---------------------------');
 
 // Fix for querySrv ECONNREFUSED issues (SRV DNS resolution)
 dns.setServers(['8.8.8.8', '8.8.4.4']);
@@ -371,7 +371,7 @@ const startServer = async () => {
       console.error('⚠️  WARNING: Email service not configured (EMAIL_USER or EMAIL_PASS missing)');
       console.error('⚠️  Registration will fail without email service.');
     } else {
-      console.log('✅ Email service configuration found');
+      // console.log('✅ Email service configuration found');
     }
 
     // Connect to database
@@ -431,7 +431,7 @@ const startServer = async () => {
     const io = setupSocketIO(httpServer, corsOrigins);
     // Make io instance available to routes/controllers
     app.set('io', io);
-    console.log('✅ Socket.io initialized');
+    // console.log('✅ Socket.io initialized');
 
     // Start server after database connection
     httpServer.listen(PORT, () => {

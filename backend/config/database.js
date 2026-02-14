@@ -19,10 +19,10 @@ const connectDB = async () => {
       // but keeping for compatibility
     });
 
-    console.log(`✅ MongoDB Connected Successfully!`);
-    console.log(`   Host: ${conn.connection.host}`);
-    console.log(`   Database: ${conn.connection.name}`);
-    console.log(`   Port: ${conn.connection.port || 'default'}`);
+    // console.log(`✅ MongoDB Connected Successfully!`);
+    // console.log(`   Host: ${conn.connection.host}`);
+    // console.log(`   Database: ${conn.connection.name}`);
+    // console.log(`   Port: ${conn.connection.port || 'default'}`);
 
     // Handle connection events
     mongoose.connection.on('error', (err) => {

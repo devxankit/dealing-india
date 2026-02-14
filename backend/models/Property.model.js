@@ -144,7 +144,7 @@ const propertySchema = new mongoose.Schema(
 // Index for geo-spatial queries or basic search
 propertySchema.index({ 'location.city': 1, propertyType: 1, listingType: 1 });
 // Performance optimization: Indexes for admin panel queries
-propertySchema.index({ vendorId: 1 });
+
 propertySchema.index({ isActive: 1 });
 propertySchema.index({ vendorId: 1, isActive: 1, createdAt: -1 });
 propertySchema.index({ listingType: 1, isActive: 1 });
