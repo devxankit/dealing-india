@@ -9,7 +9,7 @@ import Vendor from '../models/Vendor.model.js';
  * Prevents memory leaks by cleaning up processed keys.
  */
 export const syncVendorViewsCron = cron.schedule('*/5 * * * *', async () => {
-    // console.log('🔄 Syncing Vendor Views from Redis to MongoDB...');
+    console.log(`[${new Date().toISOString()}] 🔄 Vendor view sync cron started...`);
 
     if (!redisClient.isReady) {
         console.warn('⚠️ Redis not ready, skipping sync');
@@ -63,6 +63,7 @@ export const syncVendorViewsCron = cron.schedule('*/5 * * * *', async () => {
         if (processedVendors.length > 0) {
             console.log(`✅ Synced views for ${processedVendors.length} vendors.`);
         }
+        console.log(`[${new Date().toISOString()}] ✅ Vendor view sync cron finished`);
 
     } catch (error) {
         console.error('❌ Vendor View Sync Cron Failed:', error);
