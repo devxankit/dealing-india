@@ -35,9 +35,9 @@ const ManageProducts = () => {
             if (response.success && response.data) {
                 // Transform API response to match table format
                 const transformedProducts = response.data.products.map(product => {
-                    // Extract category from attributes
+                    // Extract category from root field or attributes
                     const categoryAttr = product.attributes?.find(attr => attr.name === 'category');
-                    const category = categoryAttr?.value || 'N/A';
+                    const category = product.category || categoryAttr?.value || 'N/A';
 
                     return {
                         _id: product._id,

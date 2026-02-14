@@ -328,20 +328,17 @@ const B2BVendorRegister = () => {
                             {/* Sub-Types Selection */}
                             {selectedBusinessType?.subTypes?.length > 0 && (
                                 <div className="md:col-span-2 mt-2">
-                                    <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Specific Types (Select Multiple) <span className="text-red-500">*</span></label>
+                                    <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Specific Type <span className="text-red-500">*</span></label>
                                     <div className="flex flex-wrap gap-2">
                                         {selectedBusinessType.subTypes.map(st => (
                                             <button
                                                 key={st}
                                                 type="button"
                                                 onClick={() => {
-                                                    setFormData(prev => {
-                                                        const current = prev.selectedSubTypes || [];
-                                                        const updated = current.includes(st)
-                                                            ? current.filter(t => t !== st)
-                                                            : [...current, st];
-                                                        return { ...prev, selectedSubTypes: updated };
-                                                    });
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        selectedSubTypes: [st] // Single selection only
+                                                    }));
                                                 }}
                                                 className={`px-3 py-2 rounded-xl text-[10px] font-bold uppercase transition-all border-2 ${formData.selectedSubTypes.includes(st)
                                                     ? 'bg-primary-600 border-primary-600 text-white shadow-md'
@@ -353,7 +350,7 @@ const B2BVendorRegister = () => {
                                         ))}
                                     </div>
                                     {formData.selectedSubTypes.length === 0 && (
-                                        <p className="text-[10px] text-amber-600 mt-2 font-bold animate-pulse">! Please select at least one specific type</p>
+                                        <p className="text-[10px] text-amber-600 mt-2 font-bold animate-pulse">! Please select a specific type</p>
                                     )}
                                 </div>
                             )}

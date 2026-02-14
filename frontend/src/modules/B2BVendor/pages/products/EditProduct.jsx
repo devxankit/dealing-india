@@ -50,7 +50,10 @@ const EditProduct = () => {
                         ) || [];
 
                         let bulkPricing = [{ minQty: "", price: "" }];
-                        if (bulkPricingAttr?.value) {
+                        // Check productData.bulkPricing first, then attribute
+                        if (productData.bulkPricing && Array.isArray(productData.bulkPricing) && productData.bulkPricing.length > 0) {
+                            bulkPricing = productData.bulkPricing;
+                        } else if (bulkPricingAttr?.value) {
                             try {
                                 bulkPricing = typeof bulkPricingAttr.value === 'string' ? JSON.parse(bulkPricingAttr.value) : bulkPricingAttr.value;
                             } catch (e) { console.error('Failed to parse bulk pricing:', e); }
@@ -67,14 +70,15 @@ const EditProduct = () => {
                         setProduct({
                             ...productData,
                             name: productData.name || "",
-                            category: categoryAttr?.value || productData.category || "",
-                            subcategory: subcategoryAttr?.value || productData.subcategory || "",
+                            category: productData.category || categoryAttr?.value || "",
+                            subcategory: productData.subcategory || subcategoryAttr?.value || "",
                             price: productData.price || "",
                             moq: productData.minimumOrderQuantity || 1,
                             brand: productData.brandName || "",
                             availability: availability,
                             description: productData.description || "",
                             images: images,
+                            // Pass all specifications; ProductForm will split them into dynamic vs generic
                             specifications: specifications.length > 0
                                 ? specifications.map(spec => ({ name: spec.name, value: spec.value }))
                                 : [{ name: "", value: "" }],

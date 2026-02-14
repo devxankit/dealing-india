@@ -856,8 +856,7 @@ const ProductCatalog = () => {
                     businessTypes: ['Developer', 'Property Broker']
                 }),
                 fetchB2BVendors(),
-                fetchB2BCategories(),
-                fetchBusinessTypes()
+                fetchB2BCategories()
             ]);
         };
         init();
@@ -913,14 +912,18 @@ const ProductCatalog = () => {
 
 
     // Refetch products when filters change (Location, ItemType, Pattern, Fabric, Category, Subcategory)
-    // OPTIMIZED: Use allCategories.length as dependency instead of allCategories reference
-    // This prevents duplicate API calls when the categories array reference changes but content stays the same
+    // OPTIMIZED: Debounce the API call to prevent multiple triggers
     useEffect(() => {
         // Skip fetch if a category is selected but categories haven't loaded yet
         if (selectedCategory && selectedCategory !== 'All' && allCategories.length === 0) {
             return; // Wait for categories to load before fetching by category
         }
-        fetchB2BProducts();
+
+        const timeoutId = setTimeout(() => {
+            fetchB2BProducts();
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedState, selectedCity, selectedItemType, selectedArea, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length, dynamicFilters]);
 
@@ -1689,170 +1692,171 @@ const ProductCatalog = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                                {filteredProducts.map((product) => (
-                                    <motion.div
-                                        key={product._id}
-                                        layout
-                                        initial={{ opacity: 0, scale: 0.98 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        whileHover={{ y: -4, shadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
-                                        onClick={() => navigate(`/b2b/product/${product._id}`)}
-                                        className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-fit"
-                                    >
-                                        {/* Image Container - Interactive Gallery */}
-                                        <div
-                                            className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50 group/image"
+                                {filteredProducts.map((product) => {
+                                    // Combine main image and gallery images
+                                    const allImages = [
+                                        product.coverImage || product.image,
+                                        ...(Array.isArray(product.images) ? product.images : [])
+                                    ].filter(Boolean);
+
+                                    return (
+                                        <motion.div
+                                            key={product._id}
+                                            layout
+                                            initial={{ opacity: 0, scale: 0.98 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            whileHover={{ y: -4, shadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
+                                            onClick={() => navigate(`/b2b/product/${product._id}`)}
+                                            className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-fit"
                                         >
-                                            {/* Images */}
-                                            {(product.coverImage || product.image) ? (
-                                                <img
-                                                    src={product.coverImage || product.image}
-                                                    alt={product.name}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                                />
-                                            ) : Array.isArray(product.images) && product.images.length > 0 ? (
-                                                product.images.map((img, idx) => (
-                                                    <img
-                                                        key={idx}
-                                                        src={img}
-                                                        alt={`${product.name} - ${idx + 1}`}
-                                                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${(activeImageIndices[product._id] || 0) === idx ? 'opacity-100 scale-105' : 'opacity-0'
-                                                            }`}
-                                                    />
-                                                ))
-                                            ) : (
-                                                <img
-                                                    src="https://via.placeholder.com/400x300?text=No+Image"
-                                                    alt={product.name}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            )}
-
-                                            {/* Navigation Buttons (Only if multiple images) */}
-                                            {Array.isArray(product.images) && product.images.length > 1 && (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => handlePrevImage(e, product._id, product.images.length)}
-                                                        className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
-                                                    >
-                                                        <FiChevronDown className="rotate-90 text-sm" />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleNextImage(e, product._id, product.images.length)}
-                                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
-                                                    >
-                                                        <FiChevronDown className="-rotate-90 text-sm" />
-                                                    </button>
-                                                </>
-                                            )}
-
-                                            {/* Image Indicators (Dots/Lines) */}
-                                            {Array.isArray(product.images) && product.images.length > 1 && (
-                                                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 group-hover/image:opacity-100 transition-opacity px-2">
-                                                    {product.images.map((_, idx) => (
-                                                        <div
+                                            {/* Image Container - Interactive Gallery */}
+                                            <div
+                                                className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50 group/image"
+                                            >
+                                                {/* Images */}
+                                                {allImages.length > 0 ? (
+                                                    allImages.map((img, idx) => (
+                                                        <img
                                                             key={idx}
-                                                            className={`h-1 rounded-full transition-all duration-300 shadow-sm ${(activeImageIndices[product._id] || 0) === idx
-                                                                ? 'w-4 bg-white'
-                                                                : 'w-1 bg-white/50'
+                                                            src={img}
+                                                            alt={`${product.name} - ${idx + 1}`}
+                                                            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${(activeImageIndices[product._id] || 0) === idx ? 'opacity-100 scale-105' : 'opacity-0'
                                                                 }`}
                                                         />
-                                                    ))}
-                                                </div>
-                                            )}
+                                                    ))
+                                                ) : (
+                                                    <img
+                                                        src="https://via.placeholder.com/400x300?text=No+Image"
+                                                        alt={product.name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                )}
 
-                                            <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm z-20 pointer-events-none">
-                                                {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk'}
-                                            </div>
-                                            <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100 z-20 pointer-events-none">
-                                                <div className="flex items-baseline gap-0.5">
-                                                    <span className="text-[8px] font-black text-primary-600">₹</span>
-                                                    <span className="text-sm font-black text-gray-800">{product.price}</span>
+                                                {/* Navigation Buttons (Only if multiple images) */}
+                                                {allImages.length > 1 && (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => handlePrevImage(e, product._id, allImages.length)}
+                                                            className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
+                                                        >
+                                                            <FiChevronDown className="rotate-90 text-sm" />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleNextImage(e, product._id, allImages.length)}
+                                                            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
+                                                        >
+                                                            <FiChevronDown className="-rotate-90 text-sm" />
+                                                        </button>
+                                                    </>
+                                                )}
+
+                                                {/* Image Indicators (Dots/Lines) */}
+                                                {allImages.length > 1 && (
+                                                    <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 group-hover/image:opacity-100 transition-opacity px-2">
+                                                        {allImages.map((_, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className={`h-1 rounded-full transition-all duration-300 shadow-sm ${(activeImageIndices[product._id] || 0) === idx
+                                                                    ? 'w-4 bg-white'
+                                                                    : 'w-1 bg-white/50'
+                                                                    }`}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm z-20 pointer-events-none">
+                                                    {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk'}
+                                                </div>
+                                                <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100 z-20 pointer-events-none">
+                                                    <div className="flex items-baseline gap-0.5">
+                                                        <span className="text-[8px] font-black text-primary-600">₹</span>
+                                                        <span className="text-sm font-black text-gray-800">{product.price}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        {/* Content Body - Ultra Compact */}
-                                        <div className="p-2.5 flex flex-col gap-2">
-                                            <div className="min-w-0">
-                                                <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
-                                                    {product.name}
-                                                </h3>
-                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
-                                                        {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
-                                                    </p>
-                                                    {product.vendorId?.address?.city && (
-                                                        <span className="text-[8px] text-gray-300 font-bold">• {product.vendorId.address.city}</span>
+                                            {/* Content Body - Ultra Compact */}
+                                            <div className="p-2.5 flex flex-col gap-2">
+                                                <div className="min-w-0">
+                                                    <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
+                                                        {product.name}
+                                                    </h3>
+                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
+                                                            {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
+                                                        </p>
+                                                        {product.vendorId?.address?.city && (
+                                                            <span className="text-[8px] text-gray-300 font-bold">• {product.vendorId.address.city}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Info Row: MOQ and Vendor */}
+                                                <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
+                                                    <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
+                                                        <FiTruck className="text-primary-500" size={10} />
+                                                        <span>Min. {product.moq || 1} {product.unit || 'pcs'}</span>
+                                                    </div>
+                                                    <div
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (product.vendorId?._id) {
+                                                                navigate(`/b2b/vendor/${product.vendorId._id}`);
+                                                            }
+                                                        }}
+                                                        className="text-[7px] font-black text-primary-400 hover:text-primary-600 truncate max-w-[60px] uppercase cursor-pointer transition-colors"
+                                                    >
+                                                        {product.vendorId?.storeName || 'Vendor'}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5 mt-1">
+                                                    {product.vendorId?.phone ? (
+                                                        <>
+                                                            <a
+                                                                href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    trackContactClick(product.vendorId?._id, 'whatsapp');
+                                                                }}
+                                                                className="flex-1 py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                                                title="WhatsApp"
+                                                            >
+                                                                <FaWhatsapp size={11} />
+                                                                <span>WhatsApp</span>
+                                                            </a>
+                                                            <a
+                                                                href={`tel:${product.vendorId?.phone}`}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    trackContactClick(product.vendorId?._id, 'call');
+                                                                }}
+                                                                className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                                                title="Call Vendor"
+                                                            >
+                                                                <FiPhone size={11} />
+                                                                <span>Call</span>
+                                                            </a>
+                                                        </>
+                                                    ) : (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate(`/b2b/product/${product._id}`);
+                                                            }}
+                                                            className="w-full py-1.5 bg-primary-50 text-primary-600 rounded-lg font-black text-[9px] uppercase tracking-wider border border-primary-100"
+                                                        >
+                                                            View Details
+                                                        </button>
                                                     )}
                                                 </div>
                                             </div>
-
-                                            {/* Info Row: MOQ and Vendor */}
-                                            <div className="flex items-center justify-between gap-2 bg-gray-50/50 p-1.5 rounded-lg border border-gray-50">
-                                                <div className="flex items-center gap-1 text-[8px] font-black text-gray-500 uppercase">
-                                                    <FiTruck className="text-primary-500" size={10} />
-                                                    <span>Min. {product.moq || 1} {product.unit || 'pcs'}</span>
-                                                </div>
-                                                <div
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (product.vendorId?._id) {
-                                                            navigate(`/b2b/vendor/${product.vendorId._id}`);
-                                                        }
-                                                    }}
-                                                    className="text-[7px] font-black text-primary-400 hover:text-primary-600 truncate max-w-[60px] uppercase cursor-pointer transition-colors"
-                                                >
-                                                    {product.vendorId?.storeName || 'Vendor'}
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-1.5 mt-1">
-                                                {product.vendorId?.phone ? (
-                                                    <>
-                                                        <a
-                                                            href={`https://wa.me/${product.vendorId.phone.replace(/\D/g, '')}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                trackContactClick(product.vendorId?._id, 'whatsapp');
-                                                            }}
-                                                            className="flex-1 py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
-                                                            title="WhatsApp"
-                                                        >
-                                                            <FaWhatsapp size={11} />
-                                                            <span>WhatsApp</span>
-                                                        </a>
-                                                        <a
-                                                            href={`tel:${product.vendorId?.phone}`}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                trackContactClick(product.vendorId?._id, 'call');
-                                                            }}
-                                                            className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
-                                                            title="Call Vendor"
-                                                        >
-                                                            <FiPhone size={11} />
-                                                            <span>Call</span>
-                                                        </a>
-                                                    </>
-                                                ) : (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigate(`/b2b/product/${product._id}`);
-                                                        }}
-                                                        className="w-full py-1.5 bg-primary-50 text-primary-600 rounded-lg font-black text-[9px] uppercase tracking-wider border border-primary-100"
-                                                    >
-                                                        View Details
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
+                                        </motion.div>
+                                    );
+                                })}</div>
                         )}
                     </div>
                 </div>

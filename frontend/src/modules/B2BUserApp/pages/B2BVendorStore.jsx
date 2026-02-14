@@ -361,7 +361,7 @@ const B2BVendorStore = () => {
                                     <div className="mb-3">
                                         <h3 className="text-lg font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase tracking-tight">{product.name}</h3>
                                         <p className="text-[10px] font-black text-gray-400 mt-1 uppercase tracking-[0.2em]">
-                                            {product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
+                                            {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
                                         </p>
                                     </div>
 
@@ -372,7 +372,7 @@ const B2BVendorStore = () => {
                                     <div className="flex items-center gap-4 mt-auto mb-6">
                                         <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
                                             <FiTruck className="text-primary-500 text-sm" />
-                                            <span>Min. {product.moq || 1} {product.unit || 'pcs'}</span>
+                                            <span>Min. {product.moq || product.minimumOrderQuantity || 1} {product.unit || 'pcs'}</span>
                                         </div>
                                         <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
                                             <FiShield className="text-primary-500 text-sm" />

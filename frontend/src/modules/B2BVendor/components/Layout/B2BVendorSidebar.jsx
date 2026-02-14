@@ -61,6 +61,8 @@ const getChildRoute = (parentRoute, childName) => {
     return routeMap[parentRoute]?.[childName] || parentRoute;
 };
 
+let lastUnreadFetchTime = 0;
+
 const B2BVendorSidebar = ({ isOpen, onClose }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -74,6 +76,11 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
 
     useEffect(() => {
         const fetchUnreadCount = async () => {
+            const now = Date.now();
+            // Prevent multiple calls within 2 seconds (e.g. strict mode or re-mounts)
+            if (now - lastUnreadFetchTime < 2000) return;
+
+            lastUnreadFetchTime = now;
             try {
                 const response = await api.get('/vendor/notifications/unread-count');
                 if (response.success) {
@@ -106,6 +113,20 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             return moduleKey.some(key => settings.enabledModules.includes(key));
         }
         return settings.enabledModules.includes(moduleKey);
+    }).map(item => {
+        if (item.title === "Product Listings") {
+            const formType = settings?.productFormType || 'standard';
+            let newChildren = [...item.children];
+
+            if (formType === 'standard') {
+                newChildren = newChildren.filter(child => child !== "Add Shop Listing");
+            } else if (formType === 'shop-listing') {
+                newChildren = newChildren.filter(child => child !== "Add Product");
+            }
+
+            return { ...item, children: newChildren };
+        }
+        return item;
     });
 
     useEffect(() => {

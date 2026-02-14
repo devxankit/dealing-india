@@ -12,14 +12,14 @@ import Product from '../models/Product.model.js';
 export const getB2BAvailableLocations = async (options = {}) => {
   try {
     const { businessTypeFilter, businessTypes = [] } = options;
-    
+
     // Build vendor query with businessType filter
     const vendorQuery = {
       vendorType: 'b2b',
       isActive: true,
       status: 'approved',
     };
-    
+
     if (businessTypeFilter === 'include' && businessTypes.length > 0) {
       vendorQuery.$or = businessTypes.map(bt => ({
         businessType: { $regex: `^${bt}$`, $options: 'i' }
@@ -29,7 +29,7 @@ export const getB2BAvailableLocations = async (options = {}) => {
         businessType: { $not: { $regex: `^${bt}$`, $options: 'i' } }
       }));
     }
-    
+
     // Get all active and approved B2B vendors
     const b2bVendors = await Vendor.find(vendorQuery)
       .select('_id address businessType')
@@ -250,6 +250,17 @@ export const getB2BAvailableLocations = async (options = {}) => {
           if (cleanArea.length > 0 && !/^\d+$/.test(cleanArea)) {
             areasSet.add(cleanArea);
           }
+        }
+
+        if (address && address.market && address.market.trim()) {
+          const cleanMarket = address.market.trim();
+          console.log(`  🔍 Found market for vendor ${vendor._id}: "${cleanMarket}"`);
+          if (cleanMarket.length > 0) {
+            marketsSet.add(cleanMarket);
+            console.log(`  ✅ Added market: "${cleanMarket}"`);
+          }
+        } else {
+          console.log(`  ⚠️ No market for vendor ${vendor._id}`);
         }
 
         if (!locationMap.has(state)) {

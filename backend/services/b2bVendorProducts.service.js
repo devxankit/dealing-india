@@ -246,7 +246,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
 
     // Handle ShopUnit creation/update - Enforce ONE shop per vendor
     let internalShopUnitId = shopUnitId;
-    if (formType === 'shop-listing' && name) {
+    if (productData.formType === 'shop-listing' && name) {
       const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
       let shopUnit = await ShopUnit.findOne({ vendorId });
 

@@ -4,9 +4,13 @@ import {
     FiPackage,
     FiPlus,
 } from "react-icons/fi";
+import { useVendorSettings } from "../hooks/useVendorSettings";
 
 const Products = () => {
     const navigate = useNavigate();
+
+    const { settings } = useVendorSettings();
+    const isShopListing = settings?.productFormType === 'shop-listing';
 
     const menuItems = [
         {
@@ -20,14 +24,14 @@ const Products = () => {
             description: "View and manage your B2B product listings",
         },
         {
-            path: "/b2b-vendor/products/add-product",
-            label: "Add Product",
+            path: isShopListing ? "/b2b-vendor/products/add-shop-listing" : "/b2b-vendor/products/add-product",
+            label: isShopListing ? "Create Shop Listing" : "Add Product",
             icon: FiPlus,
             gradient: "from-green-500 via-green-600 to-green-700",
             lightGradient: "from-green-50 via-green-100/80 to-green-50",
             shadowColor: "shadow-green-500/20",
             hoverShadow: "hover:shadow-green-500/30",
-            description: "List a new B2B product for retailers",
+            description: isShopListing ? "List your shop unit and items for B2B buyers." : "List a new B2B product for retailers",
         },
     ];
 

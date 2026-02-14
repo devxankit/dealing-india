@@ -208,10 +208,10 @@ class SubscriptionRulesService {
 
         if (!subData) {
             return {
-                allowed: false,
-                message: 'Active subscription required to add products.',
-                currentCount: 0,
-                limit: 0
+                allowed: true,
+                message: 'Product creation allowed.',
+                currentCount: await this.getProductCount(vendorId),
+                limit: -1
             };
         }
 
@@ -257,8 +257,8 @@ class SubscriptionRulesService {
 
         if (!subData) {
             return {
-                allowed: false,
-                message: 'Active subscription required for Lot/Slot listings.'
+                allowed: true,
+                message: 'Lot/Slot listing allowed.'
             };
         }
 
@@ -288,9 +288,9 @@ class SubscriptionRulesService {
 
         if (!subData) {
             return {
-                allowed: false,
-                message: 'Active subscription required for property listings.',
-                maxImages: 0
+                allowed: true,
+                message: 'Property listing allowed.',
+                maxImages: 10
             };
         }
 

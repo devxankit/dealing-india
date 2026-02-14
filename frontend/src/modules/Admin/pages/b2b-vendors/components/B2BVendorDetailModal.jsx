@@ -261,7 +261,7 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                         )}
                                         {vendorData.selectedSubTypes?.length > 0 && (
                                             <div className="w-full mt-4 pt-4 border-t border-primary-100">
-                                                <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-3">Selected Sub-Types</p>
+                                                <p className="text-[9px] text-primary-400 font-black uppercase tracking-widest mb-3">Specific Type</p>
                                                 <div className="flex flex-wrap gap-2">
                                                     {vendorData.selectedSubTypes.map(st => (
                                                         <span key={st} className="px-3 py-1.5 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm">

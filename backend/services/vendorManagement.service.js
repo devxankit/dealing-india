@@ -85,6 +85,7 @@ export const getAllVendors = async (filters = {}) => {
           return directPin || '';
         })(),
         country: vendor.address?.country || 'India',
+        market: vendor.address?.market || '',
       },
       performance: { totalOrders: 0, totalEarnings: 0 }
     }));
@@ -513,6 +514,7 @@ export const getB2BVendors = async (filters = {}) => {
                 return directPin || ''; // Return whatever was in direct fields if no 6-digit match elsewhere
               })(),
               country: vendor.address?.country || 'India',
+              market: vendor.address?.market || '',
             },
             rawAddress: vendor.address, // For debugging in logs
             documents: Array.isArray(vendor.documents) ? vendor.documents : [],

@@ -7,6 +7,11 @@ import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
 
+// Basic in-memory cache for B2B categories during the session
+let categoriesCache = null;
+let isFetchingCategories = false;
+let categoriesPromise = null;
+
 const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
@@ -28,61 +33,130 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         unit: "",
     });
 
-    const [categories, setCategories] = useState([]);
+    const [categories, setCategories] = useState(categoriesCache || []);
     const [subcategories, setSubcategories] = useState([]);
-    const [categoriesLoading, setCategoriesLoading] = useState(true);
+    const [categoriesLoading, setCategoriesLoading] = useState(!categoriesCache);
     const [dynamicFields, setDynamicFields] = useState([]);
     const [dynamicValues, setDynamicValues] = useState({});
 
     useEffect(() => {
-        fetchCategories();
+        if (!categoriesCache) {
+            fetchCategories();
+        } else {
+            setCategoriesLoading(false);
+        }
     }, []);
 
     const fetchCategories = async () => {
-        setCategoriesLoading(true);
-        try {
-            const response = await api.get('/public/b2b-categories');
-            if (response.success && response.data) {
-                // Transform backend format to frontend format
-                const transformedCategories = response.data.map((cat, index) => ({
-                    id: cat._id || cat.id || index.toString(),
-                    name: cat.name,
-                    subcategories: cat.subcategories || [], // [{ name, fields }]
-                }));
-                setCategories(transformedCategories);
-            } else {
-                setCategories([]);
-            }
-        } catch (error) {
-            console.error('Error fetching B2B categories:', error);
-            toast.error('Failed to load categories');
-            setCategories([]);
-        } finally {
+        if (categoriesCache) {
+            setCategories(categoriesCache);
             setCategoriesLoading(false);
+            return;
         }
+
+        if (isFetchingCategories && categoriesPromise) {
+            try {
+                const cached = await categoriesPromise;
+                if (cached) {
+                    setCategories(cached);
+                }
+            } catch (err) {
+                // Ignore, handled by primary fetcher
+            } finally {
+                setCategoriesLoading(false);
+            }
+            return;
+        }
+
+        setCategoriesLoading(true);
+        isFetchingCategories = true;
+
+        categoriesPromise = (async () => {
+            try {
+                const response = await api.get('/public/b2b-categories');
+                if (response.success && response.data) {
+                    // Transform backend format to frontend format
+                    const transformedCategories = response.data.map((cat, index) => ({
+                        id: cat._id || cat.id || index.toString(),
+                        name: cat.name,
+                        subcategories: cat.subcategories || [], // [{ name, fields }]
+                    }));
+                    categoriesCache = transformedCategories;
+                    return transformedCategories;
+                }
+                return [];
+            } catch (error) {
+                console.error('Error fetching B2B categories:', error);
+                toast.error('Failed to load categories');
+                return [];
+            } finally {
+                isFetchingCategories = false;
+                categoriesPromise = null;
+            }
+        })();
+
+        const result = await categoriesPromise;
+        setCategories(result);
+        setCategoriesLoading(false);
     };
 
     useEffect(() => {
-        if (formData.category) {
-            const selectedCategory = categories.find(cat => cat.name === formData.category);
+        if (categories.length > 0 && formData.category) {
+            // Case-insensitive match for category
+            const selectedCategory = categories.find(cat =>
+                cat.name.toLowerCase() === formData.category.toLowerCase()
+            );
+
             if (selectedCategory) {
+                // If casing is different, update formData to match the list's casing
+                if (selectedCategory.name !== formData.category) {
+                    setFormData(prev => ({ ...prev, category: selectedCategory.name }));
+                }
                 setSubcategories(selectedCategory.subcategories || []);
             } else {
                 setSubcategories([]);
             }
-        } else {
-            setSubcategories([]);
         }
     }, [formData.category, categories]);
 
     useEffect(() => {
-        if (formData.category && formData.subcategory) {
-            const cat = categories.find(c => c.name === formData.category);
-            const sub = cat?.subcategories.find(s => s.name === formData.subcategory);
-            setDynamicFields(sub?.fields || []);
-            setDynamicValues({});
+        if (categories.length > 0 && formData.category && formData.subcategory) {
+            const cat = categories.find(c => c.name.toLowerCase() === formData.category.toLowerCase());
+            const sub = cat?.subcategories.find(s => s.name.toLowerCase() === formData.subcategory.toLowerCase());
+
+            // If casing differs for subcategory, update it
+            if (sub && sub.name !== formData.subcategory) {
+                setFormData(prev => ({ ...prev, subcategory: sub.name }));
+            }
+
+            const fields = sub?.fields || [];
+            setDynamicFields(fields);
+
+            // Populate dynamicValues from formData.specifications
+            setDynamicValues(prev => {
+                const newValues = { ...prev };
+
+                fields.forEach(field => {
+                    // Try to find existing value in specifications using case-insensitive match
+                    const existingSpec = formData.specifications.find(
+                        s => s.name?.toLowerCase() === field.label?.toLowerCase()
+                    );
+
+                    if (existingSpec && existingSpec.value) {
+                        // Only set if not already set or if empty (to prioritize loaded data on first run)
+                        // But we want to allow user edits if they already typed something.
+                        // Since specifications don't change on user input to dynamic fields, this is safe for initialization.
+                        // To avoid overwriting user changes during a session (if they switch subcat and back), we can check.
+                        // However, simplistic approach: prioritize existingSpec if current value is empty/undefined.
+                        if (!newValues[field.label]) {
+                            newValues[field.label] = existingSpec.value;
+                        }
+                    }
+                });
+                return newValues;
+            });
         }
-    }, [formData.category, formData.subcategory, categories]);
+    }, [formData.category, formData.subcategory, categories]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -240,8 +314,14 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 .filter(([_, value]) => value !== undefined && value !== "")
                 .map(([name, value]) => ({ name, value }));
 
+            // Filter out any dynamic fields that might already exist in specifications to avoid duplicates
+            const genericSpecs = formData.specifications.filter(spec =>
+                spec.name && spec.value &&
+                !dynamicFields.some(df => df.label?.toLowerCase() === spec.name?.toLowerCase())
+            );
+
             const finalSpecs = [
-                ...formData.specifications.filter(spec => spec.name && spec.value),
+                ...genericSpecs,
                 ...dynamicSpecs,
             ];
 
@@ -464,45 +544,52 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                         <div className="space-y-3">
                             <AnimatePresence>
-                                {formData.specifications.map((spec, index) => (
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
-                                        key={index}
-                                        className="flex gap-3 group"
-                                    >
-                                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div className="bg-slate-50 px-4 py-2 rounded-xl border border-gray-100 focus-within:border-orange-200 focus-within:bg-white transition-all">
-                                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Attribute</label>
-                                                <input
-                                                    type="text"
-                                                    value={spec.name}
-                                                    onChange={(e) => updateSpec(index, 'name', e.target.value)}
-                                                    className="w-full bg-transparent border-none focus:ring-0 text-xs font-bold text-gray-700 outline-none p-0"
-                                                    placeholder="Material"
-                                                />
-                                            </div>
-                                            <div className="bg-slate-50 px-4 py-2 rounded-xl border border-gray-100 focus-within:border-orange-200 focus-within:bg-white transition-all">
-                                                <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Value</label>
-                                                <input
-                                                    type="text"
-                                                    value={spec.value}
-                                                    onChange={(e) => updateSpec(index, 'value', e.target.value)}
-                                                    className="w-full bg-transparent border-none focus:ring-0 text-xs text-gray-600 outline-none p-0"
-                                                    placeholder="100% Cotton"
-                                                />
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeSpec(index)}
-                                            className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                                {formData.specifications.map((spec, index) => {
+                                    // Hide specs that are already shown as dynamic fields
+                                    if (dynamicFields.some(df => df.label?.toLowerCase() === spec.name?.toLowerCase())) {
+                                        return null;
+                                    }
+
+                                    return (
+                                        <motion.div
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            key={index}
+                                            className="flex gap-3 group"
                                         >
-                                            <FiTrash2 size={16} />
-                                        </button>
-                                    </motion.div>
-                                ))}
+                                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="bg-slate-50 px-4 py-2 rounded-xl border border-gray-100 focus-within:border-orange-200 focus-within:bg-white transition-all">
+                                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Attribute</label>
+                                                    <input
+                                                        type="text"
+                                                        value={spec.name}
+                                                        onChange={(e) => updateSpec(index, 'name', e.target.value)}
+                                                        className="w-full bg-transparent border-none focus:ring-0 text-xs font-bold text-gray-700 outline-none p-0"
+                                                        placeholder="Material"
+                                                    />
+                                                </div>
+                                                <div className="bg-slate-50 px-4 py-2 rounded-xl border border-gray-100 focus-within:border-orange-200 focus-within:bg-white transition-all">
+                                                    <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-0.5">Value</label>
+                                                    <input
+                                                        type="text"
+                                                        value={spec.value}
+                                                        onChange={(e) => updateSpec(index, 'value', e.target.value)}
+                                                        className="w-full bg-transparent border-none focus:ring-0 text-xs text-gray-600 outline-none p-0"
+                                                        placeholder="100% Cotton"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeSpec(index)}
+                                                className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                                            >
+                                                <FiTrash2 size={16} />
+                                            </button>
+                                        </motion.div>
+                                    );
+                                })}
                             </AnimatePresence>
                             {formData.specifications.length === 0 && (
                                 <div className="text-center py-6 text-gray-400 border border-dashed border-gray-200 rounded-xl text-sm">

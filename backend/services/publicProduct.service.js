@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Product from '../models/Product.model.js';
 import LotSlot from '../models/LotSlot.model.js';
 import Vendor from '../models/Vendor.model.js';
@@ -210,10 +211,10 @@ export const getPublicProducts = async (filters) => {
                         localField: 'vendorId',
                         foreignField: '_id',
                         pipeline: [{ $project: { name: 1, storeName: 1, address: 1, phone: 1, logo: 1 } }],
-                        as: 'vendor'
+                        as: 'vendorId'
                     }
                 },
-                { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
+                { $unwind: { path: '$vendorId', preserveNullAndEmptyArrays: true } },
                 // Populate ShopUnit (if needed, mostly for Product)
                 {
                     $lookup: {

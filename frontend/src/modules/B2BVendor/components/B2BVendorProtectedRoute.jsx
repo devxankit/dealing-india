@@ -23,7 +23,7 @@ const B2BVendorProtectedRoute = ({ children }) => {
         if (!isChecking && isAuthenticated && vendor && vendor.vendorType === 'b2b') {
             const checkSubscription = async () => {
                 try {
-                    setIsCheckingSubscription(true);
+
                     const response = await api.get('/vendor/subscriptions/current');
                     if (response.success && response.data) {
                         const subscription = response.data;
@@ -36,7 +36,7 @@ const B2BVendorProtectedRoute = ({ children }) => {
                                 // In simplified registration, we might want to allow login but limit features
                                 // For now, we'll allow access but backend will restrict product additions
                             }
-                            
+
                             if (subscription.status !== 'active') {
                                 console.log('[B2BVendorProtectedRoute] Subscription inactive:', subscription.status);
                             }
@@ -48,8 +48,6 @@ const B2BVendorProtectedRoute = ({ children }) => {
                 } catch (error) {
                     console.error('[B2BVendorProtectedRoute] Error checking subscription:', error);
                     // Don't block access on error, backend will handle it
-                } finally {
-                    setIsCheckingSubscription(false);
                 }
             };
 
@@ -64,8 +62,8 @@ const B2BVendorProtectedRoute = ({ children }) => {
     const token = localStorage.getItem('b2b-vendor-token');
 
     // If still checking, don't redirect yet
-    if (isChecking || isCheckingSubscription) {
-        return null; // or a loading spinner
+    if (isChecking) {
+        return null; // or a waiting for hydration
     }
 
     // Check authentication - token is required
