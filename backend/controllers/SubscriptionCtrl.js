@@ -6,7 +6,7 @@ import SubscriptionService from '../services/subscription.service.js';
 
 export const getAllB2BPlans = async (req, res, next) => {
     try {
-        const plans = await SubscriptionService.getAllTiers(); // Map B2B plans to Tiers in service
+        const plans = await SubscriptionService.getAllPlans(); // Changed from getAllTiers
         res.status(200).json({ success: true, data: plans });
     } catch (error) {
         next(error);
@@ -44,8 +44,30 @@ export const getB2BSubscription = async (req, res, next) => {
 
 export const getAllB2BSubscriptions = async (req, res, next) => {
     try {
-        // Basic placeholder for admin
-        res.status(200).json({ success: true, data: [] });
+        const { status, planId, expiringSoon } = req.query;
+        const subscriptions = await SubscriptionService.getAllVendorSubscriptions({ status, planId, expiringSoon });
+        res.status(200).json({ success: true, data: subscriptions });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getB2BAnalytics = async (req, res, next) => {
+    try {
+        const analytics = await SubscriptionService.getSubscriptionAnalytics();
+        res.status(200).json({ success: true, ...analytics });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const manualOverride = async (req, res, next) => {
+    try {
+        const { subscriptionId } = req.params;
+        const { action, details } = req.body;
+        const adminId = req.user.id;
+        const result = await SubscriptionService.manualSubscriptionOverride(subscriptionId, action, adminId, details);
+        res.status(200).json({ success: true, data: result });
     } catch (error) {
         next(error);
     }

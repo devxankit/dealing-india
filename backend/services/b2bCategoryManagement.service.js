@@ -37,57 +37,36 @@ export const getB2BCategoryById = async (categoryId) => {
 
 /**
  * Create a new B2B category with subcategory
- * @param {Object} categoryData - { name, subcategoryName }
+ * @param {Object} categoryData - { name, subcategoryName, fields }
  * @returns {Promise<Object>} Created category
  */
-export const createB2BCategory = async (categoryData) => {
-  try {
-    const { name, subcategoryName } = categoryData;
+export const createB2BCategory = async ({ name, subcategoryName, fields = [] }) => {
 
-    if (!name || !name.trim()) {
-      throw new Error('Category name is required');
-    }
+  const cleanFields = (fields || []).map(f => ({
+    label: f.label?.trim(),
+    type: f.type,
+    options: Array.isArray(f.options) ? f.options.filter(o => o?.trim()) : [],
+    required: !!f.required
+  }));
 
-    if (!subcategoryName || !subcategoryName.trim()) {
-      throw new Error('Subcategory name is required');
-    }
+  let category = await B2BCategory.findOne({ name });
 
-    const trimmedName = name.trim();
-    const trimmedSubcategoryName = subcategoryName.trim();
-
-    // Check if category already exists
-    let category = await B2BCategory.findOne({
-      name: { $regex: new RegExp(`^${trimmedName}$`, 'i') },
+  if (category) {
+    category.subcategories.push({
+      name: subcategoryName.trim(),
+      fields: cleanFields
     });
-
-    if (category) {
-      // Category exists, add subcategory if it doesn't exist
-      const subcategoryExists = category.subcategories.some(
-        (sub) => sub.toLowerCase() === trimmedSubcategoryName.toLowerCase()
-      );
-
-      if (subcategoryExists) {
-        throw new Error('Subcategory already exists in this category');
-      }
-
-      category.subcategories.push(trimmedSubcategoryName);
-
-      await category.save();
-      return category.toObject();
-    } else {
-      // Create new category with subcategory
-      category = await B2BCategory.create({
-        name: trimmedName,
-        subcategories: [trimmedSubcategoryName],
-      });
-      return category.toObject();
-    }
-  } catch (error) {
-    if (error.code === 11000) {
-      throw new Error('Category with this name already exists');
-    }
-    throw error;
+    await category.save();
+    return category;
   }
+
+  return await B2BCategory.create({
+    name: name.trim(),
+    subcategories: [{
+      name: subcategoryName.trim(),
+      fields: cleanFields
+    }]
+  });
 };
 
 /**
@@ -147,9 +126,10 @@ export const deleteB2BCategory = async (categoryId) => {
  * Add subcategory to existing B2B category
  * @param {String} categoryId - Category ID
  * @param {String} subcategoryName - Subcategory name
+ * @param {Array} fields - Subcategory fields
  * @returns {Promise<Object>} Updated category
  */
-export const addB2BSubcategory = async (categoryId, subcategoryName) => {
+export const addB2BSubcategory = async (categoryId, subcategoryName, fields = []) => {
   try {
     if (!subcategoryName || !subcategoryName.trim()) {
       throw new Error('Subcategory name is required');
@@ -162,14 +142,24 @@ export const addB2BSubcategory = async (categoryId, subcategoryName) => {
 
     const trimmedSubcategoryName = subcategoryName.trim();
     const subcategoryExists = category.subcategories.some(
-      (sub) => sub.toLowerCase() === trimmedSubcategoryName.toLowerCase()
+      (sub) => sub.name.toLowerCase() === trimmedSubcategoryName.toLowerCase()
     );
 
     if (subcategoryExists) {
       throw new Error('Subcategory already exists in this category');
     }
 
-    category.subcategories.push(trimmedSubcategoryName);
+    const cleanFields = (fields || []).map(f => ({
+      label: f.label?.trim(),
+      type: f.type,
+      options: Array.isArray(f.options) ? f.options.filter(o => o?.trim()) : [],
+      required: !!f.required
+    }));
+
+    category.subcategories.push({
+      name: trimmedSubcategoryName,
+      fields: cleanFields
+    });
     await category.save();
 
     return category.toObject();
@@ -195,7 +185,7 @@ export const deleteB2BSubcategory = async (categoryId, subcategoryName) => {
     }
 
     category.subcategories = category.subcategories.filter(
-      (sub) => sub.toLowerCase() !== subcategoryName.toLowerCase()
+      (sub) => sub.name.toLowerCase() !== subcategoryName.toLowerCase()
     );
 
     await category.save();
@@ -210,15 +200,17 @@ export const deleteB2BSubcategory = async (categoryId, subcategoryName) => {
 };
 
 /**
- * Update subcategory name
+ * Update subcategory name and fields
  * @param {String} categoryId - Category ID
  * @param {Number} index - Index of subcategory in array
- * @param {String} newName - New subcategory name
+ * @param {Object} updateData - { name, fields }
  * @returns {Promise<Object>} Updated category
  */
-export const updateB2BSubcategory = async (categoryId, index, newName) => {
+export const updateB2BSubcategory = async (categoryId, index, updateData) => {
   try {
-    if (!newName || !newName.trim()) {
+    const { name, fields } = updateData;
+
+    if (name && !name.trim()) {
       throw new Error('Subcategory name cannot be empty');
     }
 
@@ -231,18 +223,29 @@ export const updateB2BSubcategory = async (categoryId, index, newName) => {
       throw new Error('Invalid subcategory index');
     }
 
-    const trimmedNewName = newName.trim();
+    if (name) {
+      const trimmedNewName = name.trim();
+      // Check if new name already exists (excluding current index)
+      const subcategoryExists = category.subcategories.some(
+        (sub, idx) => idx !== index && sub.name.toLowerCase() === trimmedNewName.toLowerCase()
+      );
 
-    // Check if new name already exists (excluding current index)
-    const subcategoryExists = category.subcategories.some(
-      (sub, idx) => idx !== index && sub.toLowerCase() === trimmedNewName.toLowerCase()
-    );
-
-    if (subcategoryExists) {
-      throw new Error('Subcategory with this name already exists');
+      if (subcategoryExists) {
+        throw new Error('Subcategory with this name already exists');
+      }
+      category.subcategories[index].name = trimmedNewName;
     }
 
-    category.subcategories[index] = trimmedNewName;
+    if (fields) {
+      const cleanFields = (fields || []).map(f => ({
+        label: f.label?.trim(),
+        type: f.type,
+        options: Array.isArray(f.options) ? f.options.filter(o => o?.trim()) : [],
+        required: !!f.required
+      }));
+      category.subcategories[index].fields = cleanFields;
+    }
+
     await category.save();
 
     return category.toObject();

@@ -81,7 +81,7 @@ api.interceptors.request.use(
       }
     }
     // Check for subscription routes - use vendor token based on current path
-    else if (url.startsWith('/subscription/')) {
+    else if (url.startsWith('/subscription/') || url.startsWith('/subscriptions/')) {
       // If on B2B vendor pages, use b2b-vendor-token
       if (currentPath.startsWith('/b2b-vendor')) {
         token = localStorage.getItem('b2b-vendor-token');

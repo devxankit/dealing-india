@@ -5,16 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
+import imageCompression from 'browser-image-compression';
 
 const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const { vendor } = useB2BVendorAuthStore();
-
-    // Check if fields should be hidden
-    const isPackingMaterial = vendor?.businessType?.toLowerCase() === "packing material";
-    const showTextileFields = !isPackingMaterial;
 
     const [formData, setFormData] = useState(initialData || {
         name: "",
@@ -29,13 +26,13 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         brand: "",
         availability: "In Stock",
         unit: "",
-        pattern: "",
-        fabric: ""
     });
 
     const [categories, setCategories] = useState([]);
     const [subcategories, setSubcategories] = useState([]);
     const [categoriesLoading, setCategoriesLoading] = useState(true);
+    const [dynamicFields, setDynamicFields] = useState([]);
+    const [dynamicValues, setDynamicValues] = useState({});
 
     useEffect(() => {
         fetchCategories();
@@ -50,11 +47,10 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 const transformedCategories = response.data.map((cat, index) => ({
                     id: cat._id || cat.id || index.toString(),
                     name: cat.name,
-                    subcategories: cat.subcategories || [],
+                    subcategories: cat.subcategories || [], // [{ name, fields }]
                 }));
                 setCategories(transformedCategories);
             } else {
-                // Fallback to empty array if API fails
                 setCategories([]);
             }
         } catch (error) {
@@ -79,6 +75,15 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         }
     }, [formData.category, categories]);
 
+    useEffect(() => {
+        if (formData.category && formData.subcategory) {
+            const cat = categories.find(c => c.name === formData.category);
+            const sub = cat?.subcategories.find(s => s.name === formData.subcategory);
+            setDynamicFields(sub?.fields || []);
+            setDynamicValues({});
+        }
+    }, [formData.category, formData.subcategory, categories]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -102,6 +107,20 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         const updated = [...formData.specifications];
         updated[index][field] = value;
         setFormData(prev => ({ ...prev, specifications: updated }));
+    };
+
+    // Helper to update spec by name (for dynamic fields)
+    const updateSpecByName = (name, value) => {
+        setFormData(prev => {
+            const specs = [...prev.specifications];
+            const index = specs.findIndex(s => s.name === name);
+            if (index > -1) {
+                specs[index].value = value;
+            } else {
+                specs.push({ name, value });
+            }
+            return { ...prev, specifications: specs };
+        });
     };
 
     const addBulkTier = () => {
@@ -136,21 +155,42 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         }
 
         setIsUploading(true);
+        const toastId = toast.loading('Compressing images...');
+
         try {
             const validFiles = [];
 
             for (const file of files) {
-                if (file.size > 300 * 1024) {
-                    toast.error(`Image ${file.name} is too large. Max size 300KB. Ideal size 150-250KB.`);
-                    continue;
+                // Size check is less relevant now as we compress, but good to keep basic check or rely on compression
+                if (file.type.startsWith('image/')) {
+                    validFiles.push(file);
                 }
-                validFiles.push(file);
             }
 
-            if (validFiles.length === 0) return;
+            if (validFiles.length === 0) {
+                setIsUploading(false);
+                toast.dismiss(toastId);
+                return;
+            }
+
+            const compressedFiles = await Promise.all(
+                validFiles.map(async (file) => {
+                    try {
+                        const options = {
+                            maxSizeMB: 1, // Max size 1MB
+                            maxWidthOrHeight: 1920,
+                            useWebWorker: true,
+                        };
+                        return await imageCompression(file, options);
+                    } catch (error) {
+                        console.error('Compression ended with error:', error);
+                        return file; // Fallback
+                    }
+                })
+            );
 
             const newImages = await Promise.all(
-                validFiles.map(file => {
+                compressedFiles.map(file => {
                     return new Promise((resolve) => {
                         const reader = new FileReader();
                         reader.onloadend = () => resolve(reader.result);
@@ -164,11 +204,10 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 images: [...prev.images, ...newImages]
             }));
 
-            if (validFiles.length > 0) {
-                toast.success(`${validFiles.length} images added`);
-            }
+            toast.success(`${validFiles.length} images added`, { id: toastId });
         } catch (error) {
-            toast.error("Failed to upload some images");
+            console.error('Upload error:', error);
+            toast.error("Failed to upload some images", { id: toastId });
         } finally {
             setIsUploading(false);
         }
@@ -196,6 +235,16 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
         setLoading(true);
         try {
+            // Prepare specifications including dynamic fields
+            const dynamicSpecs = Object.entries(dynamicValues)
+                .filter(([_, value]) => value !== undefined && value !== "")
+                .map(([name, value]) => ({ name, value }));
+
+            const finalSpecs = [
+                ...formData.specifications.filter(spec => spec.name && spec.value),
+                ...dynamicSpecs,
+            ];
+
             // Prepare data for API
             const productPayload = {
                 name: formData.name,
@@ -205,11 +254,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 price: parseFloat(formData.price),
                 description: formData.description || "",
                 images: formData.images,
-                specifications: [
-                    ...formData.specifications.filter(spec => spec.name && spec.value),
-                    ...(formData.pattern ? [{ name: "Pattern", value: formData.pattern }] : []),
-                    ...(formData.fabric ? [{ name: "Fabric", value: formData.fabric }] : [])
-                ],
+                specifications: finalSpecs,
                 bulkPricing: formData.bulkPricing.filter(tier => tier.minQty && tier.price),
                 brand: formData.brand || "",
                 availability: formData.availability || "In Stock",
@@ -296,10 +341,60 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 >
                                     <option value="">Select Subcategory</option>
                                     {subcategories.map((sub, index) => (
-                                        <option key={index} value={sub}>{sub}</option>
+                                        <option key={index} value={sub.name}>{sub.name}</option>
                                     ))}
                                 </select>
                             </div>
+
+                            {/* Dynamic Fields Rendering Section */}
+                            {dynamicFields.map((f, i) => (
+                                <div key={i} className="mb-4">
+                                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">
+                                        {f.label} {f.required && <span className="text-red-500">*</span>}
+                                    </label>
+
+                                    {f.type === "text" && (
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                            placeholder={`Enter ${f.label}`}
+                                            onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
+                                        />
+                                    )}
+
+                                    {f.type === "number" && (
+                                        <input
+                                            type="number"
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                            placeholder="0"
+                                            onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
+                                        />
+                                    )}
+
+                                    {f.type === "select" && (
+                                        <select
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                            onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
+                                        >
+                                            <option value="">Select {f.label}</option>
+                                            {f.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    )}
+
+                                    {f.type === "multi-select" && (
+                                        <select
+                                            multiple
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none min-h-[100px]"
+                                            onChange={(e) => {
+                                                const vals = [...e.target.selectedOptions].map(o => o.value);
+                                                setDynamicValues(p => ({ ...p, [f.label]: vals }));
+                                            }}
+                                        >
+                                            {f.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    )}
+                                </div>
+                            ))}
 
                             <div>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Brand / Manufacturer</label>
@@ -327,39 +422,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                 </select>
                             </div>
 
-                            {showTextileFields && (
-                                <>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Pattern</label>
-                                        <select
-                                            name="pattern"
-                                            value={formData.pattern || ""}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                        >
-                                            <option value="">Select Pattern</option>
-                                            {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
-                                                <option key={p} value={p}>{p}</option>
-                                            ))}
-                                        </select>
-                                    </div>
 
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Fabric</label>
-                                        <select
-                                            name="fabric"
-                                            value={formData.fabric || ""}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                        >
-                                            <option value="">Select Fabric</option>
-                                            {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
-                                                <option key={f} value={f}>{f}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </>
-                            )}
                         </div>
                     </motion.div>
 

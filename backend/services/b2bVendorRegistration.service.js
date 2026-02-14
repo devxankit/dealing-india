@@ -484,9 +484,8 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     const subscriptionData = {
       vendorId: createdVendor._id,
       planId: planObjectId, // B2B subscription uses planId (not tierId) - ensure it's ObjectId
-      tierId: null, // Explicitly set to null for B2B subscriptions (not undefined)
       status: 'active', // Active after payment
-      billingCycle: 'monthly',
+      billingCycle: 'Yearly',
       startDate,
       endDate,
       paymentMethod: 'razorpay',
@@ -497,8 +496,6 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       nextBillingDate: endDate,
       autoRenew: false, // B2B plans don't auto-renew by default
       usage: {
-        reelsUploaded: 0,
-        extraReelsCharged: 0,
         lastResetDate: startDate,
       },
     };
@@ -507,7 +504,6 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     console.log('Creating subscription with data:', {
       vendorId: subscriptionData.vendorId.toString(),
       planId: subscriptionData.planId.toString(),
-      tierId: subscriptionData.tierId,
       razorpayOrderId: subscriptionData.razorpayOrderId,
       razorpayPaymentId: subscriptionData.razorpayPaymentId,
       razorpaySignature: subscriptionData.razorpaySignature ? 'Present' : 'Missing',
@@ -534,7 +530,6 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
         subscriptionData: {
           vendorId: subscriptionData.vendorId?.toString(),
           planId: subscriptionData.planId?.toString(),
-          tierId: subscriptionData.tierId,
           hasPaymentData: !!paymentData,
           razorpayPaymentId: paymentData?.razorpayPaymentId,
         },
@@ -571,7 +566,6 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       vendorEmail: finalVendor?.email,
       subscriptionId: subscription[0]._id.toString(),
       planId: finalSubscription?.planId?.toString() || 'NULL',
-      tierId: finalSubscription?.tierId?.toString() || 'NULL',
       razorpayPaymentId: finalSubscription?.razorpayPaymentId || 'MISSING',
       razorpayOrderId: finalSubscription?.razorpayOrderId || 'MISSING',
       razorpaySignature: finalSubscription?.razorpaySignature ? 'Present' : 'MISSING',
@@ -715,11 +709,10 @@ export const createB2BSubscriptionAfterPayment = async (planId, paymentData, ema
       planId: plan._id instanceof mongoose.Types.ObjectId
         ? plan._id
         : new mongoose.Types.ObjectId(plan._id),
-      tierId: null,
       pendingVendorEmail: email,
       pendingVendorPhone: phone,
       status: 'active', // Active after payment
-      billingCycle: 'monthly',
+      billingCycle: 'Yearly',
       startDate,
       endDate,
       paymentMethod: 'razorpay',
@@ -730,8 +723,6 @@ export const createB2BSubscriptionAfterPayment = async (planId, paymentData, ema
       nextBillingDate: endDate,
       autoRenew: false,
       usage: {
-        reelsUploaded: 0,
-        extraReelsCharged: 0,
         lastResetDate: startDate,
       },
     };

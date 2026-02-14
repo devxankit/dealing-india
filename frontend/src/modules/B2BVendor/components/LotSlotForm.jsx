@@ -12,10 +12,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     const [isUploading, setIsUploading] = useState(false);
     const { vendor } = useB2BVendorAuthStore();
 
-    // Check if fields should be hidden
-    const isPackingMaterial = vendor?.businessType?.toLowerCase() === "packing material";
-    const showTextileFields = !isPackingMaterial;
-
     const [formData, setFormData] = useState(initialData || {
         name: "",
         category: "",
@@ -29,8 +25,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
         brand: "",
         availability: "In Stock",
         unit: "Lot",
-        pattern: "",
-        fabric: ""
     });
 
     const [categories, setCategories] = useState([]);
@@ -39,11 +33,14 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     const [subcategorySearchQuery, setSubcategorySearchQuery] = useState("");
     const [isSubcategoryDropdownOpen, setIsSubcategoryDropdownOpen] = useState(false);
     const subcategoryDropdownRef = useRef(null);
+    const [dynamicFields, setDynamicFields] = useState([]);
+    const [dynamicValues, setDynamicValues] = useState({});
 
     const filteredSubcategories = useMemo(() => {
-        return (subcategories || []).filter(sub =>
-            sub.toLowerCase().includes(subcategorySearchQuery.toLowerCase())
-        );
+        return (subcategories || []).filter(sub => {
+            const name = typeof sub === 'string' ? sub : sub.name;
+            return name?.toLowerCase().includes(subcategorySearchQuery.toLowerCase());
+        });
     }, [subcategories, subcategorySearchQuery]);
 
     useEffect(() => {
@@ -102,8 +99,6 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                     brand: data.brand || "",
                     availability: data.availability || "In Stock",
                     unit: data.unit || "Lot",
-                    pattern: data.pattern || "",
-                    fabric: data.fabric || ""
                 });
             }
         } catch (error) {
@@ -126,6 +121,34 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
             setSubcategories([]);
         }
     }, [formData.category, categories]);
+
+    useEffect(() => {
+        if (formData.category && formData.subcategory) {
+            const cat = categories.find(c => c.name === formData.category);
+            const sub = cat?.subcategories.find(s => {
+                const subName = typeof s === 'string' ? s : s.name;
+                return subName === formData.subcategory;
+            });
+
+            if (sub && typeof sub === 'object') {
+                setDynamicFields(sub.fields || []);
+
+                // Initialize dynamic values from existing specifications if in edit mode
+                if (isEdit && initialData?.specifications) {
+                    const newVals = {};
+                    (sub.fields || []).forEach(f => {
+                        const existing = initialData.specifications.find(s => s.name === f.label);
+                        if (existing) newVals[f.label] = existing.value;
+                    });
+                    setDynamicValues(newVals);
+                }
+            } else {
+                setDynamicFields([]);
+            }
+        } else {
+            setDynamicFields([]);
+        }
+    }, [formData.category, formData.subcategory, categories, isEdit, initialData]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -224,11 +247,18 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
         setLoading(true);
         try {
+            const dynamicSpecs = Object.entries(dynamicValues)
+                .filter(([_, value]) => value !== undefined && value !== "")
+                .map(([name, value]) => ({ name, value }));
+
             const payload = {
                 ...formData,
                 moq: parseInt(formData.moq) || 1,
                 price: parseFloat(formData.price),
-                specifications: formData.specifications.filter(spec => spec.name && spec.value),
+                specifications: [
+                    ...formData.specifications.filter(spec => spec.name && spec.value),
+                    ...dynamicSpecs
+                ],
                 bulkPricing: formData.bulkPricing.filter(tier => tier.minQty && tier.price),
             };
 
@@ -337,20 +367,23 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                                 </div>
                                                 <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
                                                     {filteredSubcategories.length > 0 ? (
-                                                        filteredSubcategories.map((sub, index) => (
-                                                            <button
-                                                                key={index}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setFormData(prev => ({ ...prev, subcategory: sub }));
-                                                                    setIsSubcategoryDropdownOpen(false);
-                                                                    setSubcategorySearchQuery("");
-                                                                }}
-                                                                className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${formData.subcategory === sub ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
-                                                            >
-                                                                {sub}
-                                                            </button>
-                                                        ))
+                                                        filteredSubcategories.map((sub, index) => {
+                                                            const subName = typeof sub === 'string' ? sub : sub.name;
+                                                            return (
+                                                                <button
+                                                                    key={index}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setFormData(prev => ({ ...prev, subcategory: subName }));
+                                                                        setIsSubcategoryDropdownOpen(false);
+                                                                        setSubcategorySearchQuery("");
+                                                                    }}
+                                                                    className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all ${formData.subcategory === subName ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50'}`}
+                                                                >
+                                                                    {subName}
+                                                                </button>
+                                                            );
+                                                        })
                                                     ) : (
                                                         <div className="py-6 text-center text-xs text-gray-400 font-bold uppercase tracking-wider">No results found</div>
                                                     )}
@@ -360,6 +393,68 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                     </AnimatePresence>
                                 </div>
                             </div>
+
+                            {/* Dynamic Fields Rendering Section */}
+                            {dynamicFields.length > 0 && (
+                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-primary-50/30 rounded-2xl border border-primary-100/50">
+                                    <div className="md:col-span-2 flex items-center gap-2 mb-1">
+                                        <div className="w-1 h-4 bg-primary-500 rounded-full"></div>
+                                        <h4 className="text-xs font-bold text-primary-700 uppercase tracking-wider">Category Specific Details</h4>
+                                    </div>
+                                    {dynamicFields.map((f, i) => (
+                                        <div key={i} className="space-y-1.5">
+                                            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider ml-1">
+                                                {f.label} {f.required && <span className="text-red-500">*</span>}
+                                            </label>
+
+                                            {f.type === "text" && (
+                                                <input
+                                                    type="text"
+                                                    value={dynamicValues[f.label] || ""}
+                                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 focus:border-primary-500 rounded-xl transition-all outline-none"
+                                                    placeholder={`Enter ${f.label}`}
+                                                    onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
+                                                />
+                                            )}
+
+                                            {f.type === "number" && (
+                                                <input
+                                                    type="number"
+                                                    value={dynamicValues[f.label] || ""}
+                                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 focus:border-primary-500 rounded-xl transition-all outline-none"
+                                                    placeholder="0"
+                                                    onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
+                                                />
+                                            )}
+
+                                            {f.type === "select" && (
+                                                <select
+                                                    value={dynamicValues[f.label] || ""}
+                                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 focus:border-primary-500 rounded-xl transition-all outline-none"
+                                                    onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
+                                                >
+                                                    <option value="">Select {f.label}</option>
+                                                    {f.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                </select>
+                                            )}
+
+                                            {f.type === "multi-select" && (
+                                                <select
+                                                    multiple
+                                                    value={dynamicValues[f.label] || []}
+                                                    className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-primary-500 rounded-xl transition-all outline-none min-h-[80px]"
+                                                    onChange={(e) => {
+                                                        const vals = [...e.target.selectedOptions].map(o => o.value);
+                                                        setDynamicValues(p => ({ ...p, [f.label]: vals }));
+                                                    }}
+                                                >
+                                                    {f.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                </select>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
 
                             <div>
                                 <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Brand / Manufacturer</label>
@@ -387,39 +482,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                 </select>
                             </div>
 
-                            {showTextileFields && (
-                                <>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Pattern</label>
-                                        <select
-                                            name="pattern"
-                                            value={formData.pattern || ""}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                        >
-                                            <option value="">Select Pattern</option>
-                                            {["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"].map(p => (
-                                                <option key={p} value={p}>{p}</option>
-                                            ))}
-                                        </select>
-                                    </div>
 
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5 ml-1">Fabric</label>
-                                        <select
-                                            name="fabric"
-                                            value={formData.fabric || ""}
-                                            onChange={handleChange}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                        >
-                                            <option value="">Select Fabric</option>
-                                            {["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"].map(f => (
-                                                <option key={f} value={f}>{f}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </>
-                            )}
                         </div>
                     </motion.div>
 

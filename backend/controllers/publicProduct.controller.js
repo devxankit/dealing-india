@@ -22,12 +22,11 @@ export const getProducts = async (req, res, next) => {
       state,
       city,
       itemType,
-      pattern,
-      fabric,
       area,
       market,
       businessType,
-      businessSubType
+      businessSubType,
+      dynamicFilters
     } = req.query;
 
     const result = await getPublicProducts({
@@ -46,12 +45,11 @@ export const getProducts = async (req, res, next) => {
       state,
       city,
       itemType,
-      pattern,
-      fabric,
       area,
       market,
       businessType,
-      businessSubType
+      businessSubType,
+      dynamicFilters
     });
 
     res.status(200).json({

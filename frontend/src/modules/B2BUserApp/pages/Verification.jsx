@@ -78,8 +78,17 @@ const B2BUserVerification = () => {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl"
+                className="bg-white rounded-[2rem] p-6 sm:p-8 w-full max-w-sm shadow-2xl relative overflow-hidden"
             >
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-400 to-primary-600"></div>
+
+                <button
+                    onClick={() => navigate('/b2b/register')}
+                    className="absolute top-4 left-4 p-2 text-gray-400 hover:text-primary-600 transition-colors z-10"
+                    title="Go Back"
+                >
+                    <FiArrowLeft size={22} />
+                </button>
                 <div className="text-center mb-6">
                     <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-50">
                         <FiMail className="text-primary-600 text-2xl" />

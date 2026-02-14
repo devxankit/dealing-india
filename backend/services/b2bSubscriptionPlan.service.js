@@ -103,23 +103,15 @@ class B2BSubscriptionPlanService {
     try {
       const { name, duration, price, features = [], description } = planData;
 
-      // Validate duration
-      if (![3, 6, 12].includes(duration)) {
-        throw new Error('Duration must be 3, 6, or 12 months');
+      // Validate duration - strictly Yearly (12 months)
+      if (duration !== 12) {
+        throw new Error('Duration must be 12 months (Yearly)');
       }
-
-      /*
-      // Check if plan with this duration already exists
-      const existingPlan = await B2BSubscriptionPlan.findOne({ duration });
-      if (existingPlan) {
-        throw new Error(`A plan with ${duration} months duration already exists`);
-      }
-      */
 
       const planToCreate = {
         name: name.trim(),
         duration,
-        price,
+        price: parseFloat(price) || 0,
         features: features.filter(f => f && f.trim()), // Remove empty features
         description: description?.trim(),
         isActive: true,
@@ -150,21 +142,26 @@ class B2BSubscriptionPlanService {
    */
   async updatePlan(planId, updateData, updatedBy) {
     try {
-      const { name, price, features, description, isActive } = updateData;
+      const { name, price, features, description, isActive, duration } = updateData;
 
       const plan = await B2BSubscriptionPlan.findById(planId);
       if (!plan) {
         throw new Error('B2B subscription plan not found');
       }
 
+      // Validate duration - strictly Yearly (12 months)
+      if (duration !== 12) {
+        throw new Error('Duration must be 12 months (Yearly)');
+      }
+
       // 🔹 Detect critical changes
       const isPriceChanged =
-        price !== undefined && price !== plan.price;
+        price !== undefined && parseFloat(price) !== plan.price;
 
       const isNameChanged =
         name !== undefined && name.trim() !== plan.name;
 
-      const newPrice = price !== undefined ? price : plan.price;
+      const newPrice = price !== undefined ? parseFloat(price) : plan.price;
 
       /**
        * 🔹 Rule:
@@ -177,14 +174,14 @@ class B2BSubscriptionPlanService {
         const planDescription =
           description?.trim() ||
           plan.description ||
-          `Monthly subscription for ${planName}`;
+          `Yearly subscription for ${planName}`;
 
         try {
           const razorpayPlan = await razorpayService.createPlan({
             name: planName,
             amount: newPrice,
             currency: 'INR',
-            period: 'monthly',
+            period: 'yearly',
             interval: 1,
             description: planDescription,
           });
@@ -203,7 +200,8 @@ class B2BSubscriptionPlanService {
 
       // 🔹 Update DB fields
       if (name !== undefined) plan.name = name.trim();
-      if (price !== undefined) plan.price = price;
+      if (price !== undefined) plan.price = parseFloat(price);
+      if (duration !== undefined) plan.duration = duration;
 
       if (features !== undefined) {
         plan.features = features.filter(f => f?.trim());
@@ -245,7 +243,7 @@ class B2BSubscriptionPlanService {
   }
 
   /**
-   * Ensure default plans exist (3, 6, 12 months)
+   * Ensure default plan exists (12 months only)
    * @param {String} createdBy - Admin ID
    * @returns {Promise<Array>} Array of all plans
    */
@@ -253,34 +251,9 @@ class B2BSubscriptionPlanService {
     try {
       const defaultPlans = [
         {
-          name: '3 Months Plan',
-          duration: 3,
-          price: 9999,
-          features: [
-            'Unlimited Product Listings',
-            'Inquiry Management',
-            'Chat Support',
-            'Basic Analytics',
-            'Standard Visibility'
-          ],
-        },
-        {
-          name: '6 Months Plan',
-          duration: 6,
-          price: 18999,
-          features: [
-            'Unlimited Product Listings',
-            'Priority Inquiry Display',
-            'Advanced Analytics',
-            'Featured Store Badge',
-            '24/7 Dedicated Support',
-            'Bulk Order Management'
-          ],
-        },
-        {
-          name: '12 Months Plan',
+          name: 'Yearly Plan',
           duration: 12,
-          price: 34999,
+          price: 9999, // User requested yearly, setting a default price if needed
           features: [
             'Unlimited Product Listings',
             'Priority Inquiry Display',
@@ -298,10 +271,17 @@ class B2BSubscriptionPlanService {
       const existingDurations = existingPlans.map(p => p.duration);
 
       for (const defaultPlan of defaultPlans) {
-        if (!existingDurations.includes(defaultPlan.duration)) {
+        // Only if no yearly plan exists
+        if (!existingDurations.includes(12)) {
           await this.createPlan(defaultPlan, createdBy);
         }
       }
+
+      // Deactivate any existing plans that are not 12 months
+      await B2BSubscriptionPlan.updateMany(
+        { duration: { $ne: 12 } },
+        { isActive: false }
+      );
 
       return this.getAllPlans({ includeInactive: false });
     } catch (error) {

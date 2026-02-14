@@ -22,7 +22,6 @@ const businessTypeSettingsSchema = new mongoose.Schema(
         features: {
             type: mongoose.Schema.Types.Mixed,
             default: {
-                canPostJob: false,
                 canReceiveLeads: true,
                 hasPremiumBadge: false,
                 canAccessAnalytics: true

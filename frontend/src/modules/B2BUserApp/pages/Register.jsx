@@ -19,6 +19,8 @@ const B2BUserRegister = () => {
         gstNumber: '',
         password: '',
         address: {
+            fullAddress: '',
+            pincode: '',
             city: '',
             state: '',
         }
@@ -50,6 +52,8 @@ const B2BUserRegister = () => {
                     companyName: formData.companyName,
                     gstNumber: formData.gstNumber,
                     address: {
+                        fullAddress: formData.address.fullAddress,
+                        pincode: formData.address.pincode,
                         city: formData.address.city,
                         state: formData.address.state
                     }
@@ -91,6 +95,14 @@ const B2BUserRegister = () => {
                 className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 sm:p-8 w-full max-w-md shadow-2xl relative overflow-hidden"
             >
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary-400 to-primary-600"></div>
+
+                <button
+                    onClick={() => navigate(-1)}
+                    className="absolute top-4 left-4 p-2 text-gray-400 hover:text-primary-600 transition-colors z-10"
+                    title="Go Back"
+                >
+                    <FiArrowLeft size={22} />
+                </button>
 
                 <div className="text-center mb-6">
                     <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-primary-50">
@@ -189,10 +201,9 @@ const B2BUserRegister = () => {
                             <input
                                 type="text"
                                 name="companyName"
-                                required
                                 value={formData.companyName}
                                 onChange={handleChange}
-                                placeholder="ABC Enterprises"
+                                placeholder="ABC Enterprises (Optional)"
                                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                         </div>
@@ -213,6 +224,22 @@ const B2BUserRegister = () => {
                         </div>
                     </div>
 
+                    <div className="md:col-span-2 space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Full Address</label>
+                        <div className="relative group">
+                            <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <input
+                                type="text"
+                                name="address.fullAddress"
+                                required
+                                value={formData.address.fullAddress}
+                                onChange={handleChange}
+                                placeholder="Shop No. 123, Main Market Road"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                            />
+                        </div>
+                    </div>
+
                     <div className="space-y-1.5">
                         <label className="text-xs font-bold text-gray-700 ml-1">City</label>
                         <div className="relative group">
@@ -224,6 +251,23 @@ const B2BUserRegister = () => {
                                 value={formData.address.city}
                                 onChange={handleChange}
                                 placeholder="Surat"
+                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-700 ml-1">Pincode</label>
+                        <div className="relative group">
+                            <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                            <input
+                                type="text"
+                                name="address.pincode"
+                                required
+                                maxLength={6}
+                                value={formData.address.pincode}
+                                onChange={handleChange}
+                                placeholder="395006"
                                 className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-2 border-transparent rounded-xl focus:border-primary-500 focus:bg-white transition-all font-medium text-sm"
                             />
                         </div>

@@ -33,10 +33,10 @@ const CompanyProfile = () => {
                 } else if (user?.businessInfo?.address?.city || user?.businessInfo?.address?.state) {
                     // Fallback to business info address if availabe
                     const businessAddress = {
-                        streetAddress: user.businessInfo.address?.city || '',
+                        streetAddress: user.businessInfo.address?.fullAddress || user.businessInfo.address?.city || '',
                         city: user.businessInfo.address?.city || '',
                         state: user.businessInfo.address?.state || '',
-                        pincode: '',
+                        pincode: user.businessInfo.address?.pincode || '',
                         isDefault: true,
                         addressType: 'Registered'
                     };
@@ -48,10 +48,10 @@ const CompanyProfile = () => {
                 // Fallback on error
                 if (user?.businessInfo?.address?.city || user?.businessInfo?.address?.state) {
                     const businessAddress = {
-                        streetAddress: user.businessInfo.address?.city || '',
+                        streetAddress: user.businessInfo.address?.fullAddress || user.businessInfo.address?.city || '',
                         city: user.businessInfo.address?.city || '',
                         state: user.businessInfo.address?.state || '',
-                        pincode: '',
+                        pincode: user.businessInfo.address?.pincode || '',
                         isDefault: true,
                         addressType: 'Registered'
                     };

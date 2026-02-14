@@ -77,16 +77,6 @@ const lotSlotSchema = new mongoose.Schema(
             trim: true,
             default: 'Lot',
         },
-        pattern: {
-            type: String,
-            trim: true,
-            default: '',
-        },
-        fabric: {
-            type: String,
-            trim: true,
-            default: '',
-        },
         vendorId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Vendor',
@@ -109,6 +99,12 @@ const lotSlotSchema = new mongoose.Schema(
 lotSlotSchema.index({ name: 1 });
 lotSlotSchema.index({ vendorId: 1, isActive: 1 });
 lotSlotSchema.index({ category: 1 });
-lotSlotSchema.index({ name: 'text', description: 'text', brand: 'text' });
+lotSlotSchema.index({
+    name: 'text',
+    description: 'text',
+    brand: 'text',
+    category: 'text',
+    subcategory: 'text'
+});
 
 export default mongoose.model('LotSlot', lotSlotSchema);

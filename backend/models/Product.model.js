@@ -140,6 +140,7 @@ const productSchema = new mongoose.Schema(
         pick: String,
         panna: String,
         gsm: String,
+        description: String,
         images: [String],
         imagesPublicIds: [String]
       }
@@ -202,7 +203,15 @@ productSchema.index({ vendorId: 1, isActive: 1 });
 productSchema.index({ stock: 1, stockQuantity: 1 });
 productSchema.index({ isActive: 1, isVisible: 1 });
 productSchema.index({ vendorId: 1, isVisible: 1, createdAt: -1 });
-productSchema.index({ name: 'text', description: 'text', brandName: 'text' });
+productSchema.index({ 'items.itemName': 1 });
+productSchema.index({
+  name: 'text',
+  description: 'text',
+  brandName: 'text',
+  category: 'text',
+  subcategory: 'text',
+  'items.itemName': 'text'
+});
 
 export default mongoose.model('Product', productSchema);
 

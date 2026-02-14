@@ -3,6 +3,7 @@ import { FiPlus, FiTrash2, FiUpload, FiX, FiImage, FiTag, FiDollarSign, FiList, 
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
+import imageCompression from 'browser-image-compression';
 
 const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) => {
     const [formData, setFormData] = useState({
@@ -10,7 +11,7 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
         description: initialData?.description || "",
         minPrice: initialData?.minPrice || "",
         maxPrice: initialData?.maxPrice || "",
-        items: initialData?.items || [{ itemName: "", category: "", price: "", unit: "", reed: "", pick: "", panna: "", gsm: "", images: [] }],
+        items: initialData?.items || [{ itemName: "", category: "", price: "", unit: "", reed: "", pick: "", panna: "", gsm: "", description: "", images: [] }],
         images: initialData?.images || [],
         shopUnitId: initialData?.shopUnitId || null,
     });
@@ -18,8 +19,15 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
     const { vendor } = useB2BVendorAuthStore();
     const [hasExistingUnit, setHasExistingUnit] = useState(false);
 
-    // Business types that should see Reed, Pick, Panna, GSM
-    const techTypeAllowed = ["yarn", "mill", "weaver", "gray broker"];
+    // Business types that should see Reed, Pick, Panna, GSM (Image 2 & 3)
+    const techTypeAllowed = [
+        "weavers",
+        "gray broker",
+        "other broker",
+        "job work",
+        "stitching unit",
+        "support & services"
+    ];
     const businessType = vendor?.businessType?.toLowerCase() || "";
     const showTechFields = techTypeAllowed.includes(businessType);
 
@@ -52,23 +60,56 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
 
     const MAX_PHOTOS = 5;
 
-    const handleImageUpload = (e) => {
+    const handleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (formData.images.length + files.length > MAX_PHOTOS) {
             toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
             return;
         }
 
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({
-                    ...prev,
-                    images: [...prev.images, reader.result]
-                }));
-            };
-            reader.readAsDataURL(file);
-        });
+        const toastId = toast.loading('Compressing images...');
+
+        try {
+            const compressedFiles = await Promise.all(
+                files.map(async (file) => {
+                    if (file.type.startsWith('image/')) {
+                        try {
+                            const options = {
+                                maxSizeMB: 1, // Max size 1MB
+                                maxWidthOrHeight: 1920,
+                                useWebWorker: true,
+                            };
+                            return await imageCompression(file, options);
+                        } catch (error) {
+                            console.error('Compression ended with error:', error);
+                            return file; // Fallback to original file
+                        }
+                    }
+                    return file;
+                })
+            );
+
+            // Convert to Base64
+            const base64Promises = compressedFiles.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            const base64Images = await Promise.all(base64Promises);
+
+            setFormData(prev => ({
+                ...prev,
+                images: [...prev.images, ...base64Images]
+            }));
+
+            toast.success('Images added successfully', { id: toastId });
+        } catch (error) {
+            console.error('Error processing images:', error);
+            toast.error('Failed to process images', { id: toastId });
+        }
     };
 
     const removeImage = (index) => {
@@ -87,11 +128,11 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
     const addItem = () => {
         setFormData({
             ...formData,
-            items: [...formData.items, { itemName: "", category: "", price: "", unit: "", reed: "", pick: "", panna: "", gsm: "", images: [] }]
+            items: [...formData.items, { itemName: "", category: "", price: "", unit: "", reed: "", pick: "", panna: "", gsm: "", description: "", images: [] }]
         });
     };
 
-    const handleItemImageUpload = (itemIndex, e) => {
+    const handleItemImageUpload = async (itemIndex, e) => {
         const files = Array.from(e.target.files);
         const currentItemImages = formData.items[itemIndex].images || [];
 
@@ -100,15 +141,47 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
             return;
         }
 
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const updatedItems = [...formData.items];
-                updatedItems[itemIndex].images = [...(updatedItems[itemIndex].images || []), reader.result];
-                setFormData(prev => ({ ...prev, items: updatedItems }));
-            };
-            reader.readAsDataURL(file);
-        });
+        const toastId = toast.loading('Compressing item images...');
+
+        try {
+            const compressedFiles = await Promise.all(
+                files.map(async (file) => {
+                    if (file.type.startsWith('image/')) {
+                        try {
+                            const options = {
+                                maxSizeMB: 1,
+                                maxWidthOrHeight: 1920,
+                                useWebWorker: true,
+                            };
+                            return await imageCompression(file, options);
+                        } catch (error) {
+                            console.error('Compression ended with error:', error);
+                            return file;
+                        }
+                    }
+                    return file;
+                })
+            );
+
+            const base64Promises = compressedFiles.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            const base64Images = await Promise.all(base64Promises);
+
+            const updatedItems = [...formData.items];
+            updatedItems[itemIndex].images = [...(updatedItems[itemIndex].images || []), ...base64Images];
+            setFormData(prev => ({ ...prev, items: updatedItems }));
+
+            toast.success('Images added to item', { id: toastId });
+        } catch (error) {
+            console.error('Error processing item images:', error);
+            toast.error('Failed to process item images', { id: toastId });
+        }
     };
 
     const removeItemImage = (itemIndex, imgIndex) => {
@@ -422,6 +495,20 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                                         </div>
                                     </>
                                 )}
+                            </div>
+
+                            {/* Item Description Field */}
+                            <div className="mt-4 space-y-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Item Description</label>
+                                <div className="bg-white px-4 py-2.5 rounded-xl border border-gray-200 focus-within:border-blue-500 transition-all">
+                                    <textarea
+                                        rows={2}
+                                        value={item.description || ""}
+                                        onChange={(e) => handleItemChange(idx, "description", e.target.value)}
+                                        placeholder="Enter Item Description (Optional)"
+                                        className="w-full bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-700 outline-none p-0 resize-none"
+                                    />
+                                </div>
                             </div>
 
                             {/* Item Images Section */}

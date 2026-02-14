@@ -6,39 +6,10 @@ import api from './api';
 // Default plans if none exist
 const DEFAULT_PLANS = [
     {
-        id: 'plan_3_months',
-        name: '3 Months Plan',
-        duration: 3,
-        price: 9999,
-        features: [
-            'Unlimited Product Listings',
-            'Inquiry Management',
-            'Chat Support',
-            'Basic Analytics',
-            'Standard Visibility'
-        ],
-        isActive: true
-    },
-    {
-        id: 'plan_6_months',
-        name: '6 Months Plan',
-        duration: 6,
-        price: 18999,
-        features: [
-            'Unlimited Product Listings',
-            'Priority Inquiry Display',
-            'Advanced Analytics',
-            'Featured Store Badge',
-            '24/7 Dedicated Support',
-            'Bulk Order Management'
-        ],
-        isActive: true
-    },
-    {
         id: 'plan_12_months',
-        name: '12 Months Plan',
+        name: 'Yearly Plan',
         duration: 12,
-        price: 34999,
+        price: 9999,
         features: [
             'Unlimited Product Listings',
             'Priority Inquiry Display',

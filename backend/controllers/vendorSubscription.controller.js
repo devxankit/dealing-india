@@ -4,13 +4,13 @@ import subscriptionRulesService from '../services/subscriptionRules.service.js';
 class VendorSubscriptionController {
   async getTiers(req, res) {
     try {
-      const tiers = await SubscriptionService.getAllTiers();
-      res.status(200).json({ success: true, data: tiers || [] });
+      const plans = await SubscriptionService.getAllPlans();
+      res.status(200).json({ success: true, data: plans || [] });
     } catch (error) {
-      console.error('Error getting tiers:', error);
+      console.error('Error getting plans:', error);
       res.status(500).json({
         success: false,
-        message: error.message || 'Failed to get subscription tiers'
+        message: error.message || 'Failed to get subscription plans'
       });
     }
   }
@@ -77,9 +77,11 @@ class VendorSubscriptionController {
 
   async initializeSubscription(req, res) {
     try {
-      const { tierId } = req.body;
-      if (!tierId) {
-        return res.status(400).json({ success: false, message: 'Tier ID is required' });
+      const { planId } = req.body;
+      const finalPlanId = planId;
+
+      if (!finalPlanId) {
+        return res.status(400).json({ success: false, message: 'Plan ID is required' });
       }
 
       const vendorId = req.user?.vendorId || req.userDoc?._id;
@@ -90,7 +92,7 @@ class VendorSubscriptionController {
       const io = req.app.get('io');
       const result = await SubscriptionService.initializeSubscription(
         vendorId,
-        tierId,
+        finalPlanId,
         io
       );
 
@@ -114,7 +116,8 @@ class VendorSubscriptionController {
 
   async verifyPayment(req, res) {
     try {
-      const { vendorId, tierId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+      const { vendorId, planId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+      const finalPlanId = planId;
 
       // Validate required fields
       if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
@@ -135,17 +138,17 @@ class VendorSubscriptionController {
         });
       }
 
-      if (!tierId) {
+      if (!finalPlanId) {
         return res.status(400).json({
           success: false,
-          message: 'Tier ID is required'
+          message: 'Plan ID is required'
         });
       }
 
       const io = req.app.get('io');
       const subscription = await SubscriptionService.verifySubscriptionPayment(
         finalVendorId,
-        tierId,
+        finalPlanId,
         {
           razorpayOrderId,
           razorpayPaymentId,
@@ -172,7 +175,8 @@ class VendorSubscriptionController {
 
   async subscribe(req, res) {
     try {
-      const { tierId, billingCycle, paymentMethod } = req.body;
+      const { planId, billingCycle, paymentMethod } = req.body;
+      const finalPlanId = planId;
       const vendorId = req.user?.vendorId || req.userDoc?._id;
       if (!vendorId) {
         return res.status(400).json({ success: false, message: 'Vendor ID not found' });
@@ -180,7 +184,7 @@ class VendorSubscriptionController {
 
       const subscription = await SubscriptionService.subscribeVendor(
         vendorId,
-        tierId,
+        finalPlanId,
         billingCycle,
         paymentMethod
       );
@@ -192,7 +196,8 @@ class VendorSubscriptionController {
 
   async upgrade(req, res) {
     try {
-      const { newTierId, billingCycle } = req.body;
+      const { newPlanId, billingCycle } = req.body;
+      const finalPlanId = newPlanId;
       const vendorId = req.user?.vendorId || req.userDoc?._id;
       if (!vendorId) {
         return res.status(400).json({ success: false, message: 'Vendor ID not found' });
@@ -200,7 +205,7 @@ class VendorSubscriptionController {
 
       const subscription = await SubscriptionService.upgradeSubscription(
         vendorId,
-        newTierId,
+        finalPlanId,
         billingCycle
       );
       res.status(200).json({ success: true, data: subscription });
@@ -258,74 +263,7 @@ class VendorSubscriptionController {
     }
   }
 
-  async checkReelPayment(req, res) {
-    try {
-      const vendorId = req.user?.vendorId || req.userDoc?._id;
-      if (!vendorId) {
-        return res.status(400).json({ success: false, message: 'Vendor ID not found' });
-      }
-
-      const paymentCheck = await SubscriptionService.checkReelUploadPayment(vendorId);
-      res.status(200).json({ success: true, data: paymentCheck });
-    } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  async initializeExtraReelPayment(req, res) {
-    try {
-      const vendorId = req.user?.vendorId || req.userDoc?._id;
-      if (!vendorId) {
-        return res.status(400).json({ success: false, message: 'Vendor ID not found' });
-      }
-
-      const result = await SubscriptionService.initializeExtraReelPayment(vendorId);
-      res.status(200).json({
-        success: true,
-        message: 'Payment initialized for extra reel',
-        data: result
-      });
-    } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-  }
-
-  async verifyExtraReelPayment(req, res) {
-    try {
-      const vendorId = req.user?.vendorId || req.userDoc?._id;
-      const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
-
-      if (!vendorId) {
-        return res.status(400).json({ success: false, message: 'Vendor ID not found' });
-      }
-
-      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-        return res.status(400).json({
-          success: false,
-          message: 'All payment details are required'
-        });
-      }
-
-      const result = await SubscriptionService.verifyExtraReelPayment(vendorId, {
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Payment verified successfully. You can now upload the reel.',
-        data: result
-      });
-    } catch (error) {
-      console.error('Error verifying extra reel payment:', error);
-      const statusCode = error.message?.includes('verification failed') ? 400 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: error.message || 'Failed to verify payment'
-      });
-    }
-  }
+  // Reel related methods removed (B2C logic cleaned)
 }
 
 export default new VendorSubscriptionController();

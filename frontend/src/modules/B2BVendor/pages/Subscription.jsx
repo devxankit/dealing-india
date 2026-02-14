@@ -93,6 +93,75 @@ const B2BVendorSubscription = () => {
             isFetchingRef.current = false;
         }
     };
+    const getPlanRank = (name) => {
+        const n = String(name || '').toLowerCase();
+        if (n.includes('gold')) return 5;
+        if (n.includes('premium')) return 4;
+        if (n.includes('diamond')) return 3;
+        if (n.includes('silver')) return 2;
+        if (n.includes('basic')) return 1;
+        return 0;
+    };
+
+    const handleUpgrade = async (planId) => {
+        if (processingPlanId) return;
+
+        try {
+            setProcessingPlanId(planId);
+            toast.loading('Calculating upgrade price...', { id: 'upgrade-init' });
+
+            const response = await subscriptionService.initializeUpgrade(planId);
+            const { razorpay, razorpayKeyId, finalAmount, credit, remainingDays } = response;
+
+            toast.dismiss('upgrade-init');
+
+            // Simplified confirmation, you can enhance this with a custom modal later
+            const proceed = window.confirm(`Upgrade to this plan for ₹${finalAmount.toLocaleString('en-IN')}?\n\nCalculation:\n- Credit for ${remainingDays} days: ₹${credit.toLocaleString('en-IN')}\n- Final Payable: ₹${finalAmount.toLocaleString('en-IN')}`);
+
+            if (!proceed) {
+                setProcessingPlanId(null);
+                return;
+            }
+
+            if (razorpay && razorpayKeyId) {
+                try {
+                    const paymentResponse = await initializeRazorpayCheckout({
+                        key: razorpayKeyId,
+                        amount: razorpay.amount / 100,
+                        orderId: razorpay.id || razorpay.orderId,
+                        name: 'Dealing India B2B Upgrade',
+                        description: `Upgrade to ${planId}`,
+                    });
+
+                    toast.loading('Activating upgrade...', { id: 'verify-upgrade' });
+
+                    const verifyData = {
+                        planId: planId,
+                        ...handlePaymentSuccess(paymentResponse),
+                        amount: finalAmount
+                    };
+
+                    await subscriptionService.verifyUpgradePayment(verifyData);
+
+                    toast.success('Subscription upgraded successfully!', { id: 'verify-upgrade' });
+                    loadSubscriptionData();
+                } catch (err) {
+                    console.error('Upgrade Payment Error:', err);
+                    toast.error(err.message || 'Upgrade payment failed');
+                }
+            } else if (finalAmount === 0) {
+                toast.success('Upgraded successfully!');
+                loadSubscriptionData();
+            }
+
+        } catch (error) {
+            console.error('Upgrade error:', error);
+            toast.error(error.message || 'Failed to initialize upgrade');
+        } finally {
+            setProcessingPlanId(null);
+        }
+    };
+
     const handleSubscribe = async (planId) => {
         if (processingPlanId) return;
 
@@ -121,7 +190,7 @@ const B2BVendorSubscription = () => {
                     toast.loading('Verifying payment...', { id: 'verify-payment' });
 
                     const verifyData = {
-                        tierId: planId, // Using tierId key for backward compatibility in backend service
+                        planId: planId, // Using planId
                         ...handlePaymentSuccess(paymentResponse)
                     };
 
@@ -368,19 +437,24 @@ const B2BVendorSubscription = () => {
                     const isProcessing = processingPlanId === planId;
                     const isRecommended = plan.duration === 6;
 
+                    const planRank = getPlanRank(plan.name);
+                    const currentRank = getPlanRank(currentSubscription?.planDetails?.name);
+                    const isUpgrade = hasActiveSubscription && planRank > currentRank;
+                    const isDowngrade = hasActiveSubscription && planRank < currentRank;
+
                     return (
                         <motion.div
                             key={planId}
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
-                            whileHover={!hasActiveSubscription || isCurrentPlan ? { y: -8, scale: 1.02 } : {}}
+                            whileHover={!hasActiveSubscription || isCurrentPlan || isUpgrade ? { y: -8, scale: 1.02 } : {}}
                             className={`relative bg-white rounded-3xl p-8 shadow-lg border-2 flex flex-col transition-all ${isCurrentPlan
                                 ? 'border-green-500 ring-4 ring-green-50'
                                 : isRecommended
                                     ? 'border-primary-500 ring-4 ring-primary-50'
                                     : 'border-gray-100 hover:border-gray-200'
-                                } ${hasActiveSubscription && !isCurrentPlan ? 'opacity-60' : ''}`}
+                                } ${isDowngrade ? 'opacity-60' : ''}`}
                         >
                             {/* Badges */}
                             {isCurrentPlan && (
@@ -388,7 +462,12 @@ const B2BVendorSubscription = () => {
                                     CURRENT PLAN
                                 </div>
                             )}
-                            {isRecommended && !isCurrentPlan && (
+                            {isUpgrade && (
+                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">
+                                    UPGRADE AVAILABLE
+                                </div>
+                            )}
+                            {isRecommended && !isCurrentPlan && !isUpgrade && (
                                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg">
                                     RECOMMENDED
                                 </div>
@@ -398,7 +477,7 @@ const B2BVendorSubscription = () => {
                             <div className="mb-8">
                                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${isCurrentPlan
                                     ? 'bg-green-100 text-green-600'
-                                    : isRecommended
+                                    : isUpgrade || isRecommended
                                         ? 'bg-primary-100 text-primary-600 shadow-lg shadow-primary-100'
                                         : 'bg-slate-100 text-gray-500'
                                     }`}>
@@ -419,7 +498,7 @@ const B2BVendorSubscription = () => {
                             <ul className="space-y-4 mb-8 flex-grow">
                                 {plan.features?.map((feature, idx) => (
                                     <li key={idx} className="flex items-start gap-3 text-gray-600">
-                                        <div className={`mt-1 p-1 rounded-full ${isCurrentPlan || isRecommended
+                                        <div className={`mt-1 p-1 rounded-full ${isCurrentPlan || isRecommended || isUpgrade
                                             ? 'bg-primary-100 text-primary-600'
                                             : 'bg-gray-100 text-gray-400'
                                             }`}>
@@ -438,6 +517,39 @@ const B2BVendorSubscription = () => {
                                 >
                                     Current Plan
                                 </button>
+                            ) : isUpgrade ? (
+                                <button
+                                    onClick={() => handleUpgrade(planId)}
+                                    disabled={isProcessing}
+                                    className={`w-full py-4 rounded-2xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${isProcessing
+                                        ? 'bg-gray-400 text-white cursor-wait'
+                                        : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:shadow-xl shadow-blue-200'
+                                        }`}
+                                >
+                                    {isProcessing ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FiRefreshCw />
+                                            Upgrade Now
+                                        </>
+                                    )}
+                                </button>
+                            ) : isDowngrade ? (
+                                <div className="space-y-2">
+                                    <button
+                                        disabled
+                                        className="w-full py-4 rounded-2xl font-bold bg-gray-200 text-gray-400 cursor-not-allowed"
+                                    >
+                                        Downgrade Blocked
+                                    </button>
+                                    <p className="text-xs text-center text-gray-500">
+                                        You can change plan after expiry
+                                    </p>
+                                </div>
                             ) : hasActiveSubscription ? (
                                 <div className="space-y-2">
                                     <button

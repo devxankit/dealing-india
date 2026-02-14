@@ -174,29 +174,27 @@ const Subscriptions = () => {
         try {
             setSubscriptionsLoading(true);
             const params = new URLSearchParams();
-            if (subscriptionFilter === 'active') {
-                params.append('status', 'active');
-            } else if (subscriptionFilter === 'expired') {
-                params.append('status', 'expired');
-            } else if (subscriptionFilter === 'pending') {
-                params.append('status', 'pending');
-            }
-            // If subscriptionFilter is 'all', load all
-            if (selectedBusinessType !== 'All Business Types') {
-                params.append('businessType', selectedBusinessType);
+            if (subscriptionFilter !== 'all') params.append('status', subscriptionFilter);
+            if (selectedBusinessType !== 'All Business Types') params.append('businessType', selectedBusinessType);
+
+            // Fetch analytics and subscriptions in parallel
+            const [analyticsRes, subsRes] = await Promise.all([
+                api.get('/subscriptions/analytics'),
+                api.get(`/subscriptions/getAllB2BSubscriptions?${params.toString()}`)
+            ]);
+
+            if (analyticsRes.success) {
+                setStats({
+                    active: analyticsRes.activeSubscriptions || 0,
+                    monthlyRevenue: parseFloat(analyticsRes.monthlyGrowth.replace('+', '').replace('%', '')) || 0, // Placeholder for actual growth if needed separately
+                    expiringSoon: 0, // Need to implement in service if critical
+                    totalCollectedRevenue: analyticsRes.totalRevenue || 0,
+                    actualMonthlyRevenue: analyticsRes.revenue || 0
+                });
             }
 
-            const response = await api.get(`/admin/b2b-vendors/subscriptions?${params.toString()}`);
-            if (response.success) {
-                setSubscriptions(response.data || []);
-                if (response.stats) {
-                    setStats({
-                        active: response.stats.active || 0,
-                        monthlyRevenue: response.stats.monthlyRevenue || 0,
-                        expiringSoon: response.stats.expiringSoon || 0,
-                        totalCollectedRevenue: response.stats.totalCollectedRevenue || 0
-                    });
-                }
+            if (subsRes.success) {
+                setSubscriptions(subsRes.data || []);
             }
         } catch (error) {
             console.error('Error loading subscriptions:', error);
@@ -209,10 +207,10 @@ const Subscriptions = () => {
 
     const statsCards = [
         { label: "Active Subscriptions", value: stats.active.toString(), icon: FiCheckCircle, color: "text-green-600", bg: "bg-green-100" },
-        { label: "Monthly Revenue", value: `₹${stats.monthlyRevenue.toLocaleString('en-IN')}`, icon: FiTrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
+        { label: "Monthly Revenue", value: `₹${(stats.actualMonthlyRevenue || 0).toLocaleString('en-IN')}`, icon: FiTrendingUp, color: "text-blue-600", bg: "bg-blue-100" },
         { label: "Expiring Soon", value: stats.expiringSoon.toString(), icon: FiActivity, color: "text-orange-600", bg: "bg-orange-100" },
         {
-            label: "Subscription Wallet",
+            label: "Total Collection",
             value: `₹${stats.totalCollectedRevenue.toLocaleString('en-IN')}`,
             icon: FiShoppingBag,
             color: "text-purple-600",

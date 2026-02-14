@@ -43,6 +43,7 @@ import publicB2BCategoryRoutes from './routes/publicB2BCategory.routes.js';
 import publicB2BLocationRoutes from './routes/publicB2BLocation.routes.js';
 import publicB2BSubscriptionRoutes from './routes/publicB2BSubscription.routes.js';
 import SubscriptionRoutes from './routes/SubscriptionRoute.js';
+import upgradeRoutes from './routes/upgrade.routes.js';
 
 
 import b2bVendorProductsRoutes from './routes/b2bVendorProducts.routes.js';
@@ -258,6 +259,8 @@ app.use('/api/public/b2b-subscription-plans', publicB2BSubscriptionRoutes);
 
 
 app.use('/api/subscription', SubscriptionRoutes);
+app.use('/api/subscriptions', SubscriptionRoutes); // Alias for plural calls from frontend
+app.use('/api/subscriptions/upgrade', upgradeRoutes);
 app.use('/api/products', publicProductRoutes);
 
 

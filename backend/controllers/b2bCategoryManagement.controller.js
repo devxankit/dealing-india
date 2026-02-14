@@ -64,23 +64,13 @@ export const getB2BCategory = async (req, res, next) => {
  */
 export const create = async (req, res, next) => {
   try {
-    const { name, subcategoryName } = req.body;
+    const { name, subcategoryName, fields } = req.body;
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Category name is required',
-      });
-    }
-
-    if (!subcategoryName || !subcategoryName.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Subcategory name is required',
-      });
-    }
-
-    const category = await createB2BCategory({ name, subcategoryName });
+    const category = await createB2BCategory({
+      name,
+      subcategoryName,
+      fields
+    });
 
     // Clear cache
     await clearB2BCategoryCache();
@@ -154,7 +144,7 @@ export const remove = async (req, res, next) => {
 export const addSubcategory = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { subcategoryName } = req.body;
+    const { subcategoryName, fields } = req.body;
 
     if (!subcategoryName || !subcategoryName.trim()) {
       return res.status(400).json({
@@ -163,7 +153,7 @@ export const addSubcategory = async (req, res, next) => {
       });
     }
 
-    const category = await addB2BSubcategory(id, subcategoryName);
+    const category = await addB2BSubcategory(id, subcategoryName, fields);
 
     // Clear cache
     await clearB2BCategoryCache();
@@ -216,7 +206,7 @@ export const removeSubcategory = async (req, res, next) => {
 export const updateSubcategory = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { index, newName } = req.body;
+    const { index, newName, fields } = req.body;
 
     if (index === undefined || index === null) {
       return res.status(400).json({
@@ -225,14 +215,10 @@ export const updateSubcategory = async (req, res, next) => {
       });
     }
 
-    if (!newName || !newName.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Subcategory name is required',
-      });
-    }
-
-    const category = await updateB2BSubcategory(id, parseInt(index), newName);
+    const category = await updateB2BSubcategory(id, parseInt(index), {
+      name: newName,
+      fields
+    });
 
     // Clear cache
     await clearB2BCategoryCache();

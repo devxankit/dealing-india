@@ -1,4 +1,3 @@
-import SubscriptionTier from '../models/SubscriptionTier.model.js';
 import B2BSubscriptionPlan from '../models/B2BSubscriptionPlan.model.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
 import Vendor from '../models/Vendor.model.js';
@@ -8,75 +7,15 @@ import NotificationService from './notification.service.js';
 import mongoose from 'mongoose';
 
 class SubscriptionService {
-  async getAllTiers(includeInactive = false) {
+  async getAllPlans(includeInactive = false) {
     try {
       const query = includeInactive ? {} : { isActive: true };
-
-      const [tiers, b2bPlans] = await Promise.all([
-        SubscriptionTier.find(query).sort({ priceMonthly: 1 }).lean(),
-        B2BSubscriptionPlan.find(query).sort({ price: 1 }).lean()
-      ]);
-
-      // Map B2B plans to include priceMonthly for compatibility
-      const mergedPlans = [
-        ...tiers.map(t => ({ ...t, isB2B: false })),
-        ...b2bPlans.map(p => ({
-          ...p,
-          priceMonthly: p.price,
-          isB2B: true
-        }))
-      ];
-
-      return mergedPlans;
+      const plans = await B2BSubscriptionPlan.find(query).sort({ price: 1 }).lean();
+      return plans;
     } catch (error) {
-      console.error('Error getting all tiers:', error);
+      console.error('Error getting all plans:', error);
       throw error;
     }
-  }
-
-  async createTier(tierData) {
-    return await SubscriptionTier.create(tierData);
-  }
-
-  async updateTier(tierId, updateData) {
-    const currentTier = await SubscriptionTier.findById(tierId);
-    if (!currentTier) {
-      throw new Error('Subscription tier not found');
-    }
-
-    // Check if critical fields are changing
-    const isPriceChanged = updateData.priceMonthly !== undefined && updateData.priceMonthly !== currentTier.priceMonthly;
-    const isNameChanged = updateData.name !== undefined && updateData.name !== currentTier.name;
-
-    // We create a new plan if price changes, or if name changes (to keep consistency),
-    // provided the plan is not free (price > 0).
-    const newPrice = updateData.priceMonthly !== undefined ? updateData.priceMonthly : currentTier.priceMonthly;
-
-    if ((isPriceChanged || isNameChanged) && newPrice > 0) {
-      const planName = updateData.name || currentTier.name;
-      const description = updateData.description || currentTier.description || `Monthly subscription for ${planName}`;
-
-      try {
-        const plan = await razorpayService.createPlan({
-          name: planName,
-          amount: newPrice,
-          currency: 'INR',
-          period: 'monthly',
-          interval: 1,
-          description: description
-        });
-        console.log("plan", plan)
-        updateData.razorpayPlanId = plan.id;
-      } catch (error) {
-        console.error('Failed to create new Razorpay plan during tier update:', error);
-        throw new Error(`Failed to update tier: Could not create Razorpay plan - ${error.message}`);
-      }
-    } else if (newPrice === 0) {
-      // If updating to free, clear plan ID
-      updateData.razorpayPlanId = null;
-    }
-
-    return await SubscriptionTier.findByIdAndUpdate(tierId, updateData, { new: true });
   }
 
   async getVendorSubscription(vendorId) {
@@ -97,10 +36,6 @@ class SubscriptionService {
       if (vendor?.currentSubscription) {
         subscription = await VendorSubscription.findById(vendor.currentSubscription)
           .populate({
-            path: 'tierId',
-            select: 'name priceMonthly reelLimit extraReelPrice features isActive'
-          })
-          .populate({
             path: 'planId',
             select: 'name duration price features isActive'
           })
@@ -108,29 +43,21 @@ class SubscriptionService {
 
         // If subscription found via reference, return it immediately (regardless of status)
         // This ensures vendor sees admin's manual override changes
-        if (subscription) {
-          // B2B subscriptions have planId, regular subscriptions have tierId
-          // Return if either exists (B2B vendor or regular vendor)
-          if (subscription.planId || subscription.tierId) {
-            return subscription;
-          } else {
-            // Neither planId nor tierId exists, log warning but continue to find another subscription
-            console.warn(`Subscription ${subscription._id} has neither planId (B2B) nor tierId (regular), trying to find alternative`);
-          }
+        if (subscription && subscription.planId) {
+          return subscription;
+        } else if (subscription) {
+          // Subscription exists but has no planId (invalid B2B sub), log warning
+          console.warn(`Subscription ${subscription._id} has no planId (B2B), trying to find alternative`);
         }
       }
 
       // Priority 2: Try to find active subscription
       // Note: If Priority 1 found a subscription (even if invalid), skip Priority 2
-      if (!subscription || (!subscription.planId && !subscription.tierId)) {
+      if (!subscription || !subscription.planId) {
         subscription = await VendorSubscription.findOne({
           vendorId: vendorObjectId,
           status: 'active'
         })
-          .populate({
-            path: 'tierId',
-            select: 'name priceMonthly reelLimit extraReelPrice features isActive'
-          })
           .populate({
             path: 'planId',
             select: 'name duration price features isActive'
@@ -146,10 +73,6 @@ class SubscriptionService {
           vendorId: vendorObjectId
         })
           .populate({
-            path: 'tierId',
-            select: 'name priceMonthly reelLimit extraReelPrice features isActive'
-          })
-          .populate({
             path: 'planId',
             select: 'name duration price features isActive'
           })
@@ -162,14 +85,13 @@ class SubscriptionService {
         return null;
       }
 
-      // B2B subscriptions have planId, regular subscriptions have tierId
-      // Return subscription if either exists
-      if (subscription.planId || subscription.tierId) {
+      // Return subscription if planId exists
+      if (subscription.planId) {
         return subscription;
       }
 
-      // Neither planId nor tierId exists - invalid subscription
-      console.warn(`Subscription ${subscription._id} has neither planId (B2B) nor tierId (regular)`);
+      // No planId exists - invalid subscription
+      console.warn(`Subscription ${subscription._id} has no planId (B2B)`);
       return null;
     } catch (error) {
       console.error('Error in getVendorSubscription:', error);
@@ -182,42 +104,30 @@ class SubscriptionService {
    * Initialize subscription with Razorpay order (for payment)
    * NOTE: Does NOT create subscription record until payment is completed
    */
-  async initializeSubscription(vendorId, tierId, io = null) {
+  async initializeSubscription(vendorId, planId, io = null) {
     try {
-      // Find tier in either SubscriptionTier or B2BSubscriptionPlan
-      let tier = await SubscriptionTier.findById(tierId);
-      let isB2BPlan = false;
-
-      if (!tier) {
-        tier = await B2BSubscriptionPlan.findById(tierId);
-        if (tier) isB2BPlan = true;
-      }
-
-      if (!tier) throw new Error('Subscription tier not found');
+      const plan = await B2BSubscriptionPlan.findById(planId);
+      if (!plan) throw new Error('Subscription plan not found');
 
       const vendor = await Vendor.findById(vendorId);
       if (!vendor) throw new Error('Vendor not found');
 
-      const planPrice = isB2BPlan ? tier.price : tier.priceMonthly;
-      const planName = tier.name;
+      const planPrice = plan.price;
+      const planName = plan.name;
 
-      // If free tier, activate immediately
+      // If free plan, activate immediately
       if (planPrice === 0) {
         const session = await mongoose.startSession();
         session.startTransaction();
         try {
           const startDate = new Date();
           const endDate = new Date();
-
-          if (isB2BPlan) {
-            endDate.setMonth(endDate.getMonth() + (tier.duration || 12));
-          } else {
-            endDate.setMonth(endDate.getMonth() + 1);
-          }
+          endDate.setMonth(endDate.getMonth() + (plan.duration || 12));
 
           const subscriptionData = {
             vendorId,
-            billingCycle: 'monthly',
+            planId,
+            billingCycle: 'Yearly',
             startDate,
             endDate,
             paymentMethod: 'free',
@@ -225,17 +135,9 @@ class SubscriptionService {
             lastPaymentDate: startDate,
             nextBillingDate: endDate,
             usage: {
-              reelsUploaded: 0,
-              extraReelsCharged: 0,
               lastResetDate: startDate
             }
           };
-
-          if (isB2BPlan) {
-            subscriptionData.planId = tierId;
-          } else {
-            subscriptionData.tierId = tierId;
-          }
 
           const subscription = await VendorSubscription.create([subscriptionData], { session });
 
@@ -278,37 +180,25 @@ class SubscriptionService {
         }
       }
 
-      // For paid tiers, create a PENDING subscription record first
+      // For paid plans, create a PENDING subscription record first
       const startDate = new Date();
       const endDate = new Date();
-
-      if (isB2BPlan) {
-        endDate.setMonth(endDate.getMonth() + (tier.duration || 12));
-      } else {
-        endDate.setMonth(endDate.getMonth() + 1);
-      }
+      endDate.setMonth(endDate.getMonth() + (plan.duration || 12));
 
       const subscriptionCode = `SUB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
       const pendingSubscriptionData = {
         vendorId,
-        billingCycle: 'monthly',
+        planId,
+        billingCycle: 'Yearly',
         startDate,
         endDate,
         paymentMethod: 'razorpay',
         status: 'pending',
         usage: {
-          reelsUploaded: 0,
-          extraReelsCharged: 0,
           lastResetDate: startDate
         }
       };
-
-      if (isB2BPlan) {
-        pendingSubscriptionData.planId = tierId;
-      } else {
-        pendingSubscriptionData.tierId = tierId;
-      }
 
       const subscription = await VendorSubscription.create(pendingSubscriptionData);
 
@@ -323,11 +213,11 @@ class SubscriptionService {
           subscriptionCode,
           {
             vendorId: vendorId.toString(),
-            tierId: tierId.toString(),
+            planId: planId.toString(),
             subscriptionId: subscription._id.toString(),
-            tierName: planName,
+            planName: planName,
             type: 'subscription',
-            isB2B: isB2BPlan ? 'true' : 'false'
+            isB2B: 'true'
           }
         );
 
@@ -343,8 +233,8 @@ class SubscriptionService {
         razorpay: razorpayOrder,
         razorpayKeyId,
         vendorId: vendorId.toString(),
-        tierId: tierId.toString(),
-        isB2B: isB2BPlan
+        planId: planId.toString(),
+        isB2B: true
       };
     } catch (error) {
       console.error('Initialize Subscription Error:', error);
@@ -356,28 +246,22 @@ class SubscriptionService {
    * Verify payment and create/activate subscription
    * Now accepts vendorId and tierId instead of subscriptionId since subscription doesn't exist yet
    */
-  async verifySubscriptionPayment(vendorId, tierId, paymentData, io = null) {
+  async verifySubscriptionPayment(vendorId, planId, paymentData, io = null) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
       const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = paymentData;
 
-      // Validate vendor and tier exist
+      // Validate vendor and plan exist
       const vendor = await Vendor.findById(vendorId).session(session)
         .select('businessName storeName email phone');
       if (!vendor) throw new Error('Vendor not found');
 
-      // Find in SubscriptionTier or B2BSubscriptionPlan
-      let tier = await SubscriptionTier.findById(tierId).session(session);
-      let isB2BPlan = false;
-      if (!tier) {
-        tier = await B2BSubscriptionPlan.findById(tierId).session(session);
-        if (tier) isB2BPlan = true;
-      }
-      if (!tier) throw new Error('Subscription tier not found');
+      const plan = await B2BSubscriptionPlan.findById(planId).session(session);
+      if (!plan) throw new Error('Subscription plan not found');
 
-      const planPrice = isB2BPlan ? tier.price : tier.priceMonthly;
-      const planName = tier.name;
+      const planPrice = plan.price;
+      const planName = plan.name;
 
       // Verify Razorpay payment signature
       const isValid = razorpayService.verifyPayment(
@@ -404,15 +288,11 @@ class SubscriptionService {
       if (paymentDetails.status !== 'captured' && paymentDetails.status !== 'authorized' && paymentDetails.status !== 'created') {
         const startDate = new Date();
         const endDate = new Date();
-        if (isB2BPlan) {
-          endDate.setMonth(endDate.getMonth() + (tier.duration || 12));
-        } else {
-          endDate.setMonth(endDate.getMonth() + 1);
-        }
+        const billingCycle = 'Yearly';
 
         const failedSubscriptionData = {
           vendorId,
-          billingCycle: 'monthly',
+          billingCycle,
           startDate,
           endDate,
           paymentMethod: 'razorpay',
@@ -435,15 +315,14 @@ class SubscriptionService {
               razorpayPaymentId,
               razorpaySignature,
               type: 'subscription_payment',
-              tierName: planName,
+              planName: planName,
               paymentDate: new Date(),
               failureReason: `Payment status: ${paymentDetails.status}`
             }
           }]
         };
 
-        if (isB2BPlan) failedSubscriptionData.planId = tierId;
-        else failedSubscriptionData.tierId = tierId;
+        failedSubscriptionData.planId = planId;
 
         await VendorSubscription.create([failedSubscriptionData], { session });
 
@@ -454,15 +333,12 @@ class SubscriptionService {
       // Payment successful - create subscription with 'active' status
       const startDate = new Date();
       const endDate = new Date();
-      if (isB2BPlan) {
-        endDate.setMonth(endDate.getMonth() + (tier.duration || 12));
-      } else {
-        endDate.setMonth(endDate.getMonth() + 1);
-      }
+      endDate.setMonth(endDate.getMonth() + (plan.duration || 12));
 
       const activeSubscriptionData = {
         vendorId,
-        billingCycle: 'monthly',
+        planId,
+        billingCycle: 'Yearly',
         startDate,
         endDate,
         paymentMethod: 'razorpay',
@@ -473,14 +349,9 @@ class SubscriptionService {
         lastPaymentDate: new Date(),
         nextBillingDate: endDate,
         usage: {
-          reelsUploaded: 0,
-          extraReelsCharged: 0,
           lastResetDate: startDate
         }
       };
-
-      if (isB2BPlan) activeSubscriptionData.planId = tierId;
-      else activeSubscriptionData.tierId = tierId;
 
       const subscription = await VendorSubscription.create([activeSubscriptionData], { session });
 
@@ -501,7 +372,7 @@ class SubscriptionService {
             razorpayPaymentId,
             razorpaySignature,
             type: 'subscription_payment',
-            tierName: planName,
+            planName: planName,
             paymentDate: new Date()
           }
         });
@@ -519,7 +390,7 @@ class SubscriptionService {
           metadata: {
             subscriptionId: subscription[0]._id,
             vendorId: vendorId,
-            tierName: planName,
+            planName: planName,
             amount: planPrice,
             type: 'subscription'
           },
@@ -543,7 +414,6 @@ class SubscriptionService {
       await session.commitTransaction();
 
       const populatedSubscription = await VendorSubscription.findById(subscription[0]._id)
-        .populate('tierId')
         .populate('planId')
         .populate({
           path: 'vendorId',
@@ -559,21 +429,21 @@ class SubscriptionService {
     }
   }
 
-  async subscribeVendor(vendorId, tierId, paymentMethod) {
+  async subscribeVendor(vendorId, planId, billingCycle, paymentMethod) {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const tier = await SubscriptionTier.findById(tierId).session(session);
-      if (!tier) throw new Error('Subscription tier not found');
+      const plan = await B2BSubscriptionPlan.findById(planId).session(session);
+      if (!plan) throw new Error('Subscription plan not found');
 
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setMonth(endDate.getMonth() + (plan.duration || 12));
 
-      const subscription = await VendorSubscription.create([{
+      const subscriptionData = {
         vendorId,
-        tierId,
-        billingCycle: 'monthly',
+        planId,
+        billingCycle: billingCycle || (plan.duration === 12 ? 'Yearly' : plan.duration === 6 ? 'Half-Yearly' : plan.duration === 3 ? 'Quarterly' : 'Monthly'),
         startDate,
         endDate,
         paymentMethod,
@@ -581,19 +451,15 @@ class SubscriptionService {
         lastPaymentDate: startDate,
         nextBillingDate: endDate,
         usage: {
-          reelsUploaded: 0,
-          extraReelsCharged: 0,
           lastResetDate: startDate
         }
-      }], { session });
+      };
+
+      const subscription = await VendorSubscription.create([subscriptionData], { session });
 
       await Vendor.findByIdAndUpdate(vendorId, {
         currentSubscription: subscription[0]._id
       }, { session });
-
-      // Note: Transaction model is for customer orders, not vendor subscriptions
-      // We track vendor subscription payments via VendorSubscription model and audit logs
-      // No need to create Transaction record for vendor subscriptions
 
       await session.commitTransaction();
       return subscription[0];
@@ -605,201 +471,13 @@ class SubscriptionService {
     }
   }
 
-  async checkReelUploadPayment(vendorId) {
-    const subscription = await VendorSubscription.findOne({ vendorId, status: 'active' }).populate('tierId');
-    if (!subscription) {
-      throw new Error('No active subscription found for vendor');
-    }
-
-    const { tierId: tier } = subscription;
-    let requiresPayment = false;
-    let extraCharge = 0;
-
-    // Check if payment is required
-    // Free plan (limit = 0): Always requires payment for each reel (even first one)
-    // Other plans: Requires payment if limit is reached or exceeded
-    if (tier.reelLimit === 0) {
-      // Free plan - always requires payment for each reel
-      requiresPayment = true;
-      extraCharge = tier.extraReelPrice || 10;
-    } else if (tier.reelLimit !== -1) { // -1 means unlimited
-      // For Starter/Professional: Check if limit reached or exceeded
-      if (subscription.usage.reelsUploaded >= tier.reelLimit) {
-        requiresPayment = true;
-        extraCharge = tier.extraReelPrice || 10;
-      }
-    }
-    // Premium plan (limit = -1): No payment required
-
-    return {
-      requiresPayment,
-      extraCharge,
-      currentUsage: subscription.usage.reelsUploaded,
-      limit: tier.reelLimit,
-      tierName: tier.name
-    };
-  }
-
-  async initializeExtraReelPayment(vendorId) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const paymentCheck = await this.checkReelUploadPayment(vendorId);
-
-      if (!paymentCheck.requiresPayment) {
-        throw new Error('Payment not required for this reel upload');
-      }
-
-      const subscription = await VendorSubscription.findOne({ vendorId, status: 'active' }).session(session)
-        .populate('tierId');
-
-      if (!subscription) {
-        throw new Error('No active subscription found');
-      }
-
-      // Create Razorpay order for extra reel payment
-      const orderCode = `REEL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      // createOrder expects amount in rupees, it will convert to paise internally
-      const razorpayOrder = await razorpayService.createOrder(
-        paymentCheck.extraCharge, // Pass amount in rupees (e.g., 10 for ₹10)
-        'INR',
-        orderCode,
-        {
-          vendorId: vendorId.toString(),
-          subscriptionId: subscription._id.toString(),
-          type: 'extra_reel_payment',
-          tierName: subscription.tierId.name
-        }
-      );
-
-      if (!razorpayOrder || !razorpayOrder.id) {
-        throw new Error('Failed to create payment order');
-      }
-
-      const razorpayKeyId = process.env.RAZORPAY_KEY_ID || null;
-
-      await session.commitTransaction();
-
-      return {
-        requiresPayment: true,
-        extraCharge: paymentCheck.extraCharge,
-        razorpay: {
-          orderId: razorpayOrder.id,
-          amount: razorpayOrder.amount,
-          currency: razorpayOrder.currency
-        },
-        razorpayKeyId
-      };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
-  }
-
-  async verifyExtraReelPayment(vendorId, paymentData) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = paymentData;
-
-      // Verify Razorpay payment
-      const isValid = razorpayService.verifyPayment(
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature
-      );
-
-      if (!isValid) {
-        throw new Error('Payment verification failed');
-      }
-
-      const subscription = await VendorSubscription.findOne({ vendorId, status: 'active' }).session(session)
-        .populate('tierId');
-
-      if (!subscription) {
-        throw new Error('No active subscription found');
-      }
-
-      const { tierId: tier } = subscription;
-      const extraCharge = tier.extraReelPrice || 10;
-
-      // Add audit log entry for extra reel payment (for billing history)
-      // This is the primary way we track extra reel payments - don't overwrite subscription payment fields
-      subscription.auditLogs.push({
-        action: 'extra_reel_payment',
-        timestamp: new Date(),
-        details: {
-          amount: extraCharge,
-          status: 'completed',
-          razorpayOrderId,
-          razorpayPaymentId,
-          razorpaySignature,
-          type: 'extra_reel_charge',
-          paymentDate: new Date()
-        }
-      });
-
-      // Update last payment date (but don't overwrite subscription payment IDs)
-      subscription.lastPaymentDate = new Date();
-
-      // Record payment but don't increment usage yet (will be done when reel is uploaded)
-      subscription.usage.extraReelsCharged += extraCharge;
-      await subscription.save({ session });
-
-      await session.commitTransaction();
-
-      return {
-        success: true,
-        paymentVerified: true,
-        extraCharge,
-        currentUsage: subscription.usage.reelsUploaded,
-        limit: tier.reelLimit
-      };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
-  }
-
-  async trackReelUpload(vendorId, paymentVerified = false) {
-    const subscription = await VendorSubscription.findOne({ vendorId, status: 'active' }).populate('tierId');
-    if (!subscription) {
-      throw new Error('No active subscription found for vendor');
-    }
-
-    const { tierId: tier } = subscription;
-
-    // Check if payment is required
-    const paymentCheck = await this.checkReelUploadPayment(vendorId);
-
-    // If payment is required but not verified, throw error
-    if (paymentCheck.requiresPayment && !paymentVerified) {
-      throw new Error('Payment required for this reel upload. Please complete payment first.');
-    }
-
-    // Track the upload
-    subscription.usage.reelsUploaded += 1;
-    await subscription.save();
-
-    return {
-      totalUploaded: subscription.usage.reelsUploaded,
-      limit: tier.reelLimit
-    };
-  }
-
-  async upgradeSubscription(vendorId, newTierId) {
-    // Implementation for upgrade with proration logic
-    const currentSub = await VendorSubscription.findOne({ vendorId, status: 'active' }).populate('tierId');
+  async upgradeSubscription(vendorId, newPlanId, billingCycle = 'monthly') {
+    // Implementation for upgrade with B2B plans
+    const currentSub = await VendorSubscription.findOne({ vendorId, status: 'active' }).populate('planId');
     if (!currentSub) throw new Error('No active subscription found');
 
-    const newTier = await SubscriptionTier.findById(newTierId);
-    if (!newTier) throw new Error('New subscription tier not found');
+    const newPlan = await B2BSubscriptionPlan.findById(newPlanId);
+    if (!newPlan) throw new Error('New subscription plan not found');
 
     // Calculate proration
     const now = new Date();
@@ -807,10 +485,10 @@ class SubscriptionService {
     const totalTime = currentSub.endDate - currentSub.startDate;
     const remainingRatio = Math.max(0, remainingTime / totalTime);
 
-    const currentPrice = currentSub.tierId.priceMonthly;
+    const currentPrice = currentSub.planId?.price || 0;
     const unusedAmount = currentPrice * remainingRatio;
 
-    const newPrice = newTier.priceMonthly;
+    const newPrice = newPlan.price;
     const chargeAmount = Math.max(0, newPrice - unusedAmount);
 
     const session = await mongoose.startSession();
@@ -822,12 +500,12 @@ class SubscriptionService {
       await currentSub.save({ session });
 
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setMonth(endDate.getMonth() + (newPlan.duration || 12));
 
-      const newSub = await VendorSubscription.create([{
+      const newSubData = {
         vendorId,
-        tierId: newTierId,
-        billingCycle: 'monthly',
+        planId: newPlanId,
+        billingCycle: billingCycle || 'Yearly',
         startDate: now,
         endDate,
         status: 'active',
@@ -835,22 +513,26 @@ class SubscriptionService {
         lastPaymentDate: now,
         nextBillingDate: endDate,
         usage: {
-          reelsUploaded: 0, // Reset for new tier
-          extraReelsCharged: 0,
           lastResetDate: now
         },
         auditLogs: [{
           action: 'upgrade',
-          details: { fromTier: currentSub.tierId.name, toTier: newTier.name, proratedCharge: chargeAmount }
+          timestamp: new Date(),
+          details: {
+            fromPlan: currentSub.planId?.name || 'Unknown',
+            toPlan: newPlan.name,
+            proratedCharge: chargeAmount
+          }
         }]
-      }], { session });
+      };
+
+      const newSub = await VendorSubscription.create([newSubData], { session });
 
       await Vendor.findByIdAndUpdate(vendorId, {
         currentSubscription: newSub[0]._id
       }, { session });
 
-      // Note: Transaction model is for customer orders, not vendor subscriptions
-      // Track upgrade payment via audit logs instead
+      // Track upgrade payment via audit logs if there's a charge
       if (chargeAmount > 0) {
         newSub[0].auditLogs.push({
           action: 'upgrade_payment',
@@ -859,8 +541,8 @@ class SubscriptionService {
             amount: chargeAmount,
             status: 'completed',
             type: 'upgrade_proration',
-            tierName: newTier.name,
-            previousTierName: currentSub.tierId?.name || 'Unknown',
+            planName: newPlan.name,
+            previousPlanName: currentSub.planId?.name || 'Unknown',
             paymentDate: new Date()
           }
         });
@@ -877,20 +559,183 @@ class SubscriptionService {
     }
   }
 
+  /**
+   * NEW: Initialize B2B Subscription Upgrade with Pro-rata logic
+   */
+  async initializeB2BUpgrade(vendorId, newPlanId) {
+    try {
+      const currentSub = await VendorSubscription.findOne({ vendorId, status: 'active' }).populate('planId');
+      if (!currentSub) throw new Error('No active subscription found to upgrade');
+
+      const newPlan = await B2BSubscriptionPlan.findById(newPlanId);
+      if (!newPlan) throw new Error('New subscription plan not found');
+
+      // 1. Upgrade Path Validation (Basic -> Silver -> Diamond)
+      const getRank = (name) => {
+        const n = (name || '').toLowerCase();
+        if (n.includes('gold')) return 5;
+        if (n.includes('premium')) return 4;
+        if (n.includes('diamond')) return 3;
+        if (n.includes('silver')) return 2;
+        if (n.includes('basic')) return 1;
+        return 0;
+      };
+
+      const currentRank = getRank(currentSub.planId.name);
+      const newRank = getRank(newPlan.name);
+
+      if (newRank <= currentRank) {
+        throw new Error('Downgrade not allowed. You can change plan after expiry.');
+      }
+
+      // 2. Pro-rata Billing Logic
+      const today = new Date();
+      const currentEndDate = new Date(currentSub.endDate);
+      const currentStartDate = new Date(currentSub.startDate);
+
+      // Calculate total duration of current plan in days
+      const totalDurationTime = currentEndDate.getTime() - currentStartDate.getTime();
+      const totalDurationDays = Math.max(1, Math.ceil(totalDurationTime / (1000 * 60 * 60 * 24))); // Avoid division by zero
+
+      // Calculate remaining days
+      const remainingTime = currentEndDate.getTime() - today.getTime();
+      const remainingDays = Math.max(0, Math.ceil(remainingTime / (1000 * 60 * 60 * 24)));
+
+      const currentPlanPrice = currentSub.planId.price || 0;
+      const perDayPrice = currentPlanPrice / totalDurationDays;
+      const credit = perDayPrice * remainingDays;
+
+      const newPlanPrice = newPlan.price;
+      let finalAmount = newPlanPrice - credit;
+      if (finalAmount < 0) finalAmount = 0;
+
+      // 3. Create Razorpay Order
+      const upgradeCode = `UPG-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const razorpayOrder = await razorpayService.createOrder(
+        Math.round(finalAmount),
+        'INR',
+        upgradeCode,
+        {
+          vendorId: vendorId.toString(),
+          newPlanId: newPlanId.toString(),
+          currentSubId: currentSub._id.toString(),
+          type: 'subscription_upgrade',
+          isB2B: 'true'
+        }
+      );
+
+      return {
+        success: true,
+        currentPlan: currentSub.planId.name,
+        newPlan: newPlan.name,
+        remainingDays,
+        credit: Math.round(credit),
+        newPlanPrice,
+        finalAmount: Math.round(finalAmount),
+        razorpay: razorpayOrder,
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID
+      };
+    } catch (error) {
+      console.error('Initialize B2B Upgrade Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * NEW: Verify B2B Upgrade Payment and Activate
+   */
+  async verifyB2BUpgradePayment(vendorId, newPlanId, paymentData) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = paymentData;
+
+      // 1. Verify Payment
+      const isValid = razorpayService.verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+      if (!isValid) throw new Error('Payment verification failed');
+
+      // 2. Fetch required docs
+      const currentSub = await VendorSubscription.findOne({ vendorId, status: 'active' }).session(session);
+      const newPlan = await B2BSubscriptionPlan.findById(newPlanId).session(session);
+      if (!newPlan) throw new Error('New plan not found');
+
+      // 3. Expire Old Plan
+      if (currentSub) {
+        currentSub.status = 'expired';
+        currentSub.cancellationDate = new Date();
+        await currentSub.save({ session });
+      }
+
+      // 4. Activate New Plan (Based on Plan Duration)
+      const startDate = new Date();
+      const endDate = new Date();
+      const durationMonths = newPlan.duration || 12; // Default to 12 months if undefined
+      endDate.setMonth(endDate.getMonth() + durationMonths);
+
+      // Determine Billing Cycle Label
+      let billingCycle = 'Yearly';
+      if (durationMonths === 6) billingCycle = 'Half-Yearly';
+      if (durationMonths === 3) billingCycle = 'Quarterly';
+      if (durationMonths === 1) billingCycle = 'Monthly';
+
+      const newSubData = {
+        vendorId,
+        planId: newPlanId,
+        status: 'active',
+        billingCycle: billingCycle,
+        startDate,
+        endDate,
+        paymentMethod: 'razorpay',
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        lastPaymentDate: startDate,
+        nextBillingDate: endDate,
+        usage: { lastResetDate: startDate },
+        auditLogs: [{
+          action: 'subscription_upgrade',
+          timestamp: new Date(),
+          details: {
+            fromPlan: currentSub ? currentSub.planId : null,
+            toPlan: newPlanId,
+            razorpayPaymentId,
+            amount: paymentData.amount || 0,
+            durationMonths // Log duration for debugging
+          }
+        }]
+      };
+
+      const newSub = await VendorSubscription.create([newSubData], { session });
+
+      // 5. Update Vendor Record
+      const Vendor = (await import('../models/Vendor.model.js')).default;
+      await Vendor.findByIdAndUpdate(vendorId, {
+        currentSubscription: newSub[0]._id
+      }, { session });
+
+      await session.commitTransaction();
+      return newSub[0];
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Verify B2B Upgrade Error:', error);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
   async getSubscriptionAnalytics() {
     try {
       // Execute all analytics queries in parallel for maximum performance
       const [
         subscriptionRevenueResult,
-        extraReelRevenueResult,
         totalOrdersResult,
         totalCustomersResult,
         activeSubscriptionsCount,
-        tierDistribution,
-        recentSubscriptionPayments,
-        recentExtraReelPayments
+        planDistribution,
+        recentSubscriptionPayments
       ] = await Promise.all([
-        // Total revenue from subscription transactions (VendorSubscription audit logs)
+        // Total revenue from B2B subscription transactions
         VendorSubscription.aggregate([
           { $unwind: '$auditLogs' },
           {
@@ -906,23 +751,7 @@ class SubscriptionService {
             }
           }
         ]),
-        // Total revenue from extra reel payments (VendorSubscription audit logs)
-        VendorSubscription.aggregate([
-          { $unwind: '$auditLogs' },
-          {
-            $match: {
-              'auditLogs.action': 'extra_reel_payment',
-              'auditLogs.details.status': 'completed'
-            }
-          },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: '$auditLogs.details.amount' }
-            }
-          }
-        ]),
-        // Total orders: count of subscription payments (plans purchased)
+        // Total orders: count of subscription payments
         VendorSubscription.aggregate([
           { $unwind: '$auditLogs' },
           {
@@ -933,23 +762,22 @@ class SubscriptionService {
           },
           { $group: { _id: null, count: { $sum: 1 } } }
         ]),
-        // Total customers: count of unique vendors with active subscriptions (regular plans)
+        // Total unique vendors with active subscriptions
         VendorSubscription.aggregate([
           { $match: { status: 'active' } },
           { $group: { _id: '$vendorId' } },
           { $group: { _id: null, count: { $sum: 1 } } }
         ]),
-        // Active subscriptions count
         VendorSubscription.countDocuments({ status: 'active' }),
-        // Tier distribution
+        // Plan distribution
         VendorSubscription.aggregate([
           { $match: { status: 'active' } },
-          { $group: { _id: '$tierId', count: { $sum: 1 } } },
-          { $lookup: { from: 'subscriptiontiers', localField: '_id', foreignField: '_id', as: 'tier' } },
-          { $unwind: '$tier' },
-          { $project: { name: '$tier.name', count: 1 } }
+          { $group: { _id: '$planId', count: { $sum: 1 } } },
+          { $lookup: { from: 'b2bsubscriptionplans', localField: '_id', foreignField: '_id', as: 'plan' } },
+          { $unwind: '$plan' },
+          { $project: { name: '$plan.name', count: 1 } }
         ]),
-        // Recent payments (last 10 subscription payments from VendorSubscription audit logs)
+        // Recent B2B payments
         VendorSubscription.aggregate([
           { $unwind: '$auditLogs' },
           {
@@ -961,214 +789,50 @@ class SubscriptionService {
           { $sort: { 'auditLogs.timestamp': -1 } },
           { $limit: 10 },
           {
-            $lookup: {
-              from: 'vendors',
-              localField: 'vendorId',
-              foreignField: '_id',
-              as: 'vendor'
-            }
+            $lookup: { from: 'vendors', localField: 'vendorId', foreignField: '_id', as: 'vendor' }
           },
           { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
           {
-            $lookup: {
-              from: 'subscriptiontiers',
-              localField: 'tierId',
-              foreignField: '_id',
-              as: 'tier'
-            }
+            $lookup: { from: 'b2bsubscriptionplans', localField: 'planId', foreignField: '_id', as: 'plan' }
           },
-          { $unwind: { path: '$tier', preserveNullAndEmptyArrays: true } },
+          { $unwind: { path: '$plan', preserveNullAndEmptyArrays: true } },
           {
             $project: {
               _id: { $toString: '$_id' },
               vendorId: { $toString: '$vendorId' },
               vendorName: { $ifNull: ['$vendor.businessName', '$vendor.storeName'] },
               amount: '$auditLogs.details.amount',
-              tierName: { $ifNull: ['$tier.name', '$auditLogs.details.tierName', 'Unknown'] },
+              planName: { $ifNull: ['$plan.name', '$auditLogs.details.planName', 'Unknown'] },
               date: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
               status: '$auditLogs.details.status',
               type: '$auditLogs.details.type',
-              timestamp: '$auditLogs.timestamp',
-              razorpayOrderId: '$auditLogs.details.razorpayOrderId'
-            }
-          }
-        ]),
-        // Recent extra reel payments (from VendorSubscription audit logs)
-        VendorSubscription.aggregate([
-          { $unwind: '$auditLogs' },
-          {
-            $match: {
-              'auditLogs.action': 'extra_reel_payment',
-              'auditLogs.details.status': 'completed'
-            }
-          },
-          { $sort: { 'auditLogs.timestamp': -1 } },
-          { $limit: 10 },
-          {
-            $lookup: {
-              from: 'vendors',
-              localField: 'vendorId',
-              foreignField: '_id',
-              as: 'vendor'
-            }
-          },
-          { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
-          {
-            $lookup: {
-              from: 'subscriptiontiers',
-              localField: 'tierId',
-              foreignField: '_id',
-              as: 'tier'
-            }
-          },
-          { $unwind: { path: '$tier', preserveNullAndEmptyArrays: true } },
-          {
-            $project: {
-              id: { $toString: '$_id' },
-              vendorName: { $ifNull: ['$vendor.businessName', '$vendor.storeName'] },
-              amount: '$auditLogs.details.amount',
-              tierName: { $ifNull: ['$tier.name', 'Unknown'] },
-              date: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
-              status: '$auditLogs.details.status',
-              type: 'extra_reel_charge',
               timestamp: '$auditLogs.timestamp'
             }
           }
         ])
       ]);
 
-      const subscriptionRevenue = subscriptionRevenueResult[0]?.total || 0;
-      const extraReelRevenue = extraReelRevenueResult[0]?.total || 0;
-      const totalRevenue = subscriptionRevenue;
+      const totalRevenue = subscriptionRevenueResult[0]?.total || 0;
       const totalOrders = totalOrdersResult[0]?.count || 0;
       const totalCustomers = totalCustomersResult[0]?.count || 0;
 
-      // Format subscription payments from audit logs
-      const enrichedSubscriptionPayments = recentSubscriptionPayments.map(payment => ({
+      const enrichedRecentPayments = recentSubscriptionPayments.map(payment => ({
         id: payment._id,
         vendor: payment.vendorName || 'Unknown Vendor',
         amount: payment.amount,
-        tier: payment.tierName,
+        plan: payment.planName,
         date: payment.date,
         status: payment.status,
-        type: payment.type || 'subscription_payment',
-        timestamp: payment.timestamp
+        type: payment.type || 'subscription_payment'
       }));
 
-      const enrichedExtraReelPayments = recentExtraReelPayments.map(payment => ({
-        id: payment.id,
-        vendor: payment.vendorName || 'Unknown Vendor',
-        amount: payment.amount,
-        tier: payment.tierName,
-        date: payment.date,
-        status: payment.status,
-        type: payment.type,
-        timestamp: payment.timestamp
-      }));
-
-      // Combine and sort by timestamp (newest first)
-      const allRecentPayments = [...enrichedSubscriptionPayments, ...enrichedExtraReelPayments]
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 10)
-        .map(({ timestamp, ...rest }) => rest); // Remove timestamp from final output
-
-      // Revenue chart data (last 30 days) - includes both subscription and extra reel payments
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      // Subscription revenue data (from VendorSubscription audit logs)
-      const subscriptionRevenueData = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
-            'auditLogs.details.status': 'completed',
-            'auditLogs.timestamp': { $gte: thirtyDaysAgo }
-          }
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' }
-            },
-            revenue: { $sum: '$auditLogs.details.amount' },
-            orders: { $sum: 1 }
-          }
-        },
-        {
-          $project: {
-            date: '$_id',
-            revenue: 1,
-            orders: 1,
-            _id: 0
-          }
-        }
-      ]);
-
-      // Extra reel revenue data
-      const extraReelRevenueData = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': 'extra_reel_payment',
-            'auditLogs.details.status': 'completed',
-            'auditLogs.timestamp': { $gte: thirtyDaysAgo }
-          }
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' }
-            },
-            revenue: { $sum: '$auditLogs.details.amount' },
-            orders: { $sum: 1 }
-          }
-        },
-        {
-          $project: {
-            date: '$_id',
-            revenue: 1,
-            orders: 1,
-            _id: 0
-          }
-        }
-      ]);
-
-      // Combine and merge revenue data by date
-      const revenueMap = new Map();
-
-      subscriptionRevenueData.forEach(item => {
-        revenueMap.set(item.date, {
-          date: item.date,
-          revenue: item.revenue,
-          orders: item.orders
-        });
-      });
-
-      extraReelRevenueData.forEach(item => {
-        if (revenueMap.has(item.date)) {
-          const existing = revenueMap.get(item.date);
-          existing.revenue += item.revenue;
-          existing.orders += item.orders;
-        } else {
-          revenueMap.set(item.date, {
-            date: item.date,
-            revenue: item.revenue,
-            orders: item.orders
-          });
-        }
-      });
-
-      const revenueData = Array.from(revenueMap.values()).sort((a, b) =>
-        new Date(a.date) - new Date(b.date)
-      );
-
-      // Calculate monthly growth (comparing last 30 days with previous 30 days)
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
-      // Current period: subscription + extra reel payments (from VendorSubscription audit logs)
-      const currentPeriodSubscriptionRevenue = await VendorSubscription.aggregate([
+      // Current 30 days revenue data for chart
+      const revenueData = await VendorSubscription.aggregate([
         { $unwind: '$auditLogs' },
         {
           $match: {
@@ -1177,23 +841,31 @@ class SubscriptionService {
             'auditLogs.timestamp': { $gte: thirtyDaysAgo }
           }
         },
-        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$auditLogs.timestamp' } },
+            revenue: { $sum: '$auditLogs.details.amount' },
+            orders: { $sum: 1 }
+          }
+        },
+        { $project: { date: '$_id', revenue: 1, orders: 1, _id: 0 } },
+        { $sort: { date: 1 } }
       ]);
 
-      const currentPeriodExtraReelRevenue = await VendorSubscription.aggregate([
+      // Calculate monthly growth comparisons
+      const currentPeriodRes = await VendorSubscription.aggregate([
         { $unwind: '$auditLogs' },
         {
           $match: {
-            'auditLogs.action': 'extra_reel_payment',
+            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
             'auditLogs.details.status': 'completed',
             'auditLogs.timestamp': { $gte: thirtyDaysAgo }
           }
         },
-        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
+        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' }, count: { $sum: 1 } } }
       ]);
 
-      // Previous period: subscription + extra reel payments (from VendorSubscription audit logs)
-      const previousPeriodSubscriptionRevenue = await VendorSubscription.aggregate([
+      const previousPeriodRes = await VendorSubscription.aggregate([
         { $unwind: '$auditLogs' },
         {
           $match: {
@@ -1202,66 +874,24 @@ class SubscriptionService {
             'auditLogs.timestamp': { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
           }
         },
-        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
+        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' }, count: { $sum: 1 } } }
       ]);
 
-      const previousPeriodExtraReelRevenue = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': 'extra_reel_payment',
-            'auditLogs.details.status': 'completed',
-            'auditLogs.timestamp': { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
-          }
-        },
-        { $group: { _id: null, total: { $sum: '$auditLogs.details.amount' } } }
-      ]);
+      const currentRevenue = currentPeriodRes[0]?.total || 0;
+      const previousRevenue = previousPeriodRes[0]?.total || 0;
+      const currentOrders = currentPeriodRes[0]?.count || 0;
+      const previousOrders = previousPeriodRes[0]?.count || 0;
 
-      const currentRevenue = (currentPeriodSubscriptionRevenue[0]?.total || 0) +
-        (currentPeriodExtraReelRevenue[0]?.total || 0);
-      const previousRevenue = (previousPeriodSubscriptionRevenue[0]?.total || 0) +
-        (previousPeriodExtraReelRevenue[0]?.total || 0);
       const monthlyGrowth = previousRevenue > 0
         ? ((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1)
         : '0.0';
 
-      // Calculate revenue change percentage
-      const revenueChange = previousRevenue > 0
-        ? parseFloat(((currentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1))
-        : 0;
-
-      // Calculate orders change (current period vs previous period)
-      const currentPeriodOrders = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
-            'auditLogs.details.status': 'completed',
-            'auditLogs.timestamp': { $gte: thirtyDaysAgo }
-          }
-        },
-        { $group: { _id: null, count: { $sum: 1 } } }
-      ]);
-      const currentOrders = currentPeriodOrders[0]?.count || 0;
-
-      const previousPeriodOrders = await VendorSubscription.aggregate([
-        { $unwind: '$auditLogs' },
-        {
-          $match: {
-            'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
-            'auditLogs.details.status': 'completed',
-            'auditLogs.timestamp': { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
-          }
-        },
-        { $group: { _id: null, count: { $sum: 1 } } }
-      ]);
-      const previousOrders = previousPeriodOrders[0]?.count || 0;
       const ordersChange = previousOrders > 0
         ? parseFloat(((currentOrders - previousOrders) / previousOrders * 100).toFixed(1))
         : 0;
 
-      // Calculate customers change (current active vs previous period active)
-      const previousPeriodCustomers = await VendorSubscription.aggregate([
+      // Previous period customers for growth calculation
+      const previousPeriodCustomersRes = await VendorSubscription.aggregate([
         {
           $match: {
             status: 'active',
@@ -1271,12 +901,12 @@ class SubscriptionService {
         { $group: { _id: '$vendorId' } },
         { $group: { _id: null, count: { $sum: 1 } } }
       ]);
-      const previousCustomers = previousPeriodCustomers[0]?.count || 0;
+      const previousCustomers = previousPeriodCustomersRes[0]?.count || 0;
       const customersChange = previousCustomers > 0
         ? parseFloat(((totalCustomers - previousCustomers) / previousCustomers * 100).toFixed(1))
         : 0;
 
-      // Calculate churn rate (expired subscriptions in last 30 days / total active subscriptions)
+      // Churn rate calculation
       const expiredLast30Days = await VendorSubscription.countDocuments({
         status: 'expired',
         endDate: { $gte: thirtyDaysAgo }
@@ -1287,17 +917,17 @@ class SubscriptionService {
 
       return {
         revenue: totalRevenue,
-        totalRevenue: totalRevenue, // For StatsCards component
-        totalOrders: totalOrders, // For StatsCards component
-        totalCustomers: totalCustomers, // For StatsCards component
-        revenueChange: revenueChange, // Percentage change
-        ordersChange: ordersChange, // Percentage change
-        customersChange: customersChange, // Percentage change
+        totalRevenue: totalRevenue,
+        totalOrders: totalOrders,
+        totalCustomers: totalCustomers,
+        revenueChange: parseFloat(monthlyGrowth),
+        ordersChange: ordersChange,
+        customersChange: customersChange,
         activeSubscriptions: activeSubscriptionsCount,
         monthlyGrowth: `+${monthlyGrowth}%`,
         churnRate: `${churnRate}%`,
-        tierDistribution: tierDistribution.map(t => ({ name: t.name, count: t.count })),
-        recentPayments: allRecentPayments,
+        planDistribution: planDistribution.map(p => ({ name: p.name, count: p.count })),
+        recentPayments: enrichedRecentPayments,
         revenueData: revenueData
       };
     } catch (error) {
@@ -1308,13 +938,12 @@ class SubscriptionService {
 
   async getAllVendorSubscriptions(filters = {}) {
     try {
-      const { status, tierId, expiringSoon } = filters;
+      const { status, planId, expiringSoon } = filters;
 
       const query = {};
       if (status) query.status = status;
-      if (tierId) query.tierId = tierId;
+      if (planId) query.planId = planId;
 
-      // Filter for subscriptions expiring in next 7 days
       if (expiringSoon) {
         const sevenDaysFromNow = new Date();
         sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
@@ -1328,9 +957,9 @@ class SubscriptionService {
           model: 'Vendor'
         })
         .populate({
-          path: 'tierId',
-          select: 'name priceMonthly reelLimit',
-          model: 'SubscriptionTier'
+          path: 'planId',
+          select: 'name price duration',
+          model: 'B2BSubscriptionPlan'
         })
         .sort({ endDate: 1 })
         .lean();
@@ -1339,13 +968,12 @@ class SubscriptionService {
         vendor: sub.vendorId?.businessName || sub.vendorId?.storeName || 'Unknown',
         vendorId: sub.vendorId?._id || sub.vendorId,
         status: sub.status,
-        tier: sub.tierId?.name || 'Unknown',
+        plan: sub.planId?.name || 'Unknown',
         expiry: sub.endDate ? new Date(sub.endDate).toISOString().split('T')[0] : null,
         renew: sub.autoRenew,
         startDate: sub.startDate ? new Date(sub.startDate).toISOString().split('T')[0] : null,
         usage: {
-          reelsUploaded: sub.usage?.reelsUploaded || 0,
-          extraReelsCharged: sub.usage?.extraReelsCharged || 0
+          lastResetDate: sub.usage?.lastResetDate || sub.startDate
         },
         subscriptionId: sub._id
       }));
@@ -1378,14 +1006,13 @@ class SubscriptionService {
 
     try {
       const subscription = await VendorSubscription.findById(subscriptionId).session(session)
-        .populate('tierId')
+        .populate('planId')
         .populate('vendorId');
 
       if (!subscription) {
         throw new Error('Subscription not found');
       }
 
-      // Validate subscription has required fields
       if (!subscription.endDate) {
         throw new Error('Subscription end date is missing');
       }
@@ -1400,9 +1027,6 @@ class SubscriptionService {
 
       switch (action) {
         case 'extend_30_days':
-          if (!subscription.endDate) {
-            throw new Error('Subscription end date is required for extension');
-          }
           const newEndDate = new Date(subscription.endDate);
           newEndDate.setDate(newEndDate.getDate() + 30);
           subscription.endDate = newEndDate;
@@ -1412,14 +1036,6 @@ class SubscriptionService {
           }
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
-
-          // Update vendor's currentSubscription reference to ensure it's up to date
-          const vendorIdForExtend = subscription.vendorId?._id || subscription.vendorId;
-          if (vendorIdForExtend && mongoose.Types.ObjectId.isValid(vendorIdForExtend)) {
-            await Vendor.findByIdAndUpdate(vendorIdForExtend, {
-              currentSubscription: subscription._id
-            }, { session });
-          }
           break;
 
         case 'extend_custom':
@@ -1427,9 +1043,8 @@ class SubscriptionService {
           if (!days || isNaN(days) || parseInt(days) <= 0) {
             throw new Error('Invalid number of days. Please provide a positive number.');
           }
-          const daysToAdd = parseInt(days);
           const customEndDate = new Date(subscription.endDate);
-          customEndDate.setDate(customEndDate.getDate() + daysToAdd);
+          customEndDate.setDate(customEndDate.getDate() + parseInt(days));
           subscription.endDate = customEndDate;
           subscription.nextBillingDate = customEndDate;
           if (subscription.status === 'expired') {
@@ -1437,67 +1052,6 @@ class SubscriptionService {
           }
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
-
-          // Update vendor's currentSubscription reference
-          const vendorIdForCustom = subscription.vendorId?._id || subscription.vendorId;
-          if (vendorIdForCustom && mongoose.Types.ObjectId.isValid(vendorIdForCustom)) {
-            await Vendor.findByIdAndUpdate(vendorIdForCustom, {
-              currentSubscription: subscription._id
-            }, { session });
-          }
-          break;
-
-        case 'grant_premium_trial':
-          const PremiumTier = await SubscriptionTier.findOne({ name: 'Premium' }).session(session);
-          if (!PremiumTier) {
-            throw new Error('Premium tier not found');
-          }
-
-          // Get previous tier name safely
-          const previousTierName = subscription.tierId?.name || subscription.tierId?.toString() || 'Unknown';
-
-          // Deactivate current subscription
-          subscription.status = 'expired';
-          subscription.cancellationDate = new Date();
-          subscription.auditLogs.push({
-            action: 'manual_override_grant_premium_trial',
-            timestamp: new Date(),
-            performedBy: adminId,
-            details: { previousTier: previousTierName }
-          });
-          await subscription.save({ session });
-
-          // Create new premium subscription
-          const trialEndDate = new Date();
-          trialEndDate.setDate(trialEndDate.getDate() + 30); // 30-day trial
-
-          const newTrialSub = await VendorSubscription.create([{
-            vendorId: subscription.vendorId,
-            tierId: PremiumTier._id,
-            billingCycle: 'monthly',
-            startDate: new Date(),
-            endDate: trialEndDate,
-            paymentMethod: 'trial',
-            status: 'active',
-            lastPaymentDate: new Date(),
-            nextBillingDate: trialEndDate,
-            usage: {
-              reelsUploaded: 0,
-              extraReelsCharged: 0,
-              lastResetDate: new Date()
-            },
-            auditLogs: [auditLog]
-          }], { session });
-
-          // Update vendor's current subscription reference
-          const vendorIdValue = subscription.vendorId?._id || subscription.vendorId;
-          if (vendorIdValue && mongoose.Types.ObjectId.isValid(vendorIdValue)) {
-            await Vendor.findByIdAndUpdate(vendorIdValue, {
-              currentSubscription: newTrialSub[0]._id
-            }, { session });
-          }
-
-          updatedSubscription = newTrialSub[0];
           break;
 
         case 'cancel_subscription':
@@ -1506,20 +1060,11 @@ class SubscriptionService {
           subscription.autoRenew = false;
           subscription.auditLogs.push(auditLog);
           updatedSubscription = await subscription.save({ session });
-
-          // Update vendor's currentSubscription reference to ensure vendor sees the cancellation
-          const vendorIdForCancel = subscription.vendorId?._id || subscription.vendorId;
-          if (vendorIdForCancel && mongoose.Types.ObjectId.isValid(vendorIdForCancel)) {
-            await Vendor.findByIdAndUpdate(vendorIdForCancel, {
-              currentSubscription: subscription._id
-            }, { session });
-          }
           break;
 
         case 'reactivate':
           if (subscription.status === 'expired' || subscription.status === 'cancelled') {
             subscription.status = 'active';
-            // Extend end date if it's in the past
             if (subscription.endDate < new Date()) {
               const reactivateEndDate = new Date();
               reactivateEndDate.setMonth(reactivateEndDate.getMonth() + 1);
@@ -1528,14 +1073,6 @@ class SubscriptionService {
             }
             subscription.auditLogs.push(auditLog);
             updatedSubscription = await subscription.save({ session });
-
-            // Update vendor's currentSubscription reference
-            const vendorIdForReactivate = subscription.vendorId?._id || subscription.vendorId;
-            if (vendorIdForReactivate && mongoose.Types.ObjectId.isValid(vendorIdForReactivate)) {
-              await Vendor.findByIdAndUpdate(vendorIdForReactivate, {
-                currentSubscription: subscription._id
-              }, { session });
-            }
           } else {
             throw new Error('Subscription is already active');
           }
@@ -1556,9 +1093,8 @@ class SubscriptionService {
 
       await session.commitTransaction();
 
-      // Populate the returned subscription for better response
       const populatedSubscription = await VendorSubscription.findById(updatedSubscription._id)
-        .populate('tierId', 'name priceMonthly reelLimit')
+        .populate('planId', 'name price features')
         .populate('vendorId', 'businessName storeName email')
         .lean();
 
@@ -1609,7 +1145,7 @@ class SubscriptionService {
       // Get all subscriptions for the vendor (including expired ones)
       // Use lean() for better performance - auditLogs are included in lean() results
       const subscriptions = await VendorSubscription.find({ vendorId: vendorObjectId })
-        .populate('tierId', 'name')
+        .populate('planId', 'name price')
         .sort({ createdAt: -1 })
         .lean();
 
@@ -1644,12 +1180,9 @@ class SubscriptionService {
       // Process each subscription to create billing history entries
       for (const sub of subscriptionsData) {
         // Add subscription payment entry if payment was made
-        // Check for lastPaymentDate OR if subscription was created (for free tiers)
-        if (sub.lastPaymentDate || (sub.status === 'active' && sub.tierId)) {
-          const amount = sub.tierId?.priceMonthly || 0;
+        if (sub.lastPaymentDate || (sub.status === 'active' && sub.planId)) {
+          const amount = sub.planId?.price || 0;
 
-          // For free tier, still show it in history but with 0 amount
-          // For paid tiers, only show if payment was made
           if (amount === 0 || (amount > 0 && sub.razorpayPaymentId)) {
             billingHistory.push({
               id: sub._id.toString(),
@@ -1660,39 +1193,24 @@ class SubscriptionService {
                 sub.status === 'expired' ? 'completed' :
                   sub.status === 'pending' ? 'pending' : 'failed',
               method: sub.paymentMethod || (amount === 0 ? 'free' : 'razorpay'),
-              tierName: sub.tierId?.name || 'Unknown',
+              planName: sub.planId?.name || 'Unknown',
               date: sub.lastPaymentDate || sub.startDate || sub.createdAt,
-              invoiceUrl: null // Can be added later if invoice generation is implemented
+              invoiceUrl: null
             });
           }
         }
 
-        // Add entries from audit logs (renewals and extra reel payments)
+        // Add entries from audit logs (renewals and upgrades)
         // Ensure auditLogs is an array and iterate through it
         const auditLogs = Array.isArray(sub.auditLogs) ? sub.auditLogs : [];
 
         if (auditLogs.length > 0) {
           for (const log of auditLogs) {
-            // Skip if log is null or undefined
             if (!log || !log.action) continue;
-
-            // Debug logging for extra reel payments
-            if (log.action === 'extra_reel_payment') {
-              console.log(`[Billing History] Processing extra_reel_payment log:`, {
-                hasDetails: !!log.details,
-                detailsType: typeof log.details,
-                amount: log.details?.amount,
-                status: log.details?.status,
-                timestamp: log.timestamp
-              });
-            }
 
             // Renewal entries
             if (log.action === 'renewal' && log.details && typeof log.details === 'object' && log.details.amount) {
-              const renewalDate = log.timestamp instanceof Date
-                ? log.timestamp
-                : new Date(log.timestamp);
-
+              const renewalDate = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
               billingHistory.push({
                 id: `${sub._id}-renewal-${renewalDate.getTime()}`,
                 transactionCode: `RENEW-${sub._id}-${renewalDate.getTime()}`,
@@ -1700,7 +1218,7 @@ class SubscriptionService {
                 type: 'subscription_payment',
                 status: log.details.status === 'success' ? 'completed' : 'failed',
                 method: sub.paymentMethod || 'razorpay',
-                tierName: sub.tierId?.name || 'Unknown',
+                planName: sub.planId?.name || 'Unknown',
                 date: renewalDate,
                 invoiceUrl: null
               });
@@ -1708,12 +1226,7 @@ class SubscriptionService {
 
             // Subscription payment entries (initial payment)
             if (log.action === 'subscription_payment' && log.details && typeof log.details === 'object' && log.details.amount) {
-              const paymentDate = log.timestamp instanceof Date
-                ? log.timestamp
-                : (log.details.paymentDate instanceof Date
-                  ? log.details.paymentDate
-                  : new Date(log.timestamp));
-
+              const paymentDate = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
               billingHistory.push({
                 id: `${sub._id}-payment-${paymentDate.getTime()}`,
                 transactionCode: log.details.razorpayOrderId || `SUB-${sub._id}-${paymentDate.getTime()}`,
@@ -1721,7 +1234,7 @@ class SubscriptionService {
                 type: 'subscription_payment',
                 status: log.details.status === 'completed' ? 'completed' : 'failed',
                 method: sub.paymentMethod || 'razorpay',
-                tierName: log.details.tierName || sub.tierId?.name || 'Unknown',
+                planName: log.details.planName || sub.planId?.name || 'Unknown',
                 date: paymentDate,
                 invoiceUrl: null
               });
@@ -1729,12 +1242,7 @@ class SubscriptionService {
 
             // Upgrade payment entries
             if (log.action === 'upgrade_payment' && log.details && typeof log.details === 'object' && log.details.amount) {
-              const upgradeDate = log.timestamp instanceof Date
-                ? log.timestamp
-                : (log.details.paymentDate instanceof Date
-                  ? log.details.paymentDate
-                  : new Date(log.timestamp));
-
+              const upgradeDate = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
               billingHistory.push({
                 id: `${sub._id}-upgrade-${upgradeDate.getTime()}`,
                 transactionCode: `UPGRADE-${sub._id}-${upgradeDate.getTime()}`,
@@ -1742,83 +1250,14 @@ class SubscriptionService {
                 type: 'upgrade_proration',
                 status: log.details.status === 'completed' ? 'completed' : 'failed',
                 method: sub.paymentMethod || 'razorpay',
-                tierName: log.details.tierName || sub.tierId?.name || 'Unknown',
+                planName: log.details.planName || sub.planId?.name || 'Unknown',
                 date: upgradeDate,
                 invoiceUrl: null
               });
             }
-
-            // Extra reel payment entries - check for details object and amount
-            if (log.action === 'extra_reel_payment') {
-              // Check if details exists - handle both object and stringified JSON
-              let details = log.details;
-
-              // If details is a string, try to parse it
-              if (typeof details === 'string') {
-                try {
-                  details = JSON.parse(details);
-                } catch (e) {
-                  console.log(`[Billing History] Failed to parse details string:`, e);
-                  details = null;
-                }
-              }
-
-              const hasDetails = details && typeof details === 'object';
-              // Get amount - check multiple possible locations
-              const amount = hasDetails
-                ? (details.amount !== undefined && details.amount !== null ? details.amount : null)
-                : null;
-
-              // Debug logging (only in development)
-              if (process.env.NODE_ENV === 'development') {
-                console.log(`[Billing History] Processing extra_reel_payment:`, {
-                  hasDetails,
-                  detailsType: typeof log.details,
-                  amount,
-                  amountType: typeof amount
-                });
-              }
-
-              if (hasDetails && amount !== null && amount !== undefined && !isNaN(amount)) {
-                // Ensure timestamp is a Date object
-                const paymentDate = log.timestamp instanceof Date
-                  ? log.timestamp
-                  : (details.paymentDate instanceof Date
-                    ? details.paymentDate
-                    : new Date(log.timestamp));
-
-                // Debug logging (only in development)
-                if (process.env.NODE_ENV === 'development') {
-                  console.log(`[Billing History] ✓ Adding extra reel payment to billing history:`, {
-                    amount,
-                    date: paymentDate,
-                    status: details.status
-                  });
-                }
-
-                billingHistory.push({
-                  id: `${sub._id}-extra-reel-${paymentDate.getTime()}`,
-                  transactionCode: details.razorpayOrderId || `REEL-${sub._id}-${paymentDate.getTime()}`,
-                  amount: Number(amount),
-                  type: 'extra_reel_charge',
-                  status: details.status === 'completed' ? 'completed' : 'failed',
-                  method: 'razorpay',
-                  tierName: sub.tierId?.name || 'Unknown',
-                  date: paymentDate,
-                  invoiceUrl: null
-                });
-              } else if (process.env.NODE_ENV === 'development') {
-                console.log(`[Billing History] ✗ Skipping extra_reel_payment - validation failed:`, {
-                  hasDetails,
-                  amount,
-                  isNaN: isNaN(amount)
-                });
-              }
-            }
           }
         }
 
-        // Extra reel payments are tracked via audit logs, so no need for additional checks here
       }
 
       // Sort by date (newest first)
@@ -1827,8 +1266,6 @@ class SubscriptionService {
       // Debug logging (only in development)
       if (process.env.NODE_ENV === 'development') {
         console.log(`[Billing History] Final billing history count: ${billingHistory.length}`);
-        const extraReelCount = billingHistory.filter(item => item.type === 'extra_reel_charge').length;
-        console.log(`[Billing History] Extra reel charges in history: ${extraReelCount}`);
       }
 
       // Apply filter

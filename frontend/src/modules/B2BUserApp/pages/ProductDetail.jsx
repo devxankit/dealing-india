@@ -143,6 +143,7 @@ const B2BProductDetail = () => {
                 if (item.pick) allSpecs.push({ name: `${prefix}Pick`, value: item.pick });
                 if (item.panna) allSpecs.push({ name: `${prefix}Panna / Width`, value: item.panna });
                 if (item.gsm) allSpecs.push({ name: `${prefix}GSM`, value: item.gsm });
+                if (item.description) allSpecs.push({ name: `${prefix}Description`, value: item.description });
             });
             return allSpecs;
         }

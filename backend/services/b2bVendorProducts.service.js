@@ -219,32 +219,14 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       generateSKU(name, vendorId)
     ]);
 
-    // Temporarily disabled subscription/plan checks
-    /*
-    // 1. Strictly check for an ACTIVE B2B subscription
-    if (!subscription || subscription.status !== 'active' || !subscription.planId) {
-      const err = new Error('Please purchase a subscription plan to add products.');
+    // 1. Check if vendor can create product based on plan
+    const ruleCheck = await (await import('./subscriptionRules.service.js')).default.canCreateProduct(vendorId);
+
+    if (!ruleCheck.allowed) {
+      const err = new Error(ruleCheck.message);
       err.status = 403;
       throw err;
     }
-
-    const planName = subscription.planId.name ? subscription.planId.name.trim() : '';
-
-    // 2. Apply plan-specific limits
-    if (planName.toLowerCase().includes('basic')) {
-      if (activeProductCount >= 50) {
-        const err = new Error('You have reached your Basic plan limit (50 products). Please upgrade your plan.');
-        err.status = 403;
-        throw err;
-      }
-    } else if (planName.toLowerCase().includes('silver')) {
-      if (activeProductCount >= 100) {
-        const err = new Error('You have reached your Silver plan limit (100 products). Please upgrade your plan.');
-        err.status = 403;
-        throw err;
-      }
-    }
-    */
 
     const {
       category,
@@ -353,18 +335,12 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       throw new Error('Failed to upload main product image');
     }
     // Process specifications into attributes array
-    const isPackingMaterial = vendor?.businessType?.toLowerCase() === "packing material";
     const processedAttributes = [];
     if (specifications && Array.isArray(specifications)) {
       specifications.forEach(spec => {
         if (!spec.name || !spec.value) return;
 
         const specNameLower = spec.name.toLowerCase();
-
-        // Skip specific fields for packing material
-        if (isPackingMaterial && (specNameLower === 'pattern' || specNameLower === 'fabric')) {
-          return;
-        }
 
         if (specNameLower !== 'color') {
           processedAttributes.push({
@@ -636,19 +612,12 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
     // Process specifications
     const processedAttributes = [];
     if (specifications !== undefined) {
-      const isPackingMaterial = vendor?.businessType?.toLowerCase() === "packing material";
-
       // Add standard specifications
       if (Array.isArray(specifications)) {
         specifications.forEach(spec => {
           if (!spec.name || !spec.value) return;
 
           const specNameLower = spec.name.toLowerCase();
-
-          // Skip specific fields for packing material
-          if (isPackingMaterial && (specNameLower === 'pattern' || specNameLower === 'fabric')) {
-            return;
-          }
 
           if (specNameLower !== 'color') {
             processedAttributes.push({

@@ -76,8 +76,13 @@ const BusinessTypeConfiguration = () => {
             const response = await api.put(`/admin/business-settings/update/${editingSettings._id}`, editingSettings);
             if (response.success) {
                 toast.success('Settings updated successfully');
+
+                // Update local state without refetching everything
+                setBusinessSettings(prev =>
+                    prev.map(s => s._id === editingSettings._id ? response.data : s)
+                );
+
                 setEditingSettings(null);
-                fetchSettings();
             }
         } catch (error) {
             console.error('Error updating settings:', error);
@@ -127,12 +132,6 @@ const BusinessTypeConfiguration = () => {
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Business Type Configuration</h1>
                     <p className="text-gray-500 text-sm">Manage features and limits for different business categories.</p>
                 </div>
-                <button
-                    onClick={() => setIsAddingNew(true)}
-                    className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
-                >
-                    <FiPlus /> Create Category
-                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -324,7 +323,6 @@ const BusinessTypeConfiguration = () => {
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Advanced Features</label>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {[
-                                        { id: 'canPostJob', label: 'Can Post Jobs', desc: 'Allows vendor to post hiring requirements' },
                                         { id: 'canReceiveLeads', label: 'Receive Leads', desc: 'Allow user inquiries as direct leads' },
                                         { id: 'hasPremiumBadge', label: 'Premium Badge', desc: 'Display "Verified Premium" on profile' },
                                         { id: 'canAccessAnalytics', label: 'Access Analytics', desc: 'Show performance metrics in dashboard' },
@@ -365,25 +363,27 @@ const BusinessTypeConfiguration = () => {
                                 </button>
                             </div>
 
-                            {/* Product Form Type Selection */}
-                            <div className="pt-6 border-t border-slate-100">
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Product Form Layout</label>
-                                <div className="grid grid-cols-2 gap-4">
-                                    {[
-                                        { id: 'standard', label: 'Standard', desc: 'Single product entry' },
-                                        { id: 'shop-listing', label: 'Shop Listing', desc: 'Shop details + items list' }
-                                    ].map(type => (
-                                        <button
-                                            key={type.id}
-                                            onClick={() => setEditingSettings({ ...editingSettings, productFormType: type.id })}
-                                            className={`flex flex-col p-4 rounded-2xl border-2 transition-all text-left ${editingSettings.productFormType === type.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200'}`}
-                                        >
-                                            <span className="text-xs font-black uppercase tracking-wider mb-1">{type.label}</span>
-                                            <span className={`text-[10px] ${editingSettings.productFormType === type.id ? 'text-slate-300' : 'text-slate-400'}`}>{type.desc}</span>
-                                        </button>
-                                    ))}
+                            {/* Product Form Type Selection - Only show if product module is enabled */}
+                            {editingSettings.enabledModules?.includes('product') && (
+                                <div className="pt-6 border-t border-slate-100">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Product Form Layout</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {[
+                                            { id: 'standard', label: 'Standard', desc: 'Single product entry' },
+                                            { id: 'shop-listing', label: 'Shop Listing', desc: 'Shop details + items list' }
+                                        ].map(type => (
+                                            <button
+                                                key={type.id}
+                                                onClick={() => setEditingSettings({ ...editingSettings, productFormType: type.id })}
+                                                className={`flex flex-col p-4 rounded-2xl border-2 transition-all text-left ${editingSettings.productFormType === type.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-200'}`}
+                                            >
+                                                <span className="text-xs font-black uppercase tracking-wider mb-1">{type.label}</span>
+                                                <span className={`text-[10px] ${editingSettings.productFormType === type.id ? 'text-slate-300' : 'text-slate-400'}`}>{type.desc}</span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Sub-Types Management */}
                             <div className="pt-6 border-t border-slate-100">
@@ -451,96 +451,6 @@ const BusinessTypeConfiguration = () => {
                                 className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center gap-3"
                             >
                                 <FiSave /> Save Configuration
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
-            {/* Create Category Modal */}
-            {isAddingNew && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
-                    >
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-2xl font-black text-slate-800 uppercase">New Category</h2>
-                            <button onClick={() => setIsAddingNew(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                                <FiXCircle size={24} className="text-slate-400" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Category Name</label>
-                                <input
-                                    type="text"
-                                    value={newType.name}
-                                    onChange={(e) => setNewType({ ...newType, name: e.target.value })}
-                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-slate-300 outline-none transition-all font-bold text-slate-700"
-                                    placeholder="e.g. Real Estate, Garments"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Description</label>
-                                <textarea
-                                    value={newType.description}
-                                    onChange={(e) => setNewType({ ...newType, description: e.target.value })}
-                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-slate-300 outline-none transition-all font-bold text-slate-700 min-h-[100px]"
-                                    placeholder="Describe this business category..."
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Sub-Types (Optional)</label>
-                                <div className="flex gap-2 mb-3">
-                                    <input
-                                        type="text"
-                                        value={newSubType}
-                                        onChange={(e) => setNewSubType(e.target.value)}
-                                        onKeyPress={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                if (newSubType.trim()) {
-                                                    setNewType({ ...newType, subTypes: [...newType.subTypes, newSubType.trim()] });
-                                                    setNewSubType('');
-                                                }
-                                            }
-                                        }}
-                                        className="flex-1 px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-slate-300 outline-none transition-all text-sm font-bold"
-                                        placeholder="Add a sub-type (e.g. Weaver)"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            if (newSubType.trim()) {
-                                                setNewType({ ...newType, subTypes: [...newType.subTypes, newSubType.trim()] });
-                                                setNewSubType('');
-                                            }
-                                        }}
-                                        className="px-4 py-3 bg-slate-900 text-white rounded-xl font-bold"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {newType.subTypes.map((st, i) => (
-                                        <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-xs font-bold border border-primary-100 uppercase uppercase">
-                                            {st}
-                                            <button onClick={() => setNewType({ ...newType, subTypes: newType.subTypes.filter((_, idx) => idx !== i) })}>
-                                                <FiTrash2 size={12} className="text-red-500" />
-                                            </button>
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleCreate}
-                                className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center gap-3"
-                            >
-                                <FiPlus /> Create Category
                             </button>
                         </div>
                     </motion.div>

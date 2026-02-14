@@ -23,7 +23,8 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
         features,
         isActive,
         dashboardWidgets,
-        allowedPlans
+        allowedPlans,
+        productFormType
     } = req.body;
 
     let settings = await BusinessTypeSettings.findById(req.params.id);
@@ -38,6 +39,7 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
     settings.dashboardWidgets = dashboardWidgets !== undefined ? dashboardWidgets : settings.dashboardWidgets;
     settings.allowedPlans = allowedPlans !== undefined ? allowedPlans : settings.allowedPlans;
     settings.isActive = isActive !== undefined ? isActive : settings.isActive;
+    settings.productFormType = productFormType !== undefined ? productFormType : settings.productFormType;
 
     await settings.save();
 
@@ -60,9 +62,11 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
         console.error('Error clearing cache in updateBusinessSettings:', cacheError);
     }
 
+    const updatedSettings = await BusinessTypeSettings.findById(settings._id).populate('businessTypeId');
+
     res.status(200).json({
         success: true,
-        data: settings,
+        data: updatedSettings,
     });
 });
 

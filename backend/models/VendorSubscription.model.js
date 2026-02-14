@@ -5,10 +5,9 @@ const vendorSubscriptionSchema = new mongoose.Schema(
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendor',
-      required: false, // Made optional for pre-payment subscriptions (B2B registration flow)
+      required: false, // Made optional for pre-payment subscriptions
     },
     // For B2B registration: subscription created before vendor registration
-    // Store email/phone to link subscription to vendor later
     pendingVendorEmail: {
       type: String,
       required: false,
@@ -18,16 +17,12 @@ const vendorSubscriptionSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
-    tierId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'SubscriptionTier',
-      required: false, // Made optional to support B2B plans
-    },
     planId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'B2BSubscriptionPlan',
-      required: false, // Optional - for B2B vendor subscriptions
+      required: true, // Now required for all new B2B subscriptions
     },
+    // tierId removed (Legacy B2C)
     status: {
       type: String,
       enum: ['active', 'expired', 'cancelled', 'pending', 'failed'],
@@ -35,14 +30,13 @@ const vendorSubscriptionSchema = new mongoose.Schema(
     },
     billingCycle: {
       type: String,
-      enum: ['monthly'],
+      enum: ['monthly', 'yearly'],
       required: true,
       default: 'monthly',
     },
     usage: {
-      reelsUploaded: { type: Number, default: 0 },
-      extraReelsCharged: { type: Number, default: 0 },
       lastResetDate: { type: Date, default: Date.now },
+      // Future: Add B2B specific usage tracking here (e.g. productsCount if needed)
     },
     startDate: {
       type: Date,
@@ -96,18 +90,17 @@ const vendorSubscriptionSchema = new mongoose.Schema(
 // Indexes
 vendorSubscriptionSchema.index({ vendorId: 1, status: 1 });
 vendorSubscriptionSchema.index({ endDate: 1 });
-vendorSubscriptionSchema.index({ planId: 1 }); // Index for B2B plan queries
+vendorSubscriptionSchema.index({ planId: 1 });
+vendorSubscriptionSchema.index({ paymentMethod: 1 });
 
-// Validation: Either tierId or planId must be provided
-// For B2B pre-payment subscriptions: vendorId is optional, but email/phone should be present
+// Validation
 vendorSubscriptionSchema.pre('validate', function (next) {
-  if (!this.tierId && !this.planId) {
-    const error = new Error('Either tierId or planId must be provided');
+  if (!this.planId) {
+    const error = new Error('planId must be provided');
     error.name = 'ValidationError';
     return next(error);
   }
 
-  // For B2B pre-payment subscriptions: vendorId can be null if pendingVendorEmail is present
   if (!this.vendorId && !this.pendingVendorEmail) {
     const error = new Error('Either vendorId or pendingVendorEmail must be provided');
     error.name = 'ValidationError';

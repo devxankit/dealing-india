@@ -138,6 +138,40 @@ export const getSubscriptionDetails = async (subscriptionId) => {
     }
 };
 
+/**
+ * Initialize subscription upgrade
+ * @param {String} planId - New Plan ID to upgrade to
+ */
+export const initializeUpgrade = async (planId) => {
+    try {
+        const response = await api.post('/subscriptions/upgrade/initialize', { planId });
+        if (response.success) {
+            return response.data;
+        }
+        throw new Error(response.message || 'Failed to initialize upgrade');
+    } catch (error) {
+        console.error('Error initializing upgrade:', error);
+        throw error;
+    }
+};
+
+/**
+ * Verify upgrade payment
+ * @param {Object} verifyData - Payment verification data
+ */
+export const verifyUpgradePayment = async (verifyData) => {
+    try {
+        const response = await api.post('/subscriptions/upgrade/verify', verifyData);
+        if (response.success) {
+            return response.data;
+        }
+        throw new Error(response.message || 'Upgrade verification failed');
+    } catch (error) {
+        console.error('Error verifying upgrade:', error);
+        throw error;
+    }
+};
+
 export default {
     getPlans,
     getCurrentSubscription,
@@ -146,4 +180,6 @@ export default {
     cancelSubscription,
     getSubscriptionDetails,
     verifyPayment,
+    initializeUpgrade,
+    verifyUpgradePayment,
 };

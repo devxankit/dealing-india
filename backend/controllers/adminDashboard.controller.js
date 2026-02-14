@@ -63,29 +63,14 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         // Top categories based on Admin defined categories
         Product.aggregate([
             {
-                $project: {
-                    categoryAttr: {
-                        $filter: {
-                            input: '$attributes',
-                            as: 'attr',
-                            cond: { $eq: ['$$attr.name', 'category'] }
-                        }
-                    }
-                }
-            },
-            {
-                $project: {
-                    categoryName: { $arrayElemAt: ['$categoryAttr.value', 0] }
-                }
-            },
-            {
                 $match: {
-                    categoryName: { $in: categoryNames }
+                    isActive: true, // Only count active products
+                    category: { $in: categoryNames } // Use indexed field
                 }
             },
             {
                 $group: {
-                    _id: '$categoryName',
+                    _id: '$category',
                     count: { $sum: 1 }
                 }
             },
@@ -141,6 +126,51 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     // Real revenue calculation
     const totalRevenue = revenueResult[0]?.total || 0;
 
+    // Dynamic Revenue Data (Last 6 Months) from VendorSubscription Audit Logs
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5); // Go back 5 months + current month = 6 months
+    sixMonthsAgo.setDate(1); // Start from the 1st of that month
+
+    const revenueAggregation = await VendorSubscription.aggregate([
+        { $unwind: '$auditLogs' },
+        {
+            $match: {
+                'auditLogs.action': { $in: ['subscription_payment', 'upgrade_payment'] },
+                'auditLogs.details.status': 'completed',
+                'auditLogs.timestamp': { $gte: sixMonthsAgo }
+            }
+        },
+        {
+            $group: {
+                _id: {
+                    month: { $month: '$auditLogs.timestamp' },
+                    year: { $year: '$auditLogs.timestamp' }
+                },
+                totalRevenue: { $sum: '$auditLogs.details.amount' }
+            }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    // Format revenue data for the chart (ensure all 6 months are present)
+    const revenueData = [];
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    for (let i = 0; i < 6; i++) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - (5 - i));
+        const monthIndex = d.getMonth();
+        const year = d.getFullYear();
+
+        const foundData = revenueAggregation.find(r => r._id.month === (monthIndex + 1) && r._id.year === year);
+
+        revenueData.push({
+            name: monthNames[monthIndex],
+            revenue: foundData ? foundData.totalRevenue : 0,
+            fullDate: `${monthNames[monthIndex]} ${year}` // Optional for tooltip
+        });
+    }
+
     res.status(200).json({
         success: true,
         data: {
@@ -164,15 +194,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
                 topCategories: topCategories.length ? topCategories : [{ name: 'No Product Added Yet', views: 0 }],
                 topLocations: topLocations.length ? topLocations : [{ name: 'No Data', views: 0 }]
             },
-            // Revenue chart data dummy for now
-            revenueData: [
-                { name: 'Jan', revenue: 4000 },
-                { name: 'Feb', revenue: 3000 },
-                { name: 'Mar', revenue: 2000 },
-                { name: 'Apr', revenue: 2780 },
-                { name: 'May', revenue: 1890 },
-                { name: 'Jun', revenue: 2390 },
-            ]
+            revenueData: revenueData
         }
     });
 });

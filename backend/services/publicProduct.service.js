@@ -8,7 +8,7 @@ import B2BCategory from '../models/B2BCategory.model.js';
  */
 export const getPublicProducts = async (filters) => {
     const {
-        search,
+        search, description, // description added to destructuring just in case
         categoryId,
         subcategoryId,
         brandId,
@@ -23,227 +23,228 @@ export const getPublicProducts = async (filters) => {
         sortBy = 'createdAt',
         sortOrder = 'desc',
         itemType,
-        pattern,
-        fabric,
         area,
         market,
         businessType,
-        businessSubType
+        businessSubType,
+        dynamicFilters
     } = filters;
 
-    const query = { isActive: true };
+    // --- Helper to build match query ---
+    const buildMatchQuery = async (isLotSlot = false) => {
+        const query = { isActive: true };
 
-    if (search) {
-        query.$or = [
-            { name: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } },
-            { category: { $regex: search, $options: 'i' } },
-            { subcategory: { $regex: search, $options: 'i' } },
-            { 'items.itemName': { $regex: search, $options: 'i' } }
-        ];
-    }
-
-    // Category filtering - Product model uses string 'category' field, not ObjectId 'categoryId'
-    if (categoryId) {
-        try {
-            const cat = await B2BCategory.findById(categoryId);
-            if (cat) {
-                query.category = { $regex: new RegExp(`^${cat.name}$`, 'i') };
-            }
-        } catch (e) {
-            // If categoryId is actually a category name string, use it directly
-            query.category = { $regex: new RegExp(`^${categoryId}$`, 'i') };
-        }
-    }
-    // Subcategory filtering - Product model uses string 'subcategory' field
-    if (subcategoryId) {
-        query.subcategory = { $regex: new RegExp(`^${subcategoryId}$`, 'i') };
-    }
-    if (brandId) query.brandName = brandId;
-
-    // Pattern and Fabric filtering for Products
-    // Products store these in 'attributes' array: [{ name: 'Pattern', value: '...' }, ...]
-    if (pattern) {
-        query.attributes = {
-            $elemMatch: {
-                name: { $regex: new RegExp('^pattern$', 'i') },
-                value: { $regex: new RegExp(`^${pattern}$`, 'i') }
-            }
-        };
-    }
-    if (fabric) {
-        // use $and if attributes is already used
-        const fabricQuery = {
-            $elemMatch: {
-                name: { $regex: new RegExp('^fabric$', 'i') },
-                value: { $regex: new RegExp(`^${fabric}$`, 'i') }
-            }
-        };
-
-        if (query.attributes) {
-            query.$and = [
-                { attributes: query.attributes },
-                { attributes: fabricQuery }
+        // Search Filter
+        if (search) {
+            const regex = { $regex: search, $options: 'i' };
+            const orConditions = [
+                { name: regex },
+                { description: regex },
+                { category: regex },
+                { subcategory: regex }
             ];
-            delete query.attributes;
-        } else {
-            query.attributes = fabricQuery;
+
+            if (!isLotSlot) {
+                // Products have items, LotSlots don't
+                orConditions.push({ 'items.itemName': regex });
+            }
+
+            query.$or = orConditions;
         }
-    }
 
-    // Fix: query.vendorId handling for locations and business types
-    // Instead, let's just collect valid vendorIDs if any vendor-level filter is present
-    let filteringVendors = false;
-    let vendorQuery = { isActive: true };
+        // Category
+        if (categoryId) {
+            try {
+                // Try to resolve category ID to name, or use as string
+                const cat = await B2BCategory.findById(categoryId);
+                const catName = cat ? cat.name : categoryId;
+                query.category = { $regex: new RegExp(`^${catName}$`, 'i') };
+            } catch (e) {
+                query.category = { $regex: new RegExp(`^${categoryId}$`, 'i') };
+            }
+        }
 
+        // Subcategory
+        if (subcategoryId) {
+            query.subcategory = { $regex: new RegExp(`^${subcategoryId}$`, 'i') };
+        }
+
+        // Brand
+        if (brandId) {
+            if (isLotSlot) query.brand = brandId; // LotSlot uses 'brand'
+            else query.brandName = brandId; // Product uses 'brandName'
+        }
+
+        // Price
+        if (minPrice || maxPrice) {
+            query.price = {};
+            if (minPrice) query.price.$gte = Number(minPrice);
+            if (maxPrice) query.price.$lte = Number(maxPrice);
+        }
+
+        // Dynamic Filters (Attributes)
+        if (dynamicFilters) {
+            try {
+                const parsedFilters = typeof dynamicFilters === 'string' ? JSON.parse(dynamicFilters) : dynamicFilters;
+                const filterEntries = Object.entries(parsedFilters);
+
+                if (filterEntries.length > 0) {
+                    const dynamicQueryParts = filterEntries.map(([attrName, value]) => {
+                        const matchQuery = { name: attrName };
+                        if (Array.isArray(value)) {
+                            matchQuery.value = { $in: value };
+                        } else {
+                            matchQuery.value = value;
+                        }
+                        // LotSlots uses specifications array, Product uses attributes array
+                        // Both have similar structure { name, value } but different field names in schema?
+                        // Product: attributes[{ attributeName, name, value }]
+                        // LotSlot: specifications[{ name, value }]
+                        const fieldName = isLotSlot ? 'specifications' : 'attributes';
+                        return { [fieldName]: { $elemMatch: matchQuery } };
+                    });
+
+                    if (query.$and) {
+                        query.$and.push(...dynamicQueryParts);
+                    } else {
+                        query.$and = dynamicQueryParts;
+                    }
+                }
+            } catch (e) {
+                console.error('Error parsing dynamicFilters:', e);
+            }
+        }
+
+        return query;
+    };
+
+    // --- Resolve Vendor IDs from Location Filters ---
+    let locationVendorIds = null;
     if (state || city || area || market || businessType || businessSubType) {
-        filteringVendors = true;
+        const vendorQuery = { isActive: true };
         if (state) vendorQuery['address.state'] = state;
         if (city) vendorQuery['address.city'] = city;
         if (area) vendorQuery['address.area'] = area;
         if (market) vendorQuery['address.market'] = { $regex: new RegExp(`^${market}$`, 'i') };
         if (businessType) vendorQuery.businessType = { $regex: new RegExp(`^${businessType}$`, 'i') };
         if (businessSubType) vendorQuery.selectedSubTypes = { $in: [new RegExp(`^${businessSubType}$`, 'i')] };
-    }
 
-    let locationVendorIds = null;
-    if (filteringVendors) {
         const matchingVendors = await Vendor.find(vendorQuery).select('_id').lean();
         locationVendorIds = matchingVendors.map(v => v._id);
     }
 
-    if (vendorId) {
-        // If specific vendor requested
-        if (locationVendorIds) {
-            // Intersection
-            if (locationVendorIds.some(id => id.toString() === vendorId.toString())) {
-                query.vendorId = vendorId;
+    // --- Combine Vendor Filter ---
+    const applyVendorFilter = (query) => {
+        if (vendorId) {
+            if (locationVendorIds) {
+                // Intersection
+                if (locationVendorIds.some(id => id.toString() === vendorId.toString())) {
+                    query.vendorId = new mongoose.Types.ObjectId(vendorId);
+                } else {
+                    // Intersection empty -> no results
+                    query.vendorId = new mongoose.Types.ObjectId('000000000000000000000000'); // Valid but non-existent ObjectId
+                }
             } else {
-                // returns nothing
-                query.vendorId = { $in: [] };
+                query.vendorId = new mongoose.Types.ObjectId(vendorId);
             }
-        } else {
-            query.vendorId = vendorId;
+        } else if (locationVendorIds) {
+            query.vendorId = { $in: locationVendorIds };
         }
-    } else if (locationVendorIds) {
-        query.vendorId = { $in: locationVendorIds };
+        return query;
+    };
+
+    // --- Build Queries ---
+    let productQuery = await buildMatchQuery(false);
+    productQuery = applyVendorFilter(productQuery);
+
+    let lotSlotQuery = await buildMatchQuery(true);
+    lotSlotQuery = applyVendorFilter(lotSlotQuery);
+
+    // --- Aggregation Pipeline ---
+    const pipeline = [];
+
+    // 1. Tag and Match
+    // If itemType is specific, we only query that collection
+    // If 'all', we union
+
+    if (itemType === 'product' || !itemType || itemType === 'all') {
+        pipeline.push({ $match: productQuery });
+        pipeline.push({ $addFields: { itemType: 'product' } });
+    } else {
+        // If sorting strictly by 'lotslot', start empty or minimal?
+        // Actually if itemType IS lotslot, we don't start with Product.
+        // We can just query LotSlot directly.
+        // But to keep pipeline uniform:
+        pipeline.push({ $match: { _id: null } }); // Match nothing in Product
     }
 
-    if (minPrice || maxPrice) {
-        query.price = {};
-        if (minPrice) query.price.$gte = Number(minPrice);
-        if (maxPrice) query.price.$lte = Number(maxPrice);
-    }
-
-    const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
-
-    // --- FETCHING STRATEGY BASED ON itemType ---
-    let products = [];
-    let lotSlots = [];
-
-    // 1. Fetch Products (if not restricted to lotslot)
-    if (itemType !== 'lotslot') {
-        products = await Product.find(query)
-            .sort(sort)
-            .populate('vendorId', 'name storeName address phone')
-            .lean();
-    }
-
-    // 2. Fetch LotSlots (ONLY if explicitly requested as 'lotslot')
-    if (itemType === 'lotslot') {
-        const lotSlotQuery = { isActive: true };
-
-        // Map common filters to LotSlot schema
-        if (search) {
-            lotSlotQuery.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
-                { category: { $regex: search, $options: 'i' } },
-                { subcategory: { $regex: search, $options: 'i' } }
-            ];
-        }
-
-        // Apply same vendorId logic
-        if (query.vendorId) {
-            lotSlotQuery.vendorId = query.vendorId;
-        }
-
-        if (minPrice || maxPrice) {
-            lotSlotQuery.price = {};
-            if (minPrice) lotSlotQuery.price.$gte = Number(minPrice);
-            if (maxPrice) lotSlotQuery.price.$lte = Number(maxPrice);
-        }
-
-        // Handling category for LotSlot (it uses string name in model usually, verify if possible)
-        // Assuming for now it uses string names as per previous code
-        if (categoryId) {
-            try {
-                const cat = await B2BCategory.findById(categoryId);
-                if (cat) lotSlotQuery.category = cat.name;
-            } catch (e) {
-                // ignore invalid id
+    // 2. Union with LotSlot
+    if (itemType === 'lotslot' || !itemType || itemType === 'all') {
+        pipeline.push({
+            $unionWith: {
+                coll: 'lotslots',
+                pipeline: [
+                    { $match: lotSlotQuery },
+                    { $addFields: { itemType: 'lotslot', brandName: '$brand' } } // Map brand -> brandName
+                ]
             }
-        }
-        if (subcategoryId) {
-            lotSlotQuery.subcategory = subcategoryId;
-        }
-
-        // LotSlot has direct fields for pattern and fabric
-        // But also check specifications just in case
-        if (pattern) {
-            lotSlotQuery.$or = [
-                { pattern: { $regex: new RegExp(`^${pattern}$`, 'i') } },
-                { specifications: { $elemMatch: { name: { $regex: 'pattern', $options: 'i' }, value: { $regex: pattern, $options: 'i' } } } }
-            ];
-        }
-        if (fabric) {
-            const fabricCond = [
-                { fabric: { $regex: new RegExp(`^${fabric}$`, 'i') } },
-                { specifications: { $elemMatch: { name: { $regex: 'fabric', $options: 'i' }, value: { $regex: fabric, $options: 'i' } } } }
-            ];
-
-            if (lotSlotQuery.$or) {
-                // intersection needed if pattern already added $or
-                lotSlotQuery.$and = [
-                    { $or: lotSlotQuery.$or },
-                    { $or: fabricCond }
-                ];
-                delete lotSlotQuery.$or;
-            } else {
-                lotSlotQuery.$or = fabricCond;
-            }
-        }
-
-        lotSlots = await LotSlot.find(lotSlotQuery)
-            .sort(sort)
-            .populate('vendorId', 'name storeName address phone')
-            .lean();
+        });
     }
 
-    // Tag them so frontend can distinguish
-    // With .lean(), documents are already plain objects (no _doc needed)
-    const taggedProducts = products.map(p => ({ ...p, itemType: 'product' }));
-    const taggedLots = lotSlots.map(l => ({ ...l, itemType: 'lotslot' }));
+    // 3. Sort
+    const sortField = sortBy === 'createdAt' ? 'createdAt' : sortBy; // Simple mapping
+    const sortDir = sortOrder === 'desc' ? -1 : 1;
+    pipeline.push({ $sort: { [sortField]: sortDir } });
 
-    // Combine and sort
-    let combined = [...taggedProducts, ...taggedLots];
-
-    // Sort combined list
-    combined.sort((a, b) => {
-        const valA = a[sortBy] || 0;
-        const valB = b[sortBy] || 0;
-        if (sortOrder === 'desc') return valB > valA ? 1 : -1;
-        return valA > valB ? 1 : -1;
+    // 4. Facet for Total Count & Paginated Data
+    pipeline.push({
+        $facet: {
+            metadata: [{ $count: "total" }],
+            data: [
+                { $skip: (parseInt(page) - 1) * parseInt(limit) },
+                { $limit: parseInt(limit) },
+                // Populate Vendor
+                {
+                    $lookup: {
+                        from: 'vendors',
+                        localField: 'vendorId',
+                        foreignField: '_id',
+                        pipeline: [{ $project: { name: 1, storeName: 1, address: 1, phone: 1, logo: 1 } }],
+                        as: 'vendor'
+                    }
+                },
+                { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
+                // Populate ShopUnit (if needed, mostly for Product)
+                {
+                    $lookup: {
+                        from: 'shopunits',
+                        localField: 'shopUnitId',
+                        foreignField: '_id',
+                        as: 'shopUnit'
+                    }
+                },
+                { $unwind: { path: '$shopUnit', preserveNullAndEmptyArrays: true } }
+            ]
+        }
     });
 
-    const total = combined.length;
-    const paginated = combined.slice((page - 1) * limit, page * limit);
+    // Execute
+    const result = await Product.aggregate(pipeline);
+
+    const metadata = result[0].metadata;
+    const data = result[0].data;
+
+    const total = metadata.length > 0 ? metadata[0].total : 0;
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    // Ensure numeric values are numbers (aggregation sometimes leaves them as is, which is fine)
+    // sanitize images if needed? The original code didn't seem to sanitize heavily here, just .lean()
 
     return {
-        products: paginated,
+        products: data,
         total,
-        page: Number(page),
-        pages: Math.ceil(total / limit)
+        page: parseInt(page),
+        pages: totalPages
     };
 };
 
@@ -337,19 +338,20 @@ export const getB2BSearchSuggestions = async (query) => {
         });
     });
 
-    // 3. Search Subcategories (stored as array of strings in B2BCategory)
+    // 3. Search Subcategories (stored as objects with {name, fields} in B2BCategory)
     const categoryWithMatchingSub = await B2BCategory.find({
-        subcategories: { $regex: query, $options: 'i' },
+        'subcategories.name': { $regex: query, $options: 'i' },
         isActive: true
     }).limit(3);
 
     categoryWithMatchingSub.forEach(cat => {
-        cat.subcategories.forEach(sub => {
-            if (sub.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 12) {
+        cat.subcategories.forEach(subObj => {
+            const subName = typeof subObj === 'string' ? subObj : subObj?.name;
+            if (subName && subName.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 12) {
                 // Avoid duplicates
-                if (!suggestions.some(s => s.text === sub)) {
+                if (!suggestions.some(s => s.text === subName)) {
                     suggestions.push({
-                        text: sub,
+                        text: subName,
                         context: `In ${cat.name}`,
                         type: 'subcategory',
                         parentId: cat._id

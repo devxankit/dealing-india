@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiFilter, FiSearch, FiTruck, FiShield, FiX, FiChevronDown, FiPhone, FiGrid, FiMapPin, FiTrendingUp, FiHome, FiBriefcase, FiCheck } from 'react-icons/fi';
@@ -59,8 +59,6 @@ const ProductCatalog = () => {
     const [customPriceRange, setCustomPriceRange] = useState({ min: '', max: '' });
     const [priceInputs, setPriceInputs] = useState({ min: '', max: '' });
     const [businessCredentials, setBusinessCredentials] = useState({ gst: false, turnover: false });
-    const [selectedPattern, setSelectedPattern] = useState(null);
-    const [selectedFabric, setSelectedFabric] = useState(null);
     const [selectedArea, setSelectedArea] = useState(null);
     const [selectedMarket, setSelectedMarket] = useState(null);
     const [availableMarkets, setAvailableMarkets] = useState([]);
@@ -76,14 +74,38 @@ const ProductCatalog = () => {
         businessType: false,
         city: false,
         area: false,
-        market: false,
-        pattern: false,
-        fabric: false
+        market: false
     });
 
     const allSubcategories = useMemo(() => {
-        return [...new Set(allCategories.flatMap(cat => cat.subcategories || []))].sort();
+        const subs = allCategories.flatMap(cat => cat.subcategories || []);
+        // Handle both string and object subcategories {name, fields} from dynamic fields update
+        const names = subs.map(s => typeof s === 'string' ? s : s?.name).filter(Boolean);
+        return [...new Set(names)].sort();
     }, [allCategories]);
+
+    const [dynamicFilters, setDynamicFilters] = useState({});
+
+    const selectedSubcategoryObj = useMemo(() => {
+        if (!selectedSubcategory) return null;
+        for (const cat of allCategories) {
+            const sub = (cat.subcategories || []).find(s => (typeof s === 'string' ? s : s?.name) === selectedSubcategory);
+            if (sub) return typeof sub === 'string' ? { name: sub, fields: [] } : sub;
+        }
+        return null;
+    }, [selectedSubcategory, allCategories]);
+
+    // Reset dynamic filters when subcategory changes
+    useEffect(() => {
+        setDynamicFilters({});
+        if (selectedSubcategoryObj?.fields) {
+            const newOpenFilters = { ...openFilters };
+            selectedSubcategoryObj.fields.forEach(field => {
+                newOpenFilters[`dynamic_${field.label}`] = true;
+            });
+            setOpenFilters(newOpenFilters);
+        }
+    }, [selectedSubcategory, selectedSubcategoryObj]);
 
     const [activeImageIndices, setActiveImageIndices] = useState({});
 
@@ -206,6 +228,85 @@ const ProductCatalog = () => {
                         </AnimatePresence>
                     </div>
                 )}
+
+                {/* Dynamic Attributes Filters */}
+                {selectedSubcategoryObj?.fields?.length > 0 && selectedSubcategoryObj.fields.filter(field => ['select', 'multi-select'].includes(field.type)).map((field, fieldIdx) => (
+                    <div key={`${field.label}-${fieldIdx}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <button
+                            onClick={() => toggleFilter(`dynamic_${field.label}`)}
+                            className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        >
+                            <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">{field.label}</h3>
+                            <div className="flex items-center gap-2">
+                                {dynamicFilters[field.label] && (
+                                    <span
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const newFilters = { ...dynamicFilters };
+                                            delete newFilters[field.label];
+                                            setDynamicFilters(newFilters);
+                                        }}
+                                        className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2"
+                                    >
+                                        RESET
+                                    </span>
+                                )}
+                                <FiChevronDown className={`text-gray-400 transition-transform ${openFilters[`dynamic_${field.label}`] ? 'rotate-180' : ''}`} />
+                            </div>
+                        </button>
+                        <AnimatePresence>
+                            {(openFilters[`dynamic_${field.label}`]) && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                        {field.options?.map(option => (
+                                            <label key={option} className="flex items-center gap-3 cursor-pointer group">
+                                                <div className="relative">
+                                                    <input
+                                                        type={field.type === 'multi-select' ? 'checkbox' : 'radio'}
+                                                        name={`dynamic_${field.label}`}
+                                                        className="peer sr-only"
+                                                        checked={field.type === 'multi-select'
+                                                            ? (dynamicFilters[field.label] || []).includes(option)
+                                                            : dynamicFilters[field.label] === option
+                                                        }
+                                                        onChange={() => {
+                                                            if (field.type === 'multi-select') {
+                                                                const current = dynamicFilters[field.label] || [];
+                                                                const next = current.includes(option)
+                                                                    ? current.filter(o => o !== option)
+                                                                    : [...current, option];
+                                                                setDynamicFilters({ ...dynamicFilters, [field.label]: next });
+                                                            } else {
+                                                                setDynamicFilters({ ...dynamicFilters, [field.label]: option });
+                                                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                            }
+                                                        }}
+                                                    />
+                                                    <div className={`w-4 h-4 border-2 border-gray-300 ${field.type === 'multi-select' ? 'rounded-md' : 'rounded-full'} peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all flex items-center justify-center`}>
+                                                        {field.type === 'multi-select' && (dynamicFilters[field.label] || []).includes(option) && (
+                                                            <FiCheck className="text-white text-[10px]" />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <span className={`text-xs font-bold transition-colors ${(field.type === 'multi-select' ? (dynamicFilters[field.label] || []).includes(option) : dynamicFilters[field.label] === option)
+                                                    ? 'text-primary-700'
+                                                    : 'text-gray-500 group-hover:text-gray-700'
+                                                    }`}>
+                                                    {option}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                ))}
 
                 {/* Price Filter Block */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -442,103 +543,7 @@ const ProductCatalog = () => {
                     </AnimatePresence>
                 </div>
 
-                {!isPackingMaterial && (!isBigTextilePlayer || selectedItemType === 'lotslot') && (
-                    <>
-                        {/* Pattern Filter */}
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <button
-                                onClick={() => toggleFilter('pattern')}
-                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                            >
-                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Pattern</h3>
-                                <div className="flex items-center gap-2">
-                                    {selectedPattern && (
-                                        <span onClick={(e) => { e.stopPropagation(); setSelectedPattern(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                                    )}
-                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.pattern ? 'rotate-180' : ''}`} />
-                                </div>
-                            </button>
-                            <AnimatePresence>
-                                {openFilters.pattern && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
-                                            {uniquePatterns.map(pattern => (
-                                                <label key={pattern} className="flex items-center gap-3 cursor-pointer group">
-                                                    <div className="relative">
-                                                        <input
-                                                            type="radio"
-                                                            name="pattern"
-                                                            className="peer sr-only"
-                                                            checked={selectedPattern === pattern}
-                                                            onChange={() => {
-                                                                setSelectedPattern(pattern);
-                                                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                            }}
-                                                        />
-                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                                    </div>
-                                                    <span className={`text-xs font-bold transition-colors ${selectedPattern === pattern ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{pattern}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
 
-                        {/* Fabric Filter */}
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <button
-                                onClick={() => toggleFilter('fabric')}
-                                className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                            >
-                                <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Fabric</h3>
-                                <div className="flex items-center gap-2">
-                                    {selectedFabric && (
-                                        <span onClick={(e) => { e.stopPropagation(); setSelectedFabric(null); }} className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">RESET</span>
-                                    )}
-                                    <FiChevronDown className={`text-gray-400 transition-transform ${openFilters.fabric ? 'rotate-180' : ''}`} />
-                                </div>
-                            </button>
-                            <AnimatePresence>
-                                {openFilters.fabric && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar border-t border-gray-50">
-                                            {uniqueFabrics.map(fabric => (
-                                                <label key={fabric} className="flex items-center gap-3 cursor-pointer group">
-                                                    <div className="relative">
-                                                        <input
-                                                            type="radio"
-                                                            name="fabric"
-                                                            className="peer sr-only"
-                                                            checked={selectedFabric === fabric}
-                                                            onChange={() => {
-                                                                setSelectedFabric(fabric);
-                                                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                            }}
-                                                        />
-                                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                                                    </div>
-                                                    <span className={`text-xs font-bold transition-colors ${selectedFabric === fabric ? 'text-primary-700' : 'text-gray-500 group-hover:text-gray-700'}`}>{fabric}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </>
-                )}
             </div>
         );
     };
@@ -653,7 +658,7 @@ const ProductCatalog = () => {
     // Derived states for conditional filtering
     const typeLower = selectedBusinessType?.toLowerCase()?.trim();
     const isPackingMaterial = typeLower === 'packing material';
-    const bigTextilePlayerTypes = ['yarn manufacturer', 'mill / processing', 'weavers', 'gray broker', 'other broker', 'job work', 'stitching unit', 'support & services'];
+    const bigTextilePlayerTypes = ['yarn manufacturer', 'mill / processing', 'weavers', 'gray broker', 'other broker', 'job work', 'stitching unit', 'support & services', 'packing material'];
     const isBigTextilePlayer = bigTextilePlayerTypes.includes(typeLower);
 
     const fetchB2BProducts = async () => {
@@ -677,13 +682,6 @@ const ProductCatalog = () => {
                 params.itemType = selectedItemType;
             }
 
-            // Pattern and Fabric Filters
-            if (selectedPattern) {
-                params.pattern = selectedPattern;
-            }
-            if (selectedFabric) {
-                params.fabric = selectedFabric;
-            }
             if (selectedArea) {
                 params.area = selectedArea;
             }
@@ -708,6 +706,11 @@ const ProductCatalog = () => {
             }
             if (selectedBusinessSubType) {
                 params.businessSubType = selectedBusinessSubType;
+            }
+
+            // Add Dynamic Filters
+            if (Object.keys(dynamicFilters).length > 0) {
+                params.dynamicFilters = JSON.stringify(dynamicFilters);
             }
 
             // Fetch products where vendorType is b2b
@@ -833,18 +836,9 @@ const ProductCatalog = () => {
         setSelectedBusinessSubType(searchParams.get('businessSubType') || null);
     }, [searchParams]);
 
-    // Reset Patterns, Fabrics, Categories when certain Business Types are selected
     useEffect(() => {
-        // Packing Material should always have Pattern/Fabric reset because they are always hidden
-        if (isPackingMaterial) {
-            setSelectedPattern(null);
-            setSelectedFabric(null);
-        }
-
         // For Big Players, only reset if we are NOT in Lot/Slot mode
         if (selectedItemType !== 'lotslot' && isBigTextilePlayer) {
-            setSelectedPattern(null);
-            setSelectedFabric(null);
             setSelectedCategory('All');
             setSelectedSubcategory(null);
             setExpandedCategory(null);
@@ -928,7 +922,7 @@ const ProductCatalog = () => {
         }
         fetchB2BProducts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedState, selectedCity, selectedItemType, selectedPattern, selectedFabric, selectedArea, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length]);
+    }, [selectedState, selectedCity, selectedItemType, selectedArea, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length, dynamicFilters]);
 
     // Debug: Log state and cities changes
     useEffect(() => {
@@ -982,7 +976,7 @@ const ProductCatalog = () => {
         const categoriesWithFilteredSubcategories = categoriesToShow.map(cat => {
             return {
                 ...cat,
-                subcategories: cat.subcategories || []
+                subcategories: (cat.subcategories || []).map(s => typeof s === 'string' ? s : s?.name).filter(Boolean)
             };
         });
 
@@ -1111,21 +1105,7 @@ const ProductCatalog = () => {
         ...(p.specifications || [])
     ];
 
-    // Predefined Filter Options (ensure these always show)
-    const PREDEFINED_PATTERNS = ["Solid", "Striped", "Checked", "Floral", "Abstract", "Geometric", "Polka Dot", "Paisley", "Embroidered", "Printed"];
-    const PREDEFINED_FABRICS = ["Cotton", "Silk", "Wool", "Polyester", "Linen", "Leather", "Denim", "Velvet", "Chiffon", "Georgette", "Rayon", "Nylon", "Satin"];
 
-
-    // Derive unique filter options (Predefined + Actual)
-    const uniquePatterns = [...new Set([
-        ...PREDEFINED_PATTERNS,
-        ...productsList.flatMap(p => getProductAttributes(p).filter(a => a.name === 'Pattern').map(a => a.value))
-    ])].filter(Boolean).sort();
-
-    const uniqueFabrics = [...new Set([
-        ...PREDEFINED_FABRICS,
-        ...productsList.flatMap(p => getProductAttributes(p).filter(a => a.name === 'Fabric').map(a => a.value))
-    ])].filter(Boolean).sort();
 
 
 
@@ -1296,7 +1276,13 @@ const ProductCatalog = () => {
                             {businessTypes
                                 .filter(type => {
                                     const name = (type.name || '').toUpperCase().trim();
-                                    return name !== 'DEVELOPER' && name !== 'PROPERTY BROKER';
+                                    // Hide Developer/Property Broker from this catalog
+                                    if (name === 'DEVELOPER' || name === 'PROPERTY BROKER') return false;
+
+                                    // Hide Packing Material specifically for Lot/Slot section
+                                    if (selectedItemType === 'lotslot' && name === 'PACKING MATERIAL') return false;
+
+                                    return true;
                                 })
                                 .map((type) => (
                                     <div key={type._id}>
@@ -1380,8 +1366,8 @@ const ProductCatalog = () => {
                     className="flex-1 py-3 flex flex-col items-center gap-1 active:bg-gray-50 transition-colors"
                 >
                     <div className="relative">
-                        <FiFilter className={selectedPriceRange || customPriceRange.min || selectedPattern || selectedFabric ? 'text-primary-600' : 'text-gray-400'} size={18} />
-                        {(selectedPriceRange || customPriceRange.min || selectedPattern || selectedFabric) && (
+                        <FiFilter className={selectedPriceRange || customPriceRange.min ? 'text-primary-600' : 'text-gray-400'} size={18} />
+                        {(selectedPriceRange || customPriceRange.min) && (
                             <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                         )}
                     </div>
@@ -1577,6 +1563,16 @@ const ProductCatalog = () => {
                                         <span className="text-[10px] font-bold text-gray-400 uppercase">{selectedSubcategory}</span>
                                     </>
                                 )}
+                                {Object.entries(dynamicFilters).map(([key, value]) => {
+                                    const displayValue = Array.isArray(value) ? value.join(', ') : value;
+                                    if (!displayValue) return null;
+                                    return (
+                                        <React.Fragment key={key}>
+                                            <div className="w-1 h-1 bg-primary-300 rounded-full mx-1"></div>
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{key}: {displayValue}</span>
+                                        </React.Fragment>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

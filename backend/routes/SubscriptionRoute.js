@@ -6,6 +6,8 @@ import {
   cancelB2BSubscription,
   getAllB2BPlans,
   getB2BSubscriptionDetails,
+  getB2BAnalytics,
+  manualOverride
 } from '../controllers/SubscriptionCtrl.js';
 import VendorSubscriptionCtrl from '../controllers/vendorSubscription.controller.js';
 
@@ -41,6 +43,12 @@ router.get('/getAllB2BSubscriptions', authorize('admin'), getAllB2BSubscriptions
 
 // Get B2B subscription details by ID
 router.get('/getB2BSubscription/:subscriptionId', authorize('vendor', 'admin'), getB2BSubscriptionDetails);
+
+// Get B2B subscription analytics (admin only)
+router.get('/analytics', authorize('admin'), getB2BAnalytics);
+
+// Manual subscription override (admin only)
+router.post('/manual-override/:subscriptionId', authorize('admin'), manualOverride);
 
 // Cancel B2B subscription
 router.patch(
