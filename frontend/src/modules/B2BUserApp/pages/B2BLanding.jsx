@@ -27,6 +27,23 @@ const B2BLanding = () => {
     const { categories, initialize: fetchCategories } = useB2BCategoryStore();
     const { isAuthenticated } = useAuthStore();
 
+    // Navigation helper: requires login for any navigation from landing page (except login/register)
+    const navigateWithAuth = (path) => {
+        // Allow navigation to login/register without auth check
+        if (path === '/b2b/login' || path === '/b2b/register' || path === '/b2b-vendor/register' || path === '/b2b-vendor/login') {
+            navigate(path);
+            return;
+        }
+        
+        // For all other routes, require authentication
+        if (!isAuthenticated) {
+            navigate('/b2b/login', { state: { from: { pathname: path } } });
+            return;
+        }
+        
+        navigate(path);
+    };
+
     // State
     const [searchQuery, setSearchQuery] = useState('');
     const [suggestions, setSuggestions] = useState([]);
@@ -112,13 +129,16 @@ const B2BLanding = () => {
     // Derived State: Subcategories of selected root
     const activeSubcategories = useMemo(() => {
         if (!selectedRootCategory) return [];
-        // In B2B, subcategories are an array of strings within the category object
+        // In B2B, subcategories are objects with {name, fields} structure
         // Transform them into objects with id and name for the UI to handle
-        return (selectedRootCategory.subcategories || []).map((sub, index) => ({
-            id: `${selectedRootCategory.id}-sub-${index}`,
-            name: sub,
-            originalName: sub // Store original name for filtering
-        }));
+        return (selectedRootCategory.subcategories || []).map((sub, index) => {
+            const subName = typeof sub === 'string' ? sub : (sub?.name || '');
+            return {
+                id: `${selectedRootCategory.id}-sub-${index}`,
+                name: subName,
+                originalName: subName // Store original name for filtering
+            };
+        });
     }, [selectedRootCategory]);
 
     // --- Search Logic ---
@@ -204,7 +224,7 @@ const B2BLanding = () => {
             // No subcategories, navigate directly
             setIsCategoryDropdownOpen(false);
             const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-            navigate(`/b2b/catalog?category=${encodeURIComponent(category.name)}${cityParam}`);
+            navigateWithAuth(`/b2b/catalog?category=${encodeURIComponent(category.name)}${cityParam}`);
         }
     };
 
@@ -212,17 +232,17 @@ const B2BLanding = () => {
         setActivePopup(null);
         const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
         // Pass subcategory name as well
-        navigate(`/b2b/catalog?category=${encodeURIComponent(selectedRootCategory.name)}&subcategory=${encodeURIComponent(subCat.originalName)}${cityParam}`);
+        navigateWithAuth(`/b2b/catalog?category=${encodeURIComponent(selectedRootCategory.name)}&subcategory=${encodeURIComponent(subCat.originalName)}${cityParam}`);
     };
 
     const handleProductClick = (product) => {
         setActivePopup(null);
-        navigate(`/b2b/catalog`);
+        navigateWithAuth(`/b2b/catalog`);
     };
 
     const handleHeaderPopupItemClick = (item) => {
         setActivePopup(null);
-        navigate(`/b2b/catalog?type=${item.type}&filter=${item.id}`);
+        navigateWithAuth(`/b2b/catalog?type=${item.type}&filter=${item.id}`);
     };
 
     const handleBusinessTypeClick = (type) => {
@@ -230,7 +250,7 @@ const B2BLanding = () => {
         const typeName = (type.name || '').toUpperCase().trim();
         if (typeName === 'DEVELOPER' || typeName === 'PROPERTY BROKER') {
             setIsBusinessTypeDropdownOpen(false);
-            navigate('/b2b/real-estate');
+            navigateWithAuth('/b2b/real-estate');
             return;
         }
 
@@ -242,14 +262,14 @@ const B2BLanding = () => {
         } else {
             setIsBusinessTypeDropdownOpen(false);
             const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-            navigate(`/b2b/catalog?businessType=${encodeURIComponent(type.name)}${cityParam}`);
+            navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(type.name)}${cityParam}`);
         }
     };
 
     const handleBusinessSubTypeClick = (subType) => {
         setActivePopup(null);
         const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-        navigate(`/b2b/catalog?businessType=${encodeURIComponent(selectedBusinessType.name)}&businessSubType=${encodeURIComponent(subType)}${cityParam}`);
+        navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(selectedBusinessType.name)}&businessSubType=${encodeURIComponent(subType)}${cityParam}`);
     };
 
     const closePopup = () => setActivePopup(null);
@@ -441,7 +461,7 @@ const B2BLanding = () => {
                                     itemType={itemType}
                                     onCardClick={() => {
                                         closePopup();
-                                        navigate(`/b2b/product/${product._id}`);
+                                        navigateWithAuth(`/b2b/product/${product._id}`);
                                     }}
                                 />
                             ))}
@@ -460,7 +480,7 @@ const B2BLanding = () => {
                         onClick={() => {
                             closePopup();
                             if (onViewAll) onViewAll();
-                            else navigate('/b2b/catalog');
+                            else navigateWithAuth('/b2b/catalog');
                         }}
                         className="w-full md:w-auto px-6 py-3 bg-gray-900 text-white rounded-xl md:rounded-full font-black text-[9px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3"
                     >
@@ -524,7 +544,7 @@ const B2BLanding = () => {
                     {/* Left Section: Logo + City + Navigator Links */}
                     <div className="flex items-center gap-2 md:gap-6 flex-1">
                         {/* 1. Logo */}
-                        <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => navigate('/b2b/catalog')}>
+                        <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => navigateWithAuth('/b2b/catalog')}>
                             <img src={appLogo.src} alt="Dealing India" className="h-10 md:h-24 w-auto object-contain" />
                         </div>
 
@@ -579,7 +599,7 @@ const B2BLanding = () => {
                                 <FiTrendingUp size={16} /> Lot / SOT
                             </button>
                             <button
-                                onClick={() => navigate('/b2b/real-estate')}
+                                onClick={() => navigateWithAuth('/b2b/real-estate')}
                                 className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
                             >
                                 <FiHome size={16} /> Real Estate
@@ -644,7 +664,7 @@ const B2BLanding = () => {
                                     <button onClick={() => { fetchLotProducts(); setActivePopup('lots'); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
                                         <FiTrendingUp size={24} /> Lot / SOT
                                     </button>
-                                    <button onClick={() => { navigate('/b2b/real-estate'); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
+                                    <button onClick={() => { navigateWithAuth('/b2b/real-estate'); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
                                         <FiHome size={24} /> Real Estate
                                     </button>
                                 </div>
@@ -750,7 +770,7 @@ const B2BLanding = () => {
                                                         onClick={() => {
                                                             setIsPriceFilterOpen(false);
                                                             const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-                                                            navigate(`/b2b/catalog?businessType=${encodeURIComponent(filterValue)}${cityParam}`);
+                                                            navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(filterValue)}${cityParam}`);
                                                         }}
                                                     >
                                                         <span className="text-[11px] font-black text-gray-600 group-hover:text-primary-600 uppercase tracking-wider">{filterValue}</span>
@@ -897,14 +917,14 @@ const B2BLanding = () => {
                 {activePopup === 'products' && (
                     <ProductPopup
                         title={`Related Products for "${searchQuery}"`}
-                        onViewAll={() => navigate(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`)}
+                        onViewAll={() => navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`)}
                     />
                 )}
                 {activePopup === 'lots' && (
                     <ProductPopup
                         title="Explore Lot / SOT"
                         itemType="lotslot"
-                        onViewAll={() => navigate('/b2b/catalog?itemType=lotslot')}
+                        onViewAll={() => navigateWithAuth('/b2b/catalog?itemType=lotslot')}
                     />
                 )}
             </AnimatePresence>
