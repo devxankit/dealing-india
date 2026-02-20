@@ -123,15 +123,24 @@ export const getPublicProducts = async (filters) => {
     let locationVendorIds = null;
     if (state || city || area || market || businessType || businessSubType) {
         const vendorQuery = { isActive: true };
-        if (state) vendorQuery['address.state'] = state;
-        if (city) vendorQuery['address.city'] = city;
-        if (area) vendorQuery['address.area'] = area;
-        if (market) vendorQuery['address.market'] = { $regex: new RegExp(`^${market}$`, 'i') };
-        if (businessType) vendorQuery.businessType = { $regex: new RegExp(`^${businessType}$`, 'i') };
-        if (businessSubType) vendorQuery.selectedSubTypes = { $in: [new RegExp(`^${businessSubType}$`, 'i')] };
+        if (state) vendorQuery['address.state'] = { $regex: new RegExp(`^${String(state).trim()}$`, 'i') };
+        if (city) vendorQuery['address.city'] = { $regex: new RegExp(`^${String(city).trim()}$`, 'i') };
+        if (area) vendorQuery['address.area'] = { $regex: new RegExp(`^${String(area).trim()}$`, 'i') };
+        if (market) {
+            const marketValue = String(market).trim();
+            const escapedMarket = marketValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            vendorQuery['address.market'] = { $regex: new RegExp(`^${escapedMarket}$`, 'i') };
+        }
+        if (businessType) vendorQuery.businessType = { $regex: new RegExp(`^${String(businessType).trim()}$`, 'i') };
+        if (businessSubType) vendorQuery.selectedSubTypes = { $in: [new RegExp(`^${String(businessSubType).trim()}$`, 'i')] };
 
         const matchingVendors = await Vendor.find(vendorQuery).select('_id').lean();
         locationVendorIds = matchingVendors.map(v => v._id);
+
+        // If market filter is applied but no vendors found, return empty results
+        if (market && locationVendorIds.length === 0) {
+            locationVendorIds = []; // Empty array will result in no products
+        }
     }
 
     // --- Combine Vendor Filter ---
@@ -168,19 +177,18 @@ export const getPublicProducts = async (filters) => {
     // If itemType is specific, we only query that collection
     // If 'all', we union
 
-    if (itemType === 'product' || !itemType || itemType === 'all') {
+    const effectiveItemType = itemType || 'product';
+
+    if (effectiveItemType === 'product' || effectiveItemType === 'all') {
         pipeline.push({ $match: productQuery });
         pipeline.push({ $addFields: { itemType: 'product' } });
     } else {
-        // If sorting strictly by 'lotslot', start empty or minimal?
-        // Actually if itemType IS lotslot, we don't start with Product.
-        // We can just query LotSlot directly.
-        // But to keep pipeline uniform:
+        // If sorting strictly by 'lotslot', start empty
         pipeline.push({ $match: { _id: null } }); // Match nothing in Product
     }
 
     // 2. Union with LotSlot
-    if (itemType === 'lotslot' || !itemType || itemType === 'all') {
+    if (effectiveItemType === 'lotslot' || effectiveItemType === 'all') {
         pipeline.push({
             $unionWith: {
                 coll: 'lotslots',
@@ -204,13 +212,14 @@ export const getPublicProducts = async (filters) => {
             data: [
                 { $skip: (parseInt(page) - 1) * parseInt(limit) },
                 { $limit: parseInt(limit) },
+                { $addFields: { vendorIdRef: '$vendorId' } },
                 // Populate Vendor
                 {
                     $lookup: {
                         from: 'vendors',
                         localField: 'vendorId',
                         foreignField: '_id',
-                        pipeline: [{ $project: { name: 1, storeName: 1, address: 1, phone: 1, logo: 1 } }],
+                        pipeline: [{ $project: { _id: 1, name: 1, storeName: 1, address: 1, phone: 1, logo: 1 } }],
                         as: 'vendorId'
                     }
                 },
@@ -233,13 +242,27 @@ export const getPublicProducts = async (filters) => {
     const result = await Product.aggregate(pipeline);
 
     const metadata = result[0].metadata;
-    const data = result[0].data;
+    let data = result[0].data;
 
     const total = metadata.length > 0 ? metadata[0].total : 0;
     const totalPages = Math.ceil(total / parseInt(limit));
 
-    // Ensure numeric values are numbers (aggregation sometimes leaves them as is, which is fine)
-    // sanitize images if needed? The original code didn't seem to sanitize heavily here, just .lean()
+    // Merge ShopUnit data into the root object for UI consistency
+    data = data.map(p => {
+        if (p.formType === 'shop-listing' && p.shopUnit) {
+            return {
+                ...p,
+                name: p.name || p.shopUnit.name,
+                description: p.description || p.shopUnit.description,
+                image: p.image || (p.shopUnit.images && p.shopUnit.images[0]),
+                images: (p.images && p.images.length > 0) ? p.images : p.shopUnit.images,
+                minPrice: p.minPrice ?? p.shopUnit.minPrice,
+                maxPrice: p.maxPrice ?? p.shopUnit.maxPrice,
+                price: (p.price === undefined || p.price === 0) ? p.shopUnit.minPrice : p.price
+            };
+        }
+        return p;
+    });
 
     return {
         products: data,
@@ -269,7 +292,19 @@ export const getPublicProductById = async (id) => {
     if (!item) throw new Error('Product not found');
 
     // Tag it - with .lean(), item is already a plain object
-    const taggedItem = { ...item, itemType: isLotSlot ? 'lotslot' : 'product' };
+    let taggedItem = { ...item, itemType: isLotSlot ? 'lotslot' : 'product' };
+
+    // Merge ShopUnit data for shop listings
+    if (!isLotSlot && taggedItem.formType === 'shop-listing' && taggedItem.shopUnitId) {
+        const shop = taggedItem.shopUnitId;
+        taggedItem.name = taggedItem.name || shop.name;
+        taggedItem.description = taggedItem.description || shop.description;
+        taggedItem.image = taggedItem.image || (shop.images && shop.images[0]);
+        taggedItem.images = (taggedItem.images && taggedItem.images.length > 0) ? taggedItem.images : shop.images;
+        taggedItem.minPrice = taggedItem.minPrice ?? shop.minPrice;
+        taggedItem.maxPrice = taggedItem.maxPrice ?? shop.maxPrice;
+        if (taggedItem.price === undefined || taggedItem.price === 0) taggedItem.price = shop.minPrice;
+    }
 
     return taggedItem;
 };
@@ -282,44 +317,86 @@ export const getB2BSearchSuggestions = async (query) => {
 
     const suggestions = [];
 
-    const [products, lotSlots, shopItems] = await Promise.all([
-        Product.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image'),
-        LotSlot.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image'),
-        Product.find({ 'items.itemName': { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('items name')
+    const [products, lotSlots, shopItems, stores] = await Promise.all([
+        Product.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image vendorId formType'),
+        LotSlot.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image vendorId'),
+        Product.find({ 'items.itemName': { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('items name vendorId formType'),
+        Vendor.find({ storeName: { $regex: query, $options: 'i' }, status: 'approved', isActive: true }).limit(5).select('storeName storeLogo address')
     ]);
 
+    // Products - dedup by name (case-insensitive)
     products.forEach(p => {
-        suggestions.push({
-            text: p.name,
-            context: 'In Products',
-            type: 'product',
-            image: p.image || null
-        });
+        const isDup = suggestions.some(s =>
+            s.text?.toLowerCase() === p.name?.toLowerCase()
+        );
+        if (!isDup) {
+            suggestions.push({
+                text: p.name,
+                context: 'In Products',
+                type: 'product',
+                image: p.image || null,
+                vendorId: p.vendorId?.toString(),
+                formType: p.formType
+            });
+        }
     });
 
+    // LotSlots - dedup by name (case-insensitive)
     lotSlots.forEach(l => {
-        suggestions.push({
-            text: l.name,
-            context: 'In Lots/Slots',
-            type: 'lotslot',
-            image: l.image || (l.images && l.images[0]) || null
-        });
+        const isDup = suggestions.some(s =>
+            s.text?.toLowerCase() === l.name?.toLowerCase() && s.type === 'lotslot'
+        );
+        if (!isDup) {
+            suggestions.push({
+                text: l.name,
+                context: 'In Lots/Slots',
+                type: 'lotslot',
+                image: l.image || (l.images && l.images[0]) || null,
+                vendorId: l.vendorId?.toString()
+            });
+        }
     });
 
-    // Search for Item Names inside shop listings
+    // Shop item names inside shop listings - dedup by itemName (case-insensitive)
     shopItems.forEach(p => {
         if (p.items && p.items.length > 0) {
             p.items.forEach(item => {
                 if (item.itemName && item.itemName.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 15) {
-                    if (!suggestions.some(s => s.text === item.itemName)) {
+                    const isDup = suggestions.some(s =>
+                        s.text?.toLowerCase() === item.itemName?.toLowerCase()
+                    );
+                    if (!isDup) {
                         suggestions.push({
                             text: item.itemName,
                             context: `In ${p.name}`,
                             type: 'product',
-                            image: (item.images && item.images[0]) || null
+                            image: (item.images && item.images[0]) || null,
+                            vendorId: p.vendorId?.toString(),
+                            formType: p.formType
                         });
                     }
                 }
+            });
+        }
+    });
+
+    // Store suggestions - dedup by vendorId; replace any product entry with same name as store
+    stores.forEach(v => {
+        const vendorIdStr = v._id.toString();
+        const storeNameLower = v.storeName?.toLowerCase();
+        // Remove existing product/lotslot suggestion if its text matches the store name exactly
+        const dupIdx = suggestions.findIndex(s =>
+            s.text?.toLowerCase() === storeNameLower && s.type !== 'store'
+        );
+        if (dupIdx !== -1) suggestions.splice(dupIdx, 1);
+
+        if (!suggestions.some(s => s.type === 'store' && s.vendorId === vendorIdStr)) {
+            suggestions.push({
+                type: 'store',
+                text: v.storeName,
+                context: v.address?.city ? `Store · ${v.address.city}` : 'Store',
+                vendorId: vendorIdStr,
+                image: v.storeLogo || null
             });
         }
     });

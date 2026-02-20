@@ -1,31 +1,33 @@
 import { useState, useMemo, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
     FiArrowLeft,
-
     FiShoppingBag,
     FiCheckCircle,
     FiFilter,
     FiGrid,
     FiList,
     FiLoader,
-    FiTruck,
-    FiShield,
-    FiX,
-    FiPhone,
+    FiChevronDown,
+    FiMapPin,
+    FiShield
 } from "react-icons/fi";
 import { FaWhatsapp } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import B2BHeader from "../components/Layout/B2BHeader";
 import B2BBottomNav from "../components/Layout/B2BBottomNav";
+import B2BProductCard from "../components/B2BProductCard";
 import api from "../../../shared/utils/api";
 import { useAuthStore } from "../../../shared/store/authStore";
+import { getGoogleMapsUrl } from "../../../shared/utils/helpers";
 import RealEstateCard from "../components/RealEstateCard";
 import toast from "../../../shared/utils/toast";
 
 const B2BVendorStore = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const itemType = searchParams.get('itemType') || 'product';
     const { isAuthenticated } = useAuthStore();
 
     const [vendor, setVendor] = useState(null);
@@ -34,9 +36,7 @@ const B2BVendorStore = () => {
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState("grid");
     const [sortBy, setSortBy] = useState("popular");
-    const [showFilters, setShowFilters] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedProduct, setSelectedProduct] = useState(null);
 
     // Fetch vendor details and products
     useEffect(() => {
@@ -58,13 +58,13 @@ const B2BVendorStore = () => {
                 }
 
                 // OPTIMIZED: Fetch vendor, products, and properties in parallel
-                // This reduces loading time from sequential (~3x slowest) to parallel (~1x slowest)
                 const [vendorRes, productsRes, propertiesRes] = await Promise.all([
                     api.get(`/vendors/${id}`, { silent: true }),
                     api.get(`/products`, {
                         params: {
                             vendorId: id,
                             vendorType: 'b2b',
+                            itemType: itemType,
                             limit: 100,
                         },
                         silent: true
@@ -103,9 +103,10 @@ const B2BVendorStore = () => {
         if (id) {
             fetchVendorData();
         }
-    }, [id]);
+    }, [id, itemType]);
 
-
+    // Find shop listing for specific UI details
+    const shopListing = useMemo(() => products.find(p => p.formType === 'shop-listing'), [products]);
 
     // Filter and sort products
     const filteredProducts = useMemo(() => {
@@ -135,7 +136,7 @@ const B2BVendorStore = () => {
         return filtered;
     }, [products, searchQuery, sortBy]);
 
-    // Track vendor contact clicks (call or whatsapp)
+    // Track vendor contact clicks
     const trackContactClick = async (vendorId, clickType) => {
         try {
             if (!vendorId) return;
@@ -144,12 +145,9 @@ const B2BVendorStore = () => {
                 clickType
             });
         } catch (error) {
-            // Silently fail - tracking shouldn't block user action
             console.error('Error tracking click:', error);
         }
     };
-
-
 
     if (loading) {
         return (
@@ -202,14 +200,13 @@ const B2BVendorStore = () => {
                 <div className="relative mb-8 md:mb-16">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary-600/10 via-transparent to-primary-600/5 rounded-[2rem] md:rounded-[4rem] blur-3xl opacity-50"></div>
                     <div className="relative bg-white rounded-[2rem] md:rounded-[3.5rem] p-6 md:p-12 border border-white/50 shadow-2xl flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
-                        {/* Logo Container */}
                         <div className="relative group">
                             <div className="w-28 h-28 md:w-44 md:h-44 bg-gray-50 rounded-[1.5rem] md:rounded-[2.5rem] p-4 border-2 md:border-4 border-white shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden transition-transform duration-500 group-hover:scale-105">
-                                {vendor.storeLogo ? (
+                                {vendor.storeLogo || shopListing?.images?.[0] ? (
                                     <img
-                                        src={vendor.storeLogo}
+                                        src={vendor.storeLogo || shopListing?.images?.[0]}
                                         alt={vendor.storeName}
-                                        className="w-full h-full object-contain"
+                                        className="w-full h-full object-cover"
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-primary-50">
@@ -241,7 +238,7 @@ const B2BVendorStore = () => {
                             </div>
 
                             <p className="text-gray-500 font-medium text-sm md:text-lg leading-relaxed max-w-2xl">
-                                {vendor.businessDescription || (vendor.businessType?.includes('Real Estate') ? "Premier real estate professional providing verified premium properties and expert consulting." : "Premium B2B supplier providing high-quality bulk products across India.")}
+                                {shopListing?.description || vendor.businessDescription || (vendor.businessType?.includes('Real Estate') ? "Premier real estate professional providing verified premium properties and expert consulting." : "Premium B2B supplier providing high-quality bulk products across India.")}
                             </p>
 
                             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-8 pt-4">
@@ -254,6 +251,18 @@ const B2BVendorStore = () => {
                                         <span className="text-[10px] md:text-xs font-black text-gray-800 uppercase tracking-wider">Units Listed</span>
                                     </div>
                                 </div>
+
+                                {shopListing?.minPrice && shopListing?.maxPrice && (
+                                    <div className="flex flex-col border-l border-gray-100 pl-4 md:pl-8">
+                                        <span className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Price Range</span>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 md:w-10 md:h-10 bg-primary-600/10 rounded-xl flex items-center justify-center text-primary-600 font-black text-xs md:text-sm">
+                                                ₹
+                                            </div>
+                                            <span className="text-[10px] md:text-xs font-black text-gray-800 uppercase tracking-wider">₹{shopListing.minPrice} - ₹{shopListing.maxPrice}</span>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {vendor.address?.city && (
                                     <div className="flex flex-col border-l border-gray-100 pl-4 md:pl-8">
@@ -282,10 +291,43 @@ const B2BVendorStore = () => {
                                     WhatsApp Inquiry
                                 </a>
                             )}
-
+                            {vendor.phone && (
+                                <button
+                                    onClick={() => {
+                                        const mapsUrl = getGoogleMapsUrl(vendor);
+                                        if (mapsUrl) window.open(mapsUrl, '_blank');
+                                        else toast.error('Location details not provided');
+                                    }}
+                                    className="w-full px-8 py-5 md:py-6 bg-orange-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-100/50 flex items-center justify-center gap-3 active:scale-95"
+                                >
+                                    <FiMapPin size={20} />
+                                    View Shop Location
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
+
+                {/* Shop Presentation Gallery - For Shop Listings */}
+                {shopListing && ((shopListing.image && shopListing.images?.length > 0) || shopListing.images?.length > 0) && (
+                    <div className="mb-12 md:mb-20">
+                        <div className="flex items-center gap-4 mb-8">
+                            <span className="h-[2px] w-12 bg-primary-600"></span>
+                            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Shop Presentation</h3>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {[shopListing.image, ...(shopListing.images || [])].filter(Boolean).map((img, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    whileHover={{ scale: 1.02 }}
+                                    className="aspect-square rounded-3xl overflow-hidden border border-gray-100 shadow-sm"
+                                >
+                                    <img src={img} alt={`Shop ${idx + 1}`} className="w-full h-full object-cover" />
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Filter & View Controls */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10">
@@ -338,90 +380,12 @@ const B2BVendorStore = () => {
                         : "space-y-6"
                     }>
                         {filteredProducts.map((product) => (
-                            <motion.div
+                            <B2BProductCard
                                 key={product._id}
-                                layout
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                onClick={() => navigate(`/b2b/product/${product._id}`)}
-                                className={`group bg-white rounded-[2.5rem] overflow-hidden border border-gray-100/50 hover:shadow-[0_20px_50px_rgba(114,46,209,0.15)] transition-all duration-500 cursor-pointer flex ${viewMode === 'grid' ? 'flex-col' : 'flex-row'}`}
-                            >
-                                <div className={`${viewMode === 'grid' ? 'w-full aspect-[4/3]' : 'w-64 h-64 flex-shrink-0'} relative overflow-hidden`}>
-                                    <img
-                                        src={product.coverImage || product.image || product.images?.[0] || 'https://via.placeholder.com/400x300'}
-                                        alt={product.name}
-                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                    />
-                                    <div className="absolute top-4 left-4 px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black text-primary-600 uppercase tracking-[0.1em] shadow-sm">
-                                        {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk Only'}
-                                    </div>
-                                </div>
-
-                                <div className="p-6 flex flex-col flex-1">
-                                    <div className="mb-3">
-                                        <h3 className="text-lg font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase tracking-tight">{product.name}</h3>
-                                        <p className="text-[10px] font-black text-gray-400 mt-1 uppercase tracking-[0.2em]">
-                                            {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
-                                        </p>
-                                    </div>
-
-                                    <p className="text-sm text-gray-500 line-clamp-2 mb-4 font-medium leading-relaxed">
-                                        {product.description}
-                                    </p>
-
-                                    <div className="flex items-center gap-4 mt-auto mb-6">
-                                        <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
-                                            <FiTruck className="text-primary-500 text-sm" />
-                                            <span>Min. {product.moq || product.minimumOrderQuantity || 1} {product.unit || 'pcs'}</span>
-                                        </div>
-                                        <div className="px-3 py-1.5 bg-gray-50 rounded-xl flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider border border-gray-100">
-                                            <FiShield className="text-primary-500 text-sm" />
-                                            <span>Verified</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-end justify-between mb-6">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-1">MOQ Price</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-2xl font-black text-primary-600">₹{product.price}</span>
-                                                <span className="text-xs text-gray-400 font-bold uppercase tracking-tighter">/ {product.unit || 'unit'}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-3 pt-6 border-t border-gray-100">
-                                        {vendor?.phone && (
-                                            <>
-                                                <a
-                                                    href={`https://wa.me/${vendor.phone.replace(/\D/g, '')}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        trackContactClick(id, 'whatsapp');
-                                                    }}
-                                                    className="flex-1 py-3 bg-green-50 text-[#25D366] rounded-2xl hover:bg-[#25D366] hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-2 border-green-100"
-                                                >
-                                                    <FaWhatsapp size={14} />
-                                                    WhatsApp
-                                                </a>
-                                                <a
-                                                    href={`tel:${vendor.phone}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        trackContactClick(id, 'call');
-                                                    }}
-                                                    className="flex-1 py-3 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all duration-300 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 border-2 border-blue-100"
-                                                >
-                                                    <FiPhone size={14} />
-                                                    Call
-                                                </a>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </motion.div>
+                                product={product}
+                                viewMode={viewMode}
+                                trackContactClick={trackContactClick}
+                            />
                         ))}
                         {properties.map((property) => (
                             <RealEstateCard key={property._id} property={property} />
@@ -431,8 +395,6 @@ const B2BVendorStore = () => {
             </main>
 
             <B2BBottomNav />
-
-
         </div>
     );
 };

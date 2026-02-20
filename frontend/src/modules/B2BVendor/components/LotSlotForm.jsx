@@ -123,32 +123,37 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     }, [formData.category, categories]);
 
     useEffect(() => {
-        if (formData.category && formData.subcategory) {
-            const cat = categories.find(c => c.name === formData.category);
+        if (categories.length > 0 && formData.category && formData.subcategory) {
+            const cat = categories.find(c => c.name.toLowerCase() === formData.category.toLowerCase());
             const sub = cat?.subcategories.find(s => {
                 const subName = typeof s === 'string' ? s : s.name;
-                return subName === formData.subcategory;
+                return subName.toLowerCase() === formData.subcategory.toLowerCase();
             });
 
             if (sub && typeof sub === 'object') {
-                setDynamicFields(sub.fields || []);
+                const fields = sub.fields || [];
+                setDynamicFields(fields);
 
-                // Initialize dynamic values from existing specifications if in edit mode
-                if (isEdit && initialData?.specifications) {
-                    const newVals = {};
-                    (sub.fields || []).forEach(f => {
-                        const existing = initialData.specifications.find(s => s.name === f.label);
-                        if (existing) newVals[f.label] = existing.value;
+                // Initialize dynamic values from existing specifications
+                setDynamicValues(prev => {
+                    const newVals = { ...prev };
+                    fields.forEach(f => {
+                        const existing = formData.specifications.find(s => s.name?.toLowerCase() === f.label?.toLowerCase());
+                        if (existing && existing.value && !newVals[f.label]) {
+                            newVals[f.label] = existing.value;
+                        }
                     });
-                    setDynamicValues(newVals);
-                }
+                    return newVals;
+                });
             } else {
                 setDynamicFields([]);
+                setDynamicValues({});
             }
         } else {
             setDynamicFields([]);
+            setDynamicValues({});
         }
-    }, [formData.category, formData.subcategory, categories, isEdit, initialData]);
+    }, [formData.category, formData.subcategory, categories]); // Removed initialData dependency and fixed logic to match ProductForm
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -251,12 +256,19 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 .filter(([_, value]) => value !== undefined && value !== "")
                 .map(([name, value]) => ({ name, value }));
 
+            // Filter out any dynamic fields that might already exist in specifications to avoid duplicates
+            // This is the CRITICAL fix for the duplication issue
+            const genericSpecs = formData.specifications.filter(spec =>
+                spec.name && spec.value &&
+                !dynamicFields.some(df => df.label?.toLowerCase() === spec.name?.toLowerCase())
+            );
+
             const payload = {
                 ...formData,
                 moq: parseInt(formData.moq) || 1,
                 price: parseFloat(formData.price),
                 specifications: [
-                    ...formData.specifications.filter(spec => spec.name && spec.value),
+                    ...genericSpecs,
                     ...dynamicSpecs
                 ],
                 bulkPricing: formData.bulkPricing.filter(tier => tier.minQty && tier.price),
@@ -524,39 +536,46 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
                         <div className="space-y-3">
                             <AnimatePresence>
-                                {formData.specifications.map((spec, index) => (
-                                    <motion.div
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
-                                        key={index}
-                                        className="flex gap-3 group"
-                                    >
-                                        <div className="flex-1 grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded-xl border border-gray-100 group-hover:border-orange-100 group-hover:bg-white transition-all">
-                                            <input
-                                                type="text"
-                                                value={spec.name}
-                                                onChange={(e) => updateSpec(index, 'name', e.target.value)}
-                                                className="bg-transparent border-none focus:ring-0 text-xs font-bold text-gray-700 outline-none"
-                                                placeholder="Attribute (e.g. Material)"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={spec.value}
-                                                onChange={(e) => updateSpec(index, 'value', e.target.value)}
-                                                className="bg-transparent border-none focus:ring-0 text-xs text-gray-600 outline-none"
-                                                placeholder="Value (e.g. 100% Pure Silk)"
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeSpec(index)}
-                                            className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                                {formData.specifications.map((spec, index) => {
+                                    // Hide specs that are already shown as dynamic fields to avoid visual confusion
+                                    if (dynamicFields.some(df => df.label?.toLowerCase() === spec.name?.toLowerCase())) {
+                                        return null;
+                                    }
+
+                                    return (
+                                        <motion.div
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            key={index}
+                                            className="flex gap-3 group"
                                         >
-                                            <FiTrash2 size={16} />
-                                        </button>
-                                    </motion.div>
-                                ))}
+                                            <div className="flex-1 grid grid-cols-2 gap-3 bg-slate-50 p-2.5 rounded-xl border border-gray-100 group-hover:border-orange-100 group-hover:bg-white transition-all">
+                                                <input
+                                                    type="text"
+                                                    value={spec.name}
+                                                    onChange={(e) => updateSpec(index, 'name', e.target.value)}
+                                                    className="bg-transparent border-none focus:ring-0 text-xs font-bold text-gray-700 outline-none"
+                                                    placeholder="Attribute (e.g. Material)"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={spec.value}
+                                                    onChange={(e) => updateSpec(index, 'value', e.target.value)}
+                                                    className="bg-transparent border-none focus:ring-0 text-xs text-gray-600 outline-none"
+                                                    placeholder="Value (e.g. 100% Pure Silk)"
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeSpec(index)}
+                                                className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                                            >
+                                                <FiTrash2 size={16} />
+                                            </button>
+                                        </motion.div>
+                                    );
+                                })}
                             </AnimatePresence>
                             {formData.specifications.length === 0 && (
                                 <div className="text-center py-6 text-gray-400 border border-dashed border-gray-200 rounded-xl text-sm">

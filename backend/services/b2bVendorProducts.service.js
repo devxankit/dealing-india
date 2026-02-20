@@ -29,7 +29,7 @@ const verifyB2BVendor = async (vendorId) => {
  * Generate SKU for B2B product
  */
 const generateSKU = async (name, vendorId) => {
-  const prefix = name.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, 'X');
+  const prefix = (name || 'B2B').substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, 'X');
   const vendorSuffix = vendorId.toString().slice(-4).toUpperCase();
   const timestamp = Date.now().toString().slice(-6);
   let generatedSku = `B2B-${prefix}-${vendorSuffix}-${timestamp}`;
@@ -111,6 +111,7 @@ export const getB2BVendorProducts = async (vendorId, filters = {}) => {
     const [products, total] = await Promise.all([
       Product.find(query)
         .populate('vendorId', 'name storeName vendorType')
+        .populate('shopUnitId')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))
@@ -120,8 +121,20 @@ export const getB2BVendorProducts = async (vendorId, filters = {}) => {
 
     const totalPages = Math.ceil(total / parseInt(limit));
 
-    // Sanitize product images
+    // Sanitize product images and merge shop data
     const sanitizedProducts = products.map(product => {
+      // If it's a shop listing, merge shop unit details into the root for UI compatibility
+      if (product.formType === 'shop-listing' && product.shopUnitId) {
+        const shop = product.shopUnitId;
+        product.name = product.name || shop.name;
+        product.description = product.description || shop.description;
+        product.image = product.image || (shop.images && shop.images[0]);
+        product.images = (product.images && product.images.length > 0) ? product.images : shop.images;
+        product.minPrice = product.minPrice ?? shop.minPrice;
+        product.maxPrice = product.maxPrice ?? shop.maxPrice;
+        if (product.price === undefined || product.price === 0) product.price = shop.minPrice;
+      }
+
       // Normalize for frontend consistency if needed
       const feCategory = product.category || product.attributes?.find(a => a.name === 'category')?.value;
       const feSubcategory = product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value;
@@ -164,12 +177,25 @@ export const getB2BVendorProductById = async (productId, vendorId) => {
       isActive: true,
     })
       .populate('vendorId', 'name storeName vendorType')
+      .populate('shopUnitId')
       .lean();
 
     if (!product) {
       const err = new Error('Product not found');
       err.status = 404;
       throw err;
+    }
+
+    // If it's a shop listing, merge shop unit details into the root for UI compatibility
+    if (product.formType === 'shop-listing' && product.shopUnitId) {
+      const shop = product.shopUnitId;
+      product.name = product.name || shop.name;
+      product.description = product.description || shop.description;
+      product.image = product.image || (shop.images && shop.images[0]);
+      product.images = (product.images && product.images.length > 0) ? product.images : shop.images;
+      product.minPrice = product.minPrice ?? shop.minPrice;
+      product.maxPrice = product.maxPrice ?? shop.maxPrice;
+      if (product.price === undefined || product.price === 0) product.price = shop.minPrice;
     }
 
     // Normalize category/subcategory/bulkPricing for consistency if they were in attributes
@@ -205,10 +231,19 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     } = productData;
 
     // Validate required fields early
-    if (!name || (productData.formType !== 'shop-listing' && (!price || !moq))) {
-      const err = new Error('Name, price, and MOQ are required for standard listings');
-      err.status = 400;
-      throw err;
+    if (productData.formType !== 'shop-listing') {
+      if (!name || !price || !moq) {
+        const err = new Error('Name, price, and MOQ are required for standard listings');
+        err.status = 400;
+        throw err;
+      }
+    } else {
+      // For shop-listing, we need either a name or an existing shopUnitId
+      if (!name && !productData.shopUnitId) {
+        const err = new Error('Shop name or Shop ID is required');
+        err.status = 400;
+        throw err;
+      }
     }
 
     // Parallelize all initial checks and generations for maximum speed
@@ -246,24 +281,37 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
 
     // Handle ShopUnit creation/update - Enforce ONE shop per vendor
     let internalShopUnitId = shopUnitId;
-    if (productData.formType === 'shop-listing' && name) {
+    let shopUnitDetails = null;
+
+    if (productData.formType === 'shop-listing') {
       const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
       let shopUnit = await ShopUnit.findOne({ vendorId });
 
-      const unitData = {
-        name: name.trim(),
-        description: description || '',
-        minPrice: minPrice ? parseFloat(minPrice) : 0,
-        maxPrice: maxPrice ? parseFloat(maxPrice) : 0,
-        vendorId,
-      };
+      // If shop details are provided, update/create the ShopUnit
+      // If details are provided, update/create the ShopUnit. 
+      // Optimized case: If ONLY items were sent, we rely on existing shopUnit without fetching or copying details.
+      if (name || description || (images && images.length > 0) || minPrice || maxPrice) {
+        const unitData = {};
+        if (name) unitData.name = name.trim();
+        if (description !== undefined) unitData.description = description;
+        if (minPrice !== undefined) unitData.minPrice = parseFloat(minPrice || 0);
+        if (maxPrice !== undefined) unitData.maxPrice = parseFloat(maxPrice || 0);
 
-      if (shopUnit) {
-        await ShopUnit.findByIdAndUpdate(shopUnit._id, unitData);
+        if (shopUnit) {
+          shopUnit = await ShopUnit.findByIdAndUpdate(shopUnit._id, unitData, { new: true });
+        } else {
+          unitData.vendorId = vendorId;
+          shopUnit = await ShopUnit.create(unitData);
+        }
         internalShopUnitId = shopUnit._id;
-      } else {
-        const newUnit = await ShopUnit.create(unitData);
-        internalShopUnitId = newUnit._id;
+        shopUnitDetails = shopUnit;
+      } else if (shopUnitId) {
+        // Optimized case: No details sent, just point to the ID. 
+        // We set internalShopUnitId but DON'T set shopUnitDetails to avoid copying fields later.
+        internalShopUnitId = shopUnitId;
+      } else if (shopUnit) {
+        // Fallback: Use existing if it was found but not sent in payload
+        internalShopUnitId = shopUnit._id;
       }
     }
 
@@ -296,41 +344,69 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       }
     };
 
-    if (images && images.length > 0) {
-      // First image is the main image
-      const mainImage = images[0];
-      if (mainImage) {
-        const uploadResult = await safeUpload(mainImage, 'products/b2b');
-        if (uploadResult) {
-          imageUrl = uploadResult.secure_url;
-          imagePublicId = uploadResult.public_id;
+    const finalImages = (images && images.length > 0) ? images : (shopUnitDetails?.images || []);
+
+    // Process shop images AND shop items in PARALLEL for faster submission
+    const uploadShopImages = async () => {
+      if (finalImages.length === 0) return;
+      // Upload ALL shop images in parallel (main + gallery)
+      const allUploads = finalImages.map(async (img, idx) => {
+        if (img.startsWith('http')) {
+          return { secure_url: img, public_id: shopUnitDetails?.imagesPublicIds?.[idx] || null };
         }
-      }
-
-      // Upload remaining gallery images
-      const galleryUploads = images.slice(1).map(img => safeUpload(img, 'products/b2b/gallery'));
-      const results = await Promise.allSettled(galleryUploads);
-
-      // Check for failures
+        const folder = idx === 0 ? 'products/b2b' : 'products/b2b/gallery';
+        return safeUpload(img, folder);
+      });
+      const results = await Promise.allSettled(allUploads);
       const failedUploads = results.filter(r => r.status === 'rejected');
       if (failedUploads.length > 0) {
-        console.error(`[B2B Product Upload] ${failedUploads.length} gallery images failed to upload.`);
         const firstError = failedUploads[0].reason;
         throw new Error(`Image upload failed: ${firstError.message}`);
       }
-
-      // Collect successful uploads
-      results.forEach(res => {
+      results.forEach((res, idx) => {
         if (res.status === 'fulfilled' && res.value) {
-          imageUrls.push(res.value.secure_url);
-          if (res.value.public_id) {
-            imagePublicIds.push(res.value.public_id);
+          if (idx === 0) {
+            imageUrl = res.value.secure_url;
+            imagePublicId = res.value.public_id;
+          } else {
+            imageUrls.push(res.value.secure_url);
+            if (res.value.public_id) imagePublicIds.push(res.value.public_id);
           }
         }
       });
+    };
+
+    const processShopItemsTask = async () => {
+      if (!shopItems || !Array.isArray(shopItems)) return [];
+      const itemPromises = shopItems.map(async (item) => {
+        const itemImageUrls = [];
+        const itemPublicIds = [];
+        if (item.images && Array.isArray(item.images)) {
+          const itemUploads = item.images.map(img => safeUpload(img, 'products/b2b/items'));
+          const itemResults = await Promise.allSettled(itemUploads);
+          itemResults.forEach(res => {
+            if (res.status === 'fulfilled' && res.value) {
+              itemImageUrls.push(res.value.secure_url);
+              if (res.value.public_id) itemPublicIds.push(res.value.public_id);
+            }
+          });
+        }
+        return { ...item, images: itemImageUrls, imagesPublicIds: itemPublicIds };
+      });
+      return Promise.all(itemPromises);
+    };
+
+    const [, processedShopItemsResult] = await Promise.all([uploadShopImages(), processShopItemsTask()]);
+    const processedShopItems = processedShopItemsResult || [];
+
+    if (finalImages.length > 0 && productData.formType === 'shop-listing' && internalShopUnitId && (images && images.length > 0)) {
+      const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
+      await ShopUnit.findByIdAndUpdate(internalShopUnitId, {
+        images: [imageUrl, ...imageUrls].filter(Boolean),
+        imagesPublicIds: [imagePublicId, ...imagePublicIds].filter(Boolean)
+      });
     }
 
-    // Validate that we have a main image if images were provided
     if (images && images.length > 0 && !imageUrl) {
       throw new Error('Failed to upload main product image');
     }
@@ -358,48 +434,24 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     // Determine stock status
     let stock = 'in_stock';
     let stockQuantity = parseInt(moq) || 0;
-    if (availability === 'Out of Stock') {
+
+    // Shop listings don't track stock - always in_stock
+    if (productData.formType === 'shop-listing') {
+      stock = 'in_stock';
+      stockQuantity = 1;
+    } else if (availability === 'Out of Stock') {
       stock = 'out_of_stock';
       stockQuantity = 0;
     } else if (availability === 'Available on Order') {
       stock = 'pre_order';
     }
 
-    // Process shopItems images if present
-    const processedShopItems = [];
-    if (shopItems && Array.isArray(shopItems)) {
-      for (const item of shopItems) {
-        const itemImageUrls = [];
-        const itemPublicIds = [];
-
-        if (item.images && Array.isArray(item.images)) {
-          const itemUploads = item.images.map(img => safeUpload(img, 'products/b2b/items'));
-          const itemResults = await Promise.allSettled(itemUploads);
-
-          itemResults.forEach(res => {
-            if (res.status === 'fulfilled' && res.value) {
-              itemImageUrls.push(res.value.secure_url);
-              if (res.value.public_id) {
-                itemPublicIds.push(res.value.public_id);
-              }
-            }
-          });
-        }
-
-        processedShopItems.push({
-          ...item,
-          images: itemImageUrls,
-          imagesPublicIds: itemPublicIds,
-        });
-      }
-    }
-
     // Create product
     const product = await Product.create({
-      name: name.trim(),
+      name: (name || shopUnitDetails?.name || '').trim(),
       sku,
-      price: productData.formType === 'shop-listing' ? parseFloat(minPrice || 0) : parseFloat(price),
-      description: description || '',
+      price: productData.formType === 'shop-listing' ? parseFloat(minPrice || shopUnitDetails?.minPrice || 0) : parseFloat(price),
+      description: description || shopUnitDetails?.description || '',
       image: imageUrl,
       imagePublicId: imagePublicId,
       images: imageUrls,
@@ -412,7 +464,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       category: category || '',
       subcategory: subcategory || '',
       bulkPricing: bulkPricing || [],
-      unit: unit || 'Pcs',
+      unit: productData.formType === 'shop-listing' ? 'Items' : (unit || 'Pcs'),
       formType: productData.formType || 'standard',
       shopUnitId: internalShopUnitId,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
@@ -421,7 +473,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       vendorId,
       vendorName: vendor.storeName || vendor.name,
       isActive: true,
-      isVisible: stock !== 'out_of_stock', // Auto-hide out of stock items
+      isVisible: true, // Shop listings are always visible; standard products hide when out_of_stock
     });
 
     return product.toObject();

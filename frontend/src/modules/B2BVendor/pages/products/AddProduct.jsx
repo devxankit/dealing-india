@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import B2BVendorProductForm from "../../components/ProductForm";
 import ShopProductForm from "../../components/ShopProductForm";
 import { motion } from 'framer-motion';
@@ -9,14 +10,18 @@ import { useNavigate } from "react-router-dom";
 const AddProduct = ({ forceShop = false }) => {
     const { settings, loading } = useVendorSettings();
     const navigate = useNavigate();
+    const [submitting, setSubmitting] = useState(false);
 
     const handleShopSubmit = async (formData) => {
+        setSubmitting(true);
         try {
             await api.post('/b2b-vendor/products', formData);
             toast.success("Shop listing published successfully");
             navigate("/b2b-vendor/products/manage-products");
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to publish shop listing");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -46,7 +51,7 @@ const AddProduct = ({ forceShop = false }) => {
             </div>
 
             {isShopListing ? (
-                <ShopProductForm onSubmit={handleShopSubmit} />
+                <ShopProductForm onSubmit={handleShopSubmit} isLoading={submitting} />
             ) : (
                 <B2BVendorProductForm isEdit={false} />
             )}

@@ -9,8 +9,9 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import { appLogo } from '../../../data/logos';
 import B2BBanner from '../components/B2BBanner';
+import B2BProductCard from '../components/B2BProductCard';
 import api from '../../../shared/utils/api';
-import { debounce } from '../../../shared/utils/helpers';
+import { debounce, getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useB2BLocationStore } from '../../../shared/store/b2bLocationStore';
@@ -408,7 +409,7 @@ const B2BLanding = () => {
         }
     };
 
-    const ProductPopup = ({ title, onViewAll }) => (
+    const ProductPopup = ({ title, onViewAll, itemType }) => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
@@ -432,84 +433,17 @@ const B2BLanding = () => {
                     {popupProducts.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {popupProducts.map((product) => (
-                                <div
+                                <B2BProductCard
                                     key={product._id}
-                                    onClick={() => {
+                                    product={product}
+                                    viewMode="grid"
+                                    trackContactClick={trackContactClick}
+                                    itemType={itemType}
+                                    onCardClick={() => {
                                         closePopup();
                                         navigate(`/b2b/product/${product._id}`);
                                     }}
-                                    className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-[0_10px_20px_rgba(0,0,0,0.05)] transition-all duration-500 cursor-pointer flex flex-col"
-                                >
-                                    {/* Image Container */}
-                                    <div className="relative aspect-video overflow-hidden bg-gray-50">
-                                        <img
-                                            src={product.coverImage || product.image || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null) || 'https://via.placeholder.com/400x300'}
-                                            alt={product.name}
-                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                        />
-                                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-white/90 backdrop-blur-md rounded-full text-[7px] font-black text-primary-600 uppercase tracking-wider shadow-sm">
-                                            {product.itemType === 'lotslot' ? 'Bulk Lot' : 'Bulk Supply'}
-                                        </div>
-                                        <div className="absolute bottom-2 right-2 px-2 py-1 bg-primary-600 rounded-lg shadow-lg shadow-primary-200">
-                                            <div className="flex items-baseline gap-0.5">
-                                                <span className="text-[8px] font-black text-white/80">₹</span>
-                                                <span className="text-sm font-black text-white">{product.price}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Content Body */}
-                                    <div className="p-3 md:p-4 flex flex-col gap-2">
-                                        <div className="min-w-0">
-                                            <h3 className="text-xs md:text-sm font-black text-gray-900 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase tracking-tight">
-                                                {product.name}
-                                            </h3>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                                                    {product.subcategory || 'Industrial'}
-                                                </p>
-                                                {product.vendorId?.address?.city && (
-                                                    <span className="text-[8px] text-gray-300 font-bold uppercase tracking-widest">• {product.vendorId.address.city}</span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Info Row: MOQ and Vendor */}
-                                        <div className="flex items-center justify-between gap-2 py-2 border-y border-gray-50">
-                                            <div className="flex items-center gap-1.5 text-[8px] font-black text-gray-500 uppercase tracking-wider">
-                                                <FiTruck className="text-primary-500" size={10} />
-                                                <span>Min {product.moq || 1} {product.unit || 'pcs'}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-1.5">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const phone = product.vendorId?.phone || '';
-                                                    const vendorId = product.vendorId?._id;
-                                                    if (vendorId) trackContactClick(vendorId, 'whatsapp');
-                                                    if (phone) window.open(`https://wa.me/91${phone.replace(/\D/g, '')}`, '_blank');
-                                                }}
-                                                className="flex-1 py-2 bg-[#25D366]/10 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all duration-300 flex items-center justify-center gap-1 font-black text-[7px] uppercase tracking-widest"
-                                            >
-                                                <FaWhatsapp size={10} /> WA
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const phone = product.vendorId?.phone || '';
-                                                    const vendorId = product.vendorId?._id;
-                                                    if (vendorId) trackContactClick(vendorId, 'call');
-                                                    if (phone) window.open(`tel:+91${phone}`, '_self');
-                                                }}
-                                                className="flex-1 py-2 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-600 hover:text-white transition-all duration-300 flex items-center justify-center gap-1 font-black text-[7px] uppercase tracking-widest"
-                                            >
-                                                <FiPhone size={10} /> Call
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                />
                             ))}
                         </div>
                     ) : (
@@ -969,6 +903,7 @@ const B2BLanding = () => {
                 {activePopup === 'lots' && (
                     <ProductPopup
                         title="Explore Lot / SOT"
+                        itemType="lotslot"
                         onViewAll={() => navigate('/b2b/catalog?itemType=lotslot')}
                     />
                 )}

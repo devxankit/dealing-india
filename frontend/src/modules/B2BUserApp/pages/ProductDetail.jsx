@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     FiArrowLeft, FiMessageSquare, FiTruck, FiShield,
     FiCheckCircle, FiShare2, FiInfo, FiSend, FiX,
-    FiPlus, FiMinus, FiShoppingBag, FiStar, FiPaperclip, FiFile, FiPhone
+    FiPlus, FiMinus, FiShoppingBag, FiStar, FiPaperclip, FiFile, FiPhone, FiMapPin
 } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
@@ -12,7 +12,7 @@ import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import api from '../../../shared/utils/api';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
-import { formatPrice } from '../../../shared/utils/helpers';
+import { formatPrice, getGoogleMapsUrl } from '../../../shared/utils/helpers';
 
 const B2BProductDetail = () => {
     const { id } = useParams();
@@ -104,9 +104,19 @@ const B2BProductDetail = () => {
     if (!product) return null;
 
     let productImages = [];
-    if (product.unitDetails?.images && product.unitDetails.images.length > 0) {
-        productImages = product.unitDetails.images;
+    if (product.formType === 'shop-listing') {
+        // For shop-listing detail page, show item images (Section B) since user clicked on the item
+        const itemImages = product.items?.[0]?.images || [];
+        if (Array.isArray(itemImages) && itemImages.length > 0) {
+            productImages = itemImages;
+        } else {
+            // Fallback to shop images if item has no images
+            productImages = Array.isArray(product.images) && product.images.length > 0
+                ? product.images
+                : product.unitDetails?.images || [];
+        }
     } else {
+        // Standard product logic
         if (product.coverImage) productImages.push(product.coverImage);
         if (product.image) productImages.push(product.image);
         if (Array.isArray(product.images) && product.images.length > 0) {
@@ -120,6 +130,7 @@ const B2BProductDetail = () => {
     const safeSelectedImage = Math.min(selectedImage, productImages.length - 1);
 
     const getCategoryName = () => {
+        if (product.formType === 'shop-listing') return 'Shop Listing';
         if (product.category) return product.category; // LotSlot string field
         if (product.categoryId?.name) return product.categoryId.name;
         const categoryAttr = product.attributes?.find(attr =>
@@ -223,11 +234,13 @@ const B2BProductDetail = () => {
                                 {getCategoryName()}
                             </span>
                             <h1 className="text-2xl md:text-5xl font-black text-gray-900 leading-[1.1] uppercase tracking-tighter">
-                                {product.unitDetails?.name || product.name}
+                                {product.formType === 'shop-listing' && product.items?.[0]
+                                    ? (product.items[0].itemName || product.name)
+                                    : product.name}
                             </h1>
-                            {product.unitDetails && (
+                            {product.formType === 'shop-listing' && (product.unitDetails?.name || product.name) && (
                                 <p className="text-sm font-bold text-gray-400 mt-2 uppercase tracking-widest">
-                                    Item: {product.name}
+                                    Shop: {product.unitDetails?.name || product.name}
                                 </p>
                             )}
                             <div className="h-1 w-20 bg-primary-600 rounded-full"></div>
@@ -238,16 +251,31 @@ const B2BProductDetail = () => {
 
                             <div className="flex items-start justify-between mb-8 md:mb-10 relative z-10">
                                 <div>
-                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Market Value</span>
+                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">
+                                        {product.formType === 'shop-listing' ? 'Item Rate' : 'Market Value'}
+                                    </span>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-3xl md:text-5xl font-black text-primary-600 tracking-tighter">₹{product.price}</span>
-                                        <span className="text-gray-400 font-bold text-xs md:text-sm uppercase tracking-widest">/ {product.unit || 'pc'}</span>
+                                        <span className="text-3xl md:text-5xl font-black text-primary-600 tracking-tighter">
+                                            ₹{product.formType === 'shop-listing' && product.items?.length > 0
+                                                ? product.items[0].price
+                                                : product.price}
+                                        </span>
+                                        <span className="text-gray-400 font-bold text-xs md:text-sm uppercase tracking-widest">
+                                            / {product.formType === 'shop-listing' && product.items?.[0]
+                                                ? product.items[0].unit
+                                                : (product.unit || 'pc')}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Minimum Order</span>
-                                    <span className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">{product.moq || 1} <span className="text-[10px] md:text-xs text-gray-400 uppercase">{product.unit || 'Units'}</span></span>
-                                </div>
+                                {product.formType !== 'shop-listing' && (
+                                    <div className="text-right">
+                                        <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Minimum Order</span>
+                                        <span className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">
+                                            {product.moq || 1}
+                                            <span className="text-[10px] md:text-xs text-gray-400 uppercase ml-1">{product.unit || 'Units'}</span>
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-6 relative z-10">
@@ -265,7 +293,7 @@ const B2BProductDetail = () => {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-2 gap-3 md:gap-4 pt-6 md:pt-8 border-t border-gray-50">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pt-6 md:pt-8 border-t border-gray-50">
                                     {product.vendorId?.phone && (
                                         <>
                                             <button
@@ -278,7 +306,21 @@ const B2BProductDetail = () => {
                                                 onClick={handleCallClick}
                                                 className="py-4 md:py-6 bg-gray-900 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-gray-200 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
                                             >
-                                                <FiPhone className="text-lg md:text-xl" /> Call Now
+                                                <FiPhone className="text-lg md:text-xl" /> Call
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const mapsUrl = getGoogleMapsUrl(product.vendorId);
+                                                    if (mapsUrl) {
+                                                        trackContactClick('map');
+                                                        window.open(mapsUrl, '_blank');
+                                                    } else {
+                                                        toast.error('Location details not provided');
+                                                    }
+                                                }}
+                                                className="py-4 md:py-6 bg-orange-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-orange-100 hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-3"
+                                            >
+                                                <FiMapPin className="text-lg md:text-xl" /> Map
                                             </button>
                                         </>
                                     )}
@@ -288,7 +330,7 @@ const B2BProductDetail = () => {
 
                         {/* Vendor Card */}
                         <div
-                            onClick={() => product.vendorId?._id && navigate(`/b2b/vendor/${product.vendorId._id}`)}
+                            onClick={() => product.vendorId?._id && navigate(`/b2b/vendor/${product.vendorId._id}?itemType=${product.itemType}`)}
                             className="bg-primary-600 p-6 md:p-10 rounded-3xl md:rounded-[3.5rem] text-white shadow-2xl relative group cursor-pointer overflow-hidden border-2 md:border-4 border-primary-500/50"
                         >
                             <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-20 -mt-20 group-hover:scale-150 transition-transform duration-1000"></div>

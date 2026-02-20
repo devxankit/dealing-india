@@ -16,17 +16,8 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
   const isVendor = path.startsWith('/vendor') && !path.startsWith('/b2b-vendor');
   const isAdmin = path.startsWith('/admin');
 
-  // Filter notifications for B2B vendors - only show inquiry-related notifications
-  const filterNotifications = (notifs) => {
-    if (isB2BVendor) {
-      // For B2B vendors, only show inquiry notifications
-      return notifs.filter(n => n.type === 'inquiry' || n.type === 'chat_message');
-    }
-    return notifs;
-  };
-
   const {
-    notifications: allNotifications,
+    notifications,
     unreadCount,
     loading,
     markAsRead,
@@ -35,11 +26,7 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
   } = useNotifications({
     autoFetch: isOpen,
     enableSocket: true,
-    filters: isB2BVendor ? { type: 'inquiry' } : {},
   });
-
-  // Apply filter to notifications
-  const notifications = filterNotifications(allNotifications);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -156,12 +143,18 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
         navigate(`/admin/orders/all-orders`);
       }
       onClose();
+    } else {
+      // Fallback for B2B vendors to notifications page
+      if (isB2BVendor) {
+        navigate('/b2b-vendor/notifications');
+      }
+      onClose();
     }
   };
 
   const getViewAllUrl = () => {
     if (isB2BVendor) {
-      return '/b2b-vendor/messages';
+      return '/b2b-vendor/notifications';
     } else if (isVendor) {
       return '/vendor/notifications';
     } else if (isAdmin) {

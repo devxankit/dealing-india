@@ -143,11 +143,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                     );
 
                     if (existingSpec && existingSpec.value) {
-                        // Only set if not already set or if empty (to prioritize loaded data on first run)
-                        // But we want to allow user edits if they already typed something.
-                        // Since specifications don't change on user input to dynamic fields, this is safe for initialization.
-                        // To avoid overwriting user changes during a session (if they switch subcat and back), we can check.
-                        // However, simplistic approach: prioritize existingSpec if current value is empty/undefined.
+                        // Only set if not already set or if explicitly provided from loaded data
                         if (!newValues[field.label]) {
                             newValues[field.label] = existingSpec.value;
                         }
@@ -155,8 +151,11 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 });
                 return newValues;
             });
+        } else {
+            setDynamicFields([]);
+            setDynamicValues({});
         }
-    }, [formData.category, formData.subcategory, categories]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [formData.category, formData.subcategory, categories]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -436,6 +435,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     {f.type === "text" && (
                                         <input
                                             type="text"
+                                            value={dynamicValues[f.label] || ""}
                                             className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
                                             placeholder={`Enter ${f.label}`}
                                             onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
@@ -445,6 +445,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     {f.type === "number" && (
                                         <input
                                             type="number"
+                                            value={dynamicValues[f.label] || ""}
                                             className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
                                             placeholder="0"
                                             onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
@@ -453,6 +454,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
                                     {f.type === "select" && (
                                         <select
+                                            value={dynamicValues[f.label] || ""}
                                             className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
                                             onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
                                         >
@@ -464,6 +466,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     {f.type === "multi-select" && (
                                         <select
                                             multiple
+                                            value={dynamicValues[f.label] || []}
                                             className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none min-h-[100px]"
                                             onChange={(e) => {
                                                 const vals = [...e.target.selectedOptions].map(o => o.value);

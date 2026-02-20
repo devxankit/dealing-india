@@ -37,17 +37,26 @@ const ManageProducts = () => {
                 const transformedProducts = response.data.products.map(product => {
                     // Extract category from root field or attributes
                     const categoryAttr = product.attributes?.find(attr => attr.name === 'category');
-                    const category = product.category || categoryAttr?.value || 'N/A';
+                    const isShopListing = product.formType === 'shop-listing';
+                    const category = isShopListing
+                        ? 'Shop Listing'
+                        : (product.category || categoryAttr?.value || 'N/A');
 
                     return {
                         _id: product._id,
                         name: product.name,
                         image: product.image,
                         price: product.price,
+                        minPrice: product.minPrice,
+                        maxPrice: product.maxPrice,
                         moq: product.minimumOrderQuantity || 1,
                         unit: product.unit || 'Pcs',
                         category: category,
                         visibility: product.isVisible ? 'Visible' : 'Hidden',
+                        formType: product.formType,
+                        itemsCount: product.items?.length || 0,
+                        items: product.items || [],
+                        storeName: product.vendorId?.storeName || product.vendorName || null,
                     };
                 });
                 setProducts(transformedProducts);
@@ -60,72 +69,92 @@ const ManageProducts = () => {
         }
     };
 
-    const columns = [
-        {
-            key: "name",
-            label: "Product Name",
-            sortable: true,
-            render: (value, row) => (
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100">
-                        {row.image ? (
-                            <img
-                                src={row.image}
-                                alt={value}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = 'https://via.placeholder.com/150?text=No+Image';
-                                }}
-                            />
-                        ) : (
-                            <FiPackage className="text-gray-400 text-xl" />
-                        )}
-                    </div>
-                    <span className="font-medium text-gray-800">{value}</span>
+    const cellImage = (row) => (
+        <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100 flex-shrink-0">
+                {row.image ? (
+                    <img
+                        src={row.image}
+                        alt={row.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://via.placeholder.com/150?text=No+Image';
+                        }}
+                    />
+                ) : (
+                    <FiPackage className="text-gray-400 text-xl" />
+                )}
+            </div>
+            <div className="min-w-0">
+                <span className="font-medium text-gray-800 block truncate">{row.name}</span>
+                {row.formType === 'shop-listing' && row.storeName && (
+                    <span className="text-xs text-gray-500 font-medium block truncate" title={row.storeName}>
+                        Shop: {row.storeName}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+
+    const shopListingItemCell = (_, row) => {
+        const firstItem = row.items?.[0];
+        const itemImg = firstItem?.images?.[0];
+        const itemName = firstItem?.itemName || firstItem?.name;
+        return (
+            <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100 flex-shrink-0">
+                    {itemImg ? (
+                        <img src={itemImg} alt={itemName} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=No+Image'; }} />
+                    ) : (
+                        <FiPackage className="text-gray-400 text-xl" />
+                    )}
                 </div>
-            ),
-        },
-        {
-            key: "category",
-            label: "Category",
-            sortable: true,
-        },
-        {
-            key: "price",
-            label: "Exp. Price",
-            sortable: true,
-            render: (value) => `₹${value}`,
-        },
-        {
-            key: "moq",
-            label: "Min. Order (MOQ)",
-            sortable: true,
-            render: (value, row) => `${value} ${row.unit}`,
-        },
-        {
-            key: "visibility",
-            label: "Status",
-            render: (value) => (
-                <Badge variant={value === "Visible" ? "success" : "warning"}>
-                    {value.toUpperCase()}
-                </Badge>
-            ),
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (_, row) => (
-                <div className="flex items-center gap-2">
-                    <button onClick={() => navigate(`/b2b-vendor/products/edit/${row._id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                        <FiEdit />
-                    </button>
-                    <button onClick={() => setDeleteModal({ isOpen: true, productId: row._id })} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                        <FiTrash2 />
-                    </button>
+                <div className="min-w-0">
+                    <span className="font-medium text-gray-800 block truncate">{itemName || 'Item'}</span>
+                    {row.items?.length > 1 && (
+                        <span className="text-xs text-gray-500 font-medium block truncate">+{row.items.length - 1} more</span>
+                    )}
                 </div>
-            ),
-        },
+            </div>
+        );
+    };
+
+    const actionsCell = (_, row) => (
+        <div className="flex items-center gap-2">
+            <button onClick={() => navigate(`/b2b-vendor/products/edit/${row._id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                <FiEdit />
+            </button>
+            <button onClick={() => setDeleteModal({ isOpen: true, productId: row._id })} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                <FiTrash2 />
+            </button>
+        </div>
+    );
+
+    const statusCell = (value) => (
+        <Badge variant={value === "Visible" ? "success" : "warning"}>
+            {value.toUpperCase()}
+        </Badge>
+    );
+
+    // Shop Listing columns – item name, item details (not shop info)
+    const shopListingColumns = [
+        { key: "name", label: "Item Name", sortable: true, render: (v, row) => shopListingItemCell(v, row) },
+        { key: "category", label: "Type", sortable: true, render: (_, row) => row.items?.[0]?.category || 'Shop Listing' },
+        { key: "price", label: "Item Price", sortable: true, render: (_, row) => row.items?.[0]?.price != null ? `₹${row.items[0].price} / ${row.items[0].unit || 'pcs'}` : (row.minPrice != null && row.maxPrice != null ? `₹${row.minPrice} - ₹${row.maxPrice}` : '–') },
+        { key: "moq", label: "Items", sortable: true, render: (_, row) => row.items?.map(i => i.itemName || i.name).filter(Boolean).join(', ') || `${row.itemsCount || 0} Item${(row.itemsCount || 0) !== 1 ? 's' : ''}` },
+        { key: "visibility", label: "Status", render: statusCell },
+        { key: "actions", label: "Actions", render: actionsCell },
+    ];
+
+    // Product Listing columns – product name, exp price, MOQ
+    const productListingColumns = [
+        { key: "name", label: "Product Name", sortable: true, render: (v, row) => cellImage(row) },
+        { key: "category", label: "Category", sortable: true },
+        { key: "price", label: "Exp. Price", sortable: true, render: (v) => `₹${v}` },
+        { key: "moq", label: "Min. Order (MOQ)", sortable: true, render: (v, row) => `${v} ${row.unit}` },
+        { key: "visibility", label: "Status", render: statusCell },
+        { key: "actions", label: "Actions", render: actionsCell },
     ];
 
     const confirmDelete = async () => {
@@ -175,15 +204,54 @@ const ManageProducts = () => {
                         <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
                     </div>
                 ) : (
-                    <DataTable
-                        data={products.filter(p =>
-                            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            p.category.toLowerCase().includes(searchQuery.toLowerCase())
-                        )}
-                        columns={columns}
-                        pagination={true}
-                        itemsPerPage={10}
-                    />
+                    <>
+                        {(() => {
+                            const filterProducts = (list) => list.filter(p => {
+                                const q = searchQuery.toLowerCase().trim();
+                                if (!q) return true;
+                                const matchName = p.name?.toLowerCase().includes(q);
+                                const matchCategory = p.category?.toLowerCase().includes(q);
+                                const matchStore = p.storeName?.toLowerCase().includes(q);
+                                const matchItemName = p.items?.some(i => (i.itemName || i.name || '').toLowerCase().includes(q));
+                                return matchName || matchCategory || matchStore || matchItemName;
+                            });
+                            const shopListings = filterProducts(products.filter(p => p.formType === 'shop-listing'));
+                            const productListings = filterProducts(products.filter(p => p.formType !== 'shop-listing'));
+
+                            return (
+                                <div className="space-y-10">
+                                    {shopListings.length > 0 && (
+                                        <div>
+                                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Shop Listings</h3>
+                                            <DataTable
+                                                data={shopListings}
+                                                columns={shopListingColumns}
+                                                pagination={shopListings.length > 10}
+                                                itemsPerPage={10}
+                                            />
+                                        </div>
+                                    )}
+                                    {productListings.length > 0 && (
+                                        <div>
+                                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Product Listings</h3>
+                                            <DataTable
+                                                data={productListings}
+                                                columns={productListingColumns}
+                                                pagination={productListings.length > 10}
+                                                itemsPerPage={10}
+                                            />
+                                        </div>
+                                    )}
+                                    {shopListings.length === 0 && productListings.length === 0 && (
+                                        <div className="text-center py-16 text-gray-400">
+                                            <FiPackage className="mx-auto text-5xl mb-4 opacity-30" />
+                                            <p className="font-bold uppercase tracking-widest text-sm">No listings found</p>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </>
                 )}
             </div>
 

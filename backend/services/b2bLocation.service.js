@@ -39,21 +39,9 @@ export const getB2BAvailableLocations = async (options = {}) => {
       return { states: [] };
     }
 
-    // Get vendor IDs
-    const vendorIds = b2bVendors.map(v => v._id);
-
-    // Check which vendors have at least one active product
-    const vendorsWithProducts = await Product.distinct('vendorId', {
-      vendorId: { $in: vendorIds },
-      isActive: true,
-      isVisible: true,
-    });
-
-    // Filter vendors to only those with products
-    const activeVendorIds = new Set(vendorsWithProducts.map(id => id.toString()));
-    const vendorsWithActiveProducts = b2bVendors.filter(v =>
-      activeVendorIds.has(v._id.toString())
-    );
+    // Use ALL approved vendors for location data (not just those with products)
+    // This ensures cities from newly registered vendors also appear in the filter
+    const vendorsWithActiveProducts = b2bVendors;
 
     // Extract unique states and cities
     const locationMap = new Map(); // state -> Set of cities

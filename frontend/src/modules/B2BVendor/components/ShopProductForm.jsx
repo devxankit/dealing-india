@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { FiPlus, FiTrash2, FiUpload, FiX, FiImage, FiTag, FiDollarSign, FiList, FiHome } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiUpload, FiX, FiImage, FiTag, FiDollarSign, FiList, FiHome, FiLock, FiUnlock, FiEdit3 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
+import api from "../../../shared/utils/api";
 
 const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) => {
     const [formData, setFormData] = useState({
@@ -18,6 +19,9 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
 
     const { vendor } = useB2BVendorAuthStore();
     const [hasExistingUnit, setHasExistingUnit] = useState(false);
+    const [isShopLocked, setIsShopLocked] = useState(false); // New: Lock section A by default if exists
+    const [isShopModified, setIsShopModified] = useState(false); // Track if Section A was changed
+    const [originalShopData, setOriginalShopData] = useState(null); // To compare changes
 
     // Business types that should see Reed, Pick, Panna, GSM (Image 2 & 3)
     const techTypeAllowed = [
@@ -34,22 +38,22 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
     useEffect(() => {
         const fetchUnit = async () => {
             try {
-                const response = await fetch('/api/b2b-vendor/shop-units', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-                });
-                const result = await response.json();
-                if (result.success && result.data) {
-                    const unit = result.data;
-                    setFormData(prev => ({
-                        ...prev,
-                        unitName: unit.name,
-                        description: unit.description,
+                const response = await api.get('/b2b-vendor/shop-units');
+                if (response.success && response.data) {
+                    const unit = response.data;
+                    const shopData = {
+                        unitName: unit.name || "",
+                        description: unit.description || "",
                         images: unit.images || [],
                         minPrice: unit.minPrice || "",
                         maxPrice: unit.maxPrice || "",
                         shopUnitId: unit._id
-                    }));
+                    };
+                    setFormData(prev => ({ ...prev, ...shopData }));
+                    setOriginalShopData(shopData);
                     setHasExistingUnit(true);
+                    setIsShopLocked(true); // Lock it by default
+                    setIsShopModified(false);
                 }
             } catch (err) {
                 console.error("Failed to fetch unit:", err);
@@ -66,48 +70,56 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
             toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
             return;
         }
+        e.target.value = '';
 
-        const toastId = toast.loading('Compressing images...');
+        // 1. Show preview immediately with blob URLs
+        const blobUrls = files.map(f => URL.createObjectURL(f));
+        const startCount = formData.images.length;
+        setFormData(prev => ({
+            ...prev,
+            images: [...prev.images, ...blobUrls]
+        }));
+        setIsShopModified(true);
+
+        const toastId = toast.loading('Processing images...');
 
         try {
-            const compressedFiles = await Promise.all(
-                files.map(async (file) => {
-                    if (file.type.startsWith('image/')) {
-                        try {
-                            const options = {
-                                maxSizeMB: 1, // Max size 1MB
-                                maxWidthOrHeight: 1920,
-                                useWebWorker: true,
-                            };
-                            return await imageCompression(file, options);
-                        } catch (error) {
-                            console.error('Compression ended with error:', error);
-                            return file; // Fallback to original file
-                        }
-                    }
-                    return file;
-                })
-            );
+            const processFile = async (file) => {
+                if (!file.type.startsWith('image/')) return null;
+                try {
+                    const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+                    const compressed = await imageCompression(file, options);
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(compressed);
+                    });
+                } catch (err) {
+                    console.error('Compression error:', err);
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(file);
+                    });
+                }
+            };
 
-            // Convert to Base64
-            const base64Promises = compressedFiles.map(file => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(file);
-                });
+            const base64Images = (await Promise.all(files.map(processFile))).filter(Boolean);
+
+            setFormData(prev => {
+                const next = [...prev.images];
+                for (let i = 0; i < base64Images.length; i++) {
+                    next[startCount + i] = base64Images[i];
+                }
+                return { ...prev, images: next };
             });
 
-            const base64Images = await Promise.all(base64Promises);
-
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, ...base64Images]
-            }));
-
+            blobUrls.forEach(url => URL.revokeObjectURL(url));
             toast.success('Images added successfully', { id: toastId });
         } catch (error) {
             console.error('Error processing images:', error);
+            blobUrls.forEach(url => URL.revokeObjectURL(url));
+            setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i < startCount) }));
             toast.error('Failed to process images', { id: toastId });
         }
     };
@@ -117,6 +129,7 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
             ...prev,
             images: prev.images.filter((_, i) => i !== index)
         }));
+        setIsShopModified(true); // Mark as modified on photo removal
     };
 
     const handleItemChange = (index, field, value) => {
@@ -140,46 +153,58 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
             toast.error(`Maximum ${MAX_PHOTOS} photos allowed per item`);
             return;
         }
+        e.target.value = '';
 
-        const toastId = toast.loading('Compressing item images...');
+        const blobUrls = files.map(f => URL.createObjectURL(f));
+        const updatedItems = [...formData.items];
+        const startCount = (updatedItems[itemIndex].images || []).length;
+        updatedItems[itemIndex].images = [...(updatedItems[itemIndex].images || []), ...blobUrls];
+        setFormData(prev => ({ ...prev, items: updatedItems }));
+
+        const toastId = toast.loading('Processing images...');
 
         try {
-            const compressedFiles = await Promise.all(
-                files.map(async (file) => {
-                    if (file.type.startsWith('image/')) {
-                        try {
-                            const options = {
-                                maxSizeMB: 1,
-                                maxWidthOrHeight: 1920,
-                                useWebWorker: true,
-                            };
-                            return await imageCompression(file, options);
-                        } catch (error) {
-                            console.error('Compression ended with error:', error);
-                            return file;
-                        }
-                    }
-                    return file;
-                })
-            );
+            const processFile = async (file) => {
+                if (!file.type.startsWith('image/')) return null;
+                try {
+                    const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+                    const compressed = await imageCompression(file, options);
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(compressed);
+                    });
+                } catch (err) {
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(file);
+                    });
+                }
+            };
 
-            const base64Promises = compressedFiles.map(file => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.readAsDataURL(file);
-                });
+            const base64Images = (await Promise.all(files.map(processFile))).filter(Boolean);
+
+            setFormData(prev => {
+                const items = [...prev.items];
+                const imgList = [...(items[itemIndex].images || [])];
+                for (let i = 0; i < base64Images.length; i++) imgList[startCount + i] = base64Images[i];
+                items[itemIndex] = { ...items[itemIndex], images: imgList };
+                return { ...prev, items };
             });
 
-            const base64Images = await Promise.all(base64Promises);
-
-            const updatedItems = [...formData.items];
-            updatedItems[itemIndex].images = [...(updatedItems[itemIndex].images || []), ...base64Images];
-            setFormData(prev => ({ ...prev, items: updatedItems }));
-
+            blobUrls.forEach(url => URL.revokeObjectURL(url));
             toast.success('Images added to item', { id: toastId });
         } catch (error) {
-            console.error('Error processing item images:', error);
+            blobUrls.forEach(url => URL.revokeObjectURL(url));
+            setFormData(prev => {
+                const items = [...prev.items];
+                items[itemIndex] = {
+                    ...items[itemIndex],
+                    images: (items[itemIndex].images || []).slice(0, startCount)
+                };
+                return { ...prev, items };
+            });
             toast.error('Failed to process item images', { id: toastId });
         }
     };
@@ -221,15 +246,32 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
             return toast.error("Please fill all required item details in Section B");
         }
 
-        if (formData.images.length === 0) {
+        if (formData.images.length === 0 && (!hasExistingUnit || isShopModified)) {
             return toast.error("Please upload at least one photo");
         }
 
-        onSubmit({
-            ...formData,
+        // Shop listing: send only required fields (no unit, moq, price, category, etc.)
+        const payload = {
             formType: 'shop-listing',
-            name: formData.items[0].itemName || formData.unitName, // Use Item Name as the catalog title
-        });
+            name: formData.unitName.trim(),
+            description: formData.description,
+            minPrice: String(formData.minPrice),
+            maxPrice: String(formData.maxPrice),
+            items: formData.items,
+            images: formData.images,
+        };
+        if (formData.shopUnitId) payload.shopUnitId = formData.shopUnitId;
+
+        // OPTIMIZATION: If shop already exists and wasn't modified, don't resend heavy data
+        if (hasExistingUnit && !isShopModified) {
+            delete payload.name;
+            delete payload.images;
+            delete payload.description;
+            delete payload.minPrice;
+            delete payload.maxPrice;
+        }
+
+        onSubmit(payload);
     };
 
     // Styling constants matching ProductForm.jsx
@@ -255,14 +297,38 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
 
             {/* SECTION A – SHOP LISTING */}
             <div className={sectionStyle}>
-                <div className="flex items-center gap-2 mb-8">
-                    <div className="p-1.5 bg-primary-50 text-primary-600 rounded-lg text-sm">
-                        <FiTag />
+                <div className="flex items-center justify-between gap-2 mb-8">
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-primary-50 text-primary-600 rounded-lg text-sm">
+                            <FiTag />
+                        </div>
+                        <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Shop Listing</h3>
                     </div>
-                    <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Shop Listing</h3>
+                    {hasExistingUnit && (
+                        <button
+                            type="button"
+                            onClick={() => setIsShopLocked(!isShopLocked)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isShopLocked
+                                ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                } shadow-sm border border-transparent`}
+                        >
+                            {isShopLocked ? (
+                                <>
+                                    <FiLock size={14} />
+                                    <span>Edit Shop Details</span>
+                                </>
+                            ) : (
+                                <>
+                                    <FiUnlock size={14} />
+                                    <span>Lock Details</span>
+                                </>
+                            )}
+                        </button>
+                    )}
                 </div>
 
-                <div className="space-y-8">
+                <div className={`space-y-8 transition-all duration-500 overflow-hidden ${isShopLocked ? "opacity-60 grayscale pointer-events-none max-h-[140px]" : "opacity-100 max-h-[2000px]"}`}>
                     {/* 1. Photo Upload Field */}
                     <div className="space-y-4">
                         <label className={labelStyle}>
@@ -307,7 +373,10 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                                 required
                                 type="text"
                                 value={formData.unitName}
-                                onChange={(e) => setFormData({ ...formData, unitName: e.target.value })}
+                                onChange={(e) => {
+                                    setFormData({ ...formData, unitName: e.target.value });
+                                    setIsShopModified(true);
+                                }}
                                 placeholder="Enter Unit Name"
                                 className={inputStyle}
                             />
@@ -322,7 +391,10 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                                         required
                                         type="number"
                                         value={formData.minPrice}
-                                        onChange={(e) => setFormData({ ...formData, minPrice: e.target.value })}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, minPrice: e.target.value });
+                                            setIsShopModified(true);
+                                        }}
                                         placeholder="Min"
                                         className={inputStyle.replace("px-4", "pl-8 pr-4")}
                                     />
@@ -333,7 +405,10 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                                         required
                                         type="number"
                                         value={formData.maxPrice}
-                                        onChange={(e) => setFormData({ ...formData, maxPrice: e.target.value })}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, maxPrice: e.target.value });
+                                            setIsShopModified(true);
+                                        }}
                                         placeholder="Max"
                                         className={inputStyle.replace("px-4", "pl-8 pr-4")}
                                     />
@@ -349,7 +424,10 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                             required
                             rows={4}
                             value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                            onChange={(e) => {
+                                setFormData({ ...formData, description: e.target.value });
+                                setIsShopModified(true);
+                            }}
                             placeholder="Enter Description"
                             className={inputStyle + " resize-none min-h-[120px]"}
                         />
@@ -552,7 +630,10 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                 <button
                     disabled={isLoading}
                     type="submit"
-                    className="w-full md:w-auto px-16 py-4 bg-primary-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-500/20 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
+                    className={`w-full md:w-auto px-16 py-4 bg-primary-600 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-primary-500/20 flex items-center justify-center gap-3 active:scale-95 ${isLoading
+                        ? "opacity-30 cursor-not-allowed pointer-events-none grayscale"
+                        : "hover:bg-primary-700 hover:shadow-primary-500/40"
+                        }`}
                 >
                     {isLoading ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

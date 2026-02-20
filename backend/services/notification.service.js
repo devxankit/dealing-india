@@ -93,7 +93,6 @@ class NotificationService {
       const query = {
         recipientId: new mongoose.Types.ObjectId(recipientId),
         recipientType,
-        type: { $ne: 'chat_message' }, // Exclude chat messages from notification list
       };
 
       if (isRead !== undefined) {

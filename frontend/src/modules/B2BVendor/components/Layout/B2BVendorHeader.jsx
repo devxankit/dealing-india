@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import Button from "../../../Admin/components/Button";
 import NotificationWindow from "../../../Admin/components/Layout/NotificationWindow";
+import { useNotifications } from "../../../../shared/hooks/useNotifications";
 
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
@@ -16,6 +17,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
     const { vendor, logout } = useB2BVendorAuthStore();
 
     const [showNotifications, setShowNotifications] = useState(false);
+    const { unreadCount } = useNotifications();
     const [showUserMenu, setShowUserMenu] = useState(false);
     const userMenuRef = useRef(null);
 
@@ -100,6 +102,9 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                 <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                     <div className="relative flex-shrink-0">
                         <Button onClick={() => setShowNotifications(!showNotifications)} variant="icon" className="text-gray-700 hover:bg-gray-100" icon={FiBell} />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                        )}
                         <NotificationWindow isOpen={showNotifications} onClose={() => setShowNotifications(false)} position="right" />
                     </div>
 

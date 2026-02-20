@@ -124,6 +124,22 @@ const ManageB2BVendors = () => {
                 </div>
             )
         },
+        {
+            key: "businessType",
+            label: "Business Details",
+            render: (val, row) => (
+                <div className="flex flex-col">
+                    <span className="text-xs font-black text-primary-600 uppercase tracking-tighter">{val}</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                        {row.selectedSubTypes?.map((st, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-primary-50 text-primary-700 rounded text-[9px] font-bold border border-primary-100">
+                                {st}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )
+        },
         { key: "email", label: "Email" },
         {
             key: "status",

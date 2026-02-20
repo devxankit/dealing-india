@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiTrendingUp, FiHome } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { appLogo } from '../../../../data/logos';
@@ -10,6 +10,8 @@ import { useAuthStore } from '../../../../shared/store/authStore';
 const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false, customNav }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [currentSearchParams] = useSearchParams();
+    const currentItemType = currentSearchParams.get('itemType') || null;
     const { isAuthenticated } = useAuthStore();
     const [localSearchQuery, setLocalSearchQuery] = useState(propSearchQuery || '');
     const [suggestions, setSuggestions] = useState([]);
@@ -63,10 +65,19 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
     };
 
     const handleSuggestionClick = (suggestion) => {
-        const query = suggestion.text;
-        setLocalSearchQuery(query);
+        setLocalSearchQuery(suggestion.text);
         setShowSuggestions(false);
 
+        // Store or Shop-Listing suggestions: navigate to store page
+        if ((suggestion.type === 'store' || suggestion.formType === 'shop-listing') && suggestion.vendorId) {
+            const vendorUrl = currentItemType
+                ? `/b2b/vendor/${suggestion.vendorId}?itemType=${currentItemType}`
+                : `/b2b/vendor/${suggestion.vendorId}`;
+            navigate(vendorUrl);
+            return;
+        }
+
+        const query = suggestion.text;
         if (onSearchSubmit) {
             onSearchSubmit(query);
         } else {
@@ -178,7 +189,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search bulk products..."
+                                placeholder="Search bulk products or stores..."
                                 value={localSearchQuery}
                                 onChange={handleSearchChange}
                                 className="w-full pl-12 pr-4 py-2 bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-primary-500 transition-all text-sm font-medium"
@@ -196,27 +207,37 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                                 Searching...
                                             </div>
                                         ) : (
-                                            suggestions.map((suggestion, index) => (
-                                                <button
-                                                    key={index} type="button"
-                                                    onClick={() => handleSuggestionClick(suggestion)}
-                                                    className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 text-left transition-colors group"
-                                                >
-                                                    {suggestion.type === 'product' ? (
-                                                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 border border-gray-50">
-                                                            <img src={suggestion.image} alt={suggestion.text} className="w-full h-full object-cover" />
+                                            suggestions.map((suggestion, index) => {
+                                                const isStore = (suggestion.type === 'store' || suggestion.formType === 'shop-listing') && suggestion.vendorId;
+                                                const vendorLinkUrl = currentItemType
+                                                    ? `/b2b/vendor/${suggestion.vendorId}?itemType=${currentItemType}`
+                                                    : `/b2b/vendor/${suggestion.vendorId}`;
+                                                const Wrapper = isStore ? Link : 'button';
+                                                const wrapperProps = isStore
+                                                    ? { to: vendorLinkUrl, onClick: (e) => e.stopPropagation(), onMouseDown: (e) => e.stopPropagation() }
+                                                    : { type: 'button', onMouseDown: (e) => { e.preventDefault(); handleSuggestionClick(suggestion); } };
+                                                return (
+                                                    <Wrapper
+                                                        key={index}
+                                                        {...wrapperProps}
+                                                        className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 text-left transition-colors group no-underline text-inherit"
+                                                    >
+                                                        {(suggestion.type === 'product' || suggestion.type === 'store') && suggestion.image ? (
+                                                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 border border-gray-50">
+                                                                <img src={suggestion.image} alt={suggestion.text} className="w-full h-full object-cover" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-50 text-primary-600">
+                                                                <FiSearch className="text-sm" />
+                                                            </div>
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-bold text-gray-800 truncate">{suggestion.text}</p>
+                                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{suggestion.context}</p>
                                                         </div>
-                                                    ) : (
-                                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-50 text-primary-600">
-                                                            <FiSearch className="text-sm" />
-                                                        </div>
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-bold text-gray-800 truncate">{suggestion.text}</p>
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{suggestion.context}</p>
-                                                    </div>
-                                                </button>
-                                            ))
+                                                    </Wrapper>
+                                                );
+                                            })
                                         )}
                                     </motion.div>
                                 )}

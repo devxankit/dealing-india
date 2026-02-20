@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEye } from "react-icons/fi";
+import { FiSearch, FiEye, FiPackage } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import toast from "react-hot-toast";
@@ -37,19 +37,33 @@ const B2BVendorProductListings = () => {
         }
     };
 
-    const columns = [
+    const filterBySearch = (list) => list.filter(p => {
+        const q = searchQuery.toLowerCase().trim();
+        if (!q) return true;
+        const matchTitle = p.title?.toLowerCase().includes(q);
+        const matchVendor = p.b2bVendor?.toLowerCase().includes(q);
+        const matchItemName = p.items?.some(i => (i.itemName || i.name || '').toLowerCase().includes(q));
+        return matchTitle || matchVendor || matchItemName;
+    });
+
+    const statusCell = (val) => (
+        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${val === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{val}</span>
+    );
+
+    const actionsCell = (_, row) => (
+        <button onClick={() => navigate(`/admin/b2b-vendors/products/${row._id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="View Details">
+            <FiEye />
+        </button>
+    );
+
+    const productColumns = [
         {
             key: "title",
             label: "Product Name",
             render: (val, row) => (
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100 shadow-sm">
-                        <img
-                            src={row.image || "/placeholder-product.png"}
-                            alt={val}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { e.target.src = "/placeholder-product.png"; }}
-                        />
+                        <img src={row.image || "/placeholder-product.png"} alt={val} className="w-full h-full object-cover" onError={(e) => { e.target.src = "/placeholder-product.png"; }} />
                     </div>
                     <span className="font-bold text-gray-800">{val}</span>
                 </div>
@@ -58,32 +72,38 @@ const B2BVendorProductListings = () => {
         { key: "b2bVendor", label: "B2B Vendor" },
         { key: "price", label: "Price Range" },
         { key: "moq", label: "MOQ" },
-        {
-            key: "status",
-            label: "Status",
-            render: (val) => (
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${val === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                    }`}>
-                    {val}
-                </span>
-            )
-        },
-        {
-            key: "actions",
-            label: "Actions",
-            render: (_, row) => (
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => navigate(`/admin/b2b-vendors/products/${row._id}`)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        title="View Details"
-                    >
-                        <FiEye />
-                    </button>
-                </div>
-            )
-        }
+        { key: "status", label: "Status", render: (v) => statusCell(v) },
+        { key: "actions", label: "Actions", render: actionsCell }
     ];
+
+    const shopListingItemCell = (_, row) => {
+        const first = row.items?.[0];
+        const img = first?.images?.[0];
+        const name = first?.itemName || first?.name || 'Item';
+        return (
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100 shadow-sm">
+                    {img ? <img src={img} alt={name} className="w-full h-full object-cover" onError={(e) => { e.target.src = "/placeholder-product.png"; }} /> : <div className="w-full h-full flex items-center justify-center"><FiPackage className="text-gray-400" /></div>}
+                </div>
+                <div>
+                    <span className="font-bold text-gray-800 block">{name}</span>
+                    {row.items?.length > 1 && <span className="text-xs text-gray-500">+{row.items.length - 1} more</span>}
+                </div>
+            </div>
+        );
+    };
+
+    const shopListingColumns = [
+        { key: "title", label: "Item Name", render: (v, row) => shopListingItemCell(v, row) },
+        { key: "b2bVendor", label: "B2B Vendor" },
+        { key: "price", label: "Item Price", render: (_, row) => row.items?.[0] ? `₹${row.items[0].price} / ${row.items[0].unit || 'pcs'}` : row.price },
+        { key: "moq", label: "Items", render: (_, row) => row.items?.map(i => i.itemName || i.name).filter(Boolean).join(', ') || `${row.items?.length || 0} Item(s)` },
+        { key: "status", label: "Status", render: (v) => statusCell(v) },
+        { key: "actions", label: "Actions", render: actionsCell }
+    ];
+
+    const productListings = filterBySearch(products.filter(p => p.formType !== 'shop-listing'));
+    const shopListings = filterBySearch(products.filter(p => p.formType === 'shop-listing'));
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
@@ -96,7 +116,7 @@ const B2BVendorProductListings = () => {
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Search products..."
+                        placeholder="Search products & items..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500"
@@ -110,15 +130,26 @@ const B2BVendorProductListings = () => {
                         <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
                     </div>
                 ) : (
-                    <DataTable
-                        data={products.filter(p =>
-                            p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            p.b2bVendor?.toLowerCase().includes(searchQuery.toLowerCase())
+                    <>
+                        {productListings.length > 0 && (
+                            <div className="mb-10">
+                                <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Product Listings</h3>
+                                <DataTable data={productListings} columns={productColumns} pagination={productListings.length > 10} itemsPerPage={10} />
+                            </div>
                         )}
-                        columns={columns}
-                        pagination={true}
-                        itemsPerPage={10}
-                    />
+                        {shopListings.length > 0 && (
+                            <div>
+                                <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Shop Listing Items</h3>
+                                <DataTable data={shopListings} columns={shopListingColumns} pagination={shopListings.length > 10} itemsPerPage={10} />
+                            </div>
+                        )}
+                        {productListings.length === 0 && shopListings.length === 0 && (
+                            <div className="text-center py-16 text-gray-400">
+                                <FiPackage className="mx-auto text-5xl mb-4 opacity-30" />
+                                <p className="font-bold uppercase tracking-widest text-sm">No listings found</p>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </motion.div>

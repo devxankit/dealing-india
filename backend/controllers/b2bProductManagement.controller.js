@@ -162,8 +162,13 @@ export const getB2BProducts = async (req, res, next) => {
       // Determine status
       const productStatus = product.isVisible ? 'Approved' : 'Pending';
 
-      // Format price range (can be enhanced with bulk pricing)
-      const price = product.price ? `₹${product.price}` : 'N/A';
+      // Format price range (shop-listing: minPrice-maxPrice or item price)
+      let price = product.price ? `₹${product.price}` : 'N/A';
+      if (product.formType === 'shop-listing' && product.minPrice != null && product.maxPrice != null) {
+        price = `₹${product.minPrice} - ₹${product.maxPrice}`;
+      } else if (product.formType === 'shop-listing' && product.items?.[0]) {
+        price = `₹${product.items[0].price} / ${product.items[0].unit || 'pcs'}`;
+      }
 
       return {
         _id: product._id,
@@ -179,6 +184,10 @@ export const getB2BProducts = async (req, res, next) => {
         image: sanitizeImageUrl(product.image),
         images: sanitizeImageUrls(product.images || []),
         description: product.description,
+        formType: product.formType || 'standard',
+        items: product.items || [],
+        minPrice: product.minPrice,
+        maxPrice: product.maxPrice,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
       };

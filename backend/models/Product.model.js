@@ -4,7 +4,7 @@ const productSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Product name is required'],
+      required: [function () { return this.formType !== 'shop-listing'; }, 'Product name is required'],
       trim: true,
     },
     sku: {
@@ -21,7 +21,7 @@ const productSchema = new mongoose.Schema(
     },
     price: {
       type: Number,
-      required: [true, 'Price is required'],
+      required: [function () { return this.formType !== 'shop-listing'; }, 'Price is required'],
       min: 0,
     },
     unit: {

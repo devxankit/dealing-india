@@ -357,6 +357,11 @@ export const getB2BVendors = async (filters = {}) => {
           },
           options: { strictPopulate: false }, // Allow null subscriptions
         })
+        .populate({
+          path: 'businessTypeRef',
+          select: 'name',
+          model: 'BusinessType'
+        })
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit))
@@ -467,7 +472,9 @@ export const getB2BVendors = async (filters = {}) => {
             joinDate: vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : null,
             gstNumber: vendor.gstNumber || 'N/A',
             businessType: vendor.businessType || 'N/A',
+            businessTypeRef: vendor.businessTypeRef || null,
             businessTypes: vendor.businessTypes || [],
+            selectedSubTypes: vendor.selectedSubTypes || [],
             subscription: subscription
               ? {
                 _id: subscription._id,

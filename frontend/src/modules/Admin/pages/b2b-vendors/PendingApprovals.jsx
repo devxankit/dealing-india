@@ -59,6 +59,8 @@ const B2BVendorPendingApprovals = () => {
                             documents: docNames.length > 0 ? docNames : ['No Documents'],
                             date: vendor.joinDate || (vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
                             gstNumber: vendor.gstNumber || 'N/A',
+                            businessType: vendor.businessType || 'N/A',
+                            selectedSubTypes: vendor.selectedSubTypes || [],
                             subscription: vendor.subscription || (vendor.currentSubscription ? {
                                 name: vendor.currentSubscription?.planId?.name || 'N/A',
                                 price: vendor.currentSubscription?.planId?.price || 0,
@@ -152,6 +154,22 @@ const B2BVendorPendingApprovals = () => {
     const columns = [
         { key: "name", label: "B2B Vendor Name", render: (val) => <span className="font-bold text-gray-800">{val}</span> },
         { key: "companyName", label: "Company Name", render: (val) => <span className="font-bold text-gray-500 text-sm">{val}</span> },
+        {
+            key: "businessType",
+            label: "Business Details",
+            render: (val, row) => (
+                <div className="flex flex-col">
+                    <span className="text-xs font-black text-primary-600 uppercase tracking-tighter">{val}</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                        {row.selectedSubTypes?.map((st, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-primary-50 text-primary-700 rounded text-[9px] font-bold border border-primary-100">
+                                {st}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )
+        },
         { key: "email", label: "Email Address" },
         {
             key: "documents",

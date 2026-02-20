@@ -259,3 +259,28 @@ export const getMainProductVariant = (product) => {
   // But usually we want absolute lowest price as per user request
   return allVariants[0];
 };
+
+/**
+ * Generate Google Maps Search URL from vendor address
+ */
+export const getGoogleMapsUrl = (vendor) => {
+  if (!vendor?.address) return null;
+  const { street, area, market, landmark, city, pincode, state } = vendor.address;
+  const storeName = vendor.storeName || vendor.name || '';
+
+  const queryParts = [
+    storeName,
+    street,
+    market,
+    landmark,
+    area,
+    city,
+    state,
+    pincode
+  ].filter(part => part && typeof part === 'string' && part.trim() !== '');
+
+  const query = queryParts.join(' ').trim();
+  if (!query) return null;
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+};
