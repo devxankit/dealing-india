@@ -30,7 +30,7 @@ const vendorSubscriptionSchema = new mongoose.Schema(
     },
     billingCycle: {
       type: String,
-      enum: ['monthly', 'yearly'],
+      enum: ['monthly', 'yearly', 'quarterly', 'half-yearly'],
       required: true,
       default: 'monthly',
     },

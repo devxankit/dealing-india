@@ -263,24 +263,38 @@ export const getMainProductVariant = (product) => {
 /**
  * Generate Google Maps Search URL from vendor address
  */
-export const getGoogleMapsUrl = (vendor) => {
-  if (!vendor?.address) return null;
-  const { street, area, market, landmark, city, pincode, state } = vendor.address;
-  const storeName = vendor.storeName || vendor.name || '';
+export const getGoogleMapsUrl = (data) => {
+  if (!data) return null;
 
-  const queryParts = [
-    storeName,
+  // Extract address and name - handles both Vendor and Property objects
+  const address = data.address || data.location || {};
+  const name = data.storeName || data.title || data.name || '';
+
+  const {
     street,
+    area,
     market,
     landmark,
+    city,
+    pincode,
+    state
+  } = address;
+
+  const queryParts = [
+    street,
+    landmark,
+    market,
     area,
+    name,
     city,
     state,
     pincode
   ].filter(part => part && typeof part === 'string' && part.trim() !== '');
 
-  const query = queryParts.join(' ').trim();
+  const query = queryParts.join(', ').trim();
   if (!query) return null;
 
+  // Search API with specific address order is the most robust way to find 
+  // the exact spot and drop a BOLD RED PIN (Marker) without navigation UI.
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 };

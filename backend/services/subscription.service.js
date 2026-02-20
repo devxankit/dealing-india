@@ -127,7 +127,7 @@ class SubscriptionService {
           const subscriptionData = {
             vendorId,
             planId,
-            billingCycle: 'Yearly',
+            billingCycle: 'yearly',
             startDate,
             endDate,
             paymentMethod: 'free',
@@ -190,7 +190,7 @@ class SubscriptionService {
       const pendingSubscriptionData = {
         vendorId,
         planId,
-        billingCycle: 'Yearly',
+        billingCycle: 'yearly',
         startDate,
         endDate,
         paymentMethod: 'razorpay',
@@ -288,7 +288,7 @@ class SubscriptionService {
       if (paymentDetails.status !== 'captured' && paymentDetails.status !== 'authorized' && paymentDetails.status !== 'created') {
         const startDate = new Date();
         const endDate = new Date();
-        const billingCycle = 'Yearly';
+        const billingCycle = 'yearly';
 
         const failedSubscriptionData = {
           vendorId,
@@ -338,7 +338,7 @@ class SubscriptionService {
       const activeSubscriptionData = {
         vendorId,
         planId,
-        billingCycle: 'Yearly',
+        billingCycle: 'yearly',
         startDate,
         endDate,
         paymentMethod: 'razorpay',
@@ -443,7 +443,7 @@ class SubscriptionService {
       const subscriptionData = {
         vendorId,
         planId,
-        billingCycle: billingCycle || (plan.duration === 12 ? 'Yearly' : plan.duration === 6 ? 'Half-Yearly' : plan.duration === 3 ? 'Quarterly' : 'Monthly'),
+        billingCycle: billingCycle || (plan.duration === 12 ? 'yearly' : plan.duration === 6 ? 'half-yearly' : plan.duration === 3 ? 'quarterly' : 'monthly'),
         startDate,
         endDate,
         paymentMethod,
@@ -505,7 +505,7 @@ class SubscriptionService {
       const newSubData = {
         vendorId,
         planId: newPlanId,
-        billingCycle: billingCycle || 'Yearly',
+        billingCycle: billingCycle || 'yearly',
         startDate: now,
         endDate,
         status: 'active',
@@ -673,10 +673,10 @@ class SubscriptionService {
       endDate.setMonth(endDate.getMonth() + durationMonths);
 
       // Determine Billing Cycle Label
-      let billingCycle = 'Yearly';
-      if (durationMonths === 6) billingCycle = 'Half-Yearly';
-      if (durationMonths === 3) billingCycle = 'Quarterly';
-      if (durationMonths === 1) billingCycle = 'Monthly';
+      let billingCycle = 'yearly';
+      if (durationMonths === 6) billingCycle = 'half-yearly';
+      if (durationMonths === 3) billingCycle = 'quarterly';
+      if (durationMonths === 1) billingCycle = 'monthly';
 
       const newSubData = {
         vendorId,

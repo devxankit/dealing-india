@@ -489,7 +489,7 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       vendorId: createdVendor._id,
       planId: planObjectId, // B2B subscription uses planId (not tierId) - ensure it's ObjectId
       status: 'active', // Active after payment
-      billingCycle: 'Yearly',
+      billingCycle: 'yearly',
       startDate,
       endDate,
       paymentMethod: 'razorpay',
@@ -716,7 +716,7 @@ export const createB2BSubscriptionAfterPayment = async (planId, paymentData, ema
       pendingVendorEmail: email,
       pendingVendorPhone: phone,
       status: 'active', // Active after payment
-      billingCycle: 'Yearly',
+      billingCycle: 'yearly',
       startDate,
       endDate,
       paymentMethod: 'razorpay',

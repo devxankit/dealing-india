@@ -92,9 +92,15 @@ export const addProperty = asyncHandler(async (req, res) => {
 
     const property = await Property.create(propertyData);
 
+    // Flatten specifications for frontend compatibility
+    const responseData = property.toObject();
+    if (Array.isArray(responseData.specifications) && responseData.specifications.length > 0) {
+        responseData.specifications = responseData.specifications[0];
+    }
+
     res.status(201).json({
         success: true,
-        data: property,
+        data: responseData,
     });
 });
 
@@ -137,7 +143,12 @@ export const updateProperty = asyncHandler(async (req, res) => {
     property = await Property.findByIdAndUpdate(propertyId, req.body, {
         new: true,
         runValidators: true,
-    });
+    }).lean();
+
+    // Flatten specifications for frontend compatibility
+    if (Array.isArray(property.specifications) && property.specifications.length > 0) {
+        property.specifications = property.specifications[0];
+    }
 
     res.status(200).json({
         success: true,
@@ -191,9 +202,17 @@ export const listProperties = asyncHandler(async (req, res) => {
     const vendorId = req.userDoc._id;
     const properties = await Property.find({ vendorId }).lean();
 
+    // Flatten specifications for frontend compatibility
+    const formattedProperties = properties.map(prop => ({
+        ...prop,
+        specifications: Array.isArray(prop.specifications) && prop.specifications.length > 0
+            ? prop.specifications[0]
+            : prop.specifications
+    }));
+
     res.status(200).json({
         success: true,
-        data: properties,
+        data: formattedProperties,
     });
 });
 
@@ -214,6 +233,11 @@ export const getPropertyById = asyncHandler(async (req, res) => {
         return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
+    // Flatten specifications for frontend compatibility
+    if (Array.isArray(property.specifications) && property.specifications.length > 0) {
+        property.specifications = property.specifications[0];
+    }
+
     res.status(200).json({
         success: true,
         data: property,
@@ -227,92 +251,43 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId } = req.query;
 
     let query = { isActive: true };
+    const queryConditions = [];
 
-    if (vendorId) {
-        query.vendorId = vendorId;
+    if (vendorId) queryConditions.push({ vendorId });
+    if (listingType && listingType !== 'All') queryConditions.push({ listingType });
+    if (city && city !== 'All Cities') queryConditions.push({ 'location.city': { $regex: city, $options: 'i' } });
+    if (area && area !== 'All Areas') queryConditions.push({ 'location.area': { $regex: area, $options: 'i' } });
+
+    // Handle Search
+    if (search) {
+        queryConditions.push({
+            $or: [
+                { title: { $regex: search, $options: 'i' } },
+                { 'location.area': { $regex: search, $options: 'i' } },
+                { propertyType: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ]
+        });
     }
 
-    if (listingType && listingType !== 'All') {
-        query.listingType = listingType;
+    // Filter by Price Unit/Denomination - REMOVED for normalization support
+
+    if (queryConditions.length > 0) {
+        query.$and = queryConditions;
     }
 
-    if (city && city !== 'All Cities') {
-        query['location.city'] = { $regex: city, $options: 'i' };
-    }
-
-    if (area) {
-        query['location.area'] = { $regex: area, $options: 'i' };
-    }
-
-    // Filter by Price Unit/Denomination
-    if (priceUnit && priceUnit !== 'All') {
-        query.$or = [
-            { 'saleDetails.priceUnit': priceUnit },
-            { 'rentDetails.rentUnit': priceUnit },
-            { 'leaseDetails.leaseUnit': priceUnit }
-        ];
-    }
-
-    // Filter by Vendor Market (from vendor address.market)
+    // Filter by Vendor Market and Type
     let vendorMatch = {};
     if (market && market !== 'All Markets') {
         vendorMatch['address.market'] = { $regex: market, $options: 'i' };
     }
-
-    if (search) {
-        query.$or = [
-            { title: { $regex: search, $options: 'i' } },
-            { 'location.area': { $regex: search, $options: 'i' } },
-            { propertyType: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } }
-        ];
-    }
-
-    // Price filtering - checking both direct price and range-based prices
-    if (minPrice || maxPrice) {
-        // Front-end sends prices in Lakhs
-        const minLakh = minPrice ? parseFloat(minPrice) : 0;
-        const maxLakh = maxPrice ? parseFloat(maxPrice) : Infinity;
-
-        const min = minLakh * 100000;
-        const max = maxLakh * 100000;
-
-        const priceFilter = [
-            // Case 1: Direct amount
-            { 'price.amount': { $gte: min, $lte: max } },
-            // Case 2: Sale price range
-            { 'saleDetails.priceMin': { $lte: maxLakh }, 'saleDetails.priceMax': { $gte: minLakh } },
-            // Case 3: Monthly rent
-            { 'rentDetails.monthlyRent': { $gte: minPrice || 0, $lte: maxPrice || Infinity } }
-        ];
-
-        if (query.$or) {
-            query.$and = [{ $or: query.$or }, { $or: priceFilter }];
-            delete query.$or;
-        } else {
-            query.$or = priceFilter;
-        }
-    }
-
-    // Size filtering
-    if (minSize || maxSize) {
-        const minS = minSize ? parseFloat(minSize) : 0;
-        const maxS = maxSize ? parseFloat(maxSize) : Infinity;
-
-        // Mongo can't easily convert string to number in $match without $expr (which is slow)
-        // Since builtUpArea is String, we'll handle this in the JS filter layer for now
-        // or we could use regex/lexicographical if they were padded, but they aren't.
-        // Let's add it to the final filtering stage.
-    }
-
-    // Filter by Vendor Business Type (Developer vs Broker)
     if (type === 'developer') {
         vendorMatch.businessType = { $regex: 'developer', $options: 'i' };
     } else if (type === 'broker') {
         vendorMatch.businessType = { $regex: 'broker', $options: 'i' };
     }
 
-    const properties = await Property.find(query)
+    let properties = await Property.find(query)
         .populate({
             path: 'vendorId',
             select: 'storeName address businessType phone storeLogo',
@@ -321,40 +296,105 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         .lean();
 
     // Filter out properties where vendor didn't match the type
-    let filteredProperties = properties.filter(p => p.vendorId !== null);
+    let filteredResults = properties.filter(p => p.vendorId !== null);
 
-    // Size filtering (Built-up Area)
-    if (minSize || maxSize) {
-        // Normalize filter range to Sq. Ft. if an areaUnit is provided
-        const filterUnit = areaUnit || 'Sq. Ft.';
-        const filterConversion = {
-            'Sq. Ft.': 1,
-            'Sq. Mt.': 10.7639,
-            'Sq. Yd.': 9,
-            'Acre': 43560,
-            'Gaj': 9
-        };
-        const filterMultiplier = filterConversion[filterUnit] || 1;
-        const normalizedMinS = minS * filterMultiplier;
-        const normalizedMaxS = maxS * filterMultiplier;
+    // Helpers for normalization
+    const getPriceInLakhs = (amount, unit) => {
+        const val = parseFloat(amount) || 0;
+        const normalizedUnit = (unit || 'Lakh').trim();
+        switch (normalizedUnit) {
+            case 'Thousand': return val / 100;
+            case 'Lakh': return val;
+            case 'Crore': return val * 100;
+            default: return val;
+        }
+    };
 
-        filteredProperties = filteredProperties.filter(p => {
-            const areaStr = p.specifications?.builtUpArea || p.totalArea || '0';
-            const propertyUnit = p.specifications?.builtUpAreaUnit || 'Sq. Ft.';
-            let areaNum = parseFloat(areaStr.replace(/[^0-9.]/g, ''));
+    const getAreaInSqFt = (area, unit) => {
+        const val = parseFloat(String(area).replace(/[^0-9.]/g, '')) || 0;
+        const normalizedUnit = (unit || 'Sq. Ft.').trim();
+        switch (normalizedUnit) {
+            case 'Sq. Ft.': return val;
+            case 'Sq. Mt.': return val * 10.7639;
+            case 'Sq. Yd.': return val * 9;
+            case 'Acre': return val * 43560;
+            case 'Gaj': return val * 9;
+            default: return val;
+        }
+    };
 
-            // Normalize property area to Sq. Ft.
-            const propertyMultiplier = filterConversion[propertyUnit] || 1;
-            const areaInSqFt = areaNum * propertyMultiplier;
+    // Advanced Budget and Size Filtering in JS
+    const hasPriceFilter = (minPrice && String(minPrice).trim() !== '') || (maxPrice && String(maxPrice).trim() !== '');
+    const hasSizeFilter = (minSize && String(minSize).trim() !== '') || (maxSize && String(maxSize).trim() !== '');
 
-            return areaInSqFt >= normalizedMinS && areaInSqFt <= normalizedMaxS;
+    if (hasPriceFilter || hasSizeFilter) {
+        // Price Filter Range (Local Scale to Lakhs)
+        const filterPUnit = (priceUnit && priceUnit !== 'All') ? priceUnit : 'Lakh';
+        const fMinP = minPrice ? parseFloat(minPrice) : 0;
+        const fMaxP = maxPrice ? parseFloat(maxPrice) : Infinity;
+        const normFilterMinP = getPriceInLakhs(fMinP, filterPUnit);
+        const normFilterMaxP = getPriceInLakhs(fMaxP, filterPUnit);
+
+        // Size Filter Range (Local Scale to Sq. Ft.)
+        const filterAUnit = areaUnit || 'Sq. Ft.';
+        const fMinS = minSize ? parseFloat(minSize) : 0;
+        const fMaxS = maxSize ? parseFloat(maxSize) : Infinity;
+        const normFilterMinS = getAreaInSqFt(fMinS, filterAUnit);
+        const normFilterMaxS = getAreaInSqFt(fMaxS, filterAUnit);
+
+        filteredResults = filteredResults.filter(p => {
+            // 1. Price check
+            if (hasPriceFilter) {
+                let pMinInLakhs = 0;
+                let pMaxInLakhs = 0;
+
+                if (p.listingType === 'Sale' && p.saleDetails) {
+                    pMinInLakhs = getPriceInLakhs(p.saleDetails.priceMin, p.saleDetails.priceUnit);
+                    pMaxInLakhs = getPriceInLakhs(p.saleDetails.priceMax || p.saleDetails.priceMin, p.saleDetails.priceUnit);
+                } else if (p.listingType === 'Rent' && p.rentDetails) {
+                    pMinInLakhs = getPriceInLakhs(p.rentDetails.monthlyRent, p.rentDetails.rentUnit || 'Thousand');
+                    pMaxInLakhs = pMinInLakhs;
+                } else if (p.listingType === 'Lease' && p.leaseDetails) {
+                    pMinInLakhs = getPriceInLakhs(p.leaseDetails.monthlyLeaseRate, p.leaseDetails.leaseUnit);
+                    pMaxInLakhs = pMinInLakhs;
+                } else {
+                    pMinInLakhs = (p.price?.amount || 0) / 100000;
+                    pMaxInLakhs = pMinInLakhs;
+                }
+
+                const matchesPrice = (pMinInLakhs <= normFilterMaxP && pMaxInLakhs >= normFilterMinP);
+                if (!matchesPrice) return false;
+            }
+
+            // 2. Size check
+            if (hasSizeFilter) {
+                const specs = Array.isArray(p.specifications) && p.specifications.length > 0
+                    ? p.specifications[0]
+                    : (p.specifications || {});
+
+                const areaVal = specs.builtUpArea || p.totalArea || 0;
+                const propAreaInSqFt = getAreaInSqFt(areaVal, specs.builtUpAreaUnit);
+
+                const matchesSize = (propAreaInSqFt >= normFilterMinS && propAreaInSqFt <= normFilterMaxS);
+                if (!matchesSize) return false;
+            }
+
+            return true;
         });
     }
 
+    // Flatten specifications for frontend compatibility
+    const finalProperties = filteredResults.map(prop => ({
+        ...prop,
+        specifications: Array.isArray(prop.specifications) && prop.specifications.length > 0
+            ? prop.specifications[0]
+            : prop.specifications
+    }));
+
     res.status(200).json({
         success: true,
-        count: filteredProperties.length,
-        data: filteredProperties
+        count: finalProperties.length,
+        data: finalProperties
     });
 });
 
@@ -368,6 +408,11 @@ export const getPublicPropertyById = asyncHandler(async (req, res) => {
 
     if (!property) {
         return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    // Flatten specifications for frontend compatibility
+    if (Array.isArray(property.specifications) && property.specifications.length > 0) {
+        property.specifications = property.specifications[0];
     }
 
     res.status(200).json({

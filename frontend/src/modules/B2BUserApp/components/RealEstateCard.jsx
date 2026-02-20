@@ -4,6 +4,7 @@ import { FiMapPin, FiPhone, FiHome, FiMaximize } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../shared/utils/api';
+import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 
 const RealEstateCard = ({ property }) => {
     const navigate = useNavigate();
@@ -35,22 +36,32 @@ const RealEstateCard = ({ property }) => {
             }
         };
 
+        const getUnitLabel = (unit) => {
+            switch (unit) {
+                case 'Thousand': return ' Thousand';
+                case 'Lakh': return ' Lakh';
+                case 'Crore': return ' Crore';
+                default: return '';
+            }
+        };
+
         if (p.listingType === 'Sale') {
             if (p.saleDetails?.priceMin) {
                 const min = p.saleDetails.priceMin;
                 const max = p.saleDetails.priceMax;
                 const unit = p.saleDetails.priceUnit || 'Lakh';
-                if (max && max !== min) return `₹${min}-${max}${unit === 'Lakh' ? 'L' : 'Cr'}`;
-                return `₹${min}${unit === 'Lakh' ? 'L' : 'Cr'} onwards`;
+                const label = getUnitLabel(unit);
+                if (max && max !== min) return `₹${min}-${max}${label}`;
+                return `₹${min}${label} onwards`;
             }
         } else if (p.listingType === 'Rent' && p.rentDetails?.monthlyRent) {
-            const multiplier = getMultiplier(p.rentDetails.rentUnit);
-            const amount = p.rentDetails.monthlyRent * multiplier;
-            return `₹${amount.toLocaleString('en-IN')}/mo`;
+            const unit = p.rentDetails.rentUnit || 'Thousand';
+            const label = getUnitLabel(unit);
+            return `₹${p.rentDetails.monthlyRent}${label}/mo`;
         } else if (p.listingType === 'Lease' && p.leaseDetails?.monthlyLeaseRate) {
-            const multiplier = getMultiplier(p.leaseDetails.leaseUnit);
-            const amount = p.leaseDetails.monthlyLeaseRate * multiplier;
-            return `₹${amount.toLocaleString('en-IN')}/mo`;
+            const unit = p.leaseDetails.leaseUnit || 'Lakh';
+            const label = getUnitLabel(unit);
+            return `₹${p.leaseDetails.monthlyLeaseRate}${label}/mo`;
         }
 
         if (p.price?.amount) return `₹${(p.price.amount / 100000).toFixed(1)}L`;
@@ -59,7 +70,11 @@ const RealEstateCard = ({ property }) => {
 
     const imageUrl = property.media?.[0]?.url || property.images?.[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=600';
     const displayPrice = formatPrice(property);
-    const displayLocation = `${property.location?.area || ''}, ${property.location?.city || ''}`;
+
+    // Use vendor's registration location as requested
+    const vendorAddress = property.vendorId?.address || {};
+    const displayLocation = `${vendorAddress.area || vendorAddress.market || ''}, ${vendorAddress.city || ''}`.trim().replace(/^,/, '').trim();
+
     const sellerName = property.vendorId?.storeName || 'Verified Seller';
     const sellerPhone = property.vendorId?.phone || '9876543210';
 
@@ -127,7 +142,11 @@ const RealEstateCard = ({ property }) => {
                         <FiMaximize className="text-primary-500" size={12} />
                         <span className="truncate">
                             {property.specifications?.builtUpArea
-                                ? `${property.specifications.builtUpArea} ${property.specifications.builtUpAreaUnit || 'Sq. Ft.'}`
+                                ? `${property.specifications.builtUpArea} ${property.specifications.builtUpAreaUnit === 'Sq. Ft.' ? 'Square Feet' :
+                                    property.specifications.builtUpAreaUnit === 'Sq. Mt.' ? 'Square Meters' :
+                                        property.specifications.builtUpAreaUnit === 'Sq. Yd.' ? 'Square Yards' :
+                                            property.specifications.builtUpAreaUnit || 'Square Feet'
+                                }`
                                 : property.totalArea || 'N/A'
                             }
                         </span>
@@ -170,6 +189,20 @@ const RealEstateCard = ({ property }) => {
                         <FiPhone size={12} />
                         <span>Call</span>
                     </a>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const mapsUrl = getGoogleMapsUrl(property.vendorId);
+                            if (mapsUrl) {
+                                trackContactClick(property.vendorId?._id, 'map');
+                                window.open(mapsUrl, '_blank');
+                            }
+                        }}
+                        className="flex-1 py-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center gap-1.5 font-black text-[10px] uppercase tracking-wider"
+                    >
+                        <FiMapPin size={12} />
+                        <span>Map</span>
+                    </button>
                 </div>
             </div>
         </motion.div>

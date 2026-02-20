@@ -34,13 +34,13 @@ const B2BLanding = () => {
             navigate(path);
             return;
         }
-        
+
         // For all other routes, require authentication
         if (!isAuthenticated) {
             navigate('/b2b/login', { state: { from: { pathname: path } } });
             return;
         }
-        
+
         navigate(path);
     };
 
@@ -177,6 +177,10 @@ const B2BLanding = () => {
     };
 
     const handleSearchProductPopup = async (queryOrProduct) => {
+        if (!isAuthenticated) {
+            navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+            return;
+        }
         setIsSearching(true);
         setActivePopup('products');
 
@@ -591,6 +595,10 @@ const B2BLanding = () => {
                         <div className="hidden lg:flex items-center gap-2">
                             <button
                                 onClick={() => {
+                                    if (!isAuthenticated) {
+                                        navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+                                        return;
+                                    }
                                     fetchLotProducts();
                                     setActivePopup('lots');
                                 }}
@@ -661,7 +669,15 @@ const B2BLanding = () => {
                             <div className="space-y-4">
                                 <h4 className="font-black text-gray-400 text-[9px] uppercase tracking-[0.2em]">Quick Access</h4>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={() => { fetchLotProducts(); setActivePopup('lots'); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
+                                    <button onClick={() => {
+                                        if (!isAuthenticated) {
+                                            navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+                                        } else {
+                                            fetchLotProducts();
+                                            setActivePopup('lots');
+                                        }
+                                        setIsMobileMenuOpen(false);
+                                    }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">
                                         <FiTrendingUp size={24} /> Lot / SOT
                                     </button>
                                     <button onClick={() => { navigateWithAuth('/b2b/real-estate'); setIsMobileMenuOpen(false); }} className="flex flex-col items-center gap-3 p-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-wider transition-all hover:bg-primary-100">

@@ -128,6 +128,10 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         status: prop.status,
         isActive: prop.isActive,
         media: prop.media,
+        // Flatten specifications for frontend compatibility
+        specifications: Array.isArray(prop.specifications) && prop.specifications.length > 0
+            ? prop.specifications[0]
+            : prop.specifications,
         vendor: prop.vendorId ? {
             name: prop.vendorId.storeName || prop.vendorId.name,
             email: prop.vendorId.email,
@@ -163,6 +167,11 @@ export const getPropertyById = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'Property not found' });
     }
 
+    // Flatten specifications for frontend compatibility
+    if (Array.isArray(property.specifications) && property.specifications.length > 0) {
+        property.specifications = property.specifications[0];
+    }
+
     res.status(200).json({
         success: true,
         data: property
@@ -177,19 +186,24 @@ export const updatePropertyStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { isActive } = req.body;
 
-    const property = await Property.findByIdAndUpdate(
+    const propertyDoc = await Property.findByIdAndUpdate(
         id,
         { isActive },
         { new: true }
-    );
+    ).lean();
 
-    if (!property) {
+    if (!propertyDoc) {
         return res.status(404).json({ success: false, message: 'Property not found' });
+    }
+
+    // Flatten specifications for frontend compatibility
+    if (Array.isArray(propertyDoc.specifications) && propertyDoc.specifications.length > 0) {
+        propertyDoc.specifications = propertyDoc.specifications[0];
     }
 
     res.status(200).json({
         success: true,
         message: `Property ${isActive ? 'activated' : 'deactivated'} successfully`,
-        data: property
+        data: propertyDoc
     });
 });
