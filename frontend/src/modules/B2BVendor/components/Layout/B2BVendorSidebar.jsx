@@ -97,15 +97,18 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
 
     const filteredMenu = b2bVendorMenu.filter(item => {
         if (item.title === "Dashboard") return true;
-        if (!settings || !settings.enabledModules) return true;
+
+        // Items that don't depend on business type settings
+        const alwaysVisible = ["Subscription", "Banner Booking", "Notifications", "Account Settings"];
+        if (alwaysVisible.includes(item.title)) return true;
+
+        // Business-type-specific items — hide them until settings load
+        if (!settings || !settings.enabledModules) return false;
+
         const moduleMap = {
             "Product Listings": "product",
             "Property Management": "property",
             "Lot/Slot Listings": "lotslot",
-            "Subscription": "subscription",
-            "Banner Booking": "banner",
-            "Notifications": "notifications",
-            "Account Settings": ["settings", "profile"]
         };
         const moduleKey = moduleMap[item.title];
         if (!moduleKey) return true;

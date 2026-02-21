@@ -11,6 +11,7 @@ import {
     FiCreditCard,
     FiEye,
 } from "react-icons/fi";
+import { BiWallet } from "react-icons/bi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { formatPrice } from "../../../shared/utils/helpers";
@@ -39,14 +40,15 @@ const B2BBannerBooking = () => {
     const [loading, setLoading] = useState(false);
     const [showBookingModal, setShowBookingModal] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState(null);
+    const [walletBalance, setWalletBalance] = useState(0);
 
-    // Standard date formatter for IST
+
+    // Standard date formatter for B2B Banners (Literal UTC-to-IST)
     const formatISTDate = (val) => {
         if (!val) return "";
-        const date = new Date(val);
-        // Add 5.5 hours to UTC to get IST, then take date part
-        const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
-        return istDate.toISOString().split('T')[0];
+        // Database stores as 00:00 UTC to represent 00:00 IST
+        // So we just take the date part from ISO string
+        return new Date(val).toISOString().split('T')[0];
     };
 
     const [formData, setFormData] = useState({
@@ -57,7 +59,9 @@ const B2BBannerBooking = () => {
         startDate: "",
         durationDays: 1,
         durationType: "day",
+        paymentMethod: "razorpay", // Add paymentMethod
     });
+
 
     // Prevent duplicate API calls in React StrictMode
     const hasLoadedData = useRef(false);
@@ -92,6 +96,7 @@ const B2BBannerBooking = () => {
                     defaultPricePerDay: payload.settings?.defaultPricePerDay || 2999,
                     pricingStructure: payload.settings?.pricingStructure || {}
                 });
+                setWalletBalance(payload.walletBalance || 0);
             } else if (payload?.success && payload?.data) {
                 // Handle case where response is { success: true, data: { slots: [], settings: {} } }
                 const data = payload.data;
@@ -104,6 +109,8 @@ const B2BBannerBooking = () => {
                         defaultPricePerDay: data.settings?.defaultPricePerDay || 2999,
                         pricingStructure: data.settings?.pricingStructure || {}
                     });
+                    setWalletBalance(data.walletBalance || 0);
+
                 } else {
                     setSlots([]);
                     console.warn("Unexpected slots response structure", slotsRes);
@@ -306,7 +313,7 @@ const B2BBannerBooking = () => {
             formDataToSend.append('title', formData.title || '');
             formDataToSend.append('link', formData.link || '/');
             formDataToSend.append('image', formData.image);
-            formDataToSend.append('paymentMethod', 'razorpay'); // Default to razorpay, can be changed to 'wallet' later
+            formDataToSend.append('paymentMethod', formData.paymentMethod); // Use selected payment method
             formDataToSend.append('bannerType', 'b2b'); // Explicitly set bannerType for B2B vendors
 
             // Verify FormData contents
@@ -484,7 +491,8 @@ const B2BBannerBooking = () => {
             preview: null,
             startDate: "",
             durationDays: 1,
-            durationType: "day"
+            durationType: "day",
+            paymentMethod: "razorpay"
         });
         setSelectedSlot(null);
     };
@@ -498,7 +506,8 @@ const B2BBannerBooking = () => {
             preview: null,
             startDate: "",
             durationDays: 1,
-            durationType: "day"
+            durationType: "day",
+            paymentMethod: "razorpay"
         });
         setShowBookingModal(true);
     };
@@ -586,6 +595,17 @@ const B2BBannerBooking = () => {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">B2B Banner Booking</h1>
                     <p className="text-gray-500 text-sm">Book banner slots to promote your B2B business on the marketplace</p>
+                </div>
+
+                {/* Wallet Balance Card */}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+                        <BiWallet size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Wallet Balance</p>
+                        <p className="text-xl font-bold text-gray-900">{formatPrice(walletBalance)}</p>
+                    </div>
                 </div>
             </div>
 
@@ -739,7 +759,7 @@ const B2BBannerBooking = () => {
                                         </div>
                                         {calculatedEndDate && (
                                             <p className="mt-2 text-sm text-green-600 font-medium">
-                                                Valid until: {calculatedEndDate.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} (Midnight)
+                                                Will be active from {formData.startDate} (12:00 AM) to {formatISTDate(calculatedEndDate)} (11:59 PM)
                                             </p>
                                         )}
                                     </div>
@@ -759,6 +779,50 @@ const B2BBannerBooking = () => {
                                                 </p>
                                             </div>
                                         </div>
+                                    </div>
+
+                                    {/* Payment Method Selection */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Payment Method
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({ ...prev, paymentMethod: "razorpay" }))}
+                                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.paymentMethod === "razorpay"
+                                                    ? "border-blue-600 bg-blue-50 text-blue-600"
+                                                    : "border-gray-100 hover:border-gray-200 text-gray-600"
+                                                    }`}
+                                            >
+                                                <FiCreditCard className="text-xl mb-1" />
+                                                <span className="text-xs font-semibold uppercase">Razorpay</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (walletBalance < calculatedPrice) {
+                                                        toast.error("Insufficient wallet balance");
+                                                        return;
+                                                    }
+                                                    setFormData(prev => ({ ...prev, paymentMethod: "wallet" }));
+                                                }}
+                                                className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.paymentMethod === "wallet"
+                                                    ? "border-green-600 bg-green-50 text-green-600"
+                                                    : walletBalance < calculatedPrice
+                                                        ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-60"
+                                                        : "border-gray-100 hover:border-gray-200 text-gray-600"
+                                                    }`}
+                                            >
+                                                <BiWallet className="text-xl mb-1" />
+                                                <span className="text-xs font-semibold uppercase tracking-tight">Wallet Balance ({formatPrice(walletBalance)})</span>
+                                            </button>
+                                        </div>
+                                        {formData.paymentMethod === "wallet" && (
+                                            <p className="mt-2 text-[10px] text-green-600 font-medium">
+                                                * Amount will be deducted from your wallet immediately upon booking.
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Banner Title */}

@@ -11,6 +11,7 @@ import {
     FiPhone,
     FiExternalLink
 } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import { IndianRupee } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatPrice } from "../../../../shared/utils/helpers";
@@ -27,6 +28,8 @@ const AdminB2BBannerDetail = () => {
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
+    const [approveModal, setApproveModal] = useState(false);
+    const [rejectModal, setRejectModal] = useState({ show: false, reason: '' });
     const hasLoaded = useRef(false);
 
     useEffect(() => {
@@ -51,8 +54,7 @@ const AdminB2BBannerDetail = () => {
     };
 
     const handleApprove = async () => {
-        if (!window.confirm("Are you sure you want to approve this B2B banner?")) return;
-
+        setApproveModal(false);
         setActionLoading(true);
         try {
             await approveBannerBooking(id);
@@ -66,10 +68,8 @@ const AdminB2BBannerDetail = () => {
         }
     };
 
-    const handleReject = async () => {
-        const reason = prompt("Enter rejection reason:");
-        if (reason === null) return; // Cancelled
-
+    const handleReject = async (reason = '') => {
+        setRejectModal({ show: false, reason: '' });
         setActionLoading(true);
         try {
             await rejectBannerBooking(id, reason);
@@ -116,14 +116,14 @@ const AdminB2BBannerDetail = () => {
                 {booking.status === "pending" && booking.paymentStatus === "paid" && (
                     <div className="flex gap-3">
                         <button
-                            onClick={handleReject}
+                            onClick={() => setRejectModal({ show: true, reason: '' })}
                             disabled={actionLoading}
                             className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 flex items-center gap-2 transition-colors disabled:opacity-50"
                         >
                             <FiXCircle /> Reject
                         </button>
                         <button
-                            onClick={handleApprove}
+                            onClick={() => setApproveModal(true)}
                             disabled={actionLoading}
                             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 transition-colors disabled:opacity-50"
                         >
@@ -305,6 +305,111 @@ const AdminB2BBannerDetail = () => {
                     )}
                 </div>
             </div>
+            {/* Approve Confirmation Modal */}
+            <AnimatePresence>
+                {approveModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                        >
+                            <div className="p-5 bg-green-50 border-b border-green-100 flex items-center gap-3">
+                                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                    <FiCheckCircle className="text-green-600 text-xl" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Approve Banner Booking</h3>
+                                    <p className="text-sm text-green-600">This banner will go live on the marketplace</p>
+                                </div>
+                            </div>
+                            <div className="p-5">
+                                <p className="text-gray-600 text-sm mb-5">
+                                    Are you sure you want to approve this B2B banner? Once approved, the banner will be displayed on the marketplace during the booked time slot.
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setApproveModal(false)}
+                                        className="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleApprove}
+                                        disabled={actionLoading}
+                                        className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+                                    >
+                                        <FiCheckCircle />
+                                        Yes, Approve
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Rejection Reason Modal */}
+            <AnimatePresence>
+                {rejectModal.show && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                        >
+                            <div className="p-5 bg-red-50 border-b border-red-100 flex items-center gap-3">
+                                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                    <FiXCircle className="text-red-600 text-xl" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Reject Banner Booking</h3>
+                                    <p className="text-sm text-red-600">This action will reject and refund the booking</p>
+                                </div>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Rejection Reason <span className="text-gray-400 font-normal">(optional)</span>
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        placeholder="Enter the reason for rejecting this banner booking..."
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm resize-none transition-all"
+                                        value={rejectModal.reason}
+                                        onChange={(e) => setRejectModal(prev => ({ ...prev, reason: e.target.value }))}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRejectModal({ show: false, reason: '' })}
+                                        className="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleReject(rejectModal.reason)}
+                                        disabled={actionLoading}
+                                        className="px-5 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+                                    >
+                                        <FiXCircle />
+                                        Reject Booking
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

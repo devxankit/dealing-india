@@ -27,12 +27,16 @@ export const lazyWithRetry = (componentImport) =>
                 console.warn('Chunk load failed. Attempting force refresh to get latest version...');
                 window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
                 window.location.reload();
-                return;
+                // Return a never-resolving promise to prevent React from rendering undefined
+                return new Promise(() => { });
             }
 
+            // Reset the flag so next navigation attempt can try refresh again
+            window.sessionStorage.setItem('page-has-been-force-refreshed', 'false');
             // If we already refreshed and it still fails, bubble the error to ErrorBoundary
             throw error;
         }
     });
+
 
 export default lazyWithRetry;

@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import BannerBooking from '../models/BannerBooking.model.js';
 import BannerSlot from '../models/BannerSlot.model.js';
+import platformLedgerService from '../services/platformLedger.service.js';
 
 /**
  * Banner Booking Cron Job
@@ -20,7 +21,7 @@ const bannerBookingCron = () => {
             const toActivate = await BannerBooking.find({
                 status: 'approved',
                 startDate: { $lte: nowWithISTBuffer },
-                endDate: { $gte: now }
+                endDate: { $gte: nowWithISTBuffer }
             });
 
             if (toActivate.length > 0) {
@@ -33,13 +34,26 @@ const bannerBookingCron = () => {
                     await BannerSlot.findByIdAndUpdate(booking.slotId, {
                         currentBooking: booking._id
                     });
+
+                    // Record revenue realization (double-entry accounting)
+                    try {
+                        await platformLedgerService.recordRevenueRealized({
+                            bookingId: booking._id,
+                            vendorId: booking.vendorId,
+                            amount: booking.amount,
+                            referenceId: booking.referenceId,
+                        });
+                        console.log(`✅ [Cron] Revenue realized for banner: ${booking.referenceId}`);
+                    } catch (revenueError) {
+                        console.error(`⚠️ [Cron] Revenue realization failed for ${booking.referenceId}:`, revenueError.message);
+                    }
                 }
             }
 
             // 2. active -> completed
             const toComplete = await BannerBooking.find({
                 status: 'active',
-                endDate: { $lt: now }
+                endDate: { $lt: nowWithISTBuffer }
             });
 
             if (toComplete.length > 0) {
@@ -87,7 +101,7 @@ const updateStatuses = async () => {
         const completed = await BannerBooking.updateMany(
             {
                 status: 'active',
-                endDate: { $lt: now }
+                endDate: { $lt: nowWithISTBuffer }
             },
             { $set: { status: 'completed' } }
         );

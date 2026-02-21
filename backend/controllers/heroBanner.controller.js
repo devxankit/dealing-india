@@ -5,6 +5,9 @@ import VendorSubscription from '../models/VendorSubscription.model.js';
 import { uploadToCloudinary } from '../utils/cloudinary.util.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import notificationService from '../services/notification.service.js';
+import vendorWalletService from '../services/vendorWallet.service.js';
+import platformLedgerService from '../services/platformLedger.service.js';
+
 
 // ==========================================
 // VENDOR CONTROLLERS
@@ -12,6 +15,14 @@ import notificationService from '../services/notification.service.js';
 
 export const getAvailableSlots = asyncHandler(async (req, res) => {
     const { bannerType = 'hero' } = req.query;
+    const vendorId = req.user?.vendorId || req.user?._id || req.user?.id;
+
+    // Get vendor wallet balance if authenticated
+    let walletBalance = 0;
+    if (vendorId && req.user?.role === 'vendor') {
+        const wallet = await vendorWalletService.getOrCreateWallet(vendorId);
+        walletBalance = wallet.balance;
+    }
 
     // Auto-create B2B slots if they don't exist
     if (bannerType === 'b2b') {
@@ -68,13 +79,14 @@ export const getAvailableSlots = asyncHandler(async (req, res) => {
         success: true,
         data: {
             slots: slotsWithBookings,
-            settings
+            settings,
+            walletBalance
         }
     });
 });
 
 export const createBannerBooking = asyncHandler(async (req, res) => {
-    const { slotId, startDate, durationDays, bannerType = 'b2b', title, link } = req.body;
+    const { slotId, startDate, durationDays, bannerType = 'b2b', title, link, paymentMethod = 'razorpay' } = req.body;
 
     // Log authentication info
     console.log('🔐 [createBannerBooking] User object:', JSON.stringify(req.user, null, 2));
@@ -147,6 +159,25 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
     const amount = slot.price * durationInDays;
     const durationHours = durationInDays * 24;
 
+    // Handle Wallet Payment
+    let walletDebitRef = null;
+    if (paymentMethod === 'wallet') {
+        const wallet = await vendorWalletService.getOrCreateWallet(vendorId);
+        if (wallet.balance < amount) {
+            return res.status(400).json({ success: false, message: `Insufficient wallet balance. Required: ₹${amount}, Available: ₹${wallet.balance}` });
+        }
+
+        // Debit the wallet
+        walletDebitRef = `BB-${Date.now().toString(36).toUpperCase()}`;
+        await vendorWalletService.debitWallet(
+            vendorId,
+            amount,
+            `B2B Banner Booking - Slot ${slot.slotNumber}`,
+            walletDebitRef,
+            'banner_booking'
+        );
+    }
+
     // Upload image using buffer
     console.log('☁️ [createBannerBooking] Uploading to Cloudinary...');
     const uploadResult = await uploadToCloudinary(req.file.buffer, 'banners');
@@ -166,36 +197,77 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
         durationDays: durationInDays,
         referenceId: `B2B-${Date.now().toString(36).toUpperCase()}`,
         status: 'pending',
-        paymentStatus: 'unpaid',
+        paymentStatus: paymentMethod === 'wallet' ? 'paid' : 'unpaid',
+        paymentMethod: paymentMethod,
         adminApprovalStatus: 'pending'
     });
 
     console.log('✅ [createBannerBooking] Booking created:', booking._id);
 
-    // Create Razorpay order for payment
+    // Record platform ledger entry for wallet payment
+    if (paymentMethod === 'wallet') {
+        try {
+            await platformLedgerService.recordPaymentReceived({
+                bookingId: booking._id,
+                vendorId,
+                amount,
+                paymentMethod: 'wallet',
+                referenceId: walletDebitRef,
+                description: `Wallet payment for B2B Banner Booking - Slot ${slot.slotNumber} - ${booking.referenceId}`,
+            });
+            console.log('✅ [createBannerBooking] Platform ledger entry created for wallet payment');
+        } catch (ledgerError) {
+            console.error('⚠️ [createBannerBooking] Platform ledger entry failed (non-blocking):', ledgerError.message);
+        }
+    }
+
+    // Create Razorpay order only if not paid by wallet
     let razorpayOrder = null;
-    try {
-        const razorpayService = (await import('../services/razorpay.service.js')).default;
-        razorpayOrder = await razorpayService.createOrder(
-            amount,
-            'INR',
-            booking.referenceId,
-            {
-                bookingId: booking._id.toString(),
-                vendorId: vendorId.toString(),
-                bannerType: 'b2b',
-                type: 'banner_booking'
-            }
-        );
+    if (paymentMethod !== 'wallet') {
+        try {
+            const razorpayService = (await import('../services/razorpay.service.js')).default;
+            razorpayOrder = await razorpayService.createOrder(
+                amount,
+                'INR',
+                booking.referenceId,
+                {
+                    bookingId: booking._id.toString(),
+                    vendorId: vendorId.toString(),
+                    bannerType: 'b2b',
+                    type: 'banner_booking'
+                }
+            );
 
-        // Save Razorpay order ID to booking
-        booking.razorpayOrderId = razorpayOrder.id;
-        await booking.save();
+            // Save Razorpay order ID to booking
+            booking.razorpayOrderId = razorpayOrder.id;
+            await booking.save();
 
-        console.log('✅ [createBannerBooking] Razorpay order created:', razorpayOrder.id);
-    } catch (razorpayError) {
-        console.error('❌ [createBannerBooking] Razorpay order creation failed:', razorpayError.message);
-        // Continue without Razorpay order - booking is still created
+            console.log('✅ [createBannerBooking] Razorpay order created:', razorpayOrder.id);
+        } catch (razorpayError) {
+            console.error('❌ [createBannerBooking] Razorpay order creation failed:', razorpayError.message);
+            // Continue without Razorpay order - booking is still created (will be unpaid)
+        }
+    } else {
+        // If wallet paid, notify admins immediately as payment is confirmed
+        try {
+            const vendor = await Vendor.findById(vendorId).select('businessName storeName');
+            await notificationService.sendBulkNotification({
+                type: 'banner_booking',
+                title: 'Vendor Banner Booking (Wallet Paid)',
+                message: `Vendor has booked a banner using wallet funds.`,
+                actionUrl: `/admin/b2b-vendors/banner-bookings`,
+                metadata: {
+                    bookingId: booking._id.toString(),
+                    vendorId: vendorId.toString(),
+                    vendorName: vendor?.businessName || vendor?.storeName || 'A vendor',
+                    bannerType: booking.bannerType,
+                    amount: booking.amount,
+                    paymentMethod: 'wallet'
+                }
+            }, 'admins');
+        } catch (notifError) {
+            console.error('Failed to notify admins about wallet banner booking:', notifError);
+        }
     }
 
     res.status(201).json({
@@ -295,6 +367,21 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
     await booking.save();
 
+    // Record platform ledger entry for Razorpay payment
+    try {
+        await platformLedgerService.recordPaymentReceived({
+            bookingId: booking._id,
+            vendorId,
+            amount: booking.amount,
+            paymentMethod: paymentMethod || 'razorpay',
+            referenceId: razorpayPaymentId,
+            description: `Razorpay payment for B2B Banner Booking - ${booking.referenceId}`,
+        });
+        console.log('✅ [confirmPayment] Platform ledger entry created');
+    } catch (ledgerError) {
+        console.error('⚠️ [confirmPayment] Platform ledger entry failed (non-blocking):', ledgerError.message);
+    }
+
     // Notify admins about banner booking
     try {
         const vendor = await Vendor.findById(vendorId).select('businessName storeName');
@@ -337,16 +424,70 @@ export const cancelBooking = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    if (booking.paymentStatus === 'paid') {
-        return res.status(400).json({ success: false, message: 'Cannot cancel paid booking directly' });
+    // Only allow cancellation of pending bookings (not yet approved/active)
+    if (booking.status === 'active' || booking.status === 'completed') {
+        return res.status(400).json({ success: false, message: 'Cannot cancel an active or completed booking' });
     }
 
     booking.status = 'cancelled';
+
+    // Handle refund for paid bookings (pending approval stage)
+    if (booking.paymentStatus === 'paid' && booking.adminApprovalStatus === 'pending') {
+        try {
+            // Refund based on payment method
+            if (booking.paymentMethod === 'wallet') {
+                // 1. Credit vendor wallet
+                await vendorWalletService.creditWallet(
+                    vendorId,
+                    booking.amount,
+                    `Refund for Cancelled Banner Booking: ${booking.referenceId}`,
+                    booking._id.toString(),
+                    'refund'
+                );
+
+                // 2. Record platform DEBIT (double-entry)
+                await platformLedgerService.recordRefund({
+                    bookingId: booking._id,
+                    vendorId,
+                    amount: booking.amount,
+                    referenceId: booking.referenceId,
+                    description: `Refund for vendor-cancelled B2B Banner Booking: ${booking.referenceId}`,
+                });
+
+                booking.paymentStatus = 'refunded';
+                console.log('✅ [cancelBooking] Wallet refund processed with double-entry ledger');
+            } else {
+                // Razorpay payments - credit to wallet as store credit
+                await vendorWalletService.creditWallet(
+                    vendorId,
+                    booking.amount,
+                    `Refund (to wallet) for Cancelled Banner Booking: ${booking.referenceId}`,
+                    booking._id.toString(),
+                    'refund'
+                );
+
+                await platformLedgerService.recordRefund({
+                    bookingId: booking._id,
+                    vendorId,
+                    amount: booking.amount,
+                    referenceId: booking.referenceId,
+                    description: `Refund (to wallet) for vendor-cancelled B2B Banner Booking: ${booking.referenceId}`,
+                });
+
+                booking.paymentStatus = 'refunded';
+                console.log('✅ [cancelBooking] Razorpay payment refunded to wallet with double-entry ledger');
+            }
+        } catch (refundError) {
+            console.error('❌ [cancelBooking] Refund failed:', refundError);
+            // Booking is still cancelled, but mark refund issue
+        }
+    }
+
     await booking.save();
 
     res.status(200).json({
         success: true,
-        message: 'Booking cancelled'
+        message: `Booking cancelled${booking.paymentStatus === 'refunded' ? '. Payment has been refunded to your wallet.' : ''}`
     });
 });
 
@@ -367,13 +508,21 @@ export const getActiveBanners = asyncHandler(async (req, res) => {
         status: { $in: ['active', 'approved'] },
         paymentStatus: 'paid',
         startDate: { $lte: nowWithISTBuffer },
-        endDate: { $gte: now }
+        endDate: { $gte: nowWithISTBuffer }
     };
     if (bannerType) query.bannerType = bannerType;
 
     const banners = await BannerBooking.find(query)
         .populate('vendorId', 'name storeName businessInfo')
-        .sort({ startDate: 1 }); // Sort chronologically by start date
+        .populate('slotId', 'slotNumber')
+        .lean();
+
+    // Sort by slot number (Slot 1, then Slot 2, etc.)
+    banners.sort((a, b) => {
+        const slotA = a.slotId?.slotNumber || 999;
+        const slotB = b.slotId?.slotNumber || 999;
+        return slotA - slotB;
+    });
 
     const settings = {
         universalDisplayTime: 3
@@ -566,6 +715,22 @@ export const approveBannerBooking = asyncHandler(async (req, res) => {
         });
     }
 
+    // Record revenue realization when booking goes active
+    // Revenue is only recognized when banner is actually displayed
+    if (booking.status === 'active') {
+        try {
+            await platformLedgerService.recordRevenueRealized({
+                bookingId: booking._id,
+                vendorId: booking.vendorId,
+                amount: booking.amount,
+                referenceId: booking.referenceId,
+            });
+            console.log('✅ [approveBannerBooking] Revenue realized for booking:', booking._id);
+        } catch (revenueError) {
+            console.error('⚠️ [approveBannerBooking] Revenue realization failed (non-blocking):', revenueError.message);
+        }
+    }
+
     // Notify vendor about banner approval
     try {
         await notificationService.createNotification({
@@ -606,6 +771,40 @@ export const rejectBannerBooking = asyncHandler(async (req, res) => {
     booking.adminApprovalStatus = 'rejected';
     booking.status = 'cancelled';
     booking.rejectionReason = reason || 'No reason provided';
+
+    // REFUND LOGIC: If payment was made, refund to wallet + create platform debit
+    if (booking.paymentStatus === 'paid') {
+        try {
+            console.log('💰 [rejectBannerBooking] Initiating refund to wallet for booking:', booking._id);
+
+            // 1. Credit vendor wallet (refund)
+            await vendorWalletService.creditWallet(
+                booking.vendorId,
+                booking.amount,
+                `Refund for Rejected Banner Booking: ${booking.referenceId}`,
+                booking._id.toString(),
+                'refund'
+            );
+
+            // 2. Record platform DEBIT (money going out - double-entry)
+            await platformLedgerService.recordRefund({
+                bookingId: booking._id,
+                vendorId: booking.vendorId,
+                amount: booking.amount,
+                referenceId: booking.referenceId,
+                description: `Refund for rejected B2B Banner Booking: ${booking.referenceId}`,
+            });
+
+            // 3. Mark payment as refunded
+            booking.paymentStatus = 'refunded';
+
+            console.log('✅ [rejectBannerBooking] Refund successful with double-entry ledger');
+        } catch (refundError) {
+            console.error('❌ [rejectBannerBooking] Refund failed:', refundError);
+            // Booking is still rejected, but flag refund failure for admin attention
+        }
+    }
+
     await booking.save();
 
     // Notify vendor about banner rejection
@@ -615,23 +814,22 @@ export const rejectBannerBooking = asyncHandler(async (req, res) => {
             recipientType: 'vendor',
             type: 'banner_booking',
             title: 'Banner Booking Rejected',
-            message: `Your banner booking was rejected. ${reason ? `Reason: ${reason}` : ''}`,
+            message: `Your banner booking was rejected. ${reason ? `Reason: ${reason}` : ''} ${booking.paymentStatus === 'refunded' ? 'Your payment has been refunded to your wallet.' : ''}`,
             actionUrl: '/vendor/banners',
             metadata: {
                 bookingId: booking._id,
                 bannerType: booking.bannerType,
-                reason: reason
+                reason: reason,
+                refunded: booking.paymentStatus === 'refunded'
             }
         }, req.app.get('io'));
     } catch (notifError) {
         console.error('Failed to notify vendor about banner rejection:', notifError);
     }
 
-    // TODO: Initiate refund if payment was made
-
     res.status(200).json({
         success: true,
-        message: 'Booking rejected successfully',
+        message: `Booking rejected successfully${booking.paymentStatus === 'refunded' ? '. Payment refunded to vendor wallet.' : ''}`,
         data: booking
     });
 });
@@ -658,15 +856,15 @@ export const getBannerRevenueStats = asyncHandler(async (req, res) => {
         BannerBooking.countDocuments({ bannerType, status: 'active' }),
         BannerBooking.countDocuments({ bannerType, status: 'pending', paymentStatus: 'paid' }),
 
-        // Current month revenue
+        // Current month revenue - only count ACTIVE/COMPLETED bookings (realized revenue)
         BannerBooking.aggregate([
-            { $match: { bannerType, paymentStatus: 'paid', createdAt: { $gte: thirtyDaysAgo } } },
+            { $match: { bannerType, paymentStatus: 'paid', status: { $in: ['active', 'completed'] }, createdAt: { $gte: thirtyDaysAgo } } },
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]),
 
-        // Last month revenue (for percentage change)
+        // Last month revenue (for percentage change) - only realized
         BannerBooking.aggregate([
-            { $match: { bannerType, paymentStatus: 'paid', createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } } },
+            { $match: { bannerType, paymentStatus: 'paid', status: { $in: ['active', 'completed'] }, createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } } },
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]),
 
@@ -696,12 +894,25 @@ export const getBannerRevenueStats = asyncHandler(async (req, res) => {
         ])
     ]);
 
+    // Revenue = only active/completed bookings (realized revenue, excluding refunded)
     const bannerRevenueResult = await BannerBooking.aggregate([
+        { $match: { bannerType, paymentStatus: 'paid', status: { $in: ['active', 'completed'] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    // Total collections (all paid, including pending approval)
+    const totalCollections = await BannerBooking.aggregate([
         { $match: { bannerType, paymentStatus: 'paid' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
 
-    const subscriptionRevenue = uniqueVendors[1]?.[0]?.total || 0; // The fifth element in Promise.all is subscription aggregate
+    // Total refunds issued
+    const totalRefunds = await BannerBooking.aggregate([
+        { $match: { bannerType, paymentStatus: 'refunded' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    const subscriptionRevenue = uniqueVendors[1]?.[0]?.total || 0;
     const bannerRevenue = bannerRevenueResult[0]?.total || 0;
     const totalRevenue = bannerRevenue + subscriptionRevenue;
     const currentRev = currentMonthRevenue[0]?.total || 0;
@@ -727,7 +938,10 @@ export const getBannerRevenueStats = asyncHandler(async (req, res) => {
             percentageChange,
             activeBookingsLast30Days,
             uniqueVendorsCount: uniqueVendors.length,
-            totalPaidBookings: await BannerBooking.countDocuments({ bannerType, paymentStatus: 'paid' })
+            totalPaidBookings: await BannerBooking.countDocuments({ bannerType, paymentStatus: 'paid' }),
+            totalCollections: totalCollections[0]?.total || 0,
+            totalRefunds: totalRefunds[0]?.total || 0,
+            netCollections: (totalCollections[0]?.total || 0) - (totalRefunds[0]?.total || 0),
         }
     });
 });

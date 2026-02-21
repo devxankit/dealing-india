@@ -50,6 +50,7 @@ const B2BBannerManagement = () => {
     });
     const [loading, setLoading] = useState(false);
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+    const [rejectModal, setRejectModal] = useState({ show: false, bookingId: null, reason: '' });
     const [editingSlotId, setEditingSlotId] = useState(null);
 
     // Settings form state
@@ -465,12 +466,7 @@ const B2BBannerManagement = () => {
                                 <FiCheckCircle className="text-lg" />
                             </button>
                             <button
-                                onClick={() => {
-                                    const reason = prompt("Enter rejection reason (optional):");
-                                    if (reason !== null) {
-                                        handleRejectBanner(row._id, reason);
-                                    }
-                                }}
+                                onClick={() => setRejectModal({ show: true, bookingId: row._id, reason: '' })}
                                 className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
                                 title="Reject Banner"
                                 disabled={loading}
@@ -961,6 +957,66 @@ const B2BBannerManagement = () => {
                     pagination={true}
                 />
             </div>
+            {/* Rejection Reason Modal */}
+            <AnimatePresence>
+                {rejectModal.show && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                        >
+                            <div className="p-5 bg-red-50 border-b border-red-100 flex items-center gap-3">
+                                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                    <FiXCircle className="text-red-600 text-xl" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">Reject Banner Booking</h3>
+                                    <p className="text-sm text-red-600">This action will reject and refund the booking</p>
+                                </div>
+                            </div>
+                            <div className="p-5 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Rejection Reason <span className="text-gray-400 font-normal">(optional)</span>
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        placeholder="Enter the reason for rejecting this banner booking..."
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm resize-none transition-all"
+                                        value={rejectModal.reason}
+                                        onChange={(e) => setRejectModal(prev => ({ ...prev, reason: e.target.value }))}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRejectModal({ show: false, bookingId: null, reason: '' })}
+                                        className="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            handleRejectBanner(rejectModal.bookingId, rejectModal.reason);
+                                            setRejectModal({ show: false, bookingId: null, reason: '' });
+                                        }}
+                                        disabled={loading}
+                                        className="px-5 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+                                    >
+                                        <FiXCircle />
+                                        Reject Booking
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

@@ -184,9 +184,10 @@ class SubscriptionRulesService {
         const subData = await this.getActiveSubscription(vendorId);
 
         if (!subData) {
+            // Allow access even without subscription (testing/pre-subscription phase)
             return {
-                hasSubscription: false,
-                message: 'No active subscription found. Please purchase a plan to continue.',
+                hasSubscription: true,
+                message: 'Access granted (no subscription required).',
                 subscription: null
             };
         }
@@ -360,13 +361,21 @@ class SubscriptionRulesService {
         const subData = await this.getActiveSubscription(vendorId);
 
         if (!subData) {
+            // No subscription: Allow everything by default (testing/pre-subscription phase)
+            // This matches canCreateProduct/canCreateLotSlot/canCreateProperty behavior
             return {
-                hasSubscription: false,
-                plan: null,
+                hasSubscription: true,
+                plan: {
+                    id: null,
+                    name: 'Free Access',
+                    type: 'free',
+                    expiresAt: null
+                },
+                businessType: null,
                 limits: {
-                    products: { allowed: false, limit: 0, current: await this.getProductCount(vendorId) },
-                    lotSlot: { allowed: false, current: await this.getLotSlotCount(vendorId) },
-                    properties: { allowed: false, maxImages: 0 }
+                    products: { allowed: true, limit: -1, current: await this.getProductCount(vendorId), remaining: -1 },
+                    lotSlot: { allowed: true, current: await this.getLotSlotCount(vendorId) },
+                    properties: { allowed: true, maxImages: 10 }
                 }
             };
         }
