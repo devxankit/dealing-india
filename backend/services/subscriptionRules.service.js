@@ -205,47 +205,9 @@ class SubscriptionRulesService {
      * @returns {Object} { allowed, message, currentCount, limit }
      */
     async canCreateProduct(vendorId) {
-        const subData = await this.getActiveSubscription(vendorId);
-
-        if (!subData) {
-            return {
-                allowed: true,
-                message: 'Product creation allowed.',
-                currentCount: await this.getProductCount(vendorId),
-                limit: -1
-            };
-        }
-
-        const planType = this.determinePlanType(subData.plan?.name);
-        const limits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
+        // TEMPORARY: Subscription check disabled - allow all vendors without subscription requirement
         const currentCount = await this.getProductCount(vendorId);
-
-        // Check if plan allows products at all
-        if (limits.maxProducts === 0) {
-            return {
-                allowed: false,
-                message: `Your current plan (${subData.plan?.name}) does not allow product listings.`,
-                currentCount,
-                limit: 0
-            };
-        }
-
-        // Check against limit (-1 is unlimited)
-        if (limits.maxProducts !== -1 && currentCount >= limits.maxProducts) {
-            return {
-                allowed: false,
-                message: `Product limit reached (${limits.maxProducts}). Please upgrade your plan.`,
-                currentCount,
-                limit: limits.maxProducts
-            };
-        }
-
-        return {
-            allowed: true,
-            message: 'Product creation allowed.',
-            currentCount,
-            limit: limits.maxProducts
-        };
+        return { allowed: true, message: 'Product creation allowed.', currentCount, limit: -1 };
     }
 
     /**
@@ -254,29 +216,8 @@ class SubscriptionRulesService {
      * @returns {Object} { allowed, message }
      */
     async canCreateLotSlot(vendorId) {
-        const subData = await this.getActiveSubscription(vendorId);
-
-        if (!subData) {
-            return {
-                allowed: true,
-                message: 'Lot/Slot listing allowed.'
-            };
-        }
-
-        const planType = this.determinePlanType(subData.plan?.name);
-        const limits = PLAN_LIMITS[planType] || PLAN_LIMITS[PLAN_TYPES.BASIC];
-
-        if (!limits.allowLotSlot) {
-            return {
-                allowed: false,
-                message: 'Lot/Slot listings are only available in the Diamond plan.'
-            };
-        }
-
-        return {
-            allowed: true,
-            message: 'Lot/Slot listing allowed.'
-        };
+        // TEMPORARY: Subscription check disabled - allow all vendors without subscription requirement
+        return { allowed: true, message: 'Lot/Slot listing allowed.' };
     }
 
     /**
@@ -285,35 +226,8 @@ class SubscriptionRulesService {
      * @returns {Object} { allowed, message, maxImages }
      */
     async canCreateProperty(vendorId) {
-        const subData = await this.getActiveSubscription(vendorId);
-
-        if (!subData) {
-            return {
-                allowed: true,
-                message: 'Property listing allowed.',
-                maxImages: 10
-            };
-        }
-
-        const planType = this.determinePlanType(subData.plan?.name);
-
-        // Property listings are usually for Premium plans
-        if (planType !== PLAN_TYPES.PREMIUM) {
-            return {
-                allowed: false,
-                message: 'Your current plan does not support property listings.',
-                maxImages: 0
-            };
-        }
-
-        const businessType = this.normalizeBusinessType(subData.vendor?.businessType);
-        const maxImages = PROPERTY_IMAGE_LIMITS[businessType] || 5;
-
-        return {
-            allowed: true,
-            message: 'Property listing allowed.',
-            maxImages
-        };
+        // TEMPORARY: Subscription check disabled - allow all vendors without subscription requirement
+        return { allowed: true, message: 'Property listing allowed.', maxImages: 50 };
     }
 
     /**
