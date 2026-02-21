@@ -20,30 +20,16 @@ export const checkProductCreation = async (req, res, next) => {
             });
         }
 
+        // TEMPORARY: Subscription check bypassed - allow all vendors to add products without subscription
         const result = await subscriptionRulesService.canCreateProduct(vendorId);
-
-        if (!result.allowed) {
-            return res.status(403).json({
-                success: false,
-                message: result.message,
-                subscriptionRequired: true,
-                limits: {
-                    current: result.currentCount,
-                    max: result.limit
-                }
-            });
-        }
-
-        // Attach limit info to request for potential use in controller
         req.subscriptionLimits = {
             products: {
-                current: result.currentCount,
-                max: result.limit,
-                remaining: result.limit === -1 ? -1 : result.limit - result.currentCount
+                current: result.currentCount ?? 0,
+                max: result.limit ?? -1,
+                remaining: result.limit === -1 ? -1 : Math.max(0, (result.limit ?? 0) - (result.currentCount ?? 0))
             }
         };
-
-        next();
+        return next();
     } catch (error) {
         console.error('Error in checkProductCreation middleware:', error);
         next(error);

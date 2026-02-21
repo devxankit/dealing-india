@@ -254,14 +254,9 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       generateSKU(name, vendorId)
     ]);
 
-    // 1. Check if vendor can create product based on plan
-    const ruleCheck = await (await import('./subscriptionRules.service.js')).default.canCreateProduct(vendorId);
-
-    if (!ruleCheck.allowed) {
-      const err = new Error(ruleCheck.message);
-      err.status = 403;
-      throw err;
-    }
+    // TEMPORARY: Subscription check bypassed - vendor can create products without subscription
+    // const ruleCheck = await (await import('./subscriptionRules.service.js')).default.canCreateProduct(vendorId);
+    // if (!ruleCheck.allowed) { throw err; }
 
     const {
       category,
