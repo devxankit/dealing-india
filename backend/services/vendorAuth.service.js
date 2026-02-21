@@ -8,6 +8,7 @@ import { isValidEmail, isValidPhone, validatePassword } from '../utils/validator
 import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
 import SubscriptionService from './subscription.service.js';
 import notificationService from './notification.service.js';
+import { geocodeAddress } from '../utils/geocoding.util.js';
 
 /**
  * Register a new vendor (temporary - only creates record after email verification)
@@ -430,6 +431,22 @@ export const updateVendorProfile = async (vendorId, updateData) => {
         }
       });
 
+      // Geocode address to get lat/lng
+      try {
+        const coords = await geocodeAddress(cleanedAddress);
+        if (coords) {
+          cleanedAddress.lat = coords.lat;
+          cleanedAddress.lng = coords.lng;
+          updateFields.location = {
+            type: 'Point',
+            coordinates: [coords.lng, coords.lat] // [lng, lat]
+          };
+        }
+      } catch (geoError) {
+        console.error('Geocoding failed during profile update:', geoError.message);
+        // Fallback: don't break update if geocoding fails, just log it
+      }
+
       updateFields.address = cleanedAddress;
     }
 
@@ -506,6 +523,24 @@ export const verifyVendorEmail = async (email, otp) => {
     // Ensure pincode is correctly mapped from zipCode if missing
     if (vendorData.address && vendorData.address.zipCode && !vendorData.address.pincode) {
       vendorData.address.pincode = vendorData.address.zipCode;
+    }
+
+    // Geocode address to get lat/lng for the new vendor
+    try {
+      if (vendorData.address && Object.keys(vendorData.address).length > 0) {
+        const coords = await geocodeAddress(vendorData.address);
+        if (coords) {
+          vendorData.address.lat = coords.lat;
+          vendorData.address.lng = coords.lng;
+          vendorData.location = {
+            type: 'Point',
+            coordinates: [coords.lng, coords.lat] // [lng, lat]
+          };
+        }
+      }
+    } catch (geoError) {
+      console.error('Geocoding failed during vendor registration:', geoError.message);
+      // Fallback: don't break registration if geocoding fails
     }
 
     // Add B2B-specific fields if vendorType is b2b

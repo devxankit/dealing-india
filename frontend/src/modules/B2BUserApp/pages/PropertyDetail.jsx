@@ -12,6 +12,7 @@ import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
+import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 
 const PropertyDetail = () => {
     const { id } = useParams();
@@ -374,28 +375,52 @@ const PropertyDetail = () => {
                                 <h3 className="text-[11px] md:text-sm font-black uppercase tracking-widest text-gray-900 mb-6 md:mb-8 flex items-center gap-3">
                                     <FiMapPin className="text-primary-600" /> Geographical Context
                                 </h3>
-                                <div className="space-y-5 md:space-y-6">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-600 text-[10px]"><FiGrid /></div>
-                                        <div>
-                                            <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">City Zone</span>
-                                            <p className="text-xs md:text-sm font-black text-gray-900 uppercase">{property.location.city}</p>
+
+                                <div className="space-y-6">
+                                    <div className="space-y-5 md:space-y-6">
+                                        <div className="flex items-start gap-4">
+                                            <FiMapPin className="text-primary-600 mt-1" size={18} />
+                                            <div>
+                                                <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">Primary Zone</span>
+                                                <p className="text-xs md:text-sm font-black text-gray-900 uppercase">
+                                                    {property.vendorId?.address?.city || property.location?.city || 'N/A'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-4">
+                                            <FiMapPin className="text-primary-600 mt-1" size={18} />
+                                            <div>
+                                                <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">Market / Hub</span>
+                                                <p className="text-xs md:text-sm font-black text-gray-900 uppercase">
+                                                    {property.vendorId?.address?.area || property.vendorId?.address?.market || property.location?.market || 'N/A'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-4">
+                                            <FiMapPin className="text-primary-600 mt-1" size={18} />
+                                            <div>
+                                                <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">Registered Address</span>
+                                                <p className="text-[10px] md:text-sm font-bold text-gray-500 uppercase leading-relaxed">
+                                                    {[
+                                                        property.vendorId?.address?.street,
+                                                        property.vendorId?.address?.landmark,
+                                                        property.vendorId?.address?.area,
+                                                        property.vendorId?.address?.city
+                                                    ].filter(Boolean).join(', ') || property.location?.address || 'N/A'}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-600 text-[10px]"><FiBriefcase /></div>
-                                        <div>
-                                            <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">Market / Hub</span>
-                                            <p className="text-xs md:text-sm font-black text-gray-900 uppercase">{property.location.market}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-600 text-[10px]"><FiHome /></div>
-                                        <div>
-                                            <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">Exact Address</span>
-                                            <p className="text-[10px] md:text-sm font-bold text-gray-500 uppercase leading-relaxed">{property.location.address}</p>
-                                        </div>
-                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            const mapsUrl = getGoogleMapsUrl(property.vendorId);
+                                            if (mapsUrl) window.open(mapsUrl, '_blank');
+                                        }}
+                                        className="w-full mt-4 py-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all flex items-center justify-center gap-2 border border-primary-100"
+                                    >
+                                        <FiMapPin /> View Shop Location
+                                    </button>
                                 </div>
                             </div>
 

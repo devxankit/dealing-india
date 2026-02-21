@@ -25,6 +25,9 @@ const RealEstate = () => {
     const [selectedArea, setSelectedArea] = useState('All Areas');
     const [selectedMarket, setSelectedMarket] = useState('All Markets');
     const [availableMarkets, setAvailableMarkets] = useState([]);
+    const [propertyDerivedAreas, setPropertyDerivedAreas] = useState([]);
+    const [propertyDerivedMarkets, setPropertyDerivedMarkets] = useState([]);
+    const [propertyDerivedCities, setPropertyDerivedCities] = useState([]);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
     const { states: availableStates, areas: availableAreas, markets: availableMarketsFromStore, initialize: fetchLocations } = useB2BLocationStore();
@@ -70,18 +73,38 @@ const RealEstate = () => {
             if (response?.success) {
                 setProperties(response.data);
 
-                // Extract unique markets from properties (vendor address.market) - fallback if store markets not available
-                if (!availableMarketsFromStore || availableMarketsFromStore.length === 0) {
-                    const marketsSet = new Set();
-                    if (Array.isArray(response.data)) {
-                        response.data.forEach(property => {
-                            if (property.vendorId?.address?.market && property.vendorId.address.market.trim()) {
-                                marketsSet.add(property.vendorId.address.market.trim());
-                            }
-                        });
-                    }
-                    setAvailableMarkets(Array.from(marketsSet).sort());
+                // Extract unique areas (location.area) from properties - backend filters by location.area
+                const areasSet = new Set();
+                if (Array.isArray(response.data)) {
+                    response.data.forEach(property => {
+                        if (property.location?.area && String(property.location.area).trim()) {
+                            areasSet.add(property.location.area.trim());
+                        }
+                    });
                 }
+                if (areasSet.size > 0) setPropertyDerivedAreas(Array.from(areasSet).sort());
+
+                // Extract cities from property.location.city (only cities where Developer/Property Broker have listed properties)
+                const citiesSet = new Set();
+                if (Array.isArray(response.data)) {
+                    response.data.forEach(property => {
+                        if (property.location?.city && String(property.location.city).trim()) {
+                            citiesSet.add(property.location.city.trim());
+                        }
+                    });
+                }
+                if (citiesSet.size > 0) setPropertyDerivedCities(Array.from(citiesSet).sort());
+
+                // Extract markets from property.location.market (data from when property was added)
+                const marketsSet = new Set();
+                if (Array.isArray(response.data)) {
+                    response.data.forEach(property => {
+                        if (property.location?.market && String(property.location.market).trim()) {
+                            marketsSet.add(property.location.market.trim());
+                        }
+                    });
+                }
+                if (marketsSet.size > 0) setPropertyDerivedMarkets(Array.from(marketsSet).sort());
             }
         } catch (error) {
             console.error('[Fetch Properties Error]:', error);
@@ -134,26 +157,34 @@ const RealEstate = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // City options: property-derived (cities where Developer/Property Broker have listed properties)
     const cities = useMemo(() => {
-        const cityList = availableStates?.flatMap(state => state.cities || []) || [];
-        return ['All Cities', ...cityList.filter((city, index, self) => self.indexOf(city) === index).sort()];
-    }, [availableStates]);
+        const cityList = propertyDerivedCities?.length > 0 ? propertyDerivedCities : [];
+        return ['All Cities', ...cityList.filter((city, index, self) => city && self.indexOf(city) === index).sort()];
+    }, [propertyDerivedCities]);
 
     const filteredCities = useMemo(() => {
         if (!citySearchQuery) return cities;
         return cities.filter(city => city.toLowerCase().includes(citySearchQuery.toLowerCase()));
     }, [cities, citySearchQuery]);
 
-    const filteredAreas = useMemo(() => {
-        if (!areaSearchQuery) return availableAreas;
-        return availableAreas.filter(area => area.toLowerCase().includes(areaSearchQuery.toLowerCase()));
-    }, [availableAreas, areaSearchQuery]);
+    // Area options: prefer property-derived (matches backend filter location.area), fallback to store
+    const areaOptions = useMemo(() => {
+        const areas = propertyDerivedAreas?.length > 0 ? propertyDerivedAreas : (availableAreas || []);
+        return Array.isArray(areas) ? areas : [];
+    }, [propertyDerivedAreas, availableAreas]);
 
+    const filteredAreas = useMemo(() => {
+        if (!areaSearchQuery) return areaOptions;
+        return areaOptions.filter(area => area && area.toLowerCase().includes(areaSearchQuery.toLowerCase()));
+    }, [areaOptions, areaSearchQuery]);
+
+    // Market options: property.location.market (data from when property was added)
     const filteredMarkets = useMemo(() => {
-        const markets = availableMarketsFromStore || availableMarkets;
+        const markets = propertyDerivedMarkets?.length > 0 ? propertyDerivedMarkets : [];
         if (!marketSearchQuery) return markets;
-        return markets.filter(market => market.toLowerCase().includes(marketSearchQuery.toLowerCase()));
-    }, [availableMarketsFromStore, availableMarkets, marketSearchQuery]);
+        return markets.filter(m => m && m.toLowerCase().includes(marketSearchQuery.toLowerCase()));
+    }, [propertyDerivedMarkets, marketSearchQuery]);
 
     const handleApplyPrice = () => {
         setAppliedPrice(priceRange);
@@ -170,6 +201,7 @@ const RealEstate = () => {
         setSearchQuery('');
         setSelectedCity('All Cities');
         setSelectedArea('All Areas');
+        setSelectedMarket('All Markets');
         setSelectedListingType('All');
         setSelectedBusinessType('All');
         setSelectedPriceUnit('All');

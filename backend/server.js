@@ -79,9 +79,11 @@ import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
 import userNotificationRoutes from './routes/userNotification.routes.js';
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
+import bannerBookingCron from "./Cron/BannerBooking.cron.js";
 
 B2BSubscriptionExpiryCron.start();
 syncVendorViewsCron.start();
+bannerBookingCron();
 
 // Initialize Express app
 const app = express();

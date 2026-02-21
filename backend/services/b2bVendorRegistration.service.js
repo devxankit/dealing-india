@@ -7,6 +7,7 @@ import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
 import razorpayService from './razorpay.service.js';
 import notificationService from './notification.service.js';
 import mongoose from 'mongoose';
+import { geocodeAddress } from '../utils/geocoding.util.js';
 
 /**
  * Register B2B vendor without immediate subscription/payment
@@ -175,6 +176,24 @@ export const registerB2BVendor = async (vendorData) => {
       businessTypeRef: businessTypeRef || undefined,
       selectedSubTypes: selectedSubTypes || [],
     };
+
+    // Geocode address to get lat/lng for the new B2B vendor
+    try {
+      if (newVendorData.address && Object.keys(newVendorData.address).length > 0) {
+        const coords = await geocodeAddress(newVendorData.address);
+        if (coords) {
+          newVendorData.address.lat = coords.lat;
+          newVendorData.address.lng = coords.lng;
+          newVendorData.location = {
+            type: 'Point',
+            coordinates: [coords.lng, coords.lat] // [lng, lat]
+          };
+        }
+      }
+    } catch (geoError) {
+      console.error('Geocoding failed during B2B vendor registration:', geoError.message);
+      // Fallback: don't break registration if geocoding fails
+    }
 
     const vendor = await Vendor.create([newVendorData], { session });
     const createdVendor = vendor[0];
@@ -445,6 +464,24 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
       businessTypeRef: businessTypeRef || undefined,
       selectedSubTypes: selectedSubTypes || [],
     };
+
+    // Geocode address to get lat/lng for the new B2B vendor
+    try {
+      if (newVendorData.address && Object.keys(newVendorData.address).length > 0) {
+        const coords = await geocodeAddress(newVendorData.address);
+        if (coords) {
+          newVendorData.address.lat = coords.lat;
+          newVendorData.address.lng = coords.lng;
+          newVendorData.location = {
+            type: 'Point',
+            coordinates: [coords.lng, coords.lat] // [lng, lat]
+          };
+        }
+      }
+    } catch (geoError) {
+      console.error('Geocoding failed during B2B vendor registration with subscription:', geoError.message);
+      // Fallback: don't break registration if geocoding fails
+    }
 
     const vendor = await Vendor.create([newVendorData], { session });
 

@@ -40,6 +40,15 @@ const B2BBannerBooking = () => {
     const [showBookingModal, setShowBookingModal] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState(null);
 
+    // Standard date formatter for IST
+    const formatISTDate = (val) => {
+        if (!val) return "";
+        const date = new Date(val);
+        // Add 5.5 hours to UTC to get IST, then take date part
+        const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+        return istDate.toISOString().split('T')[0];
+    };
+
     const [formData, setFormData] = useState({
         title: "",
         link: "",
@@ -133,16 +142,42 @@ const B2BBannerBooking = () => {
     const calculatedEndDate = useMemo(() => {
         if (!formData.startDate) return null;
 
-        // Use UTC midnight to avoid timezone shifts
-        const start = new Date(`${formData.startDate}T00:00:00.000Z`);
-        const days = parseInt(formData.durationDays) || 1;
+        // Use the same normalization logic as backend
+        const start = new Date(formData.startDate);
+        start.setUTCHours(0, 0, 0, 0);
+
+        const durationInDays = parseInt(formData.durationDays) || 1;
         const end = new Date(start);
-        // End at 23:59:59 of the last day (UTC)
-        end.setUTCDate(end.getUTCDate() + days - 1);
-        end.setUTCHours(23, 59, 59, 999);
+        end.setUTCHours(end.getUTCHours() + (durationInDays * 24));
+        end.setUTCMilliseconds(end.getUTCMilliseconds() - 1);
 
         return end;
     }, [formData.startDate, formData.durationDays]);
+
+    const checkOverlap = (startDate, durationDays, slot) => {
+        if (!slot) return false;
+
+        // Combine current and upcoming bookings for checking
+        const allBookings = [];
+        if (slot.currentBooking) allBookings.push(slot.currentBooking);
+        if (slot.upcomingBookings) allBookings.push(...slot.upcomingBookings);
+
+        if (allBookings.length === 0) return false;
+
+        const start = new Date(startDate);
+        start.setUTCHours(0, 0, 0, 0);
+
+        const durationInDays = parseInt(durationDays) || 1;
+        const end = new Date(start);
+        end.setUTCHours(end.getUTCHours() + (durationInDays * 24));
+        end.setUTCMilliseconds(end.getUTCMilliseconds() - 1);
+
+        return allBookings.some(booking => {
+            const bStart = new Date(booking.startDate);
+            const bEnd = new Date(booking.endDate);
+            return (start <= bEnd && end >= bStart);
+        });
+    };
 
     // Get min and max dates for date picker
     const { minDate, maxDate } = useMemo(() => {
@@ -237,6 +272,11 @@ const B2BBannerBooking = () => {
 
         if (localSelectedDate > maxDateObj) {
             toast.error(`Start date cannot be more than ${settings.bookingWindowDays} days in the future`);
+            return;
+        }
+
+        if (checkOverlap(formData.startDate, formData.durationDays, selectedSlot)) {
+            toast.error("This slot is already booked for the selected dates. Please choose different dates.");
             return;
         }
 
@@ -516,7 +556,7 @@ const B2BBannerBooking = () => {
         {
             header: "Start Date",
             accessor: "startDate",
-            render: (val) => new Date(val).toISOString().split('T')[0],
+            render: (val) => <span className="text-sm font-medium text-gray-700">{formatISTDate(val)}</span>,
         },
         {
             header: "Created At",
@@ -551,14 +591,16 @@ const B2BBannerBooking = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
                 {slots.map((slot) => {
-                    const isBooked = slot.currentBooking &&
-                        (slot.currentBooking.status === 'active' || slot.currentBooking.status === 'pending');
+                    const isBookedNow = slot.currentBooking &&
+                        (slot.currentBooking.status === 'active' || slot.currentBooking.status === 'pending' || slot.currentBooking.status === 'approved');
+
+                    const hasUpcoming = slot.upcomingBookings && slot.upcomingBookings.length > 0;
 
                     return (
                         <motion.div
                             key={slot._id}
                             whileHover={{ y: -5 }}
-                            className={`p-4 rounded-xl border-2 transition-all ${isBooked
+                            className={`p-4 rounded-xl border-2 transition-all ${isBookedNow
                                 ? "bg-blue-50/50 border-blue-100"
                                 : "bg-white border-blue-100 hover:border-blue-500 shadow-sm hover:shadow-md"
                                 } cursor-pointer`}
@@ -566,10 +608,12 @@ const B2BBannerBooking = () => {
                         >
                             <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Slot {slot.slotNumber}</span>
-                                {isBooked ? (
+                                {isBookedNow ? (
                                     <Badge variant={slot.currentBooking.status === 'active' ? "info" : "warning"}>
-                                        {new Date(slot.currentBooking.startDate) > new Date() ? "Reserved" : "Occupied"}
+                                        {slot.currentBooking.status === 'active' ? "Active" : "Reserved"}
                                     </Badge>
+                                ) : hasUpcoming ? (
+                                    <Badge variant="warning">Upcoming Bookings</Badge>
                                 ) : (
                                     <Badge variant="success">Available</Badge>
                                 )}
@@ -622,6 +666,27 @@ const B2BBannerBooking = () => {
 
                             <form onSubmit={handleSubmit} className="p-6 space-y-6">
                                 <div className="space-y-4">
+                                    {/* Booked Dates Info */}
+                                    {(selectedSlot?.currentBooking || (selectedSlot?.upcomingBookings && selectedSlot.upcomingBookings.length > 0)) && (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                            <p className="text-xs font-bold text-amber-800 mb-1 flex items-center gap-1">
+                                                <FiCalendar /> Already Booked Dates (Unavailable):
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedSlot.currentBooking && (
+                                                    <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200 font-medium">
+                                                        {formatISTDate(selectedSlot.currentBooking.startDate)} to {formatISTDate(selectedSlot.currentBooking.endDate)}
+                                                    </span>
+                                                )}
+                                                {selectedSlot.upcomingBookings?.map(b => (
+                                                    <span key={b._id} className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200 font-medium">
+                                                        {formatISTDate(b.startDate)} to {formatISTDate(b.endDate)}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Start Date Selection */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">

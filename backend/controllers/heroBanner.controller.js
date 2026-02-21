@@ -30,29 +30,28 @@ export const getAvailableSlots = asyncHandler(async (req, res) => {
     const slots = await BannerSlot.find({ bannerType, isActive: true }).lean().sort({ slotNumber: 1 });
     const now = new Date();
 
-    // Dynamically find most relevant booking for each slot (active or nearest upcoming)
+    // Dynamically find relevant bookings for each slot
     const slotsWithBookings = await Promise.all(slots.map(async (slot) => {
         // Add 5.5 hours buffer for IST
         const nowWithISTBuffer = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
 
-        // Try to find currently active booking first
-        let relevantBooking = await BannerBooking.findOne({
+        // Find all bookings that are not cancelled or completed
+        const allBookings = await BannerBooking.find({
             slotId: slot._id,
-            status: 'active',
-            startDate: { $lte: nowWithISTBuffer },
+            status: { $in: ['active', 'approved', 'pending'] },
             endDate: { $gte: now }
-        });
+        }).sort({ startDate: 1 });
 
-        // If no active booking, find the next upcoming one (active or pending)
-        if (!relevantBooking) {
-            relevantBooking = await BannerBooking.findOne({
-                slotId: slot._id,
-                status: { $in: ['active', 'pending'] },
-                startDate: { $gt: now }
-            }).sort({ startDate: 1 });
-        }
+        // Identify current booking (if any)
+        const currentBooking = allBookings.find(b =>
+            b.startDate <= nowWithISTBuffer && b.endDate >= now
+        );
 
-        return { ...slot, currentBooking: relevantBooking };
+        return {
+            ...slot,
+            currentBooking: currentBooking || null,
+            upcomingBookings: allBookings.filter(b => b._id !== currentBooking?._id)
+        };
     }));
 
     // Return with settings structure
@@ -110,8 +109,7 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
     // If startDate is "2026-02-08", new Date(startDate) is 2026-02-08T00:00:00.000Z
     const start = new Date(startDate);
     start.setUTCHours(0, 0, 0, 0);
-    // Subtract 5 hours 30 mins to get 00:00 IST in UTC
-    start.setUTCMinutes(start.getUTCMinutes() - 330);
+
 
     const durationInDays = parseInt(durationDays);
     const end = new Date(start);
@@ -130,7 +128,7 @@ export const createBannerBooking = asyncHandler(async (req, res) => {
     // A booking overlaps if (newStart <= existingEnd) AND (newEnd >= existingStart)
     const overlappingBooking = await BannerBooking.findOne({
         slotId,
-        status: { $in: ['active', 'pending'] },
+        status: { $in: ['active', 'approved', 'pending'] },
         $or: [
             {
                 startDate: { $lte: end },
@@ -366,7 +364,7 @@ export const getActiveBanners = asyncHandler(async (req, res) => {
     const nowWithISTBuffer = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
 
     const query = {
-        status: 'active',
+        status: { $in: ['active', 'approved'] },
         paymentStatus: 'paid',
         startDate: { $lte: nowWithISTBuffer },
         endDate: { $gte: now }
@@ -375,7 +373,7 @@ export const getActiveBanners = asyncHandler(async (req, res) => {
 
     const banners = await BannerBooking.find(query)
         .populate('vendorId', 'name storeName businessInfo')
-        .sort({ createdAt: -1 });
+        .sort({ startDate: 1 }); // Sort chronologically by start date
 
     const settings = {
         universalDisplayTime: 3
@@ -418,30 +416,30 @@ export const getAdminBannerSlots = asyncHandler(async (req, res) => {
     const slots = await BannerSlot.find({ bannerType }).lean().sort({ slotNumber: 1 });
     const now = new Date();
 
-    // Dynamically find most relevant booking for each slot (active or nearest upcoming)
+    // Dynamically find relevant bookings for each slot
     const slotsWithBookings = await Promise.all(slots.map(async (slot) => {
         // Add 5.5 hours buffer for IST
         const nowWithISTBuffer = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
 
-        // Try to find currently active booking first
-        let relevantBooking = await BannerBooking.findOne({
+        // Find all bookings that are not cancelled or completed
+        const allBookings = await BannerBooking.find({
             slotId: slot._id,
-            status: 'active',
-            startDate: { $lte: nowWithISTBuffer },
+            status: { $in: ['active', 'approved', 'pending'] },
             endDate: { $gte: now }
-        }).populate('vendorId', 'name storeName email');
+        })
+            .populate('vendorId', 'name storeName email')
+            .sort({ startDate: 1 });
 
-        // If no active booking, find the next upcoming one
-        if (!relevantBooking) {
-            relevantBooking = await BannerBooking.findOne({
-                slotId: slot._id,
-                status: { $in: ['active', 'pending'] },
-                startDate: { $gt: now }
-            }).populate('vendorId', 'name storeName email')
-                .sort({ startDate: 1 });
-        }
+        // Identify current booking (if any)
+        const currentBooking = allBookings.find(b =>
+            b.startDate <= nowWithISTBuffer && b.endDate >= now
+        );
 
-        return { ...slot, currentBooking: relevantBooking };
+        return {
+            ...slot,
+            currentBooking: currentBooking || null,
+            upcomingBookings: allBookings.filter(b => b._id !== currentBooking?._id)
+        };
     }));
 
     const settings = {
@@ -549,13 +547,24 @@ export const approveBannerBooking = asyncHandler(async (req, res) => {
     }
 
     booking.adminApprovalStatus = 'approved';
-    booking.status = 'active';
+
+    const now = new Date();
+    const nowWithISTBuffer = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+
+    // Set status based on activation timing
+    if (booking.startDate <= nowWithISTBuffer) {
+        booking.status = 'active';
+    } else {
+        booking.status = 'approved';
+    }
     await booking.save();
 
-    // Update slot's currentBooking reference
-    await BannerSlot.findByIdAndUpdate(booking.slotId, {
-        currentBooking: booking._id
-    });
+    // Update slot's currentBooking reference IF it's now active
+    if (booking.status === 'active') {
+        await BannerSlot.findByIdAndUpdate(booking.slotId, {
+            currentBooking: booking._id
+        });
+    }
 
     // Notify vendor about banner approval
     try {

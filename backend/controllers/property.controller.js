@@ -270,17 +270,17 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         });
     }
 
-    // Filter by Price Unit/Denomination - REMOVED for normalization support
+    // Filter by property location.market (data from when property was added)
+    if (market && market !== 'All Markets') {
+        queryConditions.push({ 'location.market': { $regex: market, $options: 'i' } });
+    }
 
     if (queryConditions.length > 0) {
         query.$and = queryConditions;
     }
 
-    // Filter by Vendor Market and Type
+    // Filter by Vendor Type
     let vendorMatch = {};
-    if (market && market !== 'All Markets') {
-        vendorMatch['address.market'] = { $regex: market, $options: 'i' };
-    }
     if (type === 'developer') {
         vendorMatch.businessType = { $regex: 'developer', $options: 'i' };
     } else if (type === 'broker') {
@@ -322,6 +322,37 @@ export const getAllProperties = asyncHandler(async (req, res) => {
             default: return val;
         }
     };
+
+    // Filter by price unit (Thousand/Lakh/Crore) - show only properties priced in selected unit
+    const hasPriceUnitFilter = priceUnit && priceUnit !== 'All' && ['Thousand', 'Lakh', 'Crore'].includes(priceUnit);
+    if (hasPriceUnitFilter) {
+        const targetUnit = priceUnit.trim();
+        filteredResults = filteredResults.filter(p => {
+            let propUnit = null;
+            if (p.listingType === 'Sale' && p.saleDetails?.priceUnit) {
+                propUnit = (p.saleDetails.priceUnit || '').trim();
+            } else if (p.listingType === 'Rent' && p.rentDetails?.rentUnit) {
+                propUnit = (p.rentDetails.rentUnit || 'Thousand').trim();
+            } else if (p.listingType === 'Lease' && p.leaseDetails?.leaseUnit) {
+                propUnit = (p.leaseDetails.leaseUnit || 'Lakh').trim();
+            }
+            return propUnit && propUnit.toLowerCase() === targetUnit.toLowerCase();
+        });
+    }
+
+    // Filter by area unit (Sq. Ft., Sq. Mt., etc.) - show only properties with area in selected unit
+    const validAreaUnits = ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'];
+    const hasAreaUnitFilter = areaUnit && validAreaUnits.some(u => u.toLowerCase() === (areaUnit || '').trim().toLowerCase());
+    if (hasAreaUnitFilter) {
+        const targetAreaUnit = (areaUnit || '').trim();
+        filteredResults = filteredResults.filter(p => {
+            const specs = Array.isArray(p.specifications) && p.specifications.length > 0
+                ? p.specifications[0]
+                : (p.specifications || {});
+            const propUnit = (specs.builtUpAreaUnit || specs.carpetAreaUnit || 'Sq. Ft.').trim();
+            return propUnit && propUnit.toLowerCase() === targetAreaUnit.toLowerCase();
+        });
+    }
 
     // Advanced Budget and Size Filtering in JS
     const hasPriceFilter = (minPrice && String(minPrice).trim() !== '') || (maxPrice && String(maxPrice).trim() !== '');

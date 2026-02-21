@@ -10,6 +10,8 @@ const addressSchema = new mongoose.Schema(
     state: { type: String, trim: true },
     pincode: { type: String, trim: true }, // For B2B vendors (India-specific)
     country: { type: String, trim: true, default: 'India' },
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null },
   },
   { _id: false }
 );
@@ -146,6 +148,11 @@ const vendorSchema = new mongoose.Schema(
       ref: 'VendorSubscription',
       default: null,
     },
+    // Location field for geospatial queries
+    location: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], index: '2dsphere', default: [0, 0] } // [lng, lat]
+    },
   },
   {
     timestamps: true,
@@ -158,6 +165,8 @@ vendorSchema.index({ status: 1 });
 vendorSchema.index({ isActive: 1 });
 vendorSchema.index({ role: 1 });
 vendorSchema.index({ vendorType: 1 }); // Index for B2B vendor queries
+vendorSchema.index({ 'address.lat': 1, 'address.lng': 1 });
+vendorSchema.index({ location: '2dsphere' });
 
 // Pre-save middleware: Ensure B2B vendors have commissionRate = 0
 // B2B vendors pay subscription fees, NOT commission
