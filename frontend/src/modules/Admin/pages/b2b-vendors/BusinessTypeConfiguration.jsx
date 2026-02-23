@@ -164,7 +164,7 @@ const BusinessTypeConfiguration = () => {
                                 <div className="flex flex-wrap gap-2 text-[10px] font-bold">
                                     {settings.enabledModules?.map(module => (
                                         <span key={module} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md uppercase">
-                                            {module}
+                                            {module === 'lotslot' ? 'Lot/Slot' : module === 'shop-listing' ? 'Shop Listing' : module}
                                         </span>
                                     ))}
                                 </div>
@@ -242,7 +242,7 @@ const BusinessTypeConfiguration = () => {
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Enabled Modules</label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {['product', 'property', 'lotslot', 'subscription', 'banner', 'notifications', 'profile', 'settings'].map(module => (
+                                    {['product', 'shop-listing', 'property', 'lotslot', 'subscription', 'banner', 'notifications', 'profile', 'settings'].map(module => (
                                         <button
                                             key={module}
                                             onClick={() => toggleModule(module)}
@@ -251,7 +251,7 @@ const BusinessTypeConfiguration = () => {
                                                 : 'bg-slate-50 text-slate-400 border border-slate-100 hover:border-primary-300'
                                                 }`}
                                         >
-                                            {module === 'lotslot' ? 'Lot/Slot' : module}
+                                            {module === 'lotslot' ? 'Lot/Slot' : module === 'shop-listing' ? 'Shop Listing' : module}
                                             {editingSettings.enabledModules?.includes(module) && <FiCheckCircle />}
                                         </button>
                                     ))}
@@ -369,8 +369,8 @@ const BusinessTypeConfiguration = () => {
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Product Form Layout</label>
                                     <div className="grid grid-cols-2 gap-4">
                                         {[
-                                            { id: 'standard', label: 'Standard', desc: 'Single product entry' },
-                                            { id: 'shop-listing', label: 'Shop Listing', desc: 'Shop details + items list' }
+                                            { id: 'standard', label: 'Product', desc: 'Single product entry' },
+                                            { id: 'shop-listing', label: 'Item Listing', desc: 'Item details + items list' }
                                         ].map(type => (
                                             <button
                                                 key={type.id}

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import RealEstateCard from '../components/RealEstateCard';
+import B2BVendorCard from '../components/B2BVendorCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
@@ -9,9 +11,12 @@ import { useB2BLocationStore } from '../../../shared/store/b2bLocationStore';
 import { FiFilter, FiSearch, FiX, FiCheck, FiMapPin, FiChevronDown, FiBriefcase, FiDollarSign, FiHome } from 'react-icons/fi';
 
 const RealEstate = () => {
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
     const [properties, setProperties] = useState([]);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [matchingVendors, setMatchingVendors] = useState([]);
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
     const [selectedCity, setSelectedCity] = useState('All Cities');
     const [selectedBusinessType, setSelectedBusinessType] = useState('All');
     const [isPriceFilterOpen, setIsPriceFilterOpen] = useState(false);
@@ -20,7 +25,7 @@ const RealEstate = () => {
     const [sizeRange, setSizeRange] = useState({ min: '', max: '' });
     const [appliedSize, setAppliedSize] = useState({ min: '', max: '' });
     const [selectedPriceUnit, setSelectedPriceUnit] = useState('All');
-    const [selectedAreaUnit, setSelectedAreaUnit] = useState('Sq. Ft.');
+    const [selectedAreaUnit, setSelectedAreaUnit] = useState('All');
     const [selectedListingType, setSelectedListingType] = useState('All');
     const [selectedArea, setSelectedArea] = useState('All Areas');
     const [selectedMarket, setSelectedMarket] = useState('All Markets');
@@ -29,6 +34,10 @@ const RealEstate = () => {
     const [propertyDerivedMarkets, setPropertyDerivedMarkets] = useState([]);
     const [propertyDerivedCities, setPropertyDerivedCities] = useState([]);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [selectedVendorId, setSelectedVendorId] = useState(searchParams.get('vendorId') || '');
 
     const { states: availableStates, areas: availableAreas, markets: availableMarketsFromStore, initialize: fetchLocations } = useB2BLocationStore();
     const [citySearchQuery, setCitySearchQuery] = useState('');
@@ -65,13 +74,15 @@ const RealEstate = () => {
                 maxPrice: appliedPrice.max,
                 minSize: appliedSize.min,
                 maxSize: appliedSize.max,
-                areaUnit: selectedAreaUnit,
+                areaUnit: selectedAreaUnit === 'All' ? '' : selectedAreaUnit,
                 priceUnit: selectedPriceUnit === 'All' ? '' : selectedPriceUnit,
-                listingType: selectedListingType
+                listingType: selectedListingType,
+                vendorId: selectedVendorId
             };
             const response = await api.get('/property/all', { params });
             if (response?.success) {
                 setProperties(response.data);
+                setMatchingVendors(response.matchingVendors || []);
 
                 // Extract unique areas (location.area) from properties - backend filters by location.area
                 const areasSet = new Set();
@@ -119,7 +130,20 @@ const RealEstate = () => {
             fetchProperties();
         }, 500);
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedCity, selectedArea, selectedMarket, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType]);
+    }, [searchQuery, selectedCity, selectedArea, selectedMarket, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId]);
+
+    // Sync URL searchParams to local state for back/forward navigation and external links
+    useEffect(() => {
+        const urlSearch = searchParams.get('search') || '';
+        const urlVendorId = searchParams.get('vendorId') || '';
+
+        if (urlSearch !== searchQuery) {
+            setSearchQuery(urlSearch);
+        }
+        if (urlVendorId !== selectedVendorId) {
+            setSelectedVendorId(urlVendorId);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         fetchLocations(false, {
@@ -151,6 +175,12 @@ const RealEstate = () => {
             }
             if (marketDropdown && !marketDropdown.contains(target)) {
                 setIsMarketDropdownOpen(false);
+            }
+
+            // Also search suggestions
+            const searchContainer = document.querySelector('[data-search-container]');
+            if (searchContainer && !searchContainer.contains(target)) {
+                setShowSuggestions(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -186,6 +216,57 @@ const RealEstate = () => {
         return markets.filter(m => m && m.toLowerCase().includes(marketSearchQuery.toLowerCase()));
     }, [propertyDerivedMarkets, marketSearchQuery]);
 
+    // Handle Search Suggestions
+    const fetchSuggestions = async (query) => {
+        if (!query || query.trim().length < 1) {
+            setSuggestions({ stores: [], properties: [] });
+            return;
+        }
+        setIsSearching(true);
+        try {
+            const response = await api.get(`/property/suggestions?q=${encodeURIComponent(query)}`);
+            if (response?.success) {
+                setSuggestions(response.data);
+            }
+        } catch (error) {
+            console.error('[Suggestions Error]:', error);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    // Debounce suggestions
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery && showSuggestions) {
+                fetchSuggestions(searchQuery);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, showSuggestions]);
+
+    const handleSuggestionClick = (suggestion) => {
+        setShowSuggestions(false);
+        if (suggestion.type === 'property') {
+            navigate(`/b2b/real-estate/property/${suggestion.id}`);
+        } else if (suggestion.type === 'store') {
+            setSelectedVendorId(suggestion.vendorId);
+            setSearchQuery(suggestion.text);
+        }
+    };
+
+    const trackContactClick = async (vendorId, clickType) => {
+        try {
+            if (!vendorId) return;
+            await api.post('/vendor/analytics/track-click', {
+                vendorId,
+                clickType
+            });
+        } catch (error) {
+            console.error('Error tracking click:', error);
+        }
+    };
+
     const handleApplyPrice = () => {
         setAppliedPrice(priceRange);
         setIsPriceFilterOpen(false);
@@ -205,11 +286,12 @@ const RealEstate = () => {
         setSelectedListingType('All');
         setSelectedBusinessType('All');
         setSelectedPriceUnit('All');
-        setSelectedAreaUnit('Sq. Ft.');
+        setSelectedAreaUnit('All');
         setPriceRange({ min: '', max: '' });
         setAppliedPrice({ min: '', max: '' });
         setSizeRange({ min: '', max: '' });
         setAppliedSize({ min: '', max: '' });
+        setSelectedVendorId('');
     };
 
     const renderFilters = (showCity = true) => (
@@ -550,7 +632,7 @@ const RealEstate = () => {
                     onClick={() => toggleSection('size')}
                     className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
                 >
-                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Area ({selectedAreaUnit})</h3>
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Area {selectedAreaUnit !== 'All' ? `(${selectedAreaUnit})` : ''}</h3>
                     <FiChevronDown className={`text-gray-400 transition-transform ${openSections.size ? 'rotate-180' : ''}`} />
                 </button>
                 <AnimatePresence>
@@ -565,7 +647,7 @@ const RealEstate = () => {
                                 <div>
                                     <p className="text-[9px] font-black text-gray-400 uppercase mb-2 tracking-tighter">Unit</p>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(unit => (
+                                        {['All', 'Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(unit => (
                                             <button
                                                 key={unit}
                                                 onClick={() => setSelectedAreaUnit(unit)}
@@ -580,17 +662,17 @@ const RealEstate = () => {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Value ({selectedAreaUnit})</p>
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Value {selectedAreaUnit !== 'All' ? `(${selectedAreaUnit})` : '(Sq. Ft. for range)'}</p>
                                     <input
                                         type="number"
-                                        placeholder={`Min ${selectedAreaUnit}`}
+                                        placeholder={selectedAreaUnit !== 'All' ? `Min ${selectedAreaUnit}` : 'Min (Sq. Ft.)'}
                                         value={sizeRange.min}
                                         onChange={(e) => setSizeRange({ ...sizeRange, min: e.target.value })}
                                         className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl text-xs font-black focus:ring-2 focus:ring-primary-100 outline-none"
                                     />
                                     <input
                                         type="number"
-                                        placeholder={`Max ${selectedAreaUnit}`}
+                                        placeholder={selectedAreaUnit !== 'All' ? `Max ${selectedAreaUnit}` : 'Max (Sq. Ft.)'}
                                         value={sizeRange.max}
                                         onChange={(e) => setSizeRange({ ...sizeRange, max: e.target.value })}
                                         className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl text-xs font-black focus:ring-2 focus:ring-primary-100 outline-none"
@@ -612,35 +694,98 @@ const RealEstate = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
-            <B2BHeader title="Real Estate Hub" />
+            <B2BHeader
+                title="Real Estate Hub"
+                searchPlaceholder="SEARCH PROPERTY, AGENTS OR LOCATIONS"
+                searchQuery={searchQuery}
+                onSearchChange={(val) => {
+                    setSearchQuery(val);
+                    setSelectedVendorId('');
+                    if (!val.trim()) {
+                        const newParams = new URLSearchParams(searchParams);
+                        let changed = false;
+                        if (newParams.has('search')) {
+                            newParams.delete('search');
+                            changed = true;
+                        }
+                        if (newParams.has('vendorId')) {
+                            newParams.delete('vendorId');
+                            changed = true;
+                        }
+                        if (changed) setSearchParams(newParams, { replace: true });
+                    }
+                }}
+                onSearchSubmit={(val) => {
+                    const newParams = new URLSearchParams(searchParams);
+                    if (val) {
+                        newParams.set('search', val);
+                        newParams.delete('vendorId'); // New search overrides specific vendor
+                    } else {
+                        newParams.delete('search');
+                        newParams.delete('vendorId');
+                    }
+                    setSearchParams(newParams, { replace: true });
+                }}
+                searchPlaceholder="SEARCH PROPERTY AND OFFICE"
+                suggestionEndpoint="/property/suggestions"
+            />
 
-            {/* Premium Sticky Filter Bar */}
-            <div className="sticky top-[65px] z-40 bg-white/95 backdrop-blur-xl border-b border-gray-100 shadow-sm transition-all py-3 md:py-4 mb-6 md:mb-10">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex items-center gap-3">
-                        {/* Search Area */}
-                        <div className="flex-1 relative group">
-                            <FiSearch className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 text-primary-600 z-10 group-focus-within:scale-110 transition-transform" />
-                            <input
-                                type="text"
-                                placeholder="Search by property title, area or type..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 md:pl-14 pr-6 py-3.5 md:py-4 bg-gray-50 border-none rounded-2xl md:rounded-[1.5rem] shadow-inner text-xs md:text-sm font-bold text-gray-700 focus:ring-2 focus:ring-primary-100 outline-none transition-all placeholder:text-gray-300"
-                            />
-                        </div>
+            {/* Mobile-only Search Bar */}
+            <div className="md:hidden px-4 py-3 bg-white border-b border-gray-100 sticky top-[65px] z-40">
+                <div className="relative">
+                    <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-600" />
+                    <input
+                        type="text"
+                        placeholder="SEARCH PROPERTY AND OFFICE"
+                        value={searchQuery}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setSearchQuery(val);
+                            setSelectedVendorId('');
+                            if (!val.trim()) {
+                                const newParams = new URLSearchParams(searchParams);
+                                let changed = false;
+                                if (newParams.has('search')) {
+                                    newParams.delete('search');
+                                    changed = true;
+                                }
+                                if (newParams.has('vendorId')) {
+                                    newParams.delete('vendorId');
+                                    changed = true;
+                                }
+                                if (changed) setSearchParams(newParams, { replace: true });
+                            }
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                const newParams = new URLSearchParams(searchParams);
+                                if (searchQuery) {
+                                    newParams.set('search', searchQuery);
+                                    newParams.delete('vendorId');
+                                } else {
+                                    newParams.delete('search');
+                                    newParams.delete('vendorId');
+                                }
+                                setSearchParams(newParams, { replace: true });
+                            }
+                        }}
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl text-xs font-black focus:ring-2 focus:ring-primary-100 outline-none"
+                    />
+                </div>
+            </div>
 
-                        {/* Mobile Filter Toggle */}
-                        <button
-                            onClick={() => setIsMobileFilterOpen(true)}
-                            className="lg:hidden w-12 h-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-primary-600 shadow-sm relative"
-                        >
-                            <FiFilter size={20} />
-                            {(selectedListingType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedMarket !== 'All Markets' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max) && (
-                                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>
-                            )}
-                        </button>
-                    </div>
+            {/* Mobile Filter Toggle - Sticky on mobile only */}
+            <div className="lg:hidden sticky top-[120px] z-30 pointer-events-none mb-6">
+                <div className="max-w-7xl mx-auto px-4 flex justify-end">
+                    <button
+                        onClick={() => setIsMobileFilterOpen(true)}
+                        className="w-12 h-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-primary-600 shadow-xl relative pointer-events-auto"
+                    >
+                        <FiFilter size={20} />
+                        {(selectedListingType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedMarket !== 'All Markets' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All' || selectedAreaUnit !== 'All') && (
+                            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>
+                        )}
+                    </button>
                 </div>
             </div>
 
@@ -888,7 +1033,7 @@ const RealEstate = () => {
                                     )}
                                 </AnimatePresence>
 
-                                {(selectedListingType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All') && (
+                                {(selectedListingType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All' || selectedAreaUnit !== 'All') && (
                                     <button
                                         onClick={handleClearFilters}
                                         className="text-[10px] font-black text-gray-400 hover:text-primary-600 uppercase tracking-widest border-b-2 border-transparent hover:border-primary-600 pb-1 transition-all"
@@ -915,15 +1060,41 @@ const RealEstate = () => {
                                     </div>
                                 ))}
                             </div>
-                        ) : properties.length > 0 ? (
-                            <motion.div
-                                layout
-                                className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
-                            >
-                                {properties.map(property => (
-                                    <RealEstateCard key={property._id} property={property} />
-                                ))}
-                            </motion.div>
+                        ) : (properties.length > 0 || matchingVendors.length > 0) ? (
+                            <div className="space-y-12">
+                                {/* Matching Agencies Section — shown when searching for a shop name */}
+                                {searchQuery && matchingVendors.length > 0 && (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-4">
+                                            <span className="h-[2px] w-12 bg-primary-600"></span>
+                                            <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">Matching Agencies</h3>
+                                            <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-[10px] font-black uppercase">{matchingVendors.length} FIRM{matchingVendors.length > 1 ? 'S' : ''}</span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            {matchingVendors.map((vendor) => (
+                                                <B2BVendorCard
+                                                    key={vendor._id}
+                                                    vendor={vendor}
+                                                    trackContactClick={trackContactClick}
+                                                    itemType="realestate"
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Properties Grid — only show when NOT searching for an agency */}
+                                {properties.length > 0 && !(searchQuery && matchingVendors.length > 0) && (
+                                    <motion.div
+                                        layout
+                                        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
+                                    >
+                                        {properties.map(property => (
+                                            <RealEstateCard key={property._id} property={property} />
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </div>
                         ) : (
                             <div className="py-20 text-center bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
                                 <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">

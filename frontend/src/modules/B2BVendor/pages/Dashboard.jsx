@@ -83,6 +83,7 @@ const B2BVendorDashboard = () => {
         enablePropertyListing: settings.enabledModules?.includes('property'),
         enableLotSlotListing: settings.enabledModules?.includes('lotslot') || false,
         enableBanner: settings.enabledModules?.includes('banner'),
+        enableShopListing: settings.enabledModules?.includes('shop-listing') || false,
 
         // Subscription Flags (Usually map to listing modules)
         enableProductSubscription: settings.enabledModules?.includes('product'),
@@ -206,7 +207,7 @@ const B2BVendorDashboard = () => {
                                             <button onClick={() => navigate('/b2b-vendor/products')} className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
                                         </div>
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">
-                                            {settings?.productFormType === 'shop-listing' ? 'Shop Listings' : 'Product Catalog'}
+                                            {settings?.productFormType === 'shop-listing' ? 'Item Listings' : 'Product Catalog'}
                                         </h3>
                                         <div className="flex items-end justify-between">
                                             <p className="text-4xl font-black text-slate-900">{dashboard.counts.products.total}</p>
@@ -334,12 +335,12 @@ const B2BVendorDashboard = () => {
                             <h2 className="text-xs font-black text-primary-400 uppercase tracking-widest mb-6 ml-2">Quick Actions</h2>
                             <div className="grid grid-cols-2 gap-4">
                                 <button
-                                    onClick={() => config.enableProductListing && navigate(settings?.productFormType === 'shop-listing' ? '/b2b-vendor/products/add-shop-listing' : '/b2b-vendor/products/add-product')}
+                                    onClick={() => config.enableProductListing && navigate(settings?.productFormType === 'shop-listing' ? '/b2b-vendor/products/item-listing' : '/b2b-vendor/products/add-product')}
                                     className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${config.enableProductListing ? 'bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700' : 'opacity-30 cursor-not-allowed bg-slate-800'}`}
                                 >
                                     <FiPlus size={20} />
                                     <span className="text-[10px] font-black uppercase tracking-tight">
-                                        {settings?.productFormType === 'shop-listing' ? 'Add Shop' : 'Add Product'}
+                                        {settings?.productFormType === 'shop-listing' ? 'Add Item' : 'Add Product'}
                                     </span>
                                 </button>
                                 <button

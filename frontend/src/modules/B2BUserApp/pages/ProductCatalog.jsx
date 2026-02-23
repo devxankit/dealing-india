@@ -5,6 +5,7 @@ import { FiFilter, FiSearch, FiX, FiChevronDown, FiGrid, FiTrendingUp, FiHome, F
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import B2BProductCard from '../components/B2BProductCard';
+import B2BVendorCard from '../components/B2BVendorCard';
 import api from '../../../shared/utils/api';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { debounce, getGoogleMapsUrl } from '../../../shared/utils/helpers';
@@ -33,6 +34,7 @@ const ProductCatalog = () => {
 
     const [loading, setLoading] = useState(true);
     const [b2bVendors, setB2bVendors] = useState([]);
+    const [matchingVendors, setMatchingVendors] = useState([]);
     const [categories, setCategories] = useState([]);
     const [businessTypes, setBusinessTypes] = useState([]);
     const categoryDropdownRefs = useRef({}); // Refs for each category dropdown
@@ -640,10 +642,49 @@ const ProductCatalog = () => {
     const fetchB2BProducts = async () => {
         setLoading(true);
         try {
-            // Build query parameters
+            // Build query parameters for products
             const params = {
-                vendorType: 'b2b'
+                vendorType: 'b2b',
+                excludeBusinessTypes: 'Developer,Property Broker'
             };
+
+            if (searchQuery) {
+                params.search = searchQuery;
+            }
+
+            // Fetch matching vendors if searching
+            if (searchQuery && searchQuery.trim().length > 1) {
+                try {
+                    const shopParams = {
+                        vendorType: 'b2b',
+                        status: 'approved',
+                        search: searchQuery,
+                        isActive: true,
+                        excludeBusinessTypes: 'Developer,Property Broker'
+                    };
+
+                    // Add current city/state context to vendor search if applicable
+                    if (selectedCity && selectedCity !== 'All Cities') shopParams.city = selectedCity;
+                    if (selectedState && selectedState !== 'All States') shopParams.state = selectedState;
+
+                    // Respect selected business type in vendor search
+                    if (selectedBusinessType) shopParams.businessType = selectedBusinessType;
+                    if (selectedBusinessSubType) shopParams.businessSubType = selectedBusinessSubType;
+
+                    const vResponse = await api.get('/vendors', { params: shopParams });
+                    if (vResponse.success && vResponse.data) {
+                        const vendorData = Array.isArray(vResponse.data) ? vResponse.data : (vResponse.data.vendors || []);
+                        setMatchingVendors(vendorData);
+                    } else {
+                        setMatchingVendors([]);
+                    }
+                } catch (vErr) {
+                    console.error('Error fetching matching vendors:', vErr);
+                    setMatchingVendors([]);
+                }
+            } else {
+                setMatchingVendors([]);
+            }
 
             // Add location filters if selected
             if (selectedState !== 'All States') {
@@ -761,8 +802,8 @@ const ProductCatalog = () => {
         const urlMin = searchParams.get('min');
         const urlMax = searchParams.get('max');
 
-        if (urlSearch && urlSearch !== searchQuery) {
-            setSearchQuery(urlSearch);
+        if (urlSearch !== searchQuery) {
+            setSearchQuery(urlSearch || '');
         }
         if (urlCity && urlCity !== selectedCity) {
             setSelectedCity(urlCity);
@@ -902,7 +943,7 @@ const ProductCatalog = () => {
 
         return () => clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedState, selectedCity, selectedItemType, selectedArea, selectedMarket, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length, dynamicFilters]);
+    }, [selectedState, selectedCity, selectedItemType, selectedArea, selectedMarket, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length, dynamicFilters, searchQuery]);
 
     // Debug: Log state and cities changes
     useEffect(() => {
@@ -924,33 +965,16 @@ const ProductCatalog = () => {
     // fetchB2BCategories replaced by store action
 
     const filterCategoriesLocally = () => {
-        // Function to filter categories based on currently loaded products
+        // Function to filter categories - we now always show all categories from the store
+        // to ensure that newly added categories by admin are always visible.
 
-        let categoriesToShow = [];
         if (allCategories.length === 0) {
-            // Fallback
             setCategories([{ id: 'all', name: 'All', subcategories: [] }]);
             return;
         }
 
-        if (products.length > 0) {
-            categoriesToShow = allCategories.filter(cat => {
-                return products.some(product => {
-                    // Get category from root field or attributes array (fallback)
-                    let productCategory = product.category;
-                    if (!productCategory) {
-                        const categoryAttr = product.attributes?.find(attr =>
-                            attr.name === 'category' || attr.attributeName === 'category'
-                        );
-                        productCategory = categoryAttr?.value || '';
-                    }
-                    return productCategory === cat.name;
-                });
-            });
-        } else {
-            // If no products, show all categories
-            categoriesToShow = allCategories;
-        }
+        // Show all categories from the database regardless of current product list
+        const categoriesToShow = allCategories;
 
         // Build subcategories list - show all subcategories from backend, don't filter by products
         const categoriesWithFilteredSubcategories = categoriesToShow.map(cat => {
@@ -1090,8 +1114,17 @@ const ProductCatalog = () => {
 
 
     const filteredProducts = productsList.filter(product => {
-        const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            product.description?.toLowerCase().includes(searchQuery.toLowerCase());
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = product.name?.toLowerCase().includes(query) ||
+            product.description?.toLowerCase().includes(query);
+
+        // Check shop listing items if main name/desc didn't match
+        const matchesItems = !matchesSearch && product.formType === 'shop-listing' && product.items?.some(item =>
+            item.itemName?.toLowerCase().includes(query) ||
+            item.description?.toLowerCase().includes(query)
+        );
+
+        const matchesSearchFinal = matchesSearch || matchesItems;
 
         // Category filtering is now handled by the backend
         let matchesCategory = true;
@@ -1123,7 +1156,7 @@ const ProductCatalog = () => {
         // if (selectedPattern && !pAttrs.some(a => a.name === 'Pattern' && a.value === selectedPattern)) return false;
         // if (selectedFabric && !pAttrs.some(a => a.name === 'Fabric' && a.value === selectedFabric)) return false;
 
-        return matchesSearch && matchesCategory && matchesPrice && matchesCredentials;
+        return matchesSearchFinal && matchesCategory && matchesPrice && matchesCredentials;
     });
 
     const openInquiry = (product) => {
@@ -1158,6 +1191,14 @@ const ProductCatalog = () => {
 
     const handleHeaderSearchChange = (value) => {
         setSearchQuery(value);
+        // Automatically clear search param from URL if input is cleared
+        if (!value.trim()) {
+            const newParams = new URLSearchParams(searchParams);
+            if (newParams.has('search')) {
+                newParams.delete('search');
+                setSearchParams(newParams, { replace: true });
+            }
+        }
     };
 
     const handleHeaderSearchSubmit = (query) => {
@@ -1648,35 +1689,89 @@ const ProductCatalog = () => {
                                 </div>
                                 <p className="text-gray-500 font-bold mt-8 text-lg tracking-wide uppercase">Discovering Premium Goods...</p>
                             </div>
-                        ) : filteredProducts.length === 0 ? (
+                        ) : (matchingVendors.length === 0 && filteredProducts.length === 0) ? (
                             <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
                                 <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 transform rotate-12">
                                     <FiSearch className="text-4xl text-gray-200" />
                                 </div>
                                 <h3 className="text-2xl font-black text-gray-800 mb-2">No matching gems found</h3>
                                 <p className="text-gray-400 font-medium max-w-sm mx-auto">Try broadening your search or choosing a different category to see more products.</p>
-                                {(selectedPriceRange || customPriceRange.min || customPriceRange.max) && (
+                                {(selectedPriceRange || customPriceRange.min || customPriceRange.max || searchQuery) && (
                                     <button
                                         onClick={() => {
                                             setSelectedPriceRange(null);
                                             setCustomPriceRange({ min: '', max: '' });
+                                            setSearchQuery('');
+                                            const newParams = new URLSearchParams(searchParams);
+                                            newParams.delete('search');
+                                            setSearchParams(newParams);
                                         }}
                                         className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-primary-700 transition-all"
                                     >
-                                        Clear Price Filter
+                                        Clear Search & Filters
                                     </button>
                                 )}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                                {filteredProducts.map((product) => (
-                                    <B2BProductCard
-                                        key={product._id}
-                                        product={product}
-                                        trackContactClick={trackContactClick}
-                                        itemType={selectedItemType}
-                                    />
-                                ))}
+                            <div className="space-y-12">
+                                {/* Matching Stores Section - Show if found during search */}
+                                {searchQuery && (matchingVendors.length > 0 || filteredProducts.length > 0) ? (
+                                    <div className="space-y-12">
+                                        {/* Matching Stores Section */}
+                                        {matchingVendors.length > 0 && (
+                                            <div className="space-y-6">
+                                                <div className="flex items-center gap-4">
+                                                    <span className="h-[2px] w-12 bg-primary-600"></span>
+                                                    <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">Matching Stores</h3>
+                                                    <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-[10px] font-black uppercase">{matchingVendors.length} SHOP{matchingVendors.length > 1 ? 'S' : ''}</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                                                    {matchingVendors.map((vendor) => (
+                                                        <B2BVendorCard
+                                                            key={vendor._id}
+                                                            vendor={vendor}
+                                                            trackContactClick={trackContactClick}
+                                                            itemType={selectedItemType}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Products Section */}
+                                        {filteredProducts.length > 0 && (
+                                            <div className="space-y-6">
+                                                <div className="flex items-center gap-4">
+                                                    <span className="h-[2px] w-12 bg-gray-600"></span>
+                                                    <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">Matching Products</h3>
+                                                    <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase">{filteredProducts.length} ITEM{filteredProducts.length > 1 ? 'S' : ''}</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                                                    {filteredProducts.map((product) => (
+                                                        <B2BProductCard
+                                                            key={product._id}
+                                                            product={product}
+                                                            trackContactClick={trackContactClick}
+                                                            itemType={selectedItemType}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    /* Normal Display (No Search or Empty Search) */
+                                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                                        {filteredProducts.map((product) => (
+                                            <B2BProductCard
+                                                key={product._id}
+                                                product={product}
+                                                trackContactClick={trackContactClick}
+                                                itemType={selectedItemType}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

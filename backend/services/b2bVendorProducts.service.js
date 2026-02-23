@@ -275,15 +275,14 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     } = productData;
 
     // Handle ShopUnit creation/update - Enforce ONE shop per vendor
-    let internalShopUnitId = shopUnitId;
+    const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
+    let shopUnit = await ShopUnit.findOne({ vendorId });
+
+    let internalShopUnitId = shopUnitId || (shopUnit ? shopUnit._id : null);
     let shopUnitDetails = null;
 
     if (productData.formType === 'shop-listing') {
-      const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
-      let shopUnit = await ShopUnit.findOne({ vendorId });
-
       // If shop details are provided, update/create the ShopUnit
-      // If details are provided, update/create the ShopUnit. 
       // Optimized case: If ONLY items were sent, we rely on existing shopUnit without fetching or copying details.
       if (name || description || (images && images.length > 0) || minPrice || maxPrice) {
         const unitData = {};
@@ -411,15 +410,11 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
       specifications.forEach(spec => {
         if (!spec.name || !spec.value) return;
 
-        const specNameLower = spec.name.toLowerCase();
-
-        if (specNameLower !== 'color') {
-          processedAttributes.push({
-            attributeName: spec.name,
-            name: spec.name,
-            value: spec.value,
-          });
-        }
+        processedAttributes.push({
+          attributeName: spec.name,
+          name: spec.name,
+          value: spec.value,
+        });
       });
     }
 
@@ -428,7 +423,7 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
 
     // Determine stock status
     let stock = 'in_stock';
-    let stockQuantity = parseInt(moq) || 0;
+    let stockQuantity = parseInt(productData.stockQuantity || moq || 0);
 
     // Shop listings don't track stock - always in_stock
     if (productData.formType === 'shop-listing') {
@@ -518,6 +513,8 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
       minPrice,
       maxPrice,
       items: shopItems,
+      shopUnitId,
+      stockQuantity: payloadStockQuantity,
     } = productData;
 
     // Update fields
@@ -537,6 +534,15 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
     if (minPrice !== undefined) updateData.minPrice = minPrice ? parseFloat(minPrice) : undefined;
     if (maxPrice !== undefined) updateData.maxPrice = maxPrice ? parseFloat(maxPrice) : undefined;
     if (shopItems !== undefined) updateData.items = shopItems;
+
+    // Ensure ShopUnit linkage
+    if (shopUnitId) {
+      updateData.shopUnitId = shopUnitId;
+    } else if (!existingProduct.shopUnitId) {
+      const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
+      const vendorShop = await ShopUnit.findOne({ vendorId });
+      if (vendorShop) updateData.shopUnitId = vendorShop._id;
+    }
 
 
     // Process images if provided
@@ -664,15 +670,11 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
         specifications.forEach(spec => {
           if (!spec.name || !spec.value) return;
 
-          const specNameLower = spec.name.toLowerCase();
-
-          if (specNameLower !== 'color') {
-            processedAttributes.push({
-              attributeName: spec.name,
-              name: spec.name,
-              value: spec.value,
-            });
-          }
+        processedAttributes.push({
+          attributeName: spec.name,
+          name: spec.name,
+          value: spec.value,
+        });
         });
       }
 
@@ -681,16 +683,22 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
       updateData.attributes = processedAttributes;
     }
 
-    // Update stock status
-    if (availability !== undefined) {
-      let stock = 'in_stock';
-      let stockQuantity = updateData.minimumOrderQuantity || existingProduct.minimumOrderQuantity || 1;
+    // Update stock status if availability or explicit quantity changed
+    if (availability !== undefined || payloadStockQuantity !== undefined) {
+      let stock = productData.stock || existingProduct.stock || 'in_stock';
+      let stockQuantity = payloadStockQuantity !== undefined ? parseInt(payloadStockQuantity) : (updateData.minimumOrderQuantity || existingProduct.minimumOrderQuantity || 1);
+      
       if (availability === 'Out of Stock') {
         stock = 'out_of_stock';
         stockQuantity = 0;
       } else if (availability === 'Available on Order') {
         stock = 'pre_order';
+      } else if (availability === 'In Stock') {
+        stock = 'in_stock';
+        // If stock was previously 0, reset it to at least MOQ
+        if (stockQuantity <= 0) stockQuantity = updateData.minimumOrderQuantity || existingProduct.minimumOrderQuantity || 1;
       }
+      
       updateData.stock = stock;
       updateData.stockQuantity = stockQuantity;
       updateData.isVisible = stock !== 'out_of_stock';

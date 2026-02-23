@@ -90,6 +90,11 @@ const lotSlotSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        shopUnitId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'ShopUnit',
+            default: null
+        },
     },
     {
         timestamps: true,

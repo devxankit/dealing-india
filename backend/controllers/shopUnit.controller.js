@@ -3,8 +3,8 @@ import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
 
 export const getMyUnit = async (req, res, next) => {
     try {
-        const unit = await ShopUnit.findOne({ vendorId: req.user.vendorId });
-        res.status(200).json({ success: true, data: unit });
+        const shop = await ShopUnit.findOne({ vendorId: req.user.vendorId });
+        res.status(200).json({ success: true, data: shop });
     } catch (error) {
         next(error);
     }
@@ -15,7 +15,7 @@ export const createOrUpdateUnit = async (req, res, next) => {
         const { name, description, images, minPrice, maxPrice } = req.body;
         const vendorId = req.user.vendorId;
 
-        let unit = await ShopUnit.findOne({ vendorId });
+        let shop = await ShopUnit.findOne({ vendorId });
 
         const imageUrls = [];
         const imagePublicIds = [];
@@ -32,7 +32,7 @@ export const createOrUpdateUnit = async (req, res, next) => {
             }
         }
 
-        const unitData = {
+        const shopData = {
             name: name.trim(),
             description,
             images: imageUrls,
@@ -42,13 +42,22 @@ export const createOrUpdateUnit = async (req, res, next) => {
             vendorId,
         };
 
-        if (unit) {
-            unit = await ShopUnit.findByIdAndUpdate(unit._id, unitData, { new: true });
+        if (shop) {
+            shop = await ShopUnit.findByIdAndUpdate(shop._id, shopData, { new: true });
         } else {
-            unit = await ShopUnit.create(unitData);
+            shop = await ShopUnit.create(shopData);
         }
 
-        res.status(201).json({ success: true, data: unit });
+        // Cache Invalidation for Public Vendor Profiles
+        try {
+            const redisService = (await import('../services/redis.service.js')).default;
+            await redisService.del(`vendor:details:${vendorId}`);
+            await redisService.clearPattern('vendors:list:*');
+        } catch (cacheError) {
+            console.error('Cache invalidation error (createOrUpdateUnit):', cacheError);
+        }
+
+        res.status(201).json({ success: true, data: shop });
     } catch (error) {
         next(error);
     }

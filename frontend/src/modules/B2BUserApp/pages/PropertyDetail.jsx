@@ -258,7 +258,9 @@ const PropertyDetail = () => {
                                         </div>
                                         <div>
                                             <span className="text-[8px] md:text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">{spec.label}</span>
-                                            <p className="text-xs md:text-[15px] font-black text-gray-900 uppercase">{spec.val}</p>
+                                            <p className="text-xs md:text-[15px] font-black text-gray-900 uppercase">
+                                                {Array.isArray(spec.val) ? spec.val.join(', ') : spec.val}
+                                            </p>
                                         </div>
                                     </div>
                                 ))}
@@ -288,7 +290,7 @@ const PropertyDetail = () => {
                                             <span className="text-[10px] md:text-xs font-black text-gray-700 uppercase tracking-widest">{fac.label}</span>
                                         </div>
                                         <div className={`px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm ${fac.val === 'Yes' || fac.val === 'Private' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                            {fac.val}
+                                            {Array.isArray(fac.val) ? fac.val.join(', ') : fac.val}
                                         </div>
                                     </div>
                                 ))}

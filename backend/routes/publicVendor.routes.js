@@ -7,8 +7,8 @@ import redisService from '../services/redis.service.js';
 const router = express.Router();
 
 // Public routes - no authentication required
-router.get('/', redisService.cacheMiddleware('home:featured_vendors', 600), asyncHandler(getPublicVendors));
-router.get('/:id', redisService.cacheMiddleware('vendor:details', 300), asyncHandler(getPublicVendor));
+router.get('/', asyncHandler(getPublicVendors));
+router.get('/:id', asyncHandler(getPublicVendor));
 
 export default router;
 

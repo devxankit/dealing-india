@@ -93,8 +93,15 @@ export const getActiveBannersCombined = asyncHandler(async (req, res) => {
         endDate: { $gte: now }
     })
         .populate('vendorId', 'name storeName')
-        .sort({ createdAt: -1 })
+        .populate('slotId', 'slotNumber')
         .lean();
+
+    // Sort active vendor banners by slotNumber (Slot 1, then 2, etc.)
+    activeVendorBanners.sort((a, b) => {
+        const slotA = a.slotId?.slotNumber || 999;
+        const slotB = b.slotId?.slotNumber || 999;
+        return slotA - slotB;
+    });
 
     // 2. Decide what to return
     let bannersToReturn = [];
@@ -108,6 +115,7 @@ export const getActiveBannersCombined = asyncHandler(async (req, res) => {
             image: b.bannerImage,
             link: b.link || `/b2b/vendor/${b.vendorId?._id}`,
             vendorId: b.vendorId?._id,
+            slotNumber: b.slotId?.slotNumber,
             type: 'VENDOR'
         }));
     } else {

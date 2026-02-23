@@ -18,6 +18,7 @@ export const getProducts = async (req, res, next) => {
       limit = 20,
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      excludeBusinessTypes,
       vendorType = 'b2b',
       state,
       city,
@@ -41,6 +42,7 @@ export const getProducts = async (req, res, next) => {
       limit,
       sortBy,
       sortOrder,
+      excludeBusinessTypes,
       vendorType,
       state,
       city,
@@ -49,6 +51,7 @@ export const getProducts = async (req, res, next) => {
       market,
       businessType,
       businessSubType,
+      excludeBusinessTypes,
       dynamicFilters
     });
 

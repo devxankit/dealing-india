@@ -3,6 +3,7 @@ import Product from '../models/Product.model.js';
 
 import redisService from './redis.service.js';
 import mongoose from 'mongoose';
+import ShopUnit from '../models/ShopUnit.model.js';
 
 /**
  * Get all vendors with optional filters
@@ -15,11 +16,14 @@ export const getAllVendors = async (filters = {}) => {
       status,
       isActive,
       search,
-      vendorType, // Add vendorType
+      vendorType,
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      excludeBusinessTypes,
+      businessType,
+      businessSubType,
     } = filters;
 
     // Build query
@@ -40,12 +44,33 @@ export const getAllVendors = async (filters = {}) => {
 
     // Search filter
     if (search) {
+      // Find ShopUnits matching the search to include their vendorIds
+      const matchingShopUnits = await ShopUnit.find({
+        name: { $regex: search, $options: 'i' }
+      }).select('vendorId').lean();
+
+      const matchingVendorIdsFromShops = matchingShopUnits.map(unit => unit.vendorId);
+
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { storeName: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } },
+        { _id: { $in: matchingVendorIdsFromShops } }
       ];
+    }
+
+    // Business type filters
+    if (businessType) {
+      query.businessType = { $regex: new RegExp(`^${String(businessType).trim()}$`, 'i') };
+    } else if (excludeBusinessTypes) {
+      const excludeArr = Array.isArray(excludeBusinessTypes) ? excludeBusinessTypes : String(excludeBusinessTypes).split(',').map(t => t.trim());
+      if (excludeArr.length > 0) {
+        query.businessType = { $nin: excludeArr.map(t => new RegExp(`^${t}$`, 'i')) };
+      }
+    }
+    if (businessSubType) {
+      query.selectedSubTypes = { $regex: new RegExp(`^${String(businessSubType).trim()}$`, 'i') };
     }
 
     // Calculate pagination

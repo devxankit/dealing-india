@@ -266,10 +266,21 @@ export const getMainProductVariant = (product) => {
 export const getGoogleMapsUrl = (data) => {
   if (!data) return null;
 
-  // Extract address and name - handles both Vendor and Property objects
+  // Extract address and location - handles both Vendor and Property objects
   const address = data.address || data.location || {};
-  const name = data.storeName || data.title || data.name || '';
+  const geo = data.location || {}; // Top-level location for Vendor [lng, lat]
 
+  // Prefer coordinates if available (from address.lat/lng or location.coordinates)
+  const lat = address.lat ?? (geo.coordinates && geo.coordinates[1] !== 0 ? geo.coordinates[1] : null);
+  const lng = address.lng ?? (geo.coordinates && geo.coordinates[0] !== 0 ? geo.coordinates[0] : null);
+
+  if (lat && lng) {
+    // If we have coordinates, use them for a precise pin
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  }
+
+  // Fallback to Address Search if no coordinates
+  const name = data.storeName || data.title || data.name || '';
   const {
     street,
     area,
@@ -294,7 +305,5 @@ export const getGoogleMapsUrl = (data) => {
   const query = queryParts.join(', ').trim();
   if (!query) return null;
 
-  // Search API with specific address order is the most robust way to find 
-  // the exact spot and drop a BOLD RED PIN (Marker) without navigation UI.
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 };

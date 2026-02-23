@@ -7,7 +7,7 @@ import { debounce } from '../../../../shared/utils/helpers';
 import api from '../../../../shared/utils/api';
 import { useAuthStore } from '../../../../shared/store/authStore';
 
-const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false, customNav }) => {
+const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true, searchQuery: propSearchQuery, onSearchChange, onSearchSubmit, hideSearch = false, customNav, searchPlaceholder = "SEARCH PRODUCTS AND SHOPS", suggestionEndpoint = "/products/b2b-suggestions" }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const [currentSearchParams] = useSearchParams();
@@ -35,9 +35,16 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
             }
             setIsSearching(true);
             try {
-                const response = await api.get(`/products/b2b-suggestions?q=${encodeURIComponent(query)}`);
+                const response = await api.get(`${suggestionEndpoint}?q=${encodeURIComponent(query)}`);
                 if (response.success) {
-                    setSuggestions(response.data || []);
+                    const data = response.data || [];
+                    if (!Array.isArray(data) && typeof data === 'object') {
+                        // Flatten object of categories (like {stores: [], properties: []})
+                        const flattened = Object.values(data).flat();
+                        setSuggestions(flattened);
+                    } else {
+                        setSuggestions(data);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching suggestions:', error);
@@ -68,8 +75,20 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
         setLocalSearchQuery(suggestion.text);
         setShowSuggestions(false);
 
-        // Store or Shop-Listing suggestions: navigate to store page
+        // Property suggestions: navigate to property details
+        if (suggestion.type === 'property' && suggestion.id) {
+            navigate(`/b2b/real-estate/property/${suggestion.id}`);
+            return;
+        }
+
+        // Store or Shop-Listing suggestions
         if ((suggestion.type === 'store' || suggestion.formType === 'shop-listing') && suggestion.vendorId) {
+            // If it's a real estate office, go to real estate page
+            if (suggestion.isRealEstate) {
+                navigate(`/b2b/real-estate?vendorId=${suggestion.vendorId}`);
+                return;
+            }
+
             const vendorUrl = currentItemType
                 ? `/b2b/vendor/${suggestion.vendorId}?itemType=${currentItemType}`
                 : `/b2b/vendor/${suggestion.vendorId}`;
@@ -189,7 +208,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search bulk products or stores..."
+                                placeholder={searchPlaceholder}
                                 value={localSearchQuery}
                                 onChange={handleSearchChange}
                                 className="w-full pl-12 pr-4 py-2 bg-gray-50 border-none rounded-full focus:ring-2 focus:ring-primary-500 transition-all text-sm font-medium"
@@ -209,9 +228,11 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                         ) : (
                                             suggestions.map((suggestion, index) => {
                                                 const isStore = (suggestion.type === 'store' || suggestion.formType === 'shop-listing') && suggestion.vendorId;
-                                                const vendorLinkUrl = currentItemType
-                                                    ? `/b2b/vendor/${suggestion.vendorId}?itemType=${currentItemType}`
-                                                    : `/b2b/vendor/${suggestion.vendorId}`;
+                                                const vendorLinkUrl = suggestion.isRealEstate
+                                                    ? `/b2b/real-estate?vendorId=${suggestion.vendorId}`
+                                                    : (currentItemType
+                                                        ? `/b2b/vendor/${suggestion.vendorId}?itemType=${currentItemType}`
+                                                        : `/b2b/vendor/${suggestion.vendorId}`);
                                                 const Wrapper = isStore ? Link : 'button';
                                                 const wrapperProps = isStore
                                                     ? { to: vendorLinkUrl, onClick: (e) => e.stopPropagation(), onMouseDown: (e) => e.stopPropagation() }
@@ -223,12 +244,12 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                                         className="w-full px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 text-left transition-colors group no-underline text-inherit"
                                                     >
                                                         {(suggestion.type === 'product' || suggestion.type === 'store') && suggestion.image ? (
-                                                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 border border-gray-50">
+                                                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 border border-gray-50 flex-shrink-0">
                                                                 <img src={suggestion.image} alt={suggestion.text} className="w-full h-full object-cover" />
                                                             </div>
                                                         ) : (
-                                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-50 text-primary-600">
-                                                                <FiSearch className="text-sm" />
+                                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-50 text-primary-600 flex-shrink-0">
+                                                                {suggestion.type === 'property' || suggestion.isRealEstate ? <FiHome className="text-sm" /> : <FiSearch className="text-sm" />}
                                                             </div>
                                                         )}
                                                         <div className="flex-1 min-w-0">

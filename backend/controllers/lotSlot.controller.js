@@ -2,6 +2,7 @@ import LotSlot from '../models/LotSlot.model.js';
 import Vendor from '../models/Vendor.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadBase64ToCloudinary, deleteMultipleFromCloudinary } from '../utils/cloudinary.util.js';
+import ShopUnit from '../models/ShopUnit.model.js';
 
 /**
  * Helper to generate SKU for Lot/Slot
@@ -65,9 +66,10 @@ export const createLotSlot = asyncHandler(async (req, res) => {
     }
 
     // PERFORMANCE: Parallelize validation and SKU generation
-    const [vendor, sku] = await Promise.all([
+    const [vendor, sku, shopUnit] = await Promise.all([
         Vendor.findById(vendorId).select('vendorType businessType').lean(),
-        generateLotSlotSKU(name, vendorId)
+        generateLotSlotSKU(name, vendorId),
+        ShopUnit.findOne({ vendorId }).select('_id').lean()
     ]);
 
     if (!vendor || vendor.vendorType !== 'b2b') {
@@ -80,8 +82,6 @@ export const createLotSlot = asyncHandler(async (req, res) => {
     if (!ruleCheck.allowed) {
         return res.status(403).json({ success: false, message: ruleCheck.message });
     }
-
-
 
     // Handle Images
     let imageUrl = null;
@@ -113,7 +113,8 @@ export const createLotSlot = asyncHandler(async (req, res) => {
         imagePublicId,
         images: imageUrls,
         imagePublicIds: imagePublicIds,
-        isActive: true
+        isActive: true,
+        shopUnitId: shopUnit ? shopUnit._id : (req.body.shopUnitId || null)
     });
 
     res.status(201).json({
@@ -208,12 +209,17 @@ export const updateLotSlot = asyncHandler(async (req, res) => {
         }
     }
 
-
-
     // Generate SKU if missing (for legacy items)
     let sku = existingLotSlot.sku;
     if (!sku) {
         sku = await generateLotSlotSKU(req.body.name || existingLotSlot.name, vendorId);
+    }
+
+    // Ensure ShopUnit linkage
+    let shopUnitId = req.body.shopUnitId || existingLotSlot.shopUnitId;
+    if (!shopUnitId) {
+        const shopUnit = await ShopUnit.findOne({ vendorId }).select('_id').lean();
+        if (shopUnit) shopUnitId = shopUnit._id;
     }
 
     const updatedLotSlot = await LotSlot.findByIdAndUpdate(
@@ -224,7 +230,8 @@ export const updateLotSlot = asyncHandler(async (req, res) => {
             image: imageUrl,
             imagePublicId,
             images: imageUrls,
-            imagePublicIds: imagePublicIds
+            imagePublicIds: imagePublicIds,
+            shopUnitId
         },
         { new: true, runValidators: true }
     );

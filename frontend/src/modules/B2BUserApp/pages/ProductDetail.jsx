@@ -338,10 +338,10 @@ const B2BProductDetail = () => {
                                 <span className="text-[9px] md:text-[10px] font-black text-primary-200 uppercase tracking-[0.3em] mb-4 md:mb-6 block">Authorised Vendor</span>
                                 <div className="flex items-center gap-4 md:gap-6">
                                     <div className="w-12 h-12 md:w-16 md:h-16 bg-white/20 backdrop-blur-md rounded-2xl md:rounded-3xl flex items-center justify-center text-xl md:text-2xl font-black border border-white/30 shadow-2xl uppercase">
-                                        {product.vendorId?.storeName?.charAt(0) || 'V'}
+                                        {(product.shopName || product.shopUnitId?.name || product.vendorId?.storeName)?.charAt(0) || 'V'}
                                     </div>
                                     <div>
-                                        <h3 className="text-base md:text-2xl font-black tracking-tight uppercase leading-none">{product.vendorId?.storeName || 'Verified Store'}</h3>
+                                        <h3 className="text-base md:text-2xl font-black tracking-tight uppercase leading-none">{product.shopName || product.shopUnitId?.name || product.vendorId?.storeName || 'Verified Store'}</h3>
                                         <div className="flex items-center gap-2 text-primary-100 text-[9px] md:text-[11px] font-black uppercase tracking-widest mt-2 md:mt-3">
                                             <FiCheckCircle className="text-white" /> Platinum Verified
                                         </div>
@@ -375,7 +375,9 @@ const B2BProductDetail = () => {
                             {specifications.map((s, i) => (
                                 <div key={i} className="flex flex-col justify-center p-6 bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 group-hover:text-primary-600 transition-colors">{s.name}</span>
-                                    <span className="text-sm font-black text-gray-800 uppercase tracking-tight">{s.value}</span>
+                                    <span className="text-sm font-black text-gray-800 uppercase tracking-tight">
+                                        {Array.isArray(s.value) ? s.value.join(', ') : s.value}
+                                    </span>
                                 </div>
                             ))}
                             {specifications.length === 0 && (

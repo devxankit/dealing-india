@@ -68,15 +68,16 @@ const RealEstateCard = ({ property }) => {
         return 'Price on Request';
     };
 
-    const imageUrl = property.media?.[0]?.url || property.images?.[0] || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=600';
+    const imageUrl = property.media?.[0]?.url || property.images?.[0] || '';
     const displayPrice = formatPrice(property);
 
     // Use vendor's registration location as requested
     const vendorAddress = property.vendorId?.address || {};
     const displayLocation = `${vendorAddress.area || vendorAddress.market || ''}, ${vendorAddress.city || ''}`.trim().replace(/^,/, '').trim();
 
-    const sellerName = property.vendorId?.storeName || 'Verified Seller';
-    const sellerPhone = property.vendorId?.phone || '9876543210';
+    // Prefer specific shopName or shopUnit.name over registration storeName
+    const sellerName = property.shopName || property.shopUnit?.name || property.vendorId?.storeName || property.vendorId?.name || '';
+    const sellerPhone = property.vendorId?.phone || '';
 
     return (
         <motion.div

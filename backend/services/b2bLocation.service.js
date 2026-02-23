@@ -2,6 +2,19 @@ import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
 
 /**
+ * Convert a string to Title Case (first letter of each word capitalized)
+ * e.g., 'surat' -> 'Surat', 'MADHYA PRADESH' -> 'Madhya Pradesh'
+ */
+const toTitleCase = (str) => {
+  if (!str || typeof str !== 'string') return str;
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+/**
  * Get available B2B vendor locations (states and cities)
  * Returns only locations where vendors have active products
  * @param {Object} options - Filter options
@@ -234,7 +247,7 @@ export const getB2BAvailableLocations = async (options = {}) => {
         }
 
         if (address && address.area && address.area.trim()) {
-          const cleanArea = address.area.trim();
+          const cleanArea = toTitleCase(address.area.trim());
           if (cleanArea.length > 0 && !/^\d+$/.test(cleanArea)) {
             areasSet.add(cleanArea);
           }
@@ -251,14 +264,19 @@ export const getB2BAvailableLocations = async (options = {}) => {
           console.log(`  ⚠️ No market for vendor ${vendor._id}`);
         }
 
+        // Normalize state name to Title Case for consistent grouping
+        state = toTitleCase(state);
+
         if (!locationMap.has(state)) {
           locationMap.set(state, new Set());
           console.log(`  📍 Created new state entry: "${state}"`);
         }
 
         if (city && city.length > 0) {
-          locationMap.get(state).add(city);
-          console.log(`  ✅ Added city "${city}" to state "${state}"`);
+          // Normalize to Title Case so 'surat', 'SURAT', 'Surat' all become 'Surat'
+          const normalizedCity = toTitleCase(city);
+          locationMap.get(state).add(normalizedCity);
+          console.log(`  ✅ Added city "${normalizedCity}" to state "${state}"`);
         } else {
           console.log(`  ❌ No city added for state "${state}" from vendor ${vendor._id}`);
           console.log(`     Reason: city is ${city === null ? 'null' : 'empty'}, original city was: "${address?.city || 'N/A'}"`);

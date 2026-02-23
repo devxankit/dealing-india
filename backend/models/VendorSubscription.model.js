@@ -93,6 +93,17 @@ vendorSubscriptionSchema.index({ endDate: 1 });
 vendorSubscriptionSchema.index({ planId: 1 });
 vendorSubscriptionSchema.index({ paymentMethod: 1 });
 
+// Normalize billingCycle to lowercase (e.g. 'Yearly' -> 'yearly') before validation
+vendorSubscriptionSchema.pre('validate', function (next) {
+  if (this.billingCycle && typeof this.billingCycle === 'string') {
+    const normalized = this.billingCycle.toLowerCase();
+    if (['monthly', 'yearly', 'quarterly', 'half-yearly'].includes(normalized)) {
+      this.billingCycle = normalized;
+    }
+  }
+  next();
+});
+
 // Validation
 vendorSubscriptionSchema.pre('validate', function (next) {
   if (!this.planId) {

@@ -3,6 +3,7 @@ import Product from '../models/Product.model.js';
 import LotSlot from '../models/LotSlot.model.js';
 import Vendor from '../models/Vendor.model.js';
 import B2BCategory from '../models/B2BCategory.model.js';
+import ShopUnit from '../models/ShopUnit.model.js';
 
 /**
  * Get public products with filtering and pagination
@@ -28,6 +29,7 @@ export const getPublicProducts = async (filters) => {
         market,
         businessType,
         businessSubType,
+        excludeBusinessTypes, // Added excludeBusinessTypes to destructuring
         dynamicFilters
     } = filters;
 
@@ -121,7 +123,7 @@ export const getPublicProducts = async (filters) => {
 
     // --- Resolve Vendor IDs from Location Filters ---
     let locationVendorIds = null;
-    if (state || city || area || market || businessType || businessSubType) {
+    if (state || city || area || market || businessType || businessSubType || excludeBusinessTypes) {
         const vendorQuery = { isActive: true };
         if (state) vendorQuery['address.state'] = { $regex: new RegExp(`^${String(state).trim()}$`, 'i') };
         if (city) vendorQuery['address.city'] = { $regex: new RegExp(`^${String(city).trim()}$`, 'i') };
@@ -131,8 +133,15 @@ export const getPublicProducts = async (filters) => {
             const escapedMarket = marketValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             vendorQuery['address.market'] = { $regex: new RegExp(`^${escapedMarket}$`, 'i') };
         }
-        if (businessType) vendorQuery.businessType = { $regex: new RegExp(`^${String(businessType).trim()}$`, 'i') };
-        if (businessSubType) vendorQuery.selectedSubTypes = { $in: [new RegExp(`^${String(businessSubType).trim()}$`, 'i')] };
+        if (businessType) {
+            vendorQuery.businessType = { $regex: new RegExp(`^${String(businessType).trim()}$`, 'i') };
+        } else if (excludeBusinessTypes) {
+            const excludeArr = Array.isArray(excludeBusinessTypes) ? excludeBusinessTypes : String(excludeBusinessTypes).split(',').map(t => t.trim());
+            if (excludeArr.length > 0) {
+                vendorQuery.businessType = { $nin: excludeArr.map(t => new RegExp(`^${t}$`, 'i')) };
+            }
+        }
+        if (businessSubType) vendorQuery.selectedSubTypes = { $regex: new RegExp(`^${String(businessSubType).trim()}$`, 'i') };
 
         const matchingVendors = await Vendor.find(vendorQuery).select('_id').lean();
         locationVendorIds = matchingVendors.map(v => v._id);
@@ -212,7 +221,12 @@ export const getPublicProducts = async (filters) => {
             data: [
                 { $skip: (parseInt(page) - 1) * parseInt(limit) },
                 { $limit: parseInt(limit) },
-                { $addFields: { vendorIdRef: '$vendorId' } },
+                {
+                    $addFields: {
+                        vendorIdRef: '$vendorId',
+                        shopIdRef: '$shopUnitId'
+                    }
+                },
                 // Populate Vendor
                 {
                     $lookup: {
@@ -224,16 +238,26 @@ export const getPublicProducts = async (filters) => {
                     }
                 },
                 { $unwind: { path: '$vendorId', preserveNullAndEmptyArrays: true } },
-                // Populate ShopUnit (if needed, mostly for Product)
+                // Populate ShopUnit by product's shopUnitId (for shop-listing)
                 {
                     $lookup: {
                         from: 'shopunits',
-                        localField: 'shopUnitId',
+                        localField: 'shopIdRef',
                         foreignField: '_id',
                         as: 'shopUnit'
                     }
                 },
-                { $unwind: { path: '$shopUnit', preserveNullAndEmptyArrays: true } }
+                { $unwind: { path: '$shopUnit', preserveNullAndEmptyArrays: true } },
+                // Fallback: ShopUnit by vendorId (one per vendor) so shop name always available
+                {
+                    $lookup: {
+                        from: 'shopunits',
+                        localField: 'vendorIdRef',
+                        foreignField: 'vendorId',
+                        as: 'vendorShopUnit'
+                    }
+                },
+                { $unwind: { path: '$vendorShopUnit', preserveNullAndEmptyArrays: true } }
             ]
         }
     });
@@ -247,20 +271,25 @@ export const getPublicProducts = async (filters) => {
     const total = metadata.length > 0 ? metadata[0].total : 0;
     const totalPages = Math.ceil(total / parseInt(limit));
 
-    // Merge ShopUnit data into the root object for UI consistency
+    // Merge ShopUnit data: shop name = listing name (from shop add form), not registration company name
     data = data.map(p => {
-        if (p.formType === 'shop-listing' && p.shopUnit) {
-            return {
-                ...p,
-                name: p.name || p.shopUnit.name,
-                description: p.description || p.shopUnit.description,
-                image: p.image || (p.shopUnit.images && p.shopUnit.images[0]),
-                images: (p.images && p.images.length > 0) ? p.images : p.shopUnit.images,
-                minPrice: p.minPrice ?? p.shopUnit.minPrice,
-                maxPrice: p.maxPrice ?? p.shopUnit.maxPrice,
-                price: (p.price === undefined || p.price === 0) ? p.shopUnit.minPrice : p.price
-            };
+        const shop = p.shopUnit || p.vendorShopUnit;
+
+        if (shop) {
+            p.shopName = shop.name;
+            p.shopUnit = p.shopUnit || shop;
         }
+
+        if (p.formType === 'shop-listing' && shop) {
+            p.name = p.name || shop.name;
+            p.description = p.description || shop.description;
+            p.image = p.image || (shop.images && shop.images[0]);
+            p.images = (p.images && p.images.length > 0) ? p.images : shop.images;
+            p.minPrice = p.minPrice ?? shop.minPrice;
+            p.maxPrice = p.maxPrice ?? shop.maxPrice;
+            p.price = (p.price === undefined || p.price === 0) ? shop.minPrice : p.price;
+        }
+
         return p;
     });
 
@@ -285,6 +314,7 @@ export const getPublicProductById = async (id) => {
     if (!item) {
         item = await LotSlot.findById(id)
             .populate('vendorId', 'name storeName description logo phone address')
+            .populate('shopUnitId')
             .lean();
         isLotSlot = true;
     }
@@ -294,16 +324,26 @@ export const getPublicProductById = async (id) => {
     // Tag it - with .lean(), item is already a plain object
     let taggedItem = { ...item, itemType: isLotSlot ? 'lotslot' : 'product' };
 
-    // Merge ShopUnit data for shop listings
-    if (!isLotSlot && taggedItem.formType === 'shop-listing' && taggedItem.shopUnitId) {
-        const shop = taggedItem.shopUnitId;
-        taggedItem.name = taggedItem.name || shop.name;
-        taggedItem.description = taggedItem.description || shop.description;
-        taggedItem.image = taggedItem.image || (shop.images && shop.images[0]);
-        taggedItem.images = (taggedItem.images && taggedItem.images.length > 0) ? taggedItem.images : shop.images;
-        taggedItem.minPrice = taggedItem.minPrice ?? shop.minPrice;
-        taggedItem.maxPrice = taggedItem.maxPrice ?? shop.maxPrice;
-        if (taggedItem.price === undefined || taggedItem.price === 0) taggedItem.price = shop.minPrice;
+    // Merge ShopUnit data for shop listings or items (shop name = listing name, not registration)
+    let shop = taggedItem.shopUnitId;
+    if (!shop && taggedItem.vendorId?._id) {
+        shop = await ShopUnit.findOne({ vendorId: taggedItem.vendorId._id }).lean();
+    }
+
+    if (shop) {
+        if (!isLotSlot && taggedItem.formType === 'shop-listing') {
+            taggedItem.name = taggedItem.name || shop.name;
+            taggedItem.description = taggedItem.description || shop.description;
+            taggedItem.image = taggedItem.image || (shop.images && shop.images[0]);
+            taggedItem.images = (taggedItem.images && taggedItem.images.length > 0) ? taggedItem.images : shop.images;
+            taggedItem.minPrice = taggedItem.minPrice ?? shop.minPrice;
+            taggedItem.maxPrice = taggedItem.maxPrice ?? shop.maxPrice;
+            if (taggedItem.price === undefined || taggedItem.price === 0) taggedItem.price = shop.minPrice;
+        }
+        taggedItem.shopName = shop.name;
+        taggedItem.shopUnit = shop;
+    } else {
+        taggedItem.shopName = taggedItem.vendorId?.storeName || taggedItem.vendorId?.name;
     }
 
     return taggedItem;
@@ -317,11 +357,41 @@ export const getB2BSearchSuggestions = async (query) => {
 
     const suggestions = [];
 
-    const [products, lotSlots, shopItems, stores] = await Promise.all([
-        Product.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image vendorId formType'),
-        LotSlot.find({ name: { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('name image vendorId'),
-        Product.find({ 'items.itemName': { $regex: query, $options: 'i' }, isActive: true }).limit(5).select('items name vendorId formType'),
-        Vendor.find({ storeName: { $regex: query, $options: 'i' }, status: 'approved', isActive: true }).limit(5).select('storeName storeLogo address')
+    // Removed exclusion of Real Estate types to support global search for all vendors
+    const [products, lotSlots, shopItems, vendors, shopUnits, properties] = await Promise.all([
+        Product.find({
+            name: { $regex: query, $options: 'i' },
+            isActive: true
+        }).limit(5).select('name image vendorId formType'),
+        LotSlot.find({
+            name: { $regex: query, $options: 'i' },
+            isActive: true
+        }).limit(5).select('name image vendorId'),
+        Product.find({
+            'items.itemName': { $regex: query, $options: 'i' },
+            isActive: true
+        }).limit(5).select('items name vendorId formType'),
+        Vendor.find({
+            storeName: { $regex: query, $options: 'i' },
+            status: 'approved',
+            isActive: true
+        }).limit(5).select('storeName storeLogo address businessType'),
+        ShopUnit.find({ name: { $regex: query, $options: 'i' } })
+            .limit(5)
+            .populate({
+                path: 'vendorId',
+                match: {
+                    status: 'approved',
+                    isActive: true
+                },
+                select: 'storeName storeLogo address status isActive businessType'
+            })
+            .lean(),
+        // Added Property search
+        mongoose.model('Property').find({
+            title: { $regex: query, $options: 'i' },
+            isActive: true
+        }).limit(5).select('title media images location vendorId listingType').lean()
     ]);
 
     // Products - dedup by name (case-insensitive)
@@ -357,11 +427,24 @@ export const getB2BSearchSuggestions = async (query) => {
         }
     });
 
+    // Property results
+    properties.forEach(p => {
+        const imageUrl = p.media?.[0]?.url || p.images?.[0] || null;
+        suggestions.push({
+            id: p._id.toString(),
+            text: p.title,
+            context: `${p.listingType || 'Property'} · ${p.location?.city || ''}`,
+            type: 'property',
+            image: imageUrl,
+            vendorId: p.vendorId?.toString()
+        });
+    });
+
     // Shop item names inside shop listings - dedup by itemName (case-insensitive)
     shopItems.forEach(p => {
         if (p.items && p.items.length > 0) {
             p.items.forEach(item => {
-                if (item.itemName && item.itemName.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 15) {
+                if (item.itemName && item.itemName.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 20) {
                     const isDup = suggestions.some(s =>
                         s.text?.toLowerCase() === item.itemName?.toLowerCase()
                     );
@@ -380,63 +463,63 @@ export const getB2BSearchSuggestions = async (query) => {
         }
     });
 
-    // Store suggestions - dedup by vendorId; replace any product entry with same name as store
-    stores.forEach(v => {
+    // Store suggestions from direct vendor names
+    vendors.forEach(v => {
         const vendorIdStr = v._id.toString();
         const storeNameLower = v.storeName?.toLowerCase();
-        // Remove existing product/lotslot suggestion if its text matches the store name exactly
+
+        // Check for name duplicates with products
         const dupIdx = suggestions.findIndex(s =>
             s.text?.toLowerCase() === storeNameLower && s.type !== 'store'
         );
         if (dupIdx !== -1) suggestions.splice(dupIdx, 1);
 
         if (!suggestions.some(s => s.type === 'store' && s.vendorId === vendorIdStr)) {
+            const isRealEstate = v.businessType?.match(/developer|broker/i);
             suggestions.push({
                 type: 'store',
                 text: v.storeName,
-                context: v.address?.city ? `Store · ${v.address.city}` : 'Store',
+                context: isRealEstate ? `${v.businessType} Office · ${v.address?.city || ''}` : (v.address?.city ? `Store · ${v.address.city}` : 'Store'),
                 vendorId: vendorIdStr,
-                image: v.storeLogo || null
+                image: v.storeLogo || null,
+                isRealEstate: !!isRealEstate,
+                businessType: v.businessType
             });
         }
     });
 
-    // 2. Search Categories
-    const categories = await B2BCategory.find({
-        name: { $regex: query, $options: 'i' },
-        isActive: true
-    }).limit(3).select('name image');
+    // Store suggestions from ShopUnit names
+    shopUnits.forEach(unit => {
+        const vendor = unit.vendorId;
+        if (!vendor || vendor.status !== 'approved' || vendor.isActive === false) return;
 
-    categories.forEach(c => {
-        suggestions.push({
-            text: c.name,
-            context: 'In Categories',
-            type: 'category',
-            image: c.image || null
-        });
-    });
+        const vendorIdStr = vendor._id.toString();
+        const shopNameLower = unit.name?.toLowerCase();
 
-    // 3. Search Subcategories (stored as objects with {name, fields} in B2BCategory)
-    const categoryWithMatchingSub = await B2BCategory.find({
-        'subcategories.name': { $regex: query, $options: 'i' },
-        isActive: true
-    }).limit(3);
-
-    categoryWithMatchingSub.forEach(cat => {
-        cat.subcategories.forEach(subObj => {
-            const subName = typeof subObj === 'string' ? subObj : subObj?.name;
-            if (subName && subName.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 12) {
-                // Avoid duplicates
-                if (!suggestions.some(s => s.text === subName)) {
-                    suggestions.push({
-                        text: subName,
-                        context: `In ${cat.name}`,
-                        type: 'subcategory',
-                        parentId: cat._id
-                    });
-                }
+        // If suggestion already exists for this vendor but uses storeName, update it to use shopName if it matches search better
+        const existingStoreIdx = suggestions.findIndex(s => s.type === 'store' && s.vendorId === vendorIdStr);
+        if (existingStoreIdx !== -1) {
+            if (shopNameLower.includes(query.toLowerCase())) {
+                suggestions[existingStoreIdx].text = unit.name;
             }
-        });
+        } else {
+            // Check for name duplicates with products
+            const dupIdx = suggestions.findIndex(s =>
+                s.text?.toLowerCase() === shopNameLower && s.type !== 'store'
+            );
+            if (dupIdx !== -1) suggestions.splice(dupIdx, 1);
+
+            const isRealEstate = vendor.businessType?.match(/developer|broker/i);
+            suggestions.push({
+                type: 'store',
+                text: unit.name,
+                context: isRealEstate ? `${vendor.businessType} Office · ${vendor.address?.city || ''}` : (vendor.address?.city ? `Store · ${vendor.address.city}` : 'Store'),
+                vendorId: vendorIdStr,
+                image: (unit.images && unit.images[0]) || vendor.storeLogo || null,
+                isRealEstate: !!isRealEstate,
+                businessType: vendor.businessType
+            });
+        }
     });
 
     return suggestions;

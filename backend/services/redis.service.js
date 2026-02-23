@@ -49,7 +49,7 @@ class RedisService {
      */
     async del(key) {
         try {
-            if (!redisClient.isReady) return false;
+            if (!redisClient.isReady || !key) return false;
             await redisClient.del(key);
             return true;
         } catch (error) {
@@ -65,19 +65,28 @@ class RedisService {
      */
     async clearPattern(pattern) {
         try {
-            if (!redisClient.isReady) return false;
+            if (!redisClient.isReady || !pattern) return false;
 
+            const keys = [];
             // Use scanIterator for safe modification
-            let count = 0;
             for await (const key of redisClient.scanIterator({
                 MATCH: pattern,
                 COUNT: 100
             })) {
-                await redisClient.del(key);
-                count++;
+                if (key) keys.push(key);
             }
 
-            // console.log(`Cleared ${count} keys matching ${pattern}`);
+            if (keys.length > 0) {
+                // Batch delete in chunks of 50 to avoid too large commands
+                // node-redis v4+ and v5+ del() accepts an array of keys
+                for (let i = 0; i < keys.length; i += 50) {
+                    const chunk = keys.slice(i, i + 50);
+                    if (chunk.length > 0) {
+                        await redisClient.del(chunk);
+                    }
+                }
+            }
+
             return true;
         } catch (error) {
             console.error(`Redis clearPattern error (pattern: ${pattern}):`, error);

@@ -9,12 +9,19 @@ const B2BVendorSettings = () => {
     const [activeTab, setActiveTab] = useState("profile");
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
+        name: "",
+        email: "",
+        phone: "",
         storeName: "",
         gstNumber: "",
+        mfgOfWork: "",
+        businessType: "",
+        selectedSubTypes: [],
         address: {
             street: "",
-            landmark: "",
+            area: "",
             market: "",
+            landmark: "",
             city: "",
             state: "",
             pincode: "",
@@ -27,12 +34,19 @@ const B2BVendorSettings = () => {
         if (vendor) {
             const address = vendor.address || {};
             setFormData({
+                name: vendor.name || "",
+                email: vendor.email || "",
+                phone: vendor.phone || "",
                 storeName: vendor.storeName || "",
                 gstNumber: vendor.gstNumber || "",
+                mfgOfWork: vendor.mfgOfWork || "",
+                businessType: vendor.businessType || "",
+                selectedSubTypes: vendor.selectedSubTypes || [],
                 address: {
                     street: address.street || "",
-                    landmark: address.landmark || "",
+                    area: address.area || "",
                     market: address.market || "",
+                    landmark: address.landmark || "",
                     city: address.city || "",
                     state: address.state || "",
                     pincode: address.pincode || address.zipCode || "",
@@ -73,6 +87,11 @@ const B2BVendorSettings = () => {
             return;
         }
 
+        if (!formData.name.trim()) {
+            toast.error("Contact Person Name is required");
+            return;
+        }
+
         if (!formData.storeName.trim()) {
             toast.error("Company Name is required");
             return;
@@ -90,8 +109,9 @@ const B2BVendorSettings = () => {
             // Clean and prepare address object
             const address = {
                 street: (formData.address.street || "").trim(),
-                landmark: (formData.address.landmark || "").trim(),
+                area: (formData.address.area || "").trim(),
                 market: (formData.address.market || "").trim(),
+                landmark: (formData.address.landmark || "").trim(),
                 city: (formData.address.city || "").trim(),
                 state: (formData.address.state || "").trim(),
                 pincode: (formData.address.pincode || "").trim(),
@@ -99,8 +119,10 @@ const B2BVendorSettings = () => {
             };
 
             const updateData = {
+                name: formData.name.trim(),
                 storeName: formData.storeName.trim(),
                 gstNumber: formData.gstNumber.trim(),
+                mfgOfWork: formData.mfgOfWork.trim(),
                 address: address
             };
 
@@ -142,15 +164,56 @@ const B2BVendorSettings = () => {
                 {/* Content Area */}
                 <div className="flex-1 bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
                     {activeTab === "profile" && (
-                        <div className="space-y-6">
-                            <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-4">Business Information</h3>
-                            {!vendor ? (
-                                <div className="text-center py-8">
-                                    <p className="text-gray-500">Loading vendor information...</p>
-                                </div>
-                            ) : (
+                        <div className="space-y-8">
+                            {/* Contact Information */}
+                            <section>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <div className="w-1.5 h-6 bg-primary-600 rounded-full"></div>
+                                    Contact Information
+                                </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                     <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name (Contact Person)</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={formData.name}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="Enter full name"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
+                                        <input
+                                            type="email"
+                                            value={formData.email}
+                                            disabled
+                                            className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-gray-500 cursor-not-allowed"
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-1">Email cannot be changed contact support.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone Number</label>
+                                        <input
+                                            type="tel"
+                                            value={formData.phone}
+                                            disabled
+                                            className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-gray-500 cursor-not-allowed"
+                                        />
+                                        <p className="text-[10px] text-gray-400 mt-1">Phone number cannot be changed.</p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Business Information */}
+                            <section>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
+                                    Business Information
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                                    <div className="md:col-span-2">
                                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Name</label>
                                         <input
                                             type="text"
@@ -172,96 +235,141 @@ const B2BVendorSettings = () => {
                                             placeholder="Enter GST number (optional)"
                                         />
                                     </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-semibold text-gray-700 mb-3">Business Address</label>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Street Address</label>
-                                                <input
-                                                    type="text"
-                                                    name="address.street"
-                                                    value={formData.address.street}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
-                                                    placeholder="Street Address"
-                                                />
-                                            </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Landmark (Optional)</label>
-                                                <input
-                                                    type="text"
-                                                    name="address.landmark"
-                                                    value={formData.address.landmark}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
-                                                    placeholder="Landmark (Optional)"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Market (Optional)</label>
-                                                <input
-                                                    type="text"
-                                                    name="address.market"
-                                                    value={formData.address.market}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
-                                                    placeholder="Market Name (Optional)"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">City *</label>
-                                                <input
-                                                    type="text"
-                                                    name="address.city"
-                                                    value={formData.address.city}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
-                                                    placeholder="City"
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">State *</label>
-                                                <input
-                                                    type="text"
-                                                    name="address.state"
-                                                    value={formData.address.state}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
-                                                    placeholder="State"
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Pincode</label>
-                                                <input
-                                                    type="text"
-                                                    name="address.pincode"
-                                                    value={formData.address.pincode}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
-                                                    placeholder="Pincode"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1.5">Country</label>
-                                                <input
-                                                    type="text"
-                                                    name="address.country"
-                                                    value={formData.address.country}
-                                                    onChange={handleInputChange}
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
-                                                    placeholder="Country"
-                                                />
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mfg Of Work</label>
+                                        <input
+                                            type="text"
+                                            name="mfgOfWork"
+                                            value={formData.mfgOfWork}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="Enter Mfg Of Work"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Business Type</label>
+                                        <input
+                                            type="text"
+                                            value={formData.businessType}
+                                            disabled
+                                            className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-gray-500 cursor-not-allowed"
+                                        />
+                                    </div>
+                                    {formData.selectedSubTypes?.length > 0 && (
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Specific Type</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {formData.selectedSubTypes.map(st => (
+                                                    <span key={st} className="px-3 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-100">
+                                                        {st}
+                                                    </span>
+                                                ))}
                                             </div>
                                         </div>
+                                    )}
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <div className="w-1.5 h-6 bg-orange-600 rounded-full"></div>
+                                    Business Address
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase">Street Address</label>
+                                        <input
+                                            type="text"
+                                            name="address.street"
+                                            value={formData.address.street}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="Street Address"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase">Market</label>
+                                        <input
+                                            type="text"
+                                            name="address.market"
+                                            value={formData.address.market}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="Market Name (Optional)"
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase">Landmark</label>
+                                        <input
+                                            type="text"
+                                            name="address.landmark"
+                                            value={formData.address.landmark}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="Landmark (Optional)"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase">Area / Locality</label>
+                                        <input
+                                            type="text"
+                                            name="address.area"
+                                            value={formData.address.area}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="Area / Locality"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase">City</label>
+                                        <input
+                                            type="text"
+                                            name="address.city"
+                                            value={formData.address.city}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="City"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase">State</label>
+                                        <input
+                                            type="text"
+                                            name="address.state"
+                                            value={formData.address.state}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="State"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase">Pincode</label>
+                                        <input
+                                            type="text"
+                                            name="address.pincode"
+                                            value={formData.address.pincode}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="Pincode"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1.5 uppercase">Country</label>
+                                        <input
+                                            type="text"
+                                            name="address.country"
+                                            value={formData.address.country}
+                                            onChange={handleInputChange}
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors"
+                                            placeholder="Country"
+                                        />
                                     </div>
                                 </div>
-                            )}
+                            </section>
                         </div>
                     )}
-
-
 
                     {activeTab === "profile" && (
                         <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">

@@ -8,8 +8,7 @@ import {
     FiClock,
     FiUser,
     FiMail,
-    FiPhone,
-    FiExternalLink
+    FiPhone
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { IndianRupee } from "lucide-react";
@@ -160,17 +159,6 @@ const AdminB2BBannerDetail = () => {
                             <div>
                                 <p className="text-sm text-gray-500 mb-1">Title</p>
                                 <p className="font-medium text-gray-900">{booking.title || "No Title"}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500 mb-1">Target URL</p>
-                                <a
-                                    href={booking.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 flex items-center gap-1 hover:underline truncate"
-                                >
-                                    {booking.link || "N/A"} <FiExternalLink size={12} />
-                                </a>
                             </div>
                         </div>
                     </div>

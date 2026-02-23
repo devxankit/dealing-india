@@ -39,7 +39,7 @@ const ManageProducts = () => {
                     const categoryAttr = product.attributes?.find(attr => attr.name === 'category');
                     const isShopListing = product.formType === 'shop-listing';
                     const category = isShopListing
-                        ? 'Shop Listing'
+                        ? 'Item Listing'
                         : (product.category || categoryAttr?.value || 'N/A');
 
                     return {
@@ -140,7 +140,7 @@ const ManageProducts = () => {
     // Shop Listing columns – item name, item details (not shop info)
     const shopListingColumns = [
         { key: "name", label: "Item Name", sortable: true, render: (v, row) => shopListingItemCell(v, row) },
-        { key: "category", label: "Type", sortable: true, render: (_, row) => row.items?.[0]?.category || 'Shop Listing' },
+        { key: "category", label: "Type", sortable: true, render: (_, row) => row.items?.[0]?.category || 'Item Listing' },
         { key: "price", label: "Item Price", sortable: true, render: (_, row) => row.items?.[0]?.price != null ? `₹${row.items[0].price} / ${row.items[0].unit || 'pcs'}` : (row.minPrice != null && row.maxPrice != null ? `₹${row.minPrice} - ₹${row.maxPrice}` : '–') },
         { key: "moq", label: "Items", sortable: true, render: (_, row) => row.items?.map(i => i.itemName || i.name).filter(Boolean).join(', ') || `${row.itemsCount || 0} Item${(row.itemsCount || 0) !== 1 ? 's' : ''}` },
         { key: "visibility", label: "Status", render: statusCell },
@@ -222,7 +222,7 @@ const ManageProducts = () => {
                                 <div className="space-y-10">
                                     {shopListings.length > 0 && (
                                         <div>
-                                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Shop Listings</h3>
+                                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Item Listings</h3>
                                             <DataTable
                                                 data={shopListings}
                                                 columns={shopListingColumns}

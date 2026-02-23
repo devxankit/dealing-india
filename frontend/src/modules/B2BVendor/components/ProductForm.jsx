@@ -464,17 +464,44 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     )}
 
                                     {f.type === "multi-select" && (
-                                        <select
-                                            multiple
-                                            value={dynamicValues[f.label] || []}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none min-h-[100px]"
-                                            onChange={(e) => {
-                                                const vals = [...e.target.selectedOptions].map(o => o.value);
-                                                setDynamicValues(p => ({ ...p, [f.label]: vals }));
-                                            }}
-                                        >
-                                            {f.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 border border-gray-200 rounded-xl max-h-60 overflow-y-auto">
+                                            {f.options?.map(opt => {
+                                                const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
+                                                const isSelected = currentVals.includes(opt);
+
+                                                return (
+                                                    <label
+                                                        key={opt}
+                                                        className={`flex items-center gap-2 p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected
+                                                                ? 'bg-primary-50 border-primary-200 text-primary-700 shadow-sm'
+                                                                : 'bg-white border-transparent hover:border-gray-300 text-gray-600'
+                                                            }`}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'
+                                                            }`}>
+                                                            {isSelected && <div className="w-2.5 h-1.5 border-l-2 border-b-2 border-white -rotate-45 mb-0.5"></div>}
+                                                        </div>
+                                                        <input
+                                                            type="checkbox"
+                                                            className="hidden"
+                                                            checked={isSelected}
+                                                            onChange={(e) => {
+                                                                const newVals = e.target.checked
+                                                                    ? [...currentVals, opt]
+                                                                    : currentVals.filter(v => v !== opt);
+                                                                setDynamicValues(p => ({ ...p, [f.label]: newVals }));
+                                                            }}
+                                                        />
+                                                        <span className="text-xs font-bold select-none truncate">{opt}</span>
+                                                    </label>
+                                                )
+                                            })}
+                                            {(!f.options || f.options.length === 0) && (
+                                                <div className="col-span-full text-center py-4 text-gray-400 text-xs italic">
+                                                    No options available
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             ))}

@@ -10,17 +10,14 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { appLogo } from '../../../data/logos';
 import B2BBanner from '../components/B2BBanner';
 import B2BProductCard from '../components/B2BProductCard';
+import B2BVendorCard from '../components/B2BVendorCard';
+import RealEstateCard from '../components/RealEstateCard';
 import api from '../../../shared/utils/api';
 import { debounce, getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import { useB2BCategoryStore } from '../../../shared/store/b2bCategoryStore';
 import { useAuthStore } from '../../../shared/store/authStore';
 import { useB2BLocationStore } from '../../../shared/store/b2bLocationStore';
 
-// Dummy data for Header Popups
-const HEADER_POPUP_DATA = {
-    lots: [], // Data hidden as per request
-    realEstate: [] // Data hidden as per request
-};
 
 const B2BLanding = () => {
     const navigate = useNavigate();
@@ -51,9 +48,11 @@ const B2BLanding = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
 
     // Popup States
-    const [activePopup, setActivePopup] = useState(null); // 'subcategories' | 'products' | 'lots' | 'realEstate'
+    const [activePopup, setActivePopup] = useState(null); // 'subcategories' | 'products' | 'lots' | 'realEstate' | 'stores'
     const [selectedRootCategory, setSelectedRootCategory] = useState(null);
     const [popupProducts, setPopupProducts] = useState([]);
+    const [popupVendors, setPopupVendors] = useState([]);
+    const [popupProperties, setPopupProperties] = useState([]);
 
     // Dropdown States
     const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
@@ -63,7 +62,7 @@ const B2BLanding = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // Filter Data
-    const [availableCities, setAvailableCities] = useState(['All Cities', 'Delhi', 'Mumbai', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad']);
+    const [availableCities, setAvailableCities] = useState(['All Cities']);
     const [selectedCity, setSelectedCity] = useState('All Cities');
     const [priceRange, setPriceRange] = useState({ min: '', max: '' });
     const [businessTypes, setBusinessTypes] = useState([]);
@@ -181,35 +180,88 @@ const B2BLanding = () => {
             navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
             return;
         }
-        setIsSearching(true);
-        setActivePopup('products');
 
         const searchTerm = typeof queryOrProduct === 'string' ? queryOrProduct : queryOrProduct.text;
-        setSearchQuery(searchTerm); // Update state to reflect what is being shown
+        const isStoreSuggestion = typeof queryOrProduct !== 'string' && queryOrProduct.type === 'store';
+        const isPropertySuggestion = typeof queryOrProduct !== 'string' && queryOrProduct.type === 'property';
+        const isRealEstateSuggestion = typeof queryOrProduct !== 'string' && (
+            queryOrProduct.isRealEstate ||
+            (queryOrProduct.businessType && /developer|broker/i.test(queryOrProduct.businessType))
+        );
+
+        setIsSearching(true);
+        setSearchQuery(searchTerm);
 
         try {
-            // Fetch real products with full details
-            const response = await api.get('/products', {
-                params: {
-                    search: searchTerm,
-                    limit: 6,
-                    vendorType: 'b2b'
+            if (isPropertySuggestion && queryOrProduct.id) {
+                // Show specific property in the PropertiesPopup box
+                setActivePopup('properties');
+                setPopupProperties([]);
+                const response = await api.get('/property/all', { params: { search: searchTerm } });
+                if (response.success && response.data) {
+                    setPopupProperties(response.data);
                 }
-            });
-
-            if (response.success && response.data) {
-                const products = Array.isArray(response.data) ? response.data : (response.data.products || []);
-                const normalizedProducts = products.map(p => ({
-                    ...p,
-                    moq: p.moq || p.minimumOrderQuantity || 1
-                }));
-                setPopupProducts(normalizedProducts);
+            } else if (isRealEstateSuggestion && queryOrProduct.vendorId) {
+                // Show the specific Office (Store Card) in the StorePopup box
+                setActivePopup('stores');
+                setPopupVendors([]);
+                const response = await api.get(`/vendors/${queryOrProduct.vendorId}`);
+                if (response.success && response.data) {
+                    setPopupVendors([{
+                        ...response.data.vendor,
+                        isRealEstate: true // Preserve the RE context
+                    }]);
+                }
+            } else if (isStoreSuggestion) {
+                setActivePopup('stores');
+                setPopupVendors([]); // Clear previous
+                const response = await api.get(`/vendors/${queryOrProduct.vendorId}`);
+                if (response.success && response.data) {
+                    setPopupVendors([response.data.vendor]);
+                }
             } else {
-                setPopupProducts([]);
+                // Determine if we should search for vendors too
+                // Preserving product search as priority
+                const [productRes, vendorRes, propertyRes] = await Promise.all([
+                    api.get('/products', { params: { search: searchTerm, limit: 6, vendorType: 'b2b' } }),
+                    api.get('/vendors', { params: { search: searchTerm, limit: 6 } }),
+                    api.get('/property/all', { params: { search: searchTerm, limit: 6 } })
+                ]);
+
+                const products = productRes.success && productRes.data ? (Array.isArray(productRes.data) ? productRes.data : (productRes.data.products || [])) : [];
+                const vendors = vendorRes.success && vendorRes.data ? (Array.isArray(vendorRes.data) ? vendorRes.data : (vendorRes.data.vendors || [])) : [];
+                const properties = propertyRes.success && propertyRes.data ? propertyRes.data : [];
+
+                setPopupProducts(products.map(p => ({ ...p, moq: p.moq || p.minimumOrderQuantity || 1 })));
+                setPopupVendors(vendors);
+                setPopupProperties(properties);
+
+                // Correctly prioritize results
+                // If we found a real estate vendor (Developer/Broker), show the Office box
+                const hasOfficeMatch = vendors.some(v =>
+                    v.isRealEstate ||
+                    (v.businessType || '').toLowerCase().includes('developer') ||
+                    (v.businessType || '').toLowerCase().includes('broker') ||
+                    (v.businessType || '').toLowerCase().includes('office') ||
+                    (v.businessType || '').toLowerCase().includes('property')
+                );
+
+                if (hasOfficeMatch) {
+                    setActivePopup('stores');
+                } else if (properties.length > 0) {
+                    setActivePopup('properties');
+                } else if (vendors.length > 0) {
+                    setActivePopup('stores');
+                } else {
+                    setActivePopup('products'); // Default to products if no specific results
+                }
             }
         } catch (e) {
-            console.error("Error fetching popup products", e);
+            console.error("Error fetching popup data", e);
             setPopupProducts([]);
+            setPopupVendors([]);
+            setPopupProperties([]);
+            setActivePopup('products');
         } finally {
             setIsSearching(false);
             setShowSuggestions(false);
@@ -413,7 +465,8 @@ const B2BLanding = () => {
                 params: {
                     itemType: 'lotslot',
                     limit: 10,
-                    vendorType: 'b2b'
+                    vendorType: 'b2b',
+                    excludeBusinessTypes: 'Developer,Property Broker'
                 }
             });
 
@@ -433,6 +486,61 @@ const B2BLanding = () => {
         }
     };
 
+    const PropertiesPopup = ({ title, onViewAll }) => (
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
+            onClick={closePopup}
+        >
+            <motion.div
+                initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                className="bg-gray-50 rounded-[2rem] md:rounded-[3rem] shadow-2xl w-full max-w-4xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center bg-white">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Verified Properties</p>
+                        <h3 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
+                    </div>
+                    <button onClick={closePopup} className="p-2.5 bg-gray-50 rounded-xl text-gray-400 hover:text-red-500 transition-colors">
+                        <FiX size={20} />
+                    </button>
+                </div>
+                <div className="p-4 md:p-6 max-h-[55vh] overflow-y-auto custom-scrollbar">
+                    {popupProperties.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {popupProperties.map((property) => (
+                                <RealEstateCard
+                                    key={property._id}
+                                    property={property}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-5">
+                                <FiHome size={28} className="opacity-20" />
+                            </div>
+                            <p className="font-black uppercase tracking-widest text-[9px]">No matching properties found</p>
+                        </div>
+                    )}
+                </div>
+                <div className="p-4 md:p-6 border-t border-gray-100 bg-white">
+                    <button
+                        onClick={() => {
+                            closePopup();
+                            if (onViewAll) onViewAll();
+                            else navigateWithAuth('/b2b/real-estate');
+                        }}
+                        className="w-full md:w-auto px-6 py-3 bg-gray-900 text-white rounded-xl md:rounded-full font-black text-[9px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3"
+                    >
+                        Explore Real Estate Hub <FiArrowRight />
+                    </button>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+
     const ProductPopup = ({ title, onViewAll, itemType }) => (
         <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -446,7 +554,9 @@ const B2BLanding = () => {
             >
                 <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center bg-white">
                     <div className="space-y-1">
-                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Verified Listings</p>
+                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest">
+                            {popupProducts.some(p => p.itemType === 'lotslot') ? 'Verified Lots' : 'Verified Listings'}
+                        </p>
                         <h3 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tighter">{title}</h3>
                     </div>
                     <button onClick={closePopup} className="p-2.5 bg-gray-50 rounded-xl text-gray-400 hover:text-red-500 transition-colors">
@@ -494,6 +604,82 @@ const B2BLanding = () => {
             </motion.div>
         </motion.div>
     );
+
+    const StorePopup = ({ title, onViewAll }) => {
+        const hasRealEstate = popupVendors.some(v =>
+            v.isRealEstate ||
+            (v.businessType || '').toLowerCase().includes('developer') ||
+            (v.businessType || '').toLowerCase().includes('broker') ||
+            (v.businessType || '').toLowerCase().includes('office') ||
+            (v.businessType || '').toLowerCase().includes('property')
+        );
+        return (
+            <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
+                onClick={closePopup}
+            >
+                <motion.div
+                    initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                    className="bg-gray-50 rounded-[2rem] md:rounded-[3rem] shadow-2xl w-full max-w-4xl overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center bg-white">
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest">
+                                {hasRealEstate ? 'Verified Offices' : 'Verified Stores'}
+                            </p>
+                            <h3 className="text-xl md:text-2xl font-black text-gray-900 uppercase tracking-tighter">
+                                {hasRealEstate ? title.replace(/Stores/i, 'Offices') : title}
+                            </h3>
+                        </div>
+                        <button onClick={closePopup} className="p-2.5 bg-gray-50 rounded-xl text-gray-400 hover:text-red-500 transition-colors">
+                            <FiX size={20} />
+                        </button>
+                    </div>
+                    <div className="p-4 md:p-6 max-h-[55vh] overflow-y-auto custom-scrollbar">
+                        {popupVendors.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {popupVendors.map((vendor) => (
+                                    <B2BVendorCard
+                                        key={vendor._id}
+                                        vendor={vendor}
+                                        viewMode="grid"
+                                        trackContactClick={trackContactClick}
+                                        itemType={hasRealEstate ? 'realestate' : ''}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-5">
+                                    <FiBriefcase size={28} className="opacity-20" />
+                                </div>
+                                <p className="font-black uppercase tracking-widest text-[9px]">No matching {hasRealEstate ? 'offices' : 'stores'} found</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-4 md:p-6 border-t border-gray-100 bg-white">
+                        <button
+                            onClick={() => {
+                                closePopup();
+                                if (hasRealEstate) {
+                                    navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}`);
+                                } else if (onViewAll) {
+                                    onViewAll();
+                                } else {
+                                    navigateWithAuth('/b2b/catalog');
+                                }
+                            }}
+                            className="w-full md:w-auto px-6 py-3 bg-gray-900 text-white rounded-xl md:rounded-full font-black text-[9px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3"
+                        >
+                            {hasRealEstate ? 'Explore Real Estate Hub' : 'View Full Marketplace'} <FiArrowRight />
+                        </button>
+                    </div>
+                </motion.div>
+            </motion.div>
+        );
+    };
 
     const BusinessSubTypePopup = () => (
         <motion.div
@@ -548,7 +734,7 @@ const B2BLanding = () => {
                     {/* Left Section: Logo + City + Navigator Links */}
                     <div className="flex items-center gap-2 md:gap-6 flex-1">
                         {/* 1. Logo */}
-                        <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => navigateWithAuth('/b2b/catalog')}>
+                        <div className="flex items-center gap-2 flex-shrink-0">
                             <img src={appLogo.src} alt="Dealing India" className="h-10 md:h-24 w-auto object-contain" />
                         </div>
 
@@ -789,7 +975,7 @@ const B2BLanding = () => {
                                                             navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(filterValue)}${cityParam}`);
                                                         }}
                                                     >
-                                                        <span className="text-[11px] font-black text-gray-600 group-hover:text-primary-600 uppercase tracking-wider">{filterValue}</span>
+                                                        <span className="font-black text-[11px] md:text-sm text-gray-600 group-hover:text-primary-600 uppercase tracking-wider">{filterValue}</span>
                                                         <FiArrowRight className="opacity-0 group-hover:opacity-100 transition-all text-primary-600" />
                                                     </div>
                                                 );
@@ -880,7 +1066,7 @@ const B2BLanding = () => {
                             <FiSearch className="text-gray-400 mr-2" size={18} />
                             <input
                                 type="text"
-                                placeholder="Search products, brands or assets..."
+                                placeholder="SEARCH PRODUCTS AND SHOPS"
                                 className="w-full bg-transparent py-2.5 text-[11px] md:text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 h-10 uppercase tracking-tight"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
@@ -900,7 +1086,7 @@ const B2BLanding = () => {
                                                 className="px-4 py-3 hover:bg-primary-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors"
                                             >
                                                 <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center text-primary-400">
-                                                    <FiShoppingBag />
+                                                    {s.type === 'property' || s.isRealEstate ? <FiHome size={14} className="text-primary-500" /> : <FiShoppingBag />}
                                                 </div>
                                                 <div>
                                                     <p className="text-[11px] font-black text-gray-800 uppercase tracking-tight">{s.text}</p>
@@ -913,7 +1099,6 @@ const B2BLanding = () => {
                             )}
                         </AnimatePresence>
                     </div>
-
                 </div>
             </section>
 
@@ -923,7 +1108,6 @@ const B2BLanding = () => {
                     <B2BBanner />
                 </div>
             </section>
-
 
 
             {/* --- POPUPS --- */}
@@ -936,6 +1120,31 @@ const B2BLanding = () => {
                         onViewAll={() => navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`)}
                     />
                 )}
+                {activePopup === 'properties' && (
+                    <PropertiesPopup
+                        title={`Matching Properties for "${searchQuery}"`}
+                        onViewAll={() => navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}`)}
+                    />
+                )}
+                {activePopup === 'stores' && (
+                    <StorePopup
+                        title={`Matching Stores for "${searchQuery}"`}
+                        onViewAll={() => {
+                            const hasRealEstateMatch = popupVendors.some(v =>
+                                v.isRealEstate ||
+                                (v.businessType || '').toLowerCase().includes('developer') ||
+                                (v.businessType || '').toLowerCase().includes('broker') ||
+                                (v.businessType || '').toLowerCase().includes('office') ||
+                                (v.businessType || '').toLowerCase().includes('property')
+                            );
+                            if (hasRealEstateMatch) {
+                                navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}`);
+                            } else {
+                                navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`);
+                            }
+                        }}
+                    />
+                )}
                 {activePopup === 'lots' && (
                     <ProductPopup
                         title="Explore Lot / SOT"
@@ -945,7 +1154,7 @@ const B2BLanding = () => {
                 )}
             </AnimatePresence>
 
-        </div>
+        </div >
     );
 };
 

@@ -17,7 +17,7 @@ import { geocodeAddress } from '../utils/geocoding.util.js';
  */
 export const registerVendor = async (vendorData) => {
   try {
-    let { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan, selectedSubTypes } = vendorData;
+    let { name, email, phone, password, storeName, storeDescription, address, documents, vendorType, businessTypes, businessType, businessTypeRef, gstNumber, subscriptionPlan, selectedSubTypes, mfgOfWork } = vendorData;
 
     // Fix address fields for model compatibility (zipCode -> pincode)
     if (address && address.zipCode && !address.pincode) {
@@ -170,6 +170,7 @@ export const registerVendor = async (vendorData) => {
         gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
         subscriptionPlan: subscriptionPlan, // Store plan ID for later subscription creation
         selectedSubTypes: selectedSubTypes || [],
+        mfgOfWork: mfgOfWork ? mfgOfWork.trim() : undefined,
       },
       expiresAt,
       isVerified: false,
@@ -344,7 +345,7 @@ export const getVendorById = async (vendorId, email = null) => {
  */
 export const updateVendorProfile = async (vendorId, updateData) => {
   try {
-    const { name, phone, storeName, storeDescription, address, gstNumber, businessType, businessTypeRef, selectedSubTypes } = updateData;
+    const { name, phone, storeName, storeDescription, address, gstNumber, businessType, businessTypeRef, selectedSubTypes, mfgOfWork } = updateData;
     const updateFields = {};
 
     if (name) {
@@ -390,6 +391,10 @@ export const updateVendorProfile = async (vendorId, updateData) => {
 
     if (selectedSubTypes) {
       updateFields.selectedSubTypes = selectedSubTypes;
+    }
+
+    if (mfgOfWork !== undefined) {
+      updateFields.mfgOfWork = mfgOfWork ? mfgOfWork.trim() : '';
     }
 
     if (address) {
@@ -559,6 +564,9 @@ export const verifyVendorEmail = async (email, otp) => {
       }
       if (tempRegistration.registrationData.gstNumber) {
         vendorData.gstNumber = tempRegistration.registrationData.gstNumber;
+      }
+      if (tempRegistration.registrationData.mfgOfWork) {
+        vendorData.mfgOfWork = tempRegistration.registrationData.mfgOfWork;
       }
       // B2B vendors pay subscription fees, NOT commission
       // Set commissionRate to 0 for B2B vendors

@@ -37,6 +37,7 @@ const B2BVendorRegister = () => {
         confirmPassword: '',
         companyName: '',
         gstNumber: '',
+        mfgOfWork: '',
         businessType: 'Textile',
         businessTypeRef: '',
         selectedSubTypes: [],
@@ -174,6 +175,7 @@ const B2BVendorRegister = () => {
                 storeDescription: `B2B Vendor`,
                 address: formData.address,
                 gstNumber: formData.gstNumber,
+                mfgOfWork: formData.mfgOfWork,
                 businessType: formData.businessType,
                 businessTypeRef: formData.businessTypeRef,
                 selectedSubTypes: formData.selectedSubTypes,
@@ -363,6 +365,10 @@ const B2BVendorRegister = () => {
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">GST Number</label>
                                 <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder="Enter GST Number (Optional)" />
                             </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Mfg Of Work</label>
+                                <input type="text" name="mfgOfWork" value={formData.mfgOfWork} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder="Enter Mfg Of Work" />
+                            </div>
                         </div>
                     </div>
 
@@ -446,17 +452,17 @@ const B2BVendorRegister = () => {
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Street Address</label>
                                 <input type="text" name="address.street" value={formData.address.street} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Shop No, Building Name" />
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Area / Locality</label>
-                                <input type="text" name="address.area" value={formData.address.area} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Textile Market" />
+                            <div className="md:col-span-2">
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Market</label>
+                                <input type="text" name="address.market" value={formData.address.market} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder="Enter Market Name" />
                             </div>
-                            <div>
+                            <div className="md:col-span-2">
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Landmark</label>
                                 <input type="text" name="address.landmark" value={formData.address.landmark} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder="Near Railway Station" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Market</label>
-                                <input type="text" name="address.market" value={formData.address.market} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" placeholder="Enter Market Name" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Area / Locality</label>
+                                <input type="text" name="address.area" value={formData.address.area} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="Textile Market" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">City</label>

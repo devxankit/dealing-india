@@ -1,29 +1,21 @@
 import { useState, useEffect } from "react";
-import { FiPlus, FiTrash2, FiUpload, FiX, FiImage, FiTag, FiDollarSign, FiList, FiHome, FiLock, FiUnlock, FiEdit3 } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiX, FiImage, FiList, FiTag } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 
-const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) => {
+const ItemListingForm = ({ onSubmit, isLoading = false, initialData = null }) => {
     const [formData, setFormData] = useState({
-        shopName: initialData?.name || "",
-        description: initialData?.description || "",
-        minPrice: initialData?.minPrice || "",
-        maxPrice: initialData?.maxPrice || "",
         items: initialData?.items || [{ itemName: "", category: "", price: "", unit: "", reed: "", pick: "", panna: "", gsm: "", description: "", images: [] }],
-        images: initialData?.images || [],
         shopUnitId: initialData?.shopUnitId || null,
     });
 
     const { vendor } = useB2BVendorAuthStore();
-    const [hasExistingUnit, setHasExistingUnit] = useState(false);
-    const [isShopLocked, setIsShopLocked] = useState(false); // New: Lock section A by default if exists
-    const [isShopModified, setIsShopModified] = useState(false); // Track if Section A was changed
-    const [originalShopData, setOriginalShopData] = useState(null); // To compare changes
+    const [shopUnit, setShopUnit] = useState(null);
 
-    // Business types that should see Reed, Pick, Panna, GSM (Image 2 & 3)
+    // Business types that should see Reed, Pick, Panna, GSM
     const techTypeAllowed = [
         "weavers",
         "gray broker",
@@ -35,102 +27,25 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
     const businessType = vendor?.businessType?.toLowerCase() || "";
     const showTechFields = techTypeAllowed.includes(businessType);
 
+    // Fetch the existing shop unit for reference (read-only display)
     useEffect(() => {
         const fetchUnit = async () => {
             try {
                 const response = await api.get('/b2b-vendor/shop-units');
                 if (response.success && response.data) {
                     const unit = response.data;
-                    const shopData = {
-                        shopName: unit.name || "",
-                        description: unit.description || "",
-                        images: unit.images || [],
-                        minPrice: unit.minPrice || "",
-                        maxPrice: unit.maxPrice || "",
-                        shopUnitId: unit._id
-                    };
-                    setFormData(prev => ({ ...prev, ...shopData }));
-                    setOriginalShopData(shopData);
-                    setHasExistingUnit(true);
-                    setIsShopLocked(true); // Lock it by default
-                    setIsShopModified(false);
+                    setShopUnit(unit);
+                    setFormData(prev => ({ ...prev, shopUnitId: unit._id }));
                 }
             } catch (err) {
-                console.error("Failed to fetch unit:", err);
+                // Shop unit may not exist yet or feature may be disabled
+                console.log("No shop unit found:", err?.message);
             }
         };
         fetchUnit();
     }, []);
 
     const MAX_PHOTOS = 5;
-
-    const handleImageUpload = async (e) => {
-        const files = Array.from(e.target.files);
-        if (formData.images.length + files.length > MAX_PHOTOS) {
-            toast.error(`Maximum ${MAX_PHOTOS} photos allowed`);
-            return;
-        }
-        e.target.value = '';
-
-        // 1. Show preview immediately with blob URLs
-        const blobUrls = files.map(f => URL.createObjectURL(f));
-        const startCount = formData.images.length;
-        setFormData(prev => ({
-            ...prev,
-            images: [...prev.images, ...blobUrls]
-        }));
-        setIsShopModified(true);
-
-        const toastId = toast.loading('Processing images...');
-
-        try {
-            const processFile = async (file) => {
-                if (!file.type.startsWith('image/')) return null;
-                try {
-                    const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
-                    const compressed = await imageCompression(file, options);
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(compressed);
-                    });
-                } catch (err) {
-                    console.error('Compression error:', err);
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(file);
-                    });
-                }
-            };
-
-            const base64Images = (await Promise.all(files.map(processFile))).filter(Boolean);
-
-            setFormData(prev => {
-                const next = [...prev.images];
-                for (let i = 0; i < base64Images.length; i++) {
-                    next[startCount + i] = base64Images[i];
-                }
-                return { ...prev, images: next };
-            });
-
-            blobUrls.forEach(url => URL.revokeObjectURL(url));
-            toast.success('Images added successfully', { id: toastId });
-        } catch (error) {
-            console.error('Error processing images:', error);
-            blobUrls.forEach(url => URL.revokeObjectURL(url));
-            setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i < startCount) }));
-            toast.error('Failed to process images', { id: toastId });
-        }
-    };
-
-    const removeImage = (index) => {
-        setFormData(prev => ({
-            ...prev,
-            images: prev.images.filter((_, i) => i !== index)
-        }));
-        setIsShopModified(true); // Mark as modified on photo removal
-    };
 
     const handleItemChange = (index, field, value) => {
         const updatedItems = [...formData.items];
@@ -226,14 +141,6 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        if (!formData.shopName || !formData.description || !formData.minPrice || !formData.maxPrice) {
-            return toast.error("Please fill all fields in Section A");
-        }
-
-        if (Number(formData.maxPrice) < Number(formData.minPrice)) {
-            return toast.error("Max Price cannot be less than Min Price");
-        }
-
         const validItems = formData.items.every(item => {
             const basicValid = item.itemName && item.category && item.price && item.unit;
             if (showTechFields) {
@@ -243,33 +150,14 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
         });
 
         if (!validItems) {
-            return toast.error("Please fill all required item details in Section B");
+            return toast.error("Please fill all required item details");
         }
 
-        if (formData.images.length === 0 && (!hasExistingUnit || isShopModified)) {
-            return toast.error("Please upload at least one photo");
-        }
-
-        // Shop listing: send only required fields (no unit, moq, price, category, etc.)
         const payload = {
             formType: 'shop-listing',
-            name: formData.shopName.trim(),
-            description: formData.description,
-            minPrice: String(formData.minPrice),
-            maxPrice: String(formData.maxPrice),
             items: formData.items,
-            images: formData.images,
         };
         if (formData.shopUnitId) payload.shopUnitId = formData.shopUnitId;
-
-        // OPTIMIZATION: If shop already exists and wasn't modified, don't resend heavy data
-        if (hasExistingUnit && !isShopModified) {
-            delete payload.name;
-            delete payload.images;
-            delete payload.description;
-            delete payload.minPrice;
-            delete payload.maxPrice;
-        }
 
         onSubmit(payload);
     };
@@ -281,161 +169,38 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
 
     return (
         <form onSubmit={handleSubmit} className="max-w-7xl mx-auto space-y-6 pb-24 px-4 text-left">
-            {hasExistingUnit && (
+            {/* Shop Unit Summary (Read Only) */}
+            {shopUnit && (
                 <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-center gap-3">
                     <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 shadow-sm">
-                        <FiHome size={20} />
+                        <FiTag size={20} />
                     </div>
-                    <div>
-                        <h4 className="text-xs font-black text-indigo-900 uppercase tracking-widest">Active Shop Profile Found</h4>
+                    <div className="flex-1">
+                        <h4 className="text-xs font-black text-indigo-900 uppercase tracking-widest">
+                            Shop: {shopUnit.name}
+                        </h4>
                         <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-1">
-                            Updating details below will sync across all your shop listings.
+                            Items will be linked to your existing shop profile • ₹{shopUnit.minPrice} - ₹{shopUnit.maxPrice}
                         </p>
                     </div>
                 </div>
             )}
 
-            {/* SECTION A – SHOP LISTING */}
-            <div className={sectionStyle}>
-                <div className="flex items-center justify-between gap-2 mb-8">
-                    <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-primary-50 text-primary-600 rounded-lg text-sm">
-                            <FiTag />
-                        </div>
-                        <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Shop Listing</h3>
+            {!shopUnit && (
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-amber-600 shadow-sm">
+                        <FiTag size={20} />
                     </div>
-                    {hasExistingUnit && (
-                        <button
-                            type="button"
-                            onClick={() => setIsShopLocked(!isShopLocked)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isShopLocked
-                                ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                                } shadow-sm border border-transparent`}
-                        >
-                            {isShopLocked ? (
-                                <>
-                                    <FiLock size={14} />
-                                    <span>Edit Shop Details</span>
-                                </>
-                            ) : (
-                                <>
-                                    <FiUnlock size={14} />
-                                    <span>Lock Details</span>
-                                </>
-                            )}
-                        </button>
-                    )}
-                </div>
-
-                <div className={`space-y-8 transition-all duration-500 overflow-hidden ${isShopLocked ? "opacity-60 grayscale pointer-events-none max-h-[140px]" : "opacity-100 max-h-[2000px]"}`}>
-                    {/* 1. Photo Upload Field */}
-                    <div className="space-y-4">
-                        <label className={labelStyle}>
-                            Photo Upload (Max {MAX_PHOTOS}) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                            <AnimatePresence>
-                                {formData.images.map((img, idx) => (
-                                    <motion.div
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.9 }}
-                                        key={idx}
-                                        className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 group shadow-sm"
-                                    >
-                                        <img src={img} alt="Shop" className="w-full h-full object-cover" />
-                                        <button
-                                            type="button"
-                                            onClick={() => removeImage(idx)}
-                                            className="absolute top-1.5 right-1.5 p-1 bg-red-500 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <FiX size={12} />
-                                        </button>
-                                    </motion.div>
-                                ))}
-                            </AnimatePresence>
-                            {formData.images.length < MAX_PHOTOS && (
-                                <label className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 transition-all text-gray-400 group">
-                                    <FiUpload size={22} className="group-hover:scale-110 transition-transform" />
-                                    <span className="text-[10px] font-black uppercase tracking-wider">Upload</span>
-                                    <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
-                                </label>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* 2. Shop Name & Price Section Integrated */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-2">
-                            <label className={labelStyle}>Shop Name <span className="text-red-500">*</span></label>
-                            <input
-                                required
-                                type="text"
-                                value={formData.shopName}
-                                onChange={(e) => {
-                                    setFormData({ ...formData, shopName: e.target.value });
-                                    setIsShopModified(true);
-                                }}
-                                placeholder="Enter Shop Name"
-                                className={inputStyle}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className={labelStyle}>Manual Price Range <span className="text-red-500">*</span></label>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="relative">
-                                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
-                                    <input
-                                        required
-                                        type="number"
-                                        value={formData.minPrice}
-                                        onChange={(e) => {
-                                            setFormData({ ...formData, minPrice: e.target.value });
-                                            setIsShopModified(true);
-                                        }}
-                                        placeholder="Min"
-                                        className={inputStyle.replace("px-4", "pl-8 pr-4")}
-                                    />
-                                </div>
-                                <div className="relative">
-                                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">₹</span>
-                                    <input
-                                        required
-                                        type="number"
-                                        value={formData.maxPrice}
-                                        onChange={(e) => {
-                                            setFormData({ ...formData, maxPrice: e.target.value });
-                                            setIsShopModified(true);
-                                        }}
-                                        placeholder="Max"
-                                        className={inputStyle.replace("px-4", "pl-8 pr-4")}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 3. Description Field */}
-                    <div className="space-y-2">
-                        <label className={labelStyle}>Description <span className="text-red-500">*</span></label>
-                        <textarea
-                            required
-                            rows={4}
-                            value={formData.description}
-                            onChange={(e) => {
-                                setFormData({ ...formData, description: e.target.value });
-                                setIsShopModified(true);
-                            }}
-                            placeholder="Enter Description"
-                            className={inputStyle + " resize-none min-h-[120px]"}
-                        />
+                    <div>
+                        <h4 className="text-xs font-black text-amber-900 uppercase tracking-widest">No Shop Profile Found</h4>
+                        <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider mt-1">
+                            Please create a Shop Listing first from the Shop Listing section in the sidebar.
+                        </p>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* SECTION B – ITEM LISTING */}
+            {/* ITEM LISTING */}
             <div className={sectionStyle}>
                 <div className="flex items-center gap-2 mb-8">
                     <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm">
@@ -462,7 +227,6 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                                 </button>
                             )}
 
-                            {/* Technical Specifications style: 2 separate boxes per row */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Item Name <span className="text-red-500">*</span></label>
@@ -553,7 +317,7 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                                                     type="text"
                                                     value={item.panna}
                                                     onChange={(e) => handleItemChange(idx, "panna", e.target.value)}
-                                                    placeholder="Example: 44” / 60”"
+                                                    placeholder='Example: 44" / 60"'
                                                     className="w-full bg-transparent border-none focus:ring-0 text-sm font-bold text-gray-700 outline-none p-0"
                                                 />
                                             </div>
@@ -622,7 +386,15 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                     ))}
                 </div>
 
-
+                {/* Add More Items Button */}
+                <button
+                    type="button"
+                    onClick={addItem}
+                    className="mt-4 flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-100 transition-all"
+                >
+                    <FiPlus size={14} />
+                    <span>Add Another Item</span>
+                </button>
             </div>
 
             {/* ACTION BUTTON AT BOTTOM */}
@@ -639,8 +411,8 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                         <>
-                            <span>Post Shop Listing</span>
-                            <FiTag size={16} />
+                            <span>Post Item Listing</span>
+                            <FiList size={16} />
                         </>
                     )}
                 </button>
@@ -649,4 +421,4 @@ const ShopProductForm = ({ onSubmit, isLoading = false, initialData = null }) =>
     );
 };
 
-export default ShopProductForm;
+export default ItemListingForm;

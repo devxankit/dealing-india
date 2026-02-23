@@ -9,7 +9,7 @@ const shopUnitSchema = new mongoose.Schema(
         },
         name: {
             type: String,
-            required: [true, 'Unit Name is required'],
+            required: [true, 'Shop Name is required'],
             trim: true,
         },
         description: {

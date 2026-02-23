@@ -106,10 +106,10 @@ const EditProduct = () => {
         setSaving(true);
         try {
             await api.put(`/b2b-vendor/products/${id}`, formData);
-            toast.success("Shop listing updated successfully");
+            toast.success("Item listing updated successfully");
             navigate("/b2b-vendor/products/manage-products");
         } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to update shop listing");
+            toast.error(error.response?.data?.message || "Failed to update item listing");
         } finally {
             setSaving(false);
         }
@@ -133,7 +133,7 @@ const EditProduct = () => {
         >
             <div className="px-1 text-center mb-8">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">
-                    Edit {isShopListing ? "Shop Listing" : "Listing"}
+                    Edit {isShopListing ? "Item Listing" : "Listing"}
                 </h1>
                 <p className="text-sm text-gray-500 font-medium">Update your product details and B2B pricing.</p>
             </div>

@@ -134,6 +134,11 @@ const propertySchema = new mongoose.Schema(
             waterSupply: { type: String, enum: ['Yes', 'No'] },
             washroom: { type: [String], enum: ['Private', 'Common', 'No'], default: ['Common'] },
             fireSafety: { type: String, enum: ['Yes', 'No'] }
+        },
+        shopUnitId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'ShopUnit',
+            default: null
         }
     },
     {

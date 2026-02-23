@@ -43,19 +43,6 @@ const B2BVendorStore = () => {
         const fetchVendorData = async () => {
             setLoading(true);
             try {
-                // Check if it's a dummy real estate ID
-                const dummyRealEstateVendors = {
-                    'dlf-1': { storeName: 'DLF Builders', businessDescription: 'DLF has nearly 75 years of track record of sustained growth, customer satisfaction, and innovation.', storeLogo: 'https://companieslogo.com/img/orig/DLF.NS-4b216142.png?t=1602357731', isVerified: true, address: { city: 'Gurgaon', state: 'Haryana' }, phone: '9876543210' },
-                    'm3m-1': { storeName: 'M3M India', businessDescription: 'M3M India is one of the fastest growing real estate developers in India with premium residential and commercial projects.', storeLogo: 'https://m3m-india.com/assets/images/logo.png', isVerified: true, address: { city: 'Gurgaon', state: 'Haryana' }, phone: '9898989898' },
-                    'brk-ankit': { storeName: 'Ankit Sharma', businessDescription: 'Expert property broker in Indore specializing in residential flats and villas for over 8 years.', isVerified: true, address: { city: 'Indore', state: 'MP' }, phone: '9123456789' }
-                };
-
-                if (dummyRealEstateVendors[id]) {
-                    setVendor(dummyRealEstateVendors[id]);
-                    setProducts([]); // No products for dummy RE in this view yet
-                    setLoading(false);
-                    return;
-                }
 
                 // OPTIMIZED: Fetch vendor, products, and properties in parallel
                 const [vendorRes, productsRes, propertiesRes] = await Promise.all([
@@ -105,8 +92,22 @@ const B2BVendorStore = () => {
         }
     }, [id, itemType]);
 
-    // Find shop listing for specific UI details
-    const shopListing = useMemo(() => products.find(p => p.formType === 'shop-listing'), [products]);
+    // Find shop listing for specific UI details - merged with vendor.shopUnit if available
+    const shopListing = useMemo(() => {
+        const productListing = products.find(p => p.formType === 'shop-listing');
+        if (vendor?.shopUnit) {
+            return {
+                ...productListing,
+                name: vendor.shopUnit.name || productListing?.name,
+                description: vendor.shopUnit.description || productListing?.description,
+                minPrice: vendor.shopUnit.minPrice ?? productListing?.minPrice,
+                maxPrice: vendor.shopUnit.maxPrice ?? productListing?.maxPrice,
+                images: (vendor.shopUnit.images && vendor.shopUnit.images.length > 0) ? vendor.shopUnit.images : productListing?.images,
+                image: (vendor.shopUnit.images && vendor.shopUnit.images[0]) || productListing?.image
+            };
+        }
+        return productListing;
+    }, [products, vendor]);
 
     // Filter and sort products
     const filteredProducts = useMemo(() => {
@@ -201,24 +202,33 @@ const B2BVendorStore = () => {
                     <div className="absolute inset-0 bg-gradient-to-br from-primary-600/10 via-transparent to-primary-600/5 rounded-[2rem] md:rounded-[4rem] blur-3xl opacity-50"></div>
                     <div className="relative bg-white rounded-[2rem] md:rounded-[3.5rem] p-6 md:p-12 border border-white/50 shadow-2xl flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
                         <div className="relative group">
-                            <div className="w-28 h-28 md:w-44 md:h-44 bg-gray-50 rounded-[1.5rem] md:rounded-[2.5rem] p-4 border-2 md:border-4 border-white shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden transition-transform duration-500 group-hover:scale-105">
-                                {vendor.storeLogo || shopListing?.images?.[0] ? (
-                                    <img
-                                        src={vendor.storeLogo || shopListing?.images?.[0]}
-                                        alt={vendor.storeName}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-primary-50">
-                                        <FiShoppingBag className="text-3xl md:text-5xl text-primary-600" />
+                            {(vendor.gstNumber || vendor.gst) && (
+                                <div className="mb-4 flex justify-center md:justify-start">
+                                    <span className="text-[10px] md:text-sm font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                                        GSTIN: <span className="text-gray-900">{vendor.gstNumber || vendor.gst}</span>
+                                    </span>
+                                </div>
+                            )}
+                            <div className="relative">
+                                <div className="relative w-28 h-28 md:w-44 md:h-44 bg-gray-50 rounded-[1.5rem] md:rounded-[2.5rem] p-4 border-2 md:border-4 border-white shadow-xl flex-shrink-0 flex items-center justify-center overflow-hidden transition-transform duration-500 group-hover:scale-105">
+                                    {vendor.storeLogo || shopListing?.image || shopListing?.images?.[0] ? (
+                                        <img
+                                            src={vendor.storeLogo || shopListing?.image || shopListing?.images?.[0]}
+                                            alt={vendor.storeName}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                                            <FiShoppingBag className="text-3xl md:text-5xl text-primary-600" />
+                                        </div>
+                                    )}
+                                </div>
+                                {vendor.isVerified && (
+                                    <div className="absolute -bottom-2 -right-2 md:bottom-2 md:right-2 bg-primary-600 text-white p-1.5 md:p-2.5 rounded-2xl shadow-xl border-2 md:border-4 border-white animate-bounce-subtle z-10">
+                                        <FiCheckCircle className="text-sm md:text-xl" />
                                     </div>
                                 )}
                             </div>
-                            {vendor.isVerified && (
-                                <div className="absolute -top-2 -right-2 md:top-2 md:right-2 bg-primary-600 text-white p-1.5 md:p-2.5 rounded-2xl shadow-xl border-2 md:border-4 border-white animate-bounce-subtle">
-                                    <FiCheckCircle className="text-sm md:text-xl" />
-                                </div>
-                            )}
                         </div>
 
                         {/* Info Container */}
@@ -228,18 +238,31 @@ const B2BVendorStore = () => {
                                     <span className="px-3 py-1 bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg border border-primary-100/50">
                                         {vendor.businessType ? `Official ${vendor.businessType}` : 'Platinum Vendor'}
                                     </span>
-                                    <span className="px-3 py-1 bg-gray-50 text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg">
-                                        ID: {id?.slice(-6).toUpperCase()}
-                                    </span>
                                 </div>
                                 <h1 className="text-2xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">
-                                    {vendor.storeName}
+                                    {shopListing?.name || vendor.storeName}
                                 </h1>
-                            </div>
 
-                            <p className="text-gray-500 font-medium text-sm md:text-lg leading-relaxed max-w-2xl">
-                                {shopListing?.description || vendor.businessDescription || (vendor.businessType?.includes('Real Estate') ? "Premier real estate professional providing verified premium properties and expert consulting." : "Premium B2B supplier providing high-quality bulk products across India.")}
-                            </p>
+                                <div className="space-y-1.5 mt-4">
+                                    <div className="flex flex-col gap-1">
+                                        <p className="text-[10px] md:text-sm font-black text-primary-600 uppercase tracking-[0.1em]">MFD: <span className="text-gray-900">{vendor.businessType || 'N/A'}</span></p>
+                                        <p className="text-[10px] md:text-sm font-black text-primary-600 uppercase tracking-[0.1em]">MFG: <span className="text-gray-900">{vendor.mfgOfWork || vendor.mfg || 'N/A'}</span></p>
+                                    </div>
+                                    <div className="flex items-start gap-1.5 pt-1">
+                                        <FiMapPin className="text-gray-400 mt-0.5 flex-shrink-0" size={14} />
+                                        <p className="text-[10px] md:text-[13px] font-bold text-gray-500 uppercase tracking-tight leading-relaxed max-w-xl">
+                                            {[
+                                                vendor.address?.street,
+                                                vendor.address?.area,
+                                                vendor.address?.market,
+                                                vendor.address?.city,
+                                                vendor.address?.state,
+                                                vendor.address?.pincode
+                                            ].filter(part => part && part.trim()).join(', ')}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-8 pt-4">
                                 <div className="flex flex-col">
@@ -281,6 +304,11 @@ const B2BVendorStore = () => {
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[240px] pt-4 md:pt-0">
                             {vendor.phone && (
+                                <p className="text-[12px] md:text-sm font-black text-gray-900 uppercase tracking-widest text-center md:text-right px-4 mb-1">
+                                    PH: +91 {vendor.phone}
+                                </p>
+                            )}
+                            {vendor.phone && (
                                 <a
                                     href={`https://wa.me/91${vendor.phone.replace(/\D/g, '')}`}
                                     target="_blank"
@@ -316,7 +344,7 @@ const B2BVendorStore = () => {
                             <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Shop Presentation</h3>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {[shopListing.image, ...(shopListing.images || [])].filter(Boolean).map((img, idx) => (
+                            {[...new Set([shopListing.image, ...(shopListing.images || [])])].filter(Boolean).map((img, idx) => (
                                 <motion.div
                                     key={idx}
                                     whileHover={{ scale: 1.02 }}

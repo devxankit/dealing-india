@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
     FiPackage,
     FiPlus,
+    FiList,
 } from "react-icons/fi";
 import { useVendorSettings } from "../hooks/useVendorSettings";
 
@@ -23,16 +24,25 @@ const Products = () => {
             hoverShadow: "hover:shadow-blue-500/30",
             description: "View and manage your B2B product listings",
         },
-        {
-            path: isShopListing ? "/b2b-vendor/products/add-shop-listing" : "/b2b-vendor/products/add-product",
-            label: isShopListing ? "Create Shop Listing" : "Add Product",
+        ...(isShopListing ? [{
+            path: "/b2b-vendor/products/item-listing",
+            label: "Item Listing",
+            icon: FiList,
+            gradient: "from-green-500 via-green-600 to-green-700",
+            lightGradient: "from-green-50 via-green-100/80 to-green-50",
+            shadowColor: "shadow-green-500/20",
+            hoverShadow: "hover:shadow-green-500/30",
+            description: "Add items to your shop for B2B buyers.",
+        }] : [{
+            path: "/b2b-vendor/products/add-product",
+            label: "Add Product",
             icon: FiPlus,
             gradient: "from-green-500 via-green-600 to-green-700",
             lightGradient: "from-green-50 via-green-100/80 to-green-50",
             shadowColor: "shadow-green-500/20",
             hoverShadow: "hover:shadow-green-500/30",
-            description: isShopListing ? "List your shop unit and items for B2B buyers." : "List a new B2B product for retailers",
-        },
+            description: "List a new B2B product for retailers",
+        }]),
     ];
 
     return (

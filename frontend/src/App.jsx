@@ -79,6 +79,7 @@ const B2BVendorManageLots = lazyWithRetry(() => import("./modules/B2BVendor/page
 const B2BVendorAddLot = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/AddLotSlot"));
 const B2BVendorEditLot = lazyWithRetry(() => import("./modules/B2BVendor/pages/lotslot/EditLotSlot"));
 const B2BVendorNotifications = lazyWithRetry(() => import("./modules/B2BVendor/pages/VendorNotifications"));
+const B2BVendorShopListing = lazyWithRetry(() => import("./modules/B2BVendor/pages/shop/ShopListing"));
 
 
 // B2B User App Routes
@@ -234,9 +235,12 @@ const AppRoutes = () => {
             <Route index element={<B2BVendorProducts />} />
             <Route path="manage-products" element={<B2BVendorManageProducts />} />
             <Route path="add-product" element={<B2BVendorAddProduct />} />
+            <Route path="item-listing" element={<B2BVendorAddProduct forceItemListing={true} />} />
             <Route path="add-shop-listing" element={<B2BVendorAddProduct forceShop={true} />} />
             <Route path="edit/:id" element={<B2BVendorEditProduct />} />
           </Route>
+
+          <Route path="shop-listing" element={<B2BVendorShopListing />} />
 
           <Route path="properties">
             <Route index element={<B2BVendorProperties />} />

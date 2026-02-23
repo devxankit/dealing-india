@@ -66,9 +66,10 @@ export const useVendorSettings = () => {
                 // Instantly restore from localStorage if available
                 const cached = getFromLocalStorage(slug);
                 if (cached) {
-                    settingsCache[slug] = cached;
+                    // Set as initial value for instant display (no flicker)
                     setSettings(cached);
                     setLoading(false);
+                    // Do NOT set settingsCache here — let the API fetch overwrite it
                 }
             } catch {
                 // Silently fail, API fetch will handle it
@@ -97,14 +98,7 @@ export const useVendorSettings = () => {
 
                 const slug = vendorType.slug;
 
-                // Check in-memory cache first
-                if (settingsCache[slug]) {
-                    setSettings(settingsCache[slug]);
-                    setLoading(false);
-                    return;
-                }
-
-                // Check if a request is already in flight
+                // Check if a request is already in flight (dedup concurrent calls)
                 if (settingsPromises[slug]) {
                     const data = await settingsPromises[slug];
                     setSettings(data);
@@ -112,7 +106,7 @@ export const useVendorSettings = () => {
                     return;
                 }
 
-                // Create a new API request promise
+                // Always fetch fresh data from API
                 settingsPromises[slug] = api.get(`/vendor/business-settings/${slug}`)
                     .then(response => {
                         if (response.success) {
@@ -130,7 +124,11 @@ export const useVendorSettings = () => {
                     });
 
                 const data = await settingsPromises[slug];
+                settingsCache[slug] = data;
                 setSettings(data);
+
+                // Clear promise after completion so next mount gets fresh data
+                delete settingsPromises[slug];
             } catch (err) {
                 console.error('Error fetching vendor business settings:', err);
                 setError(err);

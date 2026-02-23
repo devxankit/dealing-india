@@ -14,6 +14,10 @@ export const getPublicVendors = async (req, res, next) => {
       limit = 20,
       sortBy = 'createdAt',
       sortOrder = 'desc',
+      businessSubType,
+      businessType,
+      excludeBusinessTypes,
+      dynamicFilters
     } = req.query;
 
     // Try to get from cache first
@@ -38,24 +42,30 @@ export const getPublicVendors = async (req, res, next) => {
       limit: parseInt(limit),
       sortBy,
       sortOrder,
-    });
-
-    // OPTIMIZED: Get product counts for all vendors in a single aggregation query
-    // This eliminates the N+1 query problem (previously one query per vendor)
+      businessSubType,
+      businessType,
+      excludeBusinessTypes,
+      dynamicFilters
+    });// OPTIMIZED: Get product counts and shop units for all vendors in a single query each
     const vendorIds = result.vendors.map(v => v._id);
-    const productCounts = await Product.aggregate([
-      { $match: { vendorId: { $in: vendorIds }, isActive: true } },
-      { $group: { _id: '$vendorId', count: { $sum: 1 } } }
+    const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
+
+    const [productCounts, shopUnits] = await Promise.all([
+      Product.aggregate([
+        { $match: { vendorId: { $in: vendorIds }, isActive: true } },
+        { $group: { _id: '$vendorId', count: { $sum: 1 } } }
+      ]),
+      ShopUnit.find({ vendorId: { $in: vendorIds } }).lean()
     ]);
 
-    // Create a map for O(1) lookup
-    const productCountMap = new Map(
-      productCounts.map(item => [item._id.toString(), item.count])
-    );
+    // Create maps for O(1) lookup
+    const productCountMap = new Map(productCounts.map(item => [item._id.toString(), item.count]));
+    const shopUnitMap = new Map(shopUnits.map(unit => [unit.vendorId.toString(), unit]));
 
-    // Enrich vendors with product counts (no additional DB queries needed)
+    // Enrich vendors with product counts and shop units
     const enrichedVendors = result.vendors.map((vendor) => {
       const productCount = productCountMap.get(vendor._id.toString()) || 0;
+      const shopUnit = shopUnitMap.get(vendor._id.toString());
 
       // Transform vendor data for public consumption
       return {
@@ -64,13 +74,19 @@ export const getPublicVendors = async (req, res, next) => {
         name: vendor.name,
         email: vendor.email,
         phone: vendor.phone,
-        storeName: vendor.storeName,
+        storeName: shopUnit?.name || vendor.storeName,
         storeLogo: vendor.storeLogo,
-        storeDescription: vendor.storeDescription,
+        storeDescription: shopUnit?.description || vendor.storeDescription,
         address: vendor.address,
         status: vendor.status,
+        businessType: vendor.businessType || 'N/A',
+        mfgOfWork: vendor.mfgOfWork || '',
+        gstNumber: vendor.gstNumber || '',
         isVerified: vendor.isEmailVerified || vendor.status === 'approved',
         totalProducts: productCount,
+        minPrice: shopUnit?.minPrice,
+        maxPrice: shopUnit?.maxPrice,
+        shopUnit: shopUnit,
         joinDate: vendor.createdAt,
         createdAt: vendor.createdAt,
         updatedAt: vendor.updatedAt,
@@ -147,6 +163,10 @@ export const getPublicVendor = async (req, res, next) => {
       isActive: true,
     });
 
+    // Get shop unit details for B2B vendors
+    const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
+    const shopUnit = await ShopUnit.findOne({ vendorId: vendor._id });
+
     // Transform vendor data for public consumption
     const publicVendor = {
       id: vendor._id.toString(),
@@ -159,13 +179,17 @@ export const getPublicVendor = async (req, res, next) => {
       storeDescription: vendor.storeDescription,
       address: vendor.address,
       status: vendor.status,
+      businessType: vendor.businessType || 'N/A',
+      mfgOfWork: vendor.mfgOfWork || '',
+      gstNumber: vendor.gstNumber || '',
       isVerified: vendor.isEmailVerified || vendor.status === 'approved',
       totalProducts: productCount,
       viewCount: parseInt(viewCount) || 0,
       joinDate: vendor.createdAt,
       createdAt: vendor.createdAt,
       updatedAt: vendor.updatedAt,
-      vendorType: 'b2b'
+      vendorType: 'b2b',
+      shopUnit: shopUnit // Include shop unit details
     };
 
     // Cache the result for 1 hour

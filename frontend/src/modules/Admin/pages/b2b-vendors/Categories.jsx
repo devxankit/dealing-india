@@ -43,6 +43,12 @@ const B2BCategories = () => {
         setFields(updated);
     };
 
+    const removeOption = (fieldIdx, optIdx) => {
+        const updated = [...fields];
+        updated[fieldIdx].options = updated[fieldIdx].options.filter((_, idx) => idx !== optIdx);
+        setFields(updated);
+    };
+
     const removeField = (index) => {
         setFields(fields.filter((_, i) => i !== index));
     };
@@ -106,7 +112,7 @@ const B2BCategories = () => {
     const handleStartAddSubcategory = (categoryId) => {
         setAddingSubcategory(categoryId);
         setNewSubcategoryName('');
-        setFormData(prev => ({ ...prev, fields: [] })); // Reset fields for subcategory
+        setFields([{ label: "", type: "text", options: [], required: false }]); // Correctly reset the fields state
     };
 
     const handleCancelAddSubcategory = () => {
@@ -212,8 +218,18 @@ const B2BCategories = () => {
             categoryId,
             index,
             name: subcategory.name,
-            fields: subcategory.fields || []
         });
+        // Populate the shared fields state for editing
+        if (subcategory.fields && subcategory.fields.length > 0) {
+            setFields(subcategory.fields.map(f => ({
+                label: f.label || "",
+                type: f.type || "text",
+                options: f.options ? [...f.options] : [],
+                required: !!f.required
+            })));
+        } else {
+            setFields([{ label: "", type: "text", options: [], required: false }]);
+        }
     };
 
     const handleSaveSubcategoryEdit = async () => {
@@ -226,7 +242,7 @@ const B2BCategories = () => {
             const response = await api.patch(`/admin/b2b-categories/${editingSubcategory.categoryId}/subcategories`, {
                 index: editingSubcategory.index,
                 newName: editingSubcategory.name.trim(),
-                fields: editingSubcategory.fields
+                fields: fields // Use the shared fields state
             });
             if (response.success) {
                 toast.success('Subcategory updated');
@@ -250,7 +266,10 @@ const B2BCategories = () => {
                     <p className="text-gray-500 mt-1">Manage categories and subcategories with dynamic fields</p>
                 </div>
                 <button
-                    onClick={() => setShowAddForm(true)}
+                    onClick={() => {
+                        setFields([{ label: "", type: "text", options: [], required: false }]);
+                        setShowAddForm(true);
+                    }}
                     className="px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all flex items-center gap-2 shadow-lg"
                 >
                     <FiPlus /> Add Category
@@ -356,16 +375,23 @@ const B2BCategories = () => {
                                                             <span className="text-[10px] text-gray-400 font-bold">Options</span>
                                                             <button onClick={() => addOption(idx)} className="text-[10px] text-primary-600">+ Add Option</button>
                                                         </div>
-                                                        <div className="flex flex-wrap gap-1">
+                                                        <div className="flex flex-wrap gap-1.5">
                                                             {(field.options || []).map((opt, optIdx) => (
-                                                                <input
-                                                                    key={optIdx}
-                                                                    type="text"
-                                                                    value={opt}
-                                                                    onChange={(e) => updateOption(idx, optIdx, e.target.value)}
-                                                                    className="px-2 py-1 text-[10px] bg-white border border-gray-200 rounded w-20"
-                                                                    placeholder={`Opt ${optIdx + 1}`}
-                                                                />
+                                                                <div key={optIdx} className="relative group/opt">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={opt}
+                                                                        onChange={(e) => updateOption(idx, optIdx, e.target.value)}
+                                                                        className="px-2 py-1 text-[10px] bg-white border border-gray-200 rounded w-20 pr-5"
+                                                                        placeholder={`Opt ${optIdx + 1}`}
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => removeOption(idx, optIdx)}
+                                                                        className="absolute right-1 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 opacity-0 group-hover/opt:opacity-100 transition-opacity"
+                                                                    >
+                                                                        <FiX size={10} />
+                                                                    </button>
+                                                                </div>
                                                             ))}
                                                         </div>
                                                     </div>
@@ -535,18 +561,25 @@ const B2BCategories = () => {
                                                         <button onClick={() => removeField(i)} className="text-red-400"><FiX size={10} /></button>
                                                     </div>
                                                     {(f.type === 'select' || f.type === 'multi-select') && (
-                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                        <div className="flex flex-wrap gap-1.5 mt-1">
                                                             {f.options.map((opt, optIdx) => (
-                                                                <input
-                                                                    key={optIdx}
-                                                                    type="text"
-                                                                    value={opt}
-                                                                    onChange={(e) => updateOption(i, optIdx, e.target.value)}
-                                                                    className="px-1 py-0.5 text-[8px] border rounded w-12"
-                                                                    placeholder="Option"
-                                                                />
+                                                                <div key={optIdx} className="relative group/opt">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={opt}
+                                                                        onChange={(e) => updateOption(i, optIdx, e.target.value)}
+                                                                        className="px-1.5 py-0.5 text-[8px] border border-gray-200 rounded w-14 bg-white outline-none pr-4"
+                                                                        placeholder="Opt"
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => removeOption(i, optIdx)}
+                                                                        className="absolute right-0.5 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 opacity-0 group-hover/opt:opacity-100"
+                                                                    >
+                                                                        <FiX size={8} />
+                                                                    </button>
+                                                                </div>
                                                             ))}
-                                                            <button onClick={() => addOption(i)} className="text-[8px] text-primary-600 font-bold">+ Opt</button>
+                                                            <button onClick={() => addOption(i)} className="text-[8px] text-primary-600 font-bold hover:underline">+ Opt</button>
                                                         </div>
                                                     )}
                                                 </div>
@@ -579,26 +612,95 @@ const B2BCategories = () => {
                                             >
                                                 <div className="flex items-center justify-between">
                                                     {editingSubcategory.categoryId === category.id && editingSubcategory.index === index ? (
-                                                        <div className="flex-1 flex items-center gap-2">
-                                                            <input
-                                                                type="text"
-                                                                value={editingSubcategory.name}
-                                                                onChange={(e) => setEditingSubcategory(prev => ({ ...prev, name: e.target.value }))}
-                                                                className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded text-sm"
-                                                                autoFocus
-                                                            />
-                                                            <button
-                                                                onClick={handleSaveSubcategoryEdit}
-                                                                className="p-1 text-green-600 hover:bg-green-50 rounded"
-                                                            >
-                                                                <FiCheck className="text-sm" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setEditingSubcategory({ categoryId: null, index: null })}
-                                                                className="p-1 text-gray-400 hover:bg-gray-50 rounded"
-                                                            >
-                                                                <FiX className="text-sm" />
-                                                            </button>
+                                                        <div className="flex-1 space-y-3 p-4 bg-primary-50/50 border border-primary-100 rounded-2xl">
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingSubcategory.name}
+                                                                    onChange={(e) => setEditingSubcategory(prev => ({ ...prev, name: e.target.value }))}
+                                                                    className="flex-1 px-3 py-2 bg-white border border-primary-200 rounded-xl text-sm font-bold shadow-sm"
+                                                                    autoFocus
+                                                                />
+                                                                <button
+                                                                    onClick={handleSaveSubcategoryEdit}
+                                                                    className="p-2 text-green-600 hover:bg-green-50 rounded-xl border border-transparent hover:border-green-200 transition-all shadow-sm"
+                                                                    title="Save Changes"
+                                                                >
+                                                                    <FiCheck className="text-lg" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingSubcategory({ categoryId: null, index: null });
+                                                                        setFields([{ label: "", type: "text", options: [], required: false }]);
+                                                                    }}
+                                                                    className="p-2 text-gray-400 hover:bg-gray-50 rounded-xl border border-gray-200"
+                                                                    title="Cancel"
+                                                                >
+                                                                    <FiX className="text-lg" />
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Dynamic Fields Editor for Edit Mode */}
+                                                            <div className="space-y-2 pt-2 border-t border-primary-100/50">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-[10px] font-black text-primary-700 uppercase">Edit Fields</span>
+                                                                    <button onClick={addField} className="text-[10px] bg-primary-600 text-white px-2 py-0.5 rounded-full font-bold">+ Field</button>
+                                                                </div>
+                                                                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                                                    {fields.map((f, i) => (
+                                                                        <div key={i} className="flex flex-col gap-1 bg-white/80 p-2 rounded-xl border border-primary-100 shadow-sm">
+                                                                            <div className="flex gap-1 items-center">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    placeholder="Label"
+                                                                                    className="w-1/2 text-[10px] bg-transparent border-none outline-none focus:ring-0"
+                                                                                    value={f.label}
+                                                                                    onChange={(e) => updateField(i, 'label', e.target.value)}
+                                                                                />
+                                                                                <select
+                                                                                    className="w-1/2 text-[10px] bg-transparent border-none outline-none font-bold"
+                                                                                    value={f.type}
+                                                                                    onChange={(e) => updateField(i, 'type', e.target.value)}
+                                                                                >
+                                                                                    <option value="text">Text</option>
+                                                                                    <option value="number">Num</option>
+                                                                                    <option value="select">Sel</option>
+                                                                                    <option value="multi-select">Multi</option>
+                                                                                </select>
+                                                                                <button
+                                                                                    onClick={() => removeField(i)}
+                                                                                    className="text-red-400 hover:bg-red-50 p-1 rounded"
+                                                                                >
+                                                                                    <FiX size={10} />
+                                                                                </button>
+                                                                            </div>
+                                                                            {(f.type === 'select' || f.type === 'multi-select') && (
+                                                                                <div className="flex flex-wrap gap-1.5 mt-1 pt-1 border-t border-gray-50">
+                                                                                    {f.options.map((opt, optIdx) => (
+                                                                                        <div key={optIdx} className="relative group/opt">
+                                                                                            <input
+                                                                                                key={optIdx}
+                                                                                                type="text"
+                                                                                                value={opt}
+                                                                                                onChange={(e) => updateOption(i, optIdx, e.target.value)}
+                                                                                                className="px-1.5 py-0.5 text-[8px] border border-gray-100 rounded w-16 bg-white outline-none focus:border-primary-300 pr-4"
+                                                                                                placeholder="Option"
+                                                                                            />
+                                                                                            <button
+                                                                                                onClick={() => removeOption(i, optIdx)}
+                                                                                                className="absolute right-1 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 opacity-0 group-hover/opt:opacity-100"
+                                                                                            >
+                                                                                                <FiX size={8} />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                    <button onClick={() => addOption(i)} className="text-[8px] text-primary-600 font-bold hover:underline">+ Opt</button>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <>
@@ -629,7 +731,7 @@ const B2BCategories = () => {
                                                 </div>
 
                                                 {/* Preview fields */}
-                                                {!editingSubcategory.index && sub.fields?.length > 0 && (
+                                                {(editingSubcategory.categoryId !== category.id || editingSubcategory.index !== index) && sub.fields?.length > 0 && (
                                                     <div className="mt-2 flex flex-wrap gap-1">
                                                         {sub.fields.slice(0, 3).map((f, i) => (
                                                             <span key={i} className="text-[8px] bg-white px-1.5 py-0.5 rounded border border-gray-100 text-gray-400 uppercase font-black tracking-widest">

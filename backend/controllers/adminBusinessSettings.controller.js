@@ -24,7 +24,8 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
         isActive,
         dashboardWidgets,
         allowedPlans,
-        productFormType
+        productFormType,
+        enableShopListing
     } = req.body;
 
     let settings = await BusinessTypeSettings.findById(req.params.id);
@@ -40,6 +41,7 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
     settings.allowedPlans = allowedPlans !== undefined ? allowedPlans : settings.allowedPlans;
     settings.isActive = isActive !== undefined ? isActive : settings.isActive;
     settings.productFormType = productFormType !== undefined ? productFormType : settings.productFormType;
+    settings.enableShopListing = enableShopListing !== undefined ? enableShopListing : settings.enableShopListing;
 
     await settings.save();
 

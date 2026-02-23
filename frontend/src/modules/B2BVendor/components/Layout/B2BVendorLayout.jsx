@@ -23,6 +23,7 @@ const B2BVendorLayout = () => {
 
         const path = location.pathname;
         if (path.includes('/b2b-vendor/products') && !settings.enabledModules.includes('product')) return false;
+        if (path.includes('/b2b-vendor/shop-listing') && !settings.enabledModules.includes('shop-listing')) return false;
         if (path.includes('/b2b-vendor/properties') && !settings.enabledModules.includes('property')) return false;
         if (path.includes('/b2b-vendor/lotslot') && !settings.enabledModules.includes('lotslot')) return false;
         if (path.includes('/b2b-vendor/subscription') && !settings.enabledModules.includes('subscription')) return false;

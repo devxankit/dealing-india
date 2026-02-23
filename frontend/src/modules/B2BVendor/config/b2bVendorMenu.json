@@ -10,8 +10,13 @@
         "children": [
             "Manage Products",
             "Add Product",
-            "Add Shop Listing"
+            "Item Listing"
         ]
+    },
+    {
+        "title": "Shop Listing",
+        "route": "/b2b-vendor/shop-listing",
+        "children": []
     },
     {
         "title": "Property Management",

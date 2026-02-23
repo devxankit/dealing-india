@@ -154,23 +154,23 @@ const AdminB2BProductDetail = () => {
                         </div>
 
                         {!isShopListing && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
-                            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stock Status</p>
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${product.stock === 'in_stock' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                                    <p className="font-bold text-gray-900 text-sm uppercase tracking-tighter">{product.stock?.replace('_', ' ') || 'N/A'}</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
+                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stock Status</p>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${product.stock === 'in_stock' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                                        <p className="font-bold text-gray-900 text-sm uppercase tracking-tighter">{product.stock?.replace('_', ' ') || 'N/A'}</p>
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Inventory Qty</p>
+                                    <p className="font-bold text-gray-900 text-lg">{product.stockQuantity || 0} <span className="text-xs font-medium text-gray-400">{product.unit || 'Items'}</span></p>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Min. Order Qty</p>
+                                    <p className="font-bold text-gray-900 text-lg">{product.minimumOrderQuantity || 1} <span className="text-xs font-medium text-gray-400">{product.unit || 'Items'}</span></p>
                                 </div>
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Inventory Qty</p>
-                                <p className="font-bold text-gray-900 text-lg">{product.stockQuantity || 0} <span className="text-xs font-medium text-gray-400">{product.unit || 'Items'}</span></p>
-                            </div>
-                            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Min. Order Qty</p>
-                                <p className="font-bold text-gray-900 text-lg">{product.minimumOrderQuantity || 1} <span className="text-xs font-medium text-gray-400">{product.unit || 'Items'}</span></p>
-                            </div>
-                        </div>
                         )}
 
                         {/* Item Specs (shop listing) or Attributes (product) */}
@@ -193,7 +193,9 @@ const AdminB2BProductDetail = () => {
                                     {product.attributes.map((attr, idx) => (
                                         <div key={idx} className="flex items-center justify-between py-1 border-b border-gray-50/50">
                                             <span className="text-xs font-bold text-gray-500 uppercase tracking-tight">{attr.name || attr.attributeName}</span>
-                                            <span className="text-xs font-black text-gray-900 uppercase">{typeof attr.value === 'object' ? JSON.stringify(attr.value) : String(attr.value)}</span>
+                                            <span className="text-xs font-black text-gray-900 uppercase">
+                                                {Array.isArray(attr.value) ? attr.value.join(', ') : (typeof attr.value === 'object' ? JSON.stringify(attr.value) : String(attr.value))}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>

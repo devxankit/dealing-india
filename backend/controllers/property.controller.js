@@ -4,6 +4,7 @@ import BusinessTypeSettings from '../models/BusinessTypeSettings.model.js';
 import VendorPropertySubscription from '../models/VendorPropertySubscription.model.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary, isBase64DataUrl } from '../utils/cloudinary.util.js';
+import ShopUnit from '../models/ShopUnit.model.js';
 
 /**
  * Helper function to process media uploads to Cloudinary
@@ -84,10 +85,14 @@ export const addProperty = asyncHandler(async (req, res) => {
         }
     }
 
+    // Link ShopUnit automatically
+    const shopUnit = await ShopUnit.findOne({ vendorId }).select('_id').lean();
+
     const propertyData = {
         ...req.body,
         media: processedMedia,
         vendorId,
+        shopUnitId: shopUnit ? shopUnit._id : (req.body.shopUnitId || null)
     };
 
     const property = await Property.create(propertyData);
@@ -140,7 +145,16 @@ export const updateProperty = asyncHandler(async (req, res) => {
         req.body.media = processedMedia;
     }
 
-    property = await Property.findByIdAndUpdate(propertyId, req.body, {
+    // Ensure ShopUnit linkage
+    let shopUnitId = req.body.shopUnitId || property.shopUnitId;
+    if (!shopUnitId) {
+        const shopUnit = await ShopUnit.findOne({ vendorId }).select('_id').lean();
+        if (shopUnit) shopUnitId = shopUnit._id;
+    }
+
+    const updateData = { ...req.body, shopUnitId };
+
+    property = await Property.findByIdAndUpdate(propertyId, updateData, {
         new: true,
         runValidators: true,
     }).lean();
@@ -260,12 +274,20 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
     // Handle Search
     if (search) {
+        // Find matching vendors first to include their properties
+        const matchingVendors = await Vendor.find({
+            storeName: { $regex: search, $options: 'i' },
+            businessType: { $in: [/developer/i, /broker/i] }
+        }).select('_id').lean();
+        const matchingVendorIds = matchingVendors.map(v => v._id);
+
         queryConditions.push({
             $or: [
                 { title: { $regex: search, $options: 'i' } },
                 { 'location.area': { $regex: search, $options: 'i' } },
                 { propertyType: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { description: { $regex: search, $options: 'i' } },
+                { vendorId: { $in: matchingVendorIds } }
             ]
         });
     }
@@ -293,6 +315,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
             select: 'storeName address businessType phone storeLogo',
             match: Object.keys(vendorMatch).length > 0 ? vendorMatch : undefined
         })
+        .populate('shopUnitId')
         .lean();
 
     // Filter out properties where vendor didn't match the type
@@ -323,10 +346,18 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         }
     };
 
-    // Filter by price unit (Thousand/Lakh/Crore) - show only properties priced in selected unit
-    const hasPriceUnitFilter = priceUnit && priceUnit !== 'All' && ['Thousand', 'Lakh', 'Crore'].includes(priceUnit);
-    if (hasPriceUnitFilter) {
-        const targetUnit = priceUnit.trim();
+    const hasPriceFilterValues = (minPrice && String(minPrice).trim() !== '') || (maxPrice && String(maxPrice).trim() !== '');
+    const hasSizeFilterValues = (minSize && String(minSize).trim() !== '') || (maxSize && String(maxSize).trim() !== '');
+
+    // When user selects ONLY a unit (no min/max): filter by property's stored unit - different results per unit
+    // When user enters min/max: use range filter (all properties, convert to common unit) - new listings show if they match
+    const validPriceUnits = ['Thousand', 'Lakh', 'Crore'];
+    const validAreaUnits = ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'];
+    const priceUnitSelected = priceUnit && validPriceUnits.some(u => u.toLowerCase() === (priceUnit || '').trim().toLowerCase());
+    const areaUnitSelected = areaUnit && validAreaUnits.some(u => u.toLowerCase() === (areaUnit || '').trim().toLowerCase());
+
+    if (!hasPriceFilterValues && priceUnitSelected) {
+        const targetUnit = (priceUnit || '').trim();
         filteredResults = filteredResults.filter(p => {
             let propUnit = null;
             if (p.listingType === 'Sale' && p.saleDetails?.priceUnit) {
@@ -340,10 +371,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         });
     }
 
-    // Filter by area unit (Sq. Ft., Sq. Mt., etc.) - show only properties with area in selected unit
-    const validAreaUnits = ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'];
-    const hasAreaUnitFilter = areaUnit && validAreaUnits.some(u => u.toLowerCase() === (areaUnit || '').trim().toLowerCase());
-    if (hasAreaUnitFilter) {
+    if (!hasSizeFilterValues && areaUnitSelected) {
         const targetAreaUnit = (areaUnit || '').trim();
         filteredResults = filteredResults.filter(p => {
             const specs = Array.isArray(p.specifications) && p.specifications.length > 0
@@ -354,9 +382,9 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         });
     }
 
-    // Advanced Budget and Size Filtering in JS
-    const hasPriceFilter = (minPrice && String(minPrice).trim() !== '') || (maxPrice && String(maxPrice).trim() !== '');
-    const hasSizeFilter = (minSize && String(minSize).trim() !== '') || (maxSize && String(maxSize).trim() !== '');
+    // When min/max provided: range filter (unit interprets user input; all properties compared in common unit)
+    const hasPriceFilter = hasPriceFilterValues;
+    const hasSizeFilter = hasSizeFilterValues;
 
     if (hasPriceFilter || hasSizeFilter) {
         // Price Filter Range (Local Scale to Lakhs)
@@ -414,18 +442,58 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         });
     }
 
+    // Fetch all shop units for these vendors to provide a fallback if shopUnitId is null
+    const vendorIds = [...new Set(filteredResults.map(p => p.vendorId._id.toString()))];
+    const shopUnits = await ShopUnit.find({ vendorId: { $in: vendorIds } }).lean();
+    const shopUnitMap = shopUnits.reduce((acc, unit) => {
+        acc[unit.vendorId.toString()] = unit;
+        return acc;
+    }, {});
+
     // Flatten specifications for frontend compatibility
-    const finalProperties = filteredResults.map(prop => ({
-        ...prop,
-        specifications: Array.isArray(prop.specifications) && prop.specifications.length > 0
-            ? prop.specifications[0]
-            : prop.specifications
-    }));
+    const finalProperties = filteredResults.map(prop => {
+        const shop = prop.shopUnitId || shopUnitMap[prop.vendorId._id.toString()];
+        return {
+            ...prop,
+            // If shop exists, use its name as the primary title/name for display consistency
+            shopName: shop ? shop.name : prop.vendorId?.storeName,
+            shopUnit: shop,
+            specifications: Array.isArray(prop.specifications) && prop.specifications.length > 0
+                ? prop.specifications[0]
+                : prop.specifications
+        };
+    });
+
+    // Find matching vendors for the "Matching Stores" section in UI
+    let matchingVendors = [];
+    if (search) {
+        const rawVendors = await Vendor.find({
+            storeName: { $regex: search, $options: 'i' },
+            businessType: { $in: [/developer/i, /broker/i] },
+            status: 'approved',
+            isActive: true
+        }).select('storeName address businessType storeLogo phone storeDescription email').lean();
+
+        // Enhance vendors with property counts and shop unit data
+        matchingVendors = await Promise.all(rawVendors.map(async (v) => {
+            const [propertyCount, shopUnit] = await Promise.all([
+                Property.countDocuments({ vendorId: v._id, isActive: true }),
+                ShopUnit.findOne({ vendorId: v._id }).lean()
+            ]);
+            return {
+                ...v,
+                totalProducts: propertyCount, // Use totalProducts for frontend compatibility
+                totalProperties: propertyCount,
+                shopUnit: shopUnit || null
+            };
+        }));
+    }
 
     res.status(200).json({
         success: true,
         count: finalProperties.length,
-        data: finalProperties
+        data: finalProperties,
+        matchingVendors: matchingVendors
     });
 });
 
@@ -435,7 +503,10 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 export const getPublicPropertyById = asyncHandler(async (req, res) => {
     const propertyId = req.params.id;
 
-    const property = await Property.findById(propertyId).populate('vendorId', 'storeName address businessType phone storeLogo storeDescription').lean();
+    const property = await Property.findById(propertyId)
+        .populate('vendorId', 'storeName address businessType phone storeLogo storeDescription')
+        .populate('shopUnitId')
+        .lean();
 
     if (!property) {
         return res.status(404).json({ success: false, message: 'Property not found' });
@@ -446,8 +517,79 @@ export const getPublicPropertyById = asyncHandler(async (req, res) => {
         property.specifications = property.specifications[0];
     }
 
+    let shop = property.shopUnitId;
+    if (!shop && property.vendorId?._id) {
+        shop = await ShopUnit.findOne({ vendorId: property.vendorId._id }).lean();
+    }
+
+    if (shop) {
+        property.shopName = shop.name;
+        property.shopUnit = shop;
+    } else {
+        property.shopName = property.vendorId?.storeName;
+    }
+
     res.status(200).json({
         success: true,
         data: property,
+    });
+});
+
+/**
+ * Get Real Estate search suggestions
+ * GET /api/property/suggestions
+ */
+export const getPropertySuggestions = asyncHandler(async (req, res) => {
+    const { q = '' } = req.query;
+    if (!q || q.trim().length < 1) {
+        return res.status(200).json({ success: true, data: [] });
+    }
+
+    const query = q.trim();
+    const categories = {
+        stores: [],
+        properties: []
+    };
+
+    const realEstateTypes = [/developer/i, /broker/i];
+
+    const [properties, vendors] = await Promise.all([
+        Property.find({
+            title: { $regex: query, $options: 'i' },
+            isActive: true
+        }).limit(5).select('title media vendorId'),
+        Vendor.find({
+            storeName: { $regex: query, $options: 'i' },
+            status: 'approved',
+            isActive: true,
+            businessType: { $in: realEstateTypes }
+        }).limit(5).select('storeName storeLogo address businessType')
+    ]);
+
+    // Property Suggestions
+    properties.forEach(p => {
+        categories.properties.push({
+            text: p.title,
+            context: 'In Properties',
+            type: 'property',
+            image: (p.media && p.media[0]?.url) || null,
+            id: p._id
+        });
+    });
+
+    // Vendor Suggestions (Developer/Broker)
+    vendors.forEach(v => {
+        categories.stores.push({
+            text: v.storeName,
+            context: v.address?.city ? `Store · ${v.address.city}` : 'Store',
+            type: 'store',
+            vendorId: v._id,
+            image: v.storeLogo || null
+        });
+    });
+
+    res.status(200).json({
+        success: true,
+        data: categories
     });
 });

@@ -27,6 +27,8 @@ const iconMap = {
     "Product Listings": FiPackage,
     "Manage Products": FiPackage,
     "Add Product": FiPackage,
+    "Item Listing": FiPlus,
+    "Shop Listing": FiHome,
     "Property Management": FiHome,
     "Manage Properties": FiHome,
     "Add Property": FiPlus,
@@ -44,7 +46,7 @@ const getChildRoute = (parentRoute, childName) => {
         "/b2b-vendor/products": {
             "Manage Products": "/b2b-vendor/products/manage-products",
             "Add Product": "/b2b-vendor/products/add-product",
-            "Add Shop Listing": "/b2b-vendor/products/add-shop-listing",
+            "Item Listing": "/b2b-vendor/products/item-listing",
         },
         "/b2b-vendor/properties": {
             "Manage Properties": "/b2b-vendor/properties/manage-properties",
@@ -102,6 +104,12 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
         const alwaysVisible = ["Subscription", "Banner Booking", "Notifications", "Account Settings"];
         if (alwaysVisible.includes(item.title)) return true;
 
+        // Shop Listing module – controlled by enabledModules 'shop-listing'
+        if (item.title === "Shop Listing") {
+            if (!settings || !settings.enabledModules) return false;
+            return settings.enabledModules.includes('shop-listing');
+        }
+
         // Business-type-specific items — hide them until settings load
         if (!settings || !settings.enabledModules) return false;
 
@@ -122,8 +130,10 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             let newChildren = [...item.children];
 
             if (formType === 'standard') {
-                newChildren = newChildren.filter(child => child !== "Add Shop Listing");
+                // Standard form: show Add Product, hide Item Listing
+                newChildren = newChildren.filter(child => child !== "Item Listing");
             } else if (formType === 'shop-listing') {
+                // Shop listing form: show Item Listing, hide Add Product
                 newChildren = newChildren.filter(child => child !== "Add Product");
             }
 

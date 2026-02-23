@@ -103,6 +103,11 @@ const vendorSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'BusinessType',
     },
+    mfgOfWork: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     selectedSubTypes: [{
       type: String,
       trim: true
