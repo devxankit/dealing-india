@@ -120,25 +120,52 @@ const envOrigins = process.env.SOCKET_CORS_ORIGIN
 // Merge and deduplicate origins (environment origins + defaults)
 const corsOrigins = [...new Set([...envOrigins, ...defaultOrigins])];
 
-// CORS configuration with better production support
+// Normalize origin: lowercase + strip trailing slash
+const normalizeOrigin = (o) => o ? o.toLowerCase().replace(/\/+$/, '') : '';
+
+// Extract base domains from the allowed origins list for subdomain matching
+const allowedBaseDomains = [
+  'dealingindia.com',
+  'dealingindia.in',
+  'vercel.app',
+  'onrender.com',
+];
+
+// Pre-normalize all configured origins for fast lookup
+const normalizedCorsOrigins = new Set(corsOrigins.map(normalizeOrigin));
+
+// CORS configuration with production-safe origin matching
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
+    // Allow requests with no origin (Postman, mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
 
-    // Check if origin is in allowed list
-    if (corsOrigins.includes(origin)) {
+    const normalized = normalizeOrigin(origin);
+
+    // 1. Exact match against allowed origins (after normalization)
+    if (normalizedCorsOrigins.has(normalized)) {
       return callback(null, true);
     }
 
-    // Allow Vercel and Render preview/backend deployments
-    if (origin.includes('vercel.app') || origin.includes('onrender.com')) {
+    // 2. Subdomain & preview deployment matching
+    //    e.g. preview-abc.dealingindia.com, dealing-india-xyz.vercel.app
+    const isAllowedDomain = allowedBaseDomains.some(
+      (domain) => normalized.endsWith(`.${domain}`) ||
+        normalized === `https://${domain}` ||
+        normalized === `http://${domain}`
+    );
+    if (isAllowedDomain) {
       return callback(null, true);
     }
 
-    // Log blocked origin for debugging
-    console.warn(`⚠️  CORS blocked origin: ${origin}`);
-    callback(new Error('Not allowed by CORS'));
+    // 3. Localhost with any port (development convenience)
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalized)) {
+      return callback(null, true);
+    }
+
+    // Silently reject — do NOT throw an error (prevents 500s in production)
+    console.warn(`⚠️  CORS rejected origin: ${origin}`);
+    return callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
