@@ -1,18 +1,6 @@
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
-
-/**
- * Convert a string to Title Case (first letter of each word capitalized)
- * e.g., 'surat' -> 'Surat', 'MADHYA PRADESH' -> 'Madhya Pradesh'
- */
-const toTitleCase = (str) => {
-  if (!str || typeof str !== 'string') return str;
-  return str
-    .toLowerCase()
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-};
+import { toTitleCase, normalizeState, normalizeCity } from '../utils/addressNormalizer.util.js';
 
 /**
  * Get available B2B vendor locations (states and cities)
@@ -264,8 +252,8 @@ export const getB2BAvailableLocations = async (options = {}) => {
           console.log(`  ⚠️ No market for vendor ${vendor._id}`);
         }
 
-        // Normalize state name to Title Case for consistent grouping
-        state = toTitleCase(state);
+        // Normalize state name using alias map (handles misspellings, abbreviations)
+        state = normalizeState(state);
 
         if (!locationMap.has(state)) {
           locationMap.set(state, new Set());
@@ -273,8 +261,8 @@ export const getB2BAvailableLocations = async (options = {}) => {
         }
 
         if (city && city.length > 0) {
-          // Normalize to Title Case so 'surat', 'SURAT', 'Surat' all become 'Surat'
-          const normalizedCity = toTitleCase(city);
+          // Normalize city using alias map (handles misspellings + title case)
+          const normalizedCity = normalizeCity(city);
           locationMap.get(state).add(normalizedCity);
           console.log(`  ✅ Added city "${normalizedCity}" to state "${state}"`);
         } else {

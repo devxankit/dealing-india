@@ -9,6 +9,7 @@ import { uploadBase64ToCloudinary } from '../utils/cloudinary.util.js';
 import SubscriptionService from './subscription.service.js';
 import notificationService from './notification.service.js';
 import { geocodeAddress } from '../utils/geocoding.util.js';
+import { normalizeAddress } from '../utils/addressNormalizer.util.js';
 
 /**
  * Register a new vendor (temporary - only creates record after email verification)
@@ -156,11 +157,11 @@ export const registerVendor = async (vendorData) => {
         password: hashedPassword, // Store hashed password
         storeName: storeName.trim(),
         storeDescription: storeDescription ? storeDescription.trim() : undefined,
-        address: {
+        address: normalizeAddress({
           ...(address || {}),
           pincode: address?.pincode || address?.zipCode || '',
           zipCode: address?.zipCode || address?.pincode || '',
-        },
+        }),
         documents: processedDocuments, // Store processed documents
         vendorType: vendorType,
         // B2B-specific fields
@@ -436,6 +437,11 @@ export const updateVendorProfile = async (vendorId, updateData) => {
         }
       });
 
+      // Normalize state and city names (fix misspellings/abbreviations)
+      const normalized = normalizeAddress(cleanedAddress);
+      cleanedAddress.state = normalized.state;
+      cleanedAddress.city = normalized.city;
+
       // Geocode address to get lat/lng
       try {
         const coords = await geocodeAddress(cleanedAddress);
@@ -516,7 +522,7 @@ export const verifyVendorEmail = async (email, otp) => {
       password: tempRegistration.registrationData.password, // Already hashed
       storeName: tempRegistration.registrationData.storeName,
       storeDescription: tempRegistration.registrationData.storeDescription,
-      address: tempRegistration.registrationData.address || {},
+      address: normalizeAddress(tempRegistration.registrationData.address || {}),
       documents: tempRegistration.registrationData.documents || [],
       status: 'pending', // Vendors start as pending
       isEmailVerified: true, // Set to true since OTP is verified
