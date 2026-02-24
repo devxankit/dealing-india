@@ -250,8 +250,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 validFiles.map(async (file) => {
                     try {
                         const options = {
-                            maxSizeMB: 0.3, // Max size 0.3MB (300KB)
-                            maxWidthOrHeight: 1280,
+                            maxSizeMB: 0.1, // Max size 0.1MB (100KB)
+                            maxWidthOrHeight: 800,
                             useWebWorker: true,
                         };
                         return await imageCompression(file, options);

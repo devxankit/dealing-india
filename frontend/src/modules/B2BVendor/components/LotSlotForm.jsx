@@ -208,7 +208,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
         setIsUploading(true);
         const toastId = toast.loading('Processing images...');
         try {
-            const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
+            const options = { maxSizeMB: 0.1, maxWidthOrHeight: 800, useWebWorker: true };
             const newImages = await Promise.all(
                 files.map(async (file) => {
                     try {

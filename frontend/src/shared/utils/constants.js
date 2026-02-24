@@ -22,7 +22,7 @@ const getBackendURL = () => {
   // Auto-detect production URL if on Vercel/production
   if (isProduction || isVercel) {
     // Default production backend URL
-    const productionURL = 'https://dealing-india.onrender.com/api';
+    const productionURL = 'https://api.dealingindia.com/api';
     console.warn(`⚠️ VITE_API_BASE_URL not set. Using default production URL: ${productionURL}`);
     console.warn('⚠️ Please set VITE_API_BASE_URL in Vercel environment variables for better control.');
     return productionURL;
@@ -41,7 +41,7 @@ const getSocketURL = () => {
   // Auto-detect production URL if on Vercel/production
   if (isProduction || isVercel) {
     // Default production socket URL
-    const productionSocketURL = 'https://dealing-india.onrender.com';
+    const productionSocketURL = 'https://api.dealingindia.com';
     console.warn(`⚠️ VITE_SOCKET_URL not set. Using default production URL: ${productionSocketURL}`);
     return productionSocketURL;
   }
