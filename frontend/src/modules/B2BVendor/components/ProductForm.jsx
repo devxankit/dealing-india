@@ -250,8 +250,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                 validFiles.map(async (file) => {
                     try {
                         const options = {
-                            maxSizeMB: 1, // Max size 1MB
-                            maxWidthOrHeight: 1920,
+                            maxSizeMB: 0.3, // Max size 0.3MB (300KB)
+                            maxWidthOrHeight: 1280,
                             useWebWorker: true,
                         };
                         return await imageCompression(file, options);
@@ -473,8 +473,8 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                                     <label
                                                         key={opt}
                                                         className={`flex items-center gap-2 p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected
-                                                                ? 'bg-primary-50 border-primary-200 text-primary-700 shadow-sm'
-                                                                : 'bg-white border-transparent hover:border-gray-300 text-gray-600'
+                                                            ? 'bg-primary-50 border-primary-200 text-primary-700 shadow-sm'
+                                                            : 'bg-white border-transparent hover:border-gray-300 text-gray-600'
                                                             }`}
                                                     >
                                                         <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'

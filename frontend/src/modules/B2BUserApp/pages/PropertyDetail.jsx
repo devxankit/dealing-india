@@ -405,9 +405,13 @@ const PropertyDetail = () => {
                                                 <p className="text-[10px] md:text-sm font-bold text-gray-500 uppercase leading-relaxed">
                                                     {[
                                                         property.vendorId?.address?.street,
+                                                        property.vendorId?.address?.market,
                                                         property.vendorId?.address?.landmark,
                                                         property.vendorId?.address?.area,
-                                                        property.vendorId?.address?.city
+                                                        property.vendorId?.address?.city,
+                                                        property.vendorId?.address?.state,
+                                                        property.vendorId?.address?.country,
+                                                        property.vendorId?.address?.pincode
                                                     ].filter(Boolean).join(', ') || property.location?.address || 'N/A'}
                                                 </p>
                                             </div>

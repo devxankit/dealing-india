@@ -127,10 +127,13 @@ const B2BVendorProfile = () => {
                         <div className="bg-white rounded-2xl p-4 md:p-8 shadow-sm border border-gray-100">
                             <h3 className="text-xl font-bold text-gray-800 mb-4">Location</h3>
                             <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                                <p className="font-bold text-gray-800 mb-1">{vendor.address.street}</p>
-                                <p className="text-gray-600 text-sm">
-                                    {vendor.address.area && `${vendor.address.area}, `}
-                                    {vendor.address.city}, {vendor.address.state} - {vendor.address.pincode}
+                                <p className="font-bold text-gray-800 mb-1 uppercase tracking-tight">
+                                    {[vendor.address.street, vendor.address.market, vendor.address.landmark].filter(Boolean).join(', ')}
+                                </p>
+                                <p className="text-gray-600 text-sm uppercase">
+                                    {[vendor.address.area, vendor.address.city, vendor.address.state].filter(Boolean).join(', ')}
+                                    {vendor.address.country && ` (${vendor.address.country})`}
+                                    {vendor.address.pincode && ` - ${vendor.address.pincode}`}
                                 </p>
                             </div>
                         </div>

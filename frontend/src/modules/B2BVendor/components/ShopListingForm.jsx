@@ -73,7 +73,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             const processFile = async (file) => {
                 if (!file.type.startsWith('image/')) return null;
                 try {
-                    const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+                    const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
                     const compressed = await imageCompression(file, options);
                     return new Promise((resolve) => {
                         const reader = new FileReader();

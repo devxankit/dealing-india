@@ -3,6 +3,7 @@ import { FiArrowLeft, FiPlus, FiTrash2, FiCheck } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import toast from "../../../shared/utils/toast";
+import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 
 const PropertyForm = ({ initialData, isEdit }) => {
@@ -200,7 +201,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
         }));
     };
 
-    const handleImageUpload = (e) => {
+    const handleImageUpload = async (e) => {
         const files = Array.from(e.target.files);
 
         if (media.length + files.length > 100) {
@@ -208,19 +209,33 @@ const PropertyForm = ({ initialData, isEdit }) => {
             return;
         }
 
-        files.forEach(file => {
-            // Check file size (Max 300KB)
-            if (file.size > 300 * 1024) {
-                toast.error(`Image ${file.name} is too large. Max size 300KB. Ideal size 150-250KB.`);
-                return;
-            }
+        const toastId = toast.loading('Processing images...');
+        try {
+            const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
+            const results = await Promise.all(
+                files.map(async (file) => {
+                    try {
+                        const compressed = await imageCompression(file, options);
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve({ data: reader.result, name: file.name });
+                            reader.readAsDataURL(compressed);
+                        });
+                    } catch (err) {
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve({ data: reader.result, name: file.name });
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                })
+            );
 
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setMedia(prev => [...prev, { data: reader.result, name: file.name }]);
-            };
-            reader.readAsDataURL(file);
-        });
+            setMedia(prev => [...prev, ...results]);
+            toast.success(`${files.length} images added`, { id: toastId });
+        } catch (error) {
+            toast.error('Failed to process images', { id: toastId });
+        }
     };
 
     const removeImage = (index) => {

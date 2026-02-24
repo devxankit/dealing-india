@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useBannerStore } from "../../../../shared/store/bannerStore";
 import AnimatedSelect from "../AnimatedSelect";
 import toast from "react-hot-toast";
+import imageCompression from 'browser-image-compression';
 import Button from "../Button";
 
 const BannerForm = ({ banner, onClose, onSave }) => {
@@ -84,7 +85,22 @@ const BannerForm = ({ banner, onClose, onSave }) => {
       });
 
       if (selectedFile) {
-        data.append('image', selectedFile);
+        // Compress banner image
+        const toastId = toast.loading('Compressing banner...');
+        try {
+          const options = {
+            maxSizeMB: 0.8, // Banners can be slightly larger for quality
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          };
+          const compressed = await imageCompression(selectedFile, options);
+          data.append('image', compressed);
+          toast.success('Banner ready', { id: toastId });
+        } catch (err) {
+          console.error('Banner compression error:', err);
+          data.append('image', selectedFile); // Fallback to original
+          toast.dismiss(toastId);
+        }
       } else if (formData.image) {
         data.append('image', formData.image);
       }
@@ -98,6 +114,7 @@ const BannerForm = ({ banner, onClose, onSave }) => {
       onClose();
     } catch (error) {
       // Error handled in store
+      console.error('Banner submit error:', error);
     }
   };
 

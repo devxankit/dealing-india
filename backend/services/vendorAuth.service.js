@@ -69,7 +69,35 @@ export const registerVendor = async (vendorData) => {
         throw error;
       }
 
-      // GST number is optional and no format validation required
+      // GST number validation and uniqueness check
+      if (gstNumber) {
+        const cleanGst = gstNumber.trim().toUpperCase();
+        const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/;
+        if (!gstRegex.test(cleanGst)) {
+          const error = new Error('Invalid GST number format');
+          error.statusCode = 400;
+          throw error;
+        }
+
+        // Check if GST is already in use by an active vendor
+        const gstVendor = await Vendor.findOne({ gstNumber: cleanGst });
+        if (gstVendor) {
+          const error = new Error('GST number is already registered by another vendor');
+          error.statusCode = 409;
+          throw error;
+        }
+
+        // Check if GST is in a pending registration
+        const pendingGst = await TemporaryRegistration.findOne({
+          'registrationData.gstNumber': cleanGst,
+          expiresAt: { $gt: new Date() }
+        });
+        if (pendingGst && pendingGst.email !== email.toLowerCase()) {
+          const error = new Error('GST number is already in a pending registration');
+          error.statusCode = 409;
+          throw error;
+        }
+      }
     }
 
     // Check if vendor already exists in database
@@ -379,7 +407,25 @@ export const updateVendorProfile = async (vendorId, updateData) => {
     }
 
     if (gstNumber !== undefined) {
-      updateFields.gstNumber = gstNumber ? gstNumber.trim().toUpperCase() : '';
+      if (gstNumber) {
+        const cleanGst = gstNumber.trim().toUpperCase();
+        const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/;
+        if (!gstRegex.test(cleanGst)) {
+          throw new Error('Invalid GST number format');
+        }
+
+        // Check uniqueness
+        const existingWithGst = await Vendor.findOne({
+          gstNumber: cleanGst,
+          _id: { $ne: vendorId }
+        });
+        if (existingWithGst) {
+          throw new Error('GST number is already in use by another vendor');
+        }
+        updateFields.gstNumber = cleanGst;
+      } else {
+        updateFields.gstNumber = undefined; // Use undefined to satisfy sparse index
+      }
     }
 
     if (businessType) {

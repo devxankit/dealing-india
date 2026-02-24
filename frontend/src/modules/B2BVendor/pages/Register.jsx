@@ -3,6 +3,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiMapPin, FiBriefcase, FiUpload, FiFile, FiX, FiCheck, FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import imageCompression from 'browser-image-compression';
 import api from '../../../shared/utils/api';
 
 /**
@@ -100,20 +101,37 @@ const B2BVendorRegister = () => {
         }
 
         try {
-            const base64 = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(file);
-            });
+            let data = null;
+            if (file.type.startsWith('image/')) {
+                const options = {
+                    maxSizeMB: 0.5, // 500KB is enough for documents
+                    maxWidthOrHeight: 1600,
+                    useWebWorker: true,
+                };
+                const compressed = await imageCompression(file, options);
+                data = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(compressed);
+                });
+            } else {
+                // PDF or other files
+                data = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(file);
+                });
+            }
 
             if (type === 'license') {
-                setBusinessLicense({ name: file.name, data: base64, type: file.type });
+                setBusinessLicense({ name: file.name, data, type: file.type });
             } else {
-                setPanCard({ name: file.name, data: base64, type: file.type });
+                setPanCard({ name: file.name, data, type: file.type });
             }
             toast.success(`${type === 'license' ? 'Business License' : 'PAN Card'} uploaded`);
         } catch (error) {
-            toast.error('Failed to read file');
+            console.error('Upload error:', error);
+            toast.error('Failed to process file');
         } finally {
             setIsUploadingDocs(false);
         }
@@ -124,6 +142,12 @@ const B2BVendorRegister = () => {
         if (name === 'phone') {
             // Only allow numbers and limit to 10 digits
             const cleaned = value.replace(/\D/g, '').slice(0, 10);
+            setFormData(prev => ({ ...prev, [name]: cleaned }));
+            return;
+        }
+        if (name === 'gstNumber') {
+            // Uppercase and limit to 15 chars
+            const cleaned = value.toUpperCase().trim().slice(0, 15);
             setFormData(prev => ({ ...prev, [name]: cleaned }));
             return;
         }
@@ -161,6 +185,16 @@ const B2BVendorRegister = () => {
         if (selectedBusinessType?.subTypes?.length > 0 && formData.selectedSubTypes.length === 0) {
             toast.error('Please select at least one specific business type');
             return;
+        }
+
+        // GST Validation
+        if (formData.gstNumber) {
+            const cleanGst = formData.gstNumber.trim().toUpperCase();
+            const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/;
+            if (!gstRegex.test(cleanGst)) {
+                toast.error('Please enter a valid GST number format');
+                return;
+            }
         }
 
         setLocalLoading(true);
@@ -236,6 +270,11 @@ const B2BVendorRegister = () => {
             } else if (message.toLowerCase().includes('email')) {
                 toast.error('Email already registered. Please use a different email or login.', {
                     id: 'duplicate-email-error',
+                    duration: 6000
+                });
+            } else if (message.toLowerCase().includes('gst number')) {
+                toast.error('This GST number is already registered or in a pending registration.', {
+                    id: 'duplicate-gst-error',
                     duration: 6000
                 });
             } else {

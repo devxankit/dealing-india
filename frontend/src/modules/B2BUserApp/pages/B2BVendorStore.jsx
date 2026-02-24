@@ -253,12 +253,14 @@ const B2BVendorStore = () => {
                                         <p className="text-[10px] md:text-[13px] font-bold text-gray-500 uppercase tracking-tight leading-relaxed max-w-xl">
                                             {[
                                                 vendor.address?.street,
-                                                vendor.address?.area,
                                                 vendor.address?.market,
+                                                vendor.address?.landmark,
+                                                vendor.address?.area,
                                                 vendor.address?.city,
                                                 vendor.address?.state,
+                                                vendor.address?.country,
                                                 vendor.address?.pincode
-                                            ].filter(part => part && part.trim()).join(', ')}
+                                            ].filter(part => part && String(part).trim()).join(', ')}
                                         </p>
                                     </div>
                                 </div>
