@@ -165,9 +165,7 @@ const PropertyDetail = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-xl border border-gray-100">
                             {property.listingType === 'Sale' && property.saleDetails && (
                                 <>
-                                    <InfoItem label="Deposit Amount" value={`₹${property.saleDetails.depositAmount || 0} ${property.saleDetails.depositUnit}`} />
-                                    <InfoItem label="Maintenance" value={property.saleDetails.maintenance} highlight={property.saleDetails.maintenance === 'Included'} />
-                                    <InfoItem label="Vera Bill" value={property.saleDetails.veraBill} highlight={property.saleDetails.veraBill === 'Included'} />
+                                    {/* Financial details removed for Sale as per user request */}
                                 </>
                             )}
                             {property.listingType === 'Rent' && property.rentDetails && (

@@ -642,10 +642,12 @@ const ProductCatalog = () => {
     const fetchB2BProducts = async () => {
         setLoading(true);
         try {
+            const isStrict = searchParams.get('strict') === 'true';
             // Build query parameters for products
             const params = {
                 vendorType: 'b2b',
-                excludeBusinessTypes: 'Developer,Property Broker'
+                excludeBusinessTypes: 'Developer,Property Broker',
+                strict: isStrict
             };
 
             if (searchQuery) {
@@ -660,7 +662,8 @@ const ProductCatalog = () => {
                         status: 'approved',
                         search: searchQuery,
                         isActive: true,
-                        excludeBusinessTypes: 'Developer,Property Broker'
+                        excludeBusinessTypes: 'Developer,Property Broker',
+                        strict: isStrict
                     };
 
                     // Add current city/state context to vendor search if applicable
@@ -790,7 +793,7 @@ const ProductCatalog = () => {
         const query = suggestion.text;
         setSearchQuery(query);
         setShowSuggestions(false);
-        handleHeaderSearchSubmit(query);
+        handleHeaderSearchSubmit(query, true);
     };
 
     // Read search query, city, category and subcategory from URL on mount
@@ -943,7 +946,7 @@ const ProductCatalog = () => {
 
         return () => clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedState, selectedCity, selectedItemType, selectedArea, selectedMarket, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length, dynamicFilters, searchQuery]);
+    }, [selectedState, selectedCity, selectedItemType, selectedArea, selectedMarket, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length, dynamicFilters, searchQuery, searchParams.get('strict')]);
 
     // Debug: Log state and cities changes
     useEffect(() => {
@@ -1115,16 +1118,26 @@ const ProductCatalog = () => {
 
     const filteredProducts = productsList.filter(product => {
         const query = searchQuery.toLowerCase();
-        const matchesSearch = product.name?.toLowerCase().includes(query) ||
-            product.description?.toLowerCase().includes(query);
+        const isStrict = searchParams.get('strict') === 'true';
 
-        // Check shop listing items if main name/desc didn't match
-        const matchesItems = !matchesSearch && product.formType === 'shop-listing' && product.items?.some(item =>
-            item.itemName?.toLowerCase().includes(query) ||
-            item.description?.toLowerCase().includes(query)
-        );
+        let matchesSearchFinal = false;
 
-        const matchesSearchFinal = matchesSearch || matchesItems;
+        if (isStrict) {
+            const matchesName = product.name?.toLowerCase().startsWith(query);
+            const matchesItems = product.formType === 'shop-listing' && product.items?.some(item =>
+                item.itemName?.toLowerCase().startsWith(query)
+            );
+            matchesSearchFinal = matchesName || matchesItems;
+        } else {
+            const matchesSearch = product.name?.toLowerCase().includes(query) ||
+                product.description?.toLowerCase().includes(query);
+
+            const matchesItems = !matchesSearch && product.formType === 'shop-listing' && product.items?.some(item =>
+                item.itemName?.toLowerCase().includes(query) ||
+                item.description?.toLowerCase().includes(query)
+            );
+            matchesSearchFinal = matchesSearch || matchesItems;
+        }
 
         // Category filtering is now handled by the backend
         let matchesCategory = true;
@@ -1191,17 +1204,25 @@ const ProductCatalog = () => {
 
     const handleHeaderSearchChange = (value) => {
         setSearchQuery(value);
-        // Automatically clear search param from URL if input is cleared
+        // Automatically clear search & strict param from URL if input is cleared
         if (!value.trim()) {
             const newParams = new URLSearchParams(searchParams);
+            let changed = false;
             if (newParams.has('search')) {
                 newParams.delete('search');
+                changed = true;
+            }
+            if (newParams.has('strict')) {
+                newParams.delete('strict');
+                changed = true;
+            }
+            if (changed) {
                 setSearchParams(newParams, { replace: true });
             }
         }
     };
 
-    const handleHeaderSearchSubmit = (query) => {
+    const handleHeaderSearchSubmit = (query, isStrict = false) => {
         setSearchQuery(query);
 
         // Reset Category and Subcategory when searching to ensure global search
@@ -1235,8 +1256,11 @@ const ProductCatalog = () => {
 
         if (query) {
             newParams.set('search', query);
+            if (isStrict) newParams.set('strict', 'true');
+            else newParams.delete('strict');
         } else {
             newParams.delete('search');
+            newParams.delete('strict');
         }
         setSearchParams(newParams, { replace: true });
     };

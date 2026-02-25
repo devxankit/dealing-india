@@ -32,10 +32,6 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType 
     };
 
     const handleVendorClick = () => {
-        if (isRealEstate) {
-            navigate(`/b2b/real-estate?vendorId=${vendorIdStr}`);
-            return;
-        }
         const vendorUrl = itemType ? `/b2b/vendor/${vendorIdStr}?itemType=${itemType}` : `/b2b/vendor/${vendorIdStr}`;
         navigate(vendorUrl);
     };

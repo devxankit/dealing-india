@@ -62,7 +62,6 @@ const B2BLanding = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // Filter Data
-    const [availableCities, setAvailableCities] = useState(['All Cities']);
     const [selectedCity, setSelectedCity] = useState('All Cities');
     const [priceRange, setPriceRange] = useState({ min: '', max: '' });
     const [businessTypes, setBusinessTypes] = useState([]);
@@ -83,10 +82,7 @@ const B2BLanding = () => {
     // Fetch initial data on mount
     useEffect(() => {
         fetchCategories();
-        fetchLocations(false, {
-            businessTypeFilter: 'exclude',
-            businessTypes: ['Developer', 'Property Broker']
-        });
+        fetchLocations(false); // Let the store handle re-fetching if options changed
 
         const fetchBusinessTypes = async () => {
             try {
@@ -192,40 +188,42 @@ const B2BLanding = () => {
         setIsSearching(true);
         setSearchQuery(searchTerm);
 
+        const isStrict = typeof queryOrProduct !== 'string';
+
         try {
             if (isPropertySuggestion && queryOrProduct.id) {
                 // Show specific property in the PropertiesPopup box
                 setActivePopup('properties');
                 setPopupProperties([]);
-                const response = await api.get('/property/all', { params: { search: searchTerm } });
+                const response = await api.get('/property/all', { params: { search: searchTerm, strict: isStrict } });
                 if (response.success && response.data) {
                     setPopupProperties(response.data);
                 }
-            } else if (isRealEstateSuggestion && queryOrProduct.vendorId) {
-                // Show the specific Office (Store Card) in the StorePopup box
+            } else if ((isRealEstateSuggestion && queryOrProduct.vendorId) || isStoreSuggestion) {
+                // User wants to see ALL matching stores when a suggestion is clicked
                 setActivePopup('stores');
                 setPopupVendors([]);
-                const response = await api.get(`/vendors/${queryOrProduct.vendorId}`);
+                const response = await api.get('/vendors', {
+                    params: {
+                        search: searchTerm,
+                        strict: isStrict,
+                        limit: 20
+                    }
+                });
                 if (response.success && response.data) {
-                    setPopupVendors([{
-                        ...response.data.vendor,
-                        isRealEstate: true // Preserve the RE context
-                    }]);
-                }
-            } else if (isStoreSuggestion) {
-                setActivePopup('stores');
-                setPopupVendors([]); // Clear previous
-                const response = await api.get(`/vendors/${queryOrProduct.vendorId}`);
-                if (response.success && response.data) {
-                    setPopupVendors([response.data.vendor]);
+                    const vendorData = Array.isArray(response.data) ? response.data : (response.data.vendors || []);
+                    setPopupVendors(vendorData.map(v => ({
+                        ...v,
+                        isRealEstate: v.isRealEstate || (v.businessType && /developer|broker/i.test(v.businessType))
+                    })));
                 }
             } else {
                 // Determine if we should search for vendors too
                 // Preserving product search as priority
                 const [productRes, vendorRes, propertyRes] = await Promise.all([
-                    api.get('/products', { params: { search: searchTerm, limit: 6, vendorType: 'b2b' } }),
-                    api.get('/vendors', { params: { search: searchTerm, limit: 6 } }),
-                    api.get('/property/all', { params: { search: searchTerm, limit: 6 } })
+                    api.get('/products', { params: { search: searchTerm, limit: 6, vendorType: 'b2b', strict: isStrict } }),
+                    api.get('/vendors', { params: { search: searchTerm, limit: 6, strict: isStrict } }),
+                    api.get('/property/all', { params: { search: searchTerm, limit: 6, strict: isStrict } })
                 ]);
 
                 const products = productRes.success && productRes.data ? (Array.isArray(productRes.data) ? productRes.data : (productRes.data.products || [])) : [];
@@ -881,7 +879,8 @@ const B2BLanding = () => {
                                             value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)}
                                             className="w-full p-3 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-primary-500"
                                         >
-                                            {availableCities.map(c => <option key={c} value={c}>{c}</option>)}
+                                            <option value="All Cities">All Cities</option>
+                                            {uniqueCities.map(c => <option key={c} value={c}>{c}</option>)}
                                         </select>
                                     </div>
                                 </div>
@@ -1117,13 +1116,13 @@ const B2BLanding = () => {
                 {activePopup === 'products' && (
                     <ProductPopup
                         title={`Related Products for "${searchQuery}"`}
-                        onViewAll={() => navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`)}
+                        onViewAll={() => navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}&strict=true`)}
                     />
                 )}
                 {activePopup === 'properties' && (
                     <PropertiesPopup
                         title={`Matching Properties for "${searchQuery}"`}
-                        onViewAll={() => navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}`)}
+                        onViewAll={() => navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}&strict=true`)}
                     />
                 )}
                 {activePopup === 'stores' && (
@@ -1138,9 +1137,9 @@ const B2BLanding = () => {
                                 (v.businessType || '').toLowerCase().includes('property')
                             );
                             if (hasRealEstateMatch) {
-                                navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}`);
+                                navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}&strict=true`);
                             } else {
-                                navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`);
+                                navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}&strict=true`);
                             }
                         }}
                     />

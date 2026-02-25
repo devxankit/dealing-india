@@ -255,6 +255,15 @@ const PropertyForm = ({ initialData, isEdit }) => {
             // Clean up legacy price field if it exists in formData to avoid sending stale data
             if (payload.price) delete payload.price;
 
+            // Remove deposit and maintenance from saleDetails if listing type is Sale
+            if (payload.listingType === 'Sale' && payload.saleDetails) {
+                const cleanedSaleDetails = { ...payload.saleDetails };
+                delete cleanedSaleDetails.depositAmount;
+                delete cleanedSaleDetails.depositUnit;
+                delete cleanedSaleDetails.maintenance;
+                payload.saleDetails = cleanedSaleDetails;
+            }
+
             let response;
             if (isEdit) {
                 response = await api.put(`/property/update/${initialData._id}`, payload);
@@ -369,22 +378,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                             <option value="Crore">Crore</option>
                                         </select>
                                     </div>
-                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <input type="number" name="saleDetails.depositAmount" placeholder="Deposit Amount" value={formData.saleDetails.depositAmount} onChange={handleChange} className="input-field" />
-                                        <select name="saleDetails.depositUnit" value={formData.saleDetails.depositUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
-                                            <option value="Thousand">Thousand</option>
-                                            <option value="Lakh">Lakh</option>
-                                            <option value="Crore">Crore</option>
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="label">Maintenance</label>
-                                        <select name="saleDetails.maintenance" value={formData.saleDetails.maintenance} onChange={handleChange} className="input-select">
-                                            <option value="Included">Included</option>
-                                            <option value="Excluded">Excluded</option>
-                                        </select>
-                                    </div>
+                                    {/* Removed Deposit Amount and Maintenance for Sale as per user request */}
                                 </div>
                             )}
 

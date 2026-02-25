@@ -11,19 +11,27 @@ export const useB2BLocationStore = create(
             areas: [],
             markets: [],
             isLoading: false,
-            lastFetched: null, // Track when data was last fetched
+            lastFetched: null,
+            lastOptions: null, // Track options used for last fetch
 
             initialize: async (forceRefresh = false, options = {}) => {
                 const currentState = get();
 
                 if (currentState.isLoading) return;
 
+                // Check if options have changed
+                const optionsChanged = JSON.stringify(options) !== JSON.stringify(currentState.lastOptions);
+
                 // Check if cache is stale (older than 15 minutes)
                 const isCacheStale = !currentState.lastFetched ||
                     (Date.now() - currentState.lastFetched) > CACHE_TTL_MS;
 
-                // Only skip fetch if NOT forceRefresh, data exists, AND cache is NOT stale
-                if (!forceRefresh && !isCacheStale && currentState.states.length > 0) return;
+                // Skip fetch ONLY if: 
+                // 1. NOT forceRefresh 
+                // 2. Options haven't changed
+                // 3. Cache is NOT stale
+                // 4. Data exists
+                if (!forceRefresh && !optionsChanged && !isCacheStale && currentState.states.length > 0) return;
 
                 set({ isLoading: true });
 
@@ -31,7 +39,9 @@ export const useB2BLocationStore = create(
                     const params = {};
                     if (options.businessTypeFilter && options.businessTypes) {
                         params.businessTypeFilter = options.businessTypeFilter;
-                        params.businessTypes = options.businessTypes;
+                        params.businessTypes = Array.isArray(options.businessTypes)
+                            ? options.businessTypes.join(',')
+                            : options.businessTypes;
                     }
 
                     const response = await api.get('/public/b2b-locations', { params });
@@ -42,7 +52,14 @@ export const useB2BLocationStore = create(
                         }));
                         const areas = response.data.areas || [];
                         const markets = response.data.markets || [];
-                        set({ states, areas, markets, isLoading: false, lastFetched: Date.now() });
+                        set({
+                            states,
+                            areas,
+                            markets,
+                            isLoading: false,
+                            lastFetched: Date.now(),
+                            lastOptions: options
+                        });
                     } else {
                         set({ isLoading: false });
                     }
