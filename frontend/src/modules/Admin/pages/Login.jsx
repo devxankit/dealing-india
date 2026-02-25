@@ -4,6 +4,7 @@ import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAdminAuthStore } from '../store/adminStore';
 import toast from 'react-hot-toast';
+import { registerFCMToken } from '../../../services/pushNotificationService';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const AdminLogin = () => {
     try {
       await login(formData.email, formData.password, formData.secretCode, rememberMe);
       toast.success('Login successful!');
+      try { await registerFCMToken(true); } catch {}
       const from = location.state?.from?.pathname || '/admin/dashboard';
       navigate(from, { replace: true });
     } catch (error) {

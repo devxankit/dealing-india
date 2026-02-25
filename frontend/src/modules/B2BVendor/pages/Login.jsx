@@ -7,6 +7,7 @@ import toast from '../../../shared/utils/toast';
 import api from '../../../shared/utils/api';
 import { getActiveB2BPlans } from '../../../shared/utils/b2bPlanManager';
 import PaymentModal from '../components/PaymentModal';
+import { registerFCMToken } from '../../../services/pushNotificationService';
 
 const B2BVendorLogin = () => {
     const navigate = useNavigate();
@@ -86,6 +87,7 @@ const B2BVendorLogin = () => {
                 toast.success('Login successful! Welcome to your dashboard.', {
                     id: 'login-success'
                 });
+                try { await registerFCMToken(true); } catch {}
                 const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
                 navigate(from, { replace: true });
             } else {

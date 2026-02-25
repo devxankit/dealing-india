@@ -69,6 +69,14 @@ const userSchema = new mongoose.Schema(
             addressType: { type: String, enum: ['Home', 'Work', 'Warehouse', 'Other'], default: 'Work' },
             phone: { type: String }
         }],
+        fcmTokens: {
+            type: [String],
+            default: []
+        },
+        fcmTokenMobile: {
+            type: [String],
+            default: []
+        },
     },
     {
         timestamps: true,

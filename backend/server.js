@@ -77,6 +77,7 @@ import adminNotificationRoutes from './routes/adminNotification.routes.js';
 import vendorAnalyticsRoutes from './routes/vendorAnalytics.routes.js';
 import vendorNotificationRoutes from './routes/vendorNotification.routes.js';
 import userNotificationRoutes from './routes/userNotification.routes.js';
+import fcmTokenRoutes from './routes/fcmToken.routes.js';
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
 import bannerBookingCron from "./Cron/BannerBooking.cron.js";
@@ -315,6 +316,7 @@ app.use('/api/vendor/subscription', vendorSubscriptionRoutes); // Alias for cons
 app.use('/api/vendor/analytics', vendorAnalyticsRoutes);
 app.use('/api/vendor/notifications', vendorNotificationRoutes);
 app.use('/api/user/notifications', userNotificationRoutes);
+app.use('/api/fcm-tokens', fcmTokenRoutes);
 
 // B2B Vendor routes (separate from regular vendor routes)
 app.use('/api/b2b-vendor/products', b2bVendorProductsRoutes);

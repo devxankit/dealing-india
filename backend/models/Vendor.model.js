@@ -147,6 +147,14 @@ const vendorSchema = new mongoose.Schema(
       callClicks: { type: Number, default: 0 },
       whatsappClicks: { type: Number, default: 0 },
     },
+    fcmTokens: {
+      type: [String],
+      default: []
+    },
+    fcmTokenMobile: {
+      type: [String],
+      default: []
+    },
 
     currentSubscription: {
       type: mongoose.Schema.Types.ObjectId,

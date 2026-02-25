@@ -37,6 +37,14 @@ const adminSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    fcmTokens: {
+      type: [String],
+      default: []
+    },
+    fcmTokenMobile: {
+      type: [String],
+      default: []
+    },
   },
   {
     timestamps: true,

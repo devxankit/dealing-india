@@ -4,6 +4,7 @@ import { FiPhone, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingBag, FiArrowLe
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from '../../../shared/utils/toast';
+import { registerFCMToken } from '../../../services/pushNotificationService';
 
 const B2BUserLogin = () => {
     const navigate = useNavigate();
@@ -51,6 +52,7 @@ const B2BUserLogin = () => {
             const result = await login(identifier, formData.password, false, 'b2b');
             if (result.success) {
                 toast.success('Welcome back to Bulk Marketplace!');
+                try { await registerFCMToken(true); } catch {}
                 const from = location.state?.from?.pathname || '/b2b/catalog';
                 navigate(from, { replace: true });
             } else {

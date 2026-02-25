@@ -1363,6 +1363,29 @@ const ProductCatalog = () => {
                 hideSearch={false}
                 customNav={headerBusinessTypeDropdown}
             />
+            {isAuthenticated && (
+                <div className="max-w-6xl mx-auto px-4 mt-3">
+                    <div className="flex justify-end">
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const res = await api.post('/fcm-tokens/test');
+                                    if (res?.success) {
+                                        toast.success('Test push sent');
+                                    } else {
+                                        toast.error(res?.message || 'Failed to send test push');
+                                    }
+                                } catch (e) {
+                                    toast.error(e?.message || 'Failed to send test push');
+                                }
+                            }}
+                            className="px-4 py-2 rounded-lg bg-primary-600 text-white text-xs font-bold hover:bg-primary-700 transition-colors"
+                        >
+                            Send Test Push
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Sticky Mobile Filter Bar */}
             <div className="lg:hidden sticky top-[65px] z-[45] bg-white/95 backdrop-blur-md border-b border-gray-100 flex items-center shadow-sm">

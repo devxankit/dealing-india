@@ -11,6 +11,7 @@ import {
     resetUserPassword
 } from '../services/userAuth.service.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
+import { sendNotificationToUser } from '../utils/pushNotificationHelper.js';
 
 /**
  * Register a new user
@@ -41,6 +42,17 @@ export const login = asyncHandler(async (req, res) => {
 
     try {
         const result = await loginUser(identifier, password);
+        try {
+            await sendNotificationToUser(result.user._id, {
+                title: 'Login Successful',
+                body: 'Welcome back! Notifications are enabled for your session.',
+                data: {
+                    type: 'login',
+                    link: '/b2b/catalog'
+                }
+            });
+        } catch (e) {
+        }
         res.status(200).json({
             success: true,
             message: 'Login successful',

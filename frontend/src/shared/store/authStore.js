@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '../utils/api';
+import { registerFCMToken } from '../../services/pushNotificationService';
 
 export const useAuthStore = create(
   persist(
@@ -47,6 +48,7 @@ export const useAuthStore = create(
             });
 
             localStorage.setItem('token', token);
+            try { await registerFCMToken(true); } catch (e) {}
 
             return { success: true, user: userData };
           } else {
