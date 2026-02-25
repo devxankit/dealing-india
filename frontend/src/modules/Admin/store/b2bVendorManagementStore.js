@@ -86,5 +86,59 @@ export const useB2BVendorManagementStore = create((set, get) => ({
     }
   },
 
+  // Toggle active/inactive status
+  toggleB2BVendorActive: async (id) => {
+    try {
+      const response = await api.patch(`/admin/b2b-vendors/${id}/toggle-active`);
+      if (response.success && response.data) {
+        const updatedVendor = response.data.vendor || response.data;
+        set((state) => ({
+          b2bVendors: state.b2bVendors.map((v) => ((v._id || v.id) === id ? { ...v, isActive: updatedVendor.isActive, status: updatedVendor.status } : v)),
+        }));
+        return updatedVendor;
+      }
+      throw new Error(response.message || 'Failed to toggle active status');
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to toggle active status';
+      throw new Error(errorMessage);
+    }
+  },
+
+  // Update explicit status for B2B vendor
+  updateB2BVendorStatus: async (id, status) => {
+    try {
+      const response = await api.put(`/admin/b2b-vendors/${id}/status`, { status });
+      if (response.success && response.data) {
+        const updatedVendor = response.data.vendor || response.data;
+        set((state) => ({
+          b2bVendors: state.b2bVendors.map((v) => ((v._id || v.id) === id ? updatedVendor : v)),
+        }));
+        return updatedVendor;
+      }
+      throw new Error(response.message || 'Failed to update status');
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update status';
+      throw new Error(errorMessage);
+    }
+  },
+
+  // Robust active setter with endpoint fallback
+  setB2BVendorActive: async (id, nextActive) => {
+    try {
+      const response = await api.put(`/admin/vendors/${id}/status`, { isActive: nextActive });
+      if (response?.success && response?.data) {
+        const updatedVendor = response.data.vendor || response.data;
+        set((state) => ({
+          b2bVendors: state.b2bVendors.map((v) => ((v._id || v.id) === id ? { ...v, isActive: updatedVendor.isActive } : v)),
+        }));
+        return updatedVendor;
+      }
+      throw new Error(response?.message || 'Failed to update active status');
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.message || 'Failed to update active status';
+      throw new Error(message);
+    }
+  },
+
   clearError: () => set({ error: null }),
 }));

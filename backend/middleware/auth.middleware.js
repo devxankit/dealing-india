@@ -61,7 +61,11 @@ export const authenticate = async (req, res, next) => {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
 
+    // DEBUG: Log arrival of request and header presence
+    console.log(`[Auth Debug] ${req.method} ${req.url} - Auth Header: ${authHeader ? (authHeader.substring(0, 20) + '...') : 'MISSING'}`);
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn(`[Auth Warning] Missing or malformed header for ${req.url}`);
       return res.status(401).json({
         success: false,
         message: 'Authentication required. Please provide a valid token.',
@@ -69,35 +73,60 @@ export const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    if (!token || token === 'null' || token === 'undefined') {
+      console.warn(`[Auth Warning] Token is invalid string: ${token} for ${req.url}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token provided.',
+      });
+    }
 
     // Verify token
     let decoded;
     try {
       decoded = verifyToken(token);
     } catch (error) {
+      console.warn(`[Auth Warning] Token verification failed for ${req.url}: ${error.message}`);
       return res.status(401).json({
         success: false,
         message: error.message || 'Invalid or expired token',
       });
     }
 
+    console.log(`[Auth Debug] Token Verified. Role: ${decoded.role}, ID: ${decoded.vendorId || decoded.adminId || decoded.id}`);
+
     // Attach user info to request based on role
     req.user = decoded;
 
     // Optionally, fetch and attach full user document
     try {
-      if (decoded.role === 'vendor' && decoded.vendorId) {
-        const vendor = await Vendor.findById(decoded.vendorId);
-        if (!vendor || !vendor.isActive) {
+      if (decoded.role === 'vendor' && (decoded.vendorId || decoded.id)) {
+        const vendorId = decoded.vendorId || decoded.id;
+        const vendor = await Vendor.findById(vendorId);
+
+        if (!vendor) {
+          console.warn(`[Auth Middleware] Vendor not found: ${vendorId}`);
           return res.status(401).json({
             success: false,
-            message: 'Vendor account not found or inactive',
+            message: 'Vendor account not found',
           });
         }
+
+        if (!vendor.isActive) {
+          console.warn(`[Auth Middleware] Vendor inactive: ${vendorId} (${vendor.email})`);
+          return res.status(401).json({
+            success: false,
+            message: 'Vendor account is inactive',
+          });
+        }
+
         req.userDoc = vendor;
-      } else if (decoded.role === 'admin' && decoded.adminId) {
-        const admin = await Admin.findById(decoded.adminId);
+      } else if (decoded.role === 'admin' && (decoded.adminId || decoded.id)) {
+        const adminId = decoded.adminId || decoded.id;
+        const admin = await Admin.findById(adminId);
+
         if (!admin || !admin.isActive) {
+          console.warn(`[Auth Middleware] Admin ${!admin ? 'not found' : 'inactive'}: ${adminId}`);
           return res.status(401).json({
             success: false,
             message: 'Admin account not found or inactive',
@@ -106,7 +135,9 @@ export const authenticate = async (req, res, next) => {
         req.userDoc = admin;
       } else if (decoded.role === 'user' && decoded.id) {
         const user = await User.findById(decoded.id);
+
         if (!user || !user.isActive) {
+          console.warn(`[Auth Middleware] User ${!user ? 'not found' : 'inactive'}: ${decoded.id}`);
           return res.status(401).json({
             success: false,
             message: 'User account not found or inactive',

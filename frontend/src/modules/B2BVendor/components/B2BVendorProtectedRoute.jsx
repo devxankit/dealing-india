@@ -82,6 +82,12 @@ const B2BVendorProtectedRoute = ({ children }) => {
         console.warn('[B2BVendorProtectedRoute] Token exists but store not authenticated - allowing access, backend will validate');
     }
 
+    // Block access if vendor is inactive or rejected
+    if (vendor && (vendor.isActive === false || vendor.status === 'rejected')) {
+        console.warn(`[B2BVendorProtectedRoute] Blocking access - isActive: ${vendor.isActive}, status: ${vendor.status}`);
+        return <Navigate to="/b2b-vendor/login" state={{ from: location, reason: vendor.isActive === false ? 'inactive' : 'rejected' }} replace />;
+    }
+
     return children;
 };
 

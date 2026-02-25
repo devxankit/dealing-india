@@ -150,9 +150,16 @@ const B2BVendorDetailModal = ({ isOpen, onClose, vendor, onApprove, onReject }) 
                                 <div>
                                     <div className="flex items-center gap-3 mb-1">
                                         <h2 className="text-2xl font-black text-gray-900 tracking-tight">{vendorData.companyName || vendorData.storeName || vendorData.name || vendor.companyName || vendor.name}</h2>
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${(vendorData.status || vendor.status) === 'Active' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                            {vendorData.status || vendor.status}
-                                        </span>
+                                        <div className="flex flex-col gap-1">
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${(vendorData.status || vendor.status) === 'approved' ? 'bg-blue-100 text-blue-700' :
+                                                    (vendorData.status || vendor.status) === 'pending' ? 'bg-orange-100 text-orange-700' :
+                                                        'bg-red-100 text-red-700'}`}>
+                                                {vendorData.status || vendor.status || 'pending'}
+                                            </span>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${vendorData.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                {vendorData.isActive ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
                                     </div>
                                     <p className="text-gray-500 font-medium flex items-center gap-2">
                                         <FiMail className="text-primary-500" /> {vendorData.email || vendor.email}

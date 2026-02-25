@@ -100,6 +100,7 @@ export const addProperty = asyncHandler(async (req, res) => {
         delete propertyData.saleDetails.depositAmount;
         delete propertyData.saleDetails.depositUnit;
         delete propertyData.saleDetails.maintenance;
+        delete propertyData.saleDetails.veraBill;
     }
 
     const property = await Property.create(propertyData);
@@ -115,6 +116,7 @@ export const addProperty = asyncHandler(async (req, res) => {
         delete responseData.saleDetails.depositAmount;
         delete responseData.saleDetails.depositUnit;
         delete responseData.saleDetails.maintenance;
+        delete responseData.saleDetails.veraBill;
     }
 
     res.status(201).json({
@@ -173,6 +175,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
         delete updateData.saleDetails.depositAmount;
         delete updateData.saleDetails.depositUnit;
         delete updateData.saleDetails.maintenance;
+        delete updateData.saleDetails.veraBill;
     }
 
     property = await Property.findByIdAndUpdate(propertyId, updateData, {
@@ -190,6 +193,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
         delete property.saleDetails.depositAmount;
         delete property.saleDetails.depositUnit;
         delete property.saleDetails.maintenance;
+        delete property.saleDetails.veraBill;
     }
 
     res.status(200).json({
@@ -258,6 +262,7 @@ export const listProperties = asyncHandler(async (req, res) => {
             delete p.saleDetails.depositAmount;
             delete p.saleDetails.depositUnit;
             delete p.saleDetails.maintenance;
+            delete p.saleDetails.veraBill;
         }
 
         return p;
@@ -308,7 +313,7 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 // @route   GET /api/public/property/all
 // @access  Public
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict } = req.query;
+    const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
 
     let query = { isActive: true };
     const queryConditions = [];
@@ -415,6 +420,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         const val = parseFloat(amount) || 0;
         const normalizedUnit = (unit || 'Lakh').trim();
         switch (normalizedUnit) {
+            case 'Rs': return val / 100000;
             case 'Thousand': return val / 100;
             case 'Lakh': return val;
             case 'Crore': return val * 100;
@@ -440,7 +446,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
     // When user selects ONLY a unit (no min/max): filter by property's stored unit - different results per unit
     // When user enters min/max: use range filter (all properties, convert to common unit) - new listings show if they match
-    const validPriceUnits = ['Thousand', 'Lakh', 'Crore'];
+    const validPriceUnits = ['Rs', 'Thousand', 'Lakh', 'Crore'];
     const validAreaUnits = ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'];
     const priceUnitSelected = priceUnit && validPriceUnits.some(u => u.toLowerCase() === (priceUnit || '').trim().toLowerCase());
     const areaUnitSelected = areaUnit && validAreaUnits.some(u => u.toLowerCase() === (areaUnit || '').trim().toLowerCase());
@@ -540,10 +546,22 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     }, {});
 
     // Flatten specifications for frontend compatibility
-    const finalProperties = filteredResults.map(prop => {
+    let finalProperties = filteredResults.map(prop => {
         const shop = prop.shopUnitId || shopUnitMap[prop.vendorId._id.toString()];
+
+        // Calculate normalized price for sorting
+        let effectivePriceInLakhs = 0;
+        if (prop.listingType === 'Sale' && prop.saleDetails) {
+            effectivePriceInLakhs = getPriceInLakhs(prop.saleDetails.priceMin, prop.saleDetails.priceUnit);
+        } else if (prop.listingType === 'Rent' && prop.rentDetails) {
+            effectivePriceInLakhs = getPriceInLakhs(prop.rentDetails.monthlyRent, prop.rentDetails.rentUnit || 'Thousand');
+        } else if (prop.listingType === 'Lease' && prop.leaseDetails) {
+            effectivePriceInLakhs = getPriceInLakhs(prop.leaseDetails.monthlyLeaseRate, prop.leaseDetails.leaseUnit);
+        }
+
         const p = {
             ...prop,
+            effectivePriceInLakhs,
             // If shop exists, use its name as the primary title/name for display consistency
             shopName: shop ? shop.name : prop.vendorId?.storeName,
             shopUnit: shop,
@@ -561,6 +579,18 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
         return p;
     });
+
+    // Handle Sorting
+    if (sortBy === 'price') {
+        const dir = sortOrder === 'asc' ? 1 : -1;
+        finalProperties.sort((a, b) => (a.effectivePriceInLakhs - b.effectivePriceInLakhs) * dir);
+    } else if (sortBy === 'createdAt') {
+        const dir = sortOrder === 'asc' ? 1 : -1;
+        finalProperties.sort((a, b) => (new Date(a.createdAt) - new Date(b.createdAt)) * dir);
+    } else if (sortBy === 'title') {
+        const dir = sortOrder === 'asc' ? 1 : -1;
+        finalProperties.sort((a, b) => a.title.localeCompare(b.title) * dir);
+    }
 
     // Find matching vendors for the "Matching Stores" section in UI
     let matchingVendors = [];

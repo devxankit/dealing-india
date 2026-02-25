@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiFilter, FiSearch, FiX, FiChevronDown, FiGrid, FiTrendingUp, FiHome, FiBriefcase, FiCheck, FiMapPin } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiX, FiChevronDown, FiChevronRight, FiGrid, FiTrendingUp, FiHome, FiBriefcase, FiCheck, FiMapPin } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import B2BProductCard from '../components/B2BProductCard';
@@ -70,6 +70,45 @@ const ProductCatalog = () => {
     const mainCategoryDropdownRef = useRef(null);
     const [isBusinessTypeDropdownOpen, setIsBusinessTypeDropdownOpen] = useState(false);
     const businessTypeDropdownRef = useRef(null);
+    const [mobileExpandedBusinessType, setMobileExpandedBusinessType] = useState(null);
+
+    const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'createdAt');
+    const [sortOrder, setSortOrder] = useState(searchParams.get('sortOrder') || 'desc');
+    const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+    const sortDropdownRef = useRef(null);
+
+    const handleSortChange = (newSortBy, newSortOrder) => {
+        setSortBy(newSortBy);
+        setSortOrder(newSortOrder);
+        setIsSortDropdownOpen(false);
+
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('sortBy', newSortBy);
+        newParams.set('sortOrder', newSortOrder);
+        setSearchParams(newParams, { replace: true });
+    };
+
+    const getSortLabel = () => {
+        if (sortBy === 'price') {
+            return sortOrder === 'asc' ? 'Price: Low to High' : 'Price: High to Low';
+        }
+        return 'Newest First';
+    };
+
+    // Open Business Type menu from bottom-nav shortcut (mobile only)
+    useEffect(() => {
+        const openParam = searchParams.get('open');
+        if (openParam === 'business' && typeof window !== 'undefined' && window.innerWidth < 768) {
+            // Ensure business types are loaded before opening for a smooth UX
+            if (businessTypes && businessTypes.length > 0) {
+                setIsBusinessTypeDropdownOpen(true);
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('open');
+                setSearchParams(newParams, { replace: true });
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, businessTypes.length]);
     const [openFilters, setOpenFilters] = useState({
         price: false,
         subcategory: false,
@@ -87,6 +126,7 @@ const ProductCatalog = () => {
     }, [allCategories]);
 
     const [dynamicFilters, setDynamicFilters] = useState({});
+    const [dynamicSearchQueries, setDynamicSearchQueries] = useState({});
 
     const selectedSubcategoryObj = useMemo(() => {
         if (!selectedSubcategory) return null;
@@ -100,6 +140,7 @@ const ProductCatalog = () => {
     // Reset dynamic filters when subcategory changes
     useEffect(() => {
         setDynamicFilters({});
+        setDynamicSearchQueries({});
         if (selectedSubcategoryObj?.fields) {
             const newOpenFilters = { ...openFilters };
             selectedSubcategoryObj.fields.forEach(field => {
@@ -128,11 +169,14 @@ const ProductCatalog = () => {
         }
     };
 
-    // Click outside handler for Business Type dropdown
+    // Click outside handler for Business Type and Sort dropdowns
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (businessTypeDropdownRef.current && !businessTypeDropdownRef.current.contains(event.target)) {
                 setIsBusinessTypeDropdownOpen(false);
+            }
+            if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+                setIsSortDropdownOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -206,85 +250,6 @@ const ProductCatalog = () => {
                         </AnimatePresence>
                     </div>
                 )}
-
-                {/* Dynamic Attributes Filters */}
-                {selectedSubcategoryObj?.fields?.length > 0 && selectedSubcategoryObj.fields.filter(field => ['select', 'multi-select'].includes(field.type)).map((field, fieldIdx) => (
-                    <div key={`${field.label}-${fieldIdx}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <button
-                            onClick={() => toggleFilter(`dynamic_${field.label}`)}
-                            className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                        >
-                            <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">{field.label}</h3>
-                            <div className="flex items-center gap-2">
-                                {dynamicFilters[field.label] && (
-                                    <span
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const newFilters = { ...dynamicFilters };
-                                            delete newFilters[field.label];
-                                            setDynamicFilters(newFilters);
-                                        }}
-                                        className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2"
-                                    >
-                                        RESET
-                                    </span>
-                                )}
-                                <FiChevronDown className={`text-gray-400 transition-transform ${openFilters[`dynamic_${field.label}`] ? 'rotate-180' : ''}`} />
-                            </div>
-                        </button>
-                        <AnimatePresence>
-                            {(openFilters[`dynamic_${field.label}`]) && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: "auto", opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="overflow-hidden"
-                                >
-                                    <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                        {field.options?.map(option => (
-                                            <label key={option} className="flex items-center gap-3 cursor-pointer group">
-                                                <div className="relative">
-                                                    <input
-                                                        type={field.type === 'multi-select' ? 'checkbox' : 'radio'}
-                                                        name={`dynamic_${field.label}`}
-                                                        className="peer sr-only"
-                                                        checked={field.type === 'multi-select'
-                                                            ? (dynamicFilters[field.label] || []).includes(option)
-                                                            : dynamicFilters[field.label] === option
-                                                        }
-                                                        onChange={() => {
-                                                            if (field.type === 'multi-select') {
-                                                                const current = dynamicFilters[field.label] || [];
-                                                                const next = current.includes(option)
-                                                                    ? current.filter(o => o !== option)
-                                                                    : [...current, option];
-                                                                setDynamicFilters({ ...dynamicFilters, [field.label]: next });
-                                                            } else {
-                                                                setDynamicFilters({ ...dynamicFilters, [field.label]: option });
-                                                                if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                                                            }
-                                                        }}
-                                                    />
-                                                    <div className={`w-4 h-4 border-2 border-gray-300 ${field.type === 'multi-select' ? 'rounded-md' : 'rounded-full'} peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all flex items-center justify-center`}>
-                                                        {field.type === 'multi-select' && (dynamicFilters[field.label] || []).includes(option) && (
-                                                            <FiCheck className="text-white text-[10px]" />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <span className={`text-xs font-bold transition-colors ${(field.type === 'multi-select' ? (dynamicFilters[field.label] || []).includes(option) : dynamicFilters[field.label] === option)
-                                                    ? 'text-primary-700'
-                                                    : 'text-gray-500 group-hover:text-gray-700'
-                                                    }`}>
-                                                    {option}
-                                                </span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                ))}
 
                 {/* Price Filter Block */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -382,6 +347,98 @@ const ProductCatalog = () => {
                     </AnimatePresence>
                 </div>
 
+                {/* Dynamic Attributes Filters */}
+                {selectedSubcategoryObj?.fields?.length > 0 && selectedSubcategoryObj.fields.filter(field => ['select', 'multi-select'].includes(field.type)).map((field, fieldIdx) => (
+                    <div key={`${field.label}-${fieldIdx}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <button
+                            onClick={() => toggleFilter(`dynamic_${field.label}`)}
+                            className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                        >
+                            <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">{field.label}</h3>
+                            <div className="flex items-center gap-2">
+                                {dynamicFilters[field.label] && (
+                                    <span
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const newFilters = { ...dynamicFilters };
+                                            delete newFilters[field.label];
+                                            setDynamicFilters(newFilters);
+                                        }}
+                                        className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2"
+                                    >
+                                        RESET
+                                    </span>
+                                )}
+                                <FiChevronDown className={`text-gray-400 transition-transform ${openFilters[`dynamic_${field.label}`] ? 'rotate-180' : ''}`} />
+                            </div>
+                        </button>
+                        <AnimatePresence>
+                            {(openFilters[`dynamic_${field.label}`]) && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="p-4 border-b border-gray-50">
+                                        <div className="relative">
+                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                            <input
+                                                type="text"
+                                                placeholder={`Search ${field.label}...`}
+                                                className="w-full pl-8 pr-4 py-2 bg-gray-50 border-none rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                                value={dynamicSearchQueries[field.label] || ''}
+                                                onChange={(e) => setDynamicSearchQueries(prev => ({ ...prev, [field.label]: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                        {field.options
+                                            ?.filter(option => (option || '').toLowerCase().includes((dynamicSearchQueries[field.label] || '').toLowerCase()))
+                                            .map(option => (
+                                                <label key={option} className="flex items-center gap-3 cursor-pointer group">
+                                                    <div className="relative">
+                                                        <input
+                                                            type={field.type === 'multi-select' ? 'checkbox' : 'radio'}
+                                                            name={`dynamic_${field.label}`}
+                                                            className="peer sr-only"
+                                                            checked={field.type === 'multi-select'
+                                                                ? (dynamicFilters[field.label] || []).includes(option)
+                                                                : dynamicFilters[field.label] === option
+                                                            }
+                                                            onChange={() => {
+                                                                if (field.type === 'multi-select') {
+                                                                    const current = dynamicFilters[field.label] || [];
+                                                                    const next = current.includes(option)
+                                                                        ? current.filter(o => o !== option)
+                                                                        : [...current, option];
+                                                                    setDynamicFilters({ ...dynamicFilters, [field.label]: next });
+                                                                } else {
+                                                                    setDynamicFilters({ ...dynamicFilters, [field.label]: option });
+                                                                    if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                                                                }
+                                                            }}
+                                                        />
+                                                        <div className={`w-4 h-4 border-2 border-gray-300 ${field.type === 'multi-select' ? 'rounded-md' : 'rounded-full'} peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all flex items-center justify-center`}>
+                                                            {field.type === 'multi-select' && (dynamicFilters[field.label] || []).includes(option) && (
+                                                                <FiCheck className="text-white text-[10px]" />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <span className={`text-xs font-bold transition-colors ${(field.type === 'multi-select' ? (dynamicFilters[field.label] || []).includes(option) : dynamicFilters[field.label] === option)
+                                                        ? 'text-primary-700'
+                                                        : 'text-gray-500 group-hover:text-gray-700'
+                                                        }`}>
+                                                        {option}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                ))}
 
                 {/* Area Filter */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -647,7 +704,9 @@ const ProductCatalog = () => {
             const params = {
                 vendorType: 'b2b',
                 excludeBusinessTypes: 'Developer,Property Broker',
-                strict: isStrict
+                strict: isStrict,
+                sortBy: sortBy,
+                sortOrder: sortOrder
             };
 
             if (searchQuery) {
@@ -734,20 +793,33 @@ const ProductCatalog = () => {
             }
 
             // Fetch products where vendorType is b2b
-            const response = await api.get('/products', { params });
+            let response = await api.get('/products', { params });
+            let productsData = [];
             if (response.success && response.data) {
-                // The API returns a paginated object { products, total, page, totalPages }
-                const productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
-
-                // Normalize MOQ for catalog display
-                const normalizedProducts = productsData.map(p => ({
-                    ...p,
-                    moq: p.moq || p.minimumOrderQuantity || 1
-                }));
-
-                // Use API data directly - no fallback mock data
-                setProducts(normalizedProducts);
+                productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
             }
+            if (searchQuery && isStrict && productsData.length === 0) {
+                const relaxedParams = { ...params };
+                delete relaxedParams.strict;
+                response = await api.get('/products', { params: relaxedParams });
+                if (response.success && response.data) {
+                    productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
+                }
+            }
+            // If still empty, relax business type exclusion to ensure results
+            if (searchQuery && productsData.length === 0) {
+                const relaxedBTParams = { ...params };
+                delete relaxedBTParams.excludeBusinessTypes;
+                response = await api.get('/products', { params: relaxedBTParams });
+                if (response.success && response.data) {
+                    productsData = Array.isArray(response.data) ? response.data : (response.data.products || []);
+                }
+            }
+            const normalizedProducts = (productsData || []).map(p => ({
+                ...p,
+                moq: p.moq || p.minimumOrderQuantity || 1
+            }));
+            setProducts(normalizedProducts);
         } catch (error) {
             toast.error('Failed to load products');
         } finally {
@@ -946,7 +1018,7 @@ const ProductCatalog = () => {
 
         return () => clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedState, selectedCity, selectedItemType, selectedArea, selectedMarket, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length, dynamicFilters, searchQuery, searchParams.get('strict')]);
+    }, [selectedState, selectedCity, selectedItemType, selectedArea, selectedMarket, selectedCategory, selectedSubcategory, selectedBusinessType, selectedBusinessSubType, allCategories.length, dynamicFilters, searchQuery, searchParams.get('strict'), sortBy, sortOrder]);
 
     // Debug: Log state and cities changes
     useEffect(() => {
@@ -1116,61 +1188,95 @@ const ProductCatalog = () => {
 
 
 
-    const filteredProducts = productsList.filter(product => {
-        const query = searchQuery.toLowerCase();
-        const isStrict = searchParams.get('strict') === 'true';
+    const shopOnly = searchParams.get('shopOnly') === 'true';
+    const vendorFilter = searchParams.get('vendor') || null;
 
-        let matchesSearchFinal = false;
+    const filteredProducts = productsList
+        .filter(p => (shopOnly ? p.formType === 'shop-listing' : true))
+        .filter(p => {
+            if (!vendorFilter) return true;
+            const vid = p.vendorId?._id || p.vendorId?.id || p.vendorIdRef || p.vendorId;
+            return String(vid || '').toLowerCase() === String(vendorFilter).toLowerCase();
+        })
+        .filter(product => {
+            const rawQuery = (searchQuery || '');
+            const query = rawQuery.toString().trim().toLowerCase();
+            const isStrict = searchParams.get('strict') === 'true';
 
-        if (isStrict) {
-            const matchesName = product.name?.toLowerCase().startsWith(query);
-            const matchesItems = product.formType === 'shop-listing' && product.items?.some(item =>
-                item.itemName?.toLowerCase().startsWith(query)
-            );
-            matchesSearchFinal = matchesName || matchesItems;
-        } else {
-            const matchesSearch = product.name?.toLowerCase().includes(query) ||
-                product.description?.toLowerCase().includes(query);
+            let matchesSearchFinal = true;
 
-            const matchesItems = !matchesSearch && product.formType === 'shop-listing' && product.items?.some(item =>
-                item.itemName?.toLowerCase().includes(query) ||
-                item.description?.toLowerCase().includes(query)
-            );
-            matchesSearchFinal = matchesSearch || matchesItems;
-        }
+            if (!query) {
+                if (isStrict) {
+                    const nameStarts = product.name?.toLowerCase().startsWith(query);
+                    const itemsStart = product.formType === 'shop-listing' && product.items?.some(item =>
+                        (item.itemName || '').toLowerCase().startsWith(query)
+                    );
+                    matchesSearchFinal = !!(nameStarts || itemsStart);
+                } else {
+                    const nameInc = (product.name || '').toLowerCase().includes(query);
+                    const descInc = (product.description || '').toLowerCase().includes(query);
+                    const itemsInc = !nameInc && product.formType === 'shop-listing' && product.items?.some(item =>
+                        (item.itemName || '').toLowerCase().includes(query) ||
+                        (item.description || '').toLowerCase().includes(query)
+                    );
+                    matchesSearchFinal = !!(nameInc || descInc || itemsInc);
+                }
+            } else if (isStrict) {
+                const textName = (product.name || '').toLowerCase();
+                const textDesc = (product.description || '').toLowerCase();
+                const textItems = product.formType === 'shop-listing'
+                    ? (product.items || []).map(i => `${i.itemName || ''} ${i.description || ''}`).join(' ').toLowerCase()
+                    : '';
+                const aggregate = `${textName} ${textDesc} ${textItems}`.trim();
+                const isSingleWord = !/\s/.test(query);
+                if (isSingleWord) {
+                    const excluded = aggregate.includes(`semi ${query}`) || aggregate.includes(`semi-${query}`);
+                    if (excluded) {
+                        matchesSearchFinal = false;
+                    } else {
+                        const tokens = aggregate.split(/[^a-z0-9]+/i).filter(Boolean);
+                        matchesSearchFinal = tokens.includes(query);
+                    }
+                } else {
+                    matchesSearchFinal = aggregate.includes(query);
+                }
+            } else {
+                if (query === 'micro') {
+                    const textName = (product.name || '').toLowerCase();
+                    const textDesc = (product.description || '').toLowerCase();
+                    const textItems = product.formType === 'shop-listing'
+                        ? (product.items || []).map(i => `${i.itemName || ''} ${i.description || ''}`).join(' ').toLowerCase()
+                        : '';
+                    const aggregate = `${textName} ${textDesc} ${textItems}`.trim();
+                    const excluded = aggregate.includes('semi micro') || aggregate.includes('semi-micro');
+                    matchesSearchFinal = !excluded;
+                } else {
+                    matchesSearchFinal = true;
+                }
+            }
 
-        // Category filtering is now handled by the backend
-        let matchesCategory = true;
-        // if (selectedCategory === 'All') {
-        //     matchesCategory = true;
-        // } else {
-        //    // Logic moved to backend
-        // }
+            // Category filtering handled by backend
+            let matchesCategory = true;
 
-        // Price Filter Logic
-        let matchesPrice = true;
-        const price = Number(product.price);
-        if (selectedPriceRange) {
-            if (selectedPriceRange.min !== null && price < selectedPriceRange.min) matchesPrice = false;
-            if (selectedPriceRange.max !== null && price > selectedPriceRange.max) matchesPrice = false;
-        } else if (customPriceRange.min || customPriceRange.max) {
-            if (customPriceRange.min && price < Number(customPriceRange.min)) matchesPrice = false;
-            if (customPriceRange.max && price > Number(customPriceRange.max)) matchesPrice = false;
-        }
+            // Price Filter Logic
+            let matchesPrice = true;
+            const price = Number(product.price);
+            if (selectedPriceRange) {
+                if (selectedPriceRange.min !== null && price < selectedPriceRange.min) matchesPrice = false;
+                if (selectedPriceRange.max !== null && price > selectedPriceRange.max) matchesPrice = false;
+            } else if (customPriceRange.min || customPriceRange.max) {
+                if (customPriceRange.min && price < Number(customPriceRange.min)) matchesPrice = false;
+                if (customPriceRange.max && price > Number(customPriceRange.max)) matchesPrice = false;
+            }
 
-        // Business Credential Filter Logic
-        let matchesCredentials = true;
-        if (businessCredentials.gst && !product.vendorId?.gstNumber) {
-            matchesCredentials = false;
-        }
+            // Business Credential Filter Logic
+            let matchesCredentials = true;
+            if (businessCredentials.gst && !product.vendorId?.gstNumber) {
+                matchesCredentials = false;
+            }
 
-        // Attribute Filters (Pattern, Fabric, Color) - Now handled by Backend
-        // const pAttrs = getProductAttributes(product);
-        // if (selectedPattern && !pAttrs.some(a => a.name === 'Pattern' && a.value === selectedPattern)) return false;
-        // if (selectedFabric && !pAttrs.some(a => a.name === 'Fabric' && a.value === selectedFabric)) return false;
-
-        return matchesSearchFinal && matchesCategory && matchesPrice && matchesCredentials;
-    });
+            return matchesSearchFinal && matchesCategory && matchesPrice && matchesCredentials;
+        });
 
     const openInquiry = (product) => {
         if (!isAuthenticated) {
@@ -1214,6 +1320,10 @@ const ProductCatalog = () => {
             }
             if (newParams.has('strict')) {
                 newParams.delete('strict');
+                changed = true;
+            }
+            if (newParams.has('shopOnly')) {
+                newParams.delete('shopOnly');
                 changed = true;
             }
             if (changed) {
@@ -1261,6 +1371,7 @@ const ProductCatalog = () => {
         } else {
             newParams.delete('search');
             newParams.delete('strict');
+            newParams.delete('shopOnly');
         }
         setSearchParams(newParams, { replace: true });
     };
@@ -1286,6 +1397,35 @@ const ProductCatalog = () => {
     const filteredMarketsList = marketSearchQuery
         ? (availableMarketsFromStore || availableMarkets).filter(market => market.toLowerCase().includes(marketSearchQuery.toLowerCase()))
         : (availableMarketsFromStore || availableMarkets);
+
+    // Sync businessType params to URL so they can be cleared correctly
+    useEffect(() => {
+        const newParams = new URLSearchParams(searchParams);
+        if (selectedBusinessType) newParams.set('businessType', selectedBusinessType);
+        else newParams.delete('businessType');
+        if (selectedBusinessSubType) newParams.set('businessSubType', selectedBusinessSubType);
+        else newParams.delete('businessSubType');
+        setSearchParams(newParams, { replace: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedBusinessType, selectedBusinessSubType]);
+
+    // Sync category/subcategory in URL and clear when reset/collapse
+    useEffect(() => {
+        const newParams = new URLSearchParams(searchParams);
+        if (selectedCategory && selectedCategory !== 'All') {
+            newParams.set('category', selectedCategory);
+        } else {
+            newParams.delete('category');
+            newParams.delete('subcategory');
+        }
+        if (selectedSubcategory) {
+            newParams.set('subcategory', selectedSubcategory);
+        } else {
+            newParams.delete('subcategory');
+        }
+        setSearchParams(newParams, { replace: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedCategory, selectedSubcategory, expandedCategory]);
 
     const headerBusinessTypeDropdown = (
         <div className="relative" ref={businessTypeDropdownRef}>
@@ -1388,56 +1528,212 @@ const ProductCatalog = () => {
                 customNav={headerBusinessTypeDropdown}
             />
 
-            {/* Sticky Mobile Filter Bar */}
-            <div className="lg:hidden sticky top-[65px] z-[45] bg-white/95 backdrop-blur-md border-b border-gray-100 flex items-center shadow-sm">
-                <button
-                    onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
-                    className="flex-1 py-3 flex flex-col items-center gap-1 border-r border-gray-50 active:bg-gray-50 transition-colors"
-                >
-                    <FiGrid className="text-primary-600" size={18} />
-                    <span className="text-[9px] font-black uppercase tracking-tighter">Categories</span>
-                </button>
-                <button
-                    onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                    className="flex-1 py-3 flex flex-col items-center gap-1 border-r border-gray-50 active:bg-gray-50 transition-colors"
-                >
-                    <FiMapPin className="text-primary-600" size={18} />
-                    <span className="text-[9px] font-black uppercase tracking-tighter truncate max-w-[70px]">
-                        {selectedCity === 'All Cities' ? 'Location' : selectedCity}
-                    </span>
-                </button>
-                <button
-                    onClick={() => setIsMobileFilterOpen(true)}
-                    className="flex-1 py-3 flex flex-col items-center gap-1 active:bg-gray-50 transition-colors"
-                >
-                    <div className="relative">
-                        <FiFilter className={selectedPriceRange || customPriceRange.min ? 'text-primary-600' : 'text-gray-400'} size={18} />
-                        {(selectedPriceRange || customPriceRange.min) && (
-                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                        )}
+            {/* Mobile: Search bar in place of chips */}
+            <div className="md:hidden px-4 py-3 bg-white border-b border-gray-50">
+                <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 py-1 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
+                    <FiSearch className="text-gray-400 mr-2" size={16} />
+                    <input
+                        type="text"
+                        placeholder="SEARCH PRODUCTS AND SHOPS"
+                        className="w-full bg-transparent py-1.5 text-[10px] font-bold text-gray-700 outline-none placeholder:text-gray-400 h-9 uppercase tracking-tight"
+                        value={searchQuery}
+                        onChange={(e) => handleHeaderSearchChange(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleHeaderSearchSubmit(searchQuery, true)}
+                    />
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                    <button
+                        onClick={() => setIsMobileFilterOpen(true)}
+                        className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center"
+                    >
+                        Filters
+                    </button>
+                    <button
+                        onClick={() => setIsMainCategoryDropdownOpen(true)}
+                        className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center"
+                    >
+                        Category
+                    </button>
+                    <button
+                        onClick={() => setIsCityDropdownOpen(true)}
+                        className="w-full px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border bg-white text-gray-700 border-gray-200 text-center"
+                    >
+                        City
+                    </button>
+                </div>
+                {isCityDropdownOpen && (
+                    <div className="md:hidden fixed inset-0 z-[70] bg-black/40" onClick={() => setIsCityDropdownOpen(false)}>
+                        <div
+                            className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[65vh] overflow-hidden shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Select City</span>
+                                <button onClick={() => setIsCityDropdownOpen(false)} className="text-xs font-bold text-gray-400">Close</button>
+                            </div>
+                            <div className="relative mb-3">
+                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Search city..."
+                                    className="w-full pl-8 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold focus:ring-1 focus:ring-primary-500 outline-none"
+                                    value={citySearchQuery}
+                                    onChange={(e) => setCitySearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2 max-h-[52vh] overflow-y-auto custom-scrollbar pr-1">
+                                <button
+                                    onClick={() => {
+                                        setSelectedCity('All Cities');
+                                        setIsCityDropdownOpen(false);
+                                        setCitySearchQuery('');
+                                    }}
+                                    className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${selectedCity === 'All Cities' ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-700'}`}
+                                >
+                                    ALL CITIES
+                                </button>
+                                {filteredCitiesList.length > 0 ? (
+                                    filteredCitiesList.map((city, index) => (
+                                        <button
+                                            key={`${city}-${index}`}
+                                            onClick={() => {
+                                                setSelectedCity(city);
+                                                setIsCityDropdownOpen(false);
+                                                setCitySearchQuery('');
+                                            }}
+                                            className={`w-full px-4 py-2 text-left text-[10px] font-bold rounded-lg transition-colors ${selectedCity === city ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-700'}`}
+                                        >
+                                            {city.toUpperCase()}
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="px-2 py-8 text-center text-[10px] text-gray-400 font-bold">NO CITIES FOUND</div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    <span className="text-[9px] font-black uppercase tracking-tighter">Filters</span>
-                </button>
-            </div>
-
-            {/* Mobile Quick Navigation Shortcuts */}
-            <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar px-4 py-3 bg-white border-b border-gray-50">
-                <Link
-                    to="/b2b/catalog?itemType=lotslot"
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap text-[10px] font-black uppercase tracking-wider transition-all border ${selectedItemType === 'lotslot'
-                        ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100'
-                        : 'bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600'}`}
-                >
-                    <FiTrendingUp size={14} className={selectedItemType === 'lotslot' ? 'text-white' : 'text-primary-600'} />
-                    Lot / SOT
-                </Link>
-                <Link
-                    to="/b2b/real-estate"
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap text-[10px] font-black uppercase tracking-wider bg-white text-gray-400 border border-gray-100 hover:border-primary-300 hover:text-primary-600 transition-all font-bold"
-                >
-                    <FiHome size={14} className="text-primary-600" />
-                    Real Estate
-                </Link>
+                )}
+                {isMainCategoryDropdownOpen && (
+                    <div className="md:hidden fixed inset-0 z-[70] bg-black/40" onClick={() => setIsMainCategoryDropdownOpen(false)}>
+                        <div
+                            className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Browse Categories</span>
+                                <button onClick={() => setIsMainCategoryDropdownOpen(false)} className="text-xs font-bold text-gray-400">Close</button>
+                            </div>
+                            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
+                                <button
+                                    className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${selectedCategory === 'All' ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-700'}`}
+                                    onClick={() => {
+                                        setSelectedCategory('All');
+                                        setSelectedSubcategory(null);
+                                        setExpandedCategory(null);
+                                        setIsMainCategoryDropdownOpen(false);
+                                    }}
+                                >
+                                    ALL
+                                </button>
+                                {categories.filter(c => c.name !== 'All').map((cat) => (
+                                    <div key={cat.name} className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                                        <button
+                                            className={`w-full flex items-center justify-between px-4 py-2 text-[10px] font-black uppercase tracking-wider ${expandedCategory === cat.name ? 'bg-primary-50 text-primary-600' : 'text-gray-700'}`}
+                                            onClick={() => {
+                                                handleCategoryClick(cat.name);
+                                            }}
+                                        >
+                                            <span>{cat.name}</span>
+                                            <FiChevronRight className={`text-gray-400 transition-transform ${expandedCategory === cat.name ? 'rotate-90' : ''}`} />
+                                        </button>
+                                        {expandedCategory === cat.name && cat.subcategories?.length > 0 && (
+                                            <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
+                                                {cat.subcategories.map((sub) => (
+                                                    <button
+                                                        key={sub}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedSubcategory === sub ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-200'}`}
+                                                        onClick={() => {
+                                                            handleSubcategoryClick(sub, cat.name);
+                                                            setIsMainCategoryDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        {sub}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {isBusinessTypeDropdownOpen && (
+                    <div className="md:hidden fixed inset-0 z-[70] bg-black/40" onClick={() => setIsBusinessTypeDropdownOpen(false)}>
+                        <div
+                            className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl p-4 max-h-[70vh] overflow-hidden shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Business Type</span>
+                                <button onClick={() => setIsBusinessTypeDropdownOpen(false)} className="text-xs font-bold text-gray-400">Close</button>
+                            </div>
+                            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar pr-1 space-y-2">
+                                <button
+                                    className={`w-full px-4 py-2 text-left text-[10px] font-black rounded-lg transition-colors ${!selectedBusinessType ? 'bg-primary-50 text-primary-600' : 'bg-gray-50 text-gray-700'}`}
+                                    onClick={() => {
+                                        setSelectedBusinessType(null);
+                                        setSelectedBusinessSubType(null);
+                                        setIsBusinessTypeDropdownOpen(false);
+                                        setMobileExpandedBusinessType(null);
+                                    }}
+                                >
+                                    ALL BUSINESS TYPES
+                                </button>
+                                {businessTypes
+                                    .filter(type => {
+                                        const name = (type.name || '').toUpperCase().trim();
+                                        if (name === 'DEVELOPER' || name === 'PROPERTY BROKER') return false;
+                                        if (selectedItemType === 'lotslot' && name === 'PACKING MATERIAL') return false;
+                                        return true;
+                                    })
+                                    .map((type) => (
+                                        <div key={type._id} className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                                            <button
+                                                className={`w-full flex items-center justify-between px-4 py-2 text-[10px] font-black uppercase tracking-wider ${mobileExpandedBusinessType === type.name ? 'bg-primary-50 text-primary-600' : 'text-gray-700'}`}
+                                                onClick={() => {
+                                                    setSelectedBusinessType(type.name);
+                                                    setSelectedBusinessSubType(null);
+                                                    setMobileExpandedBusinessType(prev => prev === type.name ? null : type.name);
+                                                }}
+                                            >
+                                                <span>{type.name}</span>
+                                                <FiChevronRight className={`text-gray-400 transition-transform ${mobileExpandedBusinessType === type.name ? 'rotate-90' : ''}`} />
+                                            </button>
+                                            {mobileExpandedBusinessType === type.name && type.subTypes && type.subTypes.length > 0 && (
+                                                <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
+                                                    {type.subTypes.map((sub, idx) => (
+                                                        <button
+                                                            key={`${type._id}-${idx}`}
+                                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedBusinessSubType === sub ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-200'}`}
+                                                            onClick={() => {
+                                                                setSelectedBusinessSubType(sub);
+                                                                setIsBusinessTypeDropdownOpen(false);
+                                                                setMobileExpandedBusinessType(null);
+                                                            }}
+                                                        >
+                                                            {sub}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <main className="max-w-7xl mx-auto px-4 py-4 md:py-8">
@@ -1540,10 +1836,12 @@ const ProductCatalog = () => {
                         </div>
                     </div>
 
+                    {/* Mobile search already rendered above */}
+
                     {/* Main Category Dropdown Selection */}
                     <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
                         {(!isBigTextilePlayer || selectedItemType === 'lotslot') && (
-                            <div className="relative w-full md:w-72" ref={mainCategoryDropdownRef}>
+                            <div className="relative hidden md:block md:w-72" ref={mainCategoryDropdownRef}>
                                 <button
                                     onClick={() => setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)}
                                     className={`flex items-center justify-between gap-3 px-6 py-3.5 md:py-4 bg-white border rounded-xl md:rounded-2xl text-[11px] md:text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${selectedCategory !== 'All' ? 'border-primary-200 text-primary-600 bg-primary-50/20' : 'border-gray-200 text-gray-700'
@@ -1728,6 +2026,7 @@ const ProductCatalog = () => {
                                             setSearchQuery('');
                                             const newParams = new URLSearchParams(searchParams);
                                             newParams.delete('search');
+                                            newParams.delete('shopOnly');
                                             setSearchParams(newParams);
                                         }}
                                         className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-primary-700 transition-all"
@@ -1765,10 +2064,56 @@ const ProductCatalog = () => {
                                         {/* Products Section */}
                                         {filteredProducts.length > 0 && (
                                             <div className="space-y-6">
-                                                <div className="flex items-center gap-4">
-                                                    <span className="h-[2px] w-12 bg-gray-600"></span>
-                                                    <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">Matching Products</h3>
-                                                    <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase">{filteredProducts.length} ITEM{filteredProducts.length > 1 ? 'S' : ''}</span>
+                                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="h-[2px] w-12 bg-gray-600"></span>
+                                                        <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">Matching Products</h3>
+                                                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] font-black uppercase">{filteredProducts.length} ITEM{filteredProducts.length > 1 ? 'S' : ''}</span>
+                                                    </div>
+
+                                                    {/* Price Sort Dropdown for search results */}
+                                                    <div className="relative" ref={sortDropdownRef}>
+                                                        <button
+                                                            onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                                                            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-600 shadow-sm hover:border-primary-200 transition-all"
+                                                        >
+                                                            <FiTrendingUp className="text-primary-600" />
+                                                            <span>Sort: {getSortLabel()}</span>
+                                                            <FiChevronDown className={`transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
+                                                        </button>
+
+                                                        <AnimatePresence>
+                                                            {isSortDropdownOpen && (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                    className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden"
+                                                                >
+                                                                    <div className="p-1">
+                                                                        <button
+                                                                            onClick={() => handleSortChange('createdAt', 'desc')}
+                                                                            className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'createdAt' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                                        >
+                                                                            Newest First
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleSortChange('price', 'asc')}
+                                                                            className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'price' && sortOrder === 'asc' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                                        >
+                                                                            Price: Low to High
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleSortChange('price', 'desc')}
+                                                                            className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'price' && sortOrder === 'desc' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                                        >
+                                                                            Price: High to Low
+                                                                        </button>
+                                                                    </div>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
                                                 </div>
                                                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                                                     {filteredProducts.map((product) => (
@@ -1785,15 +2130,68 @@ const ProductCatalog = () => {
                                     </div>
                                 ) : (
                                     /* Normal Display (No Search or Empty Search) */
-                                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                                        {filteredProducts.map((product) => (
-                                            <B2BProductCard
-                                                key={product._id}
-                                                product={product}
-                                                trackContactClick={trackContactClick}
-                                                itemType={selectedItemType}
-                                            />
-                                        ))}
+                                    <div className="space-y-6">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div className="flex items-center gap-4">
+                                                <span className="h-[2px] w-12 bg-primary-600"></span>
+                                                <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">Marketplace</h3>
+                                                <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-[10px] font-black uppercase">{filteredProducts.length} ITEM{filteredProducts.length > 1 ? 'S' : ''}</span>
+                                            </div>
+
+                                            {/* Price Sort Dropdown */}
+                                            <div className="relative" ref={sortDropdownRef}>
+                                                <button
+                                                    onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-600 shadow-sm hover:border-primary-200 transition-all"
+                                                >
+                                                    <FiTrendingUp className="text-primary-600" />
+                                                    <span>Sort: {getSortLabel()}</span>
+                                                    <FiChevronDown className={`transition-transform duration-200 ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
+                                                </button>
+
+                                                <AnimatePresence>
+                                                    {isSortDropdownOpen && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                            className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden"
+                                                        >
+                                                            <div className="p-1">
+                                                                <button
+                                                                    onClick={() => handleSortChange('createdAt', 'desc')}
+                                                                    className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'createdAt' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                                >
+                                                                    Newest First
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleSortChange('price', 'asc')}
+                                                                    className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'price' && sortOrder === 'asc' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                                >
+                                                                    Price: Low to High
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleSortChange('price', 'desc')}
+                                                                    className={`w-full text-left px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'price' && sortOrder === 'desc' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                                >
+                                                                    Price: High to Low
+                                                                </button>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                                            {filteredProducts.map((product) => (
+                                                <B2BProductCard
+                                                    key={product._id}
+                                                    product={product}
+                                                    trackContactClick={trackContactClick}
+                                                    itemType={selectedItemType}
+                                                />
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -1837,6 +2235,46 @@ const ProductCatalog = () => {
                                 </button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar pb-32">
+                                {/* Mobile: Browse Categories block on top */}
+                                <div className="mb-6 lg:hidden">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-500">Browse Categories</h4>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{selectedCategory}</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <button
+                                            className={`w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-wider ${selectedCategory === 'All' ? 'text-primary-600' : 'text-gray-700'}`}
+                                            onClick={() => { setSelectedCategory('All'); setSelectedSubcategory(null); setExpandedCategory(null); }}
+                                        >
+                                            <span>All</span>
+                                            <FiChevronRight className="text-gray-400" />
+                                        </button>
+                                        {categories.filter(c => c.name !== 'All').map((cat) => (
+                                            <div key={cat.name} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+                                                <button
+                                                    className={`w-full flex items-center justify-between px-4 py-3 text-[10px] font-black uppercase tracking-wider ${expandedCategory === cat.name ? 'bg-primary-50 text-primary-600' : 'text-gray-700'}`}
+                                                    onClick={() => handleCategoryClick(cat.name)}
+                                                >
+                                                    <span>{cat.name}</span>
+                                                    <FiChevronRight className={`text-gray-400 transition-transform ${expandedCategory === cat.name ? 'rotate-90' : ''}`} />
+                                                </button>
+                                                {expandedCategory === cat.name && cat.subcategories?.length > 0 && (
+                                                    <div className="px-3 pb-3 pt-1 grid grid-cols-2 gap-2">
+                                                        {cat.subcategories.map((sub) => (
+                                                            <button
+                                                                key={sub}
+                                                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border ${selectedSubcategory === sub ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-200'}`}
+                                                                onClick={() => { handleSubcategoryClick(sub, cat.name); }}
+                                                            >
+                                                                {sub}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                                 {renderFilters()}
                             </div>
                             <div className="p-6 border-t border-gray-100 bg-white sticky bottom-0">

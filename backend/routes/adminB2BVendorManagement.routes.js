@@ -5,7 +5,9 @@ import {
     removeB2BVendor,
     getSignedDocumentUrl,
     updateStatus,
-    getVendor
+    getVendor,
+    toggleActive,
+    getVendorDashboardForAdmin
 } from '../controllers/vendorManagement.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
@@ -22,6 +24,8 @@ router.post('/document-url', asyncHandler(getSignedDocumentUrl));
 router.get('/', asyncHandler(getB2BVendorsList));
 router.get('/pending', asyncHandler(getPendingB2BVendors));
 router.put('/:id/status', asyncHandler(updateStatus));
+router.patch('/:id/toggle-active', asyncHandler(toggleActive));
+router.get('/:id/dashboard', asyncHandler(getVendorDashboardForAdmin));
 router.get('/:id', asyncHandler(getVendor));
 router.delete('/:id', asyncHandler(removeB2BVendor));
 

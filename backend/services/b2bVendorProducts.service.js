@@ -371,8 +371,12 @@ export const createB2BVendorProduct = async (productData, vendorId) => {
     };
 
     const processShopItemsTask = async () => {
-      if (!shopItems || !Array.isArray(shopItems)) return [];
-      const itemPromises = shopItems.map(async (item) => {
+      if (!shopItems || !Array.isArray(shopItems) || shopItems.length === 0) return [];
+
+      // Only process the first item for shop listing
+      const itemsToProcess = shopItems.slice(0, 1);
+
+      const itemPromises = itemsToProcess.map(async (item) => {
         const itemImageUrls = [];
         const itemPublicIds = [];
         if (item.images && Array.isArray(item.images)) {
@@ -567,21 +571,23 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
 
       if (shopItems !== undefined && Array.isArray(shopItems)) {
         const processedShopItems = [];
-        for (const item of shopItems) {
+        // Only process the first item
+        const itemsToUpdate = shopItems.slice(0, 1);
+
+        for (const item of itemsToUpdate) {
           const itemImageUrls = [];
           const itemPublicIds = [];
 
           if (item.images && Array.isArray(item.images)) {
             for (const img of item.images) {
-              if (img.startsWith('http')) {
+              if (typeof img === 'string' && img.startsWith('http')) {
                 itemImageUrls.push(img);
-                // Try to find existing public ID if needed, but for simplicity:
                 const existingItem = existingProduct.items.find(ei => ei.images.includes(img));
                 if (existingItem) {
                   const pid = existingItem.imagesPublicIds[existingItem.images.indexOf(img)];
                   if (pid) itemPublicIds.push(pid);
                 }
-              } else if (img.startsWith('data:image')) {
+              } else if (typeof img === 'string' && img.startsWith('data:image')) {
                 const res = await uploadBase64ToCloudinary(img, 'products/b2b/items');
                 if (res && res.secure_url) {
                   itemImageUrls.push(res.secure_url);
@@ -670,11 +676,11 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
         specifications.forEach(spec => {
           if (!spec.name || !spec.value) return;
 
-        processedAttributes.push({
-          attributeName: spec.name,
-          name: spec.name,
-          value: spec.value,
-        });
+          processedAttributes.push({
+            attributeName: spec.name,
+            name: spec.name,
+            value: spec.value,
+          });
         });
       }
 
@@ -687,7 +693,7 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
     if (availability !== undefined || payloadStockQuantity !== undefined) {
       let stock = productData.stock || existingProduct.stock || 'in_stock';
       let stockQuantity = payloadStockQuantity !== undefined ? parseInt(payloadStockQuantity) : (updateData.minimumOrderQuantity || existingProduct.minimumOrderQuantity || 1);
-      
+
       if (availability === 'Out of Stock') {
         stock = 'out_of_stock';
         stockQuantity = 0;
@@ -698,7 +704,7 @@ export const updateB2BVendorProduct = async (productId, productData, vendorId) =
         // If stock was previously 0, reset it to at least MOQ
         if (stockQuantity <= 0) stockQuantity = updateData.minimumOrderQuantity || existingProduct.minimumOrderQuantity || 1;
       }
-      
+
       updateData.stock = stock;
       updateData.stockQuantity = stockQuantity;
       updateData.isVisible = stock !== 'out_of_stock';

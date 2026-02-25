@@ -12,7 +12,7 @@ export const getMyUnit = async (req, res, next) => {
 
 export const createOrUpdateUnit = async (req, res, next) => {
     try {
-        const { name, description, images, minPrice, maxPrice } = req.body;
+        const { name, description, images, minPrice, maxPrice, details } = req.body;
         const vendorId = req.user.vendorId;
 
         let shop = await ShopUnit.findOne({ vendorId });
@@ -35,6 +35,7 @@ export const createOrUpdateUnit = async (req, res, next) => {
         const shopData = {
             name: name.trim(),
             description,
+            details: Array.isArray(details) ? details : [],
             images: imageUrls,
             imagesPublicIds: imagePublicIds,
             minPrice: minPrice ? parseFloat(minPrice) : 0,

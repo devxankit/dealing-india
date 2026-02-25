@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 import { useB2BLocationStore } from '../../../shared/store/b2bLocationStore';
-import { FiFilter, FiSearch, FiX, FiCheck, FiMapPin, FiChevronDown, FiBriefcase, FiDollarSign, FiHome } from 'react-icons/fi';
+import { FiFilter, FiSearch, FiX, FiCheck, FiMapPin, FiChevronDown, FiBriefcase, FiDollarSign, FiHome, FiTrendingUp } from 'react-icons/fi';
 
 const RealEstate = () => {
     const navigate = useNavigate();
@@ -18,7 +18,12 @@ const RealEstate = () => {
     const [matchingVendors, setMatchingVendors] = useState([]);
     const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
     const [selectedCity, setSelectedCity] = useState('All Cities');
-    const [selectedBusinessType, setSelectedBusinessType] = useState('All');
+    const [selectedBusinessType, setSelectedBusinessType] = useState(() => {
+        const t = (searchParams.get('type') || '').toLowerCase();
+        if (t === 'developer') return 'Developer';
+        if (t === 'broker') return 'Broker';
+        return 'All';
+    });
     const [isPriceFilterOpen, setIsPriceFilterOpen] = useState(false);
     const [priceRange, setPriceRange] = useState({ min: '', max: '' });
     const [appliedPrice, setAppliedPrice] = useState({ min: '', max: '' });
@@ -38,6 +43,9 @@ const RealEstate = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
     const [selectedVendorId, setSelectedVendorId] = useState(searchParams.get('vendorId') || '');
+    const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'createdAt');
+    const [sortOrder, setSortOrder] = useState(searchParams.get('sortOrder') || 'desc');
+    const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
 
     const { states: availableStates, areas: availableAreas, markets: availableMarketsFromStore, initialize: fetchLocations } = useB2BLocationStore();
     const [citySearchQuery, setCitySearchQuery] = useState('');
@@ -60,6 +68,13 @@ const RealEstate = () => {
     const toggleSection = (section) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
+    
+    useEffect(() => {
+        const t = (searchParams.get('type') || '').toLowerCase();
+        if (t === 'developer') setSelectedBusinessType('Developer');
+        else if (t === 'broker') setSelectedBusinessType('Broker');
+        else setSelectedBusinessType(prev => prev); // keep current if no type provided
+    }, [searchParams]);
 
     const fetchProperties = async () => {
         setLoading(true);
@@ -77,48 +92,57 @@ const RealEstate = () => {
                 areaUnit: selectedAreaUnit === 'All' ? '' : selectedAreaUnit,
                 priceUnit: selectedPriceUnit === 'All' ? '' : selectedPriceUnit,
                 listingType: selectedListingType,
-                vendorId: selectedVendorId
+                vendorId: selectedVendorId,
+                sortBy,
+                sortOrder
             };
             const response = await api.get('/property/all', { params });
             if (response?.success) {
                 setProperties(response.data);
                 setMatchingVendors(response.matchingVendors || []);
 
-                // Extract unique areas from properties' vendors - matches card display showing vendor's area
+                // Extract unique areas from properties (from property form)
                 const areasSet = new Set();
                 if (Array.isArray(response.data)) {
                     response.data.forEach(property => {
-                        const area = property.vendorId?.address?.area;
+                        const area = property.location?.area;
                         if (area && String(area).trim()) {
                             areasSet.add(area.trim());
                         }
                     });
                 }
-                if (areasSet.size > 0) setPropertyDerivedAreas(Array.from(areasSet).sort());
+                if (selectedArea === 'All Areas' && areasSet.size > 0) {
+                    setPropertyDerivedAreas(Array.from(areasSet).sort());
+                }
 
-                // Extract cities from vendors (only cities where active Developer/Property Broker are present)
+                // Extract cities from properties (from property form)
                 const citiesSet = new Set();
                 if (Array.isArray(response.data)) {
                     response.data.forEach(property => {
-                        const city = property.vendorId?.address?.city;
+                        const city = property.location?.city;
                         if (city && String(city).trim()) {
                             citiesSet.add(city.trim());
                         }
                     });
                 }
-                if (citiesSet.size > 0) setPropertyDerivedCities(Array.from(citiesSet).sort());
+                // Keep city chips stable when a specific city is selected
+                if (selectedCity === 'All Cities' && citiesSet.size > 0) {
+                    setPropertyDerivedCities(Array.from(citiesSet).sort());
+                }
 
-                // Extract markets from vendors
+                // Extract markets from properties (from property form)
                 const marketsSet = new Set();
                 if (Array.isArray(response.data)) {
                     response.data.forEach(property => {
-                        const market = property.vendorId?.address?.market;
+                        const market = property.location?.market;
                         if (market && String(market).trim()) {
                             marketsSet.add(market.trim());
                         }
                     });
                 }
-                if (marketsSet.size > 0) setPropertyDerivedMarkets(Array.from(marketsSet).sort());
+                if (selectedMarket === 'All Markets' && marketsSet.size > 0) {
+                    setPropertyDerivedMarkets(Array.from(marketsSet).sort());
+                }
             }
         } catch (error) {
             console.error('[Fetch Properties Error]:', error);
@@ -133,7 +157,7 @@ const RealEstate = () => {
             fetchProperties();
         }, 500);
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedCity, selectedArea, selectedMarket, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId]);
+    }, [searchQuery, selectedCity, selectedArea, selectedMarket, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId, sortBy, sortOrder]);
 
     // Sync URL searchParams to local state for back/forward navigation and external links
     useEffect(() => {
@@ -202,15 +226,13 @@ const RealEstate = () => {
             .sort();
     }, [availableStates]);
 
-    // City options: property-derived + store-derived (filtered by Developer/Property Broker)
+    // City options: ONLY property-derived (from property form)
     const cities = useMemo(() => {
-        const combined = [
-            ...(propertyDerivedCities || []),
-            ...uniqueCitiesFromStore
-        ];
-        const unique = Array.from(new Set(combined.map(c => c.trim()))).filter(Boolean).sort();
+        const unique = Array.from(new Set((propertyDerivedCities || []).map(c => (c || '').trim())))
+            .filter(Boolean)
+            .sort();
         return ['All Cities', ...unique];
-    }, [propertyDerivedCities, uniqueCitiesFromStore]);
+    }, [propertyDerivedCities]);
 
     const filteredCities = useMemo(() => {
         if (!citySearchQuery) return cities;
@@ -311,6 +333,19 @@ const RealEstate = () => {
         setSizeRange({ min: '', max: '' });
         setAppliedSize({ min: '', max: '' });
         setSelectedVendorId('');
+        setSortBy('createdAt');
+        setSortOrder('desc');
+    };
+
+    const handleSortChange = (newSortBy, newSortOrder) => {
+        setSortBy(newSortBy);
+        setSortOrder(newSortOrder);
+        setIsSortDropdownOpen(false);
+
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('sortBy', newSortBy);
+        newParams.set('sortOrder', newSortOrder);
+        setSearchParams(newParams, { replace: true });
     };
 
     const renderFilters = (showCity = true) => (
@@ -602,7 +637,7 @@ const RealEstate = () => {
                                 <div>
                                     <p className="text-[9px] font-black text-gray-400 uppercase mb-2 tracking-tighter">Denomination</p>
                                     <div className="grid grid-cols-2 gap-2">
-                                        {['All', 'Thousand', 'Lakh', 'Crore'].map(unit => (
+                                        {['All', 'Rs', 'Thousand', 'Lakh', 'Crore'].map(unit => (
                                             <button
                                                 key={unit}
                                                 onClick={() => setSelectedPriceUnit(unit)}
@@ -617,7 +652,7 @@ const RealEstate = () => {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Value {selectedPriceUnit !== 'All' ? `(${selectedPriceUnit}s)` : '(Lakhs)'}</p>
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Value {selectedPriceUnit !== 'All' ? `(${selectedPriceUnit}${selectedPriceUnit === 'Rs' ? '' : 's'})` : '(Lakhs)'}</p>
                                     <input
                                         type="number"
                                         placeholder="Min"
@@ -745,7 +780,6 @@ const RealEstate = () => {
                     }
                     setSearchParams(newParams, { replace: true });
                 }}
-                searchPlaceholder="SEARCH PROPERTY AND OFFICE"
                 suggestionEndpoint="/property/suggestions"
             />
 
@@ -982,84 +1016,135 @@ const RealEstate = () => {
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-3">
-                                <AnimatePresence>
-                                    {selectedBusinessType !== 'All' && (
-                                        <motion.span
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: 20 }}
-                                            className="px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
-                                        >
-                                            {selectedBusinessType}
-                                            <FiX className="cursor-pointer hover:text-white/80 transition-colors" onClick={() => setSelectedBusinessType('All')} />
-                                        </motion.span>
-                                    )}
-                                    {selectedListingType !== 'All' && (
-                                        <motion.span
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: 20 }}
-                                            className="px-4 py-2 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
-                                        >
-                                            {selectedListingType}
-                                            <FiX className="cursor-pointer hover:text-primary-400 transition-colors" onClick={() => setSelectedListingType('All')} />
-                                        </motion.span>
-                                    )}
-                                    {selectedArea !== 'All Areas' && (
-                                        <motion.span
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: 20 }}
-                                            className="px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
-                                        >
-                                            {selectedArea}
-                                            <FiX className="cursor-pointer hover:text-white/80 transition-colors" onClick={() => setSelectedArea('All Areas')} />
-                                        </motion.span>
-                                    )}
-                                    {(appliedPrice.min || appliedPrice.max) && (
-                                        <motion.span
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: 20 }}
-                                            className="px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg shadow-primary-100"
-                                        >
-                                            ₹ {appliedPrice.min || '0'}L - {appliedPrice.max || '∞'}L
-                                            <FiX className="cursor-pointer" onClick={() => { setPriceRange({ min: '', max: '' }); setAppliedPrice({ min: '', max: '' }); }} />
-                                        </motion.span>
-                                    )}
-                                    {selectedPriceUnit !== 'All' && (
-                                        <motion.span
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: 20 }}
-                                            className="px-4 py-2 bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
-                                        >
-                                            {selectedPriceUnit}s
-                                            <FiX className="cursor-pointer hover:text-white/80 transition-colors" onClick={() => setSelectedPriceUnit('All')} />
-                                        </motion.span>
-                                    )}
-                                    {(appliedSize.min || appliedSize.max) && (
-                                        <motion.span
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: 20 }}
-                                            className="px-4 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
-                                        >
-                                            {appliedSize.min || '0'} - {appliedSize.max || '∞'} {selectedAreaUnit}
-                                            <FiX className="cursor-pointer" onClick={() => { setSizeRange({ min: '', max: '' }); setAppliedSize({ min: '', max: '' }); }} />
-                                        </motion.span>
-                                    )}
-                                </AnimatePresence>
-
-                                {(selectedListingType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All' || selectedAreaUnit !== 'All') && (
+                            <div className="flex items-center gap-4">
+                                {/* Sort Dropdown */}
+                                <div className="relative">
                                     <button
-                                        onClick={handleClearFilters}
-                                        className="text-[10px] font-black text-gray-400 hover:text-primary-600 uppercase tracking-widest border-b-2 border-transparent hover:border-primary-600 pb-1 transition-all"
+                                        onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+                                        className="px-5 py-3 bg-white border border-gray-100 rounded-2xl flex items-center gap-3 hover:border-primary-200 transition-all shadow-sm"
                                     >
-                                        Reset All
+                                        <FiTrendingUp className="text-primary-600" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-700">
+                                            {sortBy === 'price' ? (sortOrder === 'asc' ? 'Price: Low to High' : 'Price: High to Low') : 'Newest First'}
+                                        </span>
+                                        <FiChevronDown className={`text-gray-400 transition-transform ${isSortDropdownOpen ? 'rotate-180' : ''}`} />
                                     </button>
-                                )}
+
+                                    <AnimatePresence>
+                                        {isSortDropdownOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-40" onClick={() => setIsSortDropdownOpen(false)} />
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-50 z-50 overflow-hidden"
+                                                >
+                                                    <div className="p-2 space-y-1">
+                                                        <button
+                                                            onClick={() => handleSortChange('createdAt', 'desc')}
+                                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'createdAt' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                        >
+                                                            Newest First
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleSortChange('price', 'asc')}
+                                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'price' && sortOrder === 'asc' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                        >
+                                                            Price: Low to High
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleSortChange('price', 'desc')}
+                                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${sortBy === 'price' && sortOrder === 'desc' ? 'bg-primary-50 text-primary-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                                                        >
+                                                            Price: High to Low
+                                                        </button>
+                                                    </div>
+                                                </motion.div>
+                                            </>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <AnimatePresence>
+                                        {selectedBusinessType !== 'All' && (
+                                            <motion.span
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
+                                            >
+                                                {selectedBusinessType}
+                                                <FiX className="cursor-pointer hover:text-white/80 transition-colors" onClick={() => setSelectedBusinessType('All')} />
+                                            </motion.span>
+                                        )}
+                                        {selectedListingType !== 'All' && (
+                                            <motion.span
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="px-4 py-2 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
+                                            >
+                                                {selectedListingType}
+                                                <FiX className="cursor-pointer hover:text-primary-400 transition-colors" onClick={() => setSelectedListingType('All')} />
+                                            </motion.span>
+                                        )}
+                                        {selectedArea !== 'All Areas' && (
+                                            <motion.span
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="px-4 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
+                                            >
+                                                {selectedArea}
+                                                <FiX className="cursor-pointer hover:text-white/80 transition-colors" onClick={() => setSelectedArea('All Areas')} />
+                                            </motion.span>
+                                        )}
+                                        {(appliedPrice.min || appliedPrice.max) && (
+                                            <motion.span
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg shadow-primary-100"
+                                            >
+                                                ₹ {appliedPrice.min || '0'}L - {appliedPrice.max || '∞'}L
+                                                <FiX className="cursor-pointer" onClick={() => { setPriceRange({ min: '', max: '' }); setAppliedPrice({ min: '', max: '' }); }} />
+                                            </motion.span>
+                                        )}
+                                        {selectedPriceUnit !== 'All' && (
+                                            <motion.span
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="px-4 py-2 bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
+                                            >
+                                                {selectedPriceUnit}s
+                                                <FiX className="cursor-pointer hover:text-white/80 transition-colors" onClick={() => setSelectedPriceUnit('All')} />
+                                            </motion.span>
+                                        )}
+                                        {(appliedSize.min || appliedSize.max) && (
+                                            <motion.span
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="px-4 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
+                                            >
+                                                {appliedSize.min || '0'} - {appliedSize.max || '∞'} {selectedAreaUnit}
+                                                <FiX className="cursor-pointer" onClick={() => { setSizeRange({ min: '', max: '' }); setAppliedSize({ min: '', max: '' }); }} />
+                                            </motion.span>
+                                        )}
+                                    </AnimatePresence>
+
+                                    {(selectedListingType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All' || selectedAreaUnit !== 'All') && (
+                                        <button
+                                            onClick={handleClearFilters}
+                                            className="text-[10px] font-black text-gray-400 hover:text-primary-600 uppercase tracking-widest border-b-2 border-transparent hover:border-primary-600 pb-1 transition-all"
+                                        >
+                                            Reset All
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

@@ -178,6 +178,28 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                         )
                     )}
 
+                    {/* Mobile quick links beside logo */}
+                    <div className="flex md:hidden items-center gap-1 ml-1">
+                        <Link
+                            to="/b2b/catalog?itemType=lotslot"
+                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700"
+                        >
+                            Lot / SOT
+                        </Link>
+                        <Link
+                            to="/b2b/real-estate"
+                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700"
+                        >
+                            Real Estate
+                        </Link>
+                        <Link
+                            to="/b2b-vendor/register"
+                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-black text-white"
+                        >
+                            Seller
+                        </Link>
+                    </div>
+
                     {/* Desktop Extra Links Next to Logo */}
                     {/* Desktop Extra Links Next to Logo */}
                     <div className="hidden xl:flex items-center gap-2 ml-2 md:ml-4">

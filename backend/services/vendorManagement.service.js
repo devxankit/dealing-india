@@ -1,5 +1,6 @@
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
+import User from '../models/User.model.js';
 
 import redisService from './redis.service.js';
 import mongoose from 'mongoose';
@@ -186,14 +187,26 @@ export const getVendorById = async (vendorId) => {
  * @param {String} reason - Optional reason for status change
  * @returns {Promise<Object>} Updated vendor
  */
-export const updateVendorStatus = async (vendorId, status, reason = null) => {
+export const updateVendorStatus = async (vendorId, status, reason = null, isActive = null) => {
   try {
-    const validStatuses = ['pending', 'approved', 'rejected'];
-    if (!validStatuses.includes(status)) {
-      throw new Error('Invalid status. Must be one of: pending, approved, rejected');
+    const updateData = {};
+
+    if (status) {
+      const validStatuses = ['pending', 'approved', 'rejected'];
+      if (!validStatuses.includes(status)) {
+        throw new Error('Invalid status. Must be one of: pending, approved, rejected');
+      }
+      updateData.status = status;
     }
 
-    const updateData = { status };
+    if (isActive !== null && isActive !== undefined) {
+      updateData.isActive = isActive;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new Error('No valid update data provided');
+    }
+
     if (reason) {
       updateData.suspensionReason = reason;
     }
@@ -202,10 +215,25 @@ export const updateVendorStatus = async (vendorId, status, reason = null) => {
       vendorId,
       updateData,
       { new: true, runValidators: true }
-    ).lean();
+    ); // Removed lean() to access email easily if needed, but actually findByIdAndUpdate returns it
 
     if (!vendor) {
       throw new Error('Vendor not found');
+    }
+
+    // Sync isActive status with User model if it was updated
+    if (updateData.isActive !== undefined) {
+      try {
+        const userUpdateResult = await User.updateMany(
+          { email: vendor.email },
+          { isActive: updateData.isActive }
+        );
+        if (userUpdateResult.modifiedCount > 0) {
+          console.log(`[Sync] Updated ${userUpdateResult.modifiedCount} user accounts for vendor email: ${vendor.email} to isActive: ${updateData.isActive}`);
+        }
+      } catch (syncError) {
+        console.error('Failed to sync isActive status to User model:', syncError);
+      }
     }
 
     // Cache Invalidation
@@ -270,6 +298,19 @@ export const toggleVendorActive = async (vendorId) => {
 
     vendor.isActive = !vendor.isActive;
     await vendor.save();
+
+    // Sync isActive status with User model
+    try {
+      const userUpdateResult = await User.updateMany(
+        { email: vendor.email },
+        { isActive: vendor.isActive }
+      );
+      if (userUpdateResult.modifiedCount > 0) {
+        console.log(`[Sync] Toggled ${userUpdateResult.modifiedCount} user accounts for vendor email: ${vendor.email} to isActive: ${vendor.isActive}`);
+      }
+    } catch (syncError) {
+      console.error('Failed to sync isActive status to User model (toggle):', syncError);
+    }
 
     // Cache Invalidation
     try {
@@ -497,7 +538,8 @@ export const getB2BVendors = async (filters = {}) => {
             companyName: vendor.storeName || vendor.name || 'N/A',
             email: vendor.email || 'N/A',
             phone: vendor.phone || 'N/A',
-            status: vendor.status === 'approved' ? 'Active' : vendor.status === 'pending' ? 'Pending' : vendor.status || 'Inactive',
+            status: vendor.status || 'pending',
+            isActive: vendor.isActive !== undefined ? vendor.isActive : true,
             products: productCountMap.get(vendor._id.toString()) || 0,
             joinDate: vendor.createdAt ? new Date(vendor.createdAt).toISOString().split('T')[0] : null,
             gstNumber: vendor.gstNumber || 'N/A',

@@ -86,6 +86,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
 
     // Fallback if vendor name is not available
     const displayVendorName = vendor?.name || "B2B Vendor";
+    const isDashboard = location.pathname === "/b2b-vendor/dashboard";
 
     return (
         <header className="bg-white border-b border-gray-200 fixed top-0 left-0 lg:left-64 right-0 z-40">
@@ -96,7 +97,7 @@ const B2BVendorHeader = ({ onMenuClick }) => {
                         <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-0.5 truncate">{pageName}</h1>
                         <p className="text-xs text-gray-600 flex items-center gap-2 min-w-0 overflow-hidden font-medium">
                             <FiBriefcase className="text-primary-500 flex-shrink-0" />
-                            <span className="truncate block min-w-0">{displayVendorName}</span>
+                            <span className="truncate block min-w-0">{displayVendorName} {isDashboard && vendor?.storeName && <span className="text-primary-600 font-black ml-1">({vendor.storeName})</span>}</span>
                         </p>
                     </div>
                 </div>

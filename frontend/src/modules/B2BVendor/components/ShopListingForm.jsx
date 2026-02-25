@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FiUpload, FiX, FiTag, FiHome, FiLock, FiUnlock, FiEdit3, FiSave } from "react-icons/fi";
+import { FiUpload, FiX, FiTag, FiHome, FiLock, FiUnlock, FiEdit3, FiSave, FiPlus } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
@@ -13,6 +13,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         minPrice: "",
         maxPrice: "",
         images: [],
+        details: [{ name: "", post: "", mobile: "" }],
         shopUnitId: null,
     });
 
@@ -34,6 +35,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                         images: unit.images || [],
                         minPrice: unit.minPrice || "",
                         maxPrice: unit.maxPrice || "",
+                        details: unit.details?.length > 0 ? unit.details : [{ name: "", post: "", mobile: "" }],
                         shopUnitId: unit._id
                     };
                     setFormData(prev => ({ ...prev, ...shopData }));
@@ -139,6 +141,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
             minPrice: String(formData.minPrice),
             maxPrice: String(formData.maxPrice),
             images: formData.images,
+            details: formData.details.filter(d => d.name || d.post || d.mobile),
         };
 
         onSubmit(payload);
@@ -301,6 +304,98 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                             placeholder="Enter Description"
                             className={inputStyle + " resize-none min-h-[120px]"}
                         />
+                    </div>
+
+                    {/* 4. Details Section (Name, Post, Mobile) */}
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between">
+                            <label className={labelStyle}>Staff / Contact Details</label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFormData({ ...formData, details: [...formData.details, { name: "", post: "", mobile: "" }] });
+                                    setIsShopModified(true);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary-100 transition-all border border-primary-100 shadow-sm"
+                            >
+                                <FiPlus size={12} />
+                                Add Row
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            {formData.details.map((detail, idx) => (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    key={idx}
+                                    className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end group/row bg-slate-50/50 p-4 rounded-xl border border-transparent hover:border-slate-200 transition-all"
+                                >
+                                    <div className="sm:col-span-4 space-y-1.5">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Name</label>
+                                        <input
+                                            type="text"
+                                            value={detail.name}
+                                            onChange={(e) => {
+                                                const newDetails = [...formData.details];
+                                                newDetails[idx].name = e.target.value;
+                                                setFormData({ ...formData, details: newDetails });
+                                                setIsShopModified(true);
+                                            }}
+                                            placeholder="Enter Name"
+                                            className={inputStyle.replace("py-3", "py-2.5 text-sm")}
+                                        />
+                                    </div>
+                                    <div className="sm:col-span-4 space-y-1.5">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Post / Role</label>
+                                        <input
+                                            type="text"
+                                            value={detail.post}
+                                            onChange={(e) => {
+                                                const newDetails = [...formData.details];
+                                                newDetails[idx].post = e.target.value;
+                                                setFormData({ ...formData, details: newDetails });
+                                                setIsShopModified(true);
+                                            }}
+                                            placeholder="Enter Post"
+                                            className={inputStyle.replace("py-3", "py-2.5 text-sm")}
+                                        />
+                                    </div>
+                                    <div className="sm:col-span-3 space-y-1.5">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Mobile</label>
+                                        <input
+                                            type="text"
+                                            value={detail.mobile}
+                                            onChange={(e) => {
+                                                const newDetails = [...formData.details];
+                                                newDetails[idx].mobile = e.target.value;
+                                                setFormData({ ...formData, details: newDetails });
+                                                setIsShopModified(true);
+                                            }}
+                                            placeholder="Mobile No."
+                                            className={inputStyle.replace("py-3", "py-2.5 text-sm")}
+                                        />
+                                    </div>
+                                    <div className="sm:col-span-1 pb-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (formData.details.length === 1) {
+                                                    setFormData({ ...formData, details: [{ name: "", post: "", mobile: "" }] });
+                                                } else {
+                                                    setFormData({ ...formData, details: formData.details.filter((_, i) => i !== idx) });
+                                                }
+                                                setIsShopModified(true);
+                                            }}
+                                            className="w-full h-10 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Remove Row"
+                                        >
+                                            <FiX size={18} />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

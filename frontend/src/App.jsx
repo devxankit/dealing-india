@@ -46,6 +46,7 @@ const AdminB2BBannerManagement = lazyWithRetry(() => import("./modules/Admin/pag
 const AdminB2BBannerDetail = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail"));
 const AdminDefaultBannerManagement = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/DefaultBannerManagement"));
 const AdminBusinessTypeConfiguration = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/BusinessTypeConfiguration"));
+const AdminVendorDashboardView = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/AdminVendorDashboardView"));
 const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrapper"));
 const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
 const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
@@ -182,6 +183,7 @@ const AppRoutes = () => {
             <Route path="banner-bookings/details/:id" element={<AdminB2BBannerDetail />} />
             <Route path="default-banners" element={<AdminDefaultBannerManagement />} />
             <Route path="business-type-config" element={<AdminBusinessTypeConfiguration />} />
+            <Route path="manage/:id/dashboard" element={<AdminVendorDashboardView />} />
           </Route>
 
           <Route path="notifications" element={<Notifications />} />
