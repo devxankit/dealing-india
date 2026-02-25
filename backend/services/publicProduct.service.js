@@ -30,7 +30,8 @@ export const getPublicProducts = async (filters) => {
         businessType,
         businessSubType,
         excludeBusinessTypes, // Added excludeBusinessTypes to destructuring
-        dynamicFilters
+        dynamicFilters,
+        strict
     } = filters;
 
     // --- Helper to build match query ---
@@ -39,20 +40,36 @@ export const getPublicProducts = async (filters) => {
 
         // Search Filter
         if (search) {
-            const regex = { $regex: search, $options: 'i' };
-            const orConditions = [
-                { name: regex },
-                { description: regex },
-                { category: regex },
-                { subcategory: regex }
-            ];
+            const isStrict = filters.strict === 'true' || filters.strict === true;
+            const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-            if (!isLotSlot) {
-                // Products have items, LotSlots don't
-                orConditions.push({ 'items.itemName': regex });
+            if (isStrict) {
+                // Strict mode: Only match products that start with the search query
+                const regexValue = "^" + escapedSearch;
+                const regex = { $regex: regexValue, $options: 'i' };
+
+                const orConditions = [{ name: regex }];
+                if (!isLotSlot) {
+                    orConditions.push({ 'items.itemName': regex });
+                }
+                query.$or = orConditions;
+            } else {
+                // Broad mode: Substring match in multiple fields
+                const regex = { $regex: escapedSearch, $options: 'i' };
+                const nameRegex = { $regex: "^" + escapedSearch, $options: 'i' };
+
+                const orConditions = [
+                    { name: nameRegex }, // Names must start with query
+                    { description: regex }, // Descriptions remain broad
+                    { category: regex },
+                    { subcategory: regex }
+                ];
+
+                if (!isLotSlot) {
+                    orConditions.push({ 'items.itemName': nameRegex });
+                }
+                query.$or = orConditions;
             }
-
-            query.$or = orConditions;
         }
 
         // Category
@@ -209,10 +226,45 @@ export const getPublicProducts = async (filters) => {
         });
     }
 
-    // 3. Sort
-    const sortField = sortBy === 'createdAt' ? 'createdAt' : sortBy; // Simple mapping
+    // 3. Sort - Prioritize relevance if search is present
+    const sortField = sortBy === 'createdAt' ? 'createdAt' : sortBy;
     const sortDir = sortOrder === 'desc' ? -1 : 1;
-    pipeline.push({ $sort: { [sortField]: sortDir } });
+
+    if (search) {
+        // Escaping literal for regex
+        const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        pipeline.push({
+            $addFields: {
+                relevance: {
+                    $cond: [
+                        { $eq: [{ $toLower: "$name" }, search.toLowerCase()] },
+                        100, // Exact match
+                        {
+                            $cond: [
+                                { $regexMatch: { input: "$name", regex: "^" + escapedSearch, options: "i" } },
+                                50, // Starts with
+                                {
+                                    $cond: [
+                                        { $regexMatch: { input: "$name", regex: "\\b" + escapedSearch + "\\b", options: "i" } },
+                                        20, // Whole word match
+                                        1  // Default contains
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        });
+        pipeline.push({ $sort: { relevance: -1, [sortField]: sortDir } });
+
+        if (strict === 'true' || strict === true) {
+            pipeline.push({ $match: { relevance: { $gte: 50 } } });
+        }
+    } else {
+        pipeline.push({ $sort: { [sortField]: sortDir } });
+    }
 
     // 4. Facet for Total Count & Paginated Data
     pipeline.push({
@@ -357,26 +409,29 @@ export const getB2BSearchSuggestions = async (query) => {
 
     const suggestions = [];
 
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const startRegex = { $regex: "^" + escapedQuery, $options: 'i' };
+
     // Removed exclusion of Real Estate types to support global search for all vendors
     const [products, lotSlots, shopItems, vendors, shopUnits, properties] = await Promise.all([
         Product.find({
-            name: { $regex: query, $options: 'i' },
+            name: startRegex,
             isActive: true
         }).limit(5).select('name image vendorId formType'),
         LotSlot.find({
-            name: { $regex: query, $options: 'i' },
+            name: startRegex,
             isActive: true
         }).limit(5).select('name image vendorId'),
         Product.find({
-            'items.itemName': { $regex: query, $options: 'i' },
+            'items.itemName': startRegex,
             isActive: true
         }).limit(5).select('items name vendorId formType'),
         Vendor.find({
-            storeName: { $regex: query, $options: 'i' },
+            storeName: startRegex,
             status: 'approved',
             isActive: true
         }).limit(5).select('storeName storeLogo address businessType'),
-        ShopUnit.find({ name: { $regex: query, $options: 'i' } })
+        ShopUnit.find({ name: startRegex })
             .limit(5)
             .populate({
                 path: 'vendorId',
@@ -389,7 +444,7 @@ export const getB2BSearchSuggestions = async (query) => {
             .lean(),
         // Added Property search
         mongoose.model('Property').find({
-            title: { $regex: query, $options: 'i' },
+            title: startRegex,
             isActive: true
         }).limit(5).select('title media images location vendorId listingType').lean()
     ]);
@@ -444,7 +499,7 @@ export const getB2BSearchSuggestions = async (query) => {
     shopItems.forEach(p => {
         if (p.items && p.items.length > 0) {
             p.items.forEach(item => {
-                if (item.itemName && item.itemName.toLowerCase().includes(query.toLowerCase()) && suggestions.length < 20) {
+                if (item.itemName && item.itemName.toLowerCase().startsWith(query.toLowerCase()) && suggestions.length < 20) {
                     const isDup = suggestions.some(s =>
                         s.text?.toLowerCase() === item.itemName?.toLowerCase()
                     );
@@ -463,64 +518,83 @@ export const getB2BSearchSuggestions = async (query) => {
         }
     });
 
-    // Store suggestions from direct vendor names
+    // Store suggestions from direct vendor names (Deduplicated by Store Name)
     vendors.forEach(v => {
-        const vendorIdStr = v._id.toString();
-        const storeNameLower = v.storeName?.toLowerCase();
+        const storeName = v.storeName;
+        if (!storeName) return;
+        const storeNameLower = storeName.toLowerCase();
 
-        // Check for name duplicates with products
+        // Check for name duplicates with products/lotslots
         const dupIdx = suggestions.findIndex(s =>
             s.text?.toLowerCase() === storeNameLower && s.type !== 'store'
         );
         if (dupIdx !== -1) suggestions.splice(dupIdx, 1);
 
-        if (!suggestions.some(s => s.type === 'store' && s.vendorId === vendorIdStr)) {
-            const isRealEstate = v.businessType?.match(/developer|broker/i);
-            suggestions.push({
-                type: 'store',
-                text: v.storeName,
-                context: isRealEstate ? `${v.businessType} Office · ${v.address?.city || ''}` : (v.address?.city ? `Store · ${v.address.city}` : 'Store'),
-                vendorId: vendorIdStr,
-                image: v.storeLogo || null,
-                isRealEstate: !!isRealEstate,
-                businessType: v.businessType
-            });
+        // Deduplicate by name for stores - user requested only one name if multiple shops have same name
+        if (suggestions.some(s => s.type === 'store' && s.text?.toLowerCase() === storeNameLower)) {
+            return;
         }
+
+        const isRealEstate = v.businessType?.match(/developer|broker/i);
+        suggestions.push({
+            type: 'store',
+            text: storeName,
+            // User requested location to NOT be shown in suggestions context
+            context: isRealEstate ? `${v.businessType} Office` : 'Store',
+            vendorId: v._id.toString(),
+            image: v.storeLogo || null,
+            isRealEstate: !!isRealEstate,
+            businessType: v.businessType
+        });
     });
 
-    // Store suggestions from ShopUnit names
+    // Store suggestions from ShopUnit names (Deduplicated)
     shopUnits.forEach(unit => {
         const vendor = unit.vendorId;
         if (!vendor || vendor.status !== 'approved' || vendor.isActive === false) return;
 
-        const vendorIdStr = vendor._id.toString();
-        const shopNameLower = unit.name?.toLowerCase();
+        const shopName = unit.name;
+        if (!shopName) return;
+        const shopNameLower = shopName.toLowerCase();
 
-        // If suggestion already exists for this vendor but uses storeName, update it to use shopName if it matches search better
-        const existingStoreIdx = suggestions.findIndex(s => s.type === 'store' && s.vendorId === vendorIdStr);
-        if (existingStoreIdx !== -1) {
-            if (shopNameLower.includes(query.toLowerCase())) {
-                suggestions[existingStoreIdx].text = unit.name;
-            }
-        } else {
-            // Check for name duplicates with products
-            const dupIdx = suggestions.findIndex(s =>
-                s.text?.toLowerCase() === shopNameLower && s.type !== 'store'
-            );
-            if (dupIdx !== -1) suggestions.splice(dupIdx, 1);
-
-            const isRealEstate = vendor.businessType?.match(/developer|broker/i);
-            suggestions.push({
-                type: 'store',
-                text: unit.name,
-                context: isRealEstate ? `${vendor.businessType} Office · ${vendor.address?.city || ''}` : (vendor.address?.city ? `Store · ${vendor.address.city}` : 'Store'),
-                vendorId: vendorIdStr,
-                image: (unit.images && unit.images[0]) || vendor.storeLogo || null,
-                isRealEstate: !!isRealEstate,
-                businessType: vendor.businessType
-            });
+        // Deduplicate by name for shops
+        if (suggestions.some(s => s.type === 'store' && s.text?.toLowerCase() === shopNameLower)) {
+            return;
         }
+
+        // Check for name duplicates with products
+        const dupIdx = suggestions.findIndex(s =>
+            s.text?.toLowerCase() === shopNameLower && s.type !== 'store'
+        );
+        if (dupIdx !== -1) suggestions.splice(dupIdx, 1);
+
+        const isRealEstate = vendor.businessType?.match(/developer|broker/i);
+        suggestions.push({
+            type: 'store',
+            text: shopName,
+            context: isRealEstate ? `${vendor.businessType} Office` : 'Store',
+            vendorId: vendor._id.toString(),
+            image: (unit.images && unit.images[0]) || vendor.storeLogo || null,
+            isRealEstate: !!isRealEstate,
+            businessType: vendor.businessType
+        });
     });
 
-    return suggestions;
+    // Final sorting and filtering of suggestions
+    const finalSuggestions = suggestions.sort((a, b) => {
+        const aText = (a.text || '').toLowerCase();
+        const bText = (b.text || '').toLowerCase();
+        const q = (query || '').toLowerCase();
+
+        const aStarts = aText.startsWith(q);
+        const bStarts = bText.startsWith(q);
+
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        // If both start or neither start, maintain original order or sort alphabetically
+        return aText.localeCompare(bText);
+    }).slice(0, 20);
+
+    return finalSuggestions;
 };

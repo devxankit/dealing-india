@@ -193,9 +193,11 @@ api.interceptors.response.use(
     // Extract error message - prioritize backend message
     let message = error.response?.data?.message;
 
-    // If no backend message, use axios error message but clean it up
+    // If no backend message, handle common status codes
     if (!message) {
-      if (error.response?.status === 500) {
+      if (error.response?.status === 413) {
+        message = 'The files you are uploading are too large. Please reduce the size of your images and try again.';
+      } else if (error.response?.status === 500) {
         message = 'Server error. Please try again later.';
       } else if (error.response?.status === 400) {
         message = 'Invalid request. Please check your input.';

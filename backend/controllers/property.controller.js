@@ -95,12 +95,26 @@ export const addProperty = asyncHandler(async (req, res) => {
         shopUnitId: shopUnit ? shopUnit._id : (req.body.shopUnitId || null)
     };
 
+    // Clean up saleDetails if listingType is Sale
+    if (propertyData.listingType === 'Sale' && propertyData.saleDetails) {
+        delete propertyData.saleDetails.depositAmount;
+        delete propertyData.saleDetails.depositUnit;
+        delete propertyData.saleDetails.maintenance;
+    }
+
     const property = await Property.create(propertyData);
 
     // Flatten specifications for frontend compatibility
     const responseData = property.toObject();
     if (Array.isArray(responseData.specifications) && responseData.specifications.length > 0) {
         responseData.specifications = responseData.specifications[0];
+    }
+
+    // Ensure response doesn't contain these fields for Sale type
+    if (responseData.listingType === 'Sale' && responseData.saleDetails) {
+        delete responseData.saleDetails.depositAmount;
+        delete responseData.saleDetails.depositUnit;
+        delete responseData.saleDetails.maintenance;
     }
 
     res.status(201).json({
@@ -154,6 +168,13 @@ export const updateProperty = asyncHandler(async (req, res) => {
 
     const updateData = { ...req.body, shopUnitId };
 
+    // Clean up saleDetails if listingType is Sale
+    if (updateData.listingType === 'Sale' && updateData.saleDetails) {
+        delete updateData.saleDetails.depositAmount;
+        delete updateData.saleDetails.depositUnit;
+        delete updateData.saleDetails.maintenance;
+    }
+
     property = await Property.findByIdAndUpdate(propertyId, updateData, {
         new: true,
         runValidators: true,
@@ -162,6 +183,13 @@ export const updateProperty = asyncHandler(async (req, res) => {
     // Flatten specifications for frontend compatibility
     if (Array.isArray(property.specifications) && property.specifications.length > 0) {
         property.specifications = property.specifications[0];
+    }
+
+    // Ensure response doesn't contain these fields for Sale type
+    if (property.listingType === 'Sale' && property.saleDetails) {
+        delete property.saleDetails.depositAmount;
+        delete property.saleDetails.depositUnit;
+        delete property.saleDetails.maintenance;
     }
 
     res.status(200).json({
@@ -216,13 +244,24 @@ export const listProperties = asyncHandler(async (req, res) => {
     const vendorId = req.userDoc._id;
     const properties = await Property.find({ vendorId }).lean();
 
-    // Flatten specifications for frontend compatibility
-    const formattedProperties = properties.map(prop => ({
-        ...prop,
-        specifications: Array.isArray(prop.specifications) && prop.specifications.length > 0
-            ? prop.specifications[0]
-            : prop.specifications
-    }));
+    // Flatten specifications for frontend compatibility and filter Sale details
+    const formattedProperties = properties.map(prop => {
+        const p = {
+            ...prop,
+            specifications: Array.isArray(prop.specifications) && prop.specifications.length > 0
+                ? prop.specifications[0]
+                : prop.specifications
+        };
+
+        // Filter Sale details as per user request
+        if (p.listingType === 'Sale' && p.saleDetails) {
+            delete p.saleDetails.depositAmount;
+            delete p.saleDetails.depositUnit;
+            delete p.saleDetails.maintenance;
+        }
+
+        return p;
+    });
 
     res.status(200).json({
         success: true,
@@ -252,6 +291,13 @@ export const getPropertyById = asyncHandler(async (req, res) => {
         property.specifications = property.specifications[0];
     }
 
+    // Filter Sale details as per user request
+    if (property.listingType === 'Sale' && property.saleDetails) {
+        delete property.saleDetails.depositAmount;
+        delete property.saleDetails.depositUnit;
+        delete property.saleDetails.maintenance;
+    }
+
     res.status(200).json({
         success: true,
         data: property,
@@ -262,39 +308,82 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 // @route   GET /api/public/property/all
 // @access  Public
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId } = req.query;
+    const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict } = req.query;
 
     let query = { isActive: true };
     const queryConditions = [];
 
     if (vendorId) queryConditions.push({ vendorId });
     if (listingType && listingType !== 'All') queryConditions.push({ listingType });
-    if (city && city !== 'All Cities') queryConditions.push({ 'location.city': { $regex: city, $options: 'i' } });
-    if (area && area !== 'All Areas') queryConditions.push({ 'location.area': { $regex: area, $options: 'i' } });
+
+    // Handle Location Filters (City, Area, Market) - Match property location OR vendor location
+    if (city && city !== 'All Cities') {
+        const matchingVendors = await Vendor.find({
+            'address.city': { $regex: city, $options: 'i' },
+            businessType: { $in: [/developer/i, /broker/i] }
+        }).select('_id').lean();
+        const vIds = matchingVendors.map(v => v._id);
+
+        queryConditions.push({
+            $or: [
+                { 'location.city': { $regex: city, $options: 'i' } },
+                { vendorId: { $in: vIds } }
+            ]
+        });
+    }
+
+    if (area && area !== 'All Areas') {
+        const matchingVendors = await Vendor.find({
+            'address.area': { $regex: area, $options: 'i' },
+            businessType: { $in: [/developer/i, /broker/i] }
+        }).select('_id').lean();
+        const vIds = matchingVendors.map(v => v._id);
+
+        queryConditions.push({
+            $or: [
+                { 'location.area': { $regex: area, $options: 'i' } },
+                { vendorId: { $in: vIds } }
+            ]
+        });
+    }
+
+    if (market && market !== 'All Markets') {
+        const matchingVendors = await Vendor.find({
+            'address.market': { $regex: market, $options: 'i' },
+            businessType: { $in: [/developer/i, /broker/i] }
+        }).select('_id').lean();
+        const vIds = matchingVendors.map(v => v._id);
+
+        queryConditions.push({
+            $or: [
+                { 'location.market': { $regex: market, $options: 'i' } },
+                { vendorId: { $in: vIds } }
+            ]
+        });
+    }
 
     // Handle Search
     if (search) {
+        const isStrict = strict === 'true' || strict === true;
+        const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regexValue = isStrict ? new RegExp('^' + escapedSearch, 'i') : new RegExp(escapedSearch, 'i');
+
         // Find matching vendors first to include their properties
         const matchingVendors = await Vendor.find({
-            storeName: { $regex: search, $options: 'i' },
+            storeName: { $regex: regexValue },
             businessType: { $in: [/developer/i, /broker/i] }
         }).select('_id').lean();
         const matchingVendorIds = matchingVendors.map(v => v._id);
 
         queryConditions.push({
             $or: [
-                { title: { $regex: search, $options: 'i' } },
-                { 'location.area': { $regex: search, $options: 'i' } },
-                { propertyType: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
+                { title: { $regex: regexValue } },
+                { 'location.area': { $regex: search, $options: 'i' } }, // Keep area search broad even in strict? Or make it strict too?
+                { propertyType: { $regex: regexValue } },
+                { description: { $regex: regexValue } },
                 { vendorId: { $in: matchingVendorIds } }
             ]
         });
-    }
-
-    // Filter by property location.market (data from when property was added)
-    if (market && market !== 'All Markets') {
-        queryConditions.push({ 'location.market': { $regex: market, $options: 'i' } });
     }
 
     if (queryConditions.length > 0) {
@@ -453,7 +542,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     // Flatten specifications for frontend compatibility
     const finalProperties = filteredResults.map(prop => {
         const shop = prop.shopUnitId || shopUnitMap[prop.vendorId._id.toString()];
-        return {
+        const p = {
             ...prop,
             // If shop exists, use its name as the primary title/name for display consistency
             shopName: shop ? shop.name : prop.vendorId?.storeName,
@@ -462,6 +551,15 @@ export const getAllProperties = asyncHandler(async (req, res) => {
                 ? prop.specifications[0]
                 : prop.specifications
         };
+
+        // Filter Sale details as per user request
+        if (p.listingType === 'Sale' && p.saleDetails) {
+            delete p.saleDetails.depositAmount;
+            delete p.saleDetails.depositUnit;
+            delete p.saleDetails.maintenance;
+        }
+
+        return p;
     });
 
     // Find matching vendors for the "Matching Stores" section in UI
@@ -515,6 +613,13 @@ export const getPublicPropertyById = asyncHandler(async (req, res) => {
     // Flatten specifications for frontend compatibility
     if (Array.isArray(property.specifications) && property.specifications.length > 0) {
         property.specifications = property.specifications[0];
+    }
+
+    // Filter Sale details as per user request
+    if (property.listingType === 'Sale' && property.saleDetails) {
+        delete property.saleDetails.depositAmount;
+        delete property.saleDetails.depositUnit;
+        delete property.saleDetails.maintenance;
     }
 
     let shop = property.shopUnitId;

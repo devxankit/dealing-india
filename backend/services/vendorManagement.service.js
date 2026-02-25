@@ -24,6 +24,7 @@ export const getAllVendors = async (filters = {}) => {
       excludeBusinessTypes,
       businessType,
       businessSubType,
+      strict
     } = filters;
 
     // Build query
@@ -44,18 +45,22 @@ export const getAllVendors = async (filters = {}) => {
 
     // Search filter
     if (search) {
+      const isStrict = strict === 'true' || strict === true;
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regexValue = isStrict ? new RegExp('^' + escapedSearch, 'i') : new RegExp(escapedSearch, 'i');
+
       // Find ShopUnits matching the search to include their vendorIds
       const matchingShopUnits = await ShopUnit.find({
-        name: { $regex: search, $options: 'i' }
+        name: { $regex: regexValue }
       }).select('vendorId').lean();
 
       const matchingVendorIdsFromShops = matchingShopUnits.map(unit => unit.vendorId);
 
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { storeName: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
+        { name: { $regex: regexValue } },
+        { email: { $regex: regexValue } },
+        { storeName: { $regex: regexValue } },
+        { phone: { $regex: regexValue } },
         { _id: { $in: matchingVendorIdsFromShops } }
       ];
     }

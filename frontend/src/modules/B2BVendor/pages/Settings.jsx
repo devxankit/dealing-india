@@ -73,6 +73,12 @@ const B2BVendorSettings = () => {
                     [addressField]: value
                 }
             }));
+        } else if (name === 'gstNumber') {
+            const cleaned = value.toUpperCase().trim().slice(0, 15);
+            setFormData(prev => ({
+                ...prev,
+                [name]: cleaned
+            }));
         } else {
             setFormData(prev => ({
                 ...prev,
@@ -95,6 +101,16 @@ const B2BVendorSettings = () => {
         if (!formData.storeName.trim()) {
             toast.error("Company Name is required");
             return;
+        }
+
+        // GST Validation
+        if (formData.gstNumber) {
+            const cleanGst = formData.gstNumber.trim().toUpperCase();
+            const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/;
+            if (!gstRegex.test(cleanGst)) {
+                toast.error('Please enter a valid GST number format');
+                return;
+            }
         }
 
         setLoading(true);

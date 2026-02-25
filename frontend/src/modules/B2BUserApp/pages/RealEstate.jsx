@@ -84,34 +84,37 @@ const RealEstate = () => {
                 setProperties(response.data);
                 setMatchingVendors(response.matchingVendors || []);
 
-                // Extract unique areas (location.area) from properties - backend filters by location.area
+                // Extract unique areas from properties' vendors - matches card display showing vendor's area
                 const areasSet = new Set();
                 if (Array.isArray(response.data)) {
                     response.data.forEach(property => {
-                        if (property.location?.area && String(property.location.area).trim()) {
-                            areasSet.add(property.location.area.trim());
+                        const area = property.vendorId?.address?.area;
+                        if (area && String(area).trim()) {
+                            areasSet.add(area.trim());
                         }
                     });
                 }
                 if (areasSet.size > 0) setPropertyDerivedAreas(Array.from(areasSet).sort());
 
-                // Extract cities from property.location.city (only cities where Developer/Property Broker have listed properties)
+                // Extract cities from vendors (only cities where active Developer/Property Broker are present)
                 const citiesSet = new Set();
                 if (Array.isArray(response.data)) {
                     response.data.forEach(property => {
-                        if (property.location?.city && String(property.location.city).trim()) {
-                            citiesSet.add(property.location.city.trim());
+                        const city = property.vendorId?.address?.city;
+                        if (city && String(city).trim()) {
+                            citiesSet.add(city.trim());
                         }
                     });
                 }
                 if (citiesSet.size > 0) setPropertyDerivedCities(Array.from(citiesSet).sort());
 
-                // Extract markets from property.location.market (data from when property was added)
+                // Extract markets from vendors
                 const marketsSet = new Set();
                 if (Array.isArray(response.data)) {
                     response.data.forEach(property => {
-                        if (property.location?.market && String(property.location.market).trim()) {
-                            marketsSet.add(property.location.market.trim());
+                        const market = property.vendorId?.address?.market;
+                        if (market && String(market).trim()) {
+                            marketsSet.add(market.trim());
                         }
                     });
                 }
@@ -187,11 +190,27 @@ const RealEstate = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // City options: property-derived (cities where Developer/Property Broker have listed properties)
+    const uniqueCitiesFromStore = useMemo(() => {
+        return (availableStates || [])
+            .flatMap(state => state.cities || [])
+            .filter((city, index, self) => {
+                if (!city || typeof city !== 'string') return false;
+                const cleanCity = city.trim();
+                if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
+                return self.findIndex(c => c.trim() === cleanCity) === index;
+            })
+            .sort();
+    }, [availableStates]);
+
+    // City options: property-derived + store-derived (filtered by Developer/Property Broker)
     const cities = useMemo(() => {
-        const cityList = propertyDerivedCities?.length > 0 ? propertyDerivedCities : [];
-        return ['All Cities', ...cityList.filter((city, index, self) => city && self.indexOf(city) === index).sort()];
-    }, [propertyDerivedCities]);
+        const combined = [
+            ...(propertyDerivedCities || []),
+            ...uniqueCitiesFromStore
+        ];
+        const unique = Array.from(new Set(combined.map(c => c.trim()))).filter(Boolean).sort();
+        return ['All Cities', ...unique];
+    }, [propertyDerivedCities, uniqueCitiesFromStore]);
 
     const filteredCities = useMemo(() => {
         if (!citySearchQuery) return cities;

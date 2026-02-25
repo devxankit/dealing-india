@@ -312,18 +312,7 @@ const PropertyDetail = () => {
 
                                 <div className="space-y-4 md:space-y-6 pt-6 border-t border-gray-50">
                                     {/* Financial Breakdown */}
-                                    {property.listingType === 'Sale' && property.saleDetails && (
-                                        <div className="space-y-3 md:space-y-4">
-                                            <div className="flex justify-between items-center text-[9px] md:text-[11px] font-black uppercase tracking-widest">
-                                                <span className="text-gray-400">Booking / Deposit</span>
-                                                <span className="text-gray-900">₹{property.saleDetails.depositAmount} {property.saleDetails.depositUnit}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center text-[9px] md:text-[11px] font-black uppercase tracking-widest">
-                                                <span className="text-gray-400">Maintenance</span>
-                                                <span className={`${property.saleDetails.maintenance === 'Included' ? 'text-green-600' : 'text-primary-600'}`}>{property.saleDetails.maintenance}</span>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {/* Financial Breakdown removed for Sale as per user request */}
 
                                     {property.listingType === 'Rent' && property.rentDetails && (
                                         <div className="space-y-3 md:space-y-4">
@@ -405,9 +394,13 @@ const PropertyDetail = () => {
                                                 <p className="text-[10px] md:text-sm font-bold text-gray-500 uppercase leading-relaxed">
                                                     {[
                                                         property.vendorId?.address?.street,
+                                                        property.vendorId?.address?.market,
                                                         property.vendorId?.address?.landmark,
                                                         property.vendorId?.address?.area,
-                                                        property.vendorId?.address?.city
+                                                        property.vendorId?.address?.city,
+                                                        property.vendorId?.address?.state,
+                                                        property.vendorId?.address?.country,
+                                                        property.vendorId?.address?.pincode
                                                     ].filter(Boolean).join(', ') || property.location?.address || 'N/A'}
                                                 </p>
                                             </div>

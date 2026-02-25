@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FiSave, FiX, FiUpload, FiPlus, FiTrash2, FiImage, FiInfo, FiTag, FiDollarSign, FiList, FiSearch, FiChevronDown } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 
@@ -205,16 +206,26 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
         if (!files.length) return;
 
         setIsUploading(true);
+        const toastId = toast.loading('Processing images...');
         try {
-            // Using base64 for now as per ProductForm's approach, or direct upload if preferred.
-            // But let's stick to ProductForm's reader.readAsDataURL for consistency.
+            const options = { maxSizeMB: 0.1, maxWidthOrHeight: 800, useWebWorker: true };
             const newImages = await Promise.all(
-                files.map(file => {
-                    return new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(file);
-                    });
+                files.map(async (file) => {
+                    try {
+                        const compressed = await imageCompression(file, options);
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.readAsDataURL(compressed);
+                        });
+                    } catch (err) {
+                        console.error('Compression error:', err);
+                        return new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.readAsDataURL(file);
+                        });
+                    }
                 })
             );
 
@@ -222,9 +233,9 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 ...prev,
                 images: [...prev.images, ...newImages]
             }));
-            toast.success(`${files.length} images added`);
+            toast.success(`${files.length} images added`, { id: toastId });
         } catch (error) {
-            toast.error("Failed to upload some images");
+            toast.error("Failed to upload some images", { id: toastId });
         } finally {
             setIsUploading(false);
         }

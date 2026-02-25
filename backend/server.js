@@ -476,8 +476,8 @@ const startServer = async () => {
       console.log(`   Email Service: ${(process.env.EMAIL_USER && process.env.EMAIL_PASS) ? '✅ Configured' : '❌ Not Configured'}`);
 
       if (process.env.NODE_ENV === 'production') {
-        console.log(`   Health Check: https://dealing-india.onrender.com/api/health`);
-        console.log(`   Production URL: https://dealing-india.onrender.com`);
+        console.log(`   Health Check: https://api.dealingindia.com/api/health`);
+        console.log(`   Production URL: https://api.dealingindia.com`);
       } else {
         console.log(`   Health Check: http://localhost:${PORT}/api/health`);
         console.log(`   DB Test: http://localhost:${PORT}/api/test-db`);

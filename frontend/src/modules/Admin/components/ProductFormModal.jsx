@@ -8,6 +8,7 @@ import { useBrandStore } from "../../../shared/store/brandStore";
 import CategorySelector from "./CategorySelector";
 import AnimatedSelect from "./AnimatedSelect";
 import toast from "react-hot-toast";
+import imageCompression from 'browser-image-compression';
 import Button from "./Button";
 import api from "../../../shared/utils/api.js";
 
@@ -179,7 +180,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     });
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
@@ -187,65 +188,63 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         return;
       }
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size should be less than 5MB");
-        return;
+      const toastId = toast.loading('Processing image...');
+      try {
+        const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
+        const compressed = await imageCompression(file, options);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFormData({
+            ...formData,
+            image: reader.result,
+          });
+          toast.success('Image processed', { id: toastId });
+        };
+        reader.readAsDataURL(compressed);
+      } catch (err) {
+        console.error('Compression error:', err);
+        toast.error('Failed to process image', { id: toastId });
       }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({
-          ...formData,
-          image: reader.result,
-        });
-      };
-      reader.onerror = () => {
-        toast.error("Error reading image file");
-      };
-      reader.readAsDataURL(file);
     }
   };
 
-  const handleGalleryUpload = (e) => {
+  const handleGalleryUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    // Validate all files
-    const validFiles = files.filter((file) => {
-      if (!file.type.startsWith("image/")) {
-        toast.error(`${file.name} is not an image file`);
-        return false;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} size should be less than 5MB`);
-        return false;
-      }
-      return true;
-    });
+    const toastId = toast.loading('Processing gallery images...');
+    try {
+      const options = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true };
+      const compressedFiles = await Promise.all(
+        files.map(async (file) => {
+          if (!file.type.startsWith("image/")) return null;
+          try {
+            return await imageCompression(file, options);
+          } catch (err) {
+            return file; // Fallback
+          }
+        })
+      );
 
-    if (validFiles.length === 0) return;
-
-    // Read all valid files
-    const readers = validFiles.map((file) => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    });
-
-    Promise.all(readers)
-      .then((results) => {
-        setFormData({
-          ...formData,
-          images: [...formData.images, ...results],
+      const validCompressed = compressedFiles.filter(Boolean);
+      const readers = validCompressed.map((file) => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
         });
-        toast.success(`${validFiles.length} image(s) added to gallery`);
-      })
-      .catch(() => {
-        toast.error("Error reading image files");
       });
+
+      const results = await Promise.all(readers);
+      setFormData({
+        ...formData,
+        images: [...formData.images, ...results],
+      });
+      toast.success(`${results.length} image(s) added to gallery`, { id: toastId });
+    } catch (error) {
+      console.error('Gallery processing error:', error);
+      toast.error('Error processing gallery images', { id: toastId });
+    }
   };
 
   const removeGalleryImage = (index) => {

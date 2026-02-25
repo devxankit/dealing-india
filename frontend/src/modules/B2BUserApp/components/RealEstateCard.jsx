@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { FiMapPin, FiPhone, FiHome, FiMaximize } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiMapPin, FiPhone, FiHome, FiMaximize, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../shared/utils/api';
@@ -8,6 +8,27 @@ import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 
 const RealEstateCard = ({ property }) => {
     const navigate = useNavigate();
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    // Combine all available images
+    const allImages = [
+        ...(property.media?.map(m => m.url) || []),
+        ...(property.images || [])
+    ];
+
+    if (allImages.length === 0) {
+        allImages.push('https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=1200');
+    }
+
+    const nextImage = (e) => {
+        e.stopPropagation();
+        setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+    };
+
+    const prevImage = (e) => {
+        e.stopPropagation();
+        setCurrentImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
+    };
 
     // Track vendor contact clicks (call or whatsapp)
     const trackContactClick = async (vendorId, clickType) => {
@@ -68,7 +89,6 @@ const RealEstateCard = ({ property }) => {
         return 'Price on Request';
     };
 
-    const imageUrl = property.media?.[0]?.url || property.images?.[0] || '';
     const displayPrice = formatPrice(property);
 
     // Use vendor's registration location as requested
@@ -88,13 +108,61 @@ const RealEstateCard = ({ property }) => {
             onClick={() => navigate(`/b2b/real-estate/property/${property._id}`)}
             className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-full"
         >
-            {/* Image Container */}
-            <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50">
-                <img
-                    src={imageUrl}
-                    alt={property.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
+            {/* Image Container with Slider */}
+            <div className="relative aspect-square overflow-hidden bg-gray-50 border-b border-gray-50 group/image">
+                <AnimatePresence mode="wait">
+                    <motion.img
+                        key={currentImageIndex}
+                        src={allImages[currentImageIndex]}
+                        alt={property.title}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="w-full h-full object-cover"
+                    />
+                </AnimatePresence>
+
+                {/* Slider Controls - Only if multiple images */}
+                {allImages.length > 1 && (
+                    <>
+                        {/* Navigation Arrows */}
+                        <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover/image:opacity-100 transition-opacity md:opacity-0 touch:opacity-100">
+                            <button
+                                onClick={prevImage}
+                                className="p-1 px-1.5 md:p-1.5 bg-white/80 backdrop-blur-md text-gray-800 rounded-full shadow-lg hover:bg-white transition-all transform hover:scale-110 active:scale-90"
+                            >
+                                <FiChevronLeft size={16} />
+                            </button>
+                            <button
+                                onClick={nextImage}
+                                className="p-1 px-1.5 md:p-1.5 bg-white/80 backdrop-blur-md text-gray-800 rounded-full shadow-lg hover:bg-white transition-all transform hover:scale-110 active:scale-90"
+                            >
+                                <FiChevronRight size={16} />
+                            </button>
+                        </div>
+
+                        {/* Pagination Dots */}
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
+                            {allImages.slice(0, 5).map((_, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${currentImageIndex === idx ? 'bg-primary-600 w-4' : 'bg-white/60'}`}
+                                />
+                            ))}
+                            {allImages.length > 5 && (
+                                <div className="w-1.5 h-1.5 rounded-full bg-white/60 flex items-center justify-center text-[6px] text-white">
+                                    +
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Image Counter Badge */}
+                        <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[8px] font-black text-white uppercase tracking-wider z-20">
+                            {currentImageIndex + 1} / {allImages.length}
+                        </div>
+                    </>
+                )}
 
                 {/* Badges */}
                 <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">

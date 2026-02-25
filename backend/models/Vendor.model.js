@@ -119,12 +119,16 @@ const vendorSchema = new mongoose.Schema(
       uppercase: true,
       validate: {
         validator: function (v) {
-          // GST number is optional, no format validation
           if (!v) return true; // Optional field
-          return true; // Accept any format
+          // GST format: 2 numbers, 5 alphabets, 4 numbers, 1 alphabet, 1 number/alphabet, 'Z', 1 number/alphabet
+          return /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v);
         },
-        message: 'GST number is optional',
+        message: 'Please enter a valid GST number',
       },
+      index: {
+        unique: true,
+        sparse: true,
+      }
     },
     documents: [{
       name: { type: String, required: true },
