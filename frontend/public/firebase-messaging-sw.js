@@ -5,14 +5,9 @@ importScripts(
   "https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js",
 );
 
+// Initialize with only messagingSenderId to avoid exposing broader web config
 const firebaseConfig = {
-  apiKey: "AIzaSyBxIBqCVsS2UWkEd1glL3QIE4ZmM8465ac",
-  authDomain: "dealing-india-c5fec.firebaseapp.com",
-  projectId: "dealing-india-c5fec",
-  storageBucket: "dealing-india-c5fec.firebasestorage.app",
   messagingSenderId: "237174767048",
-  appId: "1:237174767048:web:81f50487a4bf163331d4fd",
-  measurementId: "G-80SVW67C2L",
 };
 
 firebase.initializeApp(firebaseConfig);

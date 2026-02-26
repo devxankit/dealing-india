@@ -78,16 +78,36 @@ const AdminB2BSubscriptions = lazyWithRetry(
   () => import("./modules/Admin/pages/b2b-vendors/Subscriptions"),
 );
 
-const B2BWallet = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BWallet"));
-const AdminB2BCategories = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/Categories"));
-const AdminB2BBannerManagement = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/B2BBannerManagement"));
-const AdminB2BBannerDetail = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail"));
-const AdminDefaultBannerManagement = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/DefaultBannerManagement"));
-const AdminBusinessTypeConfiguration = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/BusinessTypeConfiguration"));
-const AdminVendorDashboardView = lazyWithRetry(() => import("./modules/Admin/pages/b2b-vendors/AdminVendorDashboardView"));
-const RouteWrapper = lazyWithRetry(() => import("./shared/components/RouteWrapper"));
-const ProtectedRoute = lazyWithRetry(() => import("./shared/components/Auth/ProtectedRoute"));
-const ErrorBoundary = lazyWithRetry(() => import("./shared/components/ErrorBoundary/ErrorBoundary"));
+const B2BWallet = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/B2BWallet"),
+);
+const AdminB2BCategories = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/Categories"),
+);
+const AdminB2BBannerManagement = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/B2BBannerManagement"),
+);
+const AdminB2BBannerDetail = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/AdminB2BBannerDetail"),
+);
+const AdminDefaultBannerManagement = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/DefaultBannerManagement"),
+);
+const AdminBusinessTypeConfiguration = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/BusinessTypeConfiguration"),
+);
+const AdminVendorDashboardView = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/AdminVendorDashboardView"),
+);
+const RouteWrapper = lazyWithRetry(
+  () => import("./shared/components/RouteWrapper"),
+);
+const ProtectedRoute = lazyWithRetry(
+  () => import("./shared/components/Auth/ProtectedRoute"),
+);
+const ErrorBoundary = lazyWithRetry(
+  () => import("./shared/components/ErrorBoundary/ErrorBoundary"),
+);
 const B2BWallet = lazyWithRetry(
   () => import("./modules/Admin/pages/b2b-vendors/B2BWallet"),
 );
@@ -354,11 +374,26 @@ const AppRoutes = () => {
             />
             <Route path="subscriptions" element={<AdminB2BSubscriptions />} />
             <Route path="categories" element={<AdminB2BCategories />} />
-            <Route path="banner-bookings" element={<AdminB2BBannerManagement />} />
-            <Route path="banner-bookings/details/:id" element={<AdminB2BBannerDetail />} />
-            <Route path="default-banners" element={<AdminDefaultBannerManagement />} />
-            <Route path="business-type-config" element={<AdminBusinessTypeConfiguration />} />
-            <Route path="manage/:id/dashboard" element={<AdminVendorDashboardView />} />
+            <Route
+              path="banner-bookings"
+              element={<AdminB2BBannerManagement />}
+            />
+            <Route
+              path="banner-bookings/details/:id"
+              element={<AdminB2BBannerDetail />}
+            />
+            <Route
+              path="default-banners"
+              element={<AdminDefaultBannerManagement />}
+            />
+            <Route
+              path="business-type-config"
+              element={<AdminBusinessTypeConfiguration />}
+            />
+            <Route
+              path="manage/:id/dashboard"
+              element={<AdminVendorDashboardView />}
+            />
             <Route
               path="banner-bookings"
               element={<AdminB2BBannerManagement />}
