@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import B2BVendorProductForm from "../../components/ProductForm";
 import ShopProductForm from "../../components/ShopProductForm";
+import ItemListingForm from "../../components/ItemListingForm";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
 
@@ -140,7 +141,7 @@ const EditProduct = () => {
 
             {product && (
                 isShopListing ? (
-                    <ShopProductForm
+                    <ItemListingForm
                         initialData={product}
                         onSubmit={handleShopSubmit}
                         isLoading={saving}

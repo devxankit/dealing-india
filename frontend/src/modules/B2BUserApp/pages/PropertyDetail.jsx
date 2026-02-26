@@ -72,6 +72,7 @@ const PropertyDetail = () => {
 
         const getMultiplier = (unit) => {
             switch (unit) {
+                case 'Rs': return 1;
                 case 'Thousand': return 1000;
                 case 'Lakh': return 100000;
                 case 'Crore': return 10000000;
@@ -374,7 +375,7 @@ const PropertyDetail = () => {
                                             <div>
                                                 <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">Primary Zone</span>
                                                 <p className="text-xs md:text-sm font-black text-gray-900 uppercase">
-                                                    {property.vendorId?.address?.city || property.location?.city || 'N/A'}
+                                                    {property.location?.city || property.vendorId?.address?.city || 'N/A'}
                                                 </p>
                                             </div>
                                         </div>
@@ -383,7 +384,7 @@ const PropertyDetail = () => {
                                             <div>
                                                 <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">Market / Hub</span>
                                                 <p className="text-xs md:text-sm font-black text-gray-900 uppercase">
-                                                    {property.vendorId?.address?.area || property.vendorId?.address?.market || property.location?.market || 'N/A'}
+                                                    {property.location?.market || property.location?.area || property.vendorId?.address?.area || property.vendorId?.address?.market || 'N/A'}
                                                 </p>
                                             </div>
                                         </div>
@@ -393,15 +394,26 @@ const PropertyDetail = () => {
                                                 <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase block tracking-widest">Registered Address</span>
                                                 <p className="text-[10px] md:text-sm font-bold text-gray-500 uppercase leading-relaxed">
                                                     {[
-                                                        property.vendorId?.address?.street,
-                                                        property.vendorId?.address?.market,
-                                                        property.vendorId?.address?.landmark,
-                                                        property.vendorId?.address?.area,
-                                                        property.vendorId?.address?.city,
-                                                        property.vendorId?.address?.state,
-                                                        property.vendorId?.address?.country,
-                                                        property.vendorId?.address?.pincode
-                                                    ].filter(Boolean).join(', ') || property.location?.address || 'N/A'}
+                                                        property.location?.address,
+                                                        property.location?.landmark,
+                                                        property.location?.market,
+                                                        property.location?.area,
+                                                        property.location?.city,
+                                                        property.location?.state,
+                                                        property.location?.country,
+                                                        property.location?.pincode
+                                                    ].filter(Boolean).join(', ') ||
+                                                        [
+                                                            property.vendorId?.address?.street,
+                                                            property.vendorId?.address?.landmark,
+                                                            property.vendorId?.address?.market,
+                                                            property.vendorId?.address?.area,
+                                                            property.vendorId?.address?.city,
+                                                            property.vendorId?.address?.state,
+                                                            property.vendorId?.address?.country,
+                                                            property.vendorId?.address?.pincode
+                                                        ].filter(Boolean).join(', ') ||
+                                                        'N/A'}
                                                 </p>
                                             </div>
                                         </div>
@@ -409,7 +421,7 @@ const PropertyDetail = () => {
 
                                     <button
                                         onClick={() => {
-                                            const mapsUrl = getGoogleMapsUrl(property.vendorId);
+                                            const mapsUrl = getGoogleMapsUrl(property);
                                             if (mapsUrl) window.open(mapsUrl, '_blank');
                                         }}
                                         className="w-full mt-4 py-4 bg-primary-50 text-primary-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all flex items-center justify-center gap-2 border border-primary-100"

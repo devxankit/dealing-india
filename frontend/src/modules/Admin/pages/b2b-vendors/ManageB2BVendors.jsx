@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { FiSearch, FiEdit2, FiTrash2, FiEye, FiUser } from "react-icons/fi";
+import { Link } from "react-router-dom";
+import { FiSearch, FiTrash2, FiEye, FiUser, FiToggleLeft, FiToggleRight, FiArrowUpRight } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import B2BVendorDetailModal from "./components/B2BVendorDetailModal";
@@ -13,7 +14,7 @@ const ManageB2BVendors = () => {
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
     const [selectedVendor, setSelectedVendor] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const { b2bVendors, isLoading, fetchB2BVendors, deleteB2BVendor } = useB2BVendorManagementStore();
+    const { b2bVendors, isLoading, fetchB2BVendors, deleteB2BVendor, toggleB2BVendorActive } = useB2BVendorManagementStore();
     const fetchedRef = useRef(false);
 
     const handleApprove = async (id) => {
@@ -108,6 +109,17 @@ const ManageB2BVendors = () => {
         }
     };
 
+    const handleToggleActive = async (id) => {
+        const toastId = toast.loading("Updating status...");
+        try {
+            const updated = await toggleB2BVendorActive(id);
+            toast.success(`Vendor is now ${updated.isActive ? 'Active' : 'Inactive'}`, { id: toastId });
+        } catch (error) {
+            console.error('Error toggling active status:', error);
+            toast.error(error.message || "Failed to update status", { id: toastId });
+        }
+    };
+
     const columns = [
         {
             key: "companyName",
@@ -119,7 +131,13 @@ const ManageB2BVendors = () => {
                     </div>
                     <div>
                         <p className="font-bold text-gray-800">{val || row.storeName || row.name || 'N/A'}</p>
-                        <p className="text-xs text-gray-400 font-medium">{row.name}</p>
+                        <Link
+                            to={`/admin/b2b-vendors/manage/${row._id || row.id}/dashboard`}
+                            className="text-xs text-primary-600 font-bold hover:underline flex items-center gap-1 group/link"
+                        >
+                            {row.name}
+                            <FiArrowUpRight className="opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                        </Link>
                     </div>
                 </div>
             )
@@ -144,11 +162,19 @@ const ManageB2BVendors = () => {
         {
             key: "status",
             label: "Status",
-            render: (val) => (
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${val === 'Active' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                    }`}>
-                    {val}
-                </span>
+            render: (val, row) => (
+                <div className="flex flex-col gap-1.5">
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase w-fit border ${val === 'approved' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                        val === 'pending' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                            'bg-red-50 text-red-600 border-red-100'
+                        }`}>
+                        {val || 'pending'}
+                    </span>
+                    <span className={`px-3 py-0.5 rounded-full text-[9px] font-black uppercase w-fit ${row.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                        {row.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                </div>
             )
         },
         { key: "products", label: "Products", render: (val) => val || 0 },
@@ -164,15 +190,21 @@ const ManageB2BVendors = () => {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => handleViewDetails(row)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="View Full Details"
                     >
                         <FiEye />
                     </button>
-                    <button className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg"><FiEdit2 /></button>
+                    <button
+                        onClick={() => handleToggleActive(row._id || row.id)}
+                        className={`p-2 rounded-lg transition-colors ${row.isActive ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}
+                        title={row.isActive ? 'Mark Inactive' : 'Mark Active'}
+                    >
+                        {row.isActive ? <FiToggleRight className="text-xl" /> : <FiToggleLeft className="text-xl" />}
+                    </button>
                     <button
                         onClick={() => handleDelete(row._id || row.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete Vendor"
                     >
                         <FiTrash2 />
@@ -194,14 +226,14 @@ const ManageB2BVendors = () => {
                     <input
                         type="text"
                         placeholder="Search B2B vendors..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none transition-all shadow-sm focus:shadow-md"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden">
                 {isLoading ? (
                     <div className="text-center py-12">
                         <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>

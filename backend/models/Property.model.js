@@ -82,27 +82,27 @@ const propertySchema = new mongoose.Schema(
         saleDetails: {
             priceMin: Number,
             priceMax: Number,
-            priceUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
+            priceUnit: { type: String, enum: ['Rs', 'Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
             depositAmount: Number,
-            depositUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
+            depositUnit: { type: String, enum: ['Rs', 'Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
             maintenance: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' },
             veraBill: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' }
         },
 
         rentDetails: {
             monthlyRent: Number,
-            rentUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Thousand' },
+            rentUnit: { type: String, enum: ['Rs', 'Thousand', 'Lakh', 'Crore'], default: 'Thousand' },
             depositAmount: Number,
-            depositUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Thousand' },
+            depositUnit: { type: String, enum: ['Rs', 'Thousand', 'Lakh', 'Crore'], default: 'Thousand' },
             maintenance: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' },
             veraBill: { type: String, enum: ['Included', 'Excluded'], default: 'Excluded' }
         },
 
         leaseDetails: {
             monthlyLeaseRate: Number,
-            leaseUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
+            leaseUnit: { type: String, enum: ['Rs', 'Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
             depositAmount: Number,
-            depositUnit: { type: String, enum: ['Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
+            depositUnit: { type: String, enum: ['Rs', 'Thousand', 'Lakh', 'Crore'], default: 'Lakh' },
             leaseDurationYears: Number
         },
 

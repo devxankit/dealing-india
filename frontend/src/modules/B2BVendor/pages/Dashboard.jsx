@@ -132,7 +132,14 @@ const B2BVendorDashboard = () => {
                     </div>
                     <div>
                         <div className="flex items-center gap-2 mb-2">
-                            <h1 className="text-3xl font-black text-slate-800 tracking-tight">{vendor?.name}</h1>
+                            <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-baseline gap-3">
+                                {vendor?.name}
+                                {vendor?.storeName && (
+                                    <span className="text-primary-600 font-extrabold text-xl px-3 py-1 bg-primary-50 rounded-xl border border-primary-100 shadow-sm">
+                                        {vendor.storeName}
+                                    </span>
+                                )}
+                            </h1>
                             <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-full">
                                 {vendor?.businessType}
                             </span>

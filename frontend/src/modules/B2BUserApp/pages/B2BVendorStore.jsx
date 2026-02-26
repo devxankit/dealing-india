@@ -102,6 +102,7 @@ const B2BVendorStore = () => {
                 description: vendor.shopUnit.description || productListing?.description,
                 minPrice: vendor.shopUnit.minPrice ?? productListing?.minPrice,
                 maxPrice: vendor.shopUnit.maxPrice ?? productListing?.maxPrice,
+                details: vendor.shopUnit.details || [],
                 images: (vendor.shopUnit.images && vendor.shopUnit.images.length > 0) ? vendor.shopUnit.images : productListing?.images,
                 image: (vendor.shopUnit.images && vendor.shopUnit.images[0]) || productListing?.image
             };
@@ -114,10 +115,14 @@ const B2BVendorStore = () => {
         let filtered = [...products];
 
         if (searchQuery) {
-            filtered = filtered.filter(p =>
-                p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                p.description.toLowerCase().includes(searchQuery.toLowerCase())
-            );
+            const q = searchQuery.trim().toLowerCase();
+            filtered = filtered.filter(p => {
+                const nameStarts = (p.name || '').toLowerCase().startsWith(q);
+                const itemStarts = Array.isArray(p.items)
+                    ? p.items.some(it => (it.itemName || '').toLowerCase().startsWith(q))
+                    : false;
+                return nameStarts || itemStarts;
+            });
         }
 
         switch (sortBy) {
@@ -136,6 +141,23 @@ const B2BVendorStore = () => {
 
         return filtered;
     }, [products, searchQuery, sortBy]);
+
+    // Filter properties within this vendor store
+    const filteredProperties = useMemo(() => {
+        let filtered = [...properties];
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(p =>
+                (p.title || '').toLowerCase().includes(q) ||
+                (p.description || '').toLowerCase().includes(q) ||
+                (p.propertyType || '').toLowerCase().includes(q) ||
+                (p.location?.city || '').toLowerCase().includes(q) ||
+                (p.location?.market || '').toLowerCase().includes(q) ||
+                (p.location?.area || '').toLowerCase().includes(q)
+            );
+        }
+        return filtered;
+    }, [properties, searchQuery]);
 
     // Track vendor contact clicks
     const trackContactClick = async (vendorId, clickType) => {
@@ -185,6 +207,8 @@ const B2BVendorStore = () => {
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 onSearchSubmit={setSearchQuery}
+                suggestionEndpoint={`/products/b2b-suggestions?vendorId=${id}`}
+                hideSearch={true}
             />
 
             <main className="max-w-7xl mx-auto px-4 py-6 md:py-12">
@@ -315,6 +339,7 @@ const B2BVendorStore = () => {
                                     href={`https://wa.me/91${vendor.phone.replace(/\D/g, '')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={() => trackContactClick(vendor._id || vendor.id, 'whatsapp')}
                                     className="w-full px-8 py-5 md:py-6 bg-[#25D366] text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-[#128C7E] transition-all shadow-xl shadow-green-100/50 flex items-center justify-center gap-3 active:scale-95"
                                 >
                                     <FaWhatsapp size={20} />
@@ -359,13 +384,59 @@ const B2BVendorStore = () => {
                     </div>
                 )}
 
+                {/* Team / Contact Persons Section */}
+                {shopListing?.details?.length > 0 && (
+                    <div className="mb-12 md:mb-20">
+                        <div className="flex items-center gap-4 mb-8">
+                            <span className="h-[2px] w-12 bg-primary-600"></span>
+                            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Key Contacts / Staff</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {shopListing.details.map((contact, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-5 group hover:shadow-lg hover:border-primary-100 transition-all font-sans"
+                                >
+                                    <div className="w-14 h-14 bg-gradient-to-br from-primary-50 to-primary-100/50 rounded-2xl flex items-center justify-center text-primary-600 font-black text-xl shadow-inner group-hover:scale-110 transition-transform">
+                                        {contact.name?.charAt(0) || 'C'}
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">{contact.name || 'N/A'}</h4>
+                                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-2 opacity-70">{contact.post || 'Staff'}</p>
+                                        {contact.mobile && (
+                                            <p className="text-[11px] font-bold text-gray-500">+91 {contact.mobile}</p>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Filter & View Controls */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-10">
-                    <h2 className="text-xl font-black text-gray-800 tracking-tight uppercase">
-                        Current <span className="text-primary-600">Inventory</span>
-                    </h2>
+                    <div className="flex items-center gap-4 w-full">
+                        <h2 className="text-xl font-black text-gray-800 tracking-tight uppercase">
+                            Current <span className="text-primary-600">Inventory</span>
+                        </h2>
+                        <div className="relative flex-1 max-w-md sm:max-w-xs ml-auto">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search this shop inventory..."
+                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-500 outline-none focus:border-primary-200 transition-all"
+                            />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85Zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z" />
+                            </svg>
+                        </div>
+                    </div>
 
-                    <div className="flex items-center gap-4 w-full sm:w-auto overflow-x-auto no-scrollbar pb-2 sm:pb-0">
+                    <div className="flex items-center gap-4 w-full sm:w-auto flex-wrap">
                         <div className="relative group">
                             <FiFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-600 transition-colors" />
                             <select
@@ -417,7 +488,7 @@ const B2BVendorStore = () => {
                                 trackContactClick={trackContactClick}
                             />
                         ))}
-                        {properties.map((property) => (
+                        {filteredProperties.map((property) => (
                             <RealEstateCard key={property._id} property={property} />
                         ))}
                     </div>

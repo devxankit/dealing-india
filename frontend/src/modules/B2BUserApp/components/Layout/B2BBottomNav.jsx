@@ -1,12 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiGrid, FiMessageSquare, FiUser } from 'react-icons/fi';
+import { FiHome, FiGrid, FiBriefcase } from 'react-icons/fi';
 
 const B2BBottomNav = () => {
     const navItems = [
         { icon: FiHome, label: 'Home', path: '/b2b/landing' },
         { icon: FiGrid, label: 'Browse', path: '/b2b/catalog' },
-        { icon: FiUser, label: 'Profile', path: '/b2b/profile' },
+        { icon: FiBriefcase, label: 'Business', path: '/b2b/catalog?open=business' },
     ];
 
     return (

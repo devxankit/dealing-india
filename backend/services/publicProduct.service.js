@@ -56,16 +56,17 @@ export const getPublicProducts = async (filters) => {
             } else {
                 // Broad mode: Substring match in multiple fields
                 const regex = { $regex: escapedSearch, $options: 'i' };
-                const nameRegex = { $regex: "^" + escapedSearch, $options: 'i' };
+                const nameRegex = { $regex: escapedSearch, $options: 'i' };
 
                 const orConditions = [
-                    { name: nameRegex }, // Names must start with query
-                    { description: regex }, // Descriptions remain broad
+                    { name: nameRegex }, // Names can contain query anywhere
+                    { description: regex }, // Descriptions broad match
                     { category: regex },
                     { subcategory: regex }
                 ];
 
                 if (!isLotSlot) {
+                    // Item names: allow contains for broader discovery
                     orConditions.push({ 'items.itemName': nameRegex });
                 }
                 query.$or = orConditions;
@@ -227,8 +228,22 @@ export const getPublicProducts = async (filters) => {
     }
 
     // 3. Sort - Prioritize relevance if search is present
-    const sortField = sortBy === 'createdAt' ? 'createdAt' : sortBy;
-    const sortDir = sortOrder === 'desc' ? -1 : 1;
+    const sortField = sortBy === 'price' ? 'effectivePrice' : (sortBy === 'createdAt' ? 'createdAt' : sortBy);
+    const sortOrderRaw = sortOrder || 'desc';
+    const sortDir = sortOrderRaw === 'desc' ? -1 : 1;
+
+    // Add effectivePrice field for consistent price sorting across regular products and shop listings
+    pipeline.push({
+        $addFields: {
+            effectivePrice: {
+                $cond: [
+                    { $ifNull: ["$price", false] },
+                    "$price",
+                    { $ifNull: ["$minPrice", 0] }
+                ]
+            }
+        }
+    });
 
     if (search) {
         // Escaping literal for regex
@@ -243,12 +258,26 @@ export const getPublicProducts = async (filters) => {
                         {
                             $cond: [
                                 { $regexMatch: { input: "$name", regex: "^" + escapedSearch, options: "i" } },
-                                50, // Starts with
+                                50, // Name starts with
                                 {
                                     $cond: [
-                                        { $regexMatch: { input: "$name", regex: "\\b" + escapedSearch + "\\b", options: "i" } },
-                                        20, // Whole word match
-                                        1  // Default contains
+                                        {
+                                            $anyElementTrue: {
+                                                $map: {
+                                                    input: { $ifNull: ["$items", []] },
+                                                    as: "it",
+                                                    in: { $regexMatch: { input: "$$it.itemName", regex: "^" + escapedSearch, options: "i" } }
+                                                }
+                                            }
+                                        },
+                                        50, // Item name starts with
+                                        {
+                                            $cond: [
+                                                { $regexMatch: { input: "$name", regex: "\\b" + escapedSearch + "\\b", options: "i" } },
+                                                20, // Whole word in name
+                                                1  // Default low relevance
+                                            ]
+                                        }
                                     ]
                                 }
                             ]
@@ -404,7 +433,7 @@ export const getPublicProductById = async (id) => {
 /**
  * Get search suggestions
  */
-export const getB2BSearchSuggestions = async (query) => {
+export const getB2BSearchSuggestions = async (query, vendorFilterId) => {
     if (!query || query.trim().length < 1) return [];
 
     const suggestions = [];
@@ -580,8 +609,13 @@ export const getB2BSearchSuggestions = async (query) => {
         });
     });
 
+    // Optional vendor filter for shop-specific suggestions
+    const filteredByVendor = vendorFilterId
+        ? suggestions.filter(s => (s.vendorId || '').toString() === vendorFilterId.toString())
+        : suggestions;
+
     // Final sorting and filtering of suggestions
-    const finalSuggestions = suggestions.sort((a, b) => {
+    const finalSuggestions = filteredByVendor.sort((a, b) => {
         const aText = (a.text || '').toLowerCase();
         const bText = (b.text || '').toLowerCase();
         const q = (query || '').toLowerCase();

@@ -73,16 +73,16 @@ class RedisService {
                 MATCH: pattern,
                 COUNT: 100
             })) {
-                if (key) keys.push(key);
+                if (key && typeof key === 'string') {
+                    keys.push(key);
+                }
             }
 
             if (keys.length > 0) {
-                // Batch delete in chunks of 50 to avoid too large commands
-                // node-redis v4+ and v5+ del() accepts an array of keys
-                for (let i = 0; i < keys.length; i += 50) {
-                    const chunk = keys.slice(i, i + 50);
-                    if (chunk.length > 0) {
-                        await redisClient.del(chunk);
+                // Delete keys individually for maximum compatibility across Redis client versions
+                for (const key of keys) {
+                    if (key && typeof key === 'string') {
+                        await redisClient.del(key);
                     }
                 }
             }

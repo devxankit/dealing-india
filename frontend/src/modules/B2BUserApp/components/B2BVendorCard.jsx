@@ -6,7 +6,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
 
-const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType }) => {
+const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType, compact = false }) => {
     const navigate = useNavigate();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const vendorIdStr = vendor._id || vendor.id;
@@ -46,11 +46,11 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType 
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -4, shadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
             onClick={handleVendorClick}
-            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? 'flex-col h-fit' : 'flex-row items-center gap-6 p-4 h-fit'}`}
+            className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? (compact ? 'flex-col h-auto md:h-[260px]' : 'flex-col h-auto md:h-[320px]') : 'flex-row items-center gap-6 p-4 h-fit'}`}
         >
             {/* Image Container - Interactive Gallery matching Product Card */}
             <div
-                className={`relative ${viewMode === 'grid' ? 'aspect-square w-full' : 'w-48 h-48 flex-shrink-0 rounded-xl'} overflow-hidden bg-gray-50 border-b border-gray-50 group/image`}
+                className={`relative ${viewMode === 'grid' ? (compact ? 'w-full aspect-[4/3] md:h-[50%]' : 'w-full aspect-[4/3] md:h-[55%]') : 'w-48 h-48 flex-shrink-0 rounded-xl'} overflow-hidden bg-gray-50 border-b border-gray-50 group/image`}
             >
                 {/* Images */}
                 {allImages.length > 0 ? (
@@ -111,7 +111,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType 
                     <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100 z-20 pointer-events-none">
                         <div className="flex items-baseline gap-0.5">
                             <span className="text-[8px] font-black text-primary-600">₹</span>
-                            <span className="text-sm font-black text-gray-800">
+                            <span className={`font-black text-gray-800 ${compact ? 'text-[10px]' : 'text-sm'}`}>
                                 {vendor.shopUnit?.minPrice || vendor.minPrice}{vendor.shopUnit?.maxPrice || vendor.maxPrice ? `-${vendor.shopUnit?.maxPrice || vendor.maxPrice}` : '+'}
                             </span>
                         </div>
@@ -120,7 +120,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType 
             </div>
 
             {/* Content Body - Matching Product Card Style */}
-            <div className={`p-2.5 flex flex-col gap-2 ${viewMode === 'list' ? 'flex-1 justify-center' : ''}`}>
+            <div className={`${compact ? 'p-2' : 'p-2.5'} flex flex-col ${compact ? 'gap-1' : 'gap-2'} ${viewMode === 'list' ? 'flex-1 justify-center' : 'flex-1'}`}>
                 <div className="min-w-0">
                     <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
                         {displayStoreName}
@@ -149,7 +149,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType 
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 mt-1">
+                <div className="flex flex-wrap items-center gap-1.5 mt-1">
                     {vendor.phone ? (
                         <>
                             <a
@@ -160,10 +160,10 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType 
                                     e.stopPropagation();
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'whatsapp');
                                 }}
-                                className="flex-1 py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className="flex-1 min-w-[30%] py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                             >
-                                <FaWhatsapp size={11} />
-                                <span>WhatsApp</span>
+                                <FaWhatsapp size={12} />
+                                {!compact && <span className="hidden md:inline">WhatsApp</span>}
                             </a>
                             <a
                                 href={`tel:${vendor.phone}`}
@@ -171,10 +171,10 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType 
                                     e.stopPropagation();
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'call');
                                 }}
-                                className="flex-1 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className="flex-1 min-w-[30%] py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                             >
-                                <FiPhone size={11} />
-                                <span>Call</span>
+                                <FiPhone size={12} />
+                                {!compact && <span className="hidden md:inline">Call</span>}
                             </a>
                             <button
                                 onClick={(e) => {
@@ -187,10 +187,10 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType 
                                         toast.error('Location details not provided');
                                     }
                                 }}
-                                className="flex-1 py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
+                                className="flex-1 min-w-[30%] py-1.5 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all border border-orange-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
                             >
-                                <FiMapPin size={11} />
-                                <span>Map</span>
+                                <FiMapPin size={12} />
+                                {!compact && <span className="hidden md:inline">Map</span>}
                             </button>
                         </>
                     ) : (

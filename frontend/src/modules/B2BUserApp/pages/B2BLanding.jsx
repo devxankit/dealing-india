@@ -66,6 +66,9 @@ const B2BLanding = () => {
     const [priceRange, setPriceRange] = useState({ min: '', max: '' });
     const [businessTypes, setBusinessTypes] = useState([]);
     const [selectedBusinessType, setSelectedBusinessType] = useState(null);
+    const [allVendors, setAllVendors] = useState([]);
+    const [vendorsLoading, setVendorsLoading] = useState(false);
+    const [isMobileBusinessTypeOpen, setIsMobileBusinessTypeOpen] = useState(false);
 
     // Refs
     const searchRef = useRef(null);
@@ -94,7 +97,26 @@ const B2BLanding = () => {
                 console.error('Error fetching business types:', error);
             }
         };
+
+        const fetchAllVendors = async () => {
+            try {
+                setVendorsLoading(true);
+                const response = await api.get('/vendors', {
+                    params: { limit: 50, vendorType: 'b2b' }
+                });
+                if (response.success && response.data) {
+                    const vendorData = Array.isArray(response.data) ? response.data : (response.data.vendors || []);
+                    setAllVendors(vendorData);
+                }
+            } catch (error) {
+                console.error('Error fetching vendors:', error);
+            } finally {
+                setVendorsLoading(false);
+            }
+        };
+
         fetchBusinessTypes();
+        fetchAllVendors();
     }, [fetchCategories, fetchLocations]);
 
     const uniqueCities = useMemo(() => {
@@ -207,7 +229,7 @@ const B2BLanding = () => {
                     params: {
                         search: searchTerm,
                         strict: isStrict,
-                        limit: 20
+                        limit: 10
                     }
                 });
                 if (response.success && response.data) {
@@ -221,9 +243,9 @@ const B2BLanding = () => {
                 // Determine if we should search for vendors too
                 // Preserving product search as priority
                 const [productRes, vendorRes, propertyRes] = await Promise.all([
-                    api.get('/products', { params: { search: searchTerm, limit: 6, vendorType: 'b2b', strict: isStrict } }),
-                    api.get('/vendors', { params: { search: searchTerm, limit: 6, strict: isStrict } }),
-                    api.get('/property/all', { params: { search: searchTerm, limit: 6, strict: isStrict } })
+                    api.get('/products', { params: { search: searchTerm, limit: 10, vendorType: 'b2b', strict: isStrict } }),
+                    api.get('/vendors', { params: { search: searchTerm, limit: 10, strict: isStrict } }),
+                    api.get('/property/all', { params: { search: searchTerm, limit: 10, strict: isStrict } })
                 ]);
 
                 const products = productRes.success && productRes.data ? (Array.isArray(productRes.data) ? productRes.data : (productRes.data.products || [])) : [];
@@ -304,7 +326,8 @@ const B2BLanding = () => {
         const typeName = (type.name || '').toUpperCase().trim();
         if (typeName === 'DEVELOPER' || typeName === 'PROPERTY BROKER') {
             setIsBusinessTypeDropdownOpen(false);
-            navigateWithAuth('/b2b/real-estate');
+            const t = typeName === 'DEVELOPER' ? 'developer' : 'broker';
+            navigateWithAuth(`/b2b/real-estate?type=${encodeURIComponent(t)}`);
             return;
         }
 
@@ -507,7 +530,7 @@ const B2BLanding = () => {
                 <div className="p-4 md:p-6 max-h-[55vh] overflow-y-auto custom-scrollbar">
                     {popupProperties.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {popupProperties.map((property) => (
+                            {popupProperties.slice(0, 10).map((property) => (
                                 <RealEstateCard
                                     key={property._id}
                                     property={property}
@@ -564,7 +587,7 @@ const B2BLanding = () => {
                 <div className="p-4 md:p-6 max-h-[55vh] overflow-y-auto custom-scrollbar">
                     {popupProducts.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {popupProducts.map((product) => (
+                            {popupProducts.slice(0, 10).map((product) => (
                                 <B2BProductCard
                                     key={product._id}
                                     product={product}
@@ -638,7 +661,7 @@ const B2BLanding = () => {
                     <div className="p-4 md:p-6 max-h-[55vh] overflow-y-auto custom-scrollbar">
                         {popupVendors.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {popupVendors.map((vendor) => (
+                                {popupVendors.slice(0, 10).map((vendor) => (
                                     <B2BVendorCard
                                         key={vendor._id}
                                         vendor={vendor}
@@ -658,21 +681,42 @@ const B2BLanding = () => {
                         )}
                     </div>
                     <div className="p-4 md:p-6 border-t border-gray-100 bg-white">
-                        <button
-                            onClick={() => {
-                                closePopup();
-                                if (hasRealEstate) {
-                                    navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}`);
-                                } else if (onViewAll) {
-                                    onViewAll();
-                                } else {
-                                    navigateWithAuth('/b2b/catalog');
-                                }
-                            }}
-                            className="w-full md:w-auto px-6 py-3 bg-gray-900 text-white rounded-xl md:rounded-full font-black text-[9px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3"
-                        >
-                            {hasRealEstate ? 'Explore Real Estate Hub' : 'View Full Marketplace'} <FiArrowRight />
-                        </button>
+                        {hasRealEstate ? (
+                            <div className="flex flex-col md:flex-row gap-3">
+                                <button
+                                    onClick={() => {
+                                        closePopup();
+                                        navigateWithAuth(`/b2b/real-estate?search=${encodeURIComponent(searchQuery)}`);
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-xl md:rounded-full font-black text-[9px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3"
+                                >
+                                    Explore Real Estate Hub <FiArrowRight />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        closePopup();
+                                        navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}&strict=true&shopOnly=true`);
+                                    }}
+                                    className="flex-1 px-6 py-3 bg-primary-50 text-primary-700 rounded-xl md:rounded-full font-black text-[9px] uppercase tracking-[0.2em] hover:bg-primary-600 hover:text-white transition-all border border-primary-200 shadow-xl shadow-primary-100 flex items-center justify-center gap-3"
+                                >
+                                    View Marketplace <FiArrowRight />
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    closePopup();
+                                    if (onViewAll) {
+                                        onViewAll();
+                                    } else {
+                                        navigateWithAuth('/b2b/catalog');
+                                    }
+                                }}
+                                className="w-full md:w-auto px-6 py-3 bg-gray-900 text-white rounded-xl md:rounded-full font-black text-[9px] uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-3"
+                            >
+                                View Full Marketplace <FiArrowRight />
+                            </button>
+                        )}
                     </div>
                 </motion.div>
             </motion.div>
@@ -723,17 +767,17 @@ const B2BLanding = () => {
     );
 
     return (
-        <div className="min-h-screen bg-white font-sans text-gray-900 overflow-x-hidden">
+        <div className="h-screen bg-white font-sans text-gray-900 overflow-hidden flex flex-col">
 
             {/* --- HEADER --- */}
             <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center gap-2 md:gap-4 justify-between">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-12 md:h-14 flex items-center gap-2 md:gap-4 justify-between">
 
                     {/* Left Section: Logo + City + Navigator Links */}
                     <div className="flex items-center gap-2 md:gap-6 flex-1">
                         {/* 1. Logo */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                            <img src={appLogo.src} alt="Dealing India" className="h-10 md:h-24 w-auto object-contain" />
+                            <img src={appLogo.src} alt="Dealing India" className="h-10 md:h-16 w-auto object-contain" />
                         </div>
 
                         {/* 2. Business Type Dropdown */}
@@ -797,6 +841,34 @@ const B2BLanding = () => {
                                 <FiHome size={16} /> Real Estate
                             </button>
                         </div>
+                        {/* Mobile quick links beside logo */}
+                        <div className="flex md:hidden items-center gap-1 ml-1">
+                            <button
+                                onClick={() => {
+                                    if (!isAuthenticated) {
+                                        navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+                                        return;
+                                    }
+                                    fetchLotProducts();
+                                    setActivePopup('lots');
+                                }}
+                                className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700"
+                            >
+                                Lot / SOT
+                            </button>
+                            <button
+                                onClick={() => navigateWithAuth('/b2b/real-estate')}
+                                className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700"
+                            >
+                                Real Estate
+                            </button>
+                            <button
+                                onClick={() => navigate('/b2b-vendor/register')}
+                                className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-black text-white"
+                            >
+                                Seller
+                            </button>
+                        </div>
                     </div>
 
                     {/* 4. Become Seller & Profile */}
@@ -813,7 +885,7 @@ const B2BLanding = () => {
                         {isAuthenticated ? (
                             <button
                                 onClick={() => navigate('/b2b/profile')}
-                                className="flex items-center gap-2 hover:bg-gray-50 p-1 md:p-1.5 rounded-full transition-colors"
+                                className="hidden md:flex items-center gap-2 hover:bg-gray-50 p-1 md:p-1.5 rounded-full transition-colors"
                             >
                                 <div className="w-8 h-8 md:w-9 md:h-9 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 border border-primary-100 shadow-sm">
                                     <FiUser size={16} className="md:size-[18px]" />
@@ -829,7 +901,7 @@ const B2BLanding = () => {
                             </button>
                         )}
 
-                        <button className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setIsMobileMenuOpen(true)}>
+                        <button className="hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                             <FiMenu size={24} />
                         </button>
                     </div>
@@ -901,9 +973,64 @@ const B2BLanding = () => {
                 )}
             </AnimatePresence>
 
+            {/* Mobile footer bar */}
+            <footer className="md:hidden fixed bottom-0 left-0 right-0 z-[70] bg-white border-t border-gray-100 shadow-lg">
+                <div className="max-w-[1920px] mx-auto px-4 py-2 flex items-center justify-between">
+                    <button
+                        onClick={() => navigate(isAuthenticated ? '/b2b/profile' : '/b2b/login')}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest"
+                        aria-label="Profile"
+                    >
+                        <FiUser size={16} /> Profile
+                    </button>
+                    <button
+                        onClick={() => setIsMobileBusinessTypeOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-700 font-black text-[10px] uppercase tracking-widest"
+                    >
+                        <FiBriefcase className="text-primary-600" /> Business Type
+                    </button>
+                </div>
+            </footer>
+
+            {/* Mobile Business Type sheet */}
+            <AnimatePresence>
+                {isMobileBusinessTypeOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[80] bg-black/40"
+                        onClick={() => setIsMobileBusinessTypeOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl p-4 max-h-[60vh] overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-black text-gray-800 uppercase">Select Business Type</h4>
+                                <button onClick={() => setIsMobileBusinessTypeOpen(false)} className="p-2 bg-gray-100 rounded-lg"><FiX /></button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {businessTypes.map(type => (
+                                    <button
+                                        key={type._id}
+                                        onClick={() => { handleBusinessTypeClick(type); setIsMobileBusinessTypeOpen(false); }}
+                                        className="w-full text-left px-3 py-2 rounded-xl border border-gray-100 text-[11px] font-black uppercase tracking-wider text-gray-700 hover:bg-primary-50"
+                                    >
+                                        {type.name}
+                                    </button>
+                                ))}
+                                {businessTypes.length === 0 && (
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center py-4">No types available</p>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* --- TOOLBAR (Categories, Search, Price) --- */}
-            <section className="bg-white border-b border-gray-100 shadow-sm relative z-40">
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-3 md:py-4 flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4">
+            <section className="bg-white border-b border-gray-100 shadow-sm relative z-40 flex-none">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 py-1 md:py-1.5 flex flex-col md:flex-row items-stretch md:items-center gap-2">
 
                     <div className="flex gap-2 w-full md:w-auto">
                         {/* 1. Category Dropdown */}
@@ -1061,12 +1188,12 @@ const B2BLanding = () => {
 
                     {/* 2. Product Search (Full Width) */}
                     <div className="flex-1 relative order-first md:order-none" ref={searchRef}>
-                        <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-4 py-0.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
-                            <FiSearch className="text-gray-400 mr-2" size={18} />
+                        <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 md:px-4 py-0 md:py-0.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
+                            <FiSearch className="text-gray-400 mr-2" size={16} />
                             <input
                                 type="text"
                                 placeholder="SEARCH PRODUCTS AND SHOPS"
-                                className="w-full bg-transparent py-2.5 text-[11px] md:text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 h-10 uppercase tracking-tight"
+                                className="w-full bg-transparent py-1.5 md:py-2.5 text-[10px] md:text-sm font-bold text-gray-700 outline-none placeholder:text-gray-400 h-9 md:h-10 uppercase tracking-tight"
                                 value={searchQuery}
                                 onChange={handleSearchChange}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearchProductPopup(searchQuery)}
@@ -1101,10 +1228,77 @@ const B2BLanding = () => {
                 </div>
             </section>
 
+            {/* --- VENDOR SHIPS AUTO-SCROLL --- */}
+            <section className="w-full bg-white pt-2 pb-0.5 overflow-hidden flex-none">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 mb-1 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex -space-x-2">
+                            {[...Array(3)].map((_, i) => (
+                                <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center overflow-hidden">
+                                    <FiUser size={12} className="text-gray-400" />
+                                </div>
+                            ))}
+                        </div>
+                        <h2 className="text-[11px] md:text-sm font-black text-gray-900 uppercase tracking-[0.2em] flex items-center gap-2">
+                            PREMIUM SUPPLIERS <span className="px-2 py-0.5 bg-primary-50 text-primary-600 rounded text-[9px] lowercase tracking-normal">verified</span>
+                        </h2>
+                    </div>
+                </div>
+
+                <div className="relative group">
+                    <div className="flex gap-4 md:gap-6 animate-scroll hover:pause-scroll py-2">
+                        {/* Render twice for infinite loop effect */}
+                        {[...allVendors, ...allVendors].map((vendor, idx) => (
+                            <div
+                                key={`${vendor._id}-${idx}`}
+                                className="flex-shrink-0 w-[140px] md:w-[160px]"
+                            >
+                                <B2BVendorCard
+                                    vendor={vendor}
+                                    viewMode="grid"
+                                    trackContactClick={trackContactClick}
+                                    compact={true}
+                                />
+                            </div>
+                        ))}
+
+                        {vendorsLoading && [...Array(6)].map((_, i) => (
+                            <div key={i} className="flex-shrink-0 w-[240px] md:w-[280px] aspect-[4/5] bg-gray-50 animate-pulse rounded-2xl"></div>
+                        ))}
+                    </div>
+                </div>
+
+                <style>{`
+                    @keyframes scroll {
+                        0% { transform: translateX(0); }
+                        100% { transform: translateX(calc(-140px * ${allVendors.length} - 1rem * ${allVendors.length})); }
+                    }
+                    @media (min-width: 768px) {
+                        @keyframes scroll {
+                            0% { transform: translateX(0); }
+                            100% { transform: translateX(calc(-160px * ${allVendors.length} - 1.5rem * ${allVendors.length})); }
+                        }
+                    }
+                    .animate-scroll {
+                        display: flex;
+                        width: max-content;
+                        animation: scroll 40s linear infinite;
+                    }
+                    .pause-scroll:hover {
+                        animation-play-state: paused;
+                    }
+                    .no-scrollbar::-webkit-scrollbar {
+                        display: none;
+                    }
+                `}</style>
+            </section>
+
             {/* --- BANNER SECTION --- */}
-            <section className="w-full bg-gray-50 py-4 md:py-6">
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6">
-                    <B2BBanner />
+            <section className="w-full bg-white flex-1 min-h-0 pb-2">
+                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-full">
+                    <div className="h-full rounded-[1.2rem] md:rounded-[2rem] overflow-hidden shadow-lg border border-gray-50">
+                        <B2BBanner />
+                    </div>
                 </div>
             </section>
 
@@ -1116,7 +1310,7 @@ const B2BLanding = () => {
                 {activePopup === 'products' && (
                     <ProductPopup
                         title={`Related Products for "${searchQuery}"`}
-                        onViewAll={() => navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}&strict=true`)}
+                        onViewAll={() => navigateWithAuth(`/b2b/catalog?search=${encodeURIComponent(searchQuery)}`)}
                     />
                 )}
                 {activePopup === 'properties' && (

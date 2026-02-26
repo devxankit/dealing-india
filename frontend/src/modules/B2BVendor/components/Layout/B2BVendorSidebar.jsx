@@ -75,6 +75,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
 
     const displayVendorName = vendor?.name || "B2B Vendor";
     const vendorInitial = displayVendorName.charAt(0).toUpperCase();
+    const isDashboard = location.pathname === "/b2b-vendor/dashboard";
 
     useEffect(() => {
         const fetchUnreadCount = async () => {
@@ -251,7 +252,9 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                             {vendorInitial}
                         </div>
                         <div className="flex-1 min-w-0 overflow-hidden text-left">
-                            <h2 className="font-bold text-white text-xs sm:text-sm truncate mb-0.5" title={displayVendorName}>{displayVendorName}</h2>
+                            <h2 className="font-bold text-white text-xs sm:text-sm truncate mb-0.5" title={displayVendorName}>
+                                {displayVendorName}
+                            </h2>
                             <p className="text-[10px] sm:text-xs text-gray-400 truncate block opacity-70" title={vendor?.email}>
                                 {vendor?.email || 'Vendor Account'}
                             </p>

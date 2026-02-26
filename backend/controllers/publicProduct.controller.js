@@ -91,8 +91,8 @@ export const getProduct = async (req, res, next) => {
  */
 export const getB2BSuggestions = async (req, res, next) => {
   try {
-    const { q = '' } = req.query;
-    const suggestions = await getB2BSearchSuggestions(q);
+    const { q = '', vendorId } = req.query;
+    const suggestions = await getB2BSearchSuggestions(q, vendorId);
     res.status(200).json({
       success: true,
       data: suggestions,

@@ -373,6 +373,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                         <input type="number" name="saleDetails.priceMin" placeholder="Min Price" value={formData.saleDetails.priceMin} onChange={handleChange} className="input-field" />
                                         <input type="number" name="saleDetails.priceMax" placeholder="Max Price" value={formData.saleDetails.priceMax} onChange={handleChange} className="input-field" />
                                         <select name="saleDetails.priceUnit" value={formData.saleDetails.priceUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                            <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
                                             <option value="Crore">Crore</option>
@@ -388,6 +389,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <input type="number" name="rentDetails.monthlyRent" placeholder="Monthly Rent" value={formData.rentDetails.monthlyRent} onChange={handleChange} className="input-field" />
                                         <select name="rentDetails.rentUnit" value={formData.rentDetails.rentUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                            <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
                                             <option value="Crore">Crore</option>
@@ -396,6 +398,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <input type="number" name="rentDetails.depositAmount" placeholder="Deposit Amount" value={formData.rentDetails.depositAmount} onChange={handleChange} className="input-field" />
                                         <select name="rentDetails.depositUnit" value={formData.rentDetails.depositUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                            <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
                                             <option value="Crore">Crore</option>
@@ -425,6 +428,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <input type="number" name="leaseDetails.monthlyLeaseRate" placeholder="Monthly Lease Rate" value={formData.leaseDetails.monthlyLeaseRate} onChange={handleChange} className="input-field" />
                                         <select name="leaseDetails.leaseUnit" value={formData.leaseDetails.leaseUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                            <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
                                             <option value="Crore">Crore</option>
@@ -433,6 +437,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <input type="number" name="leaseDetails.depositAmount" placeholder="Deposit Amount" value={formData.leaseDetails.depositAmount} onChange={handleChange} className="input-field" />
                                         <select name="leaseDetails.depositUnit" value={formData.leaseDetails.depositUnit} onChange={handleChange} className="input-select bg-primary-50 text-primary-700 font-bold">
+                                            <option value="Rs">Rs</option>
                                             <option value="Thousand">Thousand</option>
                                             <option value="Lakh">Lakh</option>
                                             <option value="Crore">Crore</option>

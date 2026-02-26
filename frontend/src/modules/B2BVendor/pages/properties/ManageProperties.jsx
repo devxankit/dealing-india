@@ -336,16 +336,16 @@ const ManageProperties = () => {
                                                             <p className="text-xs font-black">₹{selectedProperty.rentDetails.depositAmount} {selectedProperty.rentDetails.depositUnit}</p>
                                                         </div>
                                                     )}
-                                                    {(selectedProperty.saleDetails?.maintenance || selectedProperty.rentDetails?.maintenance || selectedProperty.price?.maintenance) && (
+                                                    {selectedProperty.listingType === 'Rent' && selectedProperty.rentDetails?.maintenance && (
                                                         <div>
                                                             <p className="text-[8px] font-black uppercase text-white/40">Maint.</p>
-                                                            <p className="text-xs font-black">{selectedProperty.saleDetails?.maintenance || selectedProperty.rentDetails?.maintenance || selectedProperty.price?.maintenance}</p>
+                                                            <p className="text-xs font-black">{selectedProperty.rentDetails.maintenance}</p>
                                                         </div>
                                                     )}
-                                                    {(selectedProperty.saleDetails?.veraBill || selectedProperty.rentDetails?.veraBill || selectedProperty.price?.utilityBill) && (
+                                                    {selectedProperty.listingType === 'Rent' && selectedProperty.rentDetails?.veraBill && (
                                                         <div>
                                                             <p className="text-[8px] font-black uppercase text-white/40">Vera Bill</p>
-                                                            <p className="text-xs font-black">{selectedProperty.saleDetails?.veraBill || selectedProperty.rentDetails?.veraBill || selectedProperty.price?.utilityBill}</p>
+                                                            <p className="text-xs font-black">{selectedProperty.rentDetails.veraBill}</p>
                                                         </div>
                                                     )}
                                                 </div>

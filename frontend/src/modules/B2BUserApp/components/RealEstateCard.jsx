@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMapPin, FiPhone, FiHome, FiMaximize, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiMapPin, FiPhone, FiHome, FiMaximize, FiChevronLeft, FiChevronRight, FiCheck } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../shared/utils/api';
@@ -50,6 +50,7 @@ const RealEstateCard = ({ property }) => {
 
         const getMultiplier = (unit) => {
             switch (unit) {
+                case 'Rs': return 1;
                 case 'Thousand': return 1000;
                 case 'Lakh': return 100000;
                 case 'Crore': return 10000000;
@@ -59,6 +60,7 @@ const RealEstateCard = ({ property }) => {
 
         const getUnitLabel = (unit) => {
             switch (unit) {
+                case 'Rs': return ' Rs';
                 case 'Thousand': return ' Thousand';
                 case 'Lakh': return ' Lakh';
                 case 'Crore': return ' Crore';
@@ -91,9 +93,12 @@ const RealEstateCard = ({ property }) => {
 
     const displayPrice = formatPrice(property);
 
-    // Use vendor's registration location as requested
-    const vendorAddress = property.vendorId?.address || {};
-    const displayLocation = `${vendorAddress.area || vendorAddress.market || ''}, ${vendorAddress.city || ''}`.trim().replace(/^,/, '').trim();
+    // Prefer property's own location filled in form; fallback to vendor registration if missing
+    const pLoc = property.location || {};
+    const displayLocation = [
+        pLoc.market || pLoc.area,
+        pLoc.city
+    ].filter(Boolean).join(', ') || `${property.vendorId?.address?.area || property.vendorId?.address?.market || ''}, ${property.vendorId?.address?.city || ''}`.trim().replace(/^,/, '').trim();
 
     // Prefer specific shopName or shopUnit.name over registration storeName
     const sellerName = property.shopName || property.shopUnit?.name || property.vendorId?.storeName || property.vendorId?.name || '';
@@ -232,6 +237,28 @@ const RealEstateCard = ({ property }) => {
                     </div>
                 </div>
 
+                {/* Vendor Status Row: GST / Email / Mobile */}
+                <div className="flex items-center gap-3 mt-1 px-1">
+                    <div className="flex items-center gap-1">
+                        <span className="text-[8px] font-black text-gray-500 uppercase">GST</span>
+                        <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
+                            <FiCheck size={10} />
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <span className="text-[8px] font-black text-gray-500 uppercase">Email</span>
+                        <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
+                            <FiCheck size={10} />
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <span className="text-[8px] font-black text-gray-500 uppercase">Mobile</span>
+                        <span className="inline-flex items-center justify-center p-0.5 rounded-full bg-green-200 text-green-700">
+                            <FiCheck size={10} />
+                        </span>
+                    </div>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2 mt-auto">
                     <a
@@ -261,7 +288,7 @@ const RealEstateCard = ({ property }) => {
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            const mapsUrl = getGoogleMapsUrl(property.vendorId);
+                            const mapsUrl = getGoogleMapsUrl(property);
                             if (mapsUrl) {
                                 trackContactClick(property.vendorId?._id, 'map');
                                 window.open(mapsUrl, '_blank');

@@ -26,6 +26,13 @@ const shopUnitSchema = new mongoose.Schema(
             type: Number,
             min: 0,
         },
+        details: [
+            {
+                name: String,
+                post: String,
+                mobile: String,
+            }
+        ],
         isActive: {
             type: Boolean,
             default: true,
