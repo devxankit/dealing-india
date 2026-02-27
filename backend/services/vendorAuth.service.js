@@ -198,7 +198,7 @@ export const registerVendor = async (vendorData) => {
         businessTypeRef: businessTypeRef,
         gstNumber: gstNumber ? gstNumber.trim().toUpperCase() : undefined,
         subscriptionPlan: subscriptionPlan, // Store plan ID for later subscription creation
-        selectedSubTypes: selectedSubTypes || [],
+        selectedSubTypes: [],
         mfgOfWork: mfgOfWork ? mfgOfWork.trim() : undefined,
       },
       expiresAt,
@@ -436,9 +436,7 @@ export const updateVendorProfile = async (vendorId, updateData) => {
       updateFields.businessTypeRef = businessTypeRef;
     }
 
-    if (selectedSubTypes) {
-      updateFields.selectedSubTypes = selectedSubTypes;
-    }
+    
 
     if (mfgOfWork !== undefined) {
       updateFields.mfgOfWork = mfgOfWork ? mfgOfWork.trim() : '';
@@ -611,9 +609,7 @@ export const verifyVendorEmail = async (email, otp) => {
       if (tempRegistration.registrationData.businessTypeRef) {
         vendorData.businessTypeRef = tempRegistration.registrationData.businessTypeRef;
       }
-      if (tempRegistration.registrationData.selectedSubTypes) {
-        vendorData.selectedSubTypes = tempRegistration.registrationData.selectedSubTypes;
-      }
+      
       if (tempRegistration.registrationData.gstNumber) {
         vendorData.gstNumber = tempRegistration.registrationData.gstNumber;
       }

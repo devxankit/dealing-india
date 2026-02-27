@@ -11,12 +11,23 @@ const businessTypeSettingsSchema = new mongoose.Schema(
         enabledModules: [
             {
                 type: String,
-                enum: ['product', 'shop-listing', 'property', 'subscription', 'banner', 'profile', 'settings', 'leads', 'lotslot', 'notifications'],
+                enum: [
+                    'product',
+                    'property',
+                    'subscription',
+                    'banner',
+                    'profile',
+                    'settings',
+                    'leads',
+                    'lotslot',
+                    'notifications',
+                    'shop-listing',
+                ],
             },
         ],
         productFormType: {
             type: String,
-            enum: ['standard', 'shop-listing'],
+            enum: ['standard'],
             default: 'standard'
         },
         enableShopListing: {

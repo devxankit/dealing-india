@@ -108,10 +108,6 @@ const vendorSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    selectedSubTypes: [{
-      type: String,
-      trim: true
-    }],
     // B2B-specific fields
     gstNumber: {
       type: String,
@@ -150,6 +146,7 @@ const vendorSchema = new mongoose.Schema(
     analytics: {
       callClicks: { type: Number, default: 0 },
       whatsappClicks: { type: Number, default: 0 },
+      mapClicks: { type: Number, default: 0 },
     },
     fcmTokens: {
       type: [String],

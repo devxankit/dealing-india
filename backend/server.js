@@ -71,6 +71,7 @@ import businessTypeRoutes from "./routes/businessType.routes.js";
 import propertyRoutes from "./routes/property.routes.js";
 import adminBusinessSettingsRoutes from "./routes/adminBusinessSettings.routes.js";
 import adminNotificationRoutes from "./routes/adminNotification.routes.js";
+import adminUserRoutes from "./routes/adminUser.routes.js";
 import vendorAnalyticsRoutes from "./routes/vendorAnalytics.routes.js";
 import vendorNotificationRoutes from "./routes/vendorNotification.routes.js";
 import userNotificationRoutes from "./routes/userNotification.routes.js";
@@ -338,6 +339,7 @@ app.use("/api/public/banners", publicBannerRoutes);
 app.use("/api/admin/analytics", adminAnalyticsRoutes);
 app.use("/api/admin/reports", adminDashboardRoutes);
 app.use("/api/admin/notifications", adminNotificationRoutes);
+app.use("/api/admin/users", adminUserRoutes);
 
 // Global error handler for unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {

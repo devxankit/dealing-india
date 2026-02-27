@@ -66,20 +66,7 @@ const B2BVendorProfile = () => {
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Business Type</p>
                                 <p className="font-bold text-gray-800">{vendor?.businessType || 'N/A'}</p>
                             </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Specific Type</p>
-                                {vendor?.selectedSubTypes?.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2">
-                                        {vendor.selectedSubTypes.map((type, idx) => (
-                                            <span key={idx} className="px-3 py-1 bg-primary-50 text-primary-700 rounded-lg text-xs font-bold border border-primary-100">
-                                                {type}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm font-medium text-gray-500">Not specified</p>
-                                )}
-                            </div>
+                            
                             {vendor?.gstNumber && (
                                 <div>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">GST Number</p>

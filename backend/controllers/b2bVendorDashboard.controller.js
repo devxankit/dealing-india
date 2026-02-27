@@ -5,6 +5,7 @@ import BannerBooking from '../models/BannerBooking.model.js';
 import VendorSubscription from '../models/VendorSubscription.model.js';
 import Notification from '../models/Notification.model.js';
 import Vendor from '../models/Vendor.model.js';
+import ShopUnit from '../models/ShopUnit.model.js';
 
 /**
  * Get B2B Vendor Dashboard Data
@@ -15,9 +16,6 @@ export const getDashboardData = async (req, res, next) => {
         const vendorId = req.user.vendorId;
 
         // 1. Get List Statistics (Counts)
-
-
-        // Wait, let's simplify and use multiple queries for clarity and reliability
         const [
             totalProducts, approvedProducts,
             totalProperties, approvedProperties,
@@ -25,7 +23,8 @@ export const getDashboardData = async (req, res, next) => {
             activeBanners,
             subscriptions,
             notifications,
-            vendorAnalytics
+            vendorAnalytics,
+            shop
         ] = await Promise.all([
             Product.countDocuments({ vendorId }),
             Product.countDocuments({ vendorId, isActive: true }),
@@ -36,15 +35,18 @@ export const getDashboardData = async (req, res, next) => {
             BannerBooking.find({ vendorId, status: 'active' }).populate('slotId').lean(),
             VendorSubscription.find({ vendorId, status: 'active' }).populate('planId').lean(),
             Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5).lean(),
-            Vendor.findById(vendorId).select('analytics').lean()
+            Vendor.findById(vendorId).select('analytics').lean(),
+            ShopUnit.findOne({ vendorId }).select('_id').lean()
         ]);
 
         // Format Data for Frontend
         const dashboardData = {
+            hasShop: !!shop,
             overview: {
                 bannerClicks: 0, // Banner click tracking can be added later
                 callClicks: vendorAnalytics?.analytics?.callClicks || 0,
-                whatsappClicks: vendorAnalytics?.analytics?.whatsappClicks || 0
+                whatsappClicks: vendorAnalytics?.analytics?.whatsappClicks || 0,
+                mapClicks: vendorAnalytics?.analytics?.mapClicks || 0
             },
             counts: {
                 products: {

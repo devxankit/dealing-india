@@ -50,8 +50,8 @@ export const getB2BProducts = async (req, res, next) => {
       sortOrder = 'desc',
     } = req.query;
 
-    // Build query - only products from B2B vendors
-    const query = { isActive: true };
+    // Build query - only products from B2B vendors; exclude item listings
+    const query = { isActive: true, formType: { $ne: 'shop-listing' } };
 
     // Get all B2B vendor IDs - strictly filter by vendorType='b2b'
     // Convert to ObjectId array to ensure proper matching
@@ -162,13 +162,7 @@ export const getB2BProducts = async (req, res, next) => {
       // Determine status
       const productStatus = product.isVisible ? 'Approved' : 'Pending';
 
-      // Format price range (shop-listing: minPrice-maxPrice or item price)
-      let price = product.price ? `₹${product.price}` : 'N/A';
-      if (product.formType === 'shop-listing' && product.minPrice != null && product.maxPrice != null) {
-        price = `₹${product.minPrice} - ₹${product.maxPrice}`;
-      } else if (product.formType === 'shop-listing' && product.items?.[0]) {
-        price = `₹${product.items[0].price} / ${product.items[0].unit || 'pcs'}`;
-      }
+      const price = product.price ? `₹${product.price}` : 'N/A';
 
       return {
         _id: product._id,
@@ -184,10 +178,7 @@ export const getB2BProducts = async (req, res, next) => {
         image: sanitizeImageUrl(product.image),
         images: sanitizeImageUrls(product.images || []),
         description: product.description,
-        formType: product.formType || 'standard',
-        items: product.items || [],
-        minPrice: product.minPrice,
-        maxPrice: product.maxPrice,
+        formType: 'standard',
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
       };

@@ -14,7 +14,8 @@ import {
     FiHash,
     FiHome,
     FiCalendar,
-    FiArrowUpRight
+    FiArrowUpRight,
+    FiMapPin
 } from "react-icons/fi";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../hooks/useVendorSettings";
@@ -63,7 +64,7 @@ const B2BVendorDashboard = () => {
 
     // Use fetched data or fallback to zeros if data haven't arrived yet
     const dashboard = dashboardData || {
-        overview: { bannerClicks: 0, callClicks: 0, whatsappClicks: 0 },
+        overview: { bannerClicks: 0, callClicks: 0, whatsappClicks: 0, mapClicks: 0 },
         counts: {
             products: { total: 0, approved: 0, pending: 0 },
             lotSlot: { total: 0, approved: 0, pending: 0 },
@@ -73,6 +74,19 @@ const B2BVendorDashboard = () => {
         banners: [],
         alerts: []
     };
+
+    // Add Shop Listing Required alert if missing
+    if (dashboardData && !dashboardData.hasShop) {
+        const shopAlert = {
+            id: 'shop-required',
+            type: 'warning',
+            message: 'Aapne apni Shop Listing poori nahi ki hai. Listings add karne ke liye pehle shop setup poora karein.'
+        };
+        // Add to the beginning of alerts
+        if (!dashboard.alerts.some(a => a.id === 'shop-required')) {
+            dashboard.alerts.unshift(shopAlert);
+        }
+    }
 
     // ==========================================
     // DYNAMIC CONFIG LOGIC (FROM SETTINGS)
@@ -143,11 +157,7 @@ const B2BVendorDashboard = () => {
                             <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-full">
                                 {vendor?.businessType}
                             </span>
-                            {vendor?.selectedSubTypes?.length > 0 && (
-                                <span className="px-3 py-1 bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-widest rounded-full">
-                                    {vendor.selectedSubTypes[0]}
-                                </span>
-                            )}
+
                         </div>
                         <p className="text-slate-400 font-medium flex items-center gap-2">
                             <FiCheckCircle className="text-emerald-500" /> Account Verified & Active
@@ -175,11 +185,12 @@ const B2BVendorDashboard = () => {
                 SECTION 2: COMMON OVERVIEW CARDS (STATS)
             ------------------------------------------ */}
             {config.widgets.includes('stats') && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                         { label: 'Active Promotion Banners', value: dashboard.banners.length, icon: FiImage, color: 'text-blue-600', bg: 'bg-blue-50' },
                         { label: 'Total Call Inquiries', value: dashboard.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                        { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' }
+                        { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' },
+                        { label: 'Total Map Opens', value: dashboard.overview.mapClicks, icon: FiMapPin, color: 'text-orange-600', bg: 'bg-orange-50' }
                     ].map((stat, i) => (
                         <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-lg transition-all">
                             <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}>
@@ -213,9 +224,7 @@ const B2BVendorDashboard = () => {
                                             <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><FiPackage size={24} /></div>
                                             <button onClick={() => navigate('/b2b-vendor/products')} className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
                                         </div>
-                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">
-                                            {settings?.productFormType === 'shop-listing' ? 'Item Listings' : 'Product Catalog'}
-                                        </h3>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Product Catalog</h3>
                                         <div className="flex items-end justify-between">
                                             <p className="text-4xl font-black text-slate-900">{dashboard.counts.products.total}</p>
                                             <div className="text-right">
@@ -342,13 +351,11 @@ const B2BVendorDashboard = () => {
                             <h2 className="text-xs font-black text-primary-400 uppercase tracking-widest mb-6 ml-2">Quick Actions</h2>
                             <div className="grid grid-cols-2 gap-4">
                                 <button
-                                    onClick={() => config.enableProductListing && navigate(settings?.productFormType === 'shop-listing' ? '/b2b-vendor/products/item-listing' : '/b2b-vendor/products/add-product')}
+                                    onClick={() => config.enableProductListing && navigate('/b2b-vendor/products/add-product')}
                                     className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${config.enableProductListing ? 'bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700' : 'opacity-30 cursor-not-allowed bg-slate-800'}`}
                                 >
                                     <FiPlus size={20} />
-                                    <span className="text-[10px] font-black uppercase tracking-tight">
-                                        {settings?.productFormType === 'shop-listing' ? 'Add Item' : 'Add Product'}
-                                    </span>
+                                    <span className="text-[10px] font-black uppercase tracking-tight">Add Product</span>
                                 </button>
                                 <button
                                     onClick={() => config.enablePropertyListing && navigate('/b2b-vendor/properties/add-property')}

@@ -2,11 +2,7 @@ import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: [function () { return this.formType !== 'shop-listing'; }, 'Product name is required'],
-      trim: true,
-    },
+    name: { type: String, required: true, trim: true },
     sku: {
       type: String,
       trim: true,
@@ -19,11 +15,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    price: {
-      type: Number,
-      required: [function () { return this.formType !== 'shop-listing'; }, 'Price is required'],
-      min: 0,
-    },
+    price: { type: Number, required: true, min: 0 },
     unit: {
       type: String,
       trim: true,
@@ -111,40 +103,7 @@ const productSchema = new mongoose.Schema(
         },
       ],
       default: [],
-    },
-    formType: {
-      type: String,
-      enum: ['standard', 'shop-listing'],
-      default: 'standard'
-    },
-    shopUnitId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'ShopUnit',
-      default: null
-    },
-    minPrice: {
-      type: Number,
-      min: 0,
-    },
-    maxPrice: {
-      type: Number,
-      min: 0,
-    },
-    items: [
-      {
-        itemName: String,
-        category: String,
-        price: Number,
-        unit: String,
-        reed: String,
-        pick: String,
-        panna: String,
-        gsm: String,
-        description: String,
-        images: [String],
-        imagesPublicIds: [String]
-      }
-    ]
+    }
   },
   {
     timestamps: true,
@@ -203,15 +162,7 @@ productSchema.index({ vendorId: 1, isActive: 1 });
 productSchema.index({ stock: 1, stockQuantity: 1 });
 productSchema.index({ isActive: 1, isVisible: 1 });
 productSchema.index({ vendorId: 1, isVisible: 1, createdAt: -1 });
-productSchema.index({ 'items.itemName': 1 });
-productSchema.index({
-  name: 'text',
-  description: 'text',
-  brandName: 'text',
-  category: 'text',
-  subcategory: 'text',
-  'items.itemName': 'text'
-});
+productSchema.index({ name: 'text', description: 'text', brandName: 'text', category: 'text', subcategory: 'text' });
 
 export default mongoose.model('Product', productSchema);
 

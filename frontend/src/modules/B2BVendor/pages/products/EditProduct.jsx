@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import B2BVendorProductForm from "../../components/ProductForm";
-import ShopProductForm from "../../components/ShopProductForm";
-import ItemListingForm from "../../components/ItemListingForm";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
 
@@ -22,25 +20,7 @@ const EditProduct = () => {
 
                 if (response.success && response.data?.product) {
                     const productData = response.data.product;
-
-                    if (productData.formType === 'shop-listing') {
-                        // Prepare data for ShopProductForm
-                        const images = [];
-                        if (productData.image) images.push(productData.image);
-                        if (productData.images && productData.images.length > 0) {
-                            images.push(...productData.images);
-                        }
-
-                        setProduct({
-                            ...productData,
-                            unitName: productData.name,
-                            description: productData.description || "",
-                            minPrice: productData.minPrice || "",
-                            maxPrice: productData.maxPrice || "",
-                            items: productData.items || [{ itemName: "", category: "", price: "", unit: "" }],
-                            images: images,
-                        });
-                    } else {
+                    {
                         // Standard Product Data transformation (existing logic)
                         const categoryAttr = productData.attributes?.find(attr => attr.name === 'category');
                         const subcategoryAttr = productData.attributes?.find(attr => attr.name === 'subcategory');
@@ -103,19 +83,6 @@ const EditProduct = () => {
         if (id) loadProduct();
     }, [id, navigate]);
 
-    const handleShopSubmit = async (formData) => {
-        setSaving(true);
-        try {
-            await api.put(`/b2b-vendor/products/${id}`, formData);
-            toast.success("Item listing updated successfully");
-            navigate("/b2b-vendor/products/manage-products");
-        } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to update item listing");
-        } finally {
-            setSaving(false);
-        }
-    };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
@@ -123,8 +90,6 @@ const EditProduct = () => {
             </div>
         );
     }
-
-    const isShopListing = product?.formType === 'shop-listing';
 
     return (
         <motion.div
@@ -134,21 +99,13 @@ const EditProduct = () => {
         >
             <div className="px-1 text-center mb-8">
                 <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">
-                    Edit {isShopListing ? "Item Listing" : "Listing"}
+                    Edit Listing
                 </h1>
                 <p className="text-sm text-gray-500 font-medium">Update your product details and B2B pricing.</p>
             </div>
 
             {product && (
-                isShopListing ? (
-                    <ItemListingForm
-                        initialData={product}
-                        onSubmit={handleShopSubmit}
-                        isLoading={saving}
-                    />
-                ) : (
-                    <B2BVendorProductForm isEdit={true} initialData={product} productId={id} />
-                )
+                <B2BVendorProductForm isEdit={true} initialData={product} productId={id} />
             )}
         </motion.div>
     );

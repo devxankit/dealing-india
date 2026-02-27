@@ -1,9 +1,16 @@
 import admin from 'firebase-admin';
 import fs from 'fs';
 
+// Global toggle to enable/disable Firebase Admin usage on backend
+// Currently kept false as per requirement to keep Firebase "off"
+const ENABLE_FCM = false;
+
 let initialized = false;
 
 function initFirebaseAdmin() {
+  if (!ENABLE_FCM) {
+    return;
+  }
   if (initialized) return;
   const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
   const configJson = process.env.FIREBASE_CONFIG;
@@ -46,6 +53,9 @@ function initFirebaseAdmin() {
 }
 
 export async function sendPushNotification(tokens, payload) {
+  if (!ENABLE_FCM) {
+    return { success: false, message: 'Firebase push notifications are disabled' };
+  }
   initFirebaseAdmin();
   const message = {
     notification: {

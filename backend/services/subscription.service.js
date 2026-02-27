@@ -953,7 +953,7 @@ class SubscriptionService {
       const subscriptions = await VendorSubscription.find(query)
         .populate({
           path: 'vendorId',
-          select: 'businessName storeName email',
+          select: 'businessName storeName email address',
           model: 'Vendor'
         })
         .populate({
@@ -967,6 +967,7 @@ class SubscriptionService {
       return subscriptions.map(sub => ({
         vendor: sub.vendorId?.businessName || sub.vendorId?.storeName || 'Unknown',
         vendorId: sub.vendorId?._id || sub.vendorId,
+        vendorCity: sub.vendorId?.address?.city || '',
         status: sub.status,
         plan: sub.planId?.name || 'Unknown',
         expiry: sub.endDate ? new Date(sub.endDate).toISOString().split('T')[0] : null,

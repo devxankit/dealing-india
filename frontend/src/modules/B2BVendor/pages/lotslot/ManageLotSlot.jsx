@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit, FiTrash2, FiPlus, FiBox, FiLayers } from "react-icons/fi";
+import { FiSearch, FiEdit, FiTrash2, FiPlus, FiBox, FiLayers, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../../Admin/components/DataTable";
 import Badge from "../../../../shared/components/Badge";
@@ -39,6 +39,63 @@ const ManageLotSlot = () => {
         }
     };
 
+    const LotSlotImageCell = ({ row, name }) => {
+        const images = [
+            row.image,
+            ...(Array.isArray(row.images) ? row.images : [])
+        ].filter(Boolean);
+
+        const [activeIndex, setActiveIndex] = useState(0);
+
+        if (images.length === 0) {
+            return (
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100">
+                    <FiBox className="text-gray-400 text-xl" />
+                </div>
+            );
+        }
+
+        const handlePrev = (e) => {
+            e.stopPropagation();
+            setActiveIndex((prev) => (prev - 1 + images.length) % images.length);
+        };
+
+        const handleNext = (e) => {
+            e.stopPropagation();
+            setActiveIndex((prev) => (prev + 1) % images.length);
+        };
+
+        return (
+            <div className="relative w-12 h-12 bg-gray-100 rounded-lg overflow-hidden border border-gray-100 flex items-center justify-center">
+                <img
+                    src={images[activeIndex]}
+                    alt={name}
+                    className="w-full h-full object-cover"
+                />
+
+                {images.length > 1 && (
+                    <>
+                        <button
+                            onClick={handlePrev}
+                            className="absolute left-0.5 top-1/2 -translate-y-1/2 w-4 h-4 bg-white/80 rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm text-[10px]"
+                        >
+                            <FiChevronLeft size={10} />
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            className="absolute right-0.5 top-1/2 -translate-y-1/2 w-4 h-4 bg-white/80 rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm text-[10px]"
+                        >
+                            <FiChevronRight size={10} />
+                        </button>
+                        <div className="absolute top-0.5 right-0.5 px-1 py-[1px] bg-black/60 rounded text-[7px] font-black text-white leading-none">
+                            {activeIndex + 1}/{images.length}
+                        </div>
+                    </>
+                )}
+            </div>
+        );
+    };
+
     const columns = [
         {
             key: "name",
@@ -46,13 +103,7 @@ const ManageLotSlot = () => {
             sortable: true,
             render: (value, row) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100">
-                        {row.image || (row.images && row.images[0]) ? (
-                            <img src={row.image || row.images[0]} alt={value} className="w-full h-full object-cover" />
-                        ) : (
-                            <FiBox className="text-gray-400 text-xl" />
-                        )}
-                    </div>
+                    <LotSlotImageCell row={row} name={value} />
                     <div className="flex flex-col">
                         <span className="font-bold text-gray-800 text-sm">{value}</span>
                         <span className="text-[10px] text-gray-400 font-medium">SKU: {row.sku || 'N/A'}</span>

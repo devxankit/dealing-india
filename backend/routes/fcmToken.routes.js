@@ -3,14 +3,19 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
 import Admin from '../models/Admin.model.js';
-import { sendPushNotification } from '../services/firebaseAdmin.js';
 
 const router = express.Router();
+
+// Global toggle to enable/disable FCM routes without deleting any code
+const ENABLE_FCM = false;
 
 router.use(authenticate);
 
 router.post('/save', async (req, res) => {
   try {
+    if (!ENABLE_FCM) {
+      return res.status(503).json({ success: false, message: 'FCM is currently disabled' });
+    }
     const { token, platform = 'web' } = req.body || {};
     console.log('[FCM] Save request received', {
       role: req.user?.role,
@@ -100,6 +105,9 @@ router.post('/save', async (req, res) => {
 
 router.delete('/remove', async (req, res) => {
   try {
+    if (!ENABLE_FCM) {
+      return res.status(503).json({ success: false, message: 'FCM is currently disabled' });
+    }
     const { token, platform = 'web' } = req.body || {};
     if (!token) return res.status(400).json({ success: false, message: 'token required' });
     const role = req.user?.role;
@@ -128,35 +136,6 @@ router.delete('/remove', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unsupported role' });
     }
     res.json({ success: true, message: 'FCM token removed' });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-router.post('/test', async (req, res) => {
-  try {
-    const role = req.user?.role;
-    let tokens = [];
-    if (role === 'user') {
-      const user = await User.findById(req.user.id).lean();
-      tokens = [...(user?.fcmTokens || []), ...(user?.fcmTokenMobile || [])];
-    } else if (role === 'vendor') {
-      const vendor = await Vendor.findById(req.user.vendorId).lean();
-      tokens = [...(vendor?.fcmTokens || []), ...(vendor?.fcmTokenMobile || [])];
-    } else if (role === 'admin') {
-      const adminDoc = await Admin.findById(req.user.adminId).lean();
-      tokens = [...(adminDoc?.fcmTokens || []), ...(adminDoc?.fcmTokenMobile || [])];
-    } else {
-      return res.status(403).json({ success: false, message: 'Unsupported role' });
-    }
-    const uniqueTokens = [...new Set(tokens)];
-    if (!uniqueTokens.length) return res.json({ success: false, message: 'No FCM tokens found' });
-    await sendPushNotification(uniqueTokens, {
-      title: 'Test Notification',
-      body: 'This is a test notification',
-      data: { type: 'test', link: '/' }
-    });
-    res.json({ success: true, message: 'Test notification sent' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -83,6 +83,11 @@ export const useSubscriptionStore = create((set, get) => ({
         return state.status?.hasSubscription === true;
     },
 
+    hasShop: () => {
+        const state = get();
+        return state.status?.hasShop === true;
+    },
+
     canCreateProduct: () => {
         const state = get();
         if (!state.status?.hasSubscription) return { allowed: false, message: 'Please purchase a subscription plan to start listing.' };

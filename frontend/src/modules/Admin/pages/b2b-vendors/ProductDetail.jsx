@@ -55,11 +55,7 @@ const AdminB2BProductDetail = () => {
 
     if (!product) return null;
 
-    const isShopListing = product.formType === 'shop-listing';
-    const firstItem = product.items?.[0];
-    const displayImages = isShopListing && firstItem?.images?.length > 0
-        ? firstItem.images
-        : [product.image, ...(product.images || [])].filter(Boolean);
+    const displayImages = [product.image, ...(product.images || [])].filter(Boolean);
     const mainImage = displayImages[0];
     const galleryImages = displayImages.slice(1);
 
@@ -97,7 +93,7 @@ const AdminB2BProductDetail = () => {
                         {mainImage ? (
                             <img
                                 src={mainImage}
-                                alt={isShopListing ? (firstItem?.itemName || product.name) : product.name}
+                                alt={product.name}
                                 className="w-full h-auto rounded-2xl object-cover aspect-square shadow-inner transition-transform duration-500 group-hover:scale-105"
                                 onError={(e) => { e.target.src = "/placeholder-product.png"; }}
                             />
@@ -129,31 +125,20 @@ const AdminB2BProductDetail = () => {
                         <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">
-                                        {isShopListing ? (firstItem?.category || 'Item') : (product.brandName || 'Brand Not specified')}
-                                    </span>
-                                    {isShopListing && product.name && (
-                                        <span className="text-[10px] text-gray-500 font-bold">Shop: {product.name}</span>
-                                    )}
+                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded">{product.brandName || 'Brand Not specified'}</span>
                                 </div>
-                                <h1 className="text-3xl font-black text-gray-900 leading-tight mb-2">
-                                    {isShopListing && firstItem ? (firstItem.itemName || firstItem.name || 'Item') : product.name}
-                                </h1>
+                                <h1 className="text-3xl font-black text-gray-900 leading-tight mb-2">{product.name}</h1>
                                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1">
                                     <FiTag /> SKU: {product.sku || 'N/A'}
                                 </p>
                             </div>
                             <div className="text-left md:text-right bg-gray-50 md:bg-transparent p-4 md:p-0 rounded-2xl">
-                                <p className="text-3xl font-black text-primary-600">
-                                    ₹{isShopListing && firstItem ? firstItem.price : product.price}
-                                </p>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                    per {isShopListing && firstItem ? (firstItem.unit || 'pcs') : (product.unit || 'Unit')}
-                                </p>
+                                <p className="text-3xl font-black text-primary-600">₹{product.price}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">per {product.unit || 'Unit'}</p>
                             </div>
                         </div>
 
-                        {!isShopListing && (
+                        {(
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
                                 <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100/50">
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stock Status</p>
@@ -173,20 +158,8 @@ const AdminB2BProductDetail = () => {
                             </div>
                         )}
 
-                        {/* Item Specs (shop listing) or Attributes (product) */}
-                        {isShopListing && firstItem ? (
-                            <div className="mt-8">
-                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-50 pb-2">Item Specifications</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-                                    {firstItem.category && <div className="flex justify-between py-1 border-b border-gray-50/50"><span className="text-xs font-bold text-gray-500 uppercase">Category</span><span className="text-xs font-black text-gray-900 uppercase">{firstItem.category}</span></div>}
-                                    {firstItem.unit && <div className="flex justify-between py-1 border-b border-gray-50/50"><span className="text-xs font-bold text-gray-500 uppercase">Unit</span><span className="text-xs font-black text-gray-900 uppercase">{firstItem.unit}</span></div>}
-                                    {firstItem.reed && <div className="flex justify-between py-1 border-b border-gray-50/50"><span className="text-xs font-bold text-gray-500 uppercase">Reed</span><span className="text-xs font-black text-gray-900 uppercase">{firstItem.reed}</span></div>}
-                                    {firstItem.pick && <div className="flex justify-between py-1 border-b border-gray-50/50"><span className="text-xs font-bold text-gray-500 uppercase">Pick</span><span className="text-xs font-black text-gray-900 uppercase">{firstItem.pick}</span></div>}
-                                    {firstItem.panna && <div className="flex justify-between py-1 border-b border-gray-50/50"><span className="text-xs font-bold text-gray-500 uppercase">Panna</span><span className="text-xs font-black text-gray-900 uppercase">{firstItem.panna}</span></div>}
-                                    {firstItem.gsm && <div className="flex justify-between py-1 border-b border-gray-50/50"><span className="text-xs font-bold text-gray-500 uppercase">GSM</span><span className="text-xs font-black text-gray-900 uppercase">{firstItem.gsm}</span></div>}
-                                </div>
-                            </div>
-                        ) : product.attributes && product.attributes.length > 0 && (
+                        {/* Attributes (product) */}
+                        {product.attributes && product.attributes.length > 0 && (
                             <div className="mt-8">
                                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-50 pb-2">Technical Specifications</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
@@ -203,10 +176,10 @@ const AdminB2BProductDetail = () => {
                         )}
 
                         <div className="mt-10">
-                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">{isShopListing ? 'Item Description' : 'Product Description'}</h3>
+                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3">Product Description</h3>
                             <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-50">
                                 <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">
-                                    {isShopListing && firstItem?.description ? firstItem.description : (product.description || 'No detailed description provided by the vendor.')}
+                                    {product.description || 'No detailed description provided by the vendor.'}
                                 </p>
                             </div>
                         </div>

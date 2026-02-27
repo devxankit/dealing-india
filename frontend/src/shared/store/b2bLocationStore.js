@@ -19,6 +19,16 @@ export const useB2BLocationStore = create(
 
                 if (currentState.isLoading) return;
 
+                // If legacy data shape (areas/markets as plain strings without city info), force a refresh
+                const hasLegacyAreas = Array.isArray(currentState.areas) &&
+                    currentState.areas.some(a => typeof a === 'string' || (a && typeof a === 'object' && !('city' in a)));
+                const hasLegacyMarkets = Array.isArray(currentState.markets) &&
+                    currentState.markets.some(m => typeof m === 'string' || (m && typeof m === 'object' && !('city' in m)));
+
+                if (hasLegacyAreas || hasLegacyMarkets) {
+                    forceRefresh = true;
+                }
+
                 // Check if options have changed
                 const optionsChanged = JSON.stringify(options) !== JSON.stringify(currentState.lastOptions);
 

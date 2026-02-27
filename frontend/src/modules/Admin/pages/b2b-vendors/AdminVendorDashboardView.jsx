@@ -176,11 +176,12 @@ const AdminVendorDashboardView = () => {
 
             {/* Stats Grid */}
             {config.widgets.includes('stats') && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                         { label: 'Active Promotion Banners', value: banners.length, icon: FiImage, color: 'text-blue-600', bg: 'bg-blue-50' },
                         { label: 'Total Call Inquiries', value: overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                        { label: 'Total WhatsApp Clicks', value: overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' }
+                        { label: 'Total WhatsApp Clicks', value: overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' },
+                        { label: 'Total Map Opens', value: overview.mapClicks, icon: FiMapPin, color: 'text-orange-600', bg: 'bg-orange-50' }
                     ].map((stat, i) => (
                         <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-lg transition-all">
                             <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}>

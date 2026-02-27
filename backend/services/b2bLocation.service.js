@@ -236,17 +236,17 @@ export const getB2BAvailableLocations = async (options = {}) => {
 
         if (address && address.area && address.area.trim()) {
           const cleanArea = toTitleCase(address.area.trim());
+          const areaCity = city ? normalizeCity(city) : null;
           if (cleanArea.length > 0 && !/^\d+$/.test(cleanArea)) {
-            areasSet.add(cleanArea);
+            areasSet.add(JSON.stringify({ name: cleanArea, city: areaCity }));
           }
         }
 
         if (address && address.market && address.market.trim()) {
           const cleanMarket = address.market.trim();
-          console.log(`  🔍 Found market for vendor ${vendor._id}: "${cleanMarket}"`);
+          const marketCity = city ? normalizeCity(city) : null;
           if (cleanMarket.length > 0) {
-            marketsSet.add(cleanMarket);
-            console.log(`  ✅ Added market: "${cleanMarket}"`);
+            marketsSet.add(JSON.stringify({ name: cleanMarket, city: marketCity }));
           }
         } else {
           console.log(`  ⚠️ No market for vendor ${vendor._id}`);
@@ -295,8 +295,8 @@ export const getB2BAvailableLocations = async (options = {}) => {
       console.log(`  State: "${state.name}" - Cities: ${state.cities.length}`, state.cities.slice(0, 3));
     });
 
-    const areas = Array.from(areasSet).sort((a, b) => a.localeCompare(b));
-    const markets = Array.from(marketsSet).sort((a, b) => a.localeCompare(b));
+    const areas = Array.from(areasSet).map(s => JSON.parse(s)).sort((a, b) => a.name.localeCompare(b.name));
+    const markets = Array.from(marketsSet).map(s => JSON.parse(s)).sort((a, b) => a.name.localeCompare(b.name));
 
     return { states, areas, markets };
   } catch (error) {

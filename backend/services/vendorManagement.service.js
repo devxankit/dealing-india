@@ -24,7 +24,6 @@ export const getAllVendors = async (filters = {}) => {
       sortOrder = 'desc',
       excludeBusinessTypes,
       businessType,
-      businessSubType,
       strict
     } = filters;
 
@@ -75,9 +74,7 @@ export const getAllVendors = async (filters = {}) => {
         query.businessType = { $nin: excludeArr.map(t => new RegExp(`^${t}$`, 'i')) };
       }
     }
-    if (businessSubType) {
-      query.selectedSubTypes = { $regex: new RegExp(`^${String(businessSubType).trim()}$`, 'i') };
-    }
+    
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -546,7 +543,6 @@ export const getB2BVendors = async (filters = {}) => {
             businessType: vendor.businessType || 'N/A',
             businessTypeRef: vendor.businessTypeRef || null,
             businessTypes: vendor.businessTypes || [],
-            selectedSubTypes: vendor.selectedSubTypes || [],
             subscription: subscription
               ? {
                 _id: subscription._id,

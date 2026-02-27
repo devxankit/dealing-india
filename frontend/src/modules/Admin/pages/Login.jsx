@@ -27,6 +27,15 @@ const AdminLogin = () => {
     }
   }, [isAuthenticated, navigate, location]);
 
+  // Load remembered email
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('remembered-admin-email');
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberMe(true);
+    }
+  }, []);
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -44,8 +53,16 @@ const AdminLogin = () => {
 
     try {
       await login(formData.email, formData.password, formData.secretCode, rememberMe);
+
+      // Handle Remember Me
+      if (rememberMe) {
+        localStorage.setItem('remembered-admin-email', formData.email);
+      } else {
+        localStorage.removeItem('remembered-admin-email');
+      }
+
       toast.success('Login successful!');
-      try { await registerFCMToken(true); } catch {}
+      try { await registerFCMToken(true); } catch { }
       const from = location.state?.from?.pathname || '/admin/dashboard';
       navigate(from, { replace: true });
     } catch (error) {

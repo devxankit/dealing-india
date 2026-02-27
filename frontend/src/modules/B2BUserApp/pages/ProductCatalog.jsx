@@ -51,9 +51,7 @@ const ProductCatalog = () => {
   const [selectedBusinessType, setSelectedBusinessType] = useState(
     searchParams.get("businessType") || null,
   );
-  const [selectedBusinessSubType, setSelectedBusinessSubType] = useState(
-    searchParams.get("businessSubType") || null,
-  );
+  const [selectedBusinessSubType, setSelectedBusinessSubType] = useState(null);
 
   // Derived states moved after selectedItemType declaration below
 
@@ -341,17 +339,17 @@ const ProductCatalog = () => {
               {(selectedPriceRange ||
                 customPriceRange.min ||
                 customPriceRange.max) && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedPriceRange(null);
-                    setCustomPriceRange({ min: "", max: "" });
-                    setPriceInputs({ min: "", max: "" });
-                  }}
-                  className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">
-                  RESET
-                </span>
-              )}
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPriceRange(null);
+                      setCustomPriceRange({ min: "", max: "" });
+                      setPriceInputs({ min: "", max: "" });
+                    }}
+                    className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">
+                    RESET
+                  </span>
+                )}
               <FiChevronDown
                 className={`text-gray-400 transition-transform ${openFilters.price ? "rotate-180" : ""}`}
               />
@@ -378,11 +376,10 @@ const ProductCatalog = () => {
                       setPriceInputs({ min: "", max: "" });
                       if (isMobileFilterOpen) setIsMobileFilterOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                      selectedPriceRange?.label === range.label
-                        ? "bg-primary-50 text-primary-600"
-                        : "text-gray-500 hover:bg-gray-50"
-                    }`}>
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${selectedPriceRange?.label === range.label
+                      ? "bg-primary-50 text-primary-600"
+                      : "text-gray-500 hover:bg-gray-50"
+                      }`}>
                     {range.label}
                   </button>
                 ))}
@@ -516,8 +513,8 @@ const ProductCatalog = () => {
                                   checked={
                                     field.type === "multi-select"
                                       ? (
-                                          dynamicFilters[field.label] || []
-                                        ).includes(option)
+                                        dynamicFilters[field.label] || []
+                                      ).includes(option)
                                       : dynamicFilters[field.label] === option
                                   }
                                   onChange={() => {
@@ -552,17 +549,16 @@ const ProductCatalog = () => {
                                 </div>
                               </div>
                               <span
-                                className={`text-xs font-bold transition-colors ${
-                                  (
-                                    field.type === "multi-select"
-                                      ? (
-                                          dynamicFilters[field.label] || []
-                                        ).includes(option)
-                                      : dynamicFilters[field.label] === option
-                                  )
-                                    ? "text-primary-700"
-                                    : "text-gray-500 group-hover:text-gray-700"
-                                }`}>
+                                className={`text-xs font-bold transition-colors ${(
+                                  field.type === "multi-select"
+                                    ? (
+                                      dynamicFilters[field.label] || []
+                                    ).includes(option)
+                                    : dynamicFilters[field.label] === option
+                                )
+                                  ? "text-primary-700"
+                                  : "text-gray-500 group-hover:text-gray-700"
+                                  }`}>
                                 {option}
                               </span>
                             </label>
@@ -930,8 +926,7 @@ const ProductCatalog = () => {
           // Respect selected business type in vendor search
           if (selectedBusinessType)
             shopParams.businessType = selectedBusinessType;
-          if (selectedBusinessSubType)
-            shopParams.businessSubType = selectedBusinessSubType;
+
 
           const vResponse = await api.get("/vendors", { params: shopParams });
           if (vResponse.success && vResponse.data) {
@@ -987,9 +982,7 @@ const ProductCatalog = () => {
       if (selectedBusinessType) {
         params.businessType = selectedBusinessType;
       }
-      if (selectedBusinessSubType) {
-        params.businessSubType = selectedBusinessSubType;
-      }
+
 
       // Add Dynamic Filters
       if (Object.keys(dynamicFilters).length > 0) {
@@ -1137,7 +1130,7 @@ const ProductCatalog = () => {
     }
 
     setSelectedBusinessType(searchParams.get("businessType") || null);
-    setSelectedBusinessSubType(searchParams.get("businessSubType") || null);
+    setSelectedBusinessSubType(null);
   }, [searchParams]);
 
   useEffect(() => {
@@ -1165,7 +1158,7 @@ const ProductCatalog = () => {
     const init = async () => {
       // Parallel fetches
       await Promise.all([
-        fetchAvailableLocations(false, {
+        fetchAvailableLocations(true, {
           businessTypeFilter: "exclude",
           businessTypes: ["Developer", "Property Broker"],
         }),
@@ -1178,6 +1171,8 @@ const ProductCatalog = () => {
   }, []);
 
   // Update markets from store when available
+  // availableMarkets is intentionally left for potential local modifications 
+  // but we prefer availableMarketsFromStore as the single source of truth for the list
   useEffect(() => {
     if (availableMarketsFromStore && availableMarketsFromStore.length > 0) {
       setAvailableMarkets(availableMarketsFromStore);
@@ -1447,7 +1442,7 @@ const ProductCatalog = () => {
   const vendorFilter = searchParams.get("vendor") || null;
 
   const filteredProducts = productsList
-    .filter((p) => (shopOnly ? p.formType === "shop-listing" : true))
+    .filter(() => !shopOnly)
     .filter((p) => {
       if (!vendorFilter) return true;
       const vid =
@@ -1464,40 +1459,11 @@ const ProductCatalog = () => {
       let matchesSearchFinal = true;
 
       if (!query) {
-        if (isStrict) {
-          const nameStarts = product.name?.toLowerCase().startsWith(query);
-          const itemsStart =
-            product.formType === "shop-listing" &&
-            product.items?.some((item) =>
-              (item.itemName || "").toLowerCase().startsWith(query),
-            );
-          matchesSearchFinal = !!(nameStarts || itemsStart);
-        } else {
-          const nameInc = (product.name || "").toLowerCase().includes(query);
-          const descInc = (product.description || "")
-            .toLowerCase()
-            .includes(query);
-          const itemsInc =
-            !nameInc &&
-            product.formType === "shop-listing" &&
-            product.items?.some(
-              (item) =>
-                (item.itemName || "").toLowerCase().includes(query) ||
-                (item.description || "").toLowerCase().includes(query),
-            );
-          matchesSearchFinal = !!(nameInc || descInc || itemsInc);
-        }
+        matchesSearchFinal = true;
       } else if (isStrict) {
         const textName = (product.name || "").toLowerCase();
         const textDesc = (product.description || "").toLowerCase();
-        const textItems =
-          product.formType === "shop-listing"
-            ? (product.items || [])
-                .map((i) => `${i.itemName || ""} ${i.description || ""}`)
-                .join(" ")
-                .toLowerCase()
-            : "";
-        const aggregate = `${textName} ${textDesc} ${textItems}`.trim();
+        const aggregate = `${textName} ${textDesc}`.trim();
         const isSingleWord = !/\s/.test(query);
         if (isSingleWord) {
           const excluded =
@@ -1516,14 +1482,7 @@ const ProductCatalog = () => {
         if (query === "micro") {
           const textName = (product.name || "").toLowerCase();
           const textDesc = (product.description || "").toLowerCase();
-          const textItems =
-            product.formType === "shop-listing"
-              ? (product.items || [])
-                  .map((i) => `${i.itemName || ""} ${i.description || ""}`)
-                  .join(" ")
-                  .toLowerCase()
-              : "";
-          const aggregate = `${textName} ${textDesc} ${textItems}`.trim();
+          const aggregate = `${textName} ${textDesc}`.trim();
           const excluded =
             aggregate.includes("semi micro") ||
             aggregate.includes("semi-micro");
@@ -1666,33 +1625,85 @@ const ProductCatalog = () => {
     setSearchParams(newParams, { replace: true });
   };
 
-  const uniqueCities = (availableStates || [])
-    .flatMap((state) => state.cities || [])
-    .filter((city, index, self) => {
-      if (!city || typeof city !== "string") return false;
-      const cleanCity = city.trim();
-      if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
-      return self.findIndex((c) => c.trim() === cleanCity) === index;
-    })
-    .sort();
+  const uniqueCities = (() => {
+    const citiesList = (availableStates || []).flatMap((state) => state.cities || []);
+    const cityMap = new Map();
+    citiesList.forEach(city => {
+      if (!city || typeof city !== 'string') return;
+      const clean = city.trim();
+      const lower = clean.toLowerCase();
+      const normalized = (lower === 'aagra') ? 'agra' : lower;
+      if (!cityMap.has(normalized)) {
+        cityMap.set(normalized, normalized === 'agra' ? 'Agra' : clean);
+      }
+    });
+    return Array.from(cityMap.values()).filter(c => c.length > 0 && !/^\d+$/.test(c)).sort();
+  })();
 
   const filteredCitiesList = citySearchQuery
     ? uniqueCities.filter((city) =>
-        city.toLowerCase().includes(citySearchQuery.toLowerCase()),
-      )
+      city.toLowerCase().includes(citySearchQuery.toLowerCase()),
+    )
     : uniqueCities;
 
-  const filteredAreasList = areaSearchQuery
-    ? availableAreas.filter((area) =>
-        area.toLowerCase().includes(areaSearchQuery.toLowerCase()),
-      )
-    : availableAreas;
+  const filteredAreasList = useMemo(() => {
+    const areas = Array.isArray(availableAreas) ? availableAreas : [];
+    const cityFiltered = areas.filter((item) => {
+      const city = (selectedCity || "All Cities").trim();
+      if (city === "All Cities") return true;
 
-  const filteredMarketsList = marketSearchQuery
-    ? (availableMarketsFromStore || availableMarkets).filter((market) =>
-        market.toLowerCase().includes(marketSearchQuery.toLowerCase()),
-      )
-    : availableMarketsFromStore || availableMarkets;
+      // STRICT: Only show matching objects
+      if (typeof item !== "object" || !item?.city) return false;
+
+      const itemCityLower = item.city.toLowerCase().trim();
+      const cityLower = city.toLowerCase().trim();
+
+      return itemCityLower === cityLower ||
+        (cityLower === 'agra' && itemCityLower === 'aagra') ||
+        (cityLower === 'aagra' && itemCityLower === 'agra');
+    });
+
+    const queryFiltered = areaSearchQuery
+      ? cityFiltered.filter((item) => {
+        const name = typeof item === "object" ? item.name : item;
+        return name.toLowerCase().includes(areaSearchQuery.toLowerCase());
+      })
+      : cityFiltered;
+
+    return [...new Set(queryFiltered.map((item) => (typeof item === "object" ? item.name : item)))].sort();
+  }, [availableAreas, selectedCity, areaSearchQuery]);
+
+  const filteredMarketsList = useMemo(() => {
+    // Single source of truth: store data, with local fallback for safety
+    const allMarkets = (availableMarketsFromStore && availableMarketsFromStore.length > 0)
+      ? availableMarketsFromStore
+      : (availableMarkets || []);
+
+    const markets = Array.isArray(allMarkets) ? allMarkets : [];
+    const cityFiltered = markets.filter((item) => {
+      const city = (selectedCity || "All Cities").trim();
+      if (city === "All Cities") return true;
+
+      // STRICT: Only show matching objects
+      if (typeof item !== "object" || !item?.city) return false;
+
+      const itemCityLower = item.city.toLowerCase().trim();
+      const cityLower = city.toLowerCase().trim();
+
+      return itemCityLower === cityLower ||
+        (cityLower === 'agra' && itemCityLower === 'aagra') ||
+        (cityLower === 'aagra' && itemCityLower === 'agra');
+    });
+
+    const queryFiltered = marketSearchQuery
+      ? cityFiltered.filter((item) => {
+        const name = typeof item === "object" ? item.name : item;
+        return name.toLowerCase().includes(marketSearchQuery.toLowerCase());
+      })
+      : cityFiltered;
+
+    return [...new Set(queryFiltered.map((item) => (typeof item === "object" ? item.name : item)))].sort();
+  }, [availableMarketsFromStore, availableMarkets, selectedCity, marketSearchQuery]);
 
   // Sync businessType params to URL so they can be cleared correctly
   useEffect(() => {
@@ -1700,9 +1711,7 @@ const ProductCatalog = () => {
     if (selectedBusinessType)
       newParams.set("businessType", selectedBusinessType);
     else newParams.delete("businessType");
-    if (selectedBusinessSubType)
-      newParams.set("businessSubType", selectedBusinessSubType);
-    else newParams.delete("businessSubType");
+    newParams.delete("businessSubType");
     setSearchParams(newParams, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBusinessType, selectedBusinessSubType]);
@@ -1792,29 +1801,7 @@ const ProductCatalog = () => {
                       )}
                     </button>
 
-                    {selectedBusinessType === type.name &&
-                      type.subTypes &&
-                      type.subTypes.length > 0 && (
-                        <div className="pl-4 mt-1 space-y-1 border-l-2 border-gray-100 ml-2 mb-1">
-                          {type.subTypes.map((sub, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                setSelectedBusinessSubType(sub);
-                                setIsBusinessTypeDropdownOpen(false);
-                              }}
-                              className={`w-full text-left px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-between hover:bg-gray-50 ${selectedBusinessSubType === sub ? "text-primary-600 bg-primary-50/50" : "text-gray-500"}`}>
-                              <span>{sub}</span>
-                              {selectedBusinessSubType === sub && (
-                                <FiCheck
-                                  size={12}
-                                  className="text-primary-600"
-                                />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+
                   </div>
                 ))}
 
@@ -1822,10 +1809,10 @@ const ProductCatalog = () => {
                 const name = (type.name || "").toUpperCase().trim();
                 return name !== "DEVELOPER" && name !== "PROPERTY BROKER";
               }).length === 0 && (
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center py-4">
-                  No types available
-                </p>
-              )}
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center py-4">
+                    No types available
+                  </p>
+                )}
             </div>
           </motion.div>
         )}
@@ -1842,28 +1829,6 @@ const ProductCatalog = () => {
         hideSearch={false}
         customNav={headerBusinessTypeDropdown}
       />
-      {isAuthenticated && (
-        <div className="max-w-6xl mx-auto px-4 mt-3">
-          <div className="flex justify-end">
-            <button
-              onClick={async () => {
-                try {
-                  const res = await api.post("/fcm-tokens/test");
-                  if (res?.success) {
-                    toast.success("Test push sent");
-                  } else {
-                    toast.error(res?.message || "Failed to send test push");
-                  }
-                } catch (e) {
-                  toast.error(e?.message || "Failed to send test push");
-                }
-              }}
-              className="px-4 py-2 rounded-lg bg-primary-600 text-white text-xs font-bold hover:bg-primary-700 transition-colors">
-              Send Test Push
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Mobile: Search bar in place of chips */}
       <div className="md:hidden px-4 py-3 bg-white border-b border-gray-50">
@@ -2185,22 +2150,20 @@ const ProductCatalog = () => {
             <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
               <button
                 onClick={() => setSelectedCity("All Cities")}
-                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${
-                  selectedCity === "All Cities"
-                    ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
-                    : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
-                }`}>
+                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === "All Cities"
+                  ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
+                  : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
+                  }`}>
                 All Cities
               </button>
               {uniqueCities.slice(0, 15).map((city, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedCity(city)}
-                  className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${
-                    selectedCity === city
-                      ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
-                      : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
-                  }`}>
+                  className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === city
+                    ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
+                    : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
+                    }`}>
                   {city}
                 </button>
               ))}
@@ -2219,11 +2182,10 @@ const ProductCatalog = () => {
                   onClick={() =>
                     setIsMainCategoryDropdownOpen(!isMainCategoryDropdownOpen)
                   }
-                  className={`flex items-center justify-between gap-3 px-6 py-3.5 md:py-4 bg-white border rounded-xl md:rounded-2xl text-[11px] md:text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${
-                    selectedCategory !== "All"
-                      ? "border-primary-200 text-primary-600 bg-primary-50/20"
-                      : "border-gray-200 text-gray-700"
-                  }`}>
+                  className={`flex items-center justify-between gap-3 px-6 py-3.5 md:py-4 bg-white border rounded-xl md:rounded-2xl text-[11px] md:text-sm font-black transition-all w-full shadow-sm hover:shadow-md ${selectedCategory !== "All"
+                    ? "border-primary-200 text-primary-600 bg-primary-50/20"
+                    : "border-gray-200 text-gray-700"
+                    }`}>
                   <div className="flex items-center gap-2 uppercase tracking-widest">
                     <FiGrid
                       className={
@@ -2365,12 +2327,11 @@ const ProductCatalog = () => {
                         e.stopPropagation();
                         handleSubcategoryClick(null, expandedCategory);
                       }}
-                      className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all ${
-                        !selectedSubcategory &&
+                      className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all ${!selectedSubcategory &&
                         selectedCategory === expandedCategory
-                          ? "bg-primary-600 text-white shadow-lg shadow-primary-200"
-                          : "bg-white text-gray-600 border border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md"
-                      }`}>
+                        ? "bg-primary-600 text-white shadow-lg shadow-primary-200"
+                        : "bg-white text-gray-600 border border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md"
+                        }`}>
                       All {expandedCategory}
                     </button>
 
@@ -2384,12 +2345,11 @@ const ProductCatalog = () => {
                             e.stopPropagation();
                             handleSubcategoryClick(sub, expandedCategory);
                           }}
-                          className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all ${
-                            selectedSubcategory === sub &&
+                          className={`px-6 py-3 rounded-xl text-sm font-extrabold transition-all ${selectedSubcategory === sub &&
                             selectedCategory === expandedCategory
-                              ? "bg-primary-600 text-white shadow-lg shadow-primary-200"
-                              : "bg-white text-gray-600 border border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md"
-                          }`}>
+                            ? "bg-primary-600 text-white shadow-lg shadow-primary-200"
+                            : "bg-white text-gray-600 border border-gray-100 hover:border-primary-100 hover:bg-white hover:shadow-md"
+                            }`}>
                           {sub}
                         </button>
                       ))}
@@ -2437,26 +2397,26 @@ const ProductCatalog = () => {
                   customPriceRange.min ||
                   customPriceRange.max ||
                   searchQuery) && (
-                  <button
-                    onClick={() => {
-                      setSelectedPriceRange(null);
-                      setCustomPriceRange({ min: "", max: "" });
-                      setSearchQuery("");
-                      const newParams = new URLSearchParams(searchParams);
-                      newParams.delete("search");
-                      newParams.delete("shopOnly");
-                      setSearchParams(newParams);
-                    }}
-                    className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-primary-700 transition-all">
-                    Clear Search & Filters
-                  </button>
-                )}
+                    <button
+                      onClick={() => {
+                        setSelectedPriceRange(null);
+                        setCustomPriceRange({ min: "", max: "" });
+                        setSearchQuery("");
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.delete("search");
+                        newParams.delete("shopOnly");
+                        setSearchParams(newParams);
+                      }}
+                      className="mt-6 px-6 py-2 bg-primary-600 text-white rounded-xl font-bold text-xs uppercase hover:bg-primary-700 transition-all">
+                      Clear Search & Filters
+                    </button>
+                  )}
               </div>
             ) : (
               <div className="space-y-12">
                 {/* Matching Stores Section - Show if found during search */}
                 {searchQuery &&
-                (matchingVendors.length > 0 || filteredProducts.length > 0) ? (
+                  (matchingVendors.length > 0 || filteredProducts.length > 0) ? (
                   <div className="space-y-12">
                     {/* Matching Stores Section */}
                     {matchingVendors.length > 0 && (

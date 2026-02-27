@@ -37,25 +37,18 @@ const ManageProducts = () => {
                 const transformedProducts = response.data.products.map(product => {
                     // Extract category from root field or attributes
                     const categoryAttr = product.attributes?.find(attr => attr.name === 'category');
-                    const isShopListing = product.formType === 'shop-listing';
-                    const category = isShopListing
-                        ? 'Item Listing'
-                        : (product.category || categoryAttr?.value || 'N/A');
+                    const category = product.category || categoryAttr?.value || 'N/A';
 
                     return {
                         _id: product._id,
                         name: product.name,
                         image: product.image,
                         price: product.price,
-                        minPrice: product.minPrice,
-                        maxPrice: product.maxPrice,
                         moq: product.minimumOrderQuantity || 1,
                         unit: product.unit || 'Pcs',
                         category: category,
                         visibility: product.isVisible ? 'Visible' : 'Hidden',
-                        formType: product.formType,
-                        itemsCount: product.items?.length || 0,
-                        items: product.items || [],
+                        formType: 'standard',
                         storeName: product.vendorId?.storeName || product.vendorName || null,
                     };
                 });
@@ -88,11 +81,6 @@ const ManageProducts = () => {
             </div>
             <div className="min-w-0">
                 <span className="font-medium text-gray-800 block truncate">{row.name}</span>
-                {row.formType === 'shop-listing' && row.storeName && (
-                    <span className="text-xs text-gray-500 font-medium block truncate" title={row.storeName}>
-                        Shop: {row.storeName}
-                    </span>
-                )}
             </div>
         </div>
     );
@@ -136,16 +124,6 @@ const ManageProducts = () => {
             {value.toUpperCase()}
         </Badge>
     );
-
-    // Shop Listing columns – item name, item details (not shop info)
-    const shopListingColumns = [
-        { key: "name", label: "Item Name", sortable: true, render: (v, row) => shopListingItemCell(v, row) },
-        { key: "category", label: "Type", sortable: true, render: (_, row) => row.items?.[0]?.category || 'Item Listing' },
-        { key: "price", label: "Item Price", sortable: true, render: (_, row) => row.items?.[0]?.price != null ? `₹${row.items[0].price} / ${row.items[0].unit || 'pcs'}` : (row.minPrice != null && row.maxPrice != null ? `₹${row.minPrice} - ₹${row.maxPrice}` : '–') },
-        { key: "moq", label: "Items", sortable: true, render: (_, row) => row.items?.map(i => i.itemName || i.name).filter(Boolean).join(', ') || `${row.itemsCount || 0} Item${(row.itemsCount || 0) !== 1 ? 's' : ''}` },
-        { key: "visibility", label: "Status", render: statusCell },
-        { key: "actions", label: "Actions", render: actionsCell },
-    ];
 
     // Product Listing columns – product name, exp price, MOQ
     const productListingColumns = [
@@ -212,25 +190,12 @@ const ManageProducts = () => {
                                 const matchName = p.name?.toLowerCase().includes(q);
                                 const matchCategory = p.category?.toLowerCase().includes(q);
                                 const matchStore = p.storeName?.toLowerCase().includes(q);
-                                const matchItemName = p.items?.some(i => (i.itemName || i.name || '').toLowerCase().includes(q));
-                                return matchName || matchCategory || matchStore || matchItemName;
+                                return matchName || matchCategory || matchStore;
                             });
-                            const shopListings = filterProducts(products.filter(p => p.formType === 'shop-listing'));
-                            const productListings = filterProducts(products.filter(p => p.formType !== 'shop-listing'));
+                            const productListings = filterProducts(products);
 
                             return (
                                 <div className="space-y-10">
-                                    {shopListings.length > 0 && (
-                                        <div>
-                                            <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Item Listings</h3>
-                                            <DataTable
-                                                data={shopListings}
-                                                columns={shopListingColumns}
-                                                pagination={shopListings.length > 10}
-                                                itemsPerPage={10}
-                                            />
-                                        </div>
-                                    )}
                                     {productListings.length > 0 && (
                                         <div>
                                             <h3 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-4">Product Listings</h3>
@@ -242,7 +207,7 @@ const ManageProducts = () => {
                                             />
                                         </div>
                                     )}
-                                    {shopListings.length === 0 && productListings.length === 0 && (
+                                    {productListings.length === 0 && (
                                         <div className="text-center py-16 text-gray-400">
                                             <FiPackage className="mx-auto text-5xl mb-4 opacity-30" />
                                             <p className="font-bold uppercase tracking-widest text-sm">No listings found</p>

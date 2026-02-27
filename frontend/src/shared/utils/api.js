@@ -85,7 +85,21 @@ api.interceptors.request.use(
       // Shared vendor routes: try both specific and generic tokens
       token = localStorage.getItem('vendor-token') || localStorage.getItem('b2b-vendor-token') || localStorage.getItem('token');
     } else {
+      // Default: B2B buyer / general user token
       token = localStorage.getItem('token');
+
+      // Fallback: if token key missing but Zustand auth store still has token (e.g. after a 401 that only cleared localStorage)
+      if (!token) {
+        try {
+          const storedAuth = localStorage.getItem('auth-storage');
+          if (storedAuth) {
+            const parsedAuth = JSON.parse(storedAuth);
+            token = parsedAuth?.state?.token || null;
+          }
+        } catch (e) {
+          // Ignore JSON parse errors and continue without fallback token
+        }
+      }
     }
 
     // DEBUG: Log token selection result
@@ -272,12 +286,21 @@ api.interceptors.response.use(
       } else {
         const storedUserToken = localStorage.getItem('token');
         if (sentToken && storedUserToken === sentToken) {
-          console.log('[API Interceptor] Clearing buyer token');
-          localStorage.setItem('token_prev', storedUserToken);
-          localStorage.removeItem('token');
-          if (!currentPath.startsWith('/vendor') && !currentPath.startsWith('/b2b-vendor') && !currentPath.startsWith('/admin') && !currentPath.includes('/login')) {
+          console.log(
+            "[API Interceptor] Clearing buyer token and auth-storage due to 401",
+          );
+          localStorage.setItem("token_prev", storedUserToken);
+          localStorage.removeItem("token");
+          // Also clear persisted auth store so we don't keep reusing an invalid token
+          localStorage.removeItem("auth-storage");
+          if (
+            !currentPath.startsWith("/vendor") &&
+            !currentPath.startsWith("/b2b-vendor") &&
+            !currentPath.startsWith("/admin") &&
+            !currentPath.includes("/login")
+          ) {
             shouldRedirect = true;
-            redirectPath = '/login';
+            redirectPath = "/b2b/login";
           }
         }
       }

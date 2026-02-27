@@ -53,7 +53,14 @@ const B2BVendorLogin = () => {
             });
         }
 
-        // Autofill email if provided
+        // Check for remembered email
+        const savedEmail = localStorage.getItem('remembered-b2b-vendor-email');
+        if (savedEmail && !location.state?.email) {
+            setFormData(prev => ({ ...prev, email: savedEmail }));
+            setRememberMe(true);
+        }
+
+        // Autofill email if provided (overrides remembered)
         if (location.state?.email && location.state?.autoFill) {
             setFormData(prev => ({ ...prev, email: location.state.email }));
         }
@@ -84,10 +91,17 @@ const B2BVendorLogin = () => {
             const result = await useB2BVendorAuthStore.getState().login(formData.email, formData.password);
 
             if (result.success) {
+                // Handle Remember Me
+                if (rememberMe) {
+                    localStorage.setItem('remembered-b2b-vendor-email', formData.email);
+                } else {
+                    localStorage.removeItem('remembered-b2b-vendor-email');
+                }
+
                 toast.success('Login successful! Welcome to your dashboard.', {
                     id: 'login-success'
                 });
-                try { await registerFCMToken(true); } catch {}
+                try { await registerFCMToken(true); } catch { }
                 const from = location.state?.from?.pathname || '/b2b-vendor/dashboard';
                 navigate(from, { replace: true });
             } else {

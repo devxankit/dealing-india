@@ -174,7 +174,7 @@ export const registerB2BVendor = async (vendorData) => {
       commissionRate: 0,
       businessType: businessType || 'Textile',
       businessTypeRef: businessTypeRef || undefined,
-      selectedSubTypes: selectedSubTypes || [],
+      selectedSubTypes: [],
     };
 
     // Geocode address to get lat/lng for the new B2B vendor

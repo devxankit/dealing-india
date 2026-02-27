@@ -10,8 +10,9 @@ const BusinessTypeConfiguration = () => {
     const [loading, setLoading] = useState(true);
     const [editingSettings, setEditingSettings] = useState(null);
     const [isAddingNew, setIsAddingNew] = useState(false);
-    const [newType, setNewType] = useState({ name: '', description: '', subTypes: [] });
+    const [newType, setNewType] = useState({ name: '', description: '' });
     const [newSubType, setNewSubType] = useState('');
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const fetchedRef = useRef(false);
 
     useEffect(() => {
@@ -132,6 +133,15 @@ const BusinessTypeConfiguration = () => {
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Business Type Configuration</h1>
                     <p className="text-gray-500 text-sm">Manage features and limits for different business categories.</p>
                 </div>
+                <button
+                    onClick={() => {
+                        setNewType({ name: '', description: '' });
+                        setIsAddingNew(true);
+                    }}
+                    className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-primary-600 text-white text-xs font-black uppercase tracking-widest shadow-sm hover:bg-primary-700 transition-colors"
+                >
+                    <FiPlus className="mr-2" /> Add Business Type
+                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -145,12 +155,27 @@ const BusinessTypeConfiguration = () => {
                             <div className="w-12 h-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center text-xl">
                                 <FiSettings />
                             </div>
-                            <button
-                                onClick={() => handleEdit(settings)}
-                                className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                            >
-                                <FiEdit2 />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleEdit(settings)}
+                                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                    title="Edit configuration"
+                                >
+                                    <FiEdit2 />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setDeleteConfirmId(prev => prev === settings._id ? null : settings._id);
+                                    }}
+                                    className={`p-2 rounded-lg transition-colors ${deleteConfirmId === settings._id
+                                        ? 'text-white bg-red-500 hover:bg-red-600'
+                                        : 'text-red-500 hover:bg-red-50'
+                                        }`}
+                                    title="Delete business type"
+                                >
+                                    <FiTrash2 />
+                                </button>
+                            </div>
                         </div>
 
                         <h3 className="text-xl font-bold text-slate-800 mb-1">
@@ -164,11 +189,54 @@ const BusinessTypeConfiguration = () => {
                                 <div className="flex flex-wrap gap-2 text-[10px] font-bold">
                                     {settings.enabledModules?.map(module => (
                                         <span key={module} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md uppercase">
-                                            {module === 'lotslot' ? 'Lot/Slot' : module === 'shop-listing' ? 'Shop Listing' : module}
+                                            {module === 'lotslot'
+                                                ? 'Lot/Slot'
+                                                : module === 'shop-listing'
+                                                    ? 'Shop'
+                                                    : module}
                                         </span>
                                     ))}
                                 </div>
                             </div>
+
+                            {deleteConfirmId === settings._id && (
+                                <div className="mt-2 p-3 rounded-xl border border-red-200 bg-red-50 flex items-center justify-between gap-3">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-red-700">
+                                        Delete this business type? This cannot be undone.
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const id = settings.businessTypeId?._id;
+                                                    if (!id) {
+                                                        return toast.error('Business type id not found');
+                                                    }
+                                                    const response = await api.delete(`/business-types/admin/${id}`);
+                                                    if (response.success) {
+                                                        toast.success('Business type deleted');
+                                                        setBusinessSettings(prev => prev.filter(s => s._id !== settings._id));
+                                                        setDeleteConfirmId(null);
+                                                    } else {
+                                                        toast.error(response.message || 'Failed to delete business type');
+                                                    }
+                                                } catch (error) {
+                                                    toast.error(error.message || 'Failed to delete business type');
+                                                }
+                                            }}
+                                            className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors"
+                                        >
+                                            Confirm
+                                        </button>
+                                        <button
+                                            onClick={() => setDeleteConfirmId(null)}
+                                            className="px-3 py-1.5 rounded-lg bg-white text-red-600 border border-red-200 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Widgets</p>
@@ -185,20 +253,7 @@ const BusinessTypeConfiguration = () => {
                                 </div>
                             </div>
 
-                            <div>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Sub-Types</p>
-                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
-                                    {(settings.businessTypeId?.subTypes?.length || 0) > 0 ? (
-                                        settings.businessTypeId.subTypes.map(st => (
-                                            <span key={st} className="px-2 py-1 bg-purple-50 text-purple-600 rounded-md uppercase border border-purple-100">
-                                                {st}
-                                            </span>
-                                        ))
-                                    ) : (
-                                        <span className="text-slate-400 italic font-medium">None</span>
-                                    )}
-                                </div>
-                            </div>
+                            
 
                             <div className="flex items-center justify-between py-2 border-t border-gray-50">
                                 <span className="text-xs font-semibold text-gray-600">Status</span>
@@ -211,6 +266,78 @@ const BusinessTypeConfiguration = () => {
                     </motion.div>
                 ))}
             </div>
+
+            {/* Add New Business Type Modal */}
+            {isAddingNew && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0, y: 100 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white rounded-[2.5rem] w-full max-w-xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col"
+                    >
+                        {/* Header */}
+                        <div className="p-8 pb-4 border-b border-slate-50 flex items-center justify-between bg-white">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+                                    Add New Business Type
+                                </h2>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                    Create a new business category
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setIsAddingNew(false);
+                                    setNewType({ name: '', description: '' });
+                                }}
+                                className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-all"
+                            >
+                                <FiXCircle size={24} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-6 custom-scrollbar">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                                        Business Type Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={newType.name}
+                                        onChange={(e) => setNewType({ ...newType, name: e.target.value })}
+                                        placeholder="e.g. Textile Manufacturer"
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                                        Description (optional)
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        value={newType.description}
+                                        onChange={(e) => setNewType({ ...newType, description: e.target.value })}
+                                        placeholder="Short description to help admins understand this category."
+                                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 resize-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-8 pt-4 border-t border-slate-50 bg-slate-50/50">
+                            <button
+                                onClick={handleCreate}
+                                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center gap-3"
+                            >
+                                <FiSave /> Save Business Type
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
 
             {/* Edit Modal */}
             {editingSettings && (
@@ -238,11 +365,54 @@ const BusinessTypeConfiguration = () => {
 
                         {/* Body - Scrollable */}
                         <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
+                            {/* Business Type Info (Name & Description) */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
+                                    Business Type Details
+                                </label>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                            Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editingSettings.businessTypeId?.name || ''}
+                                            onChange={(e) => {
+                                                const current = editingSettings.businessTypeId || {};
+                                                setEditingSettings({
+                                                    ...editingSettings,
+                                                    businessTypeId: { ...current, name: e.target.value }
+                                                });
+                                            }}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                            Description
+                                        </label>
+                                        <textarea
+                                            rows={3}
+                                            value={editingSettings.businessTypeId?.description || ''}
+                                            onChange={(e) => {
+                                                const current = editingSettings.businessTypeId || {};
+                                                setEditingSettings({
+                                                    ...editingSettings,
+                                                    businessTypeId: { ...current, description: e.target.value }
+                                                });
+                                            }}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 resize-none"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Modules Selection */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Enabled Modules</label>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {['product', 'shop-listing', 'property', 'lotslot', 'subscription', 'banner', 'notifications', 'profile', 'settings'].map(module => (
+                                    {['product', 'property', 'shop-listing', 'lotslot', 'subscription', 'banner', 'notifications', 'profile', 'settings'].map(module => (
                                         <button
                                             key={module}
                                             onClick={() => toggleModule(module)}
@@ -251,7 +421,11 @@ const BusinessTypeConfiguration = () => {
                                                 : 'bg-slate-50 text-slate-400 border border-slate-100 hover:border-primary-300'
                                                 }`}
                                         >
-                                            {module === 'lotslot' ? 'Lot/Slot' : module === 'shop-listing' ? 'Shop Listing' : module}
+                                            {module === 'lotslot'
+                                                ? 'Lot/Slot'
+                                                : module === 'shop-listing'
+                                                    ? 'Shop'
+                                                    : module}
                                             {editingSettings.enabledModules?.includes(module) && <FiCheckCircle />}
                                         </button>
                                     ))}
@@ -369,8 +543,7 @@ const BusinessTypeConfiguration = () => {
                                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Product Form Layout</label>
                                     <div className="grid grid-cols-2 gap-4">
                                         {[
-                                            { id: 'standard', label: 'Product', desc: 'Single product entry' },
-                                            { id: 'shop-listing', label: 'Item Listing', desc: 'Item details + items list' }
+                                            { id: 'standard', label: 'Product', desc: 'Single product entry' }
                                         ].map(type => (
                                             <button
                                                 key={type.id}
@@ -385,62 +558,7 @@ const BusinessTypeConfiguration = () => {
                                 </div>
                             )}
 
-                            {/* Sub-Types Management */}
-                            <div className="pt-6 border-t border-slate-100">
-                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Business Sub-Types</label>
-                                <div className="flex gap-2 mb-4">
-                                    <input
-                                        type="text"
-                                        value={newSubType}
-                                        onChange={(e) => setNewSubType(e.target.value)}
-                                        onKeyPress={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                if (newSubType.trim()) {
-                                                    const current = editingSettings.businessTypeId?.subTypes || [];
-                                                    const updatedBT = { ...editingSettings.businessTypeId, subTypes: [...current, newSubType.trim()] };
-                                                    setEditingSettings({ ...editingSettings, businessTypeId: updatedBT });
-                                                    setNewSubType('');
-                                                }
-                                            }
-                                        }}
-                                        className="flex-1 px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-slate-300 outline-none transition-all text-sm font-bold"
-                                        placeholder="Add a sub-type (e.g. Dyer)"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            if (newSubType.trim()) {
-                                                const current = editingSettings.businessTypeId?.subTypes || [];
-                                                const updatedBT = { ...editingSettings.businessTypeId, subTypes: [...current, newSubType.trim()] };
-                                                setEditingSettings({ ...editingSettings, businessTypeId: updatedBT });
-                                                setNewSubType('');
-                                            }
-                                        }}
-                                        className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold uppercase text-[10px] tracking-widest"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {(editingSettings.businessTypeId?.subTypes || []).map((st, i) => (
-                                        <span key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-black border border-slate-200 uppercase">
-                                            {st}
-                                            <button
-                                                onClick={() => {
-                                                    const current = editingSettings.businessTypeId?.subTypes || [];
-                                                    const updatedBT = { ...editingSettings.businessTypeId, subTypes: current.filter((_, idx) => idx !== i) };
-                                                    setEditingSettings({ ...editingSettings, businessTypeId: updatedBT });
-                                                }}
-                                            >
-                                                <FiTrash2 size={12} className="text-red-500" />
-                                            </button>
-                                        </span>
-                                    ))}
-                                    {(editingSettings.businessTypeId?.subTypes || []).length === 0 && (
-                                        <p className="text-xs text-slate-400 italic">No sub-types defined for this category.</p>
-                                    )}
-                                </div>
-                            </div>
+                            {/* Sub-Types removed */}
 
                         </div>
 

@@ -68,7 +68,7 @@ const RealEstate = () => {
     const toggleSection = (section) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
-    
+
     useEffect(() => {
         const t = (searchParams.get('type') || '').toLowerCase();
         if (t === 'developer') setSelectedBusinessType('Developer');
@@ -173,7 +173,7 @@ const RealEstate = () => {
     }, [searchParams]);
 
     useEffect(() => {
-        fetchLocations(false, {
+        fetchLocations(true, {
             businessTypeFilter: 'include',
             businessTypes: ['Developer', 'Property Broker']
         });
@@ -215,22 +215,34 @@ const RealEstate = () => {
     }, []);
 
     const uniqueCitiesFromStore = useMemo(() => {
-        return (availableStates || [])
-            .flatMap(state => state.cities || [])
-            .filter((city, index, self) => {
-                if (!city || typeof city !== 'string') return false;
-                const cleanCity = city.trim();
-                if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
-                return self.findIndex(c => c.trim() === cleanCity) === index;
-            })
-            .sort();
+        const citiesList = (availableStates || []).flatMap(state => state.cities || []);
+        const cityMap = new Map();
+        citiesList.forEach(city => {
+            if (!city || typeof city !== 'string') return;
+            const clean = city.trim();
+            const lower = clean.toLowerCase();
+            const normalized = (lower === 'aagra') ? 'agra' : lower;
+            if (!cityMap.has(normalized)) {
+                cityMap.set(normalized, normalized === 'agra' ? 'Agra' : clean);
+            }
+        });
+        return Array.from(cityMap.values()).filter(c => c.length > 0 && !/^\d+$/.test(c)).sort();
     }, [availableStates]);
 
     // City options: ONLY property-derived (from property form)
     const cities = useMemo(() => {
-        const unique = Array.from(new Set((propertyDerivedCities || []).map(c => (c || '').trim())))
-            .filter(Boolean)
-            .sort();
+        const citiesList = (propertyDerivedCities || []);
+        const cityMap = new Map();
+        citiesList.forEach(city => {
+            if (!city || typeof city !== 'string') return;
+            const clean = city.trim();
+            const lower = clean.toLowerCase();
+            const normalized = (lower === 'aagra') ? 'agra' : lower;
+            if (!cityMap.has(normalized)) {
+                cityMap.set(normalized, normalized === 'agra' ? 'Agra' : clean);
+            }
+        });
+        const unique = Array.from(cityMap.values()).filter(Boolean).sort();
         return ['All Cities', ...unique];
     }, [propertyDerivedCities]);
 
@@ -241,21 +253,61 @@ const RealEstate = () => {
 
     // Area options: prefer property-derived (matches backend filter location.area), fallback to store
     const areaOptions = useMemo(() => {
-        const areas = propertyDerivedAreas?.length > 0 ? propertyDerivedAreas : (availableAreas || []);
-        return Array.isArray(areas) ? areas : [];
-    }, [propertyDerivedAreas, availableAreas]);
+        if (propertyDerivedAreas?.length > 0) return propertyDerivedAreas;
+
+        const areas = Array.isArray(availableAreas) ? availableAreas : [];
+        const cityFiltered = areas.filter(item => {
+            const city = (selectedCity || 'All Cities').trim();
+            if (city === 'All Cities') return true;
+
+            // STRICT: Only show matching objects
+            if (typeof item !== 'object' || !item?.city) return false;
+
+            const itemCityLower = item.city.toLowerCase().trim();
+            const cityLower = city.toLowerCase().trim();
+
+            return itemCityLower === cityLower ||
+                (cityLower === 'agra' && itemCityLower === 'aagra') ||
+                (cityLower === 'aagra' && itemCityLower === 'agra');
+        });
+
+        return [...new Set(cityFiltered.map(item => typeof item === 'object' ? item.name : item))].sort();
+    }, [propertyDerivedAreas, availableAreas, selectedCity]);
 
     const filteredAreas = useMemo(() => {
         if (!areaSearchQuery) return areaOptions;
         return areaOptions.filter(area => area && area.toLowerCase().includes(areaSearchQuery.toLowerCase()));
     }, [areaOptions, areaSearchQuery]);
 
-    // Market options: property.location.market (data from when property was added)
+    // Market options: property.location.market (data from when property was added), fallback to store
     const filteredMarkets = useMemo(() => {
-        const markets = propertyDerivedMarkets?.length > 0 ? propertyDerivedMarkets : [];
-        if (!marketSearchQuery) return markets;
-        return markets.filter(m => m && m.toLowerCase().includes(marketSearchQuery.toLowerCase()));
-    }, [propertyDerivedMarkets, marketSearchQuery]);
+        const derived = Array.isArray(propertyDerivedMarkets) ? propertyDerivedMarkets : [];
+        const fromStore = Array.isArray(availableMarketsFromStore) ? availableMarketsFromStore : [];
+
+        const baseMarkets = derived.length > 0 ? derived : fromStore;
+
+        const cityFiltered = baseMarkets.filter(item => {
+            const city = (selectedCity || 'All Cities').trim();
+            if (city === 'All Cities') return true;
+
+            // STRICT: Only show matching objects
+            if (typeof item !== 'object' || !item?.city) return false;
+
+            const itemCityLower = item.city.toLowerCase().trim();
+            const cityLower = city.toLowerCase().trim();
+
+            return itemCityLower === cityLower ||
+                (cityLower === 'agra' && itemCityLower === 'aagra') ||
+                (cityLower === 'aagra' && itemCityLower === 'agra');
+        });
+
+        const queryFiltered = cityFiltered.map(item => typeof item === 'object' ? item.name : item);
+
+        if (!marketSearchQuery) return [...new Set(queryFiltered)].sort();
+        return [...new Set(queryFiltered)]
+            .filter(m => m && m.toLowerCase().includes(marketSearchQuery.toLowerCase()))
+            .sort();
+    }, [propertyDerivedMarkets, availableMarketsFromStore, selectedCity, marketSearchQuery]);
 
     // Handle Search Suggestions
     const fetchSuggestions = async (query) => {

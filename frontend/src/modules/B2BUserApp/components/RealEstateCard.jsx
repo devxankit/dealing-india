@@ -131,8 +131,8 @@ const RealEstateCard = ({ property }) => {
                 {/* Slider Controls - Only if multiple images */}
                 {allImages.length > 1 && (
                     <>
-                        {/* Navigation Arrows */}
-                        <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover/image:opacity-100 transition-opacity md:opacity-0 touch:opacity-100">
+                        {/* Navigation Arrows - always visible */}
+                        <div className="absolute inset-0 flex items-center justify-between px-2 z-20">
                             <button
                                 onClick={prevImage}
                                 className="p-1 px-1.5 md:p-1.5 bg-white/80 backdrop-blur-md text-gray-800 rounded-full shadow-lg hover:bg-white transition-all transform hover:scale-110 active:scale-90"

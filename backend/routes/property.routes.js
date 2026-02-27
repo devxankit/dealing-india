@@ -11,13 +11,13 @@ import {
 } from '../controllers/property.controller.js';
 import { authenticate, vendorOnly } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
-import { checkPropertyCreation } from '../middleware/subscriptionRestriction.middleware.js';
+import { checkPropertyCreation, requireShopListing } from '../middleware/subscriptionRestriction.middleware.js';
 
 const router = express.Router();
 
 // Vendor routes
-// Property creation requires Premium plan, middleware also attaches max image limit
-router.post('/add', authenticate, vendorOnly, checkPropertyCreation, asyncHandler(addProperty));
+// Property creation requires Shop Listing, Premium plan, middleware also attaches max image limit
+router.post('/add', authenticate, vendorOnly, requireShopListing, checkPropertyCreation, asyncHandler(addProperty));
 // Property update also checks subscription for image limits
 router.put('/update/:id', authenticate, vendorOnly, checkPropertyCreation, asyncHandler(updateProperty));
 router.delete('/delete/:id', authenticate, vendorOnly, asyncHandler(deleteProperty));

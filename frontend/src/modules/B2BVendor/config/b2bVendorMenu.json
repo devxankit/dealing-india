@@ -9,8 +9,7 @@
         "route": "/b2b-vendor/products",
         "children": [
             "Manage Products",
-            "Add Product",
-            "Item Listing"
+            "Add Product"
         ]
     },
     {

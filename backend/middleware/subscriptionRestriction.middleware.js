@@ -1,9 +1,38 @@
-/**
- * Subscription Restriction Middleware
- * Enforces subscription rules before allowing listing operations
- */
-
 import subscriptionRulesService from '../services/subscriptionRules.service.js';
+import ShopUnit from '../models/ShopUnit.model.js';
+
+/**
+ * Middleware to check if vendor has a shop listing
+ * Must be used after authentication middleware
+ */
+export const requireShopListing = async (req, res, next) => {
+    try {
+        const vendorId = req.user?.vendorId || req.userDoc?._id || req.user?.id;
+
+        if (!vendorId) {
+            return res.status(401).json({
+                success: false,
+                message: 'Vendor authentication required'
+            });
+        }
+
+        const shop = await ShopUnit.findOne({ vendorId }).lean();
+
+        if (!shop) {
+            return res.status(403).json({
+                success: false,
+                message: 'Please complete your Shop Listing before adding any items.',
+                shopListingRequired: true
+            });
+        }
+
+        req.shop = shop;
+        next();
+    } catch (error) {
+        console.error('Error in requireShopListing middleware:', error);
+        next(error);
+    }
+};
 
 /**
  * Middleware to check if vendor can create products

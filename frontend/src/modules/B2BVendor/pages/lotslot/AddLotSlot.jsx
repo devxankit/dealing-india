@@ -1,5 +1,6 @@
 import LotSlotForm from "../../components/LotSlotForm";
 import { motion } from 'framer-motion';
+import SubscriptionGate from "../../components/SubscriptionGate";
 
 const AddLotSlot = () => {
     return (
@@ -13,7 +14,9 @@ const AddLotSlot = () => {
                 <p className="text-sm text-gray-500 font-medium">Create a new lot or slot listing for bulk buyers.</p>
             </div>
 
-            <LotSlotForm isEdit={false} />
+            <SubscriptionGate action="lotslot" showLimitInfo={false}>
+                <LotSlotForm isEdit={false} />
+            </SubscriptionGate>
         </motion.div>
     );
 };

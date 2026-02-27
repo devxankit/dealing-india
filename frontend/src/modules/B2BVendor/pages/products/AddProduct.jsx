@@ -1,45 +1,18 @@
 import { useState } from 'react';
 import B2BVendorProductForm from "../../components/ProductForm";
-import ShopProductForm from "../../components/ShopProductForm";
-import ItemListingForm from "../../components/ItemListingForm";
 import { motion } from 'framer-motion';
 import { useVendorSettings } from "../../hooks/useVendorSettings";
 import api from "../../../../shared/utils/api";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import SubscriptionGate from '../../components/SubscriptionGate';
 
-const AddProduct = ({ forceShop = false, forceItemListing = false }) => {
+const AddProduct = () => {
     const { settings, loading } = useVendorSettings();
     const navigate = useNavigate();
     const [submitting, setSubmitting] = useState(false);
 
-    const handleShopSubmit = async (formData) => {
-        setSubmitting(true);
-        try {
-            await api.post('/b2b-vendor/products', formData);
-            toast.success("Item listing published successfully");
-            navigate("/b2b-vendor/products/manage-products");
-        } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to publish item listing");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const handleItemSubmit = async (formData) => {
-        setSubmitting(true);
-        try {
-            await api.post('/b2b-vendor/products', formData);
-            toast.success("Item listing published successfully");
-            navigate("/b2b-vendor/products/manage-products");
-        } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to publish item listing");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    if (loading && !forceShop && !forceItemListing) {
+    if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -47,23 +20,11 @@ const AddProduct = ({ forceShop = false, forceItemListing = false }) => {
         );
     }
 
-    const isShopListing = forceShop || settings?.productFormType === 'shop-listing';
-    const isItemListing = forceItemListing;
-
-    // Determine which form to render:
-    // 1. If forceItemListing – show ItemListingForm (items only, no shop fields)
-    // 2. If forceShop or productFormType=shop-listing – show legacy ShopProductForm (backward compat)
-    // 3. Otherwise – show standard ProductForm
-
     const getTitle = () => {
-        if (isItemListing) return "Add Item Listing";
-        if (isShopListing) return "Create Item Listing";
         return "Add New Listing";
     };
 
     const getSubtitle = () => {
-        if (isItemListing) return "Add items to your shop for B2B buyers.";
-        if (isShopListing) return "List your items for B2B buyers.";
         return "Create a new product listing for your B2B catalog.";
     };
 
@@ -82,13 +43,9 @@ const AddProduct = ({ forceShop = false, forceItemListing = false }) => {
                 </p>
             </div>
 
-            {isItemListing ? (
-                <ItemListingForm onSubmit={handleItemSubmit} isLoading={submitting} />
-            ) : isShopListing ? (
-                <ShopProductForm onSubmit={handleShopSubmit} isLoading={submitting} />
-            ) : (
+            <SubscriptionGate action="product">
                 <B2BVendorProductForm isEdit={false} />
-            )}
+            </SubscriptionGate>
         </motion.div>
     );
 };

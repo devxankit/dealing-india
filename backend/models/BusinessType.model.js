@@ -21,11 +21,7 @@ const businessTypeSchema = new mongoose.Schema(
         description: {
             type: String,
             trim: true,
-        },
-        subTypes: [{
-            type: String,
-            trim: true
-        }]
+        }
     },
     {
         timestamps: true,

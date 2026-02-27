@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiSearch, FiEdit2, FiTrash2, FiEye, FiCheckCircle, FiXCircle, FiTrendingUp, FiSettings, FiActivity, FiPlus, FiSave, FiX, FiShoppingBag } from "react-icons/fi";
 import { motion } from "framer-motion";
@@ -20,6 +20,8 @@ const Subscriptions = () => {
     const [subscriptionsLoading, setSubscriptionsLoading] = useState(true);
     const [businessTypes, setBusinessTypes] = useState([]);
     const [selectedBusinessType, setSelectedBusinessType] = useState("All Business Types");
+    const [selectedCity, setSelectedCity] = useState("All Cities");
+    const [citySearchQuery, setCitySearchQuery] = useState("");
     const [stats, setStats] = useState({
         active: 0,
         monthlyRevenue: 0,
@@ -267,6 +269,45 @@ const Subscriptions = () => {
         { key: "expiryDate", label: "Expiry" },
     ];
 
+    // City dropdown options derived from subscriptions
+    const cityOptions = useMemo(() => {
+        const citySet = new Set();
+        subscriptions.forEach(sub => {
+            const city = (sub.vendorCity || '').trim();
+            if (city) citySet.add(city);
+        });
+        const cities = Array.from(citySet).sort();
+        return ['All Cities', ...cities];
+    }, [subscriptions]);
+
+    const filteredCityOptions = useMemo(() => {
+        if (!citySearchQuery.trim()) return cityOptions;
+        const q = citySearchQuery.toLowerCase();
+        return cityOptions.filter(city => city.toLowerCase().includes(q));
+    }, [cityOptions, citySearchQuery]);
+
+    // Apply city + search filtering on subscriptions list
+    const filteredSubscriptions = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        return (subscriptions || []).filter(sub => {
+            const city = (sub.vendorCity || '').trim();
+            const cityMatch = selectedCity === 'All Cities' || city === selectedCity;
+
+            if (!q) return cityMatch;
+
+            const vendorName = (sub.vendorName || sub.vendor || '').toLowerCase();
+            const email = (sub.vendorEmail || '').toLowerCase();
+            const plan = (sub.plan || '').toLowerCase();
+
+            const searchMatch =
+                vendorName.includes(q) ||
+                email.includes(q) ||
+                plan.includes(q);
+
+            return cityMatch && searchMatch;
+        });
+    }, [subscriptions, selectedCity, searchQuery]);
+
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-10">
@@ -276,7 +317,25 @@ const Subscriptions = () => {
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Subscription Management</h1>
                     <p className="text-gray-500 text-sm">Monitor and manage B2B vendor subscription plans and cycles.</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <select
+                            className="px-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-sm text-sm font-bold text-gray-700 outline-none"
+                            value={selectedCity}
+                            onChange={(e) => setSelectedCity(e.target.value)}
+                        >
+                            {filteredCityOptions.map((city) => (
+                                <option key={city} value={city}>{city}</option>
+                            ))}
+                        </select>
+                        <input
+                            type="text"
+                            placeholder="Search city..."
+                            className="px-3 py-2 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-sm text-xs text-gray-700"
+                            value={citySearchQuery}
+                            onChange={(e) => setCitySearchQuery(e.target.value)}
+                        />
+                    </div>
                     <select
                         className="px-4 py-2.5 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-primary-500 shadow-sm text-sm font-bold text-gray-700 outline-none"
                         value={selectedBusinessType}
@@ -364,14 +423,14 @@ const Subscriptions = () => {
                                 <div className="inline-block w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
                                 <p className="mt-4 text-gray-500">Loading subscriptions...</p>
                             </div>
-                        ) : subscriptions.length === 0 ? (
+                        ) : filteredSubscriptions.length === 0 ? (
                             <div className="text-center py-12">
                                 <FiCheckCircle className="text-gray-300 text-5xl mx-auto mb-4" />
                                 <p className="text-gray-500">No subscriptions found</p>
                             </div>
                         ) : (
                             <DataTable
-                                data={subscriptions}
+                                data={filteredSubscriptions}
                                 columns={columns}
                                 pagination={true}
                                 itemsPerPage={10}

@@ -2,10 +2,10 @@ import Vendor from '../models/Vendor.model.js';
 import notificationService from '../services/notification.service.js';
 
 /**
- * Track vendor contact clicks (call or whatsapp)
+ * Track vendor contact clicks (call, whatsapp or map)
  * POST /api/vendor/analytics/track-click
- * 
- * Body: { vendorId, clickType: 'call' | 'whatsapp' }
+ *
+ * Body: { vendorId, clickType: 'call' | 'whatsapp' | 'map' }
  */
 export const trackContactClick = async (req, res, next) => {
     try {
@@ -18,17 +18,20 @@ export const trackContactClick = async (req, res, next) => {
             });
         }
 
-        if (!['call', 'whatsapp'].includes(clickType)) {
+        if (!['call', 'whatsapp', 'map'].includes(clickType)) {
             return res.status(400).json({
                 success: false,
-                message: 'clickType must be either "call" or "whatsapp"'
+                message: 'clickType must be one of "call", "whatsapp" or "map"'
             });
         }
 
         // Increment the appropriate counter
-        const updateField = clickType === 'call'
-            ? 'analytics.callClicks'
-            : 'analytics.whatsappClicks';
+        const updateField =
+            clickType === 'call'
+                ? 'analytics.callClicks'
+                : clickType === 'whatsapp'
+                    ? 'analytics.whatsappClicks'
+                    : 'analytics.mapClicks';
 
         const updatedVendor = await Vendor.findByIdAndUpdate(
             vendorId,
@@ -91,7 +94,8 @@ export const getVendorAnalytics = async (req, res, next) => {
             success: true,
             data: {
                 callClicks: vendor.analytics?.callClicks || 0,
-                whatsappClicks: vendor.analytics?.whatsappClicks || 0
+                whatsappClicks: vendor.analytics?.whatsappClicks || 0,
+                mapClicks: vendor.analytics?.mapClicks || 0
             }
         });
     } catch (error) {

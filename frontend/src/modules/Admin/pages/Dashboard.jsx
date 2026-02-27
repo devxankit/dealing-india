@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   FiUsers, FiUserCheck, FiPackage, FiHome, FiZap, FiImage,
   FiTrendingUp, FiTrendingDown, FiPhone, FiMessageCircle,
-  FiAlertCircle, FiCheckCircle, FiClock, FiXCircle
+  FiAlertCircle, FiCheckCircle, FiClock, FiXCircle, FiUserPlus
 } from 'react-icons/fi';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
@@ -15,6 +16,7 @@ import api from "../../../shared/utils/api";
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1'];
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     summary: [],
@@ -40,7 +42,8 @@ const Dashboard = () => {
     FiPackage: <FiPackage />,
     FiHome: <FiHome />,
     FiZap: <FiZap />,
-    FiImage: <FiImage />
+    FiImage: <FiImage />,
+    FiUserPlus: <FiUserPlus />
   };
 
   useEffect(() => {
@@ -53,12 +56,17 @@ const Dashboard = () => {
 
           setDashboardData({
             summary: [
-              { label: 'Total Vendors', value: apiData.totalVendors, trend: '+12%', trendType: 'up', icon: 'FiUsers', color: 'blue' },
-              { label: 'Active Vendors', value: apiData.activeVendors, trend: '+5%', trendType: 'up', icon: 'FiUserCheck', color: 'green' },
-              { label: 'Total Products', value: apiData.totalProducts, trend: '+18%', trendType: 'up', icon: 'FiPackage', color: 'purple' },
-              { label: 'Total Properties', value: apiData.totalProperties, trend: '+8%', trendType: 'up', icon: 'FiHome', color: 'orange' },
-              { label: 'Lot Slots', value: apiData.totalLotSlots || 0, trend: '+15%', trendType: 'up', icon: 'FiZap', color: 'indigo' },
-              { label: 'Live Banners', value: apiData.activeBanners, trend: '-3%', trendType: 'down', icon: 'FiImage', color: 'pink' }
+              { label: 'Total Users', value: apiData.totalCustomers || 0, trend: '+15%', trendType: 'up', icon: 'FiUserPlus', color: 'indigo', link: '/admin/users' },
+              { label: 'Total Vendors', value: apiData.totalVendors, trend: '+12%', trendType: 'up', icon: 'FiUsers', color: 'blue', link: '/admin/b2b-vendors/manage' },
+              { label: 'Active Vendors', value: apiData.activeVendors, trend: '+5%', trendType: 'up', icon: 'FiUserCheck', color: 'green', link: '/admin/b2b-vendors/manage' },
+              { label: 'Total Products', value: apiData.totalProducts, trend: '+18%', trendType: 'up', icon: 'FiPackage', color: 'purple', link: '/admin/b2b-vendors/products' },
+              { label: 'Total Properties', value: apiData.totalProperties, trend: '+8%', trendType: 'up', icon: 'FiHome', color: 'orange', link: '/admin/b2b-vendors/properties' },
+              // Removed Lot Slots here to fit the "Users" card into a 6-card grid nicely or keep it 7? 
+              // User said "ek aur card show kro user ka". The screenshot has 6 cards. 
+              // I'll make it 7 cards if needed, or replace one. 
+              // Let's keep all 7 cards.
+              { label: 'Lot Slots', value: apiData.totalLotSlots || 0, trend: '+15%', trendType: 'up', icon: 'FiZap', color: 'indigo', link: '/admin/b2b-vendors/lot-slots' },
+              { label: 'Live Banners', value: apiData.activeBanners, trend: '-3%', trendType: 'down', icon: 'FiImage', color: 'pink', link: '/admin/b2b-vendors/banner-bookings' }
             ],
             vendorDistribution: vendorDist || [],
             subscriptions: {
@@ -138,14 +146,16 @@ const Dashboard = () => {
       </div>
 
       {/* Section 1: Top Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         {summary.map((item, idx) => (
           <motion.div
             key={idx}
-            whileHover={{ y: -4 }}
-            className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100/50"
+            whileHover={{ y: -4, scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => item.link && navigate(item.link)}
+            className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100/50 cursor-pointer hover:shadow-md transition-all group"
           >
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-4 bg-${item.color}-50 text-${item.color}-600`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-4 bg-${item.color}-50 text-${item.color}-600 group-hover:scale-110 transition-transform`}>
               {iconMap[item.icon]}
             </div>
             <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">{item.label}</p>

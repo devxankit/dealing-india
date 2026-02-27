@@ -11,7 +11,6 @@ const Products = () => {
     const navigate = useNavigate();
 
     const { settings } = useVendorSettings();
-    const isShopListing = settings?.productFormType === 'shop-listing';
 
     const menuItems = [
         {
@@ -24,16 +23,7 @@ const Products = () => {
             hoverShadow: "hover:shadow-blue-500/30",
             description: "View and manage your B2B product listings",
         },
-        ...(isShopListing ? [{
-            path: "/b2b-vendor/products/item-listing",
-            label: "Item Listing",
-            icon: FiList,
-            gradient: "from-green-500 via-green-600 to-green-700",
-            lightGradient: "from-green-50 via-green-100/80 to-green-50",
-            shadowColor: "shadow-green-500/20",
-            hoverShadow: "hover:shadow-green-500/30",
-            description: "Add items to your shop for B2B buyers.",
-        }] : [{
+        [{
             path: "/b2b-vendor/products/add-product",
             label: "Add Product",
             icon: FiPlus,
@@ -42,7 +32,7 @@ const Products = () => {
             shadowColor: "shadow-green-500/20",
             hoverShadow: "hover:shadow-green-500/30",
             description: "List a new B2B product for retailers",
-        }]),
+        }],
     ];
 
     return (

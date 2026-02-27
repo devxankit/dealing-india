@@ -85,7 +85,8 @@ const B2BLanding = () => {
     // Fetch initial data on mount
     useEffect(() => {
         fetchCategories();
-        fetchLocations(false); // Let the store handle re-fetching if options changed
+        // Force refresh once to migrate location data format from strings to objects
+        fetchLocations(true);
 
         const fetchBusinessTypes = async () => {
             try {
@@ -101,9 +102,11 @@ const B2BLanding = () => {
         const fetchAllVendors = async () => {
             try {
                 setVendorsLoading(true);
-                const response = await api.get('/vendors', {
-                    params: { limit: 50, vendorType: 'b2b' }
-                });
+                const params = { limit: 50, vendorType: 'b2b' };
+                if (selectedCity && selectedCity !== 'All Cities') {
+                    params.city = selectedCity;
+                }
+                const response = await api.get('/vendors', { params });
                 if (response.success && response.data) {
                     const vendorData = Array.isArray(response.data) ? response.data : (response.data.vendors || []);
                     setAllVendors(vendorData);
@@ -120,15 +123,18 @@ const B2BLanding = () => {
     }, [fetchCategories, fetchLocations]);
 
     const uniqueCities = useMemo(() => {
-        return (availableStates || [])
-            .flatMap(state => state.cities || [])
-            .filter((city, index, self) => {
-                if (!city || typeof city !== 'string') return false;
-                const cleanCity = city.trim();
-                if (cleanCity.length === 0 || /^\d+$/.test(cleanCity)) return false;
-                return self.findIndex(c => c.trim() === cleanCity) === index;
-            })
-            .sort();
+        const citiesList = (availableStates || []).flatMap(state => state.cities || []);
+        const cityMap = new Map();
+        citiesList.forEach(city => {
+            if (!city || typeof city !== 'string') return;
+            const clean = city.trim();
+            const lower = clean.toLowerCase();
+            const normalized = (lower === 'aagra') ? 'agra' : lower;
+            if (!cityMap.has(normalized)) {
+                cityMap.set(normalized, normalized === 'agra' ? 'Agra' : clean);
+            }
+        });
+        return Array.from(cityMap.values()).filter(c => c.length > 0 && !/^\d+$/.test(c)).sort();
     }, [availableStates]);
 
     const filteredCitiesList = useMemo(() => {
@@ -242,10 +248,15 @@ const B2BLanding = () => {
             } else {
                 // Determine if we should search for vendors too
                 // Preserving product search as priority
+                const baseParams = { search: searchTerm, limit: 10, strict: isStrict };
+                if (selectedCity && selectedCity !== 'All Cities') {
+                    baseParams.city = selectedCity;
+                }
+
                 const [productRes, vendorRes, propertyRes] = await Promise.all([
-                    api.get('/products', { params: { search: searchTerm, limit: 10, vendorType: 'b2b', strict: isStrict } }),
-                    api.get('/vendors', { params: { search: searchTerm, limit: 10, strict: isStrict } }),
-                    api.get('/property/all', { params: { search: searchTerm, limit: 10, strict: isStrict } })
+                    api.get('/products', { params: { ...baseParams, vendorType: 'b2b' } }),
+                    api.get('/vendors', { params: baseParams }),
+                    api.get('/property/all', { params: baseParams })
                 ]);
 
                 const products = productRes.success && productRes.data ? (Array.isArray(productRes.data) ? productRes.data : (productRes.data.products || [])) : [];
@@ -331,23 +342,12 @@ const B2BLanding = () => {
             return;
         }
 
-        const hasSubTypes = type.subTypes && type.subTypes.length > 0;
-        if (hasSubTypes) {
-            setSelectedBusinessType(type);
-            setIsBusinessTypeDropdownOpen(false);
-            setActivePopup('businessSubTypes');
-        } else {
-            setIsBusinessTypeDropdownOpen(false);
-            const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-            navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(type.name)}${cityParam}`);
-        }
+        setIsBusinessTypeDropdownOpen(false);
+        const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
+        navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(type.name)}${cityParam}`);
     };
 
-    const handleBusinessSubTypeClick = (subType) => {
-        setActivePopup(null);
-        const cityParam = selectedCity !== 'All Cities' ? `&city=${encodeURIComponent(selectedCity)}` : '';
-        navigateWithAuth(`/b2b/catalog?businessType=${encodeURIComponent(selectedBusinessType.name)}&businessSubType=${encodeURIComponent(subType)}${cityParam}`);
-    };
+    // Sub-business type click removed
 
     const closePopup = () => setActivePopup(null);
 
@@ -482,14 +482,18 @@ const B2BLanding = () => {
 
     const fetchLotProducts = async () => {
         try {
-            const response = await api.get('/products', {
-                params: {
-                    itemType: 'lotslot',
-                    limit: 10,
-                    vendorType: 'b2b',
-                    excludeBusinessTypes: 'Developer,Property Broker'
-                }
-            });
+            const params = {
+                itemType: 'lotslot',
+                limit: 10,
+                vendorType: 'b2b',
+                excludeBusinessTypes: 'Developer,Property Broker'
+            };
+
+            if (selectedCity && selectedCity !== 'All Cities') {
+                params.city = selectedCity;
+            }
+
+            const response = await api.get('/products', { params });
 
             if (response.success && response.data) {
                 const products = Array.isArray(response.data) ? response.data : (response.data.products || []);
@@ -723,51 +727,10 @@ const B2BLanding = () => {
         );
     };
 
-    const BusinessSubTypePopup = () => (
-        <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 md:p-4"
-            onClick={closePopup}
-        >
-            <motion.div
-                initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-                className="bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl w-full max-w-4xl overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="p-4 md:p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <div className="space-y-1">
-                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Business Specialization</p>
-                        <h3 className="text-xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter">{selectedBusinessType?.name}</h3>
-                    </div>
-                    <button onClick={closePopup} className="p-2.5 bg-white shadow-sm rounded-xl text-gray-400 hover:text-red-500 transition-colors">
-                        <FiX size={20} />
-                    </button>
-                </div>
-                <div className="p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 max-h-[55vh] overflow-y-auto custom-scrollbar">
-                    {selectedBusinessType?.subTypes && selectedBusinessType.subTypes.length > 0 ? (
-                        selectedBusinessType.subTypes.map((sub, index) => (
-                            <button
-                                key={index}
-                                onClick={() => handleBusinessSubTypeClick(sub)}
-                                className="p-5 md:p-6 rounded-[1.5rem] border border-gray-100 hover:border-primary-200 hover:bg-primary-50 text-left transition-all group flex items-center justify-between"
-                            >
-                                <span className="font-black text-[11px] md:text-sm text-gray-700 group-hover:text-primary-600 uppercase tracking-wider">{sub}</span>
-                                <FiArrowRight className="opacity-0 group-hover:opacity-100 transition-all text-primary-600 -translate-x-2 group-hover:translate-x-0" />
-                            </button>
-                        ))
-                    ) : (
-                        <div className="col-span-full text-center py-20">
-                            <FiBriefcase className="mx-auto text-4xl text-gray-200 mb-4" />
-                            <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">No subtypes mapped</p>
-                        </div>
-                    )}
-                </div>
-            </motion.div>
-        </motion.div>
-    );
+
 
     return (
-        <div className="h-screen bg-white font-sans text-gray-900 overflow-hidden flex flex-col">
+        <div className="min-h-screen bg-white font-sans text-gray-900 flex flex-col scrollbar-hide">
 
             {/* --- HEADER --- */}
             <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
@@ -806,7 +769,6 @@ const B2BLanding = () => {
                                                 className="w-full text-left px-5 py-3 hover:bg-primary-50 text-[11px] font-black text-gray-700 border-b border-gray-50 last:border-0 uppercase tracking-wider flex items-center justify-between group"
                                             >
                                                 <span>{type.name}</span>
-                                                {type.subTypes && type.subTypes.length > 0 && <FiArrowRight className="opacity-0 group-hover:opacity-100 transition-all text-primary-600" />}
                                             </button>
                                         ))}
                                         {businessTypes.length === 0 && (
@@ -1228,8 +1190,17 @@ const B2BLanding = () => {
                 </div>
             </section>
 
+            {/* --- BANNER SECTION --- */}
+            <section className="w-full bg-white py-2">
+                <div className="max-w-[1920px] mx-auto px-2 md:px-4">
+                    <div className="rounded-[1.2rem] md:rounded-[2rem] overflow-hidden shadow-lg border border-gray-50">
+                        <B2BBanner />
+                    </div>
+                </div>
+            </section>
+
             {/* --- VENDOR SHIPS AUTO-SCROLL --- */}
-            <section className="w-full bg-white pt-2 pb-0.5 overflow-hidden flex-none">
+            <section className="w-full bg-white pt-2 pb-20 md:pb-12 overflow-hidden flex-none">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6 mb-1 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="flex -space-x-2">
@@ -1293,20 +1264,12 @@ const B2BLanding = () => {
                 `}</style>
             </section>
 
-            {/* --- BANNER SECTION --- */}
-            <section className="w-full bg-white flex-1 min-h-0 pb-2">
-                <div className="max-w-[1920px] mx-auto px-4 md:px-6 h-full">
-                    <div className="h-full rounded-[1.2rem] md:rounded-[2rem] overflow-hidden shadow-lg border border-gray-50">
-                        <B2BBanner />
-                    </div>
-                </div>
-            </section>
 
 
             {/* --- POPUPS --- */}
             <AnimatePresence>
                 {activePopup === 'subcategories' && <SubCategoryPopup />}
-                {activePopup === 'businessSubTypes' && <BusinessSubTypePopup />}
+
                 {activePopup === 'products' && (
                     <ProductPopup
                         title={`Related Products for "${searchQuery}"`}

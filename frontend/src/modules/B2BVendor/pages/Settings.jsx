@@ -16,7 +16,6 @@ const B2BVendorSettings = () => {
         gstNumber: "",
         mfgOfWork: "",
         businessType: "",
-        selectedSubTypes: [],
         address: {
             street: "",
             area: "",
@@ -41,7 +40,6 @@ const B2BVendorSettings = () => {
                 gstNumber: vendor.gstNumber || "",
                 mfgOfWork: vendor.mfgOfWork || "",
                 businessType: vendor.businessType || "",
-                selectedSubTypes: vendor.selectedSubTypes || [],
                 address: {
                     street: address.street || "",
                     area: address.area || "",
@@ -271,18 +269,6 @@ const B2BVendorSettings = () => {
                                             className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-gray-500 cursor-not-allowed"
                                         />
                                     </div>
-                                    {formData.selectedSubTypes?.length > 0 && (
-                                        <div>
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Specific Type</label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {formData.selectedSubTypes.map(st => (
-                                                    <span key={st} className="px-3 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded-lg border border-primary-100">
-                                                        {st}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             </section>
 

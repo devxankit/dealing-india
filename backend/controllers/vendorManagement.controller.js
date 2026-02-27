@@ -459,7 +459,7 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
       vendorAnalytics,
       shopUnit
     ] = await Promise.all([
-      Vendor.findById(vendorId).select('name storeName businessType selectedSubTypes businessTypeRef email').lean(),
+      Vendor.findById(vendorId).select('name storeName businessType businessTypeRef email').lean(),
       Product.countDocuments({ vendorId }),
       Product.countDocuments({ vendorId, isActive: true }),
       Property.countDocuments({ vendorId }),
@@ -493,7 +493,8 @@ export const getVendorDashboardForAdmin = async (req, res, next) => {
       overview: {
         bannerClicks: 0,
         callClicks: vendorAnalytics?.analytics?.callClicks || 0,
-        whatsappClicks: vendorAnalytics?.analytics?.whatsappClicks || 0
+        whatsappClicks: vendorAnalytics?.analytics?.whatsappClicks || 0,
+        mapClicks: vendorAnalytics?.analytics?.mapClicks || 0
       },
       counts: {
         products: {

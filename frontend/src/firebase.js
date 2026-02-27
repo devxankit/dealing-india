@@ -1,6 +1,8 @@
 import { initializeApp } from "firebase/app";
 import { getMessaging } from "firebase/messaging";
 
+// Global toggle to enable/disable Firebase usage on web
+// Currently kept false as per requirement to keep Firebase "off"
 const ENABLE_FCM = false;
 
 const firebaseConfig = {
@@ -13,7 +15,8 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-const messaging = ENABLE_FCM ? getMessaging(app) : null;
+// When disabled, we don't even initialize the Firebase app
+const app = ENABLE_FCM ? initializeApp(firebaseConfig) : null;
+const messaging = ENABLE_FCM && app ? getMessaging(app) : null;
 
-export { messaging, ENABLE_FCM };
+export { app, messaging, ENABLE_FCM };

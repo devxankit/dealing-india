@@ -123,7 +123,7 @@ const B2BBanner = () => {
 
     return (
         <div
-            className="w-full px-4 mb-6 overflow-hidden"
+            className="w-full overflow-hidden"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
         >
@@ -133,7 +133,7 @@ const B2BBanner = () => {
                     ref={containerRef}
                     className="group relative w-full overflow-hidden rounded-2xl shadow-lg"
                     style={{
-                        aspectRatio: "6/1",
+                        aspectRatio: "3/1",
                     }}>
                     <motion.div
                         className="flex h-full"

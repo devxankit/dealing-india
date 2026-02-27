@@ -174,7 +174,7 @@ const CITY_ALIASES = {
     // Uttar Pradesh
     'lucknow': 'Lucknow', 'lakhnow': 'Lucknow', 'lko': 'Lucknow', 'lucknw': 'Lucknow',
     'kanpur': 'Kanpur', 'kanpoor': 'Kanpur', 'cawnpore': 'Kanpur',
-    'agra': 'Agra',
+    'agra': 'Agra', 'aagra': 'Agra',
     'varanasi': 'Varanasi', 'banaras': 'Varanasi', 'benares': 'Varanasi', 'kashi': 'Varanasi',
     'noida': 'Noida', 'nodia': 'Noida',
     'prayagraj': 'Prayagraj', 'allahabad': 'Prayagraj', 'alahabad': 'Prayagraj',

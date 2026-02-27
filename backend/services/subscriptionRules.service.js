@@ -21,6 +21,7 @@ import VendorSubscription from '../models/VendorSubscription.model.js';
 import B2BSubscriptionPlan from '../models/B2BSubscriptionPlan.model.js';
 import Product from '../models/Product.model.js';
 import LotSlot from '../models/LotSlot.model.js';
+import ShopUnit from '../models/ShopUnit.model.js';
 
 // Plan type constants
 export const PLAN_TYPES = {
@@ -272,13 +273,19 @@ class SubscriptionRulesService {
      * @returns {Object} Complete subscription status
      */
     async getSubscriptionStatus(vendorId) {
-        const subData = await this.getActiveSubscription(vendorId);
+        const [subData, shop] = await Promise.all([
+            this.getActiveSubscription(vendorId),
+            ShopUnit.findOne({ vendorId }).select('_id').lean()
+        ]);
+
+        const hasShop = !!shop;
 
         if (!subData) {
             // No subscription: Allow everything by default (testing/pre-subscription phase)
             // This matches canCreateProduct/canCreateLotSlot/canCreateProperty behavior
             return {
                 hasSubscription: true,
+                hasShop,
                 plan: {
                     id: null,
                     name: 'Free Access',
@@ -300,6 +307,7 @@ class SubscriptionRulesService {
 
         return {
             hasSubscription: true,
+            hasShop,
             plan: {
                 id: subData.plan?._id,
                 name: subData.plan?.name,

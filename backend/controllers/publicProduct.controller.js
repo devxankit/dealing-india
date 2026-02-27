@@ -26,7 +26,6 @@ export const getProducts = async (req, res, next) => {
       area,
       market,
       businessType,
-      businessSubType,
       strict,
       dynamicFilters
     } = req.query;
@@ -51,7 +50,6 @@ export const getProducts = async (req, res, next) => {
       area,
       market,
       businessType,
-      businessSubType,
       strict,
       dynamicFilters
     });

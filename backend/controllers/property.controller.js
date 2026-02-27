@@ -5,6 +5,7 @@ import VendorPropertySubscription from '../models/VendorPropertySubscription.mod
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary, isBase64DataUrl } from '../utils/cloudinary.util.js';
 import ShopUnit from '../models/ShopUnit.model.js';
+import { normalizeState, normalizeCity } from '../utils/addressNormalizer.util.js';
 
 /**
  * Helper function to process media uploads to Cloudinary
@@ -323,45 +324,56 @@ export const getAllProperties = asyncHandler(async (req, res) => {
 
     // Handle Location Filters (City, Area, Market) - Match property location OR vendor location
     if (city && city !== 'All Cities') {
+        const normalizedCity = normalizeCity(city);
+        let cityCriteria;
+
+        if (normalizedCity.toLowerCase() === 'agra') {
+            cityCriteria = { $regex: /^(agra|aagra)$/i };
+        } else {
+            cityCriteria = { $regex: new RegExp(`^${String(normalizedCity).trim()}$`, 'i') };
+        }
+
         const matchingVendors = await Vendor.find({
-            'address.city': { $regex: city, $options: 'i' },
+            'address.city': cityCriteria,
             businessType: { $in: [/developer/i, /broker/i] }
         }).select('_id').lean();
         const vIds = matchingVendors.map(v => v._id);
 
         queryConditions.push({
             $or: [
-                { 'location.city': { $regex: city, $options: 'i' } },
+                { 'location.city': cityCriteria },
                 { vendorId: { $in: vIds } }
             ]
         });
     }
 
     if (area && area !== 'All Areas') {
+        const areaCriteria = { $regex: new RegExp(`^${String(area).trim()}$`, 'i') };
         const matchingVendors = await Vendor.find({
-            'address.area': { $regex: area, $options: 'i' },
+            'address.area': areaCriteria,
             businessType: { $in: [/developer/i, /broker/i] }
         }).select('_id').lean();
         const vIds = matchingVendors.map(v => v._id);
 
         queryConditions.push({
             $or: [
-                { 'location.area': { $regex: area, $options: 'i' } },
+                { 'location.area': areaCriteria },
                 { vendorId: { $in: vIds } }
             ]
         });
     }
 
     if (market && market !== 'All Markets') {
+        const marketCriteria = { $regex: new RegExp(`^${String(market).trim()}$`, 'i') };
         const matchingVendors = await Vendor.find({
-            'address.market': { $regex: market, $options: 'i' },
+            'address.market': marketCriteria,
             businessType: { $in: [/developer/i, /broker/i] }
         }).select('_id').lean();
         const vIds = matchingVendors.map(v => v._id);
 
         queryConditions.push({
             $or: [
-                { 'location.market': { $regex: market, $options: 'i' } },
+                { 'location.market': marketCriteria },
                 { vendorId: { $in: vIds } }
             ]
         });

@@ -14,11 +14,18 @@ const CompanyProfile = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [updating, setUpdating] = useState(false);
 
-    // Form state
+    // Form state - mirrors registration fields stored in businessInfo
     const [formData, setFormData] = useState({
         companyName: user?.businessInfo?.companyName || '',
         industry: user?.businessInfo?.industry || 'General Trade',
-        companyType: user?.businessInfo?.companyType || 'Retailer'
+        companyType: user?.businessInfo?.companyType || 'Retailer',
+        gstNumber: user?.businessInfo?.gstNumber || '',
+        address: {
+            fullAddress: user?.businessInfo?.address?.fullAddress || '',
+            city: user?.businessInfo?.address?.city || '',
+            state: user?.businessInfo?.address?.state || '',
+            pincode: user?.businessInfo?.address?.pincode || ''
+        }
     });
 
     useEffect(() => {
@@ -30,7 +37,7 @@ const CompanyProfile = () => {
                 const response = await api.get('/user/addresses');
                 if (response.success && response.data && response.data.length > 0) {
                     setAddresses(response.data);
-                } else if (user?.businessInfo?.address?.city || user?.businessInfo?.address?.state) {
+                } else if (user?.businessInfo?.address?.city || user?.businessInfo?.address?.state || user?.businessInfo?.address?.fullAddress) {
                     // Fallback to business info address if availabe
                     const businessAddress = {
                         streetAddress: user.businessInfo.address?.fullAddress || user.businessInfo.address?.city || '',
@@ -46,7 +53,7 @@ const CompanyProfile = () => {
                 console.error('Error fetching addresses:', error);
 
                 // Fallback on error
-                if (user?.businessInfo?.address?.city || user?.businessInfo?.address?.state) {
+                if (user?.businessInfo?.address?.city || user?.businessInfo?.address?.state || user?.businessInfo?.address?.fullAddress) {
                     const businessAddress = {
                         streetAddress: user.businessInfo.address?.fullAddress || user.businessInfo.address?.city || '',
                         city: user.businessInfo.address?.city || '',
@@ -77,11 +84,36 @@ const CompanyProfile = () => {
                     ...user?.businessInfo,
                     companyName: formData.companyName,
                     industry: formData.industry,
-                    companyType: formData.companyType
+                    companyType: formData.companyType,
+                    gstNumber: formData.gstNumber,
+                    address: {
+                        ...(user?.businessInfo?.address || {}),
+                        fullAddress: formData.address.fullAddress,
+                        city: formData.address.city,
+                        state: formData.address.state,
+                        pincode: formData.address.pincode
+                    }
                 }
             });
             if (result.success) {
                 toast.success('Company info updated');
+                // Update local fallback address if we don't have dedicated addresses
+                setAddresses(prev => {
+                    if (!prev || prev.length === 0) {
+                        return [
+                            {
+                                streetAddress: formData.address.fullAddress,
+                                city: formData.address.city,
+                                state: formData.address.state,
+                                pincode: formData.address.pincode,
+                                isDefault: true,
+                                addressType: 'Registered',
+                                phone: user?.phone || ''
+                            }
+                        ];
+                    }
+                    return prev;
+                });
                 setIsEditing(false);
             }
         } catch (error) {
@@ -175,6 +207,32 @@ const CompanyProfile = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* GST & Email (from registration) */}
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="p-5 bg-gray-50 rounded-3xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100">
+                            <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest mb-2">GST Number</p>
+                            {isEditing ? (
+                                <input
+                                    type="text"
+                                    value={formData.gstNumber}
+                                    onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() })}
+                                    className="w-full bg-transparent font-bold text-gray-800 focus:outline-none uppercase"
+                                    placeholder="22AAAAA0000A1Z5"
+                                />
+                            ) : (
+                                <p className="font-bold text-gray-800 uppercase">
+                                    {formData.gstNumber || 'Not Provided'}
+                                </p>
+                            )}
+                        </div>
+                        <div className="p-5 bg-gray-50 rounded-3xl group hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100">
+                            <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest mb-2">Registered Email</p>
+                            <p className="font-bold text-gray-800 break-all">
+                                {user?.email || 'N/A'}
+                            </p>
+                        </div>
+                    </div>
                 </motion.div>
 
                 {/* Contact & Address */}
@@ -208,11 +266,59 @@ const CompanyProfile = () => {
                                 <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100 relative group overflow-hidden">
                                     <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
                                     <label className="block text-[10px] text-gray-400 font-black uppercase tracking-widest mb-2">Full Address</label>
-                                    <p className="text-gray-800 font-bold leading-relaxed">
-                                        {defaultAddress.streetAddress || defaultAddress.line1}
-                                        <br />
-                                        {defaultAddress.city}, {defaultAddress.state} - {defaultAddress.pincode || defaultAddress.zipCode}
-                                    </p>
+                                    {isEditing ? (
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                value={formData.address.fullAddress}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    address: { ...formData.address, fullAddress: e.target.value }
+                                                })}
+                                                placeholder="Registered address"
+                                                className="w-full bg-white rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                            />
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <input
+                                                    type="text"
+                                                    value={formData.address.city}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        address: { ...formData.address, city: e.target.value }
+                                                    })}
+                                                    placeholder="City"
+                                                    className="w-full bg-white rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={formData.address.state}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        address: { ...formData.address, state: e.target.value }
+                                                    })}
+                                                    placeholder="State"
+                                                    className="w-full bg-white rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={formData.address.pincode}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        address: { ...formData.address, pincode: e.target.value }
+                                                    })}
+                                                    placeholder="Pincode"
+                                                    maxLength={6}
+                                                    className="w-full bg-white rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-800 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-gray-800 font-bold leading-relaxed">
+                                            {defaultAddress.streetAddress || defaultAddress.line1}
+                                            <br />
+                                            {defaultAddress.city}, {defaultAddress.state} - {defaultAddress.pincode || defaultAddress.zipCode}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">

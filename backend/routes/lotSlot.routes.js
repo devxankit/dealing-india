@@ -7,7 +7,7 @@ import {
     deleteLotSlot
 } from '../controllers/lotSlot.controller.js';
 import { protect, authorize } from '../middleware/auth.middleware.js';
-import { checkLotSlotCreation } from '../middleware/subscriptionRestriction.middleware.js';
+import { checkLotSlotCreation, requireShopListing } from '../middleware/subscriptionRestriction.middleware.js';
 
 const router = express.Router();
 
@@ -17,8 +17,8 @@ router.use(authorize('vendor'));
 
 router.route('/')
     .get(getLotSlots)
-    // Lot/Slot creation requires Diamond plan subscription
-    .post(checkLotSlotCreation, createLotSlot);
+    // Lot/Slot creation requires Shop Listing and Diamond plan subscription
+    .post(requireShopListing, checkLotSlotCreation, createLotSlot);
 
 router.route('/:id')
     .get(getLotSlotById)

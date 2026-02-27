@@ -12,11 +12,21 @@ const B2BUserLogin = () => {
     const { login, isAuthenticated } = useAuthStore();
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
     const [formData, setFormData] = useState({
         phone: '',
         countryCode: '+91',
         password: '',
     });
+
+    // Check for remembered phone
+    useEffect(() => {
+        const savedPhone = localStorage.getItem('remembered-b2b-user-phone');
+        if (savedPhone) {
+            setFormData(prev => ({ ...prev, phone: savedPhone }));
+            setRememberMe(true);
+        }
+    }, []);
 
     // Redirect if already authenticated
     useEffect(() => {
@@ -51,8 +61,15 @@ const B2BUserLogin = () => {
             // Send userType: 'b2b' to land in B2B marketplace
             const result = await login(identifier, formData.password, false, 'b2b');
             if (result.success) {
+                // Handle Remember Me
+                if (rememberMe) {
+                    localStorage.setItem('remembered-b2b-user-phone', formData.phone);
+                } else {
+                    localStorage.removeItem('remembered-b2b-user-phone');
+                }
+
                 toast.success('Welcome back to Bulk Marketplace!');
-                try { await registerFCMToken(true); } catch {}
+                try { await registerFCMToken(true); } catch { }
                 const from = location.state?.from?.pathname || '/b2b/catalog';
                 navigate(from, { replace: true });
             } else {
@@ -141,15 +158,23 @@ const B2BUserLogin = () => {
                                 {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                             </button>
                         </div>
-                        <div className="flex justify-end pt-0.5">
-                            <Link
-                                to="/b2b/forgot-password"
-                                tabIndex="-1"
-                                className="text-xs font-semibold text-primary-600 hover:text-primary-700 hover:underline"
-                            >
-                                Forgot Password?
-                            </Link>
-                        </div>
+                    </div>
+                    <div className="flex items-center justify-between py-1">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <span className="text-xs text-gray-600 group-hover:text-gray-800 transition-colors font-medium">Remember me</span>
+                        </label>
+                        <Link
+                            to="/b2b/forgot-password"
+                            className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+                        >
+                            Forgot Password?
+                        </Link>
                     </div>
 
                     <button

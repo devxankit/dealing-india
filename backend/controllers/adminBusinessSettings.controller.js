@@ -8,9 +8,19 @@ import redisService from '../services/redis.service.js';
 // @access  Admin
 export const getAllBusinessSettings = asyncHandler(async (req, res) => {
     const settings = await BusinessTypeSettings.find().populate('businessTypeId');
+
+    // Strip legacy subTypes field from populated BusinessType before sending to client
+    const sanitized = settings.map((doc) => {
+        const obj = doc.toObject();
+        if (obj.businessTypeId && obj.businessTypeId.subTypes !== undefined) {
+            delete obj.businessTypeId.subTypes;
+        }
+        return obj;
+    });
+
     res.status(200).json({
         success: true,
-        data: settings,
+        data: sanitized,
     });
 });
 
@@ -45,12 +55,11 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
 
     await settings.save();
 
-    // Also update BusinessType if needed (name, description, subTypes)
+    // Also update BusinessType if needed (name, description)
     if (req.body.businessTypeId && typeof req.body.businessTypeId === 'object') {
         const btUpdates = {};
         if (req.body.businessTypeId.name) btUpdates.name = req.body.businessTypeId.name;
         if (req.body.businessTypeId.description) btUpdates.description = req.body.businessTypeId.description;
-        if (req.body.businessTypeId.subTypes) btUpdates.subTypes = req.body.businessTypeId.subTypes;
 
         if (Object.keys(btUpdates).length > 0) {
             await BusinessType.findByIdAndUpdate(settings.businessTypeId, btUpdates);
@@ -64,7 +73,11 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
         console.error('Error clearing cache in updateBusinessSettings:', cacheError);
     }
 
-    const updatedSettings = await BusinessTypeSettings.findById(settings._id).populate('businessTypeId');
+    const updatedSettingsDoc = await BusinessTypeSettings.findById(settings._id).populate('businessTypeId');
+    const updatedSettings = updatedSettingsDoc.toObject();
+    if (updatedSettings.businessTypeId && updatedSettings.businessTypeId.subTypes !== undefined) {
+        delete updatedSettings.businessTypeId.subTypes;
+    }
 
     res.status(200).json({
         success: true,
@@ -81,11 +94,16 @@ export const getSettingsBySlug = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'Business type not found' });
     }
 
-    const settings = await BusinessTypeSettings.findOne({ businessTypeId: businessType._id });
+    const settingsDoc = await BusinessTypeSettings.findOne({ businessTypeId: businessType._id });
+    const settings = settingsDoc ? settingsDoc.toObject() : null;
+    const bt = businessType.toObject();
+    if (bt.subTypes !== undefined) {
+        delete bt.subTypes;
+    }
 
     res.status(200).json({
         success: true,
         data: settings,
-        businessType
+        businessType: bt
     });
 });

@@ -15,6 +15,8 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
         vendor.isRealEstate;
     const vendorLabel = isRealEstate ? 'Office' : 'Store';
 
+    const mfgText = vendor.mfgOfWork || vendor.mfg || '';
+
     // Gallery logic matching Product Card
     const allImages = [
         vendor.storeLogo,
@@ -133,9 +135,11 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                             <span className="text-[8px] text-gray-500 font-bold">• {vendor.address.city}</span>
                         )}
                     </div>
-                    <p className="text-[9px] text-gray-600 font-medium line-clamp-2 mt-1 leading-tight">
-                        {vendor.shopUnit?.description || vendor.storeDescription || ''}
-                    </p>
+                    {mfgText && (
+                        <p className="text-[9px] text-gray-600 font-medium line-clamp-2 mt-1 leading-tight">
+                            MFG: {mfgText}
+                        </p>
+                    )}
                 </div>
 
                 {/* Action Row */}

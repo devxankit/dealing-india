@@ -5,10 +5,12 @@ import { FiHome, FiArrowLeft } from "react-icons/fi";
 import toast from "react-hot-toast";
 import api from "../../../../shared/utils/api";
 import ShopListingForm from "../../components/ShopListingForm";
+import { useSubscriptionStore } from "../../store/subscriptionStore";
 
 const ShopListing = () => {
     const navigate = useNavigate();
     const [submitting, setSubmitting] = useState(false);
+    const { refreshStatus } = useSubscriptionStore();
 
     const handleShopSubmit = async (payload) => {
         setSubmitting(true);
@@ -16,6 +18,8 @@ const ShopListing = () => {
             const response = await api.post('/b2b-vendor/shop-units', payload);
             if (response.success) {
                 toast.success(response.data?._id ? "Shop updated successfully!" : "Shop created successfully!");
+                // Refresh subscription status to update hasShop across the app
+                await refreshStatus();
                 // Stay on the same page so vendor can see updated data
             } else {
                 toast.error(response.message || "Failed to save shop details");

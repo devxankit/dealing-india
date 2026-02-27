@@ -10,23 +10,12 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
     const navigate = useNavigate();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-    // Image logic for Shop Listing vs Standard Product
+    // Image logic for Product
     let allImages = [];
-    if (product.formType === 'shop-listing' && product.items?.length > 0) {
-        allImages = [
-            ...(Array.isArray(product.items[0].images) ? product.items[0].images : [])
-        ].filter(Boolean);
-        // Fallback to shop image if no item images
-        if (allImages.length === 0) {
-            allImages = [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean);
-        }
-    } else {
-        // Standard product or Lot/Slot
-        allImages = [
-            product.coverImage || product.image,
-            ...(Array.isArray(product.images) ? product.images : [])
-        ].filter(Boolean);
-    }
+    allImages = [
+        product.coverImage || product.image,
+        ...(Array.isArray(product.images) ? product.images : [])
+    ].filter(Boolean);
 
     const handleNextImage = (e) => {
         e.stopPropagation();
@@ -88,50 +77,48 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     />
                 )}
 
-                {/* Navigation Buttons (Only if multiple images) */}
+                {/* Navigation Buttons & Indicators (Only if multiple images) */}
                 {allImages.length > 1 && (
                     <>
+                        {/* Prev / Next Arrows - always visible */}
                         <button
                             onClick={handlePrevImage}
-                            className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
+                            className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm transition-all z-30"
                         >
                             <FiChevronDown className="rotate-90 text-sm" />
                         </button>
                         <button
                             onClick={handleNextImage}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm transition-all z-30"
                         >
                             <FiChevronDown className="-rotate-90 text-sm" />
                         </button>
+
+                        {/* Image Indicators (Dots/Lines) */}
+                        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 px-2">
+                            {allImages.map((_, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`h-1 rounded-full transition-all duration-300 shadow-sm ${activeImageIndex === idx
+                                        ? 'w-4 bg-white'
+                                        : 'w-1 bg-white/50'
+                                        }`}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Image Counter Badge */}
+                        <div className="absolute top-1.5 right-1.5 px-2 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[8px] font-black text-white uppercase tracking-wider z-30">
+                            {activeImageIndex + 1} / {allImages.length}
+                        </div>
                     </>
                 )}
 
-                {/* Image Indicators (Dots/Lines) */}
-                {allImages.length > 1 && (
-                    <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 group-hover/image:opacity-100 transition-opacity px-2">
-                        {allImages.map((_, idx) => (
-                            <div
-                                key={idx}
-                                className={`h-1 rounded-full transition-all duration-300 shadow-sm ${activeImageIndex === idx
-                                    ? 'w-4 bg-white'
-                                    : 'w-1 bg-white/50'
-                                    }`}
-                            />
-                        ))}
-                    </div>
-                )}
-
-                <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm z-20 pointer-events-none">
-                    {product.itemType === 'lotslot' ? 'Bulk Lot' : (product.formType === 'shop-listing' ? 'Shop Listing' : 'Bulk')}
-                </div>
+                <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm z-20 pointer-events-none">Bulk</div>
                 <div className="absolute bottom-1.5 right-1.5 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-100 z-20 pointer-events-none">
                     <div className="flex items-baseline gap-0.5">
                         <span className="text-[8px] font-black text-primary-600">₹</span>
-                        <span className="text-sm font-black text-gray-800">
-                            {product.formType === 'shop-listing' && product.items?.length > 0
-                                ? product.items[0].price
-                                : product.price}
-                        </span>
+                        <span className="text-sm font-black text-gray-800">{product.price}</span>
                     </div>
                 </div>
             </div>
@@ -140,15 +127,11 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
             <div className={`p-2.5 flex flex-col gap-2 ${viewMode === 'list' ? 'flex-1 justify-center' : 'flex-1'}`}>
                 <div className="min-w-0">
                     <h3 className="text-[11px] font-black text-gray-800 line-clamp-1 group-hover:text-primary-600 transition-colors uppercase leading-tight">
-                        {product.formType === 'shop-listing' && product.items?.length > 0
-                            ? (product.items[0].itemName || product.items[0].name || 'Item')
-                            : product.name}
+                        {product.name}
                     </h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
                         <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter truncate">
-                            {product.formType === 'shop-listing' && product.items?.length > 0
-                                ? (product.items[0].category || product.subcategory || 'General')
-                                : (product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General')}
+                            {product.subcategory || product.attributes?.find(a => a.name === 'subcategory')?.value || 'General'}
                         </p>
                         {vendor?.address?.city && (
                             <span className="text-[8px] text-gray-500 font-bold">• {vendor.address.city}</span>

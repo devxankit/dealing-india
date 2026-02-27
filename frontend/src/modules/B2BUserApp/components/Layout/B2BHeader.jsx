@@ -81,8 +81,8 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
             return;
         }
 
-        // Store or Shop-Listing suggestions
-        if ((suggestion.type === 'store' || suggestion.formType === 'shop-listing') && suggestion.vendorId) {
+        // Store suggestions
+        if (suggestion.type === 'store' && suggestion.vendorId) {
             // If it's a real estate office, go to real estate page
             if (suggestion.isRealEstate) {
                 navigate(`/b2b/real-estate?vendorId=${suggestion.vendorId}`);
@@ -249,7 +249,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                             </div>
                                         ) : (
                                             suggestions.map((suggestion, index) => {
-                                                const isStore = (suggestion.type === 'store' || suggestion.formType === 'shop-listing') && suggestion.vendorId;
+                                                const isStore = suggestion.type === 'store' && suggestion.vendorId;
                                                 const vendorLinkUrl = suggestion.isRealEstate
                                                     ? `/b2b/real-estate?vendorId=${suggestion.vendorId}`
                                                     : (currentItemType

@@ -14,6 +14,7 @@ import {
   setupForegroundNotificationHandler,
   registerFCMToken,
 } from "./services/pushNotificationService";
+import { ENABLE_FCM } from "./firebase";
 const ScrollToTop = lazyWithRetry(
   () => import("./shared/components/ScrollToTop"),
 );
@@ -26,6 +27,9 @@ const AdminLayout = lazyWithRetry(
 );
 const Dashboard = lazyWithRetry(
   () => import("./modules/Admin/pages/Dashboard"),
+);
+const AdminUserManagement = lazyWithRetry(
+  () => import("./modules/Admin/pages/UserManagement"),
 );
 const More = lazyWithRetry(() => import("./modules/Admin/pages/More"));
 const Notifications = lazyWithRetry(
@@ -314,6 +318,7 @@ const AppRoutes = () => {
           }>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="users" element={<AdminUserManagement />} />
 
           {/* Admin B2B Vendor Routes */}
           <Route path="b2b-vendors">
@@ -508,14 +513,6 @@ const AppRoutes = () => {
               element={<B2BVendorManageProducts />}
             />
             <Route path="add-product" element={<B2BVendorAddProduct />} />
-            <Route
-              path="item-listing"
-              element={<B2BVendorAddProduct forceItemListing={true} />}
-            />
-            <Route
-              path="add-shop-listing"
-              element={<B2BVendorAddProduct forceShop={true} />}
-            />
             <Route path="edit/:id" element={<B2BVendorEditProduct />} />
           </Route>
 
@@ -572,6 +569,11 @@ const queryClient = new QueryClient({
 
 function App() {
   useEffect(() => {
+    if (!ENABLE_FCM) {
+      console.log("[@App] Firebase/FCM is disabled");
+      return;
+    }
+
     initializePushNotifications();
     console.log("[@App] Initialized push notifications");
     setupForegroundNotificationHandler((payload) => {
@@ -589,7 +591,7 @@ function App() {
         hasAuth: !!hasAuth,
         hasFCM: !!hasFCM,
       });
-      if (hasAuth && !hasFCM) {
+      if (hasAuth && !hasFCM && ENABLE_FCM) {
         registerFCMToken(true)
           .then((t) =>
             console.log("[@App] FCM token registered on startup", {
