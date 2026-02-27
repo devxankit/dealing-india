@@ -3,8 +3,10 @@ import { getToken, onMessage } from "firebase/messaging";
 import api from "../shared/utils/api";
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+const ENABLE_FCM = false;
 
 async function registerServiceWorker() {
+  if (!ENABLE_FCM) return null;
   if ("serviceWorker" in navigator) {
     console.log("[FCM] Registering service worker");
     const registration = await navigator.serviceWorker.register(
@@ -17,6 +19,7 @@ async function registerServiceWorker() {
 }
 
 async function requestNotificationPermission() {
+  if (!ENABLE_FCM) return false;
   if ("Notification" in window) {
     console.log("[FCM] Requesting notification permission");
     const permission = await Notification.requestPermission();
@@ -27,7 +30,9 @@ async function requestNotificationPermission() {
 }
 
 async function getFCMToken() {
+  if (!ENABLE_FCM) return null;
   const registration = await registerServiceWorker();
+  if (!registration) return null;
   await registration.update();
   console.log("[FCM] Getting token with VAPID key");
   const token = await getToken(messaging, {
@@ -56,6 +61,7 @@ function getAuthTokenForCurrentContext() {
 }
 
 async function registerFCMToken(forceUpdate = false) {
+  if (!ENABLE_FCM) return null;
   console.log("[FCM] RegisterFCMToken called", { forceUpdate });
   const savedToken = localStorage.getItem("fcm_token_web");
   if (savedToken && !forceUpdate) {
@@ -82,6 +88,7 @@ async function registerFCMToken(forceUpdate = false) {
 }
 
 function setupForegroundNotificationHandler(handler) {
+  if (!ENABLE_FCM) return;
   onMessage(messaging, (payload) => {
     console.log("[FCM] Foreground message received", payload);
     if ("Notification" in window && Notification.permission === "granted") {
@@ -96,6 +103,7 @@ function setupForegroundNotificationHandler(handler) {
 }
 
 async function initializePushNotifications() {
+  if (!ENABLE_FCM) return;
   try {
     await registerServiceWorker();
   } catch {}
