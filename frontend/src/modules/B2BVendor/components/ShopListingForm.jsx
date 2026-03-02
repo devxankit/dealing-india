@@ -10,12 +10,15 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
     const [formData, setFormData] = useState({
         shopName: "",
         description: "",
+        businessCategory: "",
         minPrice: "",
         maxPrice: "",
         images: [],
         details: [{ name: "", post: "", mobile: "" }],
         shopUnitId: null,
     });
+
+    const BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier'];
 
     const { vendor } = useB2BVendorAuthStore();
     const [hasExistingUnit, setHasExistingUnit] = useState(false);
@@ -32,6 +35,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                     const shopData = {
                         shopName: unit.name || "",
                         description: unit.description || "",
+                        businessCategory: unit.businessCategory || "",
                         images: unit.images || [],
                         minPrice: unit.minPrice || "",
                         maxPrice: unit.maxPrice || "",
@@ -138,6 +142,7 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
         const payload = {
             name: formData.shopName.trim(),
             description: formData.description,
+            businessCategory: formData.businessCategory || undefined,
             minPrice: String(formData.minPrice),
             maxPrice: String(formData.maxPrice),
             images: formData.images,
@@ -253,6 +258,23 @@ const ShopListingForm = ({ onSubmit, isLoading = false }) => {
                                 placeholder="Enter Shop Name"
                                 className={inputStyle}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className={labelStyle}>Business Category</label>
+                            <select
+                                value={formData.businessCategory}
+                                onChange={(e) => {
+                                    setFormData({ ...formData, businessCategory: e.target.value });
+                                    setIsShopModified(true);
+                                }}
+                                className={inputStyle}
+                            >
+                                <option value="">Select Business Category</option>
+                                {BUSINESS_CATEGORIES.map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="space-y-2">

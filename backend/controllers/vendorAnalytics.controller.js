@@ -1,15 +1,36 @@
 import Vendor from '../models/Vendor.model.js';
 import notificationService from '../services/notification.service.js';
+import VendorContactClick from '../models/VendorContactClick.model.js';
+import mongoose from 'mongoose';
+
+const getIndiaDateKey = (date = new Date()) => {
+    // YYYY-MM-DD in Asia/Kolkata
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).format(date);
+    } catch {
+        // Fallback: server local date (still stable)
+        const d = new Date(date);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+};
 
 /**
  * Track vendor contact clicks (call, whatsapp or map)
  * POST /api/vendor/analytics/track-click
  *
- * Body: { vendorId, clickType: 'call' | 'whatsapp' | 'map' }
+ * Body: { vendorId, clickType: 'call' | 'whatsapp' | 'map', itemType?, itemId? }
  */
 export const trackContactClick = async (req, res, next) => {
     try {
-        const { vendorId, clickType } = req.body;
+        const { vendorId, clickType, itemType, itemId } = req.body;
 
         if (!vendorId || !clickType) {
             return res.status(400).json({
@@ -51,6 +72,29 @@ export const trackContactClick = async (req, res, next) => {
             message: `${clickType} click tracked successfully`
         });
 
+        // Store per-user-per-day click records (for vendor visibility)
+        // Only if clicked by a logged-in buyer user, so we can show details safely
+        try {
+            if (req.user && req.user.role === 'user') {
+                const dateKey = getIndiaDateKey(new Date());
+                const safeItemType = ['product', 'lotslot', 'property', 'vendor'].includes(itemType)
+                    ? itemType
+                    : 'unknown';
+
+                await VendorContactClick.create({
+                    vendorId,
+                    clickType,
+                    userId: req.user.id,
+                    dateKey,
+                    itemType: safeItemType,
+                    itemId: itemId || null,
+                });
+            }
+        } catch (e) {
+            // Non-blocking: analytics storage should never fail the click action
+            console.error('VendorContactClick create error:', e?.message || e);
+        }
+
         // Backend side notification for the user who clicked (if logged in)
         if (req.user && req.user.role === 'user') {
             const userId = req.user.id;
@@ -68,6 +112,239 @@ export const trackContactClick = async (req, res, next) => {
         res.status(500).json({
             success: false,
             message: 'Failed to track click',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get unique users who clicked contact buttons (dedup by user+date)
+ * GET /api/vendor/analytics/click-users?clickType=call|whatsapp|map&page&limit&dateFrom&dateTo
+ * (Vendor auth)
+ */
+export const getClickUsers = async (req, res, next) => {
+    try {
+        const vendorId = req.user.vendorId;
+        const {
+            clickType,
+            page = 1,
+            limit = 50,
+            dateFrom,
+            dateTo
+        } = req.query;
+
+        if (!['call', 'whatsapp', 'map'].includes(clickType)) {
+            return res.status(400).json({
+                success: false,
+                message: 'clickType must be one of "call", "whatsapp" or "map"'
+            });
+        }
+
+        const numericPage = Math.max(1, parseInt(page, 10) || 1);
+        const numericLimit = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+        const skip = (numericPage - 1) * numericLimit;
+
+        const match = {
+            vendorId: new mongoose.Types.ObjectId(vendorId),
+            clickType,
+            userId: { $ne: null },
+        };
+
+        const fromKey = dateFrom ? String(dateFrom).trim() : null;
+        const toKey = dateTo ? String(dateTo).trim() : null;
+        if (fromKey || toKey) {
+            match.dateKey = {};
+            if (fromKey) match.dateKey.$gte = fromKey;
+            if (toKey) match.dateKey.$lte = toKey;
+        }
+
+        const pipeline = [
+            { $match: match },
+            {
+                $group: {
+                    _id: { userId: '$userId', dateKey: '$dateKey' },
+                    clickCount: { $sum: 1 },
+                    lastClickAt: { $max: '$createdAt' },
+                }
+            },
+            { $sort: { '_id.dateKey': -1, lastClickAt: -1 } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id.userId',
+                    foreignField: '_id',
+                    as: 'user'
+                }
+            },
+            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 0,
+                    dateKey: '$_id.dateKey',
+                    clickCount: 1,
+                    lastClickAt: 1,
+                    user: {
+                        _id: '$user._id',
+                        name: '$user.name',
+                        email: '$user.email',
+                        phone: '$user.phone',
+                    }
+                }
+            },
+            { $skip: skip },
+            { $limit: numericLimit },
+        ];
+
+        const countPipeline = [
+            { $match: match },
+            { $group: { _id: { userId: '$userId', dateKey: '$dateKey' } } },
+            { $count: 'total' }
+        ];
+
+        const [items, countRes] = await Promise.all([
+            VendorContactClick.aggregate(pipeline),
+            VendorContactClick.aggregate(countPipeline),
+        ]);
+
+        const total = countRes?.[0]?.total || 0;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                items,
+                pagination: {
+                    page: numericPage,
+                    limit: numericLimit,
+                    total,
+                    totalPages: Math.ceil(total / numericLimit) || 1
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching click users:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch click users',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Admin: Get unique users who clicked contact buttons for a specific vendor
+ * GET /api/admin/analytics/vendor-contact/:vendorId/click-users?clickType=call|whatsapp|map&page&limit&dateFrom&dateTo
+ * (Admin auth)
+ */
+export const getClickUsersForVendorAdmin = async (req, res, next) => {
+    try {
+        const { vendorId } = req.params;
+        const {
+            clickType,
+            page = 1,
+            limit = 50,
+            dateFrom,
+            dateTo
+        } = req.query;
+
+        if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid vendorId'
+            });
+        }
+
+        if (!['call', 'whatsapp', 'map'].includes(clickType)) {
+            return res.status(400).json({
+                success: false,
+                message: 'clickType must be one of "call", "whatsapp" or "map"'
+            });
+        }
+
+        const numericPage = Math.max(1, parseInt(page, 10) || 1);
+        const numericLimit = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+        const skip = (numericPage - 1) * numericLimit;
+
+        const match = {
+            vendorId: new mongoose.Types.ObjectId(vendorId),
+            clickType,
+            userId: { $ne: null },
+        };
+
+        const fromKey = dateFrom ? String(dateFrom).trim() : null;
+        const toKey = dateTo ? String(dateTo).trim() : null;
+        if (fromKey || toKey) {
+            match.dateKey = {};
+            if (fromKey) match.dateKey.$gte = fromKey;
+            if (toKey) match.dateKey.$lte = toKey;
+        }
+
+        const pipeline = [
+            { $match: match },
+            {
+                $group: {
+                    _id: { userId: '$userId', dateKey: '$dateKey' },
+                    clickCount: { $sum: 1 },
+                    lastClickAt: { $max: '$createdAt' },
+                }
+            },
+            { $sort: { '_id.dateKey': -1, lastClickAt: -1 } },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id.userId',
+                    foreignField: '_id',
+                    as: 'user'
+                }
+            },
+            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 0,
+                    dateKey: '$_id.dateKey',
+                    clickCount: 1,
+                    lastClickAt: 1,
+                    user: {
+                        _id: '$user._id',
+                        name: '$user.name',
+                        email: '$user.email',
+                        phone: '$user.phone',
+                    }
+                }
+            },
+            { $skip: skip },
+            { $limit: numericLimit },
+        ];
+
+        const countPipeline = [
+            { $match: match },
+            { $group: { _id: { userId: '$userId', dateKey: '$dateKey' } } },
+            { $count: 'total' }
+        ];
+
+        const [items, countRes] = await Promise.all([
+            VendorContactClick.aggregate(pipeline),
+            VendorContactClick.aggregate(countPipeline),
+        ]);
+
+        const total = countRes?.[0]?.total || 0;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                items,
+                pagination: {
+                    page: numericPage,
+                    limit: numericLimit,
+                    total,
+                    totalPages: Math.ceil(total / numericLimit) || 1
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching click users for admin:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch click users',
             error: error.message
         });
     }

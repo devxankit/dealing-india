@@ -9,6 +9,7 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
+import RateThisBlock from '../components/RateThisBlock';
 import api from '../../../shared/utils/api';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
@@ -194,7 +195,7 @@ const B2BProductDetail = () => {
                         </motion.div>
 
                         {productImages.length > 1 && (
-                            <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                            <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
                                 {productImages.map((img, idx) => (
                                     <button
                                         key={idx}
@@ -215,6 +216,13 @@ const B2BProductDetail = () => {
                                 {getCategoryName()}
                             </span>
                             <h1 className="text-2xl md:text-5xl font-black text-gray-900 leading-[1.1] uppercase tracking-tighter">{product.name}</h1>
+                            <RateThisBlock
+                                targetType={product.itemType || 'product'}
+                                targetId={product._id}
+                                averageRating={product.averageRating}
+                                ratingCount={product.ratingCount}
+                                onRated={fetchProductDetails}
+                            />
                             <div className="h-1 w-20 bg-primary-600 rounded-full"></div>
                         </div>
 

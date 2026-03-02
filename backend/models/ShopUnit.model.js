@@ -16,6 +16,12 @@ const shopUnitSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        businessCategory: {
+            type: String,
+            trim: true,
+            enum: ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier'],
+            default: null,
+        },
         images: [String],
         imagesPublicIds: [String],
         minPrice: {

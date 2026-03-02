@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiTrendingUp, FiHome } from 'react-icons/fi';
+import { FiSearch, FiMessageSquare, FiUser, FiArrowLeft, FiGrid, FiLayout, FiHome } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { appLogo } from '../../../../data/logos';
+import lotSlotIcon from '../../../../assets/icon/WhatsApp Image 2026-02-28 at 2.14.53 PM.jpeg';
+import realEstateIcon from '../../../../assets/icon/WhatsApp Image 2026-02-28 at 2.19.13 PM.jpeg';
 import { debounce } from '../../../../shared/utils/helpers';
 import api from '../../../../shared/utils/api';
 import { useAuthStore } from '../../../../shared/store/authStore';
@@ -182,15 +184,15 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                     <div className="flex md:hidden items-center gap-1 ml-1">
                         <Link
                             to="/b2b/catalog?itemType=lotslot"
-                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700"
+                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
                         >
-                            Lot / SOT
+                            <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / SOT
                         </Link>
                         <Link
                             to="/b2b/real-estate"
-                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700"
+                            className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
                         >
-                            Real Estate
+                            <img src={realEstateIcon} alt="Real Estate" className="h-7 w-auto object-contain" /> Real Estate
                         </Link>
                         <Link
                             to="/b2b-vendor/register"
@@ -208,13 +210,13 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             to="/b2b/real-estate"
                             className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
                         >
-                            <FiHome size={16} /> Real Estate
+                            <img src={realEstateIcon} alt="Real Estate" className="h-7 md:h-10 w-auto object-contain" /> Real Estate
                         </Link>
                         <Link
                             to="/b2b/catalog?itemType=lotslot"
                             className="px-3 py-2 text-xs md:text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
                         >
-                            <FiTrendingUp size={16} /> Lot / SOT
+                            <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-10 w-auto object-contain" /> Lot / SOT
                         </Link>
                     </div>
                 </div>

@@ -48,6 +48,7 @@ const iconMap = {
   "Analytics & Finance": FiBarChart2,
   "Lot Slots": FiGrid,
   "Properties": FiHome,
+  "Support Settings": FiMessageCircle,
   Settings: FiSettings,
 
   Firebase: FiDatabase,

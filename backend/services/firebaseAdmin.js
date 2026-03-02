@@ -2,8 +2,8 @@ import admin from 'firebase-admin';
 import fs from 'fs';
 
 // Global toggle to enable/disable Firebase Admin usage on backend
-// Currently kept false as per requirement to keep Firebase "off"
-const ENABLE_FCM = false;
+// Now enabled so push notifications can be sent
+const ENABLE_FCM = true;
 
 let initialized = false;
 

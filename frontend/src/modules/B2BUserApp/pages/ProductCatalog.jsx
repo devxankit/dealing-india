@@ -52,6 +52,11 @@ const ProductCatalog = () => {
     searchParams.get("businessType") || null,
   );
   const [selectedBusinessSubType, setSelectedBusinessSubType] = useState(null);
+  const [selectedBusinessCategory, setSelectedBusinessCategory] = useState(
+    searchParams.get("businessCategory") || null,
+  );
+
+  const BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier'];
 
   // Derived states moved after selectedItemType declaration below
 
@@ -157,6 +162,7 @@ const ProductCatalog = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, businessTypes.length]);
   const [openFilters, setOpenFilters] = useState({
+    businessCategory: false,
     price: false,
     subcategory: false,
     businessType: false,
@@ -242,6 +248,63 @@ const ProductCatalog = () => {
   const renderFilters = () => {
     return (
       <div className="space-y-6">
+        {/* Business Category Filter */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <button
+            onClick={() => toggleFilter("businessCategory")}
+            className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors">
+            <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">
+              Business Category
+            </h3>
+            <div className="flex items-center gap-2">
+              {selectedBusinessCategory && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedBusinessCategory(null);
+                  }}
+                  className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">
+                  RESET
+                </span>
+              )}
+              <FiChevronDown
+                className={`text-gray-400 transition-transform ${openFilters.businessCategory ? "rotate-180" : ""}`}
+              />
+            </div>
+          </button>
+          <AnimatePresence>
+            {openFilters.businessCategory && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden">
+                <div className="p-5 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                  <button
+                    onClick={() => {
+                      setSelectedBusinessCategory(null);
+                      if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${!selectedBusinessCategory ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
+                    All Categories
+                  </button>
+                  {BUSINESS_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setSelectedBusinessCategory(cat);
+                        if (isMobileFilterOpen) setIsMobileFilterOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${selectedBusinessCategory === cat ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Subcategory Filter */}
         {(!isBigTextilePlayer || selectedItemType === "lotslot") && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -926,6 +989,8 @@ const ProductCatalog = () => {
           // Respect selected business type in vendor search
           if (selectedBusinessType)
             shopParams.businessType = selectedBusinessType;
+          if (selectedBusinessCategory)
+            shopParams.businessCategory = selectedBusinessCategory;
 
 
           const vResponse = await api.get("/vendors", { params: shopParams });
@@ -983,6 +1048,9 @@ const ProductCatalog = () => {
         params.businessType = selectedBusinessType;
       }
 
+      if (selectedBusinessCategory) {
+        params.businessCategory = selectedBusinessCategory;
+      }
 
       // Add Dynamic Filters
       if (Object.keys(dynamicFilters).length > 0) {
@@ -1131,6 +1199,11 @@ const ProductCatalog = () => {
 
     setSelectedBusinessType(searchParams.get("businessType") || null);
     setSelectedBusinessSubType(null);
+
+    const urlBusinessCategory = searchParams.get("businessCategory") || null;
+    if (urlBusinessCategory !== selectedBusinessCategory) {
+      setSelectedBusinessCategory(urlBusinessCategory);
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -1249,6 +1322,7 @@ const ProductCatalog = () => {
     selectedSubcategory,
     selectedBusinessType,
     selectedBusinessSubType,
+    selectedBusinessCategory,
     allCategories.length,
     dynamicFilters,
     searchQuery,
@@ -1716,6 +1790,16 @@ const ProductCatalog = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBusinessType, selectedBusinessSubType]);
 
+  // Sync businessCategory params to URL
+  useEffect(() => {
+    const newParams = new URLSearchParams(searchParams);
+    if (selectedBusinessCategory)
+      newParams.set("businessCategory", selectedBusinessCategory);
+    else newParams.delete("businessCategory");
+    setSearchParams(newParams, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBusinessCategory]);
+
   // Sync category/subcategory in URL and clear when reset/collapse
   useEffect(() => {
     const newParams = new URLSearchParams(searchParams);
@@ -2147,27 +2231,29 @@ const ProductCatalog = () => {
             </div>
 
             {/* Horizontal Scrollable Cities List */}
-            <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
-              <button
-                onClick={() => setSelectedCity("All Cities")}
-                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === "All Cities"
-                  ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
-                  : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
-                  }`}>
-                All Cities
-              </button>
-              {uniqueCities.slice(0, 15).map((city, index) => (
+            {selectedItemType !== "lotslot" && (
+              <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 md:mx-0 md:px-0">
                 <button
-                  key={index}
-                  onClick={() => setSelectedCity(city)}
-                  className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === city
+                  onClick={() => setSelectedCity("All Cities")}
+                  className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === "All Cities"
                     ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
                     : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
                     }`}>
-                  {city}
+                  All Cities
                 </button>
-              ))}
-            </div>
+                {uniqueCities.slice(0, 15).map((city, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setSelectedCity(city)}
+                    className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === city
+                      ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100"
+                      : "bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm"
+                      }`}>
+                    {city}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Mobile search already rendered above */}

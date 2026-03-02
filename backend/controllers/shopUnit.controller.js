@@ -12,7 +12,7 @@ export const getMyUnit = async (req, res, next) => {
 
 export const createOrUpdateUnit = async (req, res, next) => {
     try {
-        const { name, description, images, minPrice, maxPrice, details } = req.body;
+        const { name, description, images, minPrice, maxPrice, details, businessCategory } = req.body;
         const vendorId = req.user.vendorId;
 
         let shop = await ShopUnit.findOne({ vendorId });
@@ -41,6 +41,7 @@ export const createOrUpdateUnit = async (req, res, next) => {
             minPrice: minPrice ? parseFloat(minPrice) : 0,
             maxPrice: maxPrice ? parseFloat(maxPrice) : 0,
             vendorId,
+            businessCategory: businessCategory && businessCategory.trim() ? businessCategory.trim() : null,
         };
 
         if (shop) {

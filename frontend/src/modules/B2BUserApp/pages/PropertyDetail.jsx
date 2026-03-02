@@ -10,6 +10,7 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
+import RateThisBlock from '../components/RateThisBlock';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
@@ -186,7 +187,7 @@ const PropertyDetail = () => {
 
                             {/* Image Selection Toolbar */}
                             {propertyImages.length > 1 && (
-                                <div className="flex gap-3 mt-4 md:mt-8 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                                <div className="flex gap-3 mt-4 md:mt-8 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
                                     {propertyImages.map((img, idx) => (
                                         <button
                                             key={idx}
@@ -309,6 +310,23 @@ const PropertyDetail = () => {
                                 <span className="text-[9px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.3em] mb-4 block">Official Listing Price</span>
                                 <div className="text-primary-600 font-black text-4xl md:text-6xl leading-tight mb-6 md:mb-8 tracking-tighter">
                                     {formatPrice(property)}
+                                </div>
+
+                                {/* Rate this property - visible in sidebar */}
+                                <div className="py-6 border-t border-gray-100">
+                                    <h3 className="text-xs md:text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Rate this property</h3>
+                                    <RateThisBlock
+                                        targetType="property"
+                                        targetId={property._id}
+                                        averageRating={property.averageRating}
+                                        ratingCount={property.ratingCount}
+                                        onRated={async () => {
+                                            try {
+                                                const res = await api.get(`/property/public/details/${id}`);
+                                                if (res?.data) setProperty(res.data?.data ?? res.data);
+                                            } catch (e) { }
+                                        }}
+                                    />
                                 </div>
 
                                 <div className="space-y-4 md:space-y-6 pt-6 border-t border-gray-50">

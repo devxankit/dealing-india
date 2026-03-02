@@ -1,6 +1,7 @@
 import { getApprovedVendors, getVendorById } from '../services/vendorManagement.service.js';
 import Product from '../models/Product.model.js';
 import redisService from '../services/redis.service.js';
+import { getRatingSummaries, getRatingSummary } from '../services/rating.service.js';
 
 /**
  * Get all approved B2B vendors (public endpoint)
@@ -17,20 +18,25 @@ export const getPublicVendors = async (req, res, next) => {
       businessType,
       excludeBusinessTypes,
       dynamicFilters,
-      strict
+      strict,
+      nocache
     } = req.query;
 
-    // Try to get from cache first
-    const cacheKey = `vendors:list:b2b:${JSON.stringify(req.query)}`;
-    try {
-      const cachedData = await redisService.get(cacheKey);
-      if (cachedData) return res.status(200).json({
-        success: true,
-        message: 'Vendors retrieved successfully (cached)',
-        data: cachedData,
-      });
-    } catch (cacheError) {
-      console.error('Redis GET error (getPublicVendors):', cacheError);
+    const useCache = !(nocache === '1' || nocache === 'true');
+    const cacheQuery = { ...req.query }; delete cacheQuery.nocache;
+    const cacheKey = `vendors:list:b2b:${JSON.stringify(cacheQuery)}`;
+
+    if (useCache) {
+      try {
+        const cachedData = await redisService.get(cacheKey);
+        if (cachedData) return res.status(200).json({
+          success: true,
+          message: 'Vendors retrieved successfully (cached)',
+          data: cachedData,
+        });
+      } catch (cacheError) {
+        console.error('Redis GET error (getPublicVendors):', cacheError);
+      }
     }
 
     // Get approved and active B2B vendors
@@ -62,10 +68,17 @@ export const getPublicVendors = async (req, res, next) => {
     const productCountMap = new Map(productCounts.map(item => [item._id.toString(), item.count]));
     const shopUnitMap = new Map(shopUnits.map(unit => [unit.vendorId.toString(), unit]));
 
-    // Enrich vendors with product counts and shop units
+    // Shop ratings (targetType 'shop', targetId = vendorId)
+    const ratingMap = vendorIds.length > 0
+      ? await getRatingSummaries('shop', vendorIds)
+      : {};
+
+    // Enrich vendors with product counts, shop units, and rating
     const enrichedVendors = result.vendors.map((vendor) => {
       const productCount = productCountMap.get(vendor._id.toString()) || 0;
       const shopUnit = shopUnitMap.get(vendor._id.toString());
+      const idStr = vendor._id.toString();
+      const ratingSummary = ratingMap[idStr];
 
       // Transform vendor data for public consumption
       return {
@@ -87,6 +100,8 @@ export const getPublicVendors = async (req, res, next) => {
         minPrice: shopUnit?.minPrice,
         maxPrice: shopUnit?.maxPrice,
         shopUnit: shopUnit,
+        averageRating: ratingSummary?.averageRating ?? 0,
+        ratingCount: ratingSummary?.ratingCount ?? 0,
         joinDate: vendor.createdAt,
         createdAt: vendor.createdAt,
         updatedAt: vendor.updatedAt,
@@ -101,11 +116,13 @@ export const getPublicVendors = async (req, res, next) => {
       totalPages: result.totalPages,
     };
 
-    // Cache the result for 10 minutes
-    try {
-      await redisService.set(cacheKey, responseData, 600);
-    } catch (cacheError) {
-      console.error('Redis SET error (getPublicVendors):', cacheError);
+    // Cache the result for 10 minutes (skip when nocache requested)
+    if (useCache) {
+      try {
+        await redisService.set(cacheKey, responseData, 600);
+      } catch (cacheError) {
+        console.error('Redis SET error (getPublicVendors):', cacheError);
+      }
     }
 
     res.status(200).json({
@@ -167,6 +184,9 @@ export const getPublicVendor = async (req, res, next) => {
     const ShopUnit = (await import('../models/ShopUnit.model.js')).default;
     const shopUnit = await ShopUnit.findOne({ vendorId: vendor._id });
 
+    // Shop rating summary
+    const ratingSummary = await getRatingSummary('shop', vendor._id.toString());
+
     // Transform vendor data for public consumption
     const publicVendor = {
       id: vendor._id.toString(),
@@ -189,7 +209,9 @@ export const getPublicVendor = async (req, res, next) => {
       createdAt: vendor.createdAt,
       updatedAt: vendor.updatedAt,
       vendorType: 'b2b',
-      shopUnit: shopUnit // Include shop unit details
+      shopUnit: shopUnit, // Include shop unit details
+      averageRating: ratingSummary.averageRating,
+      ratingCount: ratingSummary.ratingCount,
     };
 
     // Cache the result for 1 hour

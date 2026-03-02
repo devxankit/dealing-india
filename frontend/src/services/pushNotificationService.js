@@ -3,7 +3,7 @@ import { getToken, onMessage } from "firebase/messaging";
 import api from "../shared/utils/api";
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-const ENABLE_FCM = false;
+const ENABLE_FCM = true;
 
 async function registerServiceWorker() {
   if (!ENABLE_FCM) return null;

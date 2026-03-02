@@ -188,11 +188,16 @@ const B2BVendorDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                         { label: 'Active Promotion Banners', value: dashboard.banners.length, icon: FiImage, color: 'text-blue-600', bg: 'bg-blue-50' },
-                        { label: 'Total Call Inquiries', value: dashboard.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                        { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' },
-                        { label: 'Total Map Opens', value: dashboard.overview.mapClicks, icon: FiMapPin, color: 'text-orange-600', bg: 'bg-orange-50' }
+                        { label: 'Total Call Inquiries', value: dashboard.overview.callClicks, icon: FiPhone, color: 'text-emerald-600', bg: 'bg-emerald-50', analyticsType: 'call' },
+                        { label: 'Total WhatsApp Clicks', value: dashboard.overview.whatsappClicks, icon: FiMessageSquare, color: 'text-purple-600', bg: 'bg-purple-50', analyticsType: 'whatsapp' },
+                        { label: 'Total Map Opens', value: dashboard.overview.mapClicks, icon: FiMapPin, color: 'text-orange-600', bg: 'bg-orange-50', analyticsType: 'map' }
                     ].map((stat, i) => (
-                        <div key={i} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-lg transition-all">
+                        <button
+                            key={i}
+                            type="button"
+                            onClick={() => stat.analyticsType && navigate(`/b2b-vendor/analytics/clicks?type=${stat.analyticsType}`)}
+                            className={`bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-6 group hover:shadow-lg transition-all text-left ${stat.analyticsType ? 'cursor-pointer' : 'cursor-default'}`}
+                        >
                             <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-2xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform`}>
                                 <stat.icon />
                             </div>
@@ -200,7 +205,7 @@ const B2BVendorDashboard = () => {
                                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</h3>
                                 <p className="text-2xl font-black text-slate-900">{stat.value}</p>
                             </div>
-                        </div>
+                        </button>
                     ))}
                 </div>
             )}

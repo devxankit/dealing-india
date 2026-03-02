@@ -6,6 +6,7 @@ import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import { useAuthStore } from '../../../shared/store/authStore';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
+import { maskPhone } from '../../../shared/utils/helpers';
 
 const CompanyProfile = () => {
     const { user, updateProfile } = useAuthStore();
@@ -313,18 +314,36 @@ const CompanyProfile = () => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="text-gray-800 font-bold leading-relaxed">
-                                            {defaultAddress.streetAddress || defaultAddress.line1}
-                                            <br />
-                                            {defaultAddress.city}, {defaultAddress.state} - {defaultAddress.pincode || defaultAddress.zipCode}
-                                        </p>
+                                        <div className="space-y-4">
+                                            <p className="text-gray-800 font-bold leading-relaxed">
+                                                {defaultAddress.streetAddress || defaultAddress.line1 || user?.businessInfo?.address?.fullAddress}
+                                            </p>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
+                                                <div>
+                                                    <span className="block text-[9px] text-gray-400 font-black uppercase tracking-widest mb-0.5">City</span>
+                                                    <p className="text-gray-800 font-bold text-sm">{defaultAddress.city || user?.businessInfo?.address?.city || '—'}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-[9px] text-gray-400 font-black uppercase tracking-widest mb-0.5">State</span>
+                                                    <p className="text-gray-800 font-bold text-sm">{defaultAddress.state || user?.businessInfo?.address?.state || '—'}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-[9px] text-gray-400 font-black uppercase tracking-widest mb-0.5">Pincode</span>
+                                                    <p className="text-gray-800 font-bold text-sm">{defaultAddress.pincode || defaultAddress.zipCode || user?.businessInfo?.address?.pincode || '—'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100">
                                         <label className="block text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Mobile</label>
-                                        <p className="text-gray-800 font-bold">{defaultAddress.phone || user?.phone || 'Not added'}</p>
+                                        <p className="text-gray-800 font-bold">
+                                            {defaultAddress.phone || user?.phone
+                                                ? maskPhone(defaultAddress.phone || user?.phone)
+                                                : 'Not added'}
+                                        </p>
                                     </div>
                                     <div className="p-5 bg-gray-50 rounded-3xl border border-gray-100">
                                         <label className="block text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Type</label>

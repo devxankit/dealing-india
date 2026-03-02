@@ -5,6 +5,7 @@ import { FiTruck, FiShield, FiPhone, FiMapPin, FiChevronDown, FiCheck, FiMail } 
 import { FaWhatsapp } from 'react-icons/fa';
 import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
+import StarRating from './StarRating';
 
 const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemType }) => {
     const navigate = useNavigate();
@@ -137,6 +138,11 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                             <span className="text-[8px] text-gray-500 font-bold">• {vendor.address.city}</span>
                         )}
                     </div>
+                    {(product.ratingCount > 0 || product.averageRating > 0) && (
+                        <div className="mt-1">
+                            <StarRating averageRating={product.averageRating} ratingCount={product.ratingCount || 0} size="sm" />
+                        </div>
+                    )}
                 </div>
 
                 {/* Info Row: Unit and Vendor (no min order on catalog cards) */}

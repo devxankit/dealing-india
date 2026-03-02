@@ -5,6 +5,7 @@ import { FaWhatsapp } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../shared/utils/api';
 import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
+import StarRating from './StarRating';
 
 const RealEstateCard = ({ property }) => {
     const navigate = useNavigate();
@@ -208,6 +209,11 @@ const RealEstateCard = ({ property }) => {
                             {displayLocation}
                         </p>
                     </div>
+                    {(property.ratingCount > 0 || property.averageRating > 0) && (
+                        <div className="mt-1">
+                            <StarRating averageRating={property.averageRating} ratingCount={property.ratingCount || 0} size="sm" />
+                        </div>
+                    )}
                 </div>
 
                 {/* Info Row: Area and Seller */}

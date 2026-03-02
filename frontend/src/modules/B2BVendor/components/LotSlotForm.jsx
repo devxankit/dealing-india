@@ -36,6 +36,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
     const subcategoryDropdownRef = useRef(null);
     const [dynamicFields, setDynamicFields] = useState([]);
     const [dynamicValues, setDynamicValues] = useState({});
+    const [customMultiInputs, setCustomMultiInputs] = useState({});
 
     const filteredSubcategories = useMemo(() => {
         return (subcategories || []).filter(sub => {
@@ -135,13 +136,29 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                 const fields = sub.fields || [];
                 setDynamicFields(fields);
 
-                // Initialize dynamic values from existing specifications
+                // Initialize dynamic values from existing specifications (including custom for select/multi-select)
                 setDynamicValues(prev => {
                     const newVals = { ...prev };
+                    const opts = (o) => (Array.isArray(o) ? o : (o ? [o] : [])).map(String);
                     fields.forEach(f => {
                         const existing = formData.specifications.find(s => s.name?.toLowerCase() === f.label?.toLowerCase());
-                        if (existing && existing.value && !newVals[f.label]) {
-                            newVals[f.label] = existing.value;
+                        if (!existing || (existing.value !== 0 && !existing.value)) return;
+                        const fieldOpts = opts(f.options);
+                        const val = existing.value;
+                        if (f.type === 'select') {
+                            const strVal = typeof val === 'string' ? val : (Array.isArray(val) ? val[0] : String(val));
+                            const isInOptions = fieldOpts.some(opt => String(opt).toLowerCase() === String(strVal).toLowerCase());
+                            if (isInOptions) {
+                                if (!newVals[f.label]) newVals[f.label] = strVal;
+                            } else {
+                                newVals[f.label] = '__OTHER__';
+                                newVals[`${f.label}_custom`] = strVal || '';
+                            }
+                        } else if (f.type === 'multi-select') {
+                            const arrVal = Array.isArray(val) ? val : [val];
+                            if (!newVals[f.label]) newVals[f.label] = arrVal.map(v => (v != null ? String(v) : ''));
+                        } else if (!newVals[f.label]) {
+                            newVals[f.label] = val;
                         }
                     });
                     return newVals;
@@ -149,6 +166,7 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
             } else {
                 setDynamicFields([]);
                 setDynamicValues({});
+                setCustomMultiInputs({});
             }
         } else {
             setDynamicFields([]);
@@ -263,9 +281,15 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
 
         setLoading(true);
         try {
-            const dynamicSpecs = Object.entries(dynamicValues)
-                .filter(([_, value]) => value !== undefined && value !== "")
-                .map(([name, value]) => ({ name, value }));
+            const dynamicSpecs = dynamicFields.map(f => {
+                const key = f.label;
+                let value = dynamicValues[key];
+                if (f.type === 'select') {
+                    if (value === '__OTHER__') value = dynamicValues[`${key}_custom`] || '';
+                }
+                if (key.endsWith('_custom') || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) return null;
+                return { name: key, value };
+            }).filter(Boolean);
 
             // Filter out any dynamic fields that might already exist in specifications to avoid duplicates
             // This is the CRITICAL fix for the duplication issue
@@ -451,28 +475,91 @@ const LotSlotForm = ({ initialData, isEdit, id }) => {
                                             )}
 
                                             {f.type === "select" && (
-                                                <select
-                                                    value={dynamicValues[f.label] || ""}
-                                                    className="w-full px-4 py-2.5 bg-white border border-gray-200 focus:border-primary-500 rounded-xl transition-all outline-none"
-                                                    onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
-                                                >
-                                                    <option value="">Select {f.label}</option>
-                                                    {f.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                </select>
+                                                <div className="space-y-2">
+                                                    <select
+                                                        value={dynamicValues[f.label] || ""}
+                                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 focus:border-primary-500 rounded-xl transition-all outline-none"
+                                                        onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
+                                                    >
+                                                        <option value="">Select {f.label}</option>
+                                                        {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                        <option value="__OTHER__">Other (specify)</option>
+                                                    </select>
+                                                    {dynamicValues[f.label] === '__OTHER__' && (
+                                                        <input
+                                                            type="text"
+                                                            value={dynamicValues[`${f.label}_custom`] || ""}
+                                                            className="w-full px-4 py-2.5 bg-white border border-gray-200 focus:border-primary-500 rounded-xl outline-none"
+                                                            placeholder={`Enter ${f.label} manually`}
+                                                            onChange={(e) => setDynamicValues(p => ({ ...p, [`${f.label}_custom`]: e.target.value }))}
+                                                        />
+                                                    )}
+                                                </div>
                                             )}
 
                                             {f.type === "multi-select" && (
-                                                <select
-                                                    multiple
-                                                    value={dynamicValues[f.label] || []}
-                                                    className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-primary-500 rounded-xl transition-all outline-none min-h-[80px]"
-                                                    onChange={(e) => {
-                                                        const vals = [...e.target.selectedOptions].map(o => o.value);
-                                                        setDynamicValues(p => ({ ...p, [f.label]: vals }));
-                                                    }}
-                                                >
-                                                    {f.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                </select>
+                                                <div className="space-y-3">
+                                                    <select
+                                                        multiple
+                                                        value={Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label].filter(v => (f.options || []).some(o => String(o) === String(v))) : []}
+                                                        className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-primary-500 rounded-xl outline-none min-h-[80px]"
+                                                        onChange={(e) => {
+                                                            const vals = [...e.target.selectedOptions].map(o => o.value);
+                                                            const customVals = (dynamicValues[f.label] || []).filter(v => !(f.options || []).some(o => String(o).toLowerCase() === String(v).toLowerCase()));
+                                                            setDynamicValues(p => ({ ...p, [f.label]: [...vals, ...customVals] }));
+                                                        }}
+                                                    >
+                                                        {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                    </select>
+                                                    <div className="flex flex-wrap gap-2 items-center">
+                                                        <input
+                                                            type="text"
+                                                            value={customMultiInputs[f.label] ?? ''}
+                                                            className="flex-1 min-w-[120px] px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:border-primary-500 outline-none"
+                                                            placeholder="Add custom value (not in list)"
+                                                            onChange={(e) => setCustomMultiInputs(p => ({ ...p, [f.label]: e.target.value }))}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    const v = (customMultiInputs[f.label] ?? '').trim();
+                                                                    if (!v) return;
+                                                                    const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
+                                                                    if (currentVals.some(c => String(c).toLowerCase() === v.toLowerCase())) return;
+                                                                    setDynamicValues(p => ({ ...p, [f.label]: [...currentVals, v] }));
+                                                                    setCustomMultiInputs(p => ({ ...p, [f.label]: '' }));
+                                                                }
+                                                            }}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const v = (customMultiInputs[f.label] ?? '').trim();
+                                                                if (!v) return;
+                                                                const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
+                                                                if (currentVals.some(c => String(c).toLowerCase() === v.toLowerCase())) return;
+                                                                setDynamicValues(p => ({ ...p, [f.label]: [...currentVals, v] }));
+                                                                setCustomMultiInputs(p => ({ ...p, [f.label]: '' }));
+                                                            }}
+                                                            className="px-3 py-2 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary-700"
+                                                        >
+                                                            Add
+                                                        </button>
+                                                    </div>
+                                                    {Array.isArray(dynamicValues[f.label]) && dynamicValues[f.label].filter(v => !(f.options || []).some(o => String(o).toLowerCase() === String(v).toLowerCase())).length > 0 && (
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {dynamicValues[f.label].filter(v => !(f.options || []).some(o => String(o).toLowerCase() === String(v).toLowerCase())).map((customVal, idx) => (
+                                                                <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-bold">
+                                                                    {customVal}
+                                                                    <button type="button" onClick={() => {
+                                                                        const currentVals = [...(dynamicValues[f.label] || [])];
+                                                                        const filtered = currentVals.filter(c => { return c !== customVal; });
+                                                                        setDynamicValues(p => ({ ...p, [f.label]: filtered }));
+                                                                    }} className="text-gray-400 hover:text-red-600 ml-0.5">&times;</button>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     ))}

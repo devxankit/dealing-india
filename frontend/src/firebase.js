@@ -2,8 +2,8 @@ import { initializeApp } from "firebase/app";
 import { getMessaging } from "firebase/messaging";
 
 // Global toggle to enable/disable Firebase usage on web
-// Currently kept false as per requirement to keep Firebase "off"
-const ENABLE_FCM = false;
+// Now enabled so FCM works again
+const ENABLE_FCM = true;
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,

@@ -18,7 +18,7 @@ const DataTable = ({
 }) => {
   const [internalCurrentPage, setInternalCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  
+
   // Use external pagination if provided, otherwise use internal
   const isServerSidePagination = externalCurrentPage !== undefined && externalTotalPages !== undefined;
 
@@ -47,12 +47,12 @@ const DataTable = ({
   // Pagination
   const paginatedData = useMemo(() => {
     if (!pagination) return sortedData;
-    
+
     // For server-side pagination, data is already paginated
     if (isServerSidePagination) {
       return sortedData;
     }
-    
+
     // For client-side pagination, slice the data
 
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -145,7 +145,7 @@ const DataTable = ({
       </div>
 
       {/* Desktop Table View - Hide on mobile, show on desktop */}
-      <div className="hidden md:block overflow-x-auto no-scrollbar">
+      <div className="hidden md:block overflow-x-auto scrollbar-hide">
         <table className="w-full">
           <thead className="bg-gray-50/50 border-b border-gray-100">
             <tr>
@@ -156,8 +156,8 @@ const DataTable = ({
                   <th
                     key={`header-${colKey || colLabel}`}
                     className={`px-6 py-4 text-left text-[11px] font-extrabold text-gray-500 uppercase tracking-wider ${sortable && column.sortable !== false
-                        ? 'cursor-pointer hover:bg-gray-100 transition-colors'
-                        : ''
+                      ? 'cursor-pointer hover:bg-gray-100 transition-colors'
+                      : ''
                       }`}
                     onClick={() => column.sortable !== false && handleSort(colKey)}
                   >
@@ -255,7 +255,7 @@ const DataTable = ({
             >
               <FiChevronLeft />
             </button>
-            
+
             <div className="flex items-center px-4">
               <span className="text-sm font-bold text-blue-600">{currentPage}</span>
               <span className="mx-2 text-gray-300">/</span>

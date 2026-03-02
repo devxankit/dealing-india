@@ -19,8 +19,9 @@ import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import B2BProductCard from "../components/B2BProductCard";
 import api from "../../../shared/utils/api";
 import { useAuthStore } from "../../../shared/store/authStore";
-import { getGoogleMapsUrl } from "../../../shared/utils/helpers";
+import { getGoogleMapsUrl, maskPhone } from "../../../shared/utils/helpers";
 import RealEstateCard from "../components/RealEstateCard";
+import RateThisBlock from "../components/RateThisBlock";
 import toast from "../../../shared/utils/toast";
 
 const B2BVendorStore = () => {
@@ -320,11 +321,26 @@ const B2BVendorStore = () => {
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
+                        {/* Rate this shop + Action Buttons */}
                         <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[240px] pt-4 md:pt-0">
+                            <div className="py-4 border-t border-gray-100">
+                                <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3">Rate this shop</h3>
+                                <RateThisBlock
+                                    targetType="shop"
+                                    targetId={vendor._id || vendor.id}
+                                    averageRating={vendor.averageRating}
+                                    ratingCount={vendor.ratingCount}
+                                    onRated={async () => {
+                                        try {
+                                            const res = await api.get(`/vendors/${id}`, { silent: true });
+                                            if (res?.data?.vendor) setVendor(res.data.vendor);
+                                        } catch (e) {}
+                                    }}
+                                />
+                            </div>
                             {vendor.phone && (
                                 <p className="text-[12px] md:text-sm font-black text-gray-900 uppercase tracking-widest text-center md:text-right px-4 mb-1">
-                                    PH: +91 {vendor.phone}
+                                    PH: +91 {maskPhone(vendor.phone)}
                                 </p>
                             )}
                             {vendor.phone && (

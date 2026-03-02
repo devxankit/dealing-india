@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { FiSearch, FiEye, FiUser } from "react-icons/fi";
+import { useEffect, useState, useRef } from "react";
+import { FiSearch, FiEye, FiUser, FiMapPin, FiChevronDown, FiX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../components/DataTable";
 import api from "../../../shared/utils/api";
@@ -119,14 +119,26 @@ const UserDetailsModal = ({ isOpen, onClose, user }) => {
                       </p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-[11px] font-semibold text-gray-400 uppercase">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1">
                         Address
                       </p>
-                      <p className="font-semibold text-gray-800">
-                        {user.businessInfo.address?.fullAddress ||
-                          user.businessInfo.address?.city ||
-                          "N/A"}
+                      <p className="font-semibold text-gray-800 text-sm">
+                        {user.businessInfo.address?.fullAddress || "—"}
                       </p>
+                      <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-gray-100">
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase">City</p>
+                          <p className="font-semibold text-gray-800 text-xs">{user.businessInfo.address?.city || "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase">State</p>
+                          <p className="font-semibold text-gray-800 text-xs">{user.businessInfo.address?.state || "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase">Pincode</p>
+                          <p className="font-semibold text-gray-800 text-xs">{user.businessInfo.address?.pincode || "—"}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -189,8 +201,20 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [citySearchInput, setCitySearchInput] = useState("");
+  const [citiesOpen, setCitiesOpen] = useState(false);
+  const [citiesList, setCitiesList] = useState([]);
+  const cityDropdownRef = useRef(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const fetchCities = async () => {
+    try {
+      const res = await api.get("/admin/users/cities");
+      if (res?.success && Array.isArray(res.data)) setCitiesList(res.data);
+    } catch { setCitiesList([]); }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -200,6 +224,7 @@ const UserManagement = () => {
           page: 1,
           limit: 100,
           search: searchQuery || "",
+          city: selectedCity || undefined,
         },
       });
       if (response?.success) {
@@ -219,6 +244,18 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCity]);
+
+  useEffect(() => {
+    fetchCities();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target)) setCitiesOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSearch = (e) => {
@@ -313,26 +350,96 @@ const UserManagement = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Users</h1>
           <p className="text-gray-500 text-sm">
             View all registered users on the platform.
           </p>
         </div>
-        <form
-          onSubmit={handleSearch}
-          className="relative w-full max-w-xs sm:max-w-sm"
-        >
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name, email or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm"
-          />
-        </form>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative" ref={cityDropdownRef}>
+            <div
+              onClick={() => setCitiesOpen(!citiesOpen)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl cursor-pointer hover:border-primary-300 min-w-[160px]"
+            >
+              <FiMapPin className="text-gray-400 flex-shrink-0" size={16} />
+              <span className="text-sm font-medium text-gray-700 truncate flex-1">
+                {selectedCity || "Filter by City"}
+              </span>
+              {selectedCity && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setSelectedCity(""); setCitiesOpen(false); }}
+                  className="p-0.5 rounded hover:bg-gray-100"
+                >
+                  <FiX size={14} className="text-gray-500" />
+                </button>
+              )}
+              <FiChevronDown className={`text-gray-400 transition-transform ${citiesOpen ? "rotate-180" : ""}`} size={14} />
+            </div>
+            <AnimatePresence>
+              {citiesOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-hidden"
+                >
+                  <div className="p-2 border-b border-gray-100">
+                    <input
+                      type="text"
+                      placeholder="Search city..."
+                      value={citySearchInput}
+                      onChange={(e) => setCitySearchInput(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 outline-none"
+                    />
+                  </div>
+                  <div className="overflow-y-auto max-h-44 py-1">
+                    {citiesList
+                      .filter((c) =>
+                        (citySearchInput || "").trim()
+                          ? String(c).toLowerCase().includes(citySearchInput.toLowerCase())
+                          : true
+                      )
+                      .map((city) => (
+                        <button
+                          key={city}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCity(city);
+                            setCitySearchInput("");
+                            setCitiesOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-primary-50 ${selectedCity === city ? "bg-primary-50 text-primary-700 font-semibold" : "text-gray-700"}`}
+                        >
+                          {city}
+                        </button>
+                      ))}
+                    {citiesList.filter((c) =>
+                      (citySearchInput || "").trim()
+                        ? String(c).toLowerCase().includes(citySearchInput.toLowerCase())
+                        : true
+                    ).length === 0 && (
+                      <p className="px-4 py-3 text-xs text-gray-400">No cities match</p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <form onSubmit={handleSearch} className="relative w-full sm:w-auto sm:min-w-[220px]">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search by name, email or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm"
+            />
+          </form>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">

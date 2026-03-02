@@ -7,7 +7,8 @@ import Admin from '../models/Admin.model.js';
 const router = express.Router();
 
 // Global toggle to enable/disable FCM routes without deleting any code
-const ENABLE_FCM = false;
+// Now enabled so web/mobile tokens are saved again
+const ENABLE_FCM = true;
 
 router.use(authenticate);
 

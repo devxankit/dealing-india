@@ -310,7 +310,7 @@ const B2BCategories = () => {
                                         value={formData.categoryName}
                                         onChange={(e) => setFormData(prev => ({ ...prev, categoryName: e.target.value }))}
                                         placeholder="e.g., Electronics"
-                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 shadow-sm"
+                                        className="w-full px-4 py-3.5 text-base font-semibold text-gray-900 placeholder:text-gray-400 bg-gray-50 border border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 shadow-sm"
                                         autoFocus
                                     />
                                 </div>
@@ -356,12 +356,12 @@ const B2BCategories = () => {
                                                         value={field.label}
                                                         onChange={(e) => updateField(idx, 'label', e.target.value)}
                                                         placeholder="Label (e.g. Fabric)"
-                                                        className="px-2 py-1.5 text-xs bg-white border border-gray-200 rounded-lg outline-none"
+                                                        className="px-3 py-2.5 text-sm font-semibold text-gray-900 placeholder:text-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:border-primary-400"
                                                     />
                                                     <select
                                                         value={field.type}
                                                         onChange={(e) => updateField(idx, 'type', e.target.value)}
-                                                        className="px-2 py-1.5 text-xs bg-white border border-gray-200 rounded-lg outline-none"
+                                                        className="px-3 py-2.5 text-sm font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg outline-none focus:border-primary-400"
                                                     >
                                                         <option value="text">Text</option>
                                                         <option value="number">Number</option>
@@ -540,16 +540,16 @@ const B2BCategories = () => {
                                             </div>
                                             {fields.map((f, i) => (
                                                 <div key={i} className="flex flex-col gap-1 bg-white/50 p-2 rounded-lg border border-primary-100">
-                                                    <div className="flex gap-1 items-center">
+                                                    <div className="flex gap-2 items-center">
                                                         <input
                                                             type="text"
                                                             placeholder="Label"
-                                                            className="w-1/2 text-[10px] bg-transparent border-none outline-none"
+                                                            className="flex-1 px-2 py-1.5 text-sm font-semibold text-gray-900 placeholder:text-gray-400 bg-white border border-gray-200 rounded-lg outline-none"
                                                             value={f.label}
                                                             onChange={(e) => updateField(i, 'label', e.target.value)}
                                                         />
                                                         <select
-                                                            className="w-1/2 text-[10px] bg-transparent border-none outline-none font-bold"
+                                                            className="flex-1 px-2 py-1.5 text-sm font-semibold text-gray-900 bg-white border border-gray-200 rounded-lg outline-none"
                                                             value={f.type}
                                                             onChange={(e) => updateField(i, 'type', e.target.value)}
                                                         >
@@ -561,14 +561,14 @@ const B2BCategories = () => {
                                                         <button onClick={() => removeField(i)} className="text-red-400"><FiX size={10} /></button>
                                                     </div>
                                                     {(f.type === 'select' || f.type === 'multi-select') && (
-                                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                                        <div className="flex flex-wrap gap-2 mt-1">
                                                             {f.options.map((opt, optIdx) => (
                                                                 <div key={optIdx} className="relative group/opt">
                                                                     <input
                                                                         type="text"
                                                                         value={opt}
                                                                         onChange={(e) => updateOption(i, optIdx, e.target.value)}
-                                                                        className="px-1.5 py-0.5 text-[8px] border border-gray-200 rounded w-14 bg-white outline-none pr-4"
+                                                                        className="px-2.5 py-1.5 text-sm font-semibold text-gray-900 placeholder:text-gray-400 border border-gray-200 rounded-lg w-20 bg-white outline-none pr-7"
                                                                         placeholder="Opt"
                                                                     />
                                                                     <button
@@ -675,7 +675,7 @@ const B2BCategories = () => {
                                                                                 </button>
                                                                             </div>
                                                                             {(f.type === 'select' || f.type === 'multi-select') && (
-                                                                                <div className="flex flex-wrap gap-1.5 mt-1 pt-1 border-t border-gray-50">
+                                                                                <div className="flex flex-wrap gap-2 mt-1 pt-1 border-t border-gray-50">
                                                                                     {f.options.map((opt, optIdx) => (
                                                                                         <div key={optIdx} className="relative group/opt">
                                                                                             <input
@@ -683,7 +683,7 @@ const B2BCategories = () => {
                                                                                                 type="text"
                                                                                                 value={opt}
                                                                                                 onChange={(e) => updateOption(i, optIdx, e.target.value)}
-                                                                                                className="px-1.5 py-0.5 text-[8px] border border-gray-100 rounded w-16 bg-white outline-none focus:border-primary-300 pr-4"
+                                                                                                className="px-2.5 py-1.5 text-sm font-semibold text-gray-900 placeholder:text-gray-400 border border-gray-200 rounded-lg w-20 bg-white outline-none focus:border-primary-400 pr-7"
                                                                                                 placeholder="Option"
                                                                                             />
                                                                                             <button
@@ -734,11 +734,11 @@ const B2BCategories = () => {
                                                 {(editingSubcategory.categoryId !== category.id || editingSubcategory.index !== index) && sub.fields?.length > 0 && (
                                                     <div className="mt-2 flex flex-wrap gap-1">
                                                         {sub.fields.slice(0, 3).map((f, i) => (
-                                                            <span key={i} className="text-[8px] bg-white px-1.5 py-0.5 rounded border border-gray-100 text-gray-400 uppercase font-black tracking-widest">
+                                                            <span key={i} className="text-xs bg-white px-2.5 py-1 rounded-lg border border-gray-200 text-gray-900 uppercase font-black tracking-widest">
                                                                 {f.label}
                                                             </span>
                                                         ))}
-                                                        {sub.fields.length > 3 && <span className="text-[8px] text-gray-300">+{sub.fields.length - 3} more</span>}
+                                                        {sub.fields.length > 3 && <span className="text-xs text-gray-500 font-semibold">+{sub.fields.length - 3} more</span>}
                                                     </div>
                                                 )}
                                             </div>

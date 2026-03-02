@@ -102,6 +102,9 @@ const AdminBusinessTypeConfiguration = lazyWithRetry(
 const AdminVendorDashboardView = lazyWithRetry(
   () => import("./modules/Admin/pages/b2b-vendors/AdminVendorDashboardView"),
 );
+const SupportSettings = lazyWithRetry(
+  () => import("./modules/Admin/pages/SupportSettings"),
+);
 const RouteWrapper = lazyWithRetry(
   () => import("./shared/components/RouteWrapper"),
 );
@@ -169,6 +172,9 @@ const B2BVendorSubscription = lazyWithRetry(
 );
 const B2BVendorBannerBooking = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/B2BBannerBooking"),
+);
+const B2BVendorContactAnalytics = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/ContactAnalytics.jsx"),
 );
 const B2BVendorPaymentPage = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/PaymentPage"),
@@ -371,6 +377,10 @@ const AppRoutes = () => {
               path="manage/:id/dashboard"
               element={<AdminVendorDashboardView />}
             />
+          <Route
+            path="manage/:id/contact-analytics"
+            element={<B2BVendorContactAnalytics mode="admin" />}
+          />
             <Route
               path="banner-bookings"
               element={<AdminB2BBannerManagement />}
@@ -390,6 +400,7 @@ const AppRoutes = () => {
           </Route>
 
           <Route path="notifications" element={<Notifications />} />
+          <Route path="support-settings" element={<SupportSettings />} />
         </Route>
 
         {/* B2B User App Routes */}
@@ -548,6 +559,10 @@ const AppRoutes = () => {
             <Route path="add-lotslot" element={<B2BVendorAddLot />} />
             <Route path="edit/:id" element={<B2BVendorEditLot />} />
           </Route>
+          <Route
+            path="analytics/clicks"
+            element={<B2BVendorContactAnalytics mode="vendor" />}
+          />
           <Route path="profile" element={<B2BVendorProfile />} />
           <Route path="notifications" element={<B2BVendorNotifications />} />
         </Route>
@@ -605,7 +620,7 @@ function App() {
             ),
           );
       }
-    } catch {}
+    } catch { }
   }, []);
   return (
     <QueryClientProvider client={queryClient}>

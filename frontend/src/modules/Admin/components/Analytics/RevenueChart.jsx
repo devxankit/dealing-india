@@ -26,11 +26,11 @@ const RevenueChart = ({ data = [], period = 'month' }) => {
         </div>
       </div>
 
-      <div className="max-h-[400px] overflow-y-auto no-scrollbar md:pr-2">
+      <div className="max-h-[400px] overflow-y-auto scrollbar-hide md:pr-2">
         <div className="space-y-6">
           {filteredData.map((item, index) => {
             const percentage = (item.revenue / maxRevenue) * 100;
-            
+
             return (
               <div key={index} className="group">
                 <div className="flex justify-between items-center mb-2">

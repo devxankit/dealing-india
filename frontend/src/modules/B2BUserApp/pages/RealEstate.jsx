@@ -34,6 +34,9 @@ const RealEstate = () => {
     const [selectedListingType, setSelectedListingType] = useState('All');
     const [selectedArea, setSelectedArea] = useState('All Areas');
     const [selectedMarket, setSelectedMarket] = useState('All Markets');
+    const [selectedBusinessCategory, setSelectedBusinessCategory] = useState(searchParams.get('businessCategory') || null);
+
+    const BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier'];
     const [availableMarkets, setAvailableMarkets] = useState([]);
     const [propertyDerivedAreas, setPropertyDerivedAreas] = useState([]);
     const [propertyDerivedMarkets, setPropertyDerivedMarkets] = useState([]);
@@ -58,6 +61,7 @@ const RealEstate = () => {
     const [openSections, setOpenSections] = useState({
         listingType: false,
         businessType: false,
+        businessCategory: false,
         city: false,
         area: false,
         market: false,
@@ -83,6 +87,7 @@ const RealEstate = () => {
                 type: selectedBusinessType === 'All' ? '' : selectedBusinessType.toLowerCase(),
                 search: searchQuery,
                 city: selectedCity === 'All Cities' ? '' : selectedCity,
+                businessCategory: selectedBusinessCategory || '',
                 area: selectedArea === 'All Areas' ? '' : selectedArea,
                 market: selectedMarket === 'All Markets' ? '' : selectedMarket,
                 minPrice: appliedPrice.min,
@@ -157,12 +162,13 @@ const RealEstate = () => {
             fetchProperties();
         }, 500);
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedCity, selectedArea, selectedMarket, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId, sortBy, sortOrder]);
+    }, [searchQuery, selectedCity, selectedArea, selectedMarket, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedBusinessCategory, selectedVendorId, sortBy, sortOrder]);
 
     // Sync URL searchParams to local state for back/forward navigation and external links
     useEffect(() => {
         const urlSearch = searchParams.get('search') || '';
         const urlVendorId = searchParams.get('vendorId') || '';
+        const urlBusinessCategory = searchParams.get('businessCategory') || null;
 
         if (urlSearch !== searchQuery) {
             setSearchQuery(urlSearch);
@@ -170,7 +176,21 @@ const RealEstate = () => {
         if (urlVendorId !== selectedVendorId) {
             setSelectedVendorId(urlVendorId);
         }
+        if (urlBusinessCategory !== selectedBusinessCategory) {
+            setSelectedBusinessCategory(urlBusinessCategory);
+        }
     }, [searchParams]);
+
+    // Sync businessCategory to URL when changed
+    useEffect(() => {
+        const newParams = new URLSearchParams(searchParams);
+        if (selectedBusinessCategory) {
+            newParams.set('businessCategory', selectedBusinessCategory);
+        } else {
+            newParams.delete('businessCategory');
+        }
+        setSearchParams(newParams, { replace: true });
+    }, [selectedBusinessCategory]);
 
     useEffect(() => {
         fetchLocations(true, {
@@ -466,6 +486,50 @@ const RealEstate = () => {
                                             }`}
                                     >
                                         {type === 'All' ? 'All Providers' : type}
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Business Category Filter */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                    onClick={() => toggleSection('businessCategory')}
+                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Business Category</h3>
+                    <div className="flex items-center gap-2">
+                        {selectedBusinessCategory && (
+                            <span className="text-[10px] font-bold text-primary-600">{selectedBusinessCategory}</span>
+                        )}
+                        <FiChevronDown className={`text-gray-400 transition-transform ${openSections.businessCategory ? 'rotate-180' : ''}`} />
+                    </div>
+                </button>
+                <AnimatePresence>
+                    {openSections.businessCategory && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="p-4 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                <button
+                                    onClick={() => setSelectedBusinessCategory(null)}
+                                    className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${!selectedBusinessCategory ? 'bg-primary-600 text-white shadow-lg shadow-primary-100' : 'text-gray-500 hover:bg-gray-50'}`}
+                                >
+                                    All Categories
+                                </button>
+                                {BUSINESS_CATEGORIES.map((cat) => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setSelectedBusinessCategory(cat)}
+                                        className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${selectedBusinessCategory === cat ? 'bg-primary-600 text-white shadow-lg shadow-primary-100' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        {cat}
                                     </button>
                                 ))}
                             </div>
@@ -981,14 +1045,14 @@ const RealEstate = () => {
                                         </div>
                                     </div>
 
-                                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar border-t border-gray-50">
                                         <button
                                             onClick={() => {
                                                 setSelectedCity('All Cities');
                                                 setIsCityDropdownOpen(false);
                                                 setCitySearchQuery('');
                                             }}
-                                            className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-black transition-colors hover:bg-primary-50 ${selectedCity === 'All Cities' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                            className={`w-full px-4 py-3 text-left text-[10px] md:text-xs font-black transition-colors hover:bg-primary-50 border-b border-gray-50 ${selectedCity === 'All Cities' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
                                         >
                                             ALL CITIES
                                         </button>
@@ -1002,7 +1066,7 @@ const RealEstate = () => {
                                                         setIsCityDropdownOpen(false);
                                                         setCitySearchQuery('');
                                                     }}
-                                                    className={`w-full px-4 py-2.5 text-left text-[10px] md:text-xs font-bold transition-colors hover:bg-primary-50 ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
+                                                    className={`w-full px-4 py-3 text-left text-[10px] md:text-xs font-bold transition-colors hover:bg-primary-50 border-b border-gray-50 last:border-0 ${selectedCity === city ? 'text-primary-600 bg-primary-50/50' : 'text-gray-600'}`}
                                                 >
                                                     {city.toUpperCase()}
                                                 </button>
@@ -1014,31 +1078,6 @@ const RealEstate = () => {
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    </div>
-
-                    {/* Horizontal Scrollable Cities List */}
-                    <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
-                        <button
-                            onClick={() => setSelectedCity('All Cities')}
-                            className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === 'All Cities'
-                                ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100'
-                                : 'bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm'
-                                }`}
-                        >
-                            All Cities
-                        </button>
-                        {cities.filter(c => c !== 'All Cities').slice(0, 15).map((city, index) => (
-                            <button
-                                key={index}
-                                onClick={() => setSelectedCity(city)}
-                                className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all duration-300 border ${selectedCity === city
-                                    ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-100'
-                                    : 'bg-white text-gray-400 border-gray-100 hover:border-primary-300 hover:text-primary-600 shadow-sm'
-                                    }`}
-                            >
-                                {city}
-                            </button>
-                        ))}
                     </div>
                 </div>
 

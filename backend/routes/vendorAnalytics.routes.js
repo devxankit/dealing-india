@@ -1,5 +1,5 @@
 import express from 'express';
-import { trackContactClick, getVendorAnalytics } from '../controllers/vendorAnalytics.controller.js';
+import { trackContactClick, getVendorAnalytics, getClickUsers } from '../controllers/vendorAnalytics.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { authorize } from '../middleware/role.middleware.js';
 
@@ -12,5 +12,8 @@ router.post('/track-click', optionalAuthenticate, trackContactClick);
 
 // Protected endpoint - get analytics (vendor only)
 router.get('/', authenticate, authorize('vendor'), getVendorAnalytics);
+
+// Protected endpoint - list users who clicked (dedup by user+date)
+router.get('/click-users', authenticate, authorize('vendor'), getClickUsers);
 
 export default router;

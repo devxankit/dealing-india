@@ -5,6 +5,7 @@ import Vendor from '../models/Vendor.model.js';
 import B2BCategory from '../models/B2BCategory.model.js';
 import ShopUnit from '../models/ShopUnit.model.js';
 import { normalizeState, normalizeCity } from '../utils/addressNormalizer.util.js';
+import { getRatingSummaries, getRatingSummary } from './rating.service.js';
 
 /**
  * Get public products with filtering and pagination
@@ -29,6 +30,7 @@ export const getPublicProducts = async (filters) => {
         area,
         market,
         businessType,
+        businessCategory,
         excludeBusinessTypes, // Added excludeBusinessTypes to destructuring
         dynamicFilters,
         strict
@@ -131,6 +133,15 @@ export const getPublicProducts = async (filters) => {
         return query;
     };
 
+    // --- Resolve Vendor IDs from Business Category (ShopUnit) ---
+    let businessCategoryVendorIds = null;
+    if (businessCategory && String(businessCategory).trim()) {
+        const shopUnits = await ShopUnit.find({
+            businessCategory: { $regex: new RegExp(`^${String(businessCategory).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+        }).select('vendorId').lean();
+        businessCategoryVendorIds = shopUnits.map(s => s.vendorId).filter(Boolean);
+    }
+
     // --- Resolve Vendor IDs from Location Filters ---
     let locationVendorIds = null;
     if (state || city || area || market || businessType || excludeBusinessTypes) {
@@ -177,10 +188,21 @@ export const getPublicProducts = async (filters) => {
 
     // --- Combine Vendor Filter ---
     const applyVendorFilter = (query) => {
+        // Intersect with businessCategoryVendorIds if set
+        let effectiveVendorIds = locationVendorIds;
+        if (businessCategoryVendorIds) {
+            if (effectiveVendorIds) {
+                const locSet = new Set(effectiveVendorIds.map(id => id.toString()));
+                effectiveVendorIds = businessCategoryVendorIds.filter(id => locSet.has(id.toString()));
+            } else {
+                effectiveVendorIds = businessCategoryVendorIds;
+            }
+        }
+
         if (vendorId) {
-            if (locationVendorIds) {
+            if (effectiveVendorIds) {
                 // Intersection
-                if (locationVendorIds.some(id => id.toString() === vendorId.toString())) {
+                if (effectiveVendorIds.some(id => id.toString() === vendorId.toString())) {
                     query.vendorId = new mongoose.Types.ObjectId(vendorId);
                 } else {
                     // Intersection empty -> no results
@@ -189,8 +211,8 @@ export const getPublicProducts = async (filters) => {
             } else {
                 query.vendorId = new mongoose.Types.ObjectId(vendorId);
             }
-        } else if (locationVendorIds) {
-            query.vendorId = { $in: locationVendorIds };
+        } else if (effectiveVendorIds) {
+            query.vendorId = { $in: effectiveVendorIds };
         }
         return query;
     };
@@ -359,6 +381,25 @@ export const getPublicProducts = async (filters) => {
         return p;
     });
 
+    // Attach rating summary (averageRating, ratingCount) per item
+    if (data.length > 0) {
+        const productIds = data.filter(d => d.itemType === 'product').map(d => d._id);
+        const lotSlotIds = data.filter(d => d.itemType === 'lotslot').map(d => d._id);
+        const [productRatings, lotSlotRatings] = await Promise.all([
+            productIds.length ? getRatingSummaries('product', productIds) : {},
+            lotSlotIds.length ? getRatingSummaries('lotslot', lotSlotIds) : {},
+        ]);
+        data = data.map(p => {
+            const idStr = p._id.toString();
+            const summary = p.itemType === 'lotslot' ? lotSlotRatings[idStr] : productRatings[idStr];
+            return {
+                ...p,
+                averageRating: summary?.averageRating ?? 0,
+                ratingCount: summary?.ratingCount ?? 0,
+            };
+        });
+    }
+
     return {
         products: data,
         total,
@@ -370,10 +411,10 @@ export const getPublicProducts = async (filters) => {
 /**
  * Get single product by ID
  */
+// Product schema has no shopUnitId; LotSlot has shopUnitId – only populate where defined
 export const getPublicProductById = async (id) => {
     let item = await Product.findById(id)
         .populate('vendorId', 'name storeName description logo phone address')
-        .populate('shopUnitId')
         .lean();
 
     let isLotSlot = false;
@@ -411,6 +452,13 @@ export const getPublicProductById = async (id) => {
     } else {
         taggedItem.shopName = taggedItem.vendorId?.storeName || taggedItem.vendorId?.name;
     }
+
+    const ratingSummary = await getRatingSummary(
+        isLotSlot ? 'lotslot' : 'product',
+        taggedItem._id.toString()
+    );
+    taggedItem.averageRating = ratingSummary.averageRating;
+    taggedItem.ratingCount = ratingSummary.ratingCount;
 
     return taggedItem;
 };

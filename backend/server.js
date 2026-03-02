@@ -54,6 +54,7 @@ import adminB2BProductManagementRoutes from "./routes/adminB2BProductManagement.
 import adminLotSlotRoutes from "./routes/adminLotSlot.routes.js";
 import adminPropertyRoutes from "./routes/adminProperty.routes.js";
 import publicProductRoutes from "./routes/publicProduct.routes.js";
+import ratingRoutes from "./routes/rating.routes.js";
 
 import vendorAuthRoutes from "./routes/vendorAuth.routes.js";
 import adminAuthRoutes from "./routes/adminAuth.routes.js";
@@ -76,6 +77,7 @@ import vendorAnalyticsRoutes from "./routes/vendorAnalytics.routes.js";
 import vendorNotificationRoutes from "./routes/vendorNotification.routes.js";
 import userNotificationRoutes from "./routes/userNotification.routes.js";
 import fcmTokenRoutes from "./routes/fcmToken.routes.js";
+import supportConfigRoutes from "./routes/supportConfig.routes.js";
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
 import bannerBookingCron from "./Cron/BannerBooking.cron.js";
@@ -296,6 +298,7 @@ app.use("/api/subscription", SubscriptionRoutes);
 app.use("/api/subscriptions", SubscriptionRoutes); // Alias for plural calls from frontend
 app.use("/api/subscriptions/upgrade", upgradeRoutes);
 app.use("/api/products", publicProductRoutes);
+app.use("/api/rating", ratingRoutes);
 
 app.use("/api/admin/media", adminMediaRoutes);
 
@@ -322,6 +325,7 @@ app.use("/api/fcm-tokens", fcmTokenRoutes);
 app.use("/api/b2b-vendor/products", b2bVendorProductsRoutes);
 app.use("/api/b2b-vendor/shop-units", b2bVendorShopUnitRoutes);
 app.use("/api/b2b-vendor/lot-slots", lotSlotRoutes);
+app.use("/api/support-config", supportConfigRoutes);
 
 // New Feature Routes
 app.use("/api/business-types", businessTypeRoutes);

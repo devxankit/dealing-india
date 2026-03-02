@@ -25,7 +25,15 @@ export const useB2BLocationStore = create(
                 const hasLegacyMarkets = Array.isArray(currentState.markets) &&
                     currentState.markets.some(m => typeof m === 'string' || (m && typeof m === 'object' && !('city' in m)));
 
-                if (hasLegacyAreas || hasLegacyMarkets) {
+                // If states have legacy/invalid format (cities as objects or missing), force refresh
+                const hasLegacyStates = Array.isArray(currentState.states) && currentState.states.length > 0 &&
+                    currentState.states.some(s => {
+                        const cities = s?.cities;
+                        if (!Array.isArray(cities)) return true;
+                        return cities.some(c => typeof c !== 'string');
+                    });
+
+                if (hasLegacyAreas || hasLegacyMarkets || hasLegacyStates) {
                     forceRefresh = true;
                 }
 

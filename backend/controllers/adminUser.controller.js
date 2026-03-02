@@ -11,6 +11,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
         page = 1,
         limit = 20,
         search = '',
+        city = '',
         isActive,
         isEmailVerified
     } = req.query;
@@ -28,6 +29,17 @@ export const getAllUsers = asyncHandler(async (req, res) => {
             { phone: regex },
             { 'businessInfo.companyName': regex }
         ];
+    }
+
+    if (city && city.trim()) {
+        const cityRegex = new RegExp(city.trim(), 'i');
+        filter.$or = filter.$or || [];
+        const cityConditions = [
+            { 'businessInfo.address.city': cityRegex },
+            { 'addresses.city': cityRegex }
+        ];
+        filter.$and = filter.$and || [];
+        filter.$and.push({ $or: cityConditions });
     }
 
     if (typeof isActive !== 'undefined') {
@@ -62,5 +74,33 @@ export const getAllUsers = asyncHandler(async (req, res) => {
             totalPages: Math.ceil(total / limitNum) || 1
         }
     });
+});
+
+/**
+ * Get distinct cities from users (for filter dropdown)
+ * @route GET /api/admin/users/cities
+ * @access Private/Admin
+ */
+export const getDistinctCities = asyncHandler(async (req, res) => {
+    const cities = await User.aggregate([
+        {
+            $project: {
+                bizCity: '$businessInfo.address.city',
+                addrCities: '$addresses.city'
+            }
+        },
+        { $unwind: { path: '$addrCities', preserveNullAndEmptyArrays: true } },
+        {
+            $project: {
+                city: { $ifNull: ['$bizCity', '$addrCities'] }
+            }
+        },
+        { $match: { city: { $exists: true, $nin: [null, ''] } } },
+        { $group: { _id: { $toLower: '$city' }, city: { $first: '$city' } } },
+        { $sort: { city: 1 } },
+        { $project: { _id: 0, city: 1 } }
+    ]);
+    const cityList = cities.map((c) => c.city).filter(Boolean);
+    res.status(200).json({ success: true, data: cityList });
 });
 

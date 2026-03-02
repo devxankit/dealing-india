@@ -38,6 +38,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
     const [categoriesLoading, setCategoriesLoading] = useState(!categoriesCache);
     const [dynamicFields, setDynamicFields] = useState([]);
     const [dynamicValues, setDynamicValues] = useState({});
+    const [customMultiInputs, setCustomMultiInputs] = useState({});
 
     useEffect(() => {
         if (!categoriesCache) {
@@ -132,21 +133,34 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
             const fields = sub?.fields || [];
             setDynamicFields(fields);
 
-            // Populate dynamicValues from formData.specifications
+            // Populate dynamicValues from formData.specifications (including custom values for select/multi-select)
             setDynamicValues(prev => {
                 const newValues = { ...prev };
+                const opts = (o) => (Array.isArray(o) ? o : (o ? [o] : [])).map(String);
 
                 fields.forEach(field => {
-                    // Try to find existing value in specifications using case-insensitive match
                     const existingSpec = formData.specifications.find(
                         s => s.name?.toLowerCase() === field.label?.toLowerCase()
                     );
+                    if (!existingSpec || (existingSpec.value !== 0 && !existingSpec.value)) return;
 
-                    if (existingSpec && existingSpec.value) {
-                        // Only set if not already set or if explicitly provided from loaded data
-                        if (!newValues[field.label]) {
-                            newValues[field.label] = existingSpec.value;
+                    const fieldOpts = opts(field.options);
+                    const val = existingSpec.value;
+
+                    if (field.type === 'select') {
+                        const strVal = typeof val === 'string' ? val : (Array.isArray(val) ? val[0] : String(val));
+                        const isInOptions = fieldOpts.some(opt => String(opt).toLowerCase() === String(strVal).toLowerCase());
+                        if (isInOptions) {
+                            if (!newValues[field.label]) newValues[field.label] = strVal;
+                        } else {
+                            newValues[field.label] = '__OTHER__';
+                            newValues[`${field.label}_custom`] = strVal || '';
                         }
+                    } else if (field.type === 'multi-select') {
+                        const arrVal = Array.isArray(val) ? val : [val];
+                        if (!newValues[field.label]) newValues[field.label] = arrVal.map(v => (v != null ? String(v) : ''));
+                    } else if (!newValues[field.label]) {
+                        newValues[field.label] = val;
                     }
                 });
                 return newValues;
@@ -154,6 +168,7 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
         } else {
             setDynamicFields([]);
             setDynamicValues({});
+            setCustomMultiInputs({});
         }
     }, [formData.category, formData.subcategory, categories]);
 
@@ -308,10 +323,19 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
 
         setLoading(true);
         try {
-            // Prepare specifications including dynamic fields
-            const dynamicSpecs = Object.entries(dynamicValues)
-                .filter(([_, value]) => value !== undefined && value !== "")
-                .map(([name, value]) => ({ name, value }));
+            // Prepare specifications including dynamic fields (admin options + manual/custom values)
+            const dynamicSpecs = dynamicFields.map(f => {
+                const key = f.label;
+                let value = dynamicValues[key];
+                if (f.type === 'select') {
+                    if (value === '__OTHER__') {
+                        value = dynamicValues[`${key}_custom`] || '';
+                    }
+                }
+                // Skip internal keys and empty values
+                if (key.endsWith('_custom') || value === undefined || value === '' || (Array.isArray(value) && value.length === 0)) return null;
+                return { name: key, value };
+            }).filter(Boolean);
 
             // Filter out any dynamic fields that might already exist in specifications to avoid duplicates
             const genericSpecs = formData.specifications.filter(spec =>
@@ -453,52 +477,114 @@ const B2BVendorProductForm = ({ initialData, isEdit, productId }) => {
                                     )}
 
                                     {f.type === "select" && (
-                                        <select
-                                            value={dynamicValues[f.label] || ""}
-                                            className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
-                                            onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
-                                        >
-                                            <option value="">Select {f.label}</option>
-                                            {f.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
+                                        <div className="space-y-2">
+                                            <select
+                                                value={dynamicValues[f.label] || ""}
+                                                className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                                onChange={(e) => setDynamicValues(p => ({ ...p, [f.label]: e.target.value }))}
+                                            >
+                                                <option value="">Select {f.label}</option>
+                                                {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                <option value="__OTHER__">Other (specify)</option>
+                                            </select>
+                                            {(dynamicValues[f.label] === '__OTHER__') && (
+                                                <input
+                                                    type="text"
+                                                    value={dynamicValues[`${f.label}_custom`] || ""}
+                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl transition-all outline-none"
+                                                    placeholder={`Enter ${f.label} manually`}
+                                                    onChange={(e) => setDynamicValues(p => ({ ...p, [`${f.label}_custom`]: e.target.value }))}
+                                                />
+                                            )}
+                                        </div>
                                     )}
 
                                     {f.type === "multi-select" && (
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 border border-gray-200 rounded-xl max-h-60 overflow-y-auto">
-                                            {f.options?.map(opt => {
-                                                const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
-                                                const isSelected = currentVals.includes(opt);
+                                        <div className="space-y-3">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 border border-gray-200 rounded-xl max-h-60 overflow-y-auto">
+                                                {(f.options || []).map(opt => {
+                                                    const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
+                                                    const isSelected = currentVals.some(v => String(v).toLowerCase() === String(opt).toLowerCase());
 
-                                                return (
-                                                    <label
-                                                        key={opt}
-                                                        className={`flex items-center gap-2 p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected
-                                                            ? 'bg-primary-50 border-primary-200 text-primary-700 shadow-sm'
-                                                            : 'bg-white border-transparent hover:border-gray-300 text-gray-600'
-                                                            }`}
-                                                    >
-                                                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'
-                                                            }`}>
-                                                            {isSelected && <div className="w-2.5 h-1.5 border-l-2 border-b-2 border-white -rotate-45 mb-0.5"></div>}
-                                                        </div>
-                                                        <input
-                                                            type="checkbox"
-                                                            className="hidden"
-                                                            checked={isSelected}
-                                                            onChange={(e) => {
-                                                                const newVals = e.target.checked
-                                                                    ? [...currentVals, opt]
-                                                                    : currentVals.filter(v => v !== opt);
-                                                                setDynamicValues(p => ({ ...p, [f.label]: newVals }));
-                                                            }}
-                                                        />
-                                                        <span className="text-xs font-bold select-none truncate">{opt}</span>
-                                                    </label>
-                                                )
-                                            })}
-                                            {(!f.options || f.options.length === 0) && (
-                                                <div className="col-span-full text-center py-4 text-gray-400 text-xs italic">
-                                                    No options available
+                                                    return (
+                                                        <label
+                                                            key={opt}
+                                                            className={`flex items-center gap-2 p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected
+                                                                ? 'bg-primary-50 border-primary-200 text-primary-700 shadow-sm'
+                                                                : 'bg-white border-transparent hover:border-gray-300 text-gray-600'
+                                                                }`}
+                                                        >
+                                                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${isSelected ? 'bg-primary-600 border-primary-600' : 'bg-white border-gray-300'
+                                                                }`}>
+                                                                {isSelected && <div className="w-2.5 h-1.5 border-l-2 border-b-2 border-white -rotate-45 mb-0.5"></div>}
+                                                            </div>
+                                                            <input
+                                                                type="checkbox"
+                                                                className="hidden"
+                                                                checked={isSelected}
+                                                                onChange={(e) => {
+                                                                    const newVals = e.target.checked
+                                                                        ? [...currentVals, opt]
+                                                                        : currentVals.filter(v => String(v).toLowerCase() !== String(opt).toLowerCase());
+                                                                    setDynamicValues(p => ({ ...p, [f.label]: newVals }));
+                                                                }}
+                                                            />
+                                                            <span className="text-xs font-bold select-none truncate">{opt}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                                {(f.options || []).length === 0 && (
+                                                    <div className="col-span-full text-center py-4 text-gray-400 text-xs italic">
+                                                        No options available
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                                <input
+                                                    type="text"
+                                                    value={customMultiInputs[f.label] ?? ''}
+                                                    className="flex-1 min-w-[120px] px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:border-primary-500 outline-none"
+                                                    placeholder="Add custom value (not in list)"
+                                                    onChange={(e) => setCustomMultiInputs(p => ({ ...p, [f.label]: e.target.value }))}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            const v = (customMultiInputs[f.label] ?? '').trim();
+                                                            if (!v) return;
+                                                            const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
+                                                            if (currentVals.some(c => String(c).toLowerCase() === v.toLowerCase())) return;
+                                                            setDynamicValues(p => ({ ...p, [f.label]: [...currentVals, v] }));
+                                                            setCustomMultiInputs(p => ({ ...p, [f.label]: '' }));
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const v = (customMultiInputs[f.label] ?? '').trim();
+                                                        if (!v) return;
+                                                        const currentVals = Array.isArray(dynamicValues[f.label]) ? dynamicValues[f.label] : [];
+                                                        if (currentVals.some(c => String(c).toLowerCase() === v.toLowerCase())) return;
+                                                        setDynamicValues(p => ({ ...p, [f.label]: [...currentVals, v] }));
+                                                        setCustomMultiInputs(p => ({ ...p, [f.label]: '' }));
+                                                    }}
+                                                    className="px-3 py-2 bg-primary-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-primary-700"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                            {Array.isArray(dynamicValues[f.label]) && dynamicValues[f.label].filter(v => !(f.options || []).some(o => String(o).toLowerCase() === String(v).toLowerCase())).length > 0 && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {dynamicValues[f.label].filter(v => !(f.options || []).some(o => String(o).toLowerCase() === String(v).toLowerCase())).map((customVal, idx) => (
+                                                        <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-[10px] font-bold">
+                                                            {customVal}
+                                                            <button type="button" onClick={() => {
+                                                                const currentVals = [...(dynamicValues[f.label] || [])];
+                                                                const next = currentVals.filter(c => c !== customVal);
+                                                                setDynamicValues(p => ({ ...p, [f.label]: next }));
+                                                            }} className="text-gray-400 hover:text-red-600 ml-0.5">&times;</button>
+                                                        </span>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>

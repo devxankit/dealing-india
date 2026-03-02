@@ -53,6 +53,20 @@ export const isValidPhone = (phone) => {
 };
 
 /**
+ * Mask phone number for display: show first 2 and last 2 digits.
+ * Example: 9876543210 -> 98******10
+ */
+export const maskPhone = (phone, visible = 2) => {
+  if (!phone) return "";
+  const digits = String(phone).replace(/\D/g, "");
+  if (digits.length <= visible * 2) return digits;
+  const start = digits.slice(0, visible);
+  const end = digits.slice(-visible);
+  const maskedMiddle = "*".repeat(digits.length - visible * 2);
+  return `${start}${maskedMiddle}${end}`;
+};
+
+/**
  * Get image URL (with fallback)
  */
 export const getImageUrl = (image, fallback = "/placeholder.jpg") => {

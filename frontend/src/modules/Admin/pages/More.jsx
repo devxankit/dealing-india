@@ -46,6 +46,16 @@ const More = () => {
       hoverShadow: 'hover:shadow-cyan-500/30',
       description: 'Manage content'
     },
+    {
+      path: '/admin/support-settings',
+      label: 'Support Settings',
+      icon: FiMessageSquare,
+      gradient: 'from-green-500 via-green-600 to-green-700',
+      lightGradient: 'from-green-50 via-green-100/80 to-green-50',
+      shadowColor: 'shadow-green-500/20',
+      hoverShadow: 'hover:shadow-green-500/30',
+      description: 'Manage Support & FAQs'
+    },
   ];
 
   return (
