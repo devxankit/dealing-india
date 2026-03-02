@@ -9,7 +9,6 @@ import {
 import { FaWhatsapp } from 'react-icons/fa';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
-import RateThisBlock from '../components/RateThisBlock';
 import api from '../../../shared/utils/api';
 import { useAuthStore } from '../../../shared/store/authStore';
 import toast from 'react-hot-toast';
@@ -77,7 +76,19 @@ const B2BProductDetail = () => {
 
     const handleWhatsAppClick = () => {
         trackContactClick('whatsapp');
-        window.open(`https://wa.me/91${product.vendorId.phone.replace(/\D/g, '')}`, '_blank');
+        const cleanedPhone = (product.vendorId?.phone || '').replace(/\D/g, '');
+        const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
+
+        const message = encodeURIComponent(
+            `🛒 *I'm interested in this product!*\n\n` +
+            `📦 *Product:* ${product.name}\n` +
+            `💰 *Price:* ${product.price ? `₹${product.price}/${product.unit || 'pcs'}` : 'Price on Request'}\n` +
+            `📦 *Min Order:* ${product.moq || product.minimumOrderQuantity || '1'} ${product.unit || 'pcs'}\n` +
+            `🏢 *Shop:* ${product.vendorId?.storeName || 'Verified Vendor'}\n` +
+            `📍 *City:* ${product.vendorId?.address?.city || 'N/A'}\n\n` +
+            `🔗 *View Item:* ${window.location.href}`
+        );
+        window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`, '_blank');
     };
 
     const handleCallClick = () => {
@@ -131,6 +142,7 @@ const B2BProductDetail = () => {
     const safeSelectedImage = Math.min(selectedImage, productImages.length - 1);
 
     const getCategoryName = () => {
+        if (product.formType === 'shop-listing') return 'Shop Listing';
         if (product.category) return product.category; // LotSlot string field
         if (product.categoryId?.name) return product.categoryId.name;
         const categoryAttr = product.attributes?.find(attr =>
@@ -140,6 +152,24 @@ const B2BProductDetail = () => {
     };
 
     const getSpecifications = () => {
+        if (product.formType === 'shop-listing' && product.items && product.items.length > 0) {
+            // Combine all items into specifications or just show the first one if that's the new standard
+            // Given the user removed "Add More", we'll show all existing items but focused on the new fields
+            const allSpecs = [];
+            product.items.forEach((item, index) => {
+                const prefix = product.items.length > 1 ? `Item ${index + 1}: ` : '';
+                if (item.itemName) allSpecs.push({ name: `${prefix}Item Name`, value: item.itemName });
+                if (item.category) allSpecs.push({ name: `${prefix}Category`, value: item.category });
+                if (item.price) allSpecs.push({ name: `${prefix}Price`, value: `₹${item.price}` });
+                if (item.unit) allSpecs.push({ name: `${prefix}Unit`, value: item.unit });
+                if (item.reed) allSpecs.push({ name: `${prefix}Reed`, value: item.reed });
+                if (item.pick) allSpecs.push({ name: `${prefix}Pick`, value: item.pick });
+                if (item.panna) allSpecs.push({ name: `${prefix}Panna / Width`, value: item.panna });
+                if (item.gsm) allSpecs.push({ name: `${prefix}GSM`, value: item.gsm });
+                if (item.description) allSpecs.push({ name: `${prefix}Description`, value: item.description });
+            });
+            return allSpecs;
+        }
         if (product.specifications && Array.isArray(product.specifications)) return product.specifications;
         if (product.attributes && Array.isArray(product.attributes)) {
             return product.attributes
@@ -195,7 +225,7 @@ const B2BProductDetail = () => {
                         </motion.div>
 
                         {productImages.length > 1 && (
-                            <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                            <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
                                 {productImages.map((img, idx) => (
                                     <button
                                         key={idx}
@@ -215,14 +245,16 @@ const B2BProductDetail = () => {
                             <span className="text-[10px] md:text-xs font-black text-primary-600 uppercase tracking-[0.2em] px-4 py-2 bg-primary-50 rounded-xl inline-block shadow-sm">
                                 {getCategoryName()}
                             </span>
-                            <h1 className="text-2xl md:text-5xl font-black text-gray-900 leading-[1.1] uppercase tracking-tighter">{product.name}</h1>
-                            <RateThisBlock
-                                targetType={product.itemType || 'product'}
-                                targetId={product._id}
-                                averageRating={product.averageRating}
-                                ratingCount={product.ratingCount}
-                                onRated={fetchProductDetails}
-                            />
+                            <h1 className="text-2xl md:text-5xl font-black text-gray-900 leading-[1.1] uppercase tracking-tighter">
+                                {product.formType === 'shop-listing' && product.items?.[0]
+                                    ? (product.items[0].itemName || product.name)
+                                    : product.name}
+                            </h1>
+                            {product.formType === 'shop-listing' && (product.unitDetails?.name || product.name) && (
+                                <p className="text-sm font-bold text-gray-400 mt-2 uppercase tracking-widest">
+                                    Shop: {product.unitDetails?.name || product.name}
+                                </p>
+                            )}
                             <div className="h-1 w-20 bg-primary-600 rounded-full"></div>
                         </div>
 
@@ -231,21 +263,31 @@ const B2BProductDetail = () => {
 
                             <div className="flex items-start justify-between mb-8 md:mb-10 relative z-10">
                                 <div>
-                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Market Value</span>
+                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">
+                                        {product.formType === 'shop-listing' ? 'Item Rate' : 'Market Value'}
+                                    </span>
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-3xl md:text-5xl font-black text-primary-600 tracking-tighter">₹{product.price}</span>
+                                        <span className="text-3xl md:text-5xl font-black text-primary-600 tracking-tighter">
+                                            ₹{product.formType === 'shop-listing' && product.items?.length > 0
+                                                ? product.items[0].price
+                                                : product.price}
+                                        </span>
                                         <span className="text-gray-400 font-bold text-xs md:text-sm uppercase tracking-widest">
-                                            / {product.unit || 'pc'}
+                                            / {product.formType === 'shop-listing' && product.items?.[0]
+                                                ? product.items[0].unit
+                                                : (product.unit || 'pc')}
                                         </span>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Minimum Order</span>
-                                    <span className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">
-                                        {product.moq || 1}
-                                        <span className="text-[10px] md:text-xs text-gray-400 uppercase ml-1">{product.unit || 'Units'}</span>
-                                    </span>
-                                </div>
+                                {product.formType !== 'shop-listing' && (
+                                    <div className="text-right">
+                                        <span className="text-[10px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block">Minimum Order</span>
+                                        <span className="text-lg md:text-2xl font-black text-gray-900 tracking-tight">
+                                            {product.moq || 1}
+                                            <span className="text-[10px] md:text-xs text-gray-400 uppercase ml-1">{product.unit || 'Units'}</span>
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-6 relative z-10">

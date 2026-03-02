@@ -136,7 +136,18 @@ const PropertyDetail = () => {
 
     const handleWhatsAppClick = () => {
         trackContactClick('whatsapp');
-        window.open(`https://wa.me/91${sellerPhone}`, '_blank');
+        const cleanedPhone = (sellerPhone || '').replace(/\D/g, '');
+        const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
+
+        const message = encodeURIComponent(
+            `🏠 *I'm interested in this property!*\n\n` +
+            `🏢 *Property:* ${property.title || 'Property'}\n` +
+            `💰 *Price:* ${formatPrice(property)}\n` +
+            `👤 *Seller:* ${sellerName}\n` +
+            `📍 *Location:* ${[property.location?.city, property.location?.area].filter(Boolean).join(', ') || 'N/A'}\n\n` +
+            `🔗 *View Item:* ${window.location.href}`
+        );
+        window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`, '_blank');
     };
 
     const handleCallClick = () => {
@@ -241,18 +252,18 @@ const PropertyDetail = () => {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                                 {[
-                                    { label: 'Built up Area', val: property.specifications?.builtUpArea ? `${property.specifications.builtUpArea} ${property.specifications.builtUpAreaUnit || ''}` : null, icon: <FiMaximize /> },
-                                    { label: 'Carpet Area', val: property.specifications?.carpetArea ? `${property.specifications.carpetArea} ${property.specifications.carpetAreaUnit || ''}` : null, icon: <FiMaximize /> },
-                                    { label: 'Total Area', val: property.totalArea, icon: <FiMaximize /> },
-                                    { label: 'Floor Level', val: property.specifications?.floorNumber, icon: <FiLayers /> },
-                                    { label: 'Total Floors', val: property.specifications?.totalFloors, icon: <FiGrid /> },
-                                    { label: 'Ceiling Height', val: property.specifications?.ceilingHeight ? `${property.specifications.ceilingHeight} ${property.specifications.ceilingHeightUnit || ''}` : null, icon: <FiMaximize /> },
-                                    { label: 'Entrance Width', val: property.specifications?.entranceWidth ? `${property.specifications.entranceWidth} ${property.specifications.entranceWidthUnit || ''}` : null, icon: <FiTrendingUp /> },
-                                    { label: 'Road Facing', val: property.roadFacing, icon: <FiMapPin /> },
-                                    { label: 'Furnishing', val: property.status?.furnishing, icon: <FiBox /> },
-                                    { label: 'Built Status', val: property.status?.propertyStatus, icon: <FiSettings /> },
-                                    { label: 'Age of Prop.', val: property.status?.propertyCondition, icon: <FiClock /> },
-                                    { label: 'Possession', val: property.status?.propertyPosition, icon: <FiAward /> }
+                                    { label: 'Built up Area', val: property.specifications?.builtUpArea || property.plotDetails?.builtUpArea ? `${property.specifications?.builtUpArea || property.plotDetails?.builtUpArea} ${property.specifications?.builtUpAreaUnit || ''}` : null, icon: <FiMaximize /> },
+                                    { label: 'Carpet Area', val: property.specifications?.carpetArea || property.flatDetails?.carpetArea ? `${property.specifications?.carpetArea || property.flatDetails?.carpetArea} ${property.specifications?.carpetAreaUnit || ''}` : null, icon: <FiMaximize /> },
+                                    { label: 'Total Area', val: property.totalArea || property.plotDetails?.plotArea, icon: <FiMaximize /> },
+                                    { label: 'Floor Level', val: property.specifications?.floorNumber || property.flatDetails?.floorNumber, icon: <FiLayers /> },
+                                    { label: 'Total Floors', val: property.specifications?.totalFloors || property.flatDetails?.totalFloors || property.plotDetails?.floors, icon: <FiGrid /> },
+                                    { label: 'Flat Type', val: property.flatDetails?.flatType, icon: <FiHome /> },
+                                    { label: 'Bedrooms', val: property.plotDetails?.bedrooms, icon: <FiBox /> },
+                                    { label: 'Bathrooms', val: property.plotDetails?.bathrooms, icon: <FiUnlock /> },
+                                    { label: 'Balcony', val: property.plotDetails?.balcony, icon: <FiLayers /> },
+                                    { label: 'Terrace', val: property.plotDetails?.terrace, icon: <FiLayers /> },
+                                    { label: 'Age of Prop.', val: property.status?.propertyCondition || property.flatDetails?.ageOfProperty || property.plotDetails?.ageOfProperty, icon: <FiClock /> },
+                                    { label: 'Furnishing', val: property.status?.furnishing || property.flatDetails?.furnishing || property.plotDetails?.furnishing, icon: <FiBox /> },
                                 ].map((spec, i) => spec.val && (
                                     <div key={i} className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all group flex items-start gap-4 md:gap-5">
                                         <div className="w-10 h-10 md:w-12 md:h-12 bg-primary-50 text-primary-600 rounded-xl md:rounded-2xl flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-all transform group-hover:rotate-6">
@@ -276,26 +287,46 @@ const PropertyDetail = () => {
                                 <h2 className="text-xl md:text-3xl font-black text-gray-900 uppercase tracking-tighter">Site Infrastructure</h2>
                             </div>
                             <div className="bg-white rounded-3xl md:rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm divide-y divide-gray-50">
-                                {property.facilities && [
-                                    { label: 'Parking Space', val: property.facilities.parking?.join(', ') || property.facilities.parking, icon: <FiBox /> },
-                                    { label: 'Power Backup', val: property.facilities.powerBackup, icon: <FiActivity /> },
-                                    { label: 'Water Supply', val: property.facilities.waterSupply, icon: <FiActivity /> },
-                                    { label: 'Lift Access', val: property.facilities.lift, icon: <FiLayers /> },
-                                    { label: 'Passenger Lift', val: property.facilities.liftPassenger, icon: <FiLayers /> },
-                                    { label: 'Loading Lift', val: property.facilities.liftLoading, icon: <FiHardDrive /> },
-                                    { label: 'Washroom Type', val: Array.isArray(property.facilities.washroom) ? property.facilities.washroom.join(', ') : property.facilities.washroom, icon: <FiUnlock /> },
-                                    { label: 'Fire Safety', val: property.facilities.fireSafety, icon: <FiShield /> }
-                                ].map((fac, i) => fac.val && (
-                                    <div key={i} className="flex items-center justify-between p-6 md:p-8 hover:bg-gray-50 transition-colors">
-                                        <div className="flex items-center gap-4 md:gap-6">
-                                            <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-100 rounded-lg md:rounded-xl flex items-center justify-center text-gray-400">{fac.icon}</div>
-                                            <span className="text-[10px] md:text-xs font-black text-gray-700 uppercase tracking-widest">{fac.label}</span>
+                                {(() => {
+                                    const rawFacs = [];
+                                    if (property.facilities) {
+                                        rawFacs.push(
+                                            { label: 'Parking Space', val: property.facilities.parking?.join(', ') || property.facilities.parking, icon: <FiBox /> },
+                                            { label: 'Power Backup', val: property.facilities.powerBackup, icon: <FiActivity /> },
+                                            { label: 'Water Supply', val: property.facilities.waterSupply, icon: <FiActivity /> },
+                                            { label: 'Lift Access', val: property.facilities.lift, icon: <FiLayers /> },
+                                            { label: 'Fire Safety', val: property.facilities.fireSafety, icon: <FiShield /> }
+                                        );
+                                    }
+                                    if (property.flatDetails?.amenities) {
+                                        const fa = property.flatDetails.amenities;
+                                        rawFacs.push(
+                                            { label: 'Security', val: fa.security, icon: <FiShield /> },
+                                            { label: 'CCTV', val: fa.cctv, icon: <FiActivity /> },
+                                            { label: 'Swimming Pool', val: fa.swimmingPool, icon: <FiActivity /> },
+                                            { label: 'Gym', val: fa.gym, icon: <FiActivity /> },
+                                            { label: 'Garden', val: fa.garden, icon: <FiActivity /> }
+                                        );
+                                    }
+                                    if (property.plotDetails?.privateFacilities) {
+                                        const pf = property.plotDetails.privateFacilities;
+                                        rawFacs.push(
+                                            { label: 'Private Parking', val: pf.privateParking, icon: <FiBox /> },
+                                            { label: 'Solar System', val: pf.solarSystem, icon: <FiActivity /> }
+                                        );
+                                    }
+                                    return rawFacs.map((fac, i) => fac.val && (
+                                        <div key={i} className="flex items-center justify-between p-6 md:p-8 hover:bg-gray-50 transition-colors">
+                                            <div className="flex items-center gap-4 md:gap-6">
+                                                <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-100 rounded-lg md:rounded-xl flex items-center justify-center text-gray-400">{fac.icon}</div>
+                                                <span className="text-[10px] md:text-xs font-black text-gray-700 uppercase tracking-widest">{fac.label}</span>
+                                            </div>
+                                            <div className={`px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm ${fac.val === 'Yes' || fac.val === 'Covered' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                {Array.isArray(fac.val) ? fac.val.join(', ') : fac.val}
+                                            </div>
                                         </div>
-                                        <div className={`px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest shadow-sm ${fac.val === 'Yes' || fac.val === 'Private' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                                            {Array.isArray(fac.val) ? fac.val.join(', ') : fac.val}
-                                        </div>
-                                    </div>
-                                ))}
+                                    ));
+                                })()}
                             </div>
                         </section>
                     </div>

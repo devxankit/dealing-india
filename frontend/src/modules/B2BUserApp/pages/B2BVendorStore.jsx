@@ -19,9 +19,8 @@ import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import B2BProductCard from "../components/B2BProductCard";
 import api from "../../../shared/utils/api";
 import { useAuthStore } from "../../../shared/store/authStore";
-import { getGoogleMapsUrl, maskPhone } from "../../../shared/utils/helpers";
+import { getGoogleMapsUrl } from "../../../shared/utils/helpers";
 import RealEstateCard from "../components/RealEstateCard";
-import RateThisBlock from "../components/RateThisBlock";
 import toast from "../../../shared/utils/toast";
 
 const B2BVendorStore = () => {
@@ -93,22 +92,23 @@ const B2BVendorStore = () => {
         }
     }, [id, itemType]);
 
-    // Shop details for header – derived from vendor.shopUnit only
+    // Find shop listing for specific UI details - merged with vendor.shopUnit if available
     const shopListing = useMemo(() => {
+        const productListing = products.find(p => p.formType === 'shop-listing');
         if (vendor?.shopUnit) {
-            const su = vendor.shopUnit;
             return {
-                name: su.name,
-                description: su.description,
-                minPrice: su.minPrice,
-                maxPrice: su.maxPrice,
-                details: su.details || [],
-                images: su.images || [],
-                image: su.images?.[0] || null
+                ...productListing,
+                name: vendor.shopUnit.name || productListing?.name,
+                description: vendor.shopUnit.description || productListing?.description,
+                minPrice: vendor.shopUnit.minPrice ?? productListing?.minPrice,
+                maxPrice: vendor.shopUnit.maxPrice ?? productListing?.maxPrice,
+                details: vendor.shopUnit.details || [],
+                images: (vendor.shopUnit.images && vendor.shopUnit.images.length > 0) ? vendor.shopUnit.images : productListing?.images,
+                image: (vendor.shopUnit.images && vendor.shopUnit.images[0]) || productListing?.image
             };
         }
-        return null;
-    }, [vendor]);
+        return productListing;
+    }, [products, vendor]);
 
     // Filter and sort products
     const filteredProducts = useMemo(() => {
@@ -116,7 +116,13 @@ const B2BVendorStore = () => {
 
         if (searchQuery) {
             const q = searchQuery.trim().toLowerCase();
-            filtered = filtered.filter(p => (p.name || '').toLowerCase().startsWith(q));
+            filtered = filtered.filter(p => {
+                const nameStarts = (p.name || '').toLowerCase().startsWith(q);
+                const itemStarts = Array.isArray(p.items)
+                    ? p.items.some(it => (it.itemName || '').toLowerCase().startsWith(q))
+                    : false;
+                return nameStarts || itemStarts;
+            });
         }
 
         switch (sortBy) {
@@ -321,31 +327,26 @@ const B2BVendorStore = () => {
                             </div>
                         </div>
 
-                        {/* Rate this shop + Action Buttons */}
+                        {/* Action Buttons */}
                         <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[240px] pt-4 md:pt-0">
-                            <div className="py-4 border-t border-gray-100">
-                                <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3">Rate this shop</h3>
-                                <RateThisBlock
-                                    targetType="shop"
-                                    targetId={vendor._id || vendor.id}
-                                    averageRating={vendor.averageRating}
-                                    ratingCount={vendor.ratingCount}
-                                    onRated={async () => {
-                                        try {
-                                            const res = await api.get(`/vendors/${id}`, { silent: true });
-                                            if (res?.data?.vendor) setVendor(res.data.vendor);
-                                        } catch (e) {}
-                                    }}
-                                />
-                            </div>
                             {vendor.phone && (
                                 <p className="text-[12px] md:text-sm font-black text-gray-900 uppercase tracking-widest text-center md:text-right px-4 mb-1">
-                                    PH: +91 {maskPhone(vendor.phone)}
+                                    PH: +91 {vendor.phone}
                                 </p>
                             )}
                             {vendor.phone && (
                                 <a
-                                    href={`https://wa.me/91${vendor.phone.replace(/\D/g, '')}`}
+                                    href={(() => {
+                                        const cleanedPhone = (vendor.phone || '').replace(/\D/g, '');
+                                        const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
+                                        const message = encodeURIComponent(
+                                            `👋 *I'm interested in your business services!*\n\n` +
+                                            `🏢 *Business:* ${shopListing?.name || vendor.storeName || 'Verified Vendor'}\n` +
+                                            `📍 *City:* ${vendor?.address?.city || 'N/A'}\n\n` +
+                                            `🔗 *View Store:* ${window.location.href}`
+                                        );
+                                        return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
+                                    })()}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={() => trackContactClick(vendor._id || vendor.id, 'whatsapp')}
@@ -373,6 +374,26 @@ const B2BVendorStore = () => {
                 </div>
 
                 {/* Shop Presentation Gallery - For Shop Listings */}
+                {shopListing && ((shopListing.image && shopListing.images?.length > 0) || shopListing.images?.length > 0) && (
+                    <div className="mb-12 md:mb-20">
+                        <div className="flex items-center gap-4 mb-8">
+                            <span className="h-[2px] w-12 bg-primary-600"></span>
+                            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Shop Presentation</h3>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {[...new Set([shopListing.image, ...(shopListing.images || [])])].filter(Boolean).map((img, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    whileHover={{ scale: 1.02 }}
+                                    className="aspect-square rounded-3xl overflow-hidden border border-gray-100 shadow-sm"
+                                >
+                                    <img src={img} alt={`Shop ${idx + 1}`} className="w-full h-full object-cover" />
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Team / Contact Persons Section */}
                 {shopListing?.details?.length > 0 && (
                     <div className="mb-12 md:mb-20">
@@ -396,37 +417,9 @@ const B2BVendorStore = () => {
                                         <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">{contact.name || 'N/A'}</h4>
                                         <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-2 opacity-70">{contact.post || 'Staff'}</p>
                                         {contact.mobile && (
-                                            <a
-                                                href={`https://wa.me/91${String(contact.mobile).replace(/\D/g, '')}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gray-500 hover:text-[#25D366] transition-colors"
-                                            >
-                                                <span>+91 {contact.mobile}</span>
-                                                <FaWhatsapp size={14} className="text-[#25D366]" />
-                                            </a>
+                                            <p className="text-[11px] font-bold text-gray-500">+91 {contact.mobile}</p>
                                         )}
                                     </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {shopListing && ((shopListing.image && shopListing.images?.length > 0) || shopListing.images?.length > 0) && (
-                    <div className="mb-12 md:mb-20">
-                        <div className="flex items-center gap-4 mb-8">
-                            <span className="h-[2px] w-12 bg-primary-600"></span>
-                            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Shop Presentation</h3>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {[...new Set([shopListing.image, ...(shopListing.images || [])])].filter(Boolean).map((img, idx) => (
-                                <motion.div
-                                    key={idx}
-                                    whileHover={{ scale: 1.02 }}
-                                    className="aspect-square rounded-3xl overflow-hidden border border-gray-100 shadow-sm"
-                                >
-                                    <img src={img} alt={`Shop ${idx + 1}`} className="w-full h-full object-cover" />
                                 </motion.div>
                             ))}
                         </div>

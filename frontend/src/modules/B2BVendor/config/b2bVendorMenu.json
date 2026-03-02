@@ -22,7 +22,9 @@
         "route": "/b2b-vendor/properties",
         "children": [
             "Manage Properties",
-            "Add Property"
+            "Add Property",
+            "Add Flat",
+            "Add Plot"
         ]
     },
     {

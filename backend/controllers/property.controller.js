@@ -5,8 +5,6 @@ import VendorPropertySubscription from '../models/VendorPropertySubscription.mod
 import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary, isBase64DataUrl } from '../utils/cloudinary.util.js';
 import ShopUnit from '../models/ShopUnit.model.js';
-import { normalizeState, normalizeCity } from '../utils/addressNormalizer.util.js';
-import { getRatingSummaries, getRatingSummary } from '../services/rating.service.js';
 
 /**
  * Helper function to process media uploads to Cloudinary
@@ -315,80 +313,55 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 // @route   GET /api/public/property/all
 // @access  Public
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, businessCategory, strict, sortBy, sortOrder } = req.query;
+    const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
 
     let query = { isActive: true };
     const queryConditions = [];
 
     if (vendorId) queryConditions.push({ vendorId });
-
-    // Business Category filter (via ShopUnit)
-    if (businessCategory && String(businessCategory).trim()) {
-        const shopUnits = await ShopUnit.find({
-            businessCategory: { $regex: new RegExp(`^${String(businessCategory).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
-        }).select('vendorId').lean();
-        const bcVendorIds = shopUnits.map(s => s.vendorId).filter(Boolean);
-        if (bcVendorIds.length > 0) {
-            queryConditions.push({ vendorId: { $in: bcVendorIds } });
-        } else {
-            queryConditions.push({ vendorId: null }); // No matching vendors - return empty
-        }
-    }
-
     if (listingType && listingType !== 'All') queryConditions.push({ listingType });
 
     // Handle Location Filters (City, Area, Market) - Match property location OR vendor location
     if (city && city !== 'All Cities') {
-        const normalizedCity = normalizeCity(city);
-        let cityCriteria;
-
-        if (normalizedCity.toLowerCase() === 'agra') {
-            cityCriteria = { $regex: /^(agra|aagra)$/i };
-        } else {
-            cityCriteria = { $regex: new RegExp(`^${String(normalizedCity).trim()}$`, 'i') };
-        }
-
         const matchingVendors = await Vendor.find({
-            'address.city': cityCriteria,
+            'address.city': { $regex: city, $options: 'i' },
             businessType: { $in: [/developer/i, /broker/i] }
         }).select('_id').lean();
         const vIds = matchingVendors.map(v => v._id);
 
         queryConditions.push({
             $or: [
-                { 'location.city': cityCriteria },
+                { 'location.city': { $regex: city, $options: 'i' } },
                 { vendorId: { $in: vIds } }
             ]
         });
     }
 
     if (area && area !== 'All Areas') {
-        const areaCriteria = { $regex: new RegExp(`^${String(area).trim()}$`, 'i') };
         const matchingVendors = await Vendor.find({
-            'address.area': areaCriteria,
+            'address.area': { $regex: area, $options: 'i' },
             businessType: { $in: [/developer/i, /broker/i] }
         }).select('_id').lean();
         const vIds = matchingVendors.map(v => v._id);
 
         queryConditions.push({
             $or: [
-                { 'location.area': areaCriteria },
+                { 'location.area': { $regex: area, $options: 'i' } },
                 { vendorId: { $in: vIds } }
             ]
         });
     }
 
     if (market && market !== 'All Markets') {
-        const marketCriteria = { $regex: new RegExp(`^${String(market).trim()}$`, 'i') };
         const matchingVendors = await Vendor.find({
-            'address.market': marketCriteria,
+            'address.market': { $regex: market, $options: 'i' },
             businessType: { $in: [/developer/i, /broker/i] }
         }).select('_id').lean();
         const vIds = matchingVendors.map(v => v._id);
 
         queryConditions.push({
             $or: [
-                { 'location.market': marketCriteria },
+                { 'location.market': { $regex: market, $options: 'i' } },
                 { vendorId: { $in: vIds } }
             ]
         });
@@ -644,17 +617,6 @@ export const getAllProperties = asyncHandler(async (req, res) => {
         }));
     }
 
-    // Attach rating summary to each property
-    if (finalProperties.length > 0) {
-        const propertyIds = finalProperties.map(p => p._id);
-        const ratingMap = await getRatingSummaries('property', propertyIds);
-        finalProperties.forEach(p => {
-            const summary = ratingMap[p._id.toString()];
-            p.averageRating = summary?.averageRating ?? 0;
-            p.ratingCount = summary?.ratingCount ?? 0;
-        });
-    }
-
     res.status(200).json({
         success: true,
         count: finalProperties.length,
@@ -701,10 +663,6 @@ export const getPublicPropertyById = asyncHandler(async (req, res) => {
     } else {
         property.shopName = property.vendorId?.storeName;
     }
-
-    const ratingSummary = await getRatingSummary('property', propertyId);
-    property.averageRating = ratingSummary.averageRating;
-    property.ratingCount = ratingSummary.ratingCount;
 
     res.status(200).json({
         success: true,

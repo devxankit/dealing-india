@@ -221,13 +221,15 @@ const RealEstateCard = ({ property }) => {
                     <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-500 uppercase">
                         <FiMaximize className="text-primary-500" size={12} />
                         <span className="truncate">
-                            {property.specifications?.builtUpArea
-                                ? `${property.specifications.builtUpArea} ${property.specifications.builtUpAreaUnit === 'Sq. Ft.' ? 'Square Feet' :
-                                    property.specifications.builtUpAreaUnit === 'Sq. Mt.' ? 'Square Meters' :
-                                        property.specifications.builtUpAreaUnit === 'Sq. Yd.' ? 'Square Yards' :
-                                            property.specifications.builtUpAreaUnit || 'Square Feet'
-                                }`
-                                : property.totalArea || 'N/A'
+                            {property.flatDetails?.carpetArea ? `${property.flatDetails.carpetArea} Sq. Ft.` :
+                                property.plotDetails?.plotArea ? property.plotDetails.plotArea :
+                                    property.specifications?.builtUpArea
+                                        ? `${property.specifications.builtUpArea} ${property.specifications.builtUpAreaUnit === 'Sq. Ft.' ? 'Square Feet' :
+                                            property.specifications.builtUpAreaUnit === 'Sq. Mt.' ? 'Square Meters' :
+                                                property.specifications.builtUpAreaUnit === 'Sq. Yd.' ? 'Square Yards' :
+                                                    property.specifications.builtUpAreaUnit || 'Square Feet'
+                                        }`
+                                        : property.totalArea || 'N/A'
                             }
                         </span>
                     </div>
@@ -268,7 +270,19 @@ const RealEstateCard = ({ property }) => {
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2 mt-auto">
                     <a
-                        href={`https://wa.me/91${sellerPhone}`}
+                        href={(() => {
+                            const cleanedPhone = (sellerPhone || '').replace(/\D/g, '');
+                            const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
+                            const message = encodeURIComponent(
+                                `🏠 *I'm interested in this property!*\n\n` +
+                                `🏢 *Property:* ${property.title || 'Property'}\n` +
+                                `💰 *Price:* ${displayPrice || 'Price on Request'}\n` +
+                                `👤 *Seller:* ${sellerName}\n` +
+                                `📍 *Location:* ${displayLocation || 'N/A'}\n\n` +
+                                `🔗 *View Item:* ${window.location.origin}/b2b/real-estate/property/${property._id}`
+                            );
+                            return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
+                        })()}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {

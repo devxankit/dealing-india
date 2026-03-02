@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, NavLink } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     FiHome,
@@ -27,7 +27,7 @@ const iconMap = {
     "Product Listings": FiPackage,
     "Manage Products": FiPackage,
     "Add Product": FiPackage,
-    
+
     "Property Management": FiHome,
     "Manage Properties": FiHome,
     "Add Property": FiPlus,
@@ -49,6 +49,8 @@ const getChildRoute = (parentRoute, childName) => {
         "/b2b-vendor/properties": {
             "Manage Properties": "/b2b-vendor/properties/manage-properties",
             "Add Property": "/b2b-vendor/properties/add-property",
+            "Add Flat": "/b2b-vendor/properties/add-flat",
+            "Add Plot": "/b2b-vendor/properties/add-plot"
         },
         "/b2b-vendor/lotslot": {
             "Manage Lots": "/b2b-vendor/lotslot/manage-lots",
@@ -103,7 +105,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
         const alwaysVisible = ["Subscription", "Banner Booking", "Notifications", "Account Settings"];
         if (alwaysVisible.includes(item.title)) return true;
 
-        
+
 
         // Business-type-specific items — hide them until settings load
         if (!settings || !settings.enabledModules) return false;
@@ -201,16 +203,18 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                             <div className="ml-4 mt-1 pl-4 border-l-2 border-slate-600 space-y-1">
                                 {item.children.map((child, index) => {
                                     const childRoute = getChildRoute(item.route, child);
-                                    const isChildActive = location.pathname === childRoute;
                                     return (
-                                        <div
+                                        <NavLink
                                             key={index}
-                                            onClick={() => handleMenuItemClick(childRoute, item.title)}
-                                            className={`px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer ${isChildActive ? "bg-primary-500/20 text-white font-medium" : "text-gray-400 hover:bg-slate-700"
+                                            to={childRoute}
+                                            onClick={() => {
+                                                if (window.innerWidth < 1024) onClose();
+                                            }}
+                                            className={({ isActive }) => `block px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer ${isActive ? "bg-primary-500/20 text-white font-medium" : "text-gray-400 hover:bg-slate-700"
                                                 }`}
                                         >
                                             {child}
-                                        </div>
+                                        </NavLink>
                                     );
                                 })}
                             </div>

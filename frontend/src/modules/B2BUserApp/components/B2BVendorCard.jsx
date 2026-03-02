@@ -5,20 +5,15 @@ import { FiShoppingBag, FiMapPin, FiPhone, FiTruck, FiChevronDown, FiChevronRigh
 import { FaWhatsapp } from 'react-icons/fa';
 import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
-import StarRating from './StarRating';
-import { useAuthStore } from '../../../shared/store/authStore';
 
-const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType, compact = false, requireAuthForActions = false }) => {
+const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType, compact = false }) => {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuthStore();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const vendorIdStr = vendor._id || vendor.id;
     const isRealEstate = (vendor.businessType || '').toLowerCase().includes('developer') ||
         (vendor.businessType || '').toLowerCase().includes('broker') ||
         vendor.isRealEstate;
     const vendorLabel = isRealEstate ? 'Office' : 'Store';
-
-    const mfgText = vendor.mfgOfWork || vendor.mfg || '';
 
     // Gallery logic matching Product Card
     const allImages = [
@@ -37,24 +32,8 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
     };
 
     const handleVendorClick = () => {
-        if (requireAuthForActions && !isAuthenticated) {
-            toast.error('Please login to view store');
-            navigate('/b2b/login');
-            return;
-        }
         const vendorUrl = itemType ? `/b2b/vendor/${vendorIdStr}?itemType=${itemType}` : `/b2b/vendor/${vendorIdStr}`;
         navigate(vendorUrl);
-    };
-
-    const blockIfGuest = (e, action = 'contact store') => {
-        if (requireAuthForActions && !isAuthenticated) {
-            e.preventDefault();
-            e.stopPropagation();
-            toast.error(`Please login to ${action}`);
-            navigate('/b2b/login');
-            return true;
-        }
-        return false;
     };
 
     // Prefer shop name from ShopUnit or manual shopName field, fallback to registration storeName
@@ -91,10 +70,9 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                     </div>
                 )}
 
-                {/* Navigation Buttons, Indicators & Counter (only if multiple images) */}
+                {/* Navigation Buttons (Only if multiple images) */}
                 {allImages.length > 1 && (
                     <>
-                        {/* Arrows */}
                         <button
                             onClick={handlePrevImage}
                             className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white hover:text-primary-600 shadow-sm opacity-0 group-hover/image:opacity-100 transition-all z-30"
@@ -107,25 +85,22 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                         >
                             <FiChevronDown className="-rotate-90 text-sm" />
                         </button>
-
-                        {/* Indicator Dots */}
-                        <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 group-hover/image:opacity-100 transition-opacity px-2">
-                            {allImages.map((_, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`h-1 rounded-full transition-all duration-300 shadow-sm ${activeImageIndex === idx
-                                        ? 'w-4 bg-white'
-                                        : 'w-1 bg-white/50'
-                                        }`}
-                                />
-                            ))}
-                        </div>
-
-                        {/* Image Counter Badge (match Product Card) */}
-                        <div className="absolute top-1.5 right-1.5 px-2 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[8px] font-black text-white uppercase tracking-wider z-30">
-                            {activeImageIndex + 1} / {allImages.length}
-                        </div>
                     </>
+                )}
+
+                {/* Indicator Dots */}
+                {allImages.length > 1 && (
+                    <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20 opacity-0 group-hover/image:opacity-100 transition-opacity px-2">
+                        {allImages.map((_, idx) => (
+                            <div
+                                key={idx}
+                                className={`h-1 rounded-full transition-all duration-300 shadow-sm ${activeImageIndex === idx
+                                    ? 'w-4 bg-white'
+                                    : 'w-1 bg-white/50'
+                                    }`}
+                            />
+                        ))}
+                    </div>
                 )}
 
                 <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary-600/90 backdrop-blur-sm rounded-md text-[7px] font-black text-white uppercase tracking-wider shadow-sm z-20 pointer-events-none">
@@ -158,16 +133,9 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                             <span className="text-[8px] text-gray-500 font-bold">• {vendor.address.city}</span>
                         )}
                     </div>
-                    {((vendor.ratingCount ?? vendor.shopUnit?.ratingCount ?? 0) > 0 || (vendor.averageRating ?? vendor.shopUnit?.averageRating ?? 0) > 0) && (
-                        <div className="mt-1">
-                            <StarRating averageRating={vendor.averageRating ?? vendor.shopUnit?.averageRating ?? 0} ratingCount={vendor.ratingCount ?? vendor.shopUnit?.ratingCount ?? 0} size="sm" />
-                        </div>
-                    )}
-                    {mfgText && (
-                        <p className="text-[9px] text-gray-600 font-medium line-clamp-2 mt-1 leading-tight">
-                            MFG: {mfgText}
-                        </p>
-                    )}
+                    <p className="text-[9px] text-gray-600 font-medium line-clamp-2 mt-1 leading-tight">
+                        {vendor.shopUnit?.description || vendor.storeDescription || ''}
+                    </p>
                 </div>
 
                 {/* Action Row */}
@@ -185,12 +153,21 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                     {vendor.phone ? (
                         <>
                             <a
-                                href={requireAuthForActions && !isAuthenticated ? '#' : `https://wa.me/${vendor.phone.replace(/\D/g, '')}`}
+                                href={(() => {
+                                    const cleanedPhone = (vendor.phone || '').replace(/\D/g, '');
+                                    const formattedPhone = cleanedPhone.startsWith('91') ? cleanedPhone : '91' + cleanedPhone;
+                                    const message = encodeURIComponent(
+                                        `👋 *I'm interested in your business services!*\n\n` +
+                                        `🏢 *Business:* ${displayStoreName || 'Verified Vendor'}\n` +
+                                        `📍 *City:* ${vendor?.address?.city || 'N/A'}\n\n` +
+                                        `🔗 *View Store:* ${window.location.origin}/b2b/vendor/${vendorIdStr}`
+                                    );
+                                    return `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${message}`;
+                                })()}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (blockIfGuest(e, 'contact store')) return;
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'whatsapp');
                                 }}
                                 className="flex-1 min-w-[30%] py-1.5 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all border border-green-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
@@ -199,10 +176,9 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                 {!compact && <span className="hidden md:inline">WhatsApp</span>}
                             </a>
                             <a
-                                href={requireAuthForActions && !isAuthenticated ? '#' : `tel:${vendor.phone}`}
+                                href={`tel:${vendor.phone}`}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (blockIfGuest(e, 'contact store')) return;
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'call');
                                 }}
                                 className="flex-1 min-w-[30%] py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all border border-blue-100 flex items-center justify-center gap-1.5 font-black text-[9px] uppercase tracking-wider"
@@ -213,7 +189,6 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (blockIfGuest(e, 'view location')) return;
                                     const mapsUrl = getGoogleMapsUrl(vendor);
                                     if (mapsUrl) {
                                         if (trackContactClick) trackContactClick(vendorIdStr, 'map');

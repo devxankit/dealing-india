@@ -24,7 +24,7 @@ const propertySchema = new mongoose.Schema(
         propertyType: {
             type: String,
             required: true,
-            enum: ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building'],
+            enum: ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building', 'Flat', 'Plot'],
         },
         listingType: {
             type: String,
@@ -78,6 +78,81 @@ const propertySchema = new mongoose.Schema(
 
         // --- NEW FIELDS ---
         propertyTypes: [String], // Multi-select support
+
+        // Flat Specific Details
+        flatDetails: {
+            flatType: String,
+            carpetArea: Number,
+            floorNumber: Number,
+            totalFloors: Number,
+            furnishing: String,
+            ageOfProperty: String,
+            amenities: {
+                lift: { type: String, enum: ['Yes', 'No'] },
+                parking: { type: String, enum: ['Covered', 'Open'] },
+                security: { type: String, enum: ['Yes', 'No'] },
+                cctv: { type: String, enum: ['Yes', 'No'] },
+                powerBackup: { type: String, enum: ['Yes', 'No'] },
+                waterSupply: { type: String, enum: ['24hr', 'Borewell', 'Municipal'] },
+                gasPipeline: { type: String, enum: ['Yes', 'No'] },
+                swimmingPool: { type: String, enum: ['Yes', 'No'] },
+                gym: { type: String, enum: ['Yes', 'No'] },
+                garden: { type: String, enum: ['Yes', 'No'] },
+                childrenPlayArea: { type: String, enum: ['Yes', 'No'] },
+                clubHouse: { type: String, enum: ['Yes', 'No'] },
+                temple: { type: String, enum: ['Yes', 'No'] },
+                societyOffice: { type: String, enum: ['Yes', 'No'] }
+            },
+            legal: {
+                loanAvailable: { type: String, enum: ['Yes', 'No'] },
+                reraApproved: { type: String, enum: ['Yes', 'No'] },
+                maintenanceCharges: String,
+                propertyTaxStatus: String
+            }
+        },
+
+        // Plot Specific Details
+        plotDetails: {
+            plotArea: Number,
+            builtUpArea: Number,
+            floors: String,
+            masterRoom: { type: String, enum: ['Yes', 'No'] },
+            bedrooms: Number,
+            bathrooms: Number,
+            balcony: Number,
+            terrace: { type: String, enum: ['Yes', 'No'] },
+            furnishing: String,
+            ageOfProperty: String,
+            privateFacilities: {
+                privateParking: { type: String, enum: ['Yes', 'No'] },
+                gardenArea: { type: String, enum: ['Yes', 'No'] },
+                personalBorewell: { type: String, enum: ['Yes', 'No'] },
+                solarSystem: { type: String, enum: ['Yes', 'No'] },
+                storeRoom: { type: String, enum: ['Yes', 'No'] },
+                servantRoom: { type: String, enum: ['Yes', 'No'] }
+            },
+            amenities: {
+                parking: { type: String, enum: ['Covered', 'Open'] },
+                security: { type: String, enum: ['Yes', 'No'] },
+                cctv: { type: String, enum: ['Yes', 'No'] },
+                powerBackup: { type: String, enum: ['Yes', 'No'] },
+                waterSupply: { type: String, enum: ['24hr', 'Borewell', 'Municipal'] },
+                gasPipeline: { type: String, enum: ['Yes', 'No'] },
+                swimmingPool: { type: String, enum: ['Yes', 'No'] },
+                gym: { type: String, enum: ['Yes', 'No'] },
+                garden: { type: String, enum: ['Yes', 'No'] },
+                childrenPlayArea: { type: String, enum: ['Yes', 'No'] },
+                clubHouse: { type: String, enum: ['Yes', 'No'] },
+                temple: { type: String, enum: ['Yes', 'No'] },
+                societyOffice: { type: String, enum: ['Yes', 'No'] }
+            },
+            legal: {
+                loanAvailable: { type: String, enum: ['Yes', 'No'] },
+                reraApproved: { type: String, enum: ['Yes', 'No'] },
+                maintenanceCharges: String,
+                propertyTaxStatus: String
+            }
+        },
 
         saleDetails: {
             priceMin: Number,

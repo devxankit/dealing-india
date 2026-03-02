@@ -147,15 +147,25 @@ const ManageProperties = () => {
                                 <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl mb-4">
                                     <div className="text-center">
                                         <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Area</p>
-                                        <p className="text-[10px] font-black text-slate-700 truncate">{property.specifications?.builtUpArea || property.totalArea || 'N/A'}</p>
+                                        <p className="text-[10px] font-black text-slate-700 truncate">
+                                            {property.flatDetails?.carpetArea ? `${property.flatDetails.carpetArea} sqft` :
+                                                property.plotDetails?.plotArea ? `${property.plotDetails.plotArea} sqft` :
+                                                    property.specifications?.builtUpArea || property.totalArea || 'N/A'}
+                                        </p>
                                     </div>
                                     <div className="text-center border-x border-slate-200">
-                                        <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Floor</p>
-                                        <p className="text-[10px] font-black text-slate-700 truncate">{property.specifications?.floorNumber || '0'}/{property.specifications?.totalFloors || '0'}</p>
+                                        <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Floor/Total</p>
+                                        <p className="text-[10px] font-black text-slate-700 truncate">
+                                            {property.flatDetails?.floorNumber ? `${property.flatDetails.floorNumber}/${property.flatDetails.totalFloors}` :
+                                                property.plotDetails?.floors ? `${property.plotDetails.floors}` :
+                                                    property.specifications?.floorNumber || '0'}
+                                        </p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Furnished</p>
-                                        <p className="text-[10px] font-black text-slate-700 truncate">{property.status?.furnishing || 'N/A'}</p>
+                                        <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Type</p>
+                                        <p className="text-[10px] font-black text-slate-700 truncate">
+                                            {property.flatDetails?.flatType || (property.plotDetails ? 'Plot' : property.propertyType)}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -367,42 +377,28 @@ const ManageProperties = () => {
                                         <div className="grid grid-cols-2 gap-x-12 gap-y-6">
                                             <div className="space-y-4">
                                                 <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Carpet Area</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.specifications?.carpetArea || 'N/A'}</span>
+                                                    <span className="text-xs font-bold text-slate-400">Area</span>
+                                                    <span className="text-xs font-black text-slate-900">
+                                                        {selectedProperty.flatDetails?.carpetArea ? `${selectedProperty.flatDetails.carpetArea} sq ft` :
+                                                            selectedProperty.plotDetails?.plotArea ? `${selectedProperty.plotDetails.plotArea} sq ft` :
+                                                                selectedProperty.specifications?.builtUpArea || 'N/A'}
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Floor Number</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.specifications?.floorNumber || '0'}</span>
+                                                    <span className="text-xs font-bold text-slate-400">Floor/Type</span>
+                                                    <span className="text-xs font-black text-slate-900">
+                                                        {selectedProperty.flatDetails?.flatType ? `${selectedProperty.flatDetails.flatType} on floor ${selectedProperty.flatDetails.floorNumber}` :
+                                                            selectedProperty.plotDetails?.floors ? `${selectedProperty.plotDetails.floors} floors` :
+                                                                selectedProperty.specifications?.floorNumber || '0'}
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Total Floors</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.specifications?.totalFloors || '0'}</span>
+                                                    <span className="text-xs font-bold text-slate-400">Age</span>
+                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.flatDetails?.ageOfProperty || selectedProperty.plotDetails?.ageOfProperty || selectedProperty.status?.propertyCondition || 'N/A'}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Built-up Area</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.specifications?.builtUpArea || 'N/A'}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Position</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.status?.propertyPosition || selectedProperty.status?.propertyStatus || 'N/A'}</span>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-4">
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Condition</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.status?.propertyCondition || 'N/A'}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Road Facing</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.roadFacing || 'N/A'}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Ceiling Height</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.specifications?.ceilingHeight || 'N/A'}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
-                                                    <span className="text-xs font-bold text-slate-400">Entrance Width</span>
-                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.specifications?.entranceWidth || 'N/A'}</span>
+                                                    <span className="text-xs font-bold text-slate-400">Furnishing</span>
+                                                    <span className="text-xs font-black text-slate-900">{selectedProperty.flatDetails?.furnishing || selectedProperty.plotDetails?.furnishing || selectedProperty.status?.furnishing || 'N/A'}</span>
                                                 </div>
                                             </div>
                                         </div>
