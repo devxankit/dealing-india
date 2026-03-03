@@ -58,7 +58,8 @@ const PropertyForm = ({ initialData, isEdit }) => {
             address: '',
             area: '',
             market: '',
-            city: ''
+            city: '',
+            mapUrl: ''
         },
         roadFacing: 'Main Road',
 
@@ -769,6 +770,9 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="input-field" />
                                 <input name="location.city" placeholder="City" value={formData.location.city} onChange={handleChange} className="input-field" />
                                 <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="input-field" />
+                                <div className="md:col-span-2">
+                                    <input name="location.mapUrl" placeholder="Google Map URL" value={formData.location.mapUrl} onChange={handleChange} className="input-field" />
+                                </div>
 
                                 <div>
                                     <label className="label">Road Facing</label>

@@ -5,9 +5,11 @@ import { FiShoppingBag, FiMapPin, FiPhone, FiTruck, FiChevronDown, FiChevronRigh
 import { FaWhatsapp } from 'react-icons/fa';
 import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
+import { useAuthStore } from '../../../shared/store/authStore';
 
-const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType, compact = false }) => {
+const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType, compact = false, requireAuthForActions = false }) => {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStore();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const vendorIdStr = vendor._id || vendor.id;
     const isRealEstate = (vendor.businessType || '').toLowerCase().includes('developer') ||
@@ -31,7 +33,20 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
         setActiveImageIndex((prev) => (prev - 1 + allImages.length) % allImages.length);
     };
 
+    const redirectToLoginIfRequired = (event) => {
+        if (requireAuthForActions && !isAuthenticated) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+            return true;
+        }
+        return false;
+    };
+
     const handleVendorClick = () => {
+        if (redirectToLoginIfRequired()) return;
         const vendorUrl = itemType ? `/b2b/vendor/${vendorIdStr}?itemType=${itemType}` : `/b2b/vendor/${vendorIdStr}`;
         navigate(vendorUrl);
     };
@@ -167,6 +182,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
+                                    if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'whatsapp');
                                 }}
@@ -178,6 +194,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                             <a
                                 href={`tel:${vendor.phone}`}
                                 onClick={(e) => {
+                                    if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     if (trackContactClick) trackContactClick(vendorIdStr, 'call');
                                 }}
@@ -188,6 +205,7 @@ const B2BVendorCard = ({ vendor, viewMode = 'grid', trackContactClick, itemType,
                             </a>
                             <button
                                 onClick={(e) => {
+                                    if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     const mapsUrl = getGoogleMapsUrl(vendor);
                                     if (mapsUrl) {

@@ -25,6 +25,9 @@ export const registerVendor = async (vendorData) => {
       address.pincode = address.zipCode;
       delete address.zipCode;
     }
+    if (address && typeof address.mapUrl === 'string') {
+      address.mapUrl = address.mapUrl.trim();
+    }
 
     // Ensure vendorType is set correctly if missing
     if (!vendorType) {
@@ -448,6 +451,7 @@ export const updateVendorProfile = async (vendorId, updateData) => {
         ...address,
         pincode: address.pincode || address.zipCode || '',
         zipCode: address.zipCode || address.pincode || '',
+        mapUrl: typeof address.mapUrl === 'string' ? address.mapUrl.trim() : address.mapUrl,
       };
 
       // Validate state - should not be a pincode

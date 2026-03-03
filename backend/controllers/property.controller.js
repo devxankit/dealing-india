@@ -6,6 +6,100 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
 import { uploadBase64ToCloudinary, deleteFromCloudinary, isBase64DataUrl } from '../utils/cloudinary.util.js';
 import ShopUnit from '../models/ShopUnit.model.js';
 
+const DEFAULT_FLAT_DETAILS = {
+    flatType: '2BHK',
+    carpetArea: 0,
+    carpetAreaUnit: 'Sq. Ft.',
+    floorNumber: 0,
+    totalFloors: 0,
+    furnishing: 'Unfurnished',
+    ageOfProperty: 'New',
+    amenities: {
+        lift: 'No',
+        parking: 'Open',
+        security: 'No',
+        cctv: 'No',
+        powerBackup: 'No',
+        waterSupply: 'Municipal',
+        gasPipeline: 'No',
+        swimmingPool: 'No',
+        gym: 'No',
+        garden: 'No',
+        childrenPlayArea: 'No',
+        clubHouse: 'No',
+        temple: 'No',
+        societyOffice: 'No'
+    },
+    legal: {
+        loanAvailable: 'No',
+        reraApproved: 'No',
+        maintenanceCharges: '',
+        propertyTaxStatus: ''
+    }
+};
+
+const DEFAULT_PLOT_DETAILS = {
+    plotArea: 0,
+    plotAreaUnit: 'Sq. Ft.',
+    builtUpArea: 0,
+    builtUpAreaUnit: 'Sq. Ft.',
+    floors: 'G+1',
+    masterRoom: 'No',
+    bedrooms: 0,
+    bathrooms: 0,
+    balcony: 0,
+    terrace: 'No',
+    furnishing: 'Unfurnished',
+    ageOfProperty: 'New',
+    privateFacilities: {
+        privateParking: 'No',
+        gardenArea: 'No',
+        personalBorewell: 'No',
+        solarSystem: 'No',
+        storeRoom: 'No',
+        servantRoom: 'No'
+    },
+    amenities: {
+        parking: 'Open',
+        security: 'No',
+        cctv: 'No',
+        powerBackup: 'No',
+        waterSupply: 'Municipal',
+        gasPipeline: 'No',
+        swimmingPool: 'No',
+        gym: 'No',
+        garden: 'No',
+        childrenPlayArea: 'No',
+        clubHouse: 'No',
+        temple: 'No',
+        societyOffice: 'No'
+    },
+    legal: {
+        loanAvailable: 'No',
+        reraApproved: 'No',
+        maintenanceCharges: '',
+        propertyTaxStatus: ''
+    }
+};
+
+const DEFAULT_FACILITIES = {
+    parking: ['No'],
+    lift: 'No',
+    liftPassenger: 'No',
+    liftLoading: 'No',
+    powerBackup: 'No',
+    waterSupply: 'No',
+    washroom: ['Common'],
+    fireSafety: 'No'
+};
+
+const DEFAULT_STATUS = {
+    furnishing: 'Unfurnished',
+    propertyStatus: 'Ready',
+    propertyCondition: 'New',
+    propertyPosition: 'Ready to Move'
+};
+
 /**
  * Helper function to process media uploads to Cloudinary
  * @param {Array} mediaArray - Array of media objects with url field (base64 or existing URL)
@@ -95,6 +189,48 @@ export const addProperty = asyncHandler(async (req, res) => {
         shopUnitId: shopUnit ? shopUnit._id : (req.body.shopUnitId || null)
     };
 
+    // Persist defaults at creation time so detail views always have explicit values.
+    propertyData.location = {
+        ...(propertyData.location || {}),
+        mapUrl: String(propertyData?.location?.mapUrl || '').trim()
+    };
+    propertyData.flatDetails = {
+        ...DEFAULT_FLAT_DETAILS,
+        ...(propertyData.flatDetails || {}),
+        amenities: {
+            ...DEFAULT_FLAT_DETAILS.amenities,
+            ...((propertyData.flatDetails || {}).amenities || {})
+        },
+        legal: {
+            ...DEFAULT_FLAT_DETAILS.legal,
+            ...((propertyData.flatDetails || {}).legal || {})
+        }
+    };
+    propertyData.plotDetails = {
+        ...DEFAULT_PLOT_DETAILS,
+        ...(propertyData.plotDetails || {}),
+        privateFacilities: {
+            ...DEFAULT_PLOT_DETAILS.privateFacilities,
+            ...((propertyData.plotDetails || {}).privateFacilities || {})
+        },
+        amenities: {
+            ...DEFAULT_PLOT_DETAILS.amenities,
+            ...((propertyData.plotDetails || {}).amenities || {})
+        },
+        legal: {
+            ...DEFAULT_PLOT_DETAILS.legal,
+            ...((propertyData.plotDetails || {}).legal || {})
+        }
+    };
+    propertyData.facilities = {
+        ...DEFAULT_FACILITIES,
+        ...(propertyData.facilities || {})
+    };
+    propertyData.status = {
+        ...DEFAULT_STATUS,
+        ...(propertyData.status || {})
+    };
+
     // Compatibility: allow "Villa" from new UI even when runtime enum still has only "Plot".
     const enumValues = Property.schema.path('propertyType')?.enumValues || [];
     if (
@@ -179,6 +315,54 @@ export const updateProperty = asyncHandler(async (req, res) => {
     }
 
     const updateData = { ...req.body, shopUnitId };
+    if (updateData.location) {
+        updateData.location = {
+            ...updateData.location,
+            mapUrl: String(updateData?.location?.mapUrl || '').trim()
+        };
+    }
+    if (updateData.flatDetails) {
+        updateData.flatDetails = {
+            ...DEFAULT_FLAT_DETAILS,
+            ...updateData.flatDetails,
+            amenities: {
+                ...DEFAULT_FLAT_DETAILS.amenities,
+                ...(updateData.flatDetails.amenities || {})
+            },
+            legal: {
+                ...DEFAULT_FLAT_DETAILS.legal,
+                ...(updateData.flatDetails.legal || {})
+            }
+        };
+    }
+    if (updateData.plotDetails) {
+        updateData.plotDetails = {
+            ...DEFAULT_PLOT_DETAILS,
+            ...updateData.plotDetails,
+            privateFacilities: {
+                ...DEFAULT_PLOT_DETAILS.privateFacilities,
+                ...(updateData.plotDetails.privateFacilities || {})
+            },
+            amenities: {
+                ...DEFAULT_PLOT_DETAILS.amenities,
+                ...(updateData.plotDetails.amenities || {})
+            },
+            legal: {
+                ...DEFAULT_PLOT_DETAILS.legal,
+                ...(updateData.plotDetails.legal || {})
+            }
+        };
+    }
+    updateData.facilities = {
+        ...DEFAULT_FACILITIES,
+        ...(property.facilities || {}),
+        ...(updateData.facilities || {})
+    };
+    updateData.status = {
+        ...DEFAULT_STATUS,
+        ...(property.status || {}),
+        ...(updateData.status || {})
+    };
 
     // Compatibility: allow "Villa" updates even when runtime enum still has only "Plot".
     const enumValues = Property.schema.path('propertyType')?.enumValues || [];

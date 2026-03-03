@@ -117,6 +117,14 @@ const PropertyDetail = () => {
 
     const sellerName = property.vendorId?.storeName || 'Verified Developer';
     const sellerPhone = property.vendorId?.phone || '9876543210';
+    const facilities = {
+        parking: property.facilities?.parking || ['No'],
+        lift: property.facilities?.lift || 'No',
+        powerBackup: property.facilities?.powerBackup || 'No',
+        waterSupply: property.facilities?.waterSupply || 'No',
+        washroom: property.facilities?.washroom || ['Common'],
+        fireSafety: property.facilities?.fireSafety || 'No'
+    };
 
     // Track vendor contact clicks (call or whatsapp)
     const trackContactClick = async (clickType) => {
@@ -252,9 +260,25 @@ const PropertyDetail = () => {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                                 {[
-                                    { label: 'Built up Area', val: property.specifications?.builtUpArea || property.plotDetails?.builtUpArea ? `${property.specifications?.builtUpArea || property.plotDetails?.builtUpArea} ${property.specifications?.builtUpAreaUnit || ''}` : null, icon: <FiMaximize /> },
-                                    { label: 'Carpet Area', val: property.specifications?.carpetArea || property.flatDetails?.carpetArea ? `${property.specifications?.carpetArea || property.flatDetails?.carpetArea} ${property.specifications?.carpetAreaUnit || ''}` : null, icon: <FiMaximize /> },
-                                    { label: 'Total Area', val: property.totalArea || property.plotDetails?.plotArea, icon: <FiMaximize /> },
+                                    {
+                                        label: 'Built up Area',
+                                        val: (property.specifications?.builtUpArea || property.plotDetails?.builtUpArea)
+                                            ? `${property.specifications?.builtUpArea || property.plotDetails?.builtUpArea} ${property.specifications?.builtUpAreaUnit || property.plotDetails?.builtUpAreaUnit || ''}`
+                                            : null,
+                                        icon: <FiMaximize />
+                                    },
+                                    {
+                                        label: 'Carpet Area',
+                                        val: (property.specifications?.carpetArea || property.flatDetails?.carpetArea)
+                                            ? `${property.specifications?.carpetArea || property.flatDetails?.carpetArea} ${property.specifications?.carpetAreaUnit || property.flatDetails?.carpetAreaUnit || ''}`
+                                            : null,
+                                        icon: <FiMaximize />
+                                    },
+                                    {
+                                        label: 'Total Area',
+                                        val: property.totalArea || (property.plotDetails?.plotArea ? `${property.plotDetails.plotArea} ${property.plotDetails?.plotAreaUnit || ''}` : null),
+                                        icon: <FiMaximize />
+                                    },
                                     { label: 'Floor Level', val: property.specifications?.floorNumber || property.flatDetails?.floorNumber, icon: <FiLayers /> },
                                     { label: 'Total Floors', val: property.specifications?.totalFloors || property.flatDetails?.totalFloors || property.plotDetails?.floors, icon: <FiGrid /> },
                                     { label: 'Flat Type', val: property.flatDetails?.flatType, icon: <FiHome /> },
@@ -289,15 +313,14 @@ const PropertyDetail = () => {
                             <div className="bg-white rounded-3xl md:rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm divide-y divide-gray-50">
                                 {(() => {
                                     const rawFacs = [];
-                                    if (property.facilities) {
-                                        rawFacs.push(
-                                            { label: 'Parking Space', val: property.facilities.parking?.join(', ') || property.facilities.parking, icon: <FiBox /> },
-                                            { label: 'Power Backup', val: property.facilities.powerBackup, icon: <FiActivity /> },
-                                            { label: 'Water Supply', val: property.facilities.waterSupply, icon: <FiActivity /> },
-                                            { label: 'Lift Access', val: property.facilities.lift, icon: <FiLayers /> },
-                                            { label: 'Fire Safety', val: property.facilities.fireSafety, icon: <FiShield /> }
-                                        );
-                                    }
+                                    rawFacs.push(
+                                        { label: 'Parking Space', val: facilities.parking?.join(', ') || facilities.parking, icon: <FiBox /> },
+                                        { label: 'Power Backup', val: facilities.powerBackup, icon: <FiActivity /> },
+                                        { label: 'Water Supply', val: facilities.waterSupply, icon: <FiActivity /> },
+                                        { label: 'Lift Access', val: facilities.lift, icon: <FiLayers /> },
+                                        { label: 'Washroom', val: facilities.washroom?.join(', ') || facilities.washroom, icon: <FiBriefcase /> },
+                                        { label: 'Fire Safety', val: facilities.fireSafety, icon: <FiShield /> }
+                                    );
                                     if (property.flatDetails?.amenities) {
                                         const fa = property.flatDetails.amenities;
                                         rawFacs.push(
@@ -339,7 +362,7 @@ const PropertyDetail = () => {
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000"></div>
 
                                 <span className="text-[9px] md:text-[11px] text-gray-400 font-black uppercase tracking-[0.3em] mb-4 block">Official Listing Price</span>
-                                <div className="text-primary-600 font-black text-4xl md:text-6xl leading-tight mb-6 md:mb-8 tracking-tighter">
+                                <div className="text-primary-600 font-black text-3xl md:text-5xl leading-tight mb-6 md:mb-8 tracking-tighter">
                                     {formatPrice(property)}
                                 </div>
 

@@ -124,6 +124,27 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
         return settings.enabledModules.includes(moduleKey);
     });
 
+    const getFilteredChildren = (item) => {
+        if (!item.children || item.children.length === 0) return [];
+        if (item.title !== 'Property Management') return item.children;
+
+        const allowedForms = Array.isArray(settings?.propertyForms)
+            ? settings.propertyForms.map((f) => String(f).toLowerCase().trim())
+            : [];
+
+        const childFormMap = {
+            'Add Property': 'property',
+            'Add Flat': 'flat',
+            'Add Villa': 'villa'
+        };
+
+        return item.children.filter((child) => {
+            const formKey = childFormMap[child];
+            if (!formKey) return true; // Keep non-form items like "Manage Properties"
+            return allowedForms.includes(formKey);
+        });
+    };
+
     useEffect(() => {
         const activeItem = b2bVendorMenu.find((item) => {
             if (item.route === "/b2b-vendor/dashboard") {
@@ -160,7 +181,8 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
 
     const renderMenuItem = (item) => {
         const Icon = iconMap[item.title] || FiPackage;
-        const hasChildren = item.children && item.children.length > 0;
+        const filteredChildren = getFilteredChildren(item);
+        const hasChildren = filteredChildren.length > 0;
         const isExpanded = expandedItems[item.title];
         const active = isActive(item.route);
         const showNotificationBadge = item.title === "Notifications" && unreadNotificationCount > 0;
@@ -201,7 +223,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
                             className="overflow-hidden"
                         >
                             <div className="ml-4 mt-1 pl-4 border-l-2 border-slate-600 space-y-1">
-                                {item.children.map((child, index) => {
+                                {filteredChildren.map((child, index) => {
                                     const childRoute = getChildRoute(item.route, child);
                                     return (
                                         <NavLink

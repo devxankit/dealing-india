@@ -25,6 +25,12 @@ const businessTypeSettingsSchema = new mongoose.Schema(
                 ],
             },
         ],
+        propertyForms: [
+            {
+                type: String,
+                enum: ['property', 'flat', 'villa'],
+            }
+        ],
         productFormType: {
             type: String,
             enum: ['standard'],

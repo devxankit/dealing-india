@@ -144,7 +144,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                                 <img
                                     src={appLogo.src}
                                     alt="Dealing India"
-                                    className="h-10 md:h-20 w-auto object-contain"
+                                    className="h-12 md:h-24 w-auto object-contain"
                                 />
                             </Link>
                         )}
@@ -162,7 +162,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                             <img
                                 src={appLogo.src}
                                 alt="Dealing India"
-                                className="h-10 md:h-20 w-auto object-contain"
+                                className="h-12 md:h-24 w-auto object-contain"
                             />
                         </Link>
                     ) : (
@@ -222,7 +222,7 @@ const B2BHeader = ({ showBack = false, title = "Bulk Marketplace", sticky = true
                 </div>
 
                 {!hideSearch && (
-                    <div className="flex-1 max-w-md hidden md:block">
+                    <div className="flex-1 max-w-xl hidden md:block">
                         <form
                             onSubmit={handleSearchSubmit}
                             className="relative"

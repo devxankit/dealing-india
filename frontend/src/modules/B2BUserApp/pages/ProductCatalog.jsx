@@ -18,7 +18,6 @@ import B2BHeader from "../components/Layout/B2BHeader";
 import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import B2BProductCard from "../components/B2BProductCard";
 import B2BVendorCard from "../components/B2BVendorCard";
-import RealEstateCard from "../components/RealEstateCard";
 import api from "../../../shared/utils/api";
 import { useAuthStore } from "../../../shared/store/authStore";
 import { debounce, getGoogleMapsUrl } from "../../../shared/utils/helpers";
@@ -31,7 +30,6 @@ const ProductCatalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuthStore();
   const [products, setProducts] = useState([]);
-  const [properties, setProperties] = useState([]);
   // categories come from store now
 
   // Initialize state from URL params to prevent double-mount effects
@@ -56,9 +54,6 @@ const ProductCatalog = () => {
   const [selectedBusinessSubType, setSelectedBusinessSubType] = useState(null);
   const [selectedBusinessCategory, setSelectedBusinessCategory] = useState(
     searchParams.get("businessCategory") || null,
-  );
-  const [selectedPropertyType, setSelectedPropertyType] = useState(
-    searchParams.get("propertyType") || null,
   );
 
   const BUSINESS_CATEGORIES = ['Manufacturing', 'Exporter', 'Wholesaler', 'Semi wholesaler', 'Retailers', 'Trading', 'Traders', 'Agency', 'Supplier'];
@@ -88,7 +83,6 @@ const ProductCatalog = () => {
     cities: [],
     areas: [],
     markets: [],
-    propertyTypes: [],
   });
   const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
   const [isAreaDropdownOpen, setIsAreaDropdownOpen] = useState(false);
@@ -182,7 +176,6 @@ const ProductCatalog = () => {
     city: false,
     area: false,
     market: false,
-    propertyType: false,
   });
 
   const allSubcategories = useMemo(() => {
@@ -817,71 +810,6 @@ const ProductCatalog = () => {
           </AnimatePresence>
         </div>
 
-        {/* Property Type Filter */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <button
-            onClick={() => toggleFilter("propertyType")}
-            className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors">
-            <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">
-              Property Type
-            </h3>
-            <div className="flex items-center gap-2">
-              {selectedPropertyType && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedPropertyType(null);
-                  }}
-                  className="text-[10px] font-bold text-primary-600 hover:text-primary-700 mr-2">
-                  RESET
-                </span>
-              )}
-              <FiChevronDown
-                className={`text-gray-400 transition-transform ${openFilters.propertyType ? "rotate-180" : ""}`}
-              />
-            </div>
-          </button>
-          <AnimatePresence>
-            {openFilters.propertyType && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden">
-                <div className="p-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                  <button
-                    onClick={() => setSelectedPropertyType(null)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all ${!selectedPropertyType ? "bg-primary-50 text-primary-600" : "text-gray-500 hover:bg-gray-50"}`}>
-                    ALL PROPERTIES
-                  </button>
-                  {["Flat", "Villa"].map((type) => (
-                    <label
-                      key={type}
-                      className="flex items-center gap-3 cursor-pointer group px-3 py-1">
-                      <div className="relative">
-                        <input
-                          type="radio"
-                          name="propertyType"
-                          className="peer sr-only"
-                          checked={selectedPropertyType === type}
-                          onChange={() => {
-                            setSelectedPropertyType(type);
-                            if (isMobileFilterOpen) setIsMobileFilterOpen(false);
-                          }}
-                        />
-                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-primary-600 peer-checked:bg-primary-600 transition-all"></div>
-                      </div>
-                      <span
-                        className={`text-xs font-bold transition-colors ${selectedPropertyType === type ? "text-primary-700" : "text-gray-500 group-hover:text-gray-700"}`}>
-                        {type.toUpperCase()}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
     );
   };
@@ -1035,9 +963,6 @@ const ProductCatalog = () => {
           cities: Array.isArray(response.data.cities) ? response.data.cities : [],
           areas: Array.isArray(response.data.areas) ? response.data.areas : [],
           markets: Array.isArray(response.data.markets) ? response.data.markets : [],
-          propertyTypes: Array.isArray(response.data.propertyTypes)
-            ? response.data.propertyTypes
-            : [],
         };
         setListingLocationFilters(nextFilters);
 
@@ -1235,34 +1160,6 @@ const ProductCatalog = () => {
       }));
       setProducts(normalizedProducts);
 
-      // Fetch properties separately (location filters apply to both,
-      // propertyType applies only to property results).
-      const propertyParams = {
-        sortBy,
-        sortOrder,
-      };
-
-      if (searchQuery) propertyParams.search = searchQuery;
-      if (selectedCity && selectedCity !== "All Cities") propertyParams.city = selectedCity;
-      if (selectedArea) propertyParams.area = selectedArea;
-      if (selectedMarket) propertyParams.market = selectedMarket;
-      if (selectedPropertyType) {
-        // Compatibility: backend/runtime may still persist Villa entries as Plot.
-        propertyParams.propertyType = selectedPropertyType === "Villa" ? "Plot" : selectedPropertyType;
-      }
-      if (searchParams.get("strict") === "true") propertyParams.strict = true;
-
-      const propertyResponse = await api.get("/property/all", { params: propertyParams });
-      const propertyData =
-        propertyResponse?.success && Array.isArray(propertyResponse?.data)
-          ? propertyResponse.data
-          : [];
-      setProperties(
-        propertyData.map((item) => ({
-          ...item,
-          itemType: "property",
-        })),
-      );
     } catch (error) {
       toast.error("Failed to load products");
     } finally {
@@ -1319,7 +1216,6 @@ const ProductCatalog = () => {
     const urlCity = searchParams.get("city");
     const urlCategory = searchParams.get("category");
     const urlSubcategory = searchParams.get("subcategory");
-    const urlPropertyType = searchParams.get("propertyType");
     const urlMin = searchParams.get("min");
     const urlMax = searchParams.get("max");
 
@@ -1335,11 +1231,6 @@ const ProductCatalog = () => {
     }
     if (urlSubcategory && urlSubcategory !== selectedSubcategory) {
       setSelectedSubcategory(urlSubcategory);
-    }
-    if (urlPropertyType && urlPropertyType !== selectedPropertyType) {
-      setSelectedPropertyType(urlPropertyType);
-    } else if (!urlPropertyType && selectedPropertyType) {
-      setSelectedPropertyType(null);
     }
 
     const urlItemType = searchParams.get("itemType");
@@ -1507,7 +1398,6 @@ const ProductCatalog = () => {
     selectedBusinessType,
     selectedBusinessSubType,
     selectedBusinessCategory,
-    selectedPropertyType,
     allCategories.length,
     dynamicFilters,
     searchQuery,
@@ -1783,31 +1673,6 @@ const ProductCatalog = () => {
       );
     });
 
-  const filteredProperties = (Array.isArray(properties) ? properties : [])
-    .filter(() => !shopOnly)
-    .filter((p) => {
-      if (!vendorFilter) return true;
-      const vid = p.vendorId?._id || p.vendorId?.id || p.vendorId;
-      return (
-        String(vid || "").toLowerCase() === String(vendorFilter).toLowerCase()
-      );
-    })
-    .filter((p) => {
-      if (!selectedPropertyType) return true;
-      const selected = selectedPropertyType.toLowerCase();
-      const propType = (p.propertyType || "").toLowerCase();
-
-      if (selected === "villa") {
-        return (
-          propType === "villa" ||
-          propType === "plot" ||
-          !!p.plotDetails
-        );
-      }
-
-      return propType === selected;
-    });
-
   const openInquiry = (product) => {
     if (!isAuthenticated) {
       toast.error("Please login to send inquiries");
@@ -2043,14 +1908,6 @@ const ProductCatalog = () => {
     setSearchParams(newParams, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBusinessCategory]);
-
-  useEffect(() => {
-    const newParams = new URLSearchParams(searchParams);
-    if (selectedPropertyType) newParams.set("propertyType", selectedPropertyType);
-    else newParams.delete("propertyType");
-    setSearchParams(newParams, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPropertyType]);
 
   // Sync category/subcategory in URL and clear when reset/collapse
   useEffect(() => {
@@ -2719,8 +2576,7 @@ const ProductCatalog = () => {
                 </p>
               </div>
             ) : matchingVendors.length === 0 &&
-              filteredProducts.length === 0 &&
-              filteredProperties.length === 0 ? (
+              filteredProducts.length === 0 ? (
               <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-gray-100 shadow-inner">
                 <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 transform rotate-12">
                   <FiSearch className="text-4xl text-gray-200" />
@@ -2755,7 +2611,7 @@ const ProductCatalog = () => {
               <div className="space-y-12">
                 {/* Matching Stores Section - Show if found during search */}
                 {searchQuery &&
-                  (matchingVendors.length > 0 || filteredProducts.length > 0 || filteredProperties.length > 0) ? (
+                  (matchingVendors.length > 0 || filteredProducts.length > 0) ? (
                   <div className="space-y-12">
                     {/* Matching Stores Section */}
                     {matchingVendors.length > 0 && (
@@ -2778,27 +2634,6 @@ const ProductCatalog = () => {
                               trackContactClick={trackContactClick}
                               itemType={selectedItemType}
                             />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Properties Section */}
-                    {filteredProperties.length > 0 && (
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-4">
-                          <span className="h-[2px] w-12 bg-emerald-600"></span>
-                          <h3 className="text-xl font-black text-gray-800 tracking-tighter uppercase">
-                            Matching Properties
-                          </h3>
-                          <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase">
-                            {filteredProperties.length} ITEM
-                            {filteredProperties.length > 1 ? "S" : ""}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                          {filteredProperties.map((property) => (
-                            <RealEstateCard key={property._id} property={property} />
                           ))}
                         </div>
                       </div>
@@ -2891,8 +2726,8 @@ const ProductCatalog = () => {
                           Marketplace
                         </h3>
                         <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-[10px] font-black uppercase">
-                          {filteredProducts.length + filteredProperties.length} ITEM
-                          {filteredProducts.length + filteredProperties.length > 1 ? "S" : ""}
+                          {filteredProducts.length} ITEM
+                          {filteredProducts.length > 1 ? "S" : ""}
                         </span>
                       </div>
 
@@ -2945,18 +2780,6 @@ const ProductCatalog = () => {
                         </AnimatePresence>
                       </div>
                     </div>
-                    {filteredProperties.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-black uppercase tracking-wider text-emerald-700">
-                          Properties
-                        </h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                          {filteredProperties.map((property) => (
-                            <RealEstateCard key={property._id} property={property} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     {filteredProducts.length > 0 && (
                       <div className="space-y-4">
                         <h4 className="text-sm font-black uppercase tracking-wider text-primary-700">

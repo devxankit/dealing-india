@@ -62,6 +62,7 @@ const propertySchema = new mongoose.Schema(
             area: { type: String, required: true },
             market: { type: String },
             city: { type: String, required: true },
+            mapUrl: { type: String, trim: true },
         },
         media: [
             {
@@ -83,6 +84,7 @@ const propertySchema = new mongoose.Schema(
         flatDetails: {
             flatType: String,
             carpetArea: Number,
+            carpetAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'], default: 'Sq. Ft.' },
             floorNumber: Number,
             totalFloors: Number,
             furnishing: String,
@@ -114,7 +116,9 @@ const propertySchema = new mongoose.Schema(
         // Plot Specific Details
         plotDetails: {
             plotArea: Number,
+            plotAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'], default: 'Sq. Ft.' },
             builtUpArea: Number,
+            builtUpAreaUnit: { type: String, enum: ['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'], default: 'Sq. Ft.' },
             floors: String,
             masterRoom: { type: String, enum: ['Yes', 'No'] },
             bedrooms: Number,

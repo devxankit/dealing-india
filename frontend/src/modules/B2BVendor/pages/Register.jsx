@@ -50,6 +50,7 @@ const B2BVendorRegister = () => {
             state: '',
             pincode: '',
             country: 'India',
+            mapUrl: '',
         },
     });
 
@@ -480,6 +481,17 @@ const B2BVendorRegister = () => {
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Pin Code</label>
                                 <input type="text" name="address.pincode" value={formData.address.pincode} onChange={handleChange} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm" required placeholder="395003" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Map URL (Google Maps)</label>
+                                <input
+                                    type="url"
+                                    name="address.mapUrl"
+                                    value={formData.address.mapUrl}
+                                    onChange={handleChange}
+                                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl focus:border-primary-500 outline-none text-sm"
+                                    placeholder="https://maps.google.com/?q=..."
+                                />
                             </div>
                         </div>
                     </div>

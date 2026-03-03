@@ -53,7 +53,7 @@ const B2BVendorProperties = () => {
             if (businessType !== 'all') {
                 params.businessType = businessType;
             }
-            if (propertyType !== 'all') {
+            if (propertyType !== 'all' && propertyType !== 'Property') {
                 // Compatibility: some environments still store Villa entries as Plot.
                 params.propertyType = propertyType === 'Villa' ? 'Plot' : propertyType;
             }
@@ -132,6 +132,15 @@ const B2BVendorProperties = () => {
         }
     ];
 
+    const getPropertyBucket = (item) => {
+        const type = String(item.type || item.propertyType || '').toLowerCase();
+        const hasFlatDetails = !!item.flatDetails;
+        const hasVillaDetails = !!item.plotDetails;
+        if (type === 'flat' || hasFlatDetails) return 'flat';
+        if (type === 'villa' || type === 'plot' || hasVillaDetails) return 'villa';
+        return 'property';
+    };
+
     const filteredProperties = properties.filter(item => {
         const searchMatch =
             item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -144,6 +153,9 @@ const B2BVendorProperties = () => {
         const type = String(item.type || item.propertyType || '').toLowerCase();
         if (propertyType === 'Villa') {
             return type === 'villa' || type === 'plot';
+        }
+        if (propertyType === 'Property') {
+            return getPropertyBucket(item) === 'property';
         }
         return type === propertyType.toLowerCase();
     });
@@ -196,6 +208,7 @@ const B2BVendorProperties = () => {
                             <option value="all">All Property Types</option>
                             <option value="Flat">Flat</option>
                             <option value="Villa">Villa</option>
+                            <option value="Property">Property</option>
                         </select>
                         <FiFilter className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>

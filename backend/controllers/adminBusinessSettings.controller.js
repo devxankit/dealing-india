@@ -35,7 +35,8 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
         dashboardWidgets,
         allowedPlans,
         productFormType,
-        enableShopListing
+        enableShopListing,
+        propertyForms
     } = req.body;
 
     let settings = await BusinessTypeSettings.findById(req.params.id);
@@ -44,7 +45,11 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'Settings not found' });
     }
 
-    settings.enabledModules = enabledModules || settings.enabledModules;
+    // settings.enabledModules = enabledModules || settings.enabledModules;
+    settings.enabledModules =
+        enabledModules !== undefined
+            ? enabledModules
+            : settings.enabledModules;
 
     settings.features = features || settings.features;
     settings.dashboardWidgets = dashboardWidgets !== undefined ? dashboardWidgets : settings.dashboardWidgets;
@@ -52,6 +57,13 @@ export const updateBusinessSettings = asyncHandler(async (req, res) => {
     settings.isActive = isActive !== undefined ? isActive : settings.isActive;
     settings.productFormType = productFormType !== undefined ? productFormType : settings.productFormType;
     settings.enableShopListing = enableShopListing !== undefined ? enableShopListing : settings.enableShopListing;
+    if (propertyForms !== undefined) {
+        settings.propertyForms = Array.isArray(propertyForms)
+            ? propertyForms.map((f) => String(f).toLowerCase().trim())
+            : [];
+    } else {
+        settings.propertyForms = Array.isArray(settings.propertyForms) ? settings.propertyForms : [];
+    }
 
     await settings.save();
 

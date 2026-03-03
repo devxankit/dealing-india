@@ -44,6 +44,7 @@ const FlatForm = () => {
         flatDetails: {
             flatType: '2BHK',
             carpetArea: '',
+            carpetAreaUnit: 'Sq. Ft.',
             floorNumber: '',
             totalFloors: '',
             furnishing: 'Unfurnished',
@@ -76,7 +77,8 @@ const FlatForm = () => {
             address: '',
             area: '',
             market: '',
-            city: ''
+            city: '',
+            mapUrl: ''
         }
     });
 
@@ -342,8 +344,13 @@ const FlatForm = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black uppercase">Carpet Area (sq ft)</label>
-                                    <input type="text" name="flatDetails.carpetArea" value={formData.flatDetails.carpetArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1200" />
+                                    <label className="text-[10px] font-black uppercase">Carpet Area</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input type="text" name="flatDetails.carpetArea" value={formData.flatDetails.carpetArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1200" />
+                                        <select name="flatDetails.carpetAreaUnit" value={formData.flatDetails.carpetAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
+                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
@@ -445,6 +452,13 @@ const FlatForm = () => {
                                             <input name="location.area" placeholder="Area" value={formData.location.area} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                             <input name="location.market" placeholder="Market" value={formData.location.market} onChange={handleChange} className="px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs" />
                                         </div>
+                                        <input
+                                            name="location.mapUrl"
+                                            placeholder="Google Map URL"
+                                            value={formData.location.mapUrl}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-3 bg-slate-50 rounded-xl font-bold text-xs"
+                                        />
                                     </div>
                                 </div>
 

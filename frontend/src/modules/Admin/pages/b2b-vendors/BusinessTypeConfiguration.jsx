@@ -67,23 +67,31 @@ const BusinessTypeConfiguration = () => {
     const handleEdit = (settings) => {
         setEditingSettings({
             ...settings,
-            dashboardWidgets: settings.dashboardWidgets || [],
-            allowedPlans: settings.allowedPlans || []
+            dashboardWidgets: Array.isArray(settings.dashboardWidgets) ? settings.dashboardWidgets : [],
+            allowedPlans: Array.isArray(settings.allowedPlans) ? settings.allowedPlans : [],
+            propertyForms: Array.isArray(settings.propertyForms) ? settings.propertyForms : []
         });
     };
 
     const handleSave = async () => {
         try {
-            const response = await api.put(`/admin/business-settings/update/${editingSettings._id}`, editingSettings);
+            const payload = {
+                enabledModules: Array.isArray(editingSettings.enabledModules) ? editingSettings.enabledModules : [],
+                features: editingSettings.features || {},
+                isActive: editingSettings.isActive,
+                dashboardWidgets: Array.isArray(editingSettings.dashboardWidgets) ? editingSettings.dashboardWidgets : [],
+                allowedPlans: Array.isArray(editingSettings.allowedPlans) ? editingSettings.allowedPlans : [],
+                productFormType: editingSettings.productFormType,
+                enableShopListing: editingSettings.enableShopListing,
+                propertyForms: Array.isArray(editingSettings.propertyForms) ? editingSettings.propertyForms : [],
+                businessTypeId: editingSettings.businessTypeId
+            };
+
+            const response = await api.put(`/admin/business-settings/update/${editingSettings._id}`, payload);
             if (response.success) {
                 toast.success('Settings updated successfully');
-
-                // Update local state without refetching everything
-                setBusinessSettings(prev =>
-                    prev.map(s => s._id === editingSettings._id ? response.data : s)
-                );
-
                 setEditingSettings(null);
+                await fetchSettings();
             }
         } catch (error) {
             console.error('Error updating settings:', error);
@@ -116,6 +124,15 @@ const BusinessTypeConfiguration = () => {
             : [...currentPlans, planId];
 
         setEditingSettings({ ...editingSettings, allowedPlans: newPlans });
+    };
+
+    const togglePropertyForm = (formType) => {
+        const currentForms = editingSettings.propertyForms || [];
+        const nextForms = currentForms.includes(formType)
+            ? currentForms.filter(f => f !== formType)
+            : [...currentForms, formType];
+
+        setEditingSettings({ ...editingSettings, propertyForms: nextForms });
     };
 
     if (loading) {
@@ -249,6 +266,21 @@ const BusinessTypeConfiguration = () => {
                                         ))
                                     ) : (
                                         <span className="text-slate-400 italic font-medium">No widgets selected</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Property Forms</p>
+                                <div className="flex flex-wrap gap-2 text-[10px] font-bold">
+                                    {(settings.propertyForms && settings.propertyForms.length > 0) ? (
+                                        settings.propertyForms.map((form) => (
+                                            <span key={form} className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md uppercase border border-emerald-100">
+                                                {form}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <span className="text-slate-400 italic font-medium">No forms selected</span>
                                     )}
                                 </div>
                             </div>
@@ -431,6 +463,31 @@ const BusinessTypeConfiguration = () => {
                                     ))}
                                 </div>
                             </div>
+
+                            {editingSettings.enabledModules?.includes('property') && (
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Property Form Visibility</label>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        {[
+                                            { id: 'property', label: 'Property Form' },
+                                            { id: 'flat', label: 'Flat Form' },
+                                            { id: 'villa', label: 'Villa Form' }
+                                        ].map((form) => (
+                                            <button
+                                                key={form.id}
+                                                onClick={() => togglePropertyForm(form.id)}
+                                                className={`px-4 py-3 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-between ${editingSettings.propertyForms?.includes(form.id)
+                                                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200'
+                                                    : 'bg-slate-50 text-slate-400 border border-slate-100 hover:border-emerald-300'
+                                                    }`}
+                                            >
+                                                {form.label}
+                                                {editingSettings.propertyForms?.includes(form.id) && <FiCheckCircle />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Dashboard Widgets */}
                             <div>

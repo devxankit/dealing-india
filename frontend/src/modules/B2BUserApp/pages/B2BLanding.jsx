@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    FiSearch, FiMenu, FiX, FiChevronDown, FiGrid, FiShoppingBag,
+    FiSearch, FiX, FiChevronDown, FiGrid, FiShoppingBag,
     FiUser, FiArrowRight, FiArrowLeft, FiBriefcase, FiTrendingUp, FiHome, FiMapPin, FiFilter,
     FiTruck, FiPhone, FiShoppingCart
 } from 'react-icons/fi';
@@ -542,6 +542,7 @@ const B2BLanding = () => {
                                 <RealEstateCard
                                     key={property._id}
                                     property={property}
+                                    requireAuthForActions={true}
                                 />
                             ))}
                         </div>
@@ -602,6 +603,7 @@ const B2BLanding = () => {
                                     viewMode="grid"
                                     trackContactClick={trackContactClick}
                                     itemType={itemType}
+                                    requireAuthForActions={true}
                                     onCardClick={() => {
                                         closePopup();
                                         navigateWithAuth(`/b2b/product/${product._id}`);
@@ -744,7 +746,7 @@ const B2BLanding = () => {
                     <div className="hidden md:grid md:grid-cols-[auto_1fr] md:items-center md:gap-4 md:py-2">
                         {/* Logo - spans both rows */}
                         <div className="row-span-2 flex items-center pr-4 border-r border-gray-100">
-                            <img src={appLogo.src} alt="Dealing India" className="h-20 w-auto object-contain" />
+                            <img src={appLogo.src} alt="Dealing India" className="h-28 w-auto object-contain" />
                         </div>
                         {/* Row 1: Nav (Business Type, Lot, Real Estate, Become Seller, Profile) */}
                         <div className="flex items-center gap-2 lg:gap-4 justify-between py-1">
@@ -832,8 +834,8 @@ const B2BLanding = () => {
                             </div>
                         </div>
                         {/* Row 2: Toolbar (Categories, Price, City, Search) - Categories shifted right */}
-                        <div className="flex items-center gap-2 py-1 pl-2">
-                            <div className="flex gap-2 flex-wrap flex-1">
+                        <div className="flex items-center gap-2 py-1 pl-2 justify-between ">
+                            <div className="flex gap-5 flex-wrap ">
                                 <div className="relative" ref={categoryRef}>
                                     <button
                                         onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
@@ -908,7 +910,7 @@ const B2BLanding = () => {
                                         disabled={locationsLoading}
                                         className="flex items-center justify-between gap-2 px-4 md:px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-black text-gray-600 hover:bg-gray-50 hover:border-primary-300 transition-all uppercase tracking-wider"
                                     >
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 " >
                                             <FiMapPin className="text-primary-600" />
                                             <span>{selectedCity}</span>
                                         </div>
@@ -961,7 +963,7 @@ const B2BLanding = () => {
                                 </div>
                             </div>
                             {/* Search bar - smaller on web */}
-                            <div className="relative min-w-0 md:max-w-xs" ref={searchRef}>
+                            <div className="relative  md:max-w-xs md:min-w-[400px]" ref={searchRef}>
                                 <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 py-1.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
                                     <FiSearch className="text-gray-400 mr-2 flex-shrink-0" size={16} />
                                     <input
@@ -1043,40 +1045,6 @@ const B2BLanding = () => {
                         </div>
                     </div>
 
-                    {/* 4. Become Seller & Profile */}
-                    <div className="flex items-center gap-2 md:gap-3">
-                        <button
-                            onClick={() => navigate('/b2b-vendor/register')}
-                            className="hidden md:flex bg-black text-white px-5 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-colors whitespace-nowrap"
-                        >
-                            Become Seller
-                        </button>
-
-                        <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
-
-                        {isAuthenticated ? (
-                            <button
-                                onClick={() => navigate('/b2b/profile')}
-                                className="hidden md:flex items-center gap-2 hover:bg-gray-50 p-1 md:p-1.5 rounded-full transition-colors"
-                            >
-                                <div className="w-8 h-8 md:w-9 md:h-9 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 border border-primary-100 shadow-sm">
-                                    <FiUser size={16} className="md:size-[18px]" />
-                                </div>
-                                <span className="text-[10px] font-black text-gray-700 hidden md:block uppercase tracking-wider">Profile</span>
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => navigate('/b2b/login')}
-                                className="flex items-center gap-2 bg-primary-600 text-white px-4 md:px-6 py-2 md:py-2.5 rounded-full font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-primary-700 transition-colors shadow-lg shadow-primary-100"
-                            >
-                                Login
-                            </button>
-                        )}
-
-                        <button className="hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                            <FiMenu size={24} />
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -1359,7 +1327,7 @@ const B2BLanding = () => {
                     </div>
 
                     {/* 2. Product Search (Full Width) */}
-                    <div className="flex-1 relative order-first md:order-none" ref={searchRef}>
+                    <div className="flex-[2] md:flex-[4] relative order-first md:order-none" ref={searchRef}>
                         <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 md:px-4 py-0 md:py-0.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
                             <FiSearch className="text-gray-400 mr-2" size={16} />
                             <input

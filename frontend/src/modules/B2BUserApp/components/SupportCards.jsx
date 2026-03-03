@@ -1,8 +1,12 @@
 import React from 'react';
 import { FiPhoneCall, FiMail, FiMessageSquare } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import { getSupportConfig } from '../../../shared/services/supportService';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const SupportCards = () => {
+    const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStore();
     const [config, setConfig] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
 
@@ -34,6 +38,14 @@ const SupportCards = () => {
         emailResponse = 'response within 4 hours'
     } = config || {};
 
+    const handleSupportRedirect = () => {
+        if (!isAuthenticated) {
+            navigate('/b2b/login', { state: { from: { pathname: '/b2b/support' } } });
+            return;
+        }
+        navigate('/b2b/support');
+    };
+
     if (loading) {
         return (
             <div className="w-full py-8 flex justify-center">
@@ -51,7 +63,9 @@ const SupportCards = () => {
                     </h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div
+                    <button
+                        type="button"
+                        onClick={handleSupportRedirect}
                         className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-md flex flex-col items-center justify-center gap-4 text-center group hover:border-primary-200 transition-all hover:shadow-lg"
                     >
                         <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors shadow-inner">
@@ -62,9 +76,11 @@ const SupportCards = () => {
                             <p className="text-sm font-black text-primary-600 mb-1">{phone}</p>
                             <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">{callHours}</p>
                         </div>
-                    </div>
+                    </button>
 
-                    <div
+                    <button
+                        type="button"
+                        onClick={handleSupportRedirect}
                         className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-md flex flex-col items-center justify-center gap-4 text-center group hover:border-primary-200 transition-all hover:shadow-lg"
                     >
                         <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors shadow-inner">
@@ -75,12 +91,16 @@ const SupportCards = () => {
                             <p className="text-sm font-black text-primary-600 mb-1">{email}</p>
                             <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">{emailResponse}</p>
                         </div>
-                    </div>
+                    </button>
 
                     <a
                         href={`https://wa.me/${whatsapp}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleSupportRedirect();
+                        }}
                         className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-md flex flex-col items-center justify-center gap-4 text-center group hover:border-green-200 transition-all hover:shadow-lg"
                     >
                         <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors shadow-inner">

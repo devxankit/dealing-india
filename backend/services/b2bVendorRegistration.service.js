@@ -154,6 +154,9 @@ export const registerB2BVendor = async (vendorData) => {
     if (addressData.zipCode && !addressData.pincode) {
       addressData.pincode = addressData.zipCode;
     }
+    if (typeof addressData.mapUrl === 'string') {
+      addressData.mapUrl = addressData.mapUrl.trim();
+    }
 
     // Create vendor with status 'pending' (requires admin approval)
     const newVendorData = {
@@ -441,6 +444,9 @@ export const registerB2BVendorWithSubscription = async (vendorData, planId, paym
     }
     if (addressData.zipCode && !addressData.pincode) {
       addressData.pincode = addressData.zipCode;
+    }
+    if (typeof addressData.mapUrl === 'string') {
+      addressData.mapUrl = addressData.mapUrl.trim();
     }
 
     // Create vendor

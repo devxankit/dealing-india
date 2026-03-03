@@ -5,9 +5,11 @@ import { FiTruck, FiShield, FiPhone, FiMapPin, FiChevronDown, FiCheck, FiMail } 
 import { FaWhatsapp } from 'react-icons/fa';
 import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
+import { useAuthStore } from '../../../shared/store/authStore';
 
-const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemType }) => {
+const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemType, requireAuthForActions = false }) => {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStore();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
     // Image logic for Shop Listing vs Standard Product
@@ -56,13 +58,28 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
     const hasEmail = Boolean(vendor?.email);
     const hasMobile = Boolean(vendor?.phone);
 
+    const redirectToLoginIfRequired = (event) => {
+        if (requireAuthForActions && !isAuthenticated) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+            return true;
+        }
+        return false;
+    };
+
     return (
         <motion.div
             layout
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -4, shadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)" }}
-            onClick={() => navigate(`/b2b/product/${product._id}`)}
+            onClick={() => {
+                if (redirectToLoginIfRequired()) return;
+                navigate(`/b2b/product/${product._id}`);
+            }}
             className={`group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex ${viewMode === 'grid' ? 'flex-col h-full' : 'flex-row items-center gap-6 p-4 h-fit'}`}
         >
             {/* Image Container - Interactive Gallery */}
@@ -165,6 +182,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     {vendorIdStr ? (
                         <div
                             onClick={(e) => {
+                                if (redirectToLoginIfRequired(e)) return;
                                 e.stopPropagation();
                                 const vendorUrl = itemType ? `/b2b/vendor/${vendorIdStr}?itemType=${itemType}` : `/b2b/vendor/${vendorIdStr}`;
                                 navigate(vendorUrl);
@@ -247,6 +265,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => {
+                                    if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'whatsapp');
                                 }}
@@ -259,6 +278,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                             <a
                                 href={`tel:${vendor.phone}`}
                                 onClick={(e) => {
+                                    if (redirectToLoginIfRequired(e)) return;
                                     e.stopPropagation();
                                     if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'call');
                                 }}
@@ -269,10 +289,11 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 <span className="hidden md:inline">Call</span>
                             </a>
                             <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    const mapsUrl = getGoogleMapsUrl(vendor);
-                                    if (mapsUrl) {
+                            onClick={(e) => {
+                                if (redirectToLoginIfRequired(e)) return;
+                                e.stopPropagation();
+                                const mapsUrl = getGoogleMapsUrl(vendor);
+                                if (mapsUrl) {
                                         if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'map');
                                         window.open(mapsUrl, '_blank');
                                     } else {
@@ -289,6 +310,7 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     ) : (
                         <button
                             onClick={(e) => {
+                                if (redirectToLoginIfRequired(e)) return;
                                 e.stopPropagation();
                                 navigate(`/b2b/product/${product._id}`);
                             }}

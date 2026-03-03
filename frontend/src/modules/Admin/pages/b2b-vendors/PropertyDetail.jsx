@@ -59,6 +59,49 @@ const PropertyDetail = () => {
 
     if (!property) return null;
 
+    const specObj = property.specifications || {};
+    const hasValue = (v) => !(v === undefined || v === null || v === '');
+    const renderValue = (v) => {
+        if (!hasValue(v)) return '-';
+        if (Array.isArray(v)) return v.length ? v.join(', ') : '-';
+        return String(v);
+    };
+
+    const builtUpAreaValue = hasValue(specObj?.builtUpArea) ? specObj?.builtUpArea : property.plotDetails?.builtUpArea;
+    const builtUpAreaUnit = specObj?.builtUpAreaUnit || property.plotDetails?.builtUpAreaUnit || 'Sq. Ft.';
+    const carpetAreaValue = hasValue(specObj?.carpetArea) ? specObj?.carpetArea : property.flatDetails?.carpetArea;
+    const carpetAreaUnit = specObj?.carpetAreaUnit || property.flatDetails?.carpetAreaUnit || 'Sq. Ft.';
+    const plotAreaValue = property.plotDetails?.plotArea ?? specObj?.plotArea;
+    const plotAreaUnit = property.plotDetails?.plotAreaUnit || 'Sq. Ft.';
+    const facilities = {
+        parking: property.facilities?.parking || ['No'],
+        lift: property.facilities?.lift || 'No',
+        powerBackup: property.facilities?.powerBackup || 'No',
+        waterSupply: property.facilities?.waterSupply || 'No',
+        washroom: property.facilities?.washroom || ['Common'],
+        fireSafety: property.facilities?.fireSafety || 'No'
+    };
+    const status = {
+        furnishing: property.status?.furnishing || 'Unfurnished',
+        propertyCondition: property.status?.propertyCondition || 'New',
+        propertyPosition: property.status?.propertyPosition || 'Ready to Move',
+        propertyStatus: property.status?.propertyStatus || 'Ready'
+    };
+
+    const specCards = [
+        { label: "Built Up Area", value: hasValue(builtUpAreaValue) ? `${builtUpAreaValue} ${builtUpAreaUnit}` : "-" },
+        { label: "Carpet Area", value: hasValue(carpetAreaValue) ? `${carpetAreaValue} ${carpetAreaUnit}` : "-" },
+        { label: "Plot Area", value: hasValue(plotAreaValue) ? `${plotAreaValue} ${plotAreaUnit}` : "-" },
+        { label: "Floor Info", value: hasValue(property.flatDetails?.floorNumber) ? `${property.flatDetails.floorNumber} / ${property.flatDetails.totalFloors || 'N/A'}` : (hasValue(specObj?.floorNumber) ? `${specObj.floorNumber} / ${specObj.totalFloors || 'N/A'}` : (property.plotDetails?.floors || "-")) },
+        { label: "Flat Type", value: property.flatDetails?.flatType || "-" },
+        { label: "Bedrooms", value: hasValue(property.plotDetails?.bedrooms) ? property.plotDetails?.bedrooms : (hasValue(specObj?.bedrooms) ? specObj?.bedrooms : "-") },
+        { label: "Bathrooms", value: hasValue(property.plotDetails?.bathrooms) ? property.plotDetails?.bathrooms : (hasValue(specObj?.bathrooms) ? specObj?.bathrooms : "-") },
+        { label: "Balcony", value: hasValue(property.plotDetails?.balcony) ? property.plotDetails?.balcony : (hasValue(specObj?.balcony) ? specObj?.balcony : "-") },
+        { label: "Ceiling Height", value: hasValue(specObj?.ceilingHeight) ? `${specObj.ceilingHeight} ${specObj?.ceilingHeightUnit || 'Ft.'}` : "-" },
+        { label: "Entrance Width", value: hasValue(specObj?.entranceWidth) ? `${specObj.entranceWidth} ${specObj?.entranceWidthUnit || 'Ft.'}` : "-" },
+        { label: "Road Facing", value: property.roadFacing || "-" },
+    ];
+
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-7xl mx-auto pb-10">
             {/* Header */}
@@ -185,14 +228,53 @@ const PropertyDetail = () => {
                         <div>
                             <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Specifications</h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <SpecCard label="Built Up Area" value={property.specifications?.builtUpArea + " sqft"} />
-                                <SpecCard label="Carpet Area" value={property.specifications?.carpetArea + " sqft"} />
-                                <SpecCard label="Floor Info" value={`${property.specifications?.floorNumber || 'G'} / ${property.specifications?.totalFloors || 'N/A'}`} />
-                                <SpecCard label="Ceiling Height" value={property.specifications?.ceilingHeight + " ft"} />
-                                <SpecCard label="Entrance Width" value={property.specifications?.entranceWidth + " ft"} />
-                                <SpecCard label="Road Facing" value={property.roadFacing} />
+                                {specCards.map((card) => (
+                                    <SpecCard key={card.label} label={card.label} value={card.value} />
+                                ))}
                             </div>
                         </div>
+
+                        {/* Villa/Plot Form Details */}
+                        {property.plotDetails && (
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Villa Details</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <SpecCard label="Master Room" value={renderValue(property.plotDetails.masterRoom)} />
+                                    <SpecCard label="Terrace" value={renderValue(property.plotDetails.terrace)} />
+                                    <SpecCard label="Furnishing" value={renderValue(property.plotDetails.furnishing)} />
+                                    <SpecCard label="Age Of Property" value={renderValue(property.plotDetails.ageOfProperty)} />
+                                    <SpecCard label="Bedrooms" value={renderValue(property.plotDetails.bedrooms)} />
+                                    <SpecCard label="Bathrooms" value={renderValue(property.plotDetails.bathrooms)} />
+                                    <SpecCard label="Balcony" value={renderValue(property.plotDetails.balcony)} />
+                                    <SpecCard label="Floors" value={renderValue(property.plotDetails.floors)} />
+                                </div>
+                                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    <SpecCard label="Private Parking" value={renderValue(property.plotDetails.privateFacilities?.privateParking)} />
+                                    <SpecCard label="Garden Area" value={renderValue(property.plotDetails.privateFacilities?.gardenArea)} />
+                                    <SpecCard label="Personal Borewell" value={renderValue(property.plotDetails.privateFacilities?.personalBorewell)} />
+                                    <SpecCard label="Solar System" value={renderValue(property.plotDetails.privateFacilities?.solarSystem)} />
+                                    <SpecCard label="Store Room" value={renderValue(property.plotDetails.privateFacilities?.storeRoom)} />
+                                    <SpecCard label="Servant Room" value={renderValue(property.plotDetails.privateFacilities?.servantRoom)} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Flat Form Details */}
+                        {property.flatDetails && (
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Flat Details</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <SpecCard label="Flat Type" value={renderValue(property.flatDetails.flatType)} />
+                                    <SpecCard label="Floor Number" value={renderValue(property.flatDetails.floorNumber)} />
+                                    <SpecCard label="Total Floors" value={renderValue(property.flatDetails.totalFloors)} />
+                                    <SpecCard label="Furnishing" value={renderValue(property.flatDetails.furnishing)} />
+                                    <SpecCard label="Age Of Property" value={renderValue(property.flatDetails.ageOfProperty)} />
+                                    <SpecCard label="Carpet Area Unit" value={renderValue(property.flatDetails.carpetAreaUnit)} />
+                                    <SpecCard label="Loan Available" value={renderValue(property.flatDetails.legal?.loanAvailable)} />
+                                    <SpecCard label="RERA Approved" value={renderValue(property.flatDetails.legal?.reraApproved)} />
+                                </div>
+                            </div>
+                        )}
 
                         {/* Description */}
                         <div>
@@ -203,29 +285,27 @@ const PropertyDetail = () => {
                         </div>
 
                         {/* Facilities */}
-                        {property.facilities && (
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Facilities</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    <FacilityItem label="Parking" value={property.facilities.parking} isArray />
-                                    <FacilityItem label="Lift" value={property.facilities.lift} />
-                                    <FacilityItem label="Power Backup" value={property.facilities.powerBackup} />
-                                    <FacilityItem label="Water Supply" value={property.facilities.waterSupply} />
-                                    <FacilityItem label="Washroom" value={property.facilities.washroom} />
-                                    <FacilityItem label="Fire Safety" value={property.facilities.fireSafety} />
-                                </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Facilities</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <FacilityItem label="Parking" value={facilities.parking} isArray />
+                                <FacilityItem label="Lift" value={facilities.lift} />
+                                <FacilityItem label="Power Backup" value={facilities.powerBackup} />
+                                <FacilityItem label="Water Supply" value={facilities.waterSupply} />
+                                <FacilityItem label="Washroom" value={facilities.washroom} />
+                                <FacilityItem label="Fire Safety" value={facilities.fireSafety} />
                             </div>
-                        )}
+                        </div>
 
                         {/* Status Info */}
-                        {property.status && (
+                        {status && (
                             <div>
                                 <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide">Status & Condition</h3>
                                 <div className="flex flex-wrap gap-3">
-                                    <StatusTag label="Furnishing" value={property.status.furnishing} />
-                                    <StatusTag label="Condition" value={property.status.propertyCondition} />
-                                    <StatusTag label="Position" value={property.status.propertyPosition} />
-                                    <StatusTag label="Status" value={property.status.propertyStatus} />
+                                    <StatusTag label="Furnishing" value={status.furnishing} />
+                                    <StatusTag label="Condition" value={status.propertyCondition} />
+                                    <StatusTag label="Position" value={status.propertyPosition} />
+                                    <StatusTag label="Status" value={status.propertyStatus} />
                                 </div>
                             </div>
                         )}
@@ -294,7 +374,7 @@ const InfoItem = ({ label, value, highlight }) => (
 const SpecCard = ({ label, value }) => (
     <div className="bg-gray-50 p-4 rounded-xl text-center border border-gray-100 hover:border-primary-100 transition-colors">
         <span className="block text-xs text-gray-400 uppercase tracking-wider font-bold mb-1">{label}</span>
-        <span className="font-bold text-gray-800">{value !== 'undefined sqft' && value !== 'undefined ft' ? value : '-'}</span>
+        <span className="font-bold text-gray-800">{value === undefined || value === null || value === '' ? '-' : value}</span>
     </div>
 );
 

@@ -81,6 +81,7 @@ const RealEstate = () => {
     const fetchProperties = async () => {
         setLoading(true);
         try {
+            const hasPriceRange = Boolean(appliedPrice.min || appliedPrice.max);
             const params = {
                 type: selectedBusinessType === 'All' ? '' : selectedBusinessType.toLowerCase(),
                 search: searchQuery,
@@ -93,7 +94,7 @@ const RealEstate = () => {
                 minSize: appliedSize.min,
                 maxSize: appliedSize.max,
                 areaUnit: selectedAreaUnit === 'All' ? '' : selectedAreaUnit,
-                priceUnit: selectedPriceUnit === 'All' ? '' : selectedPriceUnit,
+                priceUnit: hasPriceRange && selectedPriceUnit !== 'All' ? selectedPriceUnit : '',
                 listingType: selectedListingType,
                 vendorId: selectedVendorId,
                 sortBy,
@@ -1257,7 +1258,11 @@ const RealEstate = () => {
                                         className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
                                     >
                                         {properties.map(property => (
-                                            <RealEstateCard key={property._id} property={property} />
+                                            <RealEstateCard
+                                                key={property._id}
+                                                property={property}
+                                                selectedPriceUnit={selectedPriceUnit}
+                                            />
                                         ))}
                                     </motion.div>
                                 )}

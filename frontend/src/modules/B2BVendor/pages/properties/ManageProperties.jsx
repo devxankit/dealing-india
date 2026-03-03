@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FiEdit2, FiTrash2, FiEye, FiSearch, FiMapPin, FiTag, FiTrendingUp, FiPlus, FiX, FiLayers, FiMaximize2, FiNavigation, FiCheckCircle } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +11,7 @@ const ManageProperties = () => {
     const [properties, setProperties] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
     const [selectedProperty, setSelectedProperty] = useState(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -46,10 +47,28 @@ const ManageProperties = () => {
         }
     };
 
-    const filteredProperties = properties.filter(p =>
-        p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.location.area.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const getPropertyBucket = (property) => {
+        const type = String(property?.propertyType || '').toLowerCase();
+        const hasFlatDetails = !!property?.flatDetails;
+        const hasVillaDetails = !!property?.plotDetails;
+
+        if (type === 'flat' || hasFlatDetails) return 'flat';
+        if (type === 'villa' || type === 'plot' || hasVillaDetails) return 'villa';
+        return 'property';
+    };
+
+    const filteredProperties = useMemo(() => {
+        return properties.filter((p) => {
+            const title = String(p?.title || '').toLowerCase();
+            const area = String(p?.location?.area || '').toLowerCase();
+            const search = searchQuery.toLowerCase();
+            const searchMatch = title.includes(search) || area.includes(search);
+            if (!searchMatch) return false;
+
+            if (propertyTypeFilter === 'all') return true;
+            return getPropertyBucket(p) === propertyTypeFilter;
+        });
+    }, [properties, searchQuery, propertyTypeFilter]);
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 p-2 md:p-6">
@@ -69,6 +88,16 @@ const ManageProperties = () => {
                             className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-slate-800 outline-none transition-all font-medium text-sm"
                         />
                     </div>
+                    <select
+                        value={propertyTypeFilter}
+                        onChange={(e) => setPropertyTypeFilter(e.target.value)}
+                        className="w-full sm:w-auto px-4 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none font-bold text-sm text-slate-700"
+                    >
+                        <option value="all">All Property Types</option>
+                        <option value="flat">Flat</option>
+                        <option value="villa">Villa</option>
+                        <option value="property">Property</option>
+                    </select>
                     {/* Wrapped with SubscriptionGate to enforce Premium plan and show max images */}
                     <SubscriptionGate action="property">
                         <button
@@ -148,7 +177,7 @@ const ManageProperties = () => {
                                     <div className="text-center">
                                         <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Area</p>
                                         <p className="text-[10px] font-black text-slate-700 truncate">
-                                            {property.flatDetails?.carpetArea ? `${property.flatDetails.carpetArea} sqft` :
+                                            {property.flatDetails?.carpetArea ? `${property.flatDetails.carpetArea} ${property.flatDetails.carpetAreaUnit || 'Sq. Ft.'}` :
                                                 property.plotDetails?.plotArea ? `${property.plotDetails.plotArea} sqft` :
                                                     property.specifications?.builtUpArea || property.totalArea || 'N/A'}
                                         </p>
@@ -379,7 +408,7 @@ const ManageProperties = () => {
                                                 <div className="flex justify-between items-center pb-3 border-b border-slate-50 group">
                                                     <span className="text-xs font-bold text-slate-400">Area</span>
                                                     <span className="text-xs font-black text-slate-900">
-                                                        {selectedProperty.flatDetails?.carpetArea ? `${selectedProperty.flatDetails.carpetArea} sq ft` :
+                                                        {selectedProperty.flatDetails?.carpetArea ? `${selectedProperty.flatDetails.carpetArea} ${selectedProperty.flatDetails.carpetAreaUnit || 'Sq. Ft.'}` :
                                                             selectedProperty.plotDetails?.plotArea ? `${selectedProperty.plotDetails.plotArea} sq ft` :
                                                                 selectedProperty.specifications?.builtUpArea || 'N/A'}
                                                     </span>

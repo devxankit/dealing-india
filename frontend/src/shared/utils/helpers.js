@@ -280,6 +280,18 @@ export const getMainProductVariant = (product) => {
 export const getGoogleMapsUrl = (data) => {
   if (!data) return null;
 
+  const explicitMapUrl = data?.location?.mapUrl || data?.address?.mapUrl || data?.mapUrl;
+  if (explicitMapUrl && typeof explicitMapUrl === "string") {
+    const raw = explicitMapUrl.trim();
+    if (raw) {
+      if (/^https?:\/\//i.test(raw)) return raw;
+      if (/^(www\.|maps\.google\.)/i.test(raw)) return `https://${raw}`;
+      if (/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(raw)) {
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(raw)}`;
+      }
+    }
+  }
+
   // Extract address and location - handles both Vendor and Property objects
   const address = data.address || data.location || {};
   const geo = data.location || {}; // Top-level location for Vendor [lng, lat]

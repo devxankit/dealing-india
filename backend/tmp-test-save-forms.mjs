@@ -1,0 +1,13 @@
+import dns from 'dns';  
+dns.setServers(['8.8.8.8','8.8.4.4']);  
+import dotenv from 'dotenv';  
+import mongoose from 'mongoose';  
+import BusinessTypeSettings from './models/BusinessTypeSettings.model.js';  
+dotenv.config({ path: '.env' });  
+await mongoose.connect(process.env.MONGODB_URI);  
+const one = await BusinessTypeSettings.findOne({});  
+one.propertyForms = ['property','villa'];  
+await one.save();  
+const raw = await mongoose.connection.db.collection('businesstypesettings').findOne({ _id: one._id }, { projection: { propertyForms: 1 } });  
+console.log(JSON.stringify(raw, null, 2));  
+await mongoose.disconnect();  

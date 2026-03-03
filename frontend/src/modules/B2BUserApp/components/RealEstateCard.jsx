@@ -6,10 +6,24 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../../shared/utils/api';
 import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import StarRating from './StarRating';
+import { useAuthStore } from '../../../shared/store/authStore';
 
-const RealEstateCard = ({ property }) => {
+const RealEstateCard = ({ property, selectedPriceUnit = 'All', requireAuthForActions = false }) => {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStore();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const redirectToLoginIfRequired = (event) => {
+        if (requireAuthForActions && !isAuthenticated) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+            return true;
+        }
+        return false;
+    };
 
     // Combine all available images
     const allImages = [
@@ -45,50 +59,69 @@ const RealEstateCard = ({ property }) => {
         }
     };
 
-    // Helper to format price from backend
+    const toRupees = (amount, unit = 'Lakh') => {
+        const n = Number(amount || 0);
+        if (!Number.isFinite(n)) return 0;
+        const normalizedUnit = String(unit || 'Lakh')
+            .trim()
+            .toLowerCase()
+            .replace(/\./g, '')
+            .replace(/\s+/g, '')
+            .replace('/month', '')
+            .replace('/mo', '');
+
+        if (normalizedUnit === 'rs' || normalizedUnit === 'rupees' || normalizedUnit === 'inr') return n;
+        if (normalizedUnit === 'thousand' || normalizedUnit === 'thousands' || normalizedUnit === 'k') return n * 1000;
+        if (normalizedUnit === 'crore' || normalizedUnit === 'crores' || normalizedUnit === 'cr') return n * 10000000;
+        return n * 100000; // default lakh
+    };
+
+    const compact = (value) => {
+        const n = Number(value || 0);
+        if (!Number.isFinite(n)) return '0';
+        return n.toFixed(1).replace(/\.0$/, '');
+    };
+
+    const formatBySelectedUnit = (rupees, preferredUnit = 'All') => {
+        const cleanPreferred = String(preferredUnit || 'All').trim();
+        const unit = cleanPreferred === 'All' ? 'Lakh' : cleanPreferred;
+        if (unit === 'Rs') {
+            return `₹${Math.round(rupees).toLocaleString('en-IN')}`;
+        }
+        if (unit === 'Thousand') {
+            return `₹${compact(rupees / 1000)} thousand`;
+        }
+        if (unit === 'Crore') {
+            return `₹${compact(rupees / 10000000)} crore`;
+        }
+        return `₹${compact(rupees / 100000)} lakh`;
+    };
+
+    // Helper to format price from backend (compact for card view)
     const formatPrice = (p) => {
         if (!p) return 'Price on Request';
 
-        const getMultiplier = (unit) => {
-            switch (unit) {
-                case 'Rs': return 1;
-                case 'Thousand': return 1000;
-                case 'Lakh': return 100000;
-                case 'Crore': return 10000000;
-                default: return 1;
-            }
-        };
-
-        const getUnitLabel = (unit) => {
-            switch (unit) {
-                case 'Rs': return ' Rs';
-                case 'Thousand': return ' Thousand';
-                case 'Lakh': return ' Lakh';
-                case 'Crore': return ' Crore';
-                default: return '';
-            }
-        };
-
         if (p.listingType === 'Sale') {
             if (p.saleDetails?.priceMin) {
-                const min = p.saleDetails.priceMin;
-                const max = p.saleDetails.priceMax;
-                const unit = p.saleDetails.priceUnit || 'Lakh';
-                const label = getUnitLabel(unit);
-                if (max && max !== min) return `₹${min}-${max}${label}`;
-                return `₹${min}${label} onwards`;
+                const min = toRupees(p.saleDetails.priceMin, p.saleDetails.priceUnit || 'Lakh');
+                const max = toRupees(p.saleDetails.priceMax, p.saleDetails.priceUnit || 'Lakh');
+                if (max && max !== min) {
+                    return `${formatBySelectedUnit(min, selectedPriceUnit)} - ${formatBySelectedUnit(max, selectedPriceUnit)}`;
+                }
+                return `${formatBySelectedUnit(min, selectedPriceUnit)} onwards`;
             }
         } else if (p.listingType === 'Rent' && p.rentDetails?.monthlyRent) {
-            const unit = p.rentDetails.rentUnit || 'Thousand';
-            const label = getUnitLabel(unit);
-            return `₹${p.rentDetails.monthlyRent}${label}/mo`;
+            const amount = toRupees(p.rentDetails.monthlyRent, p.rentDetails.rentUnit || 'Thousand');
+            return `${formatBySelectedUnit(amount, selectedPriceUnit)}/mo`;
         } else if (p.listingType === 'Lease' && p.leaseDetails?.monthlyLeaseRate) {
-            const unit = p.leaseDetails.leaseUnit || 'Lakh';
-            const label = getUnitLabel(unit);
-            return `₹${p.leaseDetails.monthlyLeaseRate}${label}/mo`;
+            const amount = toRupees(p.leaseDetails.monthlyLeaseRate, p.leaseDetails.leaseUnit || 'Lakh');
+            return `${formatBySelectedUnit(amount, selectedPriceUnit)}/mo`;
         }
 
-        if (p.price?.amount) return `₹${(p.price.amount / 100000).toFixed(1)}L`;
+        if (p.price?.amount) {
+            const amountInRupees = toRupees(p.price.amount, p.price.unit || p.price.priceUnit || 'Rs');
+            return formatBySelectedUnit(amountInRupees, selectedPriceUnit);
+        }
         return 'Price on Request';
     };
 
@@ -111,7 +144,10 @@ const RealEstateCard = ({ property }) => {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -4 }}
-            onClick={() => navigate(`/b2b/real-estate/property/${property._id}`)}
+            onClick={() => {
+                if (redirectToLoginIfRequired()) return;
+                navigate(`/b2b/real-estate/property/${property._id}`);
+            }}
             className="group bg-white rounded-xl overflow-hidden border border-gray-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-full"
         >
             {/* Image Container with Slider */}
@@ -235,6 +271,7 @@ const RealEstateCard = ({ property }) => {
                     </div>
                     <div
                         onClick={(e) => {
+                            if (redirectToLoginIfRequired(e)) return;
                             e.stopPropagation();
                             if (property.vendorId?._id) navigate(`/b2b/vendor/${property.vendorId._id}`);
                         }}
@@ -286,6 +323,7 @@ const RealEstateCard = ({ property }) => {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {
+                            if (redirectToLoginIfRequired(e)) return;
                             e.stopPropagation();
                             trackContactClick(property.vendorId?._id, 'whatsapp');
                         }}
@@ -297,6 +335,7 @@ const RealEstateCard = ({ property }) => {
                     <a
                         href={`tel:+91${sellerPhone}`}
                         onClick={(e) => {
+                            if (redirectToLoginIfRequired(e)) return;
                             e.stopPropagation();
                             trackContactClick(property.vendorId?._id, 'call');
                         }}
@@ -307,6 +346,7 @@ const RealEstateCard = ({ property }) => {
                     </a>
                     <button
                         onClick={(e) => {
+                            if (redirectToLoginIfRequired(e)) return;
                             e.stopPropagation();
                             const mapsUrl = getGoogleMapsUrl(property);
                             if (mapsUrl) {

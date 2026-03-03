@@ -10,6 +10,7 @@ const addressSchema = new mongoose.Schema(
     state: { type: String, trim: true },
     pincode: { type: String, trim: true }, // For B2B vendors (India-specific)
     country: { type: String, trim: true, default: 'India' },
+    mapUrl: { type: String, trim: true },
     lat: { type: Number, default: null },
     lng: { type: Number, default: null },
   },
