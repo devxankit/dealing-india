@@ -10,7 +10,8 @@ const B2BVendorProperties = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [listingType, setListingType] = useState("all");
-    const [businessType, setBusinessType] = useState("Developer");
+    const [propertyType, setPropertyType] = useState("all");
+    const [businessType, setBusinessType] = useState("all");
     const [businessTypes, setBusinessTypes] = useState([]);
 
     // Optimize: Initial data load in single useEffect
@@ -24,7 +25,7 @@ const B2BVendorProperties = () => {
     useEffect(() => {
         fetchProperties();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [listingType, businessType]); // Only refetch when filters change
+    }, [listingType, businessType, propertyType]); // Only refetch when filters change
 
     const fetchBusinessTypes = async () => {
         try {
@@ -51,6 +52,10 @@ const B2BVendorProperties = () => {
             }
             if (businessType !== 'all') {
                 params.businessType = businessType;
+            }
+            if (propertyType !== 'all') {
+                // Compatibility: some environments still store Villa entries as Plot.
+                params.propertyType = propertyType === 'Villa' ? 'Plot' : propertyType;
             }
 
             const response = await api.get('/admin/properties', { params });
@@ -127,6 +132,22 @@ const B2BVendorProperties = () => {
         }
     ];
 
+    const filteredProperties = properties.filter(item => {
+        const searchMatch =
+            item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.vendor?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.location?.city?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        if (!searchMatch) return false;
+        if (propertyType === 'all') return true;
+
+        const type = String(item.type || item.propertyType || '').toLowerCase();
+        if (propertyType === 'Villa') {
+            return type === 'villa' || type === 'plot';
+        }
+        return type === propertyType.toLowerCase();
+    });
+
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <div className="flex items-center justify-between">
@@ -142,6 +163,7 @@ const B2BVendorProperties = () => {
                             onChange={(e) => setBusinessType(e.target.value)}
                             className="pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 appearance-none cursor-pointer outline-none text-gray-700 font-medium"
                         >
+                            <option value="all">All Business Types</option>
                             {businessTypes.map(type => (
                                 <option key={type._id} value={type.name}>{type.name}</option>
                             ))}
@@ -160,6 +182,20 @@ const B2BVendorProperties = () => {
                             <option value="Sale">Sale</option>
                             <option value="Rent">Rent</option>
                             <option value="Lease">Lease</option>
+                        </select>
+                        <FiFilter className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+
+                    {/* Property Type Filter */}
+                    <div className="relative">
+                        <select
+                            value={propertyType}
+                            onChange={(e) => setPropertyType(e.target.value)}
+                            className="pl-4 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-primary-500 appearance-none cursor-pointer outline-none text-gray-700 font-medium"
+                        >
+                            <option value="all">All Property Types</option>
+                            <option value="Flat">Flat</option>
+                            <option value="Villa">Villa</option>
                         </select>
                         <FiFilter className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
@@ -184,11 +220,7 @@ const B2BVendorProperties = () => {
                     </div>
                 ) : (
                     <DataTable
-                        data={properties.filter(item =>
-                            item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            item.vendor?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            item.location?.city?.toLowerCase().includes(searchQuery.toLowerCase())
-                        )}
+                        data={filteredProperties}
                         columns={columns}
                         pagination={true}
                         itemsPerPage={10}

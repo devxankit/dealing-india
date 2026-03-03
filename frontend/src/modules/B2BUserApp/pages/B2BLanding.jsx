@@ -13,6 +13,7 @@ import realEstateIcon from '../../../assets/icon/WhatsApp Image 2026-02-28 at 2.
 import B2BBanner from '../components/B2BBanner';
 import B2BProductCard from '../components/B2BProductCard';
 import B2BVendorCard from '../components/B2BVendorCard';
+import SupportCards from '../components/SupportCards';
 import RealEstateCard from '../components/RealEstateCard';
 import api from '../../../shared/utils/api';
 import { debounce, getGoogleMapsUrl } from '../../../shared/utils/helpers';
@@ -1013,31 +1014,31 @@ const B2BLanding = () => {
                             </div>
                             {/* Mobile quick links beside logo */}
                             <div className="flex items-center gap-1 ml-1">
-                            <button
-                                onClick={() => {
-                                    if (!isAuthenticated) {
-                                        navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
-                                        return;
-                                    }
-                                    fetchLotProducts();
-                                    setActivePopup('lots');
-                                }}
-                                className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
-                            >
-                                <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / SOT
-                            </button>
-                            <button
-                                onClick={() => navigateWithAuth('/b2b/real-estate')}
-                                className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
-                            >
-                                <img src={realEstateIcon} alt="Real Estate" className="h-7 w-auto object-contain" /> Real Estate
-                            </button>
-                            <button
-                                onClick={() => navigate('/b2b-vendor/register')}
-                                className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-black text-white"
-                            >
-                                Seller
-                            </button>
+                                <button
+                                    onClick={() => {
+                                        if (!isAuthenticated) {
+                                            navigate('/b2b/login', { state: { from: { pathname: '/b2b/landing' } } });
+                                            return;
+                                        }
+                                        fetchLotProducts();
+                                        setActivePopup('lots');
+                                    }}
+                                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
+                                >
+                                    <img src={lotSlotIcon} alt="Lot" className="h-7 w-auto object-contain" /> Lot / SOT
+                                </button>
+                                <button
+                                    onClick={() => navigateWithAuth('/b2b/real-estate')}
+                                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-white border border-gray-200 text-gray-700 flex items-center gap-1"
+                                >
+                                    <img src={realEstateIcon} alt="Real Estate" className="h-7 w-auto object-contain" /> Real Estate
+                                </button>
+                                <button
+                                    onClick={() => navigate('/b2b-vendor/register')}
+                                    className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-black text-white"
+                                >
+                                    Seller
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1474,7 +1475,8 @@ const B2BLanding = () => {
                 `}</style>
             </section>
 
-
+            {/* --- SUPPORT SECTION --- */}
+            <SupportCards />
 
             {/* --- POPUPS --- */}
             <AnimatePresence>

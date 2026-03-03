@@ -16,6 +16,7 @@ const PlotForm = () => {
         title: '',
         listingType: 'Sale',
         description: '',
+        // Keep backend-compatible value while UI/labels use "Villa"
         propertyType: 'Plot',
 
         // Pricing
@@ -40,7 +41,7 @@ const PlotForm = () => {
             leaseDurationYears: ''
         },
 
-        // Plot Specific Details
+        // Villa Specific Details
         plotDetails: {
             plotArea: '',
             builtUpArea: '',
@@ -222,11 +223,11 @@ const PlotForm = () => {
 
             const response = await api.post('/property/add', payload);
             if (response.success) {
-                toast.success('Plot listed successfully!');
+                toast.success('Villa listed successfully!');
                 navigate('/b2b-vendor/properties/manage-properties');
             }
         } catch (error) {
-            toast.error(error.message || 'Failed to list plot');
+            toast.error(error.message || 'Failed to list villa');
         } finally {
             setLoading(false);
         }
@@ -235,7 +236,7 @@ const PlotForm = () => {
     const steps = [
         { id: 1, title: "Basic Info", sub: "Step 1" },
         { id: 2, title: "Pricing", sub: "Step 2" },
-        { id: 3, title: "Plot Details", sub: "Step 3" },
+        { id: 3, title: "Villa Details", sub: "Step 3" },
         { id: 4, title: "Facilities", sub: "Step 4" },
         { id: 5, title: "Legal & Media", sub: "Step 5" },
     ];
@@ -266,7 +267,7 @@ const PlotForm = () => {
                     <FiArrowLeft size={20} />
                 </button>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Add Plot</h1>
+                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Add Villa</h1>
                     <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Growth your business with Dealing India</p>
                 </div>
             </div>
@@ -293,7 +294,7 @@ const PlotForm = () => {
                         <motion.div key="step1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-900 uppercase tracking-widest mb-2">Listing Title <span className="text-red-500">*</span></label>
-                                <input type="text" name="title" value={formData.title} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-700" placeholder="E.g. Residential Plot in Prime Location" />
+                                <input type="text" name="title" value={formData.title} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-700" placeholder="E.g. Residential Villa in Prime Location" />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
@@ -370,7 +371,7 @@ const PlotForm = () => {
 
                     {step === 3 && (
                         <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
-                            <div className="text-xl font-black text-slate-900 uppercase">Plot Details</div>
+                            <div className="text-xl font-black text-slate-900 uppercase">Villa Details</div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="text-[10px] font-black uppercase">Plot Area</label>

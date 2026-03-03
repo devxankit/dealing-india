@@ -164,7 +164,7 @@ const ManageProperties = () => {
                                     <div className="text-center">
                                         <p className="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Type</p>
                                         <p className="text-[10px] font-black text-slate-700 truncate">
-                                            {property.flatDetails?.flatType || (property.plotDetails ? 'Plot' : property.propertyType)}
+                                            {property.flatDetails?.flatType || (property.plotDetails ? 'Villa' : property.propertyType)}
                                         </p>
                                     </div>
                                 </div>

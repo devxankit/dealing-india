@@ -50,7 +50,7 @@ const getChildRoute = (parentRoute, childName) => {
             "Manage Properties": "/b2b-vendor/properties/manage-properties",
             "Add Property": "/b2b-vendor/properties/add-property",
             "Add Flat": "/b2b-vendor/properties/add-flat",
-            "Add Plot": "/b2b-vendor/properties/add-plot"
+            "Add Villa": "/b2b-vendor/properties/add-villa"
         },
         "/b2b-vendor/lotslot": {
             "Manage Lots": "/b2b-vendor/lotslot/manage-lots",

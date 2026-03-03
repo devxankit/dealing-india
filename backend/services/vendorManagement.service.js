@@ -1,5 +1,6 @@
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
+import Property from '../models/Property.model.js';
 import User from '../models/User.model.js';
 
 import redisService from './redis.service.js';
@@ -364,6 +365,7 @@ export const getB2BVendors = async (filters = {}) => {
     const {
       status,
       search,
+      propertyType,
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
@@ -394,6 +396,59 @@ export const getB2BVendors = async (filters = {}) => {
           { gstNumber: { $regex: search.trim(), $options: 'i' } },
         ],
       });
+    }
+
+    // Optional filter: vendors having active properties of selected type
+    if (propertyType && String(propertyType).trim()) {
+      const normalizedType = String(propertyType).trim().toLowerCase();
+      let propertyQuery = { isActive: true };
+
+      if (normalizedType !== 'all' && normalizedType !== 'all property types') {
+        if (normalizedType === 'all-properties') {
+          // any active property (used by admin "All Properties" option)
+          propertyQuery = { isActive: true };
+        } else {
+          const escapedType = String(propertyType).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const typeMatchConditions = [
+            { propertyType: { $regex: new RegExp(`^${escapedType}$`, 'i') } },
+            { propertyTypes: { $elemMatch: { $regex: new RegExp(`^${escapedType}$`, 'i') } } },
+          ];
+
+          // Compatibility with older/newer record shapes:
+          // look for concrete nested values instead of object existence only.
+          if (normalizedType === 'flat') {
+            typeMatchConditions.push(
+              { 'flatDetails.flatType': { $exists: true, $ne: '' } },
+              { 'flatDetails.carpetArea': { $exists: true, $ne: null } }
+            );
+          }
+          if (normalizedType === 'plot' || normalizedType === 'villa') {
+            typeMatchConditions.push(
+              { 'plotDetails.floors': { $exists: true, $ne: '' } },
+              { 'plotDetails.plotArea': { $exists: true, $ne: null } }
+            );
+          }
+
+          propertyQuery = {
+            isActive: true,
+            $or: typeMatchConditions,
+          };
+        }
+      }
+
+      const matchingVendorIds = await Property.distinct('vendorId', propertyQuery);
+
+      if (!matchingVendorIds.length) {
+        return {
+          vendors: [],
+          total: 0,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: 0,
+        };
+      }
+
+      baseConditions.push({ _id: { $in: matchingVendorIds } });
     }
 
     // Build final query with $and to ensure ALL conditions are met

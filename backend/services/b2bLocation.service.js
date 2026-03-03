@@ -1,5 +1,7 @@
 import Vendor from '../models/Vendor.model.js';
 import Product from '../models/Product.model.js';
+import LotSlot from '../models/LotSlot.model.js';
+import Property from '../models/Property.model.js';
 import { toTitleCase, normalizeState, normalizeCity } from '../utils/addressNormalizer.util.js';
 
 /**
@@ -303,4 +305,184 @@ export const getB2BAvailableLocations = async (options = {}) => {
     console.error('Error fetching B2B locations:', error);
     throw error;
   }
+};
+
+const normalizeText = (value) => (value ? String(value).trim() : '');
+const normalizeKey = (value) => normalizeText(value).toLowerCase();
+const safeTitle = (value) => {
+  const text = normalizeText(value);
+  if (!text) return '';
+  return toTitleCase(text);
+};
+
+const addCity = (cityMap, city) => {
+  const cleanCity = safeTitle(city);
+  if (!cleanCity) return;
+  const key = normalizeKey(cleanCity);
+  if (!key || /^\d+$/.test(key)) return;
+  if (!cityMap.has(key)) cityMap.set(key, cleanCity);
+};
+
+const addArea = (areaMap, city, area) => {
+  const cleanCity = safeTitle(city);
+  const cleanArea = safeTitle(area);
+  if (!cleanCity || !cleanArea) return;
+  const cityKey = normalizeKey(cleanCity);
+  const areaKey = normalizeKey(cleanArea);
+  if (!cityKey || !areaKey) return;
+  const key = `${cityKey}::${areaKey}`;
+  if (!areaMap.has(key)) {
+    areaMap.set(key, { city: cleanCity, name: cleanArea });
+  }
+};
+
+const addMarket = (marketMap, city, area, market) => {
+  const cleanCity = safeTitle(city);
+  const cleanArea = safeTitle(area);
+  const cleanMarket = safeTitle(market);
+  if (!cleanCity || !cleanArea || !cleanMarket) return;
+  const cityKey = normalizeKey(cleanCity);
+  const areaKey = normalizeKey(cleanArea);
+  const marketKey = normalizeKey(cleanMarket);
+  if (!cityKey || !areaKey || !marketKey) return;
+  const key = `${cityKey}::${areaKey}::${marketKey}`;
+  if (!marketMap.has(key)) {
+    marketMap.set(key, { city: cleanCity, area: cleanArea, name: cleanMarket });
+  }
+};
+
+const matchesSelectedLocation = (entry, selectedCity, selectedArea, selectedMarket) => {
+  const cityMatch = !selectedCity || normalizeKey(entry.city) === normalizeKey(selectedCity);
+  const areaMatch = !selectedArea || normalizeKey(entry.area) === normalizeKey(selectedArea);
+  const marketMatch = !selectedMarket || normalizeKey(entry.market) === normalizeKey(selectedMarket);
+  return cityMatch && areaMatch && marketMatch;
+};
+
+/**
+ * Dynamic location filters from active listings (products + properties).
+ * Output is relational and only includes values that actually exist in listings.
+ */
+export const getB2BListingLocations = async (options = {}) => {
+  const {
+    city,
+    area,
+    market,
+    businessTypeFilter,
+    businessTypes = [],
+    includeProducts = true,
+    includeProperties = true,
+  } = options;
+
+  const selectedCity = normalizeText(city);
+  const selectedArea = normalizeText(area);
+  const selectedMarket = normalizeText(market);
+
+  const vendorQuery = {
+    vendorType: 'b2b',
+    isActive: true,
+    status: 'approved',
+  };
+
+  if (businessTypeFilter === 'include' && businessTypes.length > 0) {
+    vendorQuery.$or = businessTypes.map((bt) => ({
+      businessType: { $regex: `^${String(bt).trim()}$`, $options: 'i' }
+    }));
+  } else if (businessTypeFilter === 'exclude' && businessTypes.length > 0) {
+    vendorQuery.$and = businessTypes.map((bt) => ({
+      businessType: { $not: { $regex: `^${String(bt).trim()}$`, $options: 'i' } }
+    }));
+  }
+
+  const vendors = await Vendor.find(vendorQuery)
+    .select('_id address')
+    .lean();
+
+  const vendorById = new Map(vendors.map((v) => [String(v._id), v]));
+
+  const cityMap = new Map();
+  const areaMap = new Map();
+  const marketMap = new Map();
+  const propertyTypeMap = new Map();
+
+  // Product locations come from vendor registered address.
+  if (includeProducts) {
+    const [productVendorIds, lotSlotVendorIds] = await Promise.all([
+      Product.distinct('vendorId', { isActive: true, isVisible: { $ne: false } }),
+      LotSlot.distinct('vendorId', { isActive: true }),
+    ]);
+
+    const listingVendorIds = new Set([
+      ...productVendorIds.map((id) => String(id)),
+      ...lotSlotVendorIds.map((id) => String(id)),
+    ]);
+
+    listingVendorIds.forEach((vendorId) => {
+      const vendor = vendorById.get(vendorId);
+      if (!vendor) return;
+      const cityVal = normalizeText(vendor.address?.city);
+      const areaVal = normalizeText(vendor.address?.area);
+      const marketVal = normalizeText(vendor.address?.market);
+      if (!cityVal || !areaVal || !marketVal) return;
+
+      const entry = { city: cityVal, area: areaVal, market: marketVal };
+      if (!matchesSelectedLocation(entry, selectedCity, selectedArea, selectedMarket)) {
+        return;
+      }
+
+      addCity(cityMap, cityVal);
+      addArea(areaMap, cityVal, areaVal);
+      addMarket(marketMap, cityVal, areaVal, marketVal);
+    });
+  }
+
+  // Property locations prefer property.location, fallback vendor address.
+  if (includeProperties) {
+    const properties = await Property.find({ isActive: true })
+      .select('location vendorId propertyType')
+      .lean();
+
+    properties.forEach((property) => {
+      const vendor = vendorById.get(String(property.vendorId));
+      if (!vendor) return;
+
+      const cityVal = normalizeText(property.location?.city) || normalizeText(vendor.address?.city);
+      const areaVal = normalizeText(property.location?.area) || normalizeText(vendor.address?.area);
+      const marketVal = normalizeText(property.location?.market) || normalizeText(vendor.address?.market);
+
+      if (!cityVal || !areaVal || !marketVal) return;
+
+      const entry = { city: cityVal, area: areaVal, market: marketVal };
+      if (!matchesSelectedLocation(entry, selectedCity, selectedArea, selectedMarket)) {
+        return;
+      }
+
+      addCity(cityMap, cityVal);
+      addArea(areaMap, cityVal, areaVal);
+      addMarket(marketMap, cityVal, areaVal, marketVal);
+
+      const propertyType = normalizeText(property.propertyType);
+      if (propertyType) {
+        const normalizedTypeLabel = normalizeKey(propertyType) === 'plot' ? 'Villa' : safeTitle(propertyType);
+        const key = normalizeKey(normalizedTypeLabel);
+        if (!propertyTypeMap.has(key)) {
+          propertyTypeMap.set(key, normalizedTypeLabel);
+        }
+      }
+    });
+  }
+
+  const cities = Array.from(cityMap.values()).sort((a, b) => a.localeCompare(b));
+  const areas = Array.from(areaMap.values()).sort((a, b) => {
+    const cityCmp = a.city.localeCompare(b.city);
+    return cityCmp !== 0 ? cityCmp : a.name.localeCompare(b.name);
+  });
+  const markets = Array.from(marketMap.values()).sort((a, b) => {
+    const cityCmp = a.city.localeCompare(b.city);
+    if (cityCmp !== 0) return cityCmp;
+    const areaCmp = a.area.localeCompare(b.area);
+    return areaCmp !== 0 ? areaCmp : a.name.localeCompare(b.name);
+  });
+  const propertyTypes = Array.from(propertyTypeMap.values()).sort((a, b) => a.localeCompare(b));
+
+  return { cities, areas, markets, propertyTypes };
 };

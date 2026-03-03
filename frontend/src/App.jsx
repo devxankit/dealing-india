@@ -541,6 +541,7 @@ const AppRoutes = () => {
             <Route path="add-property" element={<B2BVendorAddProperty />} />
             <Route path="add-flat" element={<B2BVendorAddFlat />} />
             <Route path="add-plot" element={<B2BVendorAddPlot />} />
+            <Route path="add-villa" element={<B2BVendorAddPlot />} />
             <Route path="edit/:id" element={<B2BVendorEditProperty />} />
           </Route>
 

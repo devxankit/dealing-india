@@ -7,7 +7,7 @@ import { asyncHandler } from '../middleware/errorHandler.middleware.js';
  * GET /api/admin/properties
  */
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, search = '', status = 'all', vendor = 'all', listingType = 'all', businessType = 'all' } = req.query;
+    const { page = 1, limit = 10, search = '', status = 'all', vendor = 'all', listingType = 'all', businessType = 'all', propertyType = 'all' } = req.query;
 
     const query = {};
 
@@ -30,6 +30,32 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     // Listing Type Filter
     if (listingType !== 'all') {
         query.listingType = listingType;
+    }
+
+    // Property Type Filter (supports legacy + new record shapes)
+    if (propertyType !== 'all') {
+        const normalizedType = String(propertyType).trim().toLowerCase();
+        const escapedType = String(propertyType).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const typeConditions = [
+            { propertyType: { $regex: new RegExp(`^${escapedType}$`, 'i') } },
+            { propertyTypes: { $elemMatch: { $regex: new RegExp(`^${escapedType}$`, 'i') } } },
+        ];
+
+        if (normalizedType === 'flat') {
+            typeConditions.push(
+                { 'flatDetails.flatType': { $exists: true, $ne: '' } },
+                { 'flatDetails.carpetArea': { $exists: true, $ne: null } }
+            );
+        }
+        if (normalizedType === 'plot' || normalizedType === 'villa') {
+            typeConditions.push(
+                { 'plotDetails.floors': { $exists: true, $ne: '' } },
+                { 'plotDetails.plotArea': { $exists: true, $ne: null } }
+            );
+        }
+
+        query.$and = query.$and || [];
+        query.$and.push({ $or: typeConditions });
     }
 
     // Business Type Filter (Vendor's Business Type)
@@ -121,7 +147,7 @@ export const getAllProperties = asyncHandler(async (req, res) => {
     const formattedProperties = properties.map(prop => ({
         _id: prop._id,
         title: prop.title,
-        type: prop.propertyType,
+        type: prop.propertyType || (Array.isArray(prop.propertyTypes) && prop.propertyTypes[0]) || (prop.flatDetails ? 'Flat' : (prop.plotDetails ? 'Villa' : 'N/A')),
         listingType: prop.listingType,
         price: prop.price,
         location: prop.location,

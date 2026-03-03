@@ -63,6 +63,8 @@ const B2BVendorHeader = ({ onMenuClick }) => {
             
             "manage-properties": "Manage Properties",
             "add-property": "Add Property",
+            "add-villa": "Add Villa",
+            "add-plot": "Add Villa",
             "manage-lots": "Manage Lots",
             "add-lotslot": "Add Lot/Slot",
             subscription: "Subscription Plans",

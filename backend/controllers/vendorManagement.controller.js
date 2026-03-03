@@ -286,6 +286,7 @@ export const getB2BVendorsList = async (req, res, next) => {
     const {
       status = 'all',
       search = '',
+      propertyType = '',
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
@@ -295,6 +296,7 @@ export const getB2BVendorsList = async (req, res, next) => {
     const result = await getB2BVendors({
       status,
       search,
+      propertyType,
       page,
       limit,
       sortBy,

@@ -32,6 +32,7 @@ const RealEstate = () => {
     const [selectedPriceUnit, setSelectedPriceUnit] = useState('All');
     const [selectedAreaUnit, setSelectedAreaUnit] = useState('All');
     const [selectedListingType, setSelectedListingType] = useState('All');
+    const [selectedPropertyType, setSelectedPropertyType] = useState(searchParams.get('propertyType') || 'All');
     const [selectedArea, setSelectedArea] = useState('All Areas');
     const [selectedMarket, setSelectedMarket] = useState('All Markets');
     const [availableMarkets, setAvailableMarkets] = useState([]);
@@ -57,6 +58,7 @@ const RealEstate = () => {
 
     const [openSections, setOpenSections] = useState({
         listingType: false,
+        propertyType: false,
         businessType: false,
         city: false,
         area: false,
@@ -85,6 +87,7 @@ const RealEstate = () => {
                 city: selectedCity === 'All Cities' ? '' : selectedCity,
                 area: selectedArea === 'All Areas' ? '' : selectedArea,
                 market: selectedMarket === 'All Markets' ? '' : selectedMarket,
+                propertyType: selectedPropertyType === 'All' ? '' : (selectedPropertyType === 'Villa' ? 'Plot' : selectedPropertyType),
                 minPrice: appliedPrice.min,
                 maxPrice: appliedPrice.max,
                 minSize: appliedSize.min,
@@ -98,13 +101,25 @@ const RealEstate = () => {
             };
             const response = await api.get('/property/all', { params });
             if (response?.success) {
-                setProperties(response.data);
+                let nextProperties = Array.isArray(response.data) ? response.data : [];
+                // Fallback client-side filter for mixed legacy data (Plot used for Villa).
+                if (selectedPropertyType !== 'All') {
+                    const selected = selectedPropertyType.toLowerCase();
+                    nextProperties = nextProperties.filter((property) => {
+                        const type = String(property?.propertyType || '').toLowerCase();
+                        if (selected === 'villa') {
+                            return type === 'villa' || type === 'plot' || !!property?.plotDetails;
+                        }
+                        return type === selected;
+                    });
+                }
+                setProperties(nextProperties);
                 setMatchingVendors(response.matchingVendors || []);
 
                 // Extract unique areas from properties (from property form)
                 const areasSet = new Set();
-                if (Array.isArray(response.data)) {
-                    response.data.forEach(property => {
+                if (Array.isArray(nextProperties)) {
+                    nextProperties.forEach(property => {
                         const area = property.location?.area;
                         if (area && String(area).trim()) {
                             areasSet.add(area.trim());
@@ -117,8 +132,8 @@ const RealEstate = () => {
 
                 // Extract cities from properties (from property form)
                 const citiesSet = new Set();
-                if (Array.isArray(response.data)) {
-                    response.data.forEach(property => {
+                if (Array.isArray(nextProperties)) {
+                    nextProperties.forEach(property => {
                         const city = property.location?.city;
                         if (city && String(city).trim()) {
                             citiesSet.add(city.trim());
@@ -132,8 +147,8 @@ const RealEstate = () => {
 
                 // Extract markets from properties (from property form)
                 const marketsSet = new Set();
-                if (Array.isArray(response.data)) {
-                    response.data.forEach(property => {
+                if (Array.isArray(nextProperties)) {
+                    nextProperties.forEach(property => {
                         const market = property.location?.market;
                         if (market && String(market).trim()) {
                             marketsSet.add(market.trim());
@@ -157,7 +172,7 @@ const RealEstate = () => {
             fetchProperties();
         }, 500);
         return () => clearTimeout(timeoutId);
-    }, [searchQuery, selectedCity, selectedArea, selectedMarket, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId, sortBy, sortOrder]);
+    }, [searchQuery, selectedCity, selectedArea, selectedMarket, selectedPropertyType, appliedPrice, appliedSize, selectedAreaUnit, selectedPriceUnit, selectedListingType, selectedBusinessType, selectedVendorId, sortBy, sortOrder]);
 
     // Sync URL searchParams to local state for back/forward navigation and external links
     useEffect(() => {
@@ -325,6 +340,7 @@ const RealEstate = () => {
         setSelectedArea('All Areas');
         setSelectedMarket('All Markets');
         setSelectedListingType('All');
+        setSelectedPropertyType('All');
         setSelectedBusinessType('All');
         setSelectedPriceUnit('All');
         setSelectedAreaUnit('All');
@@ -373,6 +389,42 @@ const RealEstate = () => {
                                         key={type}
                                         onClick={() => setSelectedListingType(type)}
                                         className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${selectedListingType === type
+                                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
+                                            : 'text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        {type}
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {/* Property Type Filter */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <button
+                    onClick={() => toggleSection('propertyType')}
+                    className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                    <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">Property Type</h3>
+                    <FiChevronDown className={`text-gray-400 transition-transform ${openSections.propertyType ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                    {openSections.propertyType && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="p-4 space-y-2">
+                                {['All', 'Flat', 'Villa'].map((type) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setSelectedPropertyType(type)}
+                                        className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${selectedPropertyType === type
                                             ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
                                             : 'text-gray-500 hover:bg-gray-50'
                                             }`}
@@ -835,7 +887,7 @@ const RealEstate = () => {
                         className="w-12 h-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-primary-600 shadow-xl relative pointer-events-auto"
                     >
                         <FiFilter size={20} />
-                        {(selectedListingType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedMarket !== 'All Markets' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All' || selectedAreaUnit !== 'All') && (
+                        {(selectedListingType !== 'All' || selectedPropertyType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedMarket !== 'All Markets' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All' || selectedAreaUnit !== 'All') && (
                             <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>
                         )}
                     </button>
@@ -1090,6 +1142,17 @@ const RealEstate = () => {
                                                 <FiX className="cursor-pointer hover:text-primary-400 transition-colors" onClick={() => setSelectedListingType('All')} />
                                             </motion.span>
                                         )}
+                                        {selectedPropertyType !== 'All' && (
+                                            <motion.span
+                                                initial={{ opacity: 0, x: 20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                className="px-4 py-2 bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-3 shadow-lg"
+                                            >
+                                                {selectedPropertyType}
+                                                <FiX className="cursor-pointer hover:text-white/80 transition-colors" onClick={() => setSelectedPropertyType('All')} />
+                                            </motion.span>
+                                        )}
                                         {selectedArea !== 'All Areas' && (
                                             <motion.span
                                                 initial={{ opacity: 0, x: 20 }}
@@ -1136,7 +1199,7 @@ const RealEstate = () => {
                                         )}
                                     </AnimatePresence>
 
-                                    {(selectedListingType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All' || selectedAreaUnit !== 'All') && (
+                                    {(selectedListingType !== 'All' || selectedPropertyType !== 'All' || selectedCity !== 'All Cities' || selectedArea !== 'All Areas' || selectedBusinessType !== 'All' || appliedPrice.min || appliedPrice.max || appliedSize.min || appliedSize.max || selectedPriceUnit !== 'All' || selectedAreaUnit !== 'All') && (
                                         <button
                                             onClick={handleClearFilters}
                                             className="text-[10px] font-black text-gray-400 hover:text-primary-600 uppercase tracking-widest border-b-2 border-transparent hover:border-primary-600 pb-1 transition-all"

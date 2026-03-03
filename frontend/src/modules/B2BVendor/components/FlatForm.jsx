@@ -338,7 +338,7 @@ const FlatForm = () => {
                                 <div>
                                     <label className="text-[10px] font-black uppercase">Flat Type</label>
                                     <select name="flatDetails.flatType" value={formData.flatDetails.flatType} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['1BHK', '2BHK', '3BHK', '4BHK'].map(t => <option key={t} value={t}>{t}</option>)}
+                                        {['1BHK', '2BHK', '3BHK', '4BHK', '5BHK', '6BHK'].map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
                                 </div>
                                 <div>

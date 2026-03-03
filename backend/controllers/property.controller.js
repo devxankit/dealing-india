@@ -95,6 +95,16 @@ export const addProperty = asyncHandler(async (req, res) => {
         shopUnitId: shopUnit ? shopUnit._id : (req.body.shopUnitId || null)
     };
 
+    // Compatibility: allow "Villa" from new UI even when runtime enum still has only "Plot".
+    const enumValues = Property.schema.path('propertyType')?.enumValues || [];
+    if (
+        String(propertyData.propertyType || '').toLowerCase() === 'villa' &&
+        !enumValues.includes('Villa') &&
+        enumValues.includes('Plot')
+    ) {
+        propertyData.propertyType = 'Plot';
+    }
+
     // Clean up saleDetails if listingType is Sale
     if (propertyData.listingType === 'Sale' && propertyData.saleDetails) {
         delete propertyData.saleDetails.depositAmount;
@@ -169,6 +179,16 @@ export const updateProperty = asyncHandler(async (req, res) => {
     }
 
     const updateData = { ...req.body, shopUnitId };
+
+    // Compatibility: allow "Villa" updates even when runtime enum still has only "Plot".
+    const enumValues = Property.schema.path('propertyType')?.enumValues || [];
+    if (
+        String(updateData.propertyType || '').toLowerCase() === 'villa' &&
+        !enumValues.includes('Villa') &&
+        enumValues.includes('Plot')
+    ) {
+        updateData.propertyType = 'Plot';
+    }
 
     // Clean up saleDetails if listingType is Sale
     if (updateData.listingType === 'Sale' && updateData.saleDetails) {
@@ -313,13 +333,30 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 // @route   GET /api/public/property/all
 // @access  Public
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const { search, city, area, market, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
+    const { search, city, area, market, propertyType, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
 
     let query = { isActive: true };
     const queryConditions = [];
 
     if (vendorId) queryConditions.push({ vendorId });
     if (listingType && listingType !== 'All') queryConditions.push({ listingType });
+    if (propertyType && propertyType !== 'All') {
+        const normalizedType = String(propertyType).trim().toLowerCase();
+        if (normalizedType === 'villa') {
+            queryConditions.push({
+                $or: [
+                    { propertyType: { $regex: '^Villa$', $options: 'i' } },
+                    { propertyType: { $regex: '^Plot$', $options: 'i' } },
+                    { 'plotDetails.plotArea': { $exists: true, $ne: null } },
+                    { 'plotDetails.floors': { $exists: true, $ne: '' } }
+                ]
+            });
+        } else {
+            queryConditions.push({
+                propertyType: { $regex: `^${String(propertyType).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' }
+            });
+        }
+    }
 
     // Handle Location Filters (City, Area, Market) - Match property location OR vendor location
     if (city && city !== 'All Cities') {
