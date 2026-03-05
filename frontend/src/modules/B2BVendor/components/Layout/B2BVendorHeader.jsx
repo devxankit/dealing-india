@@ -60,9 +60,9 @@ const B2BVendorHeader = ({ onMenuClick }) => {
             dashboard: "Dashboard",
             "manage-products": "Manage Products",
             "add-product": "Add New Listing",
-            
+
             "manage-properties": "Manage Properties",
-            "add-property": "Add Property",
+            "add-property": "Add Commercial",
             "add-villa": "Add Villa",
             "add-plot": "Add Villa",
             "manage-lots": "Manage Lots",

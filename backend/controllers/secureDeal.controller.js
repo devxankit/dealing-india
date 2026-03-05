@@ -2,6 +2,7 @@ import SecureDeal from '../models/SecureDeal.model.js';
 import NotificationService from '../services/notification.service.js';
 import User from '../models/User.model.js';
 import Vendor from '../models/Vendor.model.js';
+import { uploadToCloudinary } from '../utils/cloudinary.util.js';
 import Product from '../models/Product.model.js';
 
 /**
@@ -120,7 +121,7 @@ export const getSellerSecureDeals = async (req, res, next) => {
         }
 
         const deals = await SecureDeal.find({ sellerId })
-            .populate('buyerId', 'name email phone address storeName')
+            .populate('buyerId', 'name email phone address storeName businessInfo avatar')
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -208,6 +209,83 @@ export const updateSecureDealStatus = async (req, res, next) => {
             success: true,
             message: `Secure Deal request ${status} successfully`,
             data: deal,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Upload Secure Deal document (Invoice/PDF)
+ * POST /api/order-deals/:id/upload
+ */
+export const uploadSecureDealDocument = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const sellerId = req.user.vendorId || req.user.id;
+
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No document file provided',
+            });
+        }
+
+        const deal = await SecureDeal.findOne({ _id: id, sellerId });
+        if (!deal) {
+            return res.status(404).json({
+                success: false,
+                message: 'Secure Deal not found or unauthorized',
+            });
+        }
+
+        // Upload to Cloudinary
+        const result = await uploadToCloudinary(req.file.buffer, 'secure-deals', {
+            resource_type: 'auto',
+        });
+
+        deal.document = result.secure_url;
+        await deal.save();
+
+        // Notify the buyer about the document
+        const io = req.app.get('io');
+        await NotificationService.createNotification({
+            recipientId: deal.buyerId,
+            recipientType: deal.buyerModel === 'Vendor' ? 'vendor' : 'user',
+            type: 'secure_deal_status',
+            title: 'Document Uploaded',
+            message: `A document has been uploaded for your deal: ${deal.productName}`,
+            actionUrl: '/b2b/secure-deals',
+            metadata: {
+                dealId: deal._id,
+                documentUrl: deal.document,
+            },
+        }, io);
+
+        res.status(200).json({
+            success: true,
+            message: 'Document uploaded successfully',
+            data: deal,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Get all Secure Deals (Admin)
+ * GET /api/order-deals/admin/all
+ */
+export const getAllSecureDeals = async (req, res, next) => {
+    try {
+        const deals = await SecureDeal.find()
+            .populate('sellerId', 'storeName name email phone')
+            .populate('buyerId', 'name email phone address storeName')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: deals,
         });
     } catch (error) {
         next(error);

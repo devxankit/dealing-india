@@ -334,7 +334,10 @@ const B2BVendorStore = () => {
                         <div className="flex flex-col gap-3 w-full md:w-auto md:min-w-[240px] pt-4 md:pt-0">
                             {vendor.phone && (
                                 <p className="text-[12px] md:text-sm font-black text-gray-900 uppercase tracking-widest text-center md:text-right px-4 mb-1">
-                                    PH: +91 {vendor.phone}
+                                    PH: +91 {(() => {
+                                        const p = String(vendor.phone).replace(/\D/g, "").slice(-10);
+                                        return p.length >= 4 ? `${p.substring(0, 2)}******${p.substring(p.length - 2)}` : vendor.phone;
+                                    })()}
                                 </p>
                             )}
                             {vendor.phone && (
@@ -396,28 +399,7 @@ const B2BVendorStore = () => {
                     </div>
                 </div>
 
-                {/* Shop Presentation Gallery - For Shop Listings */}
-                {shopListing && ((shopListing.image && shopListing.images?.length > 0) || shopListing.images?.length > 0) && (
-                    <div className="mb-12 md:mb-20">
-                        <div className="flex items-center gap-4 mb-8">
-                            <span className="h-[2px] w-12 bg-primary-600"></span>
-                            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Shop Presentation</h3>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {[...new Set([shopListing.image, ...(shopListing.images || [])])].filter(Boolean).map((img, idx) => (
-                                <motion.div
-                                    key={idx}
-                                    whileHover={{ scale: 1.02 }}
-                                    className="aspect-square rounded-3xl overflow-hidden border border-gray-100 shadow-sm"
-                                >
-                                    <img src={img} alt={`Shop ${idx + 1}`} className="w-full h-full object-cover" />
-                                </motion.div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Team / Contact Persons Section */}
+                {/* Team / Contact Persons Section - Moved Above Presentation */}
                 {shopListing?.details?.length > 0 && (
                     <div className="mb-12 md:mb-20">
                         <div className="flex items-center gap-4 mb-8">
@@ -440,9 +422,40 @@ const B2BVendorStore = () => {
                                         <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">{contact.name || 'N/A'}</h4>
                                         <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-2 opacity-70">{contact.post || 'Staff'}</p>
                                         {contact.mobile && (
-                                            <p className="text-[11px] font-bold text-gray-500">+91 {contact.mobile}</p>
+                                            <div className="flex items-center gap-3">
+                                                <p className="text-[11px] font-bold text-gray-500">+91 {contact.mobile}</p>
+                                                <a
+                                                    href={`https://wa.me/91${String(contact.mobile).replace(/\D/g, '')}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 bg-green-50 text-[#25D366] rounded-lg hover:bg-[#25D366] hover:text-white transition-all active:scale-90"
+                                                >
+                                                    <FaWhatsapp size={14} />
+                                                </a>
+                                            </div>
                                         )}
                                     </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Shop Presentation Gallery - For Shop Listings - Moved Below Contacts */}
+                {shopListing && ((shopListing.image && shopListing.images?.length > 0) || shopListing.images?.length > 0) && (
+                    <div className="mb-12 md:mb-20">
+                        <div className="flex items-center gap-4 mb-8">
+                            <span className="h-[2px] w-12 bg-primary-600"></span>
+                            <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">Shop Presentation</h3>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            {[...new Set([shopListing.image, ...(shopListing.images || [])])].filter(Boolean).map((img, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    whileHover={{ scale: 1.02 }}
+                                    className="aspect-square rounded-3xl overflow-hidden border border-gray-100 shadow-sm"
+                                >
+                                    <img src={img} alt={`Shop ${idx + 1}`} className="w-full h-full object-cover" />
                                 </motion.div>
                             ))}
                         </div>

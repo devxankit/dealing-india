@@ -743,10 +743,10 @@ const B2BLanding = () => {
             <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6">
                     {/* Web (md+): Grid with logo spanning both rows */}
-                    <div className="hidden md:grid md:grid-cols-[auto_1fr] md:items-center md:gap-4 md:py-2">
+                    <div className="hidden md:grid md:grid-cols-[auto_1fr] md:items-center md:gap-4 md:py-1">
                         {/* Logo - spans both rows */}
                         <div className="row-span-2 flex items-center pr-4 border-r border-gray-100">
-                            <img src={appLogo.src} alt="Dealing India" className="h-28 w-auto object-contain" />
+                            <img src={appLogo.src} alt="Dealing India" className="h-24 w-auto object-contain" />
                         </div>
                         {/* Row 1: Nav (Business Type, Lot, Real Estate, Become Seller, Profile) */}
                         <div className="flex items-center gap-2 lg:gap-4 justify-between py-1">
@@ -798,13 +798,13 @@ const B2BLanding = () => {
                                         }}
                                         className="px-3 py-2 text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
                                     >
-                                        <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-10 w-auto object-contain" /> Lot / SOT
+                                        <img src={lotSlotIcon} alt="Lot" className="h-7 md:h-8 w-auto object-contain" /> Lot / SOT
                                     </button>
                                     <button
                                         onClick={() => navigateWithAuth('/b2b/real-estate')}
                                         className="px-3 py-2 text-sm font-black text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap uppercase tracking-widest"
                                     >
-                                        <img src={realEstateIcon} alt="Real Estate" className="h-7 md:h-10 w-auto object-contain" /> Real Estate
+                                        <img src={realEstateIcon} alt="Real Estate" className="h-7 md:h-8 w-auto object-contain" /> Real Estate
                                     </button>
                                 </div>
                             </div>
@@ -962,8 +962,8 @@ const B2BLanding = () => {
                                     </AnimatePresence>
                                 </div>
                             </div>
-                            {/* Search bar - smaller on web */}
-                            <div className="relative  md:max-w-xs md:min-w-[400px]" ref={searchRef}>
+                            {/* Search bar - full width on web */}
+                            <div className="relative flex-1" ref={searchRef}>
                                 <div className="flex items-center bg-gray-50 rounded-xl border border-gray-100 px-3 py-1.5 transition-all focus-within:ring-2 focus-within:ring-primary-100 focus-within:border-primary-300 focus-within:bg-white">
                                     <FiSearch className="text-gray-400 mr-2 flex-shrink-0" size={16} />
                                     <input
@@ -1369,7 +1369,7 @@ const B2BLanding = () => {
             </section>
 
             {/* --- BANNER SECTION --- */}
-            <section className="w-full bg-white py-2">
+            <section className="w-full bg-white py-1">
                 <div className="max-w-[1920px] mx-auto px-2 md:px-4">
                     <div className="rounded-[1.2rem] md:rounded-[2rem] overflow-hidden shadow-lg border border-gray-50">
                         <B2BBanner />
@@ -1378,7 +1378,7 @@ const B2BLanding = () => {
             </section>
 
             {/* --- VENDOR SHIPS AUTO-SCROLL --- */}
-            <section className="w-full bg-white pt-2 pb-20 md:pb-12 overflow-hidden flex-none">
+            <section className="w-full bg-white pt-1 pb-20 md:pb-12 overflow-hidden flex-none">
                 <div className="max-w-[1920px] mx-auto px-4 md:px-6 mb-1 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="flex -space-x-2">

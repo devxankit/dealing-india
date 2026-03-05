@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiShield, FiPackage, FiTruck, FiMapPin, FiClock, FiCheckCircle, FiAlertCircle, FiXCircle } from 'react-icons/fi';
+import { FiShield, FiPackage, FiTruck, FiMapPin, FiClock, FiCheckCircle, FiAlertCircle, FiXCircle, FiDownload, FiFileText } from 'react-icons/fi';
 import B2BHeader from '../components/Layout/B2BHeader';
 import B2BBottomNav from '../components/Layout/B2BBottomNav';
 import api from '../../../shared/utils/api';
@@ -103,57 +103,133 @@ const SecureDeals = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     className="bg-white rounded-[2.5rem] p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-lg transition-all"
                                 >
-                                    <div className="flex flex-col gap-6">
-                                        <div className="flex justify-between items-start">
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                                        {/* Seller Info */}
+                                        <div className="space-y-4">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Seller Information</h4>
                                             <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600">
-                                                    <FiPackage size={24} />
+                                                <div className="w-12 h-12 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 font-black">
+                                                    {deal.sellerId?.storeName?.charAt(0) || deal.sellerId?.name?.charAt(0) || 'S'}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-black text-gray-800 tracking-tight leading-tight">{deal.productName}</h3>
-                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">
-                                                        Seller: {deal.sellerId?.storeName || deal.sellerId?.name || 'Unknown Seller'}
-                                                    </p>
+                                                    <p className="font-black text-gray-800 uppercase text-[11px]">{deal.sellerId?.storeName || deal.sellerId?.name || 'Verified Vendor'}</p>
+                                                    <div className="flex flex-col gap-0.5 mt-1">
+                                                        {deal.sellerId?.phone && (
+                                                            <p className="text-[10px] text-gray-500 font-black flex items-center gap-1.5 uppercase tracking-tight">
+                                                                PH: +91 {deal.sellerId.phone}
+                                                            </p>
+                                                        )}
+                                                        {deal.sellerId?.email && (
+                                                            <p className="text-[10px] text-primary-600 font-black flex items-center gap-1.5 lowercase tracking-tight">
+                                                                {deal.sellerId.email}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className={`px-4 py-1.5 rounded-full ${style.bg} ${style.text} ${style.border} border text-[10px] font-black uppercase tracking-widest flex items-center gap-2`}>
+                                            <div className={`mt-2 px-4 py-1.5 rounded-full ${style.bg} ${style.text} ${style.border} border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 w-fit`}>
                                                 <StatusIcon size={12} />
                                                 {deal.status}
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Quantity</p>
-                                                <p className="text-sm font-black text-gray-800">{deal.quantity.toLocaleString()} Units</p>
-                                            </div>
-                                            <div className="p-4 bg-primary-50 rounded-2xl border border-primary-100">
-                                                <p className="text-[8px] font-black text-primary-400 uppercase tracking-widest mb-1">Total Amount</p>
-                                                <p className="text-sm font-black text-primary-600">₹{deal.totalAmount.toLocaleString()}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-wrap gap-4 pt-2">
-                                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500">
-                                                <FiTruck className="text-gray-400" /> {deal.transport}
-                                            </div>
-                                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500">
-                                                <FiMapPin className="text-gray-400" /> {deal.station}
-                                            </div>
-                                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500">
-                                                <FiClock className="text-gray-400" /> {new Date(deal.createdAt).toLocaleDateString('en-GB')}
+                                        {/* Order Info */}
+                                        <div className="space-y-4">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Product Details</h4>
+                                            <div className="space-y-2">
+                                                <p className="text-sm font-black text-gray-700 flex items-center gap-2 uppercase tracking-tight">
+                                                    <FiPackage className="text-primary-500" /> {deal.productName}
+                                                </p>
+                                                <div className="flex gap-4">
+                                                    <div>
+                                                        <p className="text-[8px] font-black text-gray-400 uppercase">Quantity</p>
+                                                        <p className="text-sm font-black text-gray-800">{deal.quantity.toLocaleString()}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[8px] font-black text-gray-400 uppercase">Per Unit</p>
+                                                        <p className="text-sm font-black text-gray-800">₹{deal.pricePerUnit?.toLocaleString() || 'N/A'}</p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {deal.status === 'accepted' && (
-                                            <div className="mt-2 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-start gap-3">
-                                                <FiCheckCircle className="text-emerald-500 mt-1 flex-shrink-0" />
-                                                <p className="text-[10px] font-bold text-emerald-700 leading-relaxed uppercase tracking-wider">
-                                                    Seller has accepted your request. Please proceed with the payment as discussed or wait for further instructions via notifications.
+                                        {/* Summary */}
+                                        <div className="space-y-4">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Deal Summary</h4>
+                                            <div className="space-y-2">
+                                                <p className="text-xl font-black text-primary-600">₹{deal.totalAmount.toLocaleString()}</p>
+                                                <p className="text-[10px] font-bold text-gray-500 bg-gray-50 px-3 py-1 rounded-lg w-fit uppercase tracking-widest">
+                                                    {deal.selectionOption === 'min_order' ? 'MIN ORDER COMMITMENT' : 'ESCROW FULL PAYMENT'}
                                                 </p>
                                             </div>
-                                        )}
+                                        </div>
+
+                                        {/* Logistics */}
+                                        <div className="space-y-4">
+                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Logistics</h4>
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                                                    <FiTruck size={14} className="text-primary-500" /> {deal.transport || 'Standard'}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                                                    <FiMapPin size={14} className="text-primary-500" /> {deal.station || 'Local'}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest pt-2 border-t border-gray-50">
+                                                    <FiClock size={14} /> {new Date(deal.createdAt).toLocaleDateString('en-GB')}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    {deal.status === 'accepted' && (
+                                        <div className="mt-4 space-y-4">
+                                            <div className="p-5 bg-emerald-50 rounded-[2rem] border border-emerald-100 flex items-start gap-4">
+                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm flex-shrink-0">
+                                                    <FiCheckCircle size={20} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mb-1">Request Accepted</p>
+                                                    <p className="text-[10px] font-bold text-emerald-600/80 leading-relaxed uppercase tracking-wider">
+                                                        Seller has verified your order request. Please review the attached document and proceed with fulfillment.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {deal.document ? (
+                                                <div className="p-5 bg-primary-600 text-white rounded-[2rem] shadow-xl shadow-primary-100 flex items-center justify-between gap-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white backdrop-blur-md">
+                                                            <FiFileText size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[8px] font-black text-primary-100 uppercase tracking-widest opacity-80">Vendor Uploaded PDF</p>
+                                                            <p className="text-[11px] font-black uppercase tracking-tight">Invoice / Deal Terms.pdf</p>
+                                                        </div>
+                                                    </div>
+                                                    <a
+                                                        href={deal.document}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex items-center gap-2 px-6 py-3 bg-white text-primary-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95 shadow-lg"
+                                                    >
+                                                        <FiDownload /> Review
+                                                    </a>
+                                                </div>
+                                            ) : (
+                                                <div className="p-5 bg-amber-50 rounded-[2rem] border border-amber-100 flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-amber-500 shadow-sm flex-shrink-0">
+                                                        <FiClock size={20} className="animate-pulse" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Waiting for Document</p>
+                                                        <p className="text-[10px] font-bold text-amber-600/80 uppercase tracking-wider">
+                                                            Vendor is preparing the invoice or agreement for this deal.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </motion.div>
                             );
                         })

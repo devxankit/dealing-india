@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiShield, FiPackage, FiUser, FiMapPin, FiCheck, FiX, FiInfo, FiClock } from 'react-icons/fi';
+import { FiShield, FiPackage, FiUser, FiMapPin, FiCheck, FiX, FiInfo, FiClock, FiUpload, FiFileText, FiDownload } from 'react-icons/fi';
 import api from '../../../shared/utils/api';
 import toast from '../../../shared/utils/toast';
 
@@ -39,6 +39,27 @@ const SecureDeals = () => {
         }
     };
 
+    const handleDocumentUpload = async (id, file) => {
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('document', file);
+
+        try {
+            toast.loading('Uploading document...');
+            const res = await api.post(`/order-deals/${id}/upload`, formData);
+            toast.dismiss();
+            if (res.success) {
+                toast.success('Document uploaded successfully!');
+                fetchDeals();
+            }
+        } catch (error) {
+            toast.dismiss();
+            console.error('Error uploading document:', error);
+            toast.error(error.response?.data?.message || 'Failed to upload document');
+        }
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -53,9 +74,17 @@ const SecureDeals = () => {
                     </h1>
                     <p className="text-slate-400 font-medium mt-2">Manage your trusted B2B transactions and escrow deals</p>
                 </div>
-                <div className="flex items-center gap-4 bg-primary-50 px-6 py-3 rounded-2xl border border-primary-100">
-                    <FiInfo className="text-primary-600" />
-                    <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Safe Settlement Guaranteed</span>
+                <div className="flex flex-wrap items-center gap-4 bg-primary-50 px-6 py-3 rounded-2xl border border-primary-100">
+                    <div className="flex items-center gap-2 pr-4 border-r border-primary-100/50">
+                        <FiInfo className="text-primary-600" />
+                        <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Safe Settlement</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-primary-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">
+                            {deals.filter(d => d.status === 'pending').length}
+                        </div>
+                        <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Pending</span>
+                    </div>
                 </div>
             </header>
 
@@ -86,14 +115,33 @@ const SecureDeals = () => {
                                 <div className="space-y-4">
                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Buyer Information</h4>
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black">
-                                            {deal.buyerId?.name?.charAt(0)}
+                                        <div className="w-12 h-12 bg-slate-100 rounded-2xl overflow-hidden flex items-center justify-center text-slate-400 font-black border border-slate-200">
+                                            {deal.buyerId?.avatar ? (
+                                                <img src={deal.buyerId.avatar} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                deal.buyerId?.name?.charAt(0) || deal.buyerId?.storeName?.charAt(0) || 'U'
+                                            )}
                                         </div>
                                         <div>
-                                            <p className="font-black text-slate-800">{deal.buyerId?.name || 'N/A'}</p>
-                                            <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                                                <FiMapPin /> {deal.buyerId?.address?.city || 'City Unknown'}
+                                            <p className="font-black text-slate-800 uppercase text-[11px]">{deal.buyerId?.name || deal.buyerId?.storeName || 'N/A'}</p>
+                                            <p className="text-[9px] font-black text-primary-600 uppercase tracking-tight">
+                                                {deal.buyerId?.businessInfo?.companyName || 'Individual Buyer'}
                                             </p>
+                                            <div className="flex flex-col gap-0.5 mt-1">
+                                                <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1.5 uppercase tracking-tight">
+                                                    <FiMapPin size={10} /> {deal.buyerId?.address?.city || deal.buyerId?.businessInfo?.address?.city || 'City Unknown'}
+                                                </p>
+                                                {deal.buyerId?.phone && (
+                                                    <p className="text-[10px] text-slate-500 font-black flex items-center gap-1.5 uppercase tracking-tight">
+                                                        PH: +91 {deal.buyerId.phone}
+                                                    </p>
+                                                )}
+                                                {deal.buyerId?.businessInfo?.gstNumber && (
+                                                    <p className="text-[10px] text-emerald-600 font-black flex items-center gap-1.5 uppercase tracking-tight">
+                                                        GST: {deal.buyerId.businessInfo.gstNumber}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="pt-2">
@@ -139,7 +187,46 @@ const SecureDeals = () => {
 
                                 {/* Actions */}
                                 <div className="flex flex-col justify-center gap-3">
-                                    {deal.status === 'pending' ? (
+                                    {deal.status === 'accepted' ? (
+                                        <div className="space-y-3">
+                                            <div className="text-center p-4 bg-emerald-50 rounded-[1.5rem] border border-emerald-100">
+                                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Status: Accepted</p>
+                                                {deal.document ? (
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                                            <FiCheck className="text-emerald-500" /> Document Uploaded
+                                                        </span>
+                                                        <a
+                                                            href={deal.document}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-[10px] font-black text-primary-600 hover:underline flex items-center gap-1"
+                                                        >
+                                                            <FiDownload /> View PDF
+                                                        </a>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-[10px] font-bold text-slate-400">Waiting for Invoice/PDF</p>
+                                                )}
+                                            </div>
+
+                                            <div className="relative">
+                                                <input
+                                                    type="file"
+                                                    id={`doc-upload-${deal._id}`}
+                                                    className="hidden"
+                                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                                    onChange={(e) => handleDocumentUpload(deal._id, e.target.files[0])}
+                                                />
+                                                <label
+                                                    htmlFor={`doc-upload-${deal._id}`}
+                                                    className="w-full py-4 bg-primary-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-primary-100 hover:bg-primary-700 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                                                >
+                                                    <FiUpload size={16} /> {deal.document ? 'Update Document' : 'Upload Invoice/PDF'}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    ) : deal.status === 'pending' ? (
                                         <>
                                             <button
                                                 onClick={() => handleAction(deal._id, 'accepted')}
@@ -157,8 +244,8 @@ const SecureDeals = () => {
                                     ) : (
                                         <div className="text-center p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Finalized</p>
-                                            <p className={`text-xs font-black uppercase ${deal.status === 'accepted' ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                Request {deal.status}
+                                            <p className="text-xs font-black uppercase text-red-600">
+                                                Request Rejected
                                             </p>
                                         </div>
                                     )}

@@ -65,6 +65,11 @@
     "children": []
   },
   {
+    "title": "Secure Deals",
+    "route": "/admin/b2b-vendors/secure-deals",
+    "children": []
+  },
+  {
     "title": "Business Config",
     "route": "/admin/b2b-vendors/business-type-config",
     "children": []

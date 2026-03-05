@@ -54,7 +54,7 @@ const ManageProperties = () => {
 
         if (type === 'flat' || hasFlatDetails) return 'flat';
         if (type === 'villa' || type === 'plot' || hasVillaDetails) return 'villa';
-        return 'property';
+        return 'commercial';
     };
 
     const filteredProperties = useMemo(() => {
@@ -96,7 +96,7 @@ const ManageProperties = () => {
                         <option value="all">All Property Types</option>
                         <option value="flat">Flat</option>
                         <option value="villa">Villa</option>
-                        <option value="property">Property</option>
+                        <option value="commercial">Commercial</option>
                     </select>
                     {/* Wrapped with SubscriptionGate to enforce Premium plan and show max images */}
                     <SubscriptionGate action="property">

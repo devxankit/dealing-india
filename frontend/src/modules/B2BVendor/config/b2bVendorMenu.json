@@ -27,7 +27,7 @@
         "route": "/b2b-vendor/properties",
         "children": [
             "Manage Properties",
-            "Add Property",
+            "Add Commercial",
             "Add Flat",
             "Add Villa"
         ]

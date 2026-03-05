@@ -58,6 +58,9 @@ const secureDealSchema = new mongoose.Schema(
             enum: ['pending', 'accepted', 'rejected'],
             default: 'pending',
         },
+        document: {
+            type: String, // URL to the uploaded PDF/Invoice
+        },
     },
     {
         timestamps: true,

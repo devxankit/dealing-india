@@ -230,7 +230,12 @@ const SecureDealModal = ({ isOpen, onClose, product, buyer, products = [], onPro
                                             <input
                                                 type="number"
                                                 value={quantity}
-                                                onChange={(e) => setQuantity(Math.max(1, e.target.value))}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '') setQuantity('');
+                                                    else setQuantity(Math.max(1, parseInt(val) || 1));
+                                                }}
+                                                onFocus={(e) => e.target.select()}
                                                 className="w-full p-3.5 bg-white border border-gray-100 rounded-xl font-bold text-xs outline-none focus:border-primary-200 transition-all"
                                                 placeholder="Enter quantity"
                                             />
@@ -243,7 +248,12 @@ const SecureDealModal = ({ isOpen, onClose, product, buyer, products = [], onPro
                                             <input
                                                 type="number"
                                                 value={pricePerUnit}
-                                                onChange={(e) => setPricePerUnit(Math.max(0, e.target.value))}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (val === '') setPricePerUnit('');
+                                                    else setPricePerUnit(Math.max(0, parseFloat(val) || 0));
+                                                }}
+                                                onFocus={(e) => e.target.select()}
                                                 className="w-full pl-8 pr-4 py-3.5 bg-white border border-gray-100 rounded-xl font-bold text-xs outline-none focus:border-primary-200 transition-all font-sans"
                                                 placeholder="Enter unit price"
                                             />

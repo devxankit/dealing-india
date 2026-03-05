@@ -102,6 +102,9 @@ const AdminBusinessTypeConfiguration = lazyWithRetry(
 const AdminVendorDashboardView = lazyWithRetry(
   () => import("./modules/Admin/pages/b2b-vendors/AdminVendorDashboardView"),
 );
+const AdminSecureDeals = lazyWithRetry(
+  () => import("./modules/Admin/pages/b2b-vendors/AdminSecureDeals"),
+);
 const SupportSettings = lazyWithRetry(
   () => import("./modules/Admin/pages/SupportSettings"),
 );
@@ -159,6 +162,9 @@ const B2BVendorAddProperty = lazyWithRetry(
 );
 const B2BVendorAddFlat = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/properties/AddFlat"),
+);
+const B2BVendorAddVilla = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/properties/AddVilla"),
 );
 const B2BVendorAddPlot = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/properties/AddPlot"),
@@ -373,6 +379,10 @@ const AppRoutes = () => {
               element={<AdminVendorDashboardView />}
             />
             <Route
+              path="secure-deals"
+              element={<AdminSecureDeals />}
+            />
+            <Route
               path="manage/:id/contact-analytics"
               element={<B2BVendorContactAnalytics mode="admin" />}
             />
@@ -521,6 +531,7 @@ const AppRoutes = () => {
             <Route path="manage-properties" element={<B2BVendorManageProperties />} />
             <Route path="add-property" element={<B2BVendorAddProperty />} />
             <Route path="add-flat" element={<B2BVendorAddFlat />} />
+            <Route path="add-villa" element={<B2BVendorAddVilla />} />
             <Route path="add-plot" element={<B2BVendorAddPlot />} />
             <Route path="edit/:id" element={<B2BVendorEditProperty />} />
           </Route>
