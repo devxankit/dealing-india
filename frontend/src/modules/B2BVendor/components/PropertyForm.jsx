@@ -84,7 +84,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
             liftPassenger: 'No',
             liftLoading: 'No',
             powerBackup: 'No',
-            waterSupply: 'No',
+            waterSupply: [],
             washroom: ['Common'],
             fireSafety: 'No'
         }
@@ -302,7 +302,7 @@ const PropertyForm = ({ initialData, isEdit }) => {
                     <FiArrowLeft size={20} />
                 </button>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{isEdit ? 'Edit Property' : 'List New Property'}</h1>
+                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{isEdit ? 'Edit Commercial' : 'List New Commercial'}</h1>
                     <div className="flex items-center gap-2">
                         <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Growth your business with Dealing India</p>
                         <span className="md:hidden px-2 py-0.5 bg-primary-50 text-primary-600 rounded-full text-[9px] font-black uppercase transition-all">Step {step} of 5</span>
@@ -675,10 +675,45 @@ const PropertyForm = ({ initialData, isEdit }) => {
                                 </div>
                                 <div>
                                     <label className="label">Water Supply</label>
-                                    <select name="facilities.waterSupply" value={formData.facilities.waterSupply} onChange={handleChange} className="input-select">
-                                        <option value="No">No</option>
-                                        <option value="Yes">Yes</option>
-                                    </select>
+                                    <div className="flex gap-2">
+                                        {['24hr', 'Borewell', 'Municipal', 'No'].map(type => (
+                                            <label
+                                                key={type}
+                                                className={`flex-1 py-3 px-1 rounded-xl text-center text-[10px] font-black border-2 cursor-pointer transition-all ${(Array.isArray(formData.facilities.waterSupply) ? formData.facilities.waterSupply : [formData.facilities.waterSupply]).includes(type)
+                                                        ? 'bg-primary-600 text-white border-primary-600'
+                                                        : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(Array.isArray(formData.facilities.waterSupply) ? formData.facilities.waterSupply : [formData.facilities.waterSupply]).includes(type)}
+                                                    onChange={() => {
+                                                        const current = Array.isArray(formData.facilities.waterSupply) ? formData.facilities.waterSupply : [formData.facilities.waterSupply];
+                                                        let updated;
+
+                                                        if (type === 'No') {
+                                                            updated = ['No'];
+                                                        } else {
+                                                            const withoutNo = current.filter(t => t !== 'No');
+                                                            if (withoutNo.includes(type)) {
+                                                                updated = withoutNo.filter(t => t !== type);
+                                                            } else {
+                                                                updated = [...withoutNo, type];
+                                                            }
+                                                            if (updated.length === 0) updated = ['No'];
+                                                        }
+
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            facilities: { ...prev.facilities, waterSupply: updated }
+                                                        }));
+                                                    }}
+                                                    className="hidden"
+                                                />
+                                                {type}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="label">Washroom</label>

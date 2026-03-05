@@ -49,11 +49,19 @@ const ManageProperties = () => {
 
     const getPropertyBucket = (property) => {
         const type = String(property?.propertyType || '').toLowerCase();
-        const hasFlatDetails = !!property?.flatDetails;
-        const hasVillaDetails = !!property?.plotDetails;
 
-        if (type === 'flat' || hasFlatDetails) return 'flat';
-        if (type === 'villa' || type === 'plot' || hasVillaDetails) return 'villa';
+        // Priority 1: Explicit types
+        if (type === 'flat') return 'flat';
+        if (type === 'villa' || type === 'plot') return 'villa';
+
+        // Priority 2: Commercial types
+        const commercialTypes = ['shop', 'office', 'showroom', 'godown', 'factory', 'commercial building'];
+        if (commercialTypes.includes(type) || type === 'commercial' || type === 'property') return 'commercial';
+
+        // Priority 3: Check details for non-default markers if type is missing
+        if (property?.plotDetails?.plotArea > 0) return 'villa';
+        if (property?.flatDetails?.carpetArea > 0) return 'flat';
+
         return 'commercial';
     };
 
@@ -101,7 +109,7 @@ const ManageProperties = () => {
                     {/* Wrapped with SubscriptionGate to enforce Premium plan and show max images */}
                     <SubscriptionGate action="property">
                         <button
-                            onClick={() => navigate("/b2b-vendor/properties/add-property")}
+                            onClick={() => navigate("/b2b-vendor/properties/add-commercial")}
                             className="flex items-center justify-center gap-2 bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg w-full sm:w-auto whitespace-nowrap"
                         >
                             <FiPlus className="text-lg" /> New Listing

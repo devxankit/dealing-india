@@ -33,6 +33,7 @@ const RealEstate = () => {
     const [selectedAreaUnit, setSelectedAreaUnit] = useState('All');
     const [selectedListingType, setSelectedListingType] = useState('All');
     const [selectedPropertyType, setSelectedPropertyType] = useState(searchParams.get('propertyType') || 'All');
+    const [selectedFlatType, setSelectedFlatType] = useState(searchParams.get('flatType') || 'All');
     const [selectedArea, setSelectedArea] = useState('All Areas');
     const [selectedMarket, setSelectedMarket] = useState('All Markets');
     const [availableMarkets, setAvailableMarkets] = useState([]);
@@ -64,13 +65,14 @@ const RealEstate = () => {
         area: false,
         market: false,
         budget: false,
-        size: false
+        size: false,
+        flatType: true
     });
 
     const toggleSection = (section) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
-    
+
     useEffect(() => {
         const t = (searchParams.get('type') || '').toLowerCase();
         if (t === 'developer') setSelectedBusinessType('Developer');
@@ -88,7 +90,8 @@ const RealEstate = () => {
                 city: selectedCity === 'All Cities' ? '' : selectedCity,
                 area: selectedArea === 'All Areas' ? '' : selectedArea,
                 market: selectedMarket === 'All Markets' ? '' : selectedMarket,
-                propertyType: selectedPropertyType === 'All' ? '' : (selectedPropertyType === 'Villa' ? 'Plot' : selectedPropertyType),
+                propertyType: selectedPropertyType === 'All' ? '' : selectedPropertyType,
+                flatType: (selectedPropertyType === 'Flat' && selectedFlatType !== 'All') ? selectedFlatType : '',
                 minPrice: appliedPrice.min,
                 maxPrice: appliedPrice.max,
                 minSize: appliedSize.min,
@@ -108,9 +111,19 @@ const RealEstate = () => {
                     const selected = selectedPropertyType.toLowerCase();
                     nextProperties = nextProperties.filter((property) => {
                         const type = String(property?.propertyType || '').toLowerCase();
-                        if (selected === 'villa') {
-                            return type === 'villa' || type === 'plot' || !!property?.plotDetails;
-                        }
+
+                        // Priority 1: Explicit Match
+                        if (selected === 'villa' && (type === 'villa' || type === 'plot')) return true;
+                        if (selected === 'flat' && type === 'flat') return true;
+
+                        // Priority 2: Commercial Group
+                        const commercialTypes = ['shop', 'office', 'showroom', 'godown', 'factory', 'commercial building', 'commercial'];
+                        if (selected === 'commercial' && commercialTypes.includes(type)) return true;
+
+                        // Priority 3: Structural Match (for legacy/missing types)
+                        if (selected === 'villa' && property?.plotDetails?.plotArea > 0) return true;
+                        if (selected === 'flat' && property?.flatDetails?.carpetArea > 0) return true;
+
                         return type === selected;
                     });
                 }
@@ -342,6 +355,7 @@ const RealEstate = () => {
         setSelectedMarket('All Markets');
         setSelectedListingType('All');
         setSelectedPropertyType('All');
+        setSelectedFlatType('All');
         setSelectedBusinessType('All');
         setSelectedPriceUnit('All');
         setSelectedAreaUnit('All');
@@ -421,7 +435,7 @@ const RealEstate = () => {
                             className="overflow-hidden"
                         >
                             <div className="p-4 space-y-2">
-                                {['All', 'Flat', 'Villa'].map((type) => (
+                                {['All', 'Flat', 'Villa', 'Commercial'].map((type) => (
                                     <button
                                         key={type}
                                         onClick={() => setSelectedPropertyType(type)}
@@ -438,6 +452,44 @@ const RealEstate = () => {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* BHK Filter - Only for Flats */}
+            {selectedPropertyType === 'Flat' && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <button
+                        onClick={() => toggleSection('flatType')}
+                        className="w-full bg-gray-50/50 px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                        <h3 className="font-black text-xs uppercase tracking-wider text-gray-700">BHK Type</h3>
+                        <FiChevronDown className={`text-gray-400 transition-transform ${openSections.flatType ? 'rotate-180' : ''}`} />
+                    </button>
+                    <AnimatePresence>
+                        {openSections.flatType && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="p-4 space-y-2">
+                                    {['All', '1BHK', '2BHK', '3BHK', '4BHK', '5BHK', '6BHK'].map((type) => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setSelectedFlatType(type)}
+                                            className={`w-full text-left px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${selectedFlatType === type
+                                                ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
+                                                : 'text-gray-500 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            )}
 
             {/* Business Type Filter */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

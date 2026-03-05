@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiArrowLeft, FiPlus, FiTrash2, FiCheck } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -6,18 +6,21 @@ import toast from "../../../shared/utils/toast";
 import imageCompression from 'browser-image-compression';
 import api from "../../../shared/utils/api";
 
-const PlotForm = () => {
+const PlotForm = ({ initialData, isEdit, formType = "Villa" }) => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
     const [media, setMedia] = useState([]);
+
+    // Logic to determine initial property type
+    const initialPropertyType = initialData?.propertyType || formType;
 
     const [formData, setFormData] = useState({
         title: '',
         listingType: 'Sale',
         description: '',
         // Keep backend-compatible value while UI/labels use "Villa"
-        propertyType: 'Plot',
+        propertyType: initialPropertyType,
 
         // Pricing
         saleDetails: {
@@ -68,7 +71,7 @@ const PlotForm = () => {
                 security: 'No',
                 cctv: 'No',
                 powerBackup: 'No',
-                waterSupply: 'Municipal',
+                waterSupply: ['Municipal'],
                 gasPipeline: 'No',
                 swimmingPool: 'No',
                 gym: 'No',
@@ -94,6 +97,23 @@ const PlotForm = () => {
             mapUrl: ''
         }
     });
+
+    // Sync with initialData if editing
+    useEffect(() => {
+        if (initialData) {
+            setFormData(prev => ({
+                ...prev,
+                ...initialData,
+                plotDetails: {
+                    ...prev.plotDetails,
+                    ...(initialData.plotDetails || {})
+                }
+            }));
+            if (initialData.media) {
+                setMedia(initialData.media.map(m => ({ url: m.url, name: 'Existing Image' })));
+            }
+        }
+    }, [initialData]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -224,9 +244,12 @@ const PlotForm = () => {
                 media: media.map(m => ({ url: m.data }))
             };
 
-            const response = await api.post('/property/add', payload);
+            const response = isEdit
+                ? await api.put(`/property/update/${initialData._id}`, payload)
+                : await api.post('/property/add', payload);
+
             if (response.success) {
-                toast.success('Villa listed successfully!');
+                toast.success(`${formType} listed successfully!`);
                 navigate('/b2b-vendor/properties/manage-properties');
             }
         } catch (error) {
@@ -238,8 +261,8 @@ const PlotForm = () => {
 
     const steps = [
         { id: 1, title: "Basic Info", sub: "Step 1" },
-        { id: 2, title: "Pricing", sub: "Step 2" },
-        { id: 3, title: "Villa Details", sub: "Step 3" },
+        { id: 2, title: `${formType} Details`, sub: "Step 2" },
+        { id: 3, title: "Pricing", sub: "Step 3" },
         { id: 4, title: "Facilities", sub: "Step 4" },
         { id: 5, title: "Legal & Media", sub: "Step 5" },
     ];
@@ -270,7 +293,7 @@ const PlotForm = () => {
                     <FiArrowLeft size={20} />
                 </button>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Add Villa</h1>
+                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{isEdit ? 'Edit' : 'Add'} {formType}</h1>
                     <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">Growth your business with Dealing India</p>
                 </div>
             </div>
@@ -316,6 +339,73 @@ const PlotForm = () => {
 
                     {step === 2 && (
                         <motion.div key="step2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
+                            <div className="text-xl font-black text-slate-900 uppercase">{formType} Details</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Plot Area</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input type="text" name="plotDetails.plotArea" value={formData.plotDetails.plotArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 2000" />
+                                        <select name="plotDetails.plotAreaUnit" value={formData.plotDetails.plotAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
+                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Built-up Area</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input type="text" name="plotDetails.builtUpArea" value={formData.plotDetails.builtUpArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1500" />
+                                        <select name="plotDetails.builtUpAreaUnit" value={formData.plotDetails.builtUpAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
+                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Floors</label>
+                                    <select name="plotDetails.floors" value={formData.plotDetails.floors} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                        {['G+1', 'G+2'].map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase">Master Room</span>
+                                    <div className="w-32">{renderToggle('plotDetails.masterRoom', formData.plotDetails.masterRoom)}</div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Bedrooms</label>
+                                    <input type="text" name="plotDetails.bedrooms" value={formData.plotDetails.bedrooms} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 3" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Bathrooms</label>
+                                    <input type="text" name="plotDetails.bathrooms" value={formData.plotDetails.bathrooms} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 2" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Balcony</label>
+                                    <input type="text" name="plotDetails.balcony" value={formData.plotDetails.balcony} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1" />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase">Terrace</span>
+                                    <div className="w-32">{renderToggle('plotDetails.terrace', formData.plotDetails.terrace)}</div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Furnishing</label>
+                                    <select name="plotDetails.furnishing" value={formData.plotDetails.furnishing} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                        {['Unfurnished', 'Semi Furnished', 'Fully Furnished'].map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Age of Property</label>
+                                    <select name="plotDetails.ageOfProperty" value={formData.plotDetails.ageOfProperty} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-600">
+                                        <option value="New">New</option>
+                                        <option value="0-5 years">0-5 years</option>
+                                        <option value="5-10 years">5-10 years</option>
+                                        <option value="10+ years">10+ years</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {step === 3 && (
+                        <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
                             {formData.listingType === 'Sale' && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Sale Details</div>
@@ -372,68 +462,6 @@ const PlotForm = () => {
                         </motion.div>
                     )}
 
-                    {step === 3 && (
-                        <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
-                            <div className="text-xl font-black text-slate-900 uppercase">Villa Details</div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Plot Area</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <input type="text" name="plotDetails.plotArea" value={formData.plotDetails.plotArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 2000" />
-                                        <select name="plotDetails.plotAreaUnit" value={formData.plotDetails.plotAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
-                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Built-up Area</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <input type="text" name="plotDetails.builtUpArea" value={formData.plotDetails.builtUpArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1500" />
-                                        <select name="plotDetails.builtUpAreaUnit" value={formData.plotDetails.builtUpAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
-                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Floors</label>
-                                    <select name="plotDetails.floors" value={formData.plotDetails.floors} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['G+1', 'G+2'].map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase">Master Room</span>
-                                    <div className="w-32">{renderToggle('plotDetails.masterRoom', formData.plotDetails.masterRoom)}</div>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Bedrooms</label>
-                                    <input type="text" name="plotDetails.bedrooms" value={formData.plotDetails.bedrooms} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 3" />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Bathrooms</label>
-                                    <input type="text" name="plotDetails.bathrooms" value={formData.plotDetails.bathrooms} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 2" />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Balcony</label>
-                                    <input type="text" name="plotDetails.balcony" value={formData.plotDetails.balcony} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1" />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase">Terrace</span>
-                                    <div className="w-32">{renderToggle('plotDetails.terrace', formData.plotDetails.terrace)}</div>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Furnishing</label>
-                                    <select name="plotDetails.furnishing" value={formData.plotDetails.furnishing} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['Unfurnished', 'Semi Furnished', 'Fully Furnished'].map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Age of Property</label>
-                                    <input type="text" name="plotDetails.ageOfProperty" value={formData.plotDetails.ageOfProperty} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. New" />
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-
                     {step === 4 && (
                         <motion.div key="step4" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -452,12 +480,31 @@ const PlotForm = () => {
                                 <div className="space-y-4">
                                     <h4 className="text-[10px] font-black uppercase text-primary-600">Common & Premium</h4>
                                     <div className="grid grid-cols-1 gap-4">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex flex-col gap-2">
                                             <span className="text-[10px] font-black uppercase">Parking</span>
-                                            <select name="plotDetails.amenities.parking" value={formData.plotDetails.amenities.parking} onChange={handleChange} className="w-32 px-3 py-2 bg-slate-50 rounded-xl font-bold text-xs">
-                                                <option value="Covered">Covered</option>
-                                                <option value="Open">Open</option>
-                                            </select>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {['Ground Parking', 'Basement 1', 'Basement 2', 'Open', 'Covered'].map(type => (
+                                                    <label
+                                                        key={type}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : [formData.plotDetails.amenities.parking]).includes(type)
+                                                            ? 'bg-primary-600 text-white border-primary-600'
+                                                            : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                                                            }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            className="hidden"
+                                                            checked={(Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : [formData.plotDetails.amenities.parking]).includes(type)}
+                                                            onChange={() => {
+                                                                const current = Array.isArray(formData.plotDetails.amenities.parking) ? formData.plotDetails.amenities.parking : (formData.plotDetails.amenities.parking ? [formData.plotDetails.amenities.parking] : []);
+                                                                const next = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
+                                                                handleToggle('plotDetails.amenities.parking', next);
+                                                            }}
+                                                        />
+                                                        {type}
+                                                    </label>
+                                                ))}
+                                            </div>
                                         </div>
                                         {['security', 'cctv', 'powerBackup', 'swimmingPool', 'gym', 'clubHouse'].map(field => (
                                             <div key={field} className="flex items-center justify-between">
@@ -465,6 +512,52 @@ const PlotForm = () => {
                                                 <div className="w-32">{renderToggle(`plotDetails.amenities.${field}`, formData.plotDetails.amenities[field])}</div>
                                             </div>
                                         ))}
+                                        <div className="flex flex-col gap-2 pt-2">
+                                            <span className="text-[10px] font-black uppercase">Water Supply</span>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {['24hr', 'Borewell', 'Municipal', 'No'].map(type => (
+                                                    <label
+                                                        key={type}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply]).includes(type)
+                                                            ? 'bg-primary-600 text-white border-primary-600'
+                                                            : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                                                            }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            className="hidden"
+                                                            checked={(Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply]).includes(type)}
+                                                            onChange={() => {
+                                                                const current = Array.isArray(formData.plotDetails.amenities.waterSupply) ? formData.plotDetails.amenities.waterSupply : [formData.plotDetails.amenities.waterSupply];
+                                                                let updated;
+                                                                if (type === 'No') {
+                                                                    updated = ['No'];
+                                                                } else {
+                                                                    const withoutNo = current.filter(t => t !== 'No');
+                                                                    if (withoutNo.includes(type)) {
+                                                                        updated = withoutNo.filter(t => t !== type);
+                                                                    } else {
+                                                                        updated = [...withoutNo, type];
+                                                                    }
+                                                                    if (updated.length === 0) updated = ['No'];
+                                                                }
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    plotDetails: {
+                                                                        ...prev.plotDetails,
+                                                                        amenities: {
+                                                                            ...prev.plotDetails.amenities,
+                                                                            waterSupply: updated
+                                                                        }
+                                                                    }
+                                                                }));
+                                                            }}
+                                                        />
+                                                        {type}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

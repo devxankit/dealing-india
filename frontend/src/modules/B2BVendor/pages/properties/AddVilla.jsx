@@ -4,7 +4,7 @@ import SubscriptionGate from "../../components/SubscriptionGate";
 const AddVilla = () => {
     return (
         <SubscriptionGate action="property">
-            <PlotForm />
+            <PlotForm formType="Villa" />
         </SubscriptionGate>
     );
 };

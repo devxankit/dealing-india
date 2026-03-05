@@ -265,7 +265,7 @@ const B2BVendorDashboard = () => {
                                             <div className="p-3 bg-purple-100 text-purple-600 rounded-xl"><FiHome size={24} /></div>
                                             <button onClick={() => navigate('/b2b-vendor/properties')} className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
                                         </div>
-                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Property Portfolio</h3>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Commercial Portfolio</h3>
                                         <div className="flex items-end justify-between">
                                             <p className="text-4xl font-black text-slate-900">{dashboard.counts.properties.total}</p>
                                             <div className="text-right">
@@ -382,11 +382,11 @@ const B2BVendorDashboard = () => {
                                     <span className="text-[10px] font-black uppercase tracking-tight">Add Product</span>
                                 </button>
                                 <button
-                                    onClick={() => config.enablePropertyListing && navigate('/b2b-vendor/properties/add-property')}
+                                    onClick={() => config.enablePropertyListing && navigate('/b2b-vendor/properties/add-commercial')}
                                     className={`p-4 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${config.enablePropertyListing ? 'bg-slate-800 hover:bg-primary-600/20 hover:text-primary-400 border border-slate-700' : 'opacity-30 cursor-not-allowed bg-slate-800'}`}
                                 >
                                     <FiPlus size={20} />
-                                    <span className="text-[10px] font-black uppercase tracking-tight">Add Property</span>
+                                    <span className="text-[10px] font-black uppercase tracking-tight">Add Commercial</span>
                                 </button>
                             </div>
                         </div>

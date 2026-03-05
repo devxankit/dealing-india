@@ -28,7 +28,7 @@ const B2BVendorLayout = () => {
         if (path.includes('/b2b-vendor/products') && !settings.enabledModules.includes('product')) return false;
         if (path.includes('/b2b-vendor/shop-listing') && !settings.enabledModules.includes('shop-listing')) return false;
         if (path.includes('/b2b-vendor/properties') && !settings.enabledModules.includes('property')) return false;
-        if (path.includes('/b2b-vendor/properties/add-property') && !allowedPropertyForms.includes('property')) return false;
+        if (path.includes('/b2b-vendor/properties/add-commercial') && !allowedPropertyForms.includes('property')) return false;
         if (path.includes('/b2b-vendor/properties/add-flat') && !allowedPropertyForms.includes('flat')) return false;
         if (path.includes('/b2b-vendor/properties/add-villa') && !allowedPropertyForms.includes('villa')) return false;
         if (path.includes('/b2b-vendor/lotslot') && !settings.enabledModules.includes('lotslot')) return false;

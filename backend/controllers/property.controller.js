@@ -517,13 +517,18 @@ export const getPropertyById = asyncHandler(async (req, res) => {
 // @route   GET /api/public/property/all
 // @access  Public
 export const getAllProperties = asyncHandler(async (req, res) => {
-    const { search, city, area, market, propertyType, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
+    const { search, city, area, market, propertyType, flatType, minPrice, maxPrice, minSize, maxSize, priceUnit, areaUnit, type, listingType, vendorId, strict, sortBy, sortOrder } = req.query;
 
     let query = { isActive: true };
     const queryConditions = [];
 
     if (vendorId) queryConditions.push({ vendorId });
     if (listingType && listingType !== 'All') queryConditions.push({ listingType });
+
+    if (flatType && flatType !== 'All') {
+        queryConditions.push({ 'flatDetails.flatType': flatType });
+    }
+
     if (propertyType && propertyType !== 'All') {
         const normalizedType = String(propertyType).trim().toLowerCase();
         if (normalizedType === 'villa') {
@@ -531,8 +536,25 @@ export const getAllProperties = asyncHandler(async (req, res) => {
                 $or: [
                     { propertyType: { $regex: '^Villa$', $options: 'i' } },
                     { propertyType: { $regex: '^Plot$', $options: 'i' } },
-                    { 'plotDetails.plotArea': { $exists: true, $ne: null } },
-                    { 'plotDetails.floors': { $exists: true, $ne: '' } }
+                    { 'plotDetails.plotArea': { $gt: 0 } },
+                    { 'plotDetails.builtUpArea': { $gt: 0 } }
+                ]
+            });
+        } else if (normalizedType === 'flat') {
+            queryConditions.push({
+                $or: [
+                    { propertyType: { $regex: '^Flat$', $options: 'i' } },
+                    { 'flatDetails.carpetArea': { $gt: 0 } },
+                    { 'flatDetails.flatType': { $exists: true, $ne: '' } }
+                ]
+            });
+        } else if (normalizedType === 'commercial') {
+            queryConditions.push({
+                $or: [
+                    { propertyType: { $in: ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building'] } },
+                    { propertyTypes: { $in: ['Shop', 'Office', 'Showroom', 'Godown', 'Factory', 'Commercial Building'] } },
+                    { 'specifications.builtUpArea': { $exists: true } },
+                    { 'specifications.floorNumber': { $exists: true } }
                 ]
             });
         } else {

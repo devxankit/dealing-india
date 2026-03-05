@@ -32,7 +32,9 @@ const iconMap = {
     "Shop Listing": FiPackage,
     "Property Management": FiHome,
     "Manage Properties": FiHome,
-    "Add Property": FiPlus,
+    "Add Commercial": FiPlus,
+    "Add Flat": FiPlus,
+    "Add Villa": FiPlus,
     "Lot/Slot Listings": FiPlus,
     Subscription: FiCreditCard,
     "Banner Booking": FiImage,
@@ -50,7 +52,7 @@ const getChildRoute = (parentRoute, childName) => {
         },
         "/b2b-vendor/properties": {
             "Manage Properties": "/b2b-vendor/properties/manage-properties",
-            "Add Property": "/b2b-vendor/properties/add-property",
+            "Add Commercial": "/b2b-vendor/properties/add-commercial",
             "Add Flat": "/b2b-vendor/properties/add-flat",
             "Add Villa": "/b2b-vendor/properties/add-villa"
         },
@@ -126,7 +128,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
             : [];
 
         const childFormMap = {
-            'Add Property': 'property',
+            'Add Commercial': 'property',
             'Add Flat': 'flat',
             'Add Villa': 'villa'
         };

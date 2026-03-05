@@ -42,7 +42,7 @@ const PropertyUpload = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col pb-20">
-            <B2BHeader title="Upload Property" />
+            <B2BHeader title="Upload Commercial" />
 
             <main className="flex-1 max-w-4xl mx-auto px-4 py-12 w-full">
                 <div className="flex items-center gap-4 mb-8">
@@ -50,7 +50,7 @@ const PropertyUpload = () => {
                         <FiArrowLeft size={20} />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">List Your Property</h1>
+                        <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">List Your Commercial</h1>
                         <p className="text-gray-500 font-medium">Quick & easy property listing for verified partners</p>
                     </div>
                 </div>
@@ -59,7 +59,7 @@ const PropertyUpload = () => {
                     <form onSubmit={handleSubmit} className="space-y-8">
                         {/* Image Upload Section */}
                         <div>
-                            <label className="block text-[10px] font-black text-gray-800 uppercase tracking-[0.2em] mb-4">Property Gallery (Max 10 Photos)</label>
+                            <label className="block text-[10px] font-black text-gray-800 uppercase tracking-[0.2em] mb-4">Commercial Gallery (Max 10 Photos)</label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                                 {images.map((img, idx) => (
                                     <div key={idx} className="group relative aspect-square rounded-2xl overflow-hidden border border-gray-100">
@@ -88,7 +88,7 @@ const PropertyUpload = () => {
                         {/* Title & Type */}
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="block text-[10px] font-black text-gray-800 uppercase tracking-[0.2em] ml-2">Property Title</label>
+                                <label className="block text-[10px] font-black text-gray-800 uppercase tracking-[0.2em] ml-2">Commercial Title</label>
                                 <div className="relative">
                                     <FiHome className="absolute left-5 top-1/2 -translate-y-1/2 text-primary-600" />
                                     <input

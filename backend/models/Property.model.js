@@ -91,11 +91,11 @@ const propertySchema = new mongoose.Schema(
             ageOfProperty: String,
             amenities: {
                 lift: { type: String, enum: ['Yes', 'No'] },
-                parking: { type: String, enum: ['Covered', 'Open'] },
+                parking: { type: [String], enum: ['Ground Parking', 'Basement 1', 'Basement 2', 'Open', 'Covered'] },
                 security: { type: String, enum: ['Yes', 'No'] },
                 cctv: { type: String, enum: ['Yes', 'No'] },
                 powerBackup: { type: String, enum: ['Yes', 'No'] },
-                waterSupply: { type: String, enum: ['24hr', 'Borewell', 'Municipal'] },
+                waterSupply: { type: [String], enum: ['24hr', 'Borewell', 'Municipal', 'No'] },
                 gasPipeline: { type: String, enum: ['Yes', 'No'] },
                 swimmingPool: { type: String, enum: ['Yes', 'No'] },
                 gym: { type: String, enum: ['Yes', 'No'] },
@@ -136,11 +136,11 @@ const propertySchema = new mongoose.Schema(
                 servantRoom: { type: String, enum: ['Yes', 'No'] }
             },
             amenities: {
-                parking: { type: String, enum: ['Covered', 'Open'] },
+                parking: { type: [String], enum: ['Ground Parking', 'Basement 1', 'Basement 2', 'Open', 'Covered'] },
                 security: { type: String, enum: ['Yes', 'No'] },
                 cctv: { type: String, enum: ['Yes', 'No'] },
                 powerBackup: { type: String, enum: ['Yes', 'No'] },
-                waterSupply: { type: String, enum: ['24hr', 'Borewell', 'Municipal'] },
+                waterSupply: { type: [String], enum: ['24hr', 'Borewell', 'Municipal', 'No'] },
                 gasPipeline: { type: String, enum: ['Yes', 'No'] },
                 swimmingPool: { type: String, enum: ['Yes', 'No'] },
                 gym: { type: String, enum: ['Yes', 'No'] },

@@ -18,13 +18,13 @@ const Properties = () => {
     }, []);
 
     const statCards = [
-        { label: "Total Properties", value: stats.total, icon: FiHome, color: "text-blue-600", bg: "bg-blue-100" },
+        { label: "Total Commercial", value: stats.total, icon: FiHome, color: "text-blue-600", bg: "bg-blue-100" },
         { label: "Active Listings", value: stats.active, icon: FiTrendingUp, color: "text-green-600", bg: "bg-green-100" },
         { label: "Total Views", value: stats.views, icon: FiCamera, color: "text-purple-600", bg: "bg-purple-100" },
     ];
 
     const quickActions = [
-        { title: "List New Property", desc: "Add a new commercial or residential listing", icon: FiPlus, path: "/b2b-vendor/properties/add-property" },
+        { title: "List New Commercial", desc: "Add a new commercial or residential listing", icon: FiPlus, path: "/b2b-vendor/properties/add-commercial" },
         { title: "Manage Listings", desc: "Edit, deactivate or remove your properties", icon: FiHome, path: "/b2b-vendor/properties/manage-properties" },
     ];
 
@@ -32,14 +32,14 @@ const Properties = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight">Property Portfolio</h1>
+                    <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight">Commercial Portfolio</h1>
                     <p className="text-gray-500 font-medium">Manage your real estate listings and lead generation.</p>
                 </div>
                 <button
-                    onClick={() => navigate("/b2b-vendor/properties/add-property")}
+                    onClick={() => navigate("/b2b-vendor/properties/add-commercial")}
                     className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg"
                 >
-                    <FiPlus /> New Property
+                    <FiPlus /> New Commercial
                 </button>
             </div>
 

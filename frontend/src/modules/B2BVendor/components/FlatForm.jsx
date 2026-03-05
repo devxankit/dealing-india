@@ -55,7 +55,7 @@ const FlatForm = () => {
                 security: 'No',
                 cctv: 'No',
                 powerBackup: 'No',
-                waterSupply: 'Municipal',
+                waterSupply: ['Municipal'],
                 gasPipeline: 'No',
                 swimmingPool: 'No',
                 gym: 'No',
@@ -199,8 +199,8 @@ const FlatForm = () => {
 
     const steps = [
         { id: 1, title: "Basic Info", sub: "Step 1" },
-        { id: 2, title: "Pricing", sub: "Step 2" },
-        { id: 3, title: "Flat Details", sub: "Step 3" },
+        { id: 2, title: "Flat Details", sub: "Step 2" },
+        { id: 3, title: "Pricing", sub: "Step 3" },
         { id: 4, title: "Facilities", sub: "Step 4" },
         { id: 5, title: "Legal & Media", sub: "Step 5" },
     ];
@@ -277,6 +277,54 @@ const FlatForm = () => {
 
                     {step === 2 && (
                         <motion.div key="step2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
+                            <div className="text-xl font-black text-slate-900 uppercase">Flat Details</div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Flat Type</label>
+                                    <select name="flatDetails.flatType" value={formData.flatDetails.flatType} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                        {['1BHK', '2BHK', '3BHK', '4BHK', '5BHK', '6BHK'].map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Carpet Area</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input type="text" name="flatDetails.carpetArea" value={formData.flatDetails.carpetArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1200" />
+                                        <select name="flatDetails.carpetAreaUnit" value={formData.flatDetails.carpetAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
+                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase">Floor Number</label>
+                                        <input type="text" name="flatDetails.floorNumber" value={formData.flatDetails.floorNumber} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 5" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase">Total Floors</label>
+                                        <input type="text" name="flatDetails.totalFloors" value={formData.flatDetails.totalFloors} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 15" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Furnishing</label>
+                                    <select name="flatDetails.furnishing" value={formData.flatDetails.furnishing} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
+                                        {['Unfurnished', 'Semi Furnished', 'Fully Furnished'].map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase">Age of Property</label>
+                                    <select name="flatDetails.ageOfProperty" value={formData.flatDetails.ageOfProperty} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent focus:border-slate-300 rounded-2xl outline-none transition-all font-bold text-slate-600">
+                                        <option value="New">New</option>
+                                        <option value="0-5 years">0-5 years</option>
+                                        <option value="5-10 years">5-10 years</option>
+                                        <option value="10+ years">10+ years</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {step === 3 && (
+                        <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
                             {formData.listingType === 'Sale' && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2 text-xl font-black text-slate-900 uppercase">Sale Details</div>
@@ -333,49 +381,6 @@ const FlatForm = () => {
                         </motion.div>
                     )}
 
-                    {step === 3 && (
-                        <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
-                            <div className="text-xl font-black text-slate-900 uppercase">Flat Details</div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Flat Type</label>
-                                    <select name="flatDetails.flatType" value={formData.flatDetails.flatType} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['1BHK', '2BHK', '3BHK', '4BHK', '5BHK', '6BHK'].map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Carpet Area</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <input type="text" name="flatDetails.carpetArea" value={formData.flatDetails.carpetArea} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 1200" />
-                                        <select name="flatDetails.carpetAreaUnit" value={formData.flatDetails.carpetAreaUnit} onChange={handleChange} className="w-full px-4 py-4 bg-primary-50 text-primary-700 rounded-2xl font-bold">
-                                            {['Sq. Ft.', 'Sq. Mt.', 'Sq. Yd.', 'Acre', 'Gaj'].map(u => <option key={u} value={u}>{u}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase">Floor Number</label>
-                                        <input type="text" name="flatDetails.floorNumber" value={formData.flatDetails.floorNumber} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 5" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase">Total Floors</label>
-                                        <input type="text" name="flatDetails.totalFloors" value={formData.flatDetails.totalFloors} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 15" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Furnishing</label>
-                                    <select name="flatDetails.furnishing" value={formData.flatDetails.furnishing} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold">
-                                        {['Unfurnished', 'Semi Furnished', 'Fully Furnished'].map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase">Age of Property</label>
-                                    <input type="text" name="flatDetails.ageOfProperty" value={formData.flatDetails.ageOfProperty} onChange={handleChange} className="w-full px-6 py-4 bg-slate-50 rounded-2xl font-bold" placeholder="E.g. 2 years" />
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-
                     {step === 4 && (
                         <motion.div key="step4" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} className="space-y-8">
                             <div className="text-xl font-black text-slate-900 uppercase">Facilities & Amenities</div>
@@ -387,12 +392,31 @@ const FlatForm = () => {
                                             <span className="text-[10px] font-black uppercase">Lift</span>
                                             <div className="w-32">{renderToggle('flatDetails.amenities.lift', formData.flatDetails.amenities.lift)}</div>
                                         </div>
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex flex-col gap-2">
                                             <span className="text-[10px] font-black uppercase">Parking</span>
-                                            <select name="flatDetails.amenities.parking" value={formData.flatDetails.amenities.parking} onChange={handleChange} className="w-32 px-3 py-2 bg-slate-50 rounded-xl font-bold text-xs">
-                                                <option value="Covered">Covered</option>
-                                                <option value="Open">Open</option>
-                                            </select>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {['Ground Parking', 'Basement 1', 'Basement 2', 'Open', 'Covered'].map(type => (
+                                                    <label
+                                                        key={type}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : [formData.flatDetails.amenities.parking]).includes(type)
+                                                            ? 'bg-primary-600 text-white border-primary-600'
+                                                            : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                                                            }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            className="hidden"
+                                                            checked={(Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : [formData.flatDetails.amenities.parking]).includes(type)}
+                                                            onChange={() => {
+                                                                const current = Array.isArray(formData.flatDetails.amenities.parking) ? formData.flatDetails.amenities.parking : (formData.flatDetails.amenities.parking ? [formData.flatDetails.amenities.parking] : []);
+                                                                const next = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
+                                                                handleToggle('flatDetails.amenities.parking', next);
+                                                            }}
+                                                        />
+                                                        {type}
+                                                    </label>
+                                                ))}
+                                            </div>
                                         </div>
                                         {['security', 'cctv', 'powerBackup', 'gasPipeline'].map(field => (
                                             <div key={field} className="flex items-center justify-between">
@@ -400,13 +424,51 @@ const FlatForm = () => {
                                                 <div className="w-32">{renderToggle(`flatDetails.amenities.${field}`, formData.flatDetails.amenities[field])}</div>
                                             </div>
                                         ))}
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex flex-col gap-2">
                                             <span className="text-[10px] font-black uppercase">Water Supply</span>
-                                            <select name="flatDetails.amenities.waterSupply" value={formData.flatDetails.amenities.waterSupply} onChange={handleChange} className="w-32 px-3 py-2 bg-slate-50 rounded-xl font-bold text-xs">
-                                                <option value="24hr">24hr</option>
-                                                <option value="Borewell">Borewell</option>
-                                                <option value="Municipal">Municipal</option>
-                                            </select>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {['24hr', 'Borewell', 'Municipal', 'No'].map(type => (
+                                                    <label
+                                                        key={type}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black border cursor-pointer transition-all ${(Array.isArray(formData.flatDetails.amenities.waterSupply) ? formData.flatDetails.amenities.waterSupply : [formData.flatDetails.amenities.waterSupply]).includes(type)
+                                                            ? 'bg-primary-600 text-white border-primary-600'
+                                                            : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                                                            }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            className="hidden"
+                                                            checked={(Array.isArray(formData.flatDetails.amenities.waterSupply) ? formData.flatDetails.amenities.waterSupply : [formData.flatDetails.amenities.waterSupply]).includes(type)}
+                                                            onChange={() => {
+                                                                const current = Array.isArray(formData.flatDetails.amenities.waterSupply) ? formData.flatDetails.amenities.waterSupply : [formData.flatDetails.amenities.waterSupply];
+                                                                let updated;
+                                                                if (type === 'No') {
+                                                                    updated = ['No'];
+                                                                } else {
+                                                                    const withoutNo = current.filter(t => t !== 'No');
+                                                                    if (withoutNo.includes(type)) {
+                                                                        updated = withoutNo.filter(t => t !== type);
+                                                                    } else {
+                                                                        updated = [...withoutNo, type];
+                                                                    }
+                                                                    if (updated.length === 0) updated = ['No'];
+                                                                }
+                                                                setFormData(prev => ({
+                                                                    ...prev,
+                                                                    flatDetails: {
+                                                                        ...prev.flatDetails,
+                                                                        amenities: {
+                                                                            ...prev.flatDetails.amenities,
+                                                                            waterSupply: updated
+                                                                        }
+                                                                    }
+                                                                }));
+                                                            }}
+                                                        />
+                                                        {type}
+                                                    </label>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
