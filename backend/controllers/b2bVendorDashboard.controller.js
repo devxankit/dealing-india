@@ -6,6 +6,7 @@ import VendorSubscription from '../models/VendorSubscription.model.js';
 import Notification from '../models/Notification.model.js';
 import Vendor from '../models/Vendor.model.js';
 import ShopUnit from '../models/ShopUnit.model.js';
+import SecureDeal from '../models/SecureDeal.model.js';
 
 /**
  * Get B2B Vendor Dashboard Data
@@ -24,7 +25,8 @@ export const getDashboardData = async (req, res, next) => {
             subscriptions,
             notifications,
             vendorAnalytics,
-            shop
+            shop,
+            pendingSecureDeals
         ] = await Promise.all([
             Product.countDocuments({ vendorId }),
             Product.countDocuments({ vendorId, isActive: true }),
@@ -36,7 +38,8 @@ export const getDashboardData = async (req, res, next) => {
             VendorSubscription.find({ vendorId, status: 'active' }).populate('planId').lean(),
             Notification.find({ recipient: vendorId, recipientType: 'vendor' }).sort({ createdAt: -1 }).limit(5).lean(),
             Vendor.findById(vendorId).select('analytics').lean(),
-            ShopUnit.findOne({ vendorId }).select('_id').lean()
+            ShopUnit.findOne({ vendorId }).select('_id').lean(),
+            SecureDeal.countDocuments({ sellerId: vendorId, status: 'pending' })
         ]);
 
         // Format Data for Frontend
@@ -63,6 +66,9 @@ export const getDashboardData = async (req, res, next) => {
                     total: totalLotSlots,
                     approved: approvedLotSlots,
                     pending: totalLotSlots - approvedLotSlots
+                },
+                secureDeals: {
+                    pending: pendingSecureDeals
                 }
             },
             subscriptions: subscriptions.map(sub => ({

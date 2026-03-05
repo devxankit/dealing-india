@@ -14,7 +14,8 @@ import {
     FiCreditCard,
     FiLogOut,
     FiPlus,
-    FiBell
+    FiBell,
+    FiShield
 } from "react-icons/fi";
 import b2bVendorMenu from "../../config/b2bVendorMenu.json";
 import { useB2BVendorAuthStore } from "../../store/b2bVendorAuthStore";
@@ -27,7 +28,8 @@ const iconMap = {
     "Product Listings": FiPackage,
     "Manage Products": FiPackage,
     "Add Product": FiPackage,
-
+    "Secure Deals": FiShield,
+    "Shop Listing": FiPackage,
     "Property Management": FiHome,
     "Manage Properties": FiHome,
     "Add Property": FiPlus,
@@ -75,12 +77,10 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
 
     const displayVendorName = vendor?.name || "B2B Vendor";
     const vendorInitial = displayVendorName.charAt(0).toUpperCase();
-    const isDashboard = location.pathname === "/b2b-vendor/dashboard";
 
     useEffect(() => {
         const fetchUnreadCount = async () => {
             const now = Date.now();
-            // Prevent multiple calls within 2 seconds (e.g. strict mode or re-mounts)
             if (now - lastUnreadFetchTime < 2000) return;
 
             lastUnreadFetchTime = now;
@@ -99,15 +99,11 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
     }, []);
 
     const filteredMenu = b2bVendorMenu.filter(item => {
-        if (item.title === "Dashboard") return true;
+        if (item.title === "Dashboard" || item.title === "Secure Deals") return true;
 
-        // Items that don't depend on business type settings
         const alwaysVisible = ["Subscription", "Banner Booking", "Notifications", "Account Settings"];
         if (alwaysVisible.includes(item.title)) return true;
 
-
-
-        // Business-type-specific items — hide them until settings load
         if (!settings || !settings.enabledModules) return false;
 
         const moduleMap = {
@@ -118,9 +114,6 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
         };
         const moduleKey = moduleMap[item.title];
         if (!moduleKey) return true;
-        if (Array.isArray(moduleKey)) {
-            return moduleKey.some(key => settings.enabledModules.includes(key));
-        }
         return settings.enabledModules.includes(moduleKey);
     });
 
@@ -140,7 +133,7 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
 
         return item.children.filter((child) => {
             const formKey = childFormMap[child];
-            if (!formKey) return true; // Keep non-form items like "Manage Properties"
+            if (!formKey) return true;
             return allowedForms.includes(formKey);
         });
     };
@@ -251,23 +244,19 @@ const B2BVendorSidebar = ({ isOpen, onClose }) => {
         <div className="h-full flex flex-col bg-slate-800 shadow-xl overflow-hidden text-left">
             <div className="p-4 border-b border-slate-700 bg-slate-900 overflow-hidden">
                 <div className="flex items-center justify-between gap-3 min-w-0">
-                    <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
-                        {/* Vendor Initial Profile Icon - Matching Admin Style */}
-                        <div className="w-10 h-10 sm:w-11 sm:h-11 bg-primary-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0 text-white font-black text-xl border-2 border-primary-500">
+                    <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden text-left">
+                        <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0 text-white font-black text-xl border-2 border-primary-500">
                             {vendorInitial}
                         </div>
-                        <div className="flex-1 min-w-0 overflow-hidden text-left">
-                            <h2 className="font-bold text-white text-xs sm:text-sm truncate mb-0.5" title={displayVendorName}>
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                            <h2 className="font-bold text-white text-xs sm:text-sm truncate mb-0.5">
                                 {displayVendorName}
                             </h2>
-                            <p className="text-[10px] sm:text-xs text-gray-400 truncate block opacity-70" title={vendor?.email}>
+                            <p className="text-[10px] sm:text-xs text-gray-400 truncate block opacity-70">
                                 {vendor?.email || 'Vendor Account'}
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg lg:hidden flex-shrink-0">
-                        <FiX className="text-lg sm:text-xl text-gray-300" />
-                    </button>
                 </div>
             </div>
             <nav className="flex-1 overflow-y-auto p-3 pb-32 scrollbar-admin">

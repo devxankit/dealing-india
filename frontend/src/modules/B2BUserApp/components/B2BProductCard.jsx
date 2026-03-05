@@ -7,12 +7,10 @@ import { getGoogleMapsUrl } from '../../../shared/utils/helpers';
 import toast from '../../../shared/utils/toast';
 import { useAuthStore } from '../../../shared/store/authStore';
 
-const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemType, requireAuthForActions = false }) => {
+const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemType, requireAuthForActions = false, showSecureDeal = false }) => {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuthStore();
     const [activeImageIndex, setActiveImageIndex] = useState(0);
-
-    // Image logic for Shop Listing vs Standard Product
     let allImages = [];
     if (product.formType === 'shop-listing' && product.items?.length > 0) {
         allImages = [
@@ -244,6 +242,9 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                     </div>
                 </div>
 
+                <AnimatePresence>
+                </AnimatePresence>
+
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                     {vendor?.phone ? (
                         <>
@@ -289,11 +290,11 @@ const B2BProductCard = ({ product, viewMode = 'grid', trackContactClick, itemTyp
                                 <span className="hidden md:inline">Call</span>
                             </a>
                             <button
-                            onClick={(e) => {
-                                if (redirectToLoginIfRequired(e)) return;
-                                e.stopPropagation();
-                                const mapsUrl = getGoogleMapsUrl(vendor);
-                                if (mapsUrl) {
+                                onClick={(e) => {
+                                    if (redirectToLoginIfRequired(e)) return;
+                                    e.stopPropagation();
+                                    const mapsUrl = getGoogleMapsUrl(vendor);
+                                    if (mapsUrl) {
                                         if (trackContactClick && vendorIdStr) trackContactClick(vendorIdStr, 'map');
                                         window.open(mapsUrl, '_blank');
                                     } else {

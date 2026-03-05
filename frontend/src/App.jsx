@@ -204,6 +204,9 @@ const B2BVendorNotifications = lazyWithRetry(
 const B2BVendorShopListing = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/shop/ShopListing"),
 );
+const B2BVendorSecureDeals = lazyWithRetry(
+  () => import("./modules/B2BVendor/pages/SecureDeals"),
+);
 
 // B2B User App Routes
 const B2BUserLogin = lazyWithRetry(
@@ -263,6 +266,9 @@ const PropertyDetail = lazyWithRetry(
 const RealEstatePropertyUpload = lazyWithRetry(
   () => import("./modules/B2BVendor/pages/PropertyUpload"),
 );
+const B2BUserSecureDeals = lazyWithRetry(
+  () => import("./modules/B2BUserApp/pages/SecureDeals"),
+);
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
@@ -270,23 +276,6 @@ const AppRoutes = () => {
   useEffect(() => {
     // toast.success("System Connected");
   }, []);
-
-  // Initialize time warp testing cheat
-
-  /*
-  useEffect(() => {
-    // Only apply toast limiting for non-B2B routes or general toasts
-    // This allows multiple important toasts to stack if needed, or prevents aggressive clearing
-    const isB2BRoute = window.location.pathname.includes('b2b-vendor');
-
-    if (!isB2BRoute) {
-      toasts
-        .filter((t) => t.visible) // Only consider visible toasts
-        .filter((_, i) => i >= 1) // Limit to 1 toast
-        .forEach((t) => toast.dismiss(t.id)); // Dismiss the extra ones
-    }
-  }, [toasts]);
-  */
 
   return (
     <Suspense
@@ -387,22 +376,6 @@ const AppRoutes = () => {
               path="manage/:id/contact-analytics"
               element={<B2BVendorContactAnalytics mode="admin" />}
             />
-            <Route
-              path="banner-bookings"
-              element={<AdminB2BBannerManagement />}
-            />
-            <Route
-              path="banner-bookings/details/:id"
-              element={<AdminB2BBannerDetail />}
-            />
-            <Route
-              path="default-banners"
-              element={<AdminDefaultBannerManagement />}
-            />
-            <Route
-              path="business-type-config"
-              element={<AdminBusinessTypeConfiguration />}
-            />
           </Route>
 
           <Route path="notifications" element={<Notifications />} />
@@ -497,6 +470,14 @@ const AppRoutes = () => {
         />
         <Route path="/b2b/product/:id" element={<B2BProductDetail />} />
         <Route path="/b2b/vendor/:id" element={<B2BVendorStore />} />
+        <Route
+          path="/b2b/secure-deals"
+          element={
+            <ProtectedRoute>
+              <B2BUserSecureDeals />
+            </ProtectedRoute>
+          }
+        />
 
         {/* B2B Vendor Routes */}
         <Route path="/b2b-vendor/login" element={<B2BVendorLogin />} />
@@ -541,7 +522,6 @@ const AppRoutes = () => {
             <Route path="add-property" element={<B2BVendorAddProperty />} />
             <Route path="add-flat" element={<B2BVendorAddFlat />} />
             <Route path="add-plot" element={<B2BVendorAddPlot />} />
-            <Route path="add-villa" element={<B2BVendorAddPlot />} />
             <Route path="edit/:id" element={<B2BVendorEditProperty />} />
           </Route>
 
@@ -571,6 +551,7 @@ const AppRoutes = () => {
           />
           <Route path="profile" element={<B2BVendorProfile />} />
           <Route path="notifications" element={<B2BVendorNotifications />} />
+          <Route path="secure-deals" element={<B2BVendorSecureDeals />} />
         </Route>
         <Route path="*" element={<Navigate to="/b2b/landing" replace />} />
       </Routes>
@@ -608,16 +589,10 @@ function App() {
         localStorage.getItem("b2b-vendor-token") ||
         localStorage.getItem("admin-token");
       const hasFCM = localStorage.getItem("fcm_token_web");
-      console.log("[@App] Auth status and FCM check", {
-        hasAuth: !!hasAuth,
-        hasFCM: !!hasFCM,
-      });
       if (hasAuth && !hasFCM && ENABLE_FCM) {
         registerFCMToken(true)
           .then((t) =>
-            console.log("[@App] FCM token registered on startup", {
-              preview: t?.slice(0, 12),
-            }),
+            console.log("[@App] FCM token registered on startup")
           )
           .catch((e) =>
             console.error(

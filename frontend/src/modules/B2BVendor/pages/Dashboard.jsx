@@ -15,7 +15,8 @@ import {
     FiHome,
     FiCalendar,
     FiArrowUpRight,
-    FiMapPin
+    FiMapPin,
+    FiShield
 } from "react-icons/fi";
 import { useB2BVendorAuthStore } from "../store/b2bVendorAuthStore";
 import { useVendorSettings } from "../hooks/useVendorSettings";
@@ -98,6 +99,7 @@ const B2BVendorDashboard = () => {
         enableLotSlotListing: settings.enabledModules?.includes('lotslot') || false,
         enableBanner: settings.enabledModules?.includes('banner'),
         enableShopListing: settings.enabledModules?.includes('shop-listing') || false,
+        enableSecureDeals: true, // Always enable for vendors
 
         // Subscription Flags (Usually map to listing modules)
         enableProductSubscription: settings.enabledModules?.includes('product'),
@@ -235,6 +237,23 @@ const B2BVendorDashboard = () => {
                                             <div className="text-right">
                                                 <p className="text-[10px] font-bold text-emerald-500 uppercase">{dashboard.counts.products.approved} Approved</p>
                                                 <p className="text-[10px] font-bold text-amber-500 uppercase">{dashboard.counts.products.pending} Pending</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {config.enableSecureDeals && (
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm relative group overflow-hidden">
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><FiShield size={24} /></div>
+                                            <button onClick={() => navigate('/b2b-vendor/secure-deals')} className="text-slate-400 hover:text-slate-900"><FiArrowUpRight size={20} /></button>
+                                        </div>
+                                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4">Secure Deal Requests</h3>
+                                        <div className="flex items-end justify-between">
+                                            <p className="text-4xl font-black text-slate-900">{dashboard.counts.secureDeals?.pending || 0}</p>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-bold text-amber-500 uppercase">Pending Requests</p>
+                                                <p className="text-[10px] font-bold text-emerald-500 uppercase">Track Transactions</p>
                                             </div>
                                         </div>
                                     </div>

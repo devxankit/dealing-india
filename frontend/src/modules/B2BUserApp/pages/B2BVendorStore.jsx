@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import B2BHeader from "../components/Layout/B2BHeader";
 import B2BBottomNav from "../components/Layout/B2BBottomNav";
 import B2BProductCard from "../components/B2BProductCard";
+import SecureDealModal from "../components/SecureDealModal";
 import api from "../../../shared/utils/api";
 import { useAuthStore } from "../../../shared/store/authStore";
 import { getGoogleMapsUrl } from "../../../shared/utils/helpers";
@@ -28,7 +29,7 @@ const B2BVendorStore = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const itemType = searchParams.get('itemType') || 'product';
-    const { isAuthenticated } = useAuthStore();
+    const { isAuthenticated, user } = useAuthStore();
 
     const [vendor, setVendor] = useState(null);
     const [products, setProducts] = useState([]);
@@ -37,6 +38,8 @@ const B2BVendorStore = () => {
     const [viewMode, setViewMode] = useState("grid");
     const [sortBy, setSortBy] = useState("popular");
     const [searchQuery, setSearchQuery] = useState("");
+    const [isSecureDealOpen, setIsSecureDealOpen] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
 
     // Fetch vendor details and products
     useEffect(() => {
@@ -369,6 +372,26 @@ const B2BVendorStore = () => {
                                     View Shop Location
                                 </button>
                             )}
+                            <button
+                                onClick={() => {
+                                    if (!isAuthenticated) {
+                                        navigate('/b2b/login', { state: { from: { pathname: window.location.pathname } } });
+                                        return;
+                                    }
+                                    if (products && products.length > 0) {
+                                        setSelectedProduct(products[0]);
+                                    } else {
+                                        // If no products, we can't really start a "Secure Deal" for a product
+                                        toast.error("This vendor has no products listed for a Secure Deal");
+                                        return;
+                                    }
+                                    setIsSecureDealOpen(true);
+                                }}
+                                className="w-full px-8 py-5 md:py-6 bg-primary-600 text-white rounded-2xl md:rounded-[2rem] font-black text-[10px] md:text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-100 flex items-center justify-center gap-3 active:scale-95"
+                            >
+                                <FiShield size={20} />
+                                Start Secure Deal
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -496,6 +519,7 @@ const B2BVendorStore = () => {
                                 product={product}
                                 viewMode={viewMode}
                                 trackContactClick={trackContactClick}
+                                showSecureDeal={true}
                             />
                         ))}
                         {filteredProperties.map((property) => (
@@ -504,6 +528,20 @@ const B2BVendorStore = () => {
                     </div>
                 )}
             </main>
+
+            <AnimatePresence>
+                {isSecureDealOpen && (
+                    <SecureDealModal
+                        isOpen={isSecureDealOpen}
+                        onClose={() => setIsSecureDealOpen(false)}
+                        product={selectedProduct}
+                        buyer={user}
+                        products={products} // Pass all products for selection if needed
+                        onProductSelect={setSelectedProduct}
+                        sellerId={vendor?._id || id}
+                    />
+                )}
+            </AnimatePresence>
 
             <B2BBottomNav />
         </div>

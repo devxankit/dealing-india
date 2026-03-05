@@ -25,6 +25,8 @@ const notificationSchema = new mongoose.Schema(
         'custom',
         'vendor_registration',
         'banner_booking',
+        'secure_deal_request',
+        'secure_deal_status',
       ],
     },
     title: {

@@ -1,4 +1,4 @@
-// server.js - Updated at now now
+// server.js - Updated at 2026-03-05 11:08
 import express from "express";
 import http from "http";
 import cors from "cors";
@@ -78,6 +78,7 @@ import vendorNotificationRoutes from "./routes/vendorNotification.routes.js";
 import userNotificationRoutes from "./routes/userNotification.routes.js";
 import fcmTokenRoutes from "./routes/fcmToken.routes.js";
 import supportConfigRoutes from "./routes/supportConfig.routes.js";
+import secureDealRoutes from "./routes/secureDeal.routes.js";
 import { B2BSubscriptionExpiryCron } from "./Cron/SubscriptionCron.js";
 import { syncVendorViewsCron } from "./Cron/VendorViewSync.cron.js";
 import bannerBookingCron from "./Cron/BannerBooking.cron.js";
@@ -287,6 +288,7 @@ app.use("/api/auth/vendor", vendorAuthRoutes);
 app.use("/api/auth/admin", adminAuthRoutes);
 app.use("/api/auth/user", userAuthRoutes);
 app.use("/api/user", userAuthRoutes); // Alias for user data routes like /addresses
+app.use("/api/order-deals", secureDealRoutes);
 
 // Public routes
 app.use("/api/vendors", publicVendorRoutes);
@@ -375,7 +377,7 @@ app.use(errorHandler);
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: "Route not found",
+    message: "Debug: Route not found by server.js",
   });
 });
 
